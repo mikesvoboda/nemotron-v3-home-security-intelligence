@@ -138,10 +138,12 @@ volumes:
 
 **Model Download (Production - Nano 30B):**
 
+Download from the official NVIDIA HuggingFace repository: [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF)
+
 ```bash
 mkdir -p /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
 cd /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
-wget https://huggingface.co/bartowski/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
+wget https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 ```
 
 ### ai-florence (Florence-2)
@@ -360,10 +362,10 @@ Deploy without optional AI services (Florence, CLIP, Enrichment):
 # Build only core AI
 podman-compose -f docker-compose.prod.yml build ai-detector ai-llm
 
-# Download Nemotron model
+# Download Nemotron model from official NVIDIA repository
 mkdir -p /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km
 wget -O /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
-  https://huggingface.co/bartowski/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
+  https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF/resolve/main/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 
 # Start core services only
 podman-compose -f docker-compose.prod.yml up -d \
