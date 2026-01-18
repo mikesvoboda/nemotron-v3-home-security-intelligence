@@ -6,6 +6,7 @@ import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
 import { useStorageStatusStore, CRITICAL_USAGE_THRESHOLD } from '../../stores/storage-status-store';
 import { WebSocketStatus } from '../common';
+import { PageDocsLink } from './PageDocsLink';
 
 /**
  * Get the dot color class based on health status
@@ -253,6 +254,9 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-2 px-3 md:gap-6 md:px-6">
+        {/* Contextual documentation link */}
+        <PageDocsLink />
+
         {/* System Health Indicator with Tooltip */}
         <div
           ref={containerRef}
