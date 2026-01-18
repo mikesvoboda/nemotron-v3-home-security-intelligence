@@ -19,7 +19,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": null,
   "links": [],
   "liveNow": true,
   "panels": [
@@ -30,6 +29,413 @@
         "w": 24,
         "x": 0,
         "y": 0
+      },
+      "id": 271,
+      "panels": [],
+      "title": "Executive Summary",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FADE2A",
+                "value": 70
+              },
+              {
+                "color": "#F2495C",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 272,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_gpu_utilization",
+          "legendFormat": "GPU %",
+          "refId": "A"
+        }
+      ],
+      "title": "GPU Utilization",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F2495C",
+                "value": null
+              },
+              {
+                "color": "#FADE2A",
+                "value": 0.1
+              },
+              {
+                "color": "#73BF69",
+                "value": 0.5
+              }
+            ]
+          },
+          "unit": "fps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "id": 273,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_inference_fps",
+          "legendFormat": "Inference FPS",
+          "refId": "A"
+        }
+      ],
+      "title": "Inference FPS",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FADE2A",
+                "value": 10
+              },
+              {
+                "color": "#F2495C",
+                "value": 50
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "id": 274,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_detection_queue_depth",
+          "legendFormat": "Queue",
+          "refId": "A"
+        }
+      ],
+      "title": "Detection Queue",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FADE2A",
+                "value": 30
+              },
+              {
+                "color": "#F2495C",
+                "value": 60
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "id": 275,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_detect_latency_p95_ms / 1000",
+          "legendFormat": "P95",
+          "refId": "A"
+        }
+      ],
+      "title": "Pipeline P95 Latency",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FADE2A",
+                "value": 70
+              },
+              {
+                "color": "#F2495C",
+                "value": 85
+              }
+            ]
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "id": 276,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_gpu_temperature",
+          "legendFormat": "Temp",
+          "refId": "A"
+        }
+      ],
+      "title": "GPU Temp",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FADE2A",
+                "value": 80
+              },
+              {
+                "color": "#F2495C",
+                "value": 95
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "id": 277,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 10,
+        "minVizWidth": 0,
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "(hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb) * 100",
+          "legendFormat": "VRAM %",
+          "refId": "A"
+        }
+      ],
+      "title": "VRAM Usage",
+      "type": "bargauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
       },
       "id": 1,
       "panels": [],
@@ -45,7 +451,7 @@
         "h": 2,
         "w": 24,
         "x": 0,
-        "y": 1
+        "y": 6
       },
       "id": 2,
       "options": {
@@ -67,7 +473,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 3
+        "y": 8
       },
       "id": 10,
       "panels": [],
@@ -122,7 +528,7 @@
         "h": 6,
         "w": 6,
         "x": 0,
-        "y": 4
+        "y": 9
       },
       "id": 11,
       "options": {
@@ -208,7 +614,7 @@
         "h": 6,
         "w": 6,
         "x": 6,
-        "y": 10
+        "y": 15
       },
       "id": 12,
       "options": {
@@ -285,7 +691,7 @@
         "h": 6,
         "w": 3,
         "x": 12,
-        "y": 16
+        "y": 21
       },
       "id": 13,
       "options": {
@@ -395,7 +801,7 @@
         "h": 6,
         "w": 3,
         "x": 15,
-        "y": 22
+        "y": 27
       },
       "id": 14,
       "options": {
@@ -480,7 +886,7 @@
         "h": 6,
         "w": 3,
         "x": 18,
-        "y": 28
+        "y": 33
       },
       "id": 15,
       "options": {
@@ -565,7 +971,7 @@
         "h": 6,
         "w": 3,
         "x": 21,
-        "y": 34
+        "y": 39
       },
       "id": 16,
       "options": {
@@ -600,7 +1006,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 40
+        "y": 45
       },
       "id": 20,
       "panels": [],
@@ -672,7 +1078,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 41
+        "y": 46
       },
       "id": 21,
       "options": {
@@ -777,7 +1183,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 49
+        "y": 54
       },
       "id": 22,
       "options": {
@@ -934,7 +1340,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 73
+        "y": 78
       },
       "id": 25,
       "options": {
@@ -982,14 +1388,12 @@
       "type": "timeseries"
     },
     {
-      "type": "row",
-      "title": "GPU & Hardware",
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 79
+        "y": 84
       },
       "id": 264,
       "panels": [
@@ -2725,15 +3129,17 @@
           "title": "Container GPU Memory",
           "type": "timeseries"
         }
-      ]
+      ],
+      "title": "GPU & Hardware",
+      "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 80
+        "y": 85
       },
       "id": 40,
       "panels": [
@@ -3625,12 +4031,12 @@
       "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 81
+        "y": 86
       },
       "id": 270,
       "panels": [
@@ -4393,12 +4799,12 @@
       "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 82
+        "y": 87
       },
       "id": 50,
       "panels": [
@@ -4932,12 +5338,12 @@
       "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 82
+        "y": 87
       },
       "id": 60,
       "panels": [
@@ -5730,12 +6136,12 @@
       "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 83
+        "y": 88
       },
       "id": 70,
       "panels": [
@@ -6461,14 +6867,12 @@
       "type": "row"
     },
     {
-      "type": "row",
-      "title": "Worker Health",
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 84
+        "y": 89
       },
       "id": 265,
       "panels": [
@@ -6543,8 +6947,8 @@
                 "uid": "PBFA97CFB590B2093"
               },
               "expr": "hsi_pipeline_worker_state",
-              "legendFormat": "{{worker_name}}",
               "instant": true,
+              "legendFormat": "{{worker_name}}",
               "refId": "A"
             }
           ],
@@ -7132,15 +7536,17 @@
           "title": "Worker Pool",
           "type": "timeseries"
         }
-      ]
+      ],
+      "title": "Worker Health",
+      "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 85
+        "y": 90
       },
       "id": 80,
       "panels": [
@@ -8219,7 +8625,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 86
+        "y": 91
       },
       "id": 100,
       "panels": [],
@@ -8348,7 +8754,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 87
+        "y": 92
       },
       "id": 101,
       "options": {
@@ -8372,8 +8778,8 @@
             "uid": "PBFA97CFB590B2093"
           },
           "expr": "histogram_quantile(0.95, sum(rate(hsi_stage_duration_seconds_bucket{stage=\"watch\"}[5m])) by (le)) * 1000",
-          "legendFormat": "Watch P95",
           "instant": true,
+          "legendFormat": "Watch P95",
           "refId": "A"
         },
         {
@@ -8382,8 +8788,8 @@
             "uid": "PBFA97CFB590B2093"
           },
           "expr": "histogram_quantile(0.95, sum(rate(hsi_stage_duration_seconds_bucket{stage=\"detect\"}[5m])) by (le)) * 1000",
-          "legendFormat": "Detect P95",
           "instant": true,
+          "legendFormat": "Detect P95",
           "refId": "B"
         },
         {
@@ -8392,8 +8798,8 @@
             "uid": "PBFA97CFB590B2093"
           },
           "expr": "histogram_quantile(0.95, sum(rate(hsi_stage_duration_seconds_bucket{stage=\"batch\"}[5m])) by (le)) * 1000",
-          "legendFormat": "Batch P95",
           "instant": true,
+          "legendFormat": "Batch P95",
           "refId": "C"
         },
         {
@@ -8402,8 +8808,8 @@
             "uid": "PBFA97CFB590B2093"
           },
           "expr": "histogram_quantile(0.95, sum(rate(hsi_stage_duration_seconds_bucket{stage=\"analyze\"}[5m])) by (le)) * 1000",
-          "legendFormat": "Analyze P95",
           "instant": true,
+          "legendFormat": "Analyze P95",
           "refId": "D"
         }
       ],
@@ -8497,7 +8903,7 @@
         "h": 8,
         "w": 16,
         "x": 8,
-        "y": 95
+        "y": 100
       },
       "id": 102,
       "options": {
@@ -8555,12 +8961,12 @@
       "type": "timeseries"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 103
+        "y": 108
       },
       "id": 110,
       "panels": [
@@ -8868,12 +9274,12 @@
       "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 104
+        "y": 109
       },
       "id": 130,
       "panels": [
@@ -9194,12 +9600,12 @@
       "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 105
+        "y": 110
       },
       "id": 140,
       "panels": [
@@ -9497,12 +9903,12 @@
       "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 106
+        "y": 111
       },
       "id": 150,
       "panels": [
@@ -9784,7 +10190,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 107
+        "y": 112
       },
       "id": 200,
       "panels": [],
@@ -9796,6 +10202,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Target: 99.5%",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -9833,7 +10240,7 @@
         "h": 6,
         "w": 4,
         "x": 0,
-        "y": 108
+        "y": 113
       },
       "id": 201,
       "options": {
@@ -9861,7 +10268,6 @@
         }
       ],
       "title": "API Availability (30d)",
-      "description": "Target: 99.5%",
       "type": "gauge"
     },
     {
@@ -9869,6 +10275,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Target: < 2s",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -9906,7 +10313,7 @@
         "h": 6,
         "w": 4,
         "x": 4,
-        "y": 114
+        "y": 119
       },
       "id": 202,
       "options": {
@@ -9934,7 +10341,6 @@
         }
       ],
       "title": "Detection Latency P95",
-      "description": "Target: < 2s",
       "type": "gauge"
     },
     {
@@ -9942,6 +10348,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Target: < 30s",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -9979,7 +10386,7 @@
         "h": 6,
         "w": 4,
         "x": 8,
-        "y": 120
+        "y": 125
       },
       "id": 203,
       "options": {
@@ -10007,7 +10414,6 @@
         }
       ],
       "title": "Analysis Latency P95",
-      "description": "Target: < 30s",
       "type": "gauge"
     },
     {
@@ -10015,6 +10421,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "API Availability error budget",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -10052,7 +10459,7 @@
         "h": 6,
         "w": 4,
         "x": 12,
-        "y": 126
+        "y": 131
       },
       "id": 204,
       "options": {
@@ -10080,7 +10487,6 @@
         }
       ],
       "title": "Error Budget Remaining",
-      "description": "API Availability error budget",
       "type": "gauge"
     },
     {
@@ -10125,7 +10531,7 @@
         "h": 6,
         "w": 4,
         "x": 16,
-        "y": 132
+        "y": 137
       },
       "id": 205,
       "options": {
@@ -10197,7 +10603,7 @@
         "h": 6,
         "w": 4,
         "x": 20,
-        "y": 138
+        "y": 143
       },
       "id": 206,
       "options": {
@@ -10232,6 +10638,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Target: 99.5%",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -10293,7 +10700,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 144
+        "y": 149
       },
       "id": 207,
       "options": {
@@ -10347,7 +10754,6 @@
         }
       ],
       "title": "API Availability Over Time",
-      "description": "Target: 99.5%",
       "type": "timeseries"
     },
     {
@@ -10355,6 +10761,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Burn rate > 1 means consuming error budget faster than planned",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -10414,7 +10821,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 152
+        "y": 157
       },
       "id": 208,
       "options": {
@@ -10459,7 +10866,6 @@
         }
       ],
       "title": "API Availability Burn Rate",
-      "description": "Burn rate > 1 means consuming error budget faster than planned",
       "type": "timeseries"
     },
     {
@@ -10467,6 +10873,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Target: P95 < 2s",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -10526,7 +10933,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 160
+        "y": 165
       },
       "id": 209,
       "options": {
@@ -10562,7 +10969,6 @@
         }
       ],
       "title": "Detection Latency (SLI)",
-      "description": "Target: P95 < 2s",
       "type": "timeseries"
     },
     {
@@ -10570,6 +10976,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "Target: P95 < 30s",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -10629,7 +11036,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 168
+        "y": 173
       },
       "id": 210,
       "options": {
@@ -10665,16 +11072,15 @@
         }
       ],
       "title": "Analysis Latency (SLI)",
-      "description": "Target: P95 < 30s",
       "type": "timeseries"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 176
+        "y": 181
       },
       "id": 230,
       "panels": [
@@ -11684,7 +12090,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 177
+        "y": 182
       },
       "id": 220,
       "panels": [],
@@ -11728,7 +12134,7 @@
         "h": 6,
         "w": 4,
         "x": 0,
-        "y": 178
+        "y": 183
       },
       "id": 221,
       "options": {
@@ -11786,7 +12192,7 @@
         "h": 6,
         "w": 4,
         "x": 4,
-        "y": 184
+        "y": 189
       },
       "id": 222,
       "options": {
@@ -11852,7 +12258,7 @@
         "h": 6,
         "w": 4,
         "x": 8,
-        "y": 190
+        "y": 195
       },
       "id": 223,
       "options": {
@@ -11925,7 +12331,7 @@
         "h": 6,
         "w": 4,
         "x": 12,
-        "y": 196
+        "y": 201
       },
       "id": 224,
       "options": {
@@ -12020,7 +12426,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 202
+        "y": 207
       },
       "id": 225,
       "options": {
@@ -12107,7 +12513,7 @@
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 210
+        "y": 215
       },
       "id": 226,
       "options": {
@@ -12194,7 +12600,7 @@
         "h": 6,
         "w": 8,
         "x": 8,
-        "y": 216
+        "y": 221
       },
       "id": 227,
       "options": {
@@ -12281,7 +12687,7 @@
         "h": 6,
         "w": 8,
         "x": 16,
-        "y": 222
+        "y": 227
       },
       "id": 228,
       "options": {
@@ -12318,7 +12724,11 @@
   "templating": {
     "list": [
       {
-        "current": { "selected": true, "text": "7", "value": "7" },
+        "current": {
+          "selected": true,
+          "text": "7",
+          "value": "7"
+        },
         "description": "Time period for AI audit statistics",
         "hide": 0,
         "includeAll": false,
@@ -12326,10 +12736,26 @@
         "multi": false,
         "name": "audit_days",
         "options": [
-          { "selected": true, "text": "7", "value": "7" },
-          { "selected": false, "text": "14", "value": "14" },
-          { "selected": false, "text": "30", "value": "30" },
-          { "selected": false, "text": "90", "value": "90" }
+          {
+            "selected": true,
+            "text": "7",
+            "value": "7"
+          },
+          {
+            "selected": false,
+            "text": "14",
+            "value": "14"
+          },
+          {
+            "selected": false,
+            "text": "30",
+            "value": "30"
+          },
+          {
+            "selected": false,
+            "text": "90",
+            "value": "90"
+          }
         ],
         "query": "7,14,30,90",
         "skipUrlSync": false,
@@ -12347,6 +12773,5 @@
   "timezone": "browser",
   "title": "Home Security Intelligence - Operations",
   "uid": "hsi-consolidated",
-  "version": 2,
   "weekStart": ""
 }

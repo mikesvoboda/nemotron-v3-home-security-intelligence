@@ -540,9 +540,9 @@ class GPUMonitor:
         with contextlib.suppress(pynvml.NVMLError):
             dec_util, _ = pynvml.nvmlDeviceGetDecoderUtilization(handle)
             metrics["decoder_utilization"] = int(dec_util)
-        with contextlib.suppress(pynvml.NVMLError):
+        with contextlib.suppress(pynvml.NVMLError, AttributeError):
             bar1_info = pynvml.nvmlDeviceGetBAR1MemoryInfo(handle)
-            metrics["bar1_used"] = int(bar1_info.used / (1024 * 1024))  # Convert to MB
+            metrics["bar1_used"] = int(bar1_info.bar1Used / (1024 * 1024))  # Convert to MB
 
         return metrics
 

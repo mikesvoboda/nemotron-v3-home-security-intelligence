@@ -496,6 +496,8 @@ services:
       # For production with login enabled: generate with openssl rand -base64 32
       - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
+      # Allow embedding Grafana dashboards in iframes (required for AI Performance page)
+      - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://localhost:3002
       # Pin JSON API plugin to v1.3.0 for Grafana 10.x compatibility (v1.3.15+ requires Grafana 11.6.0+)
