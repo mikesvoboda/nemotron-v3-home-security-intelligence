@@ -6,17 +6,156 @@ React custom hooks for managing WebSocket connections, real-time event streams, 
 
 ## Hook Inventory
 
-This directory contains **37 hooks/utilities** organized into the following categories:
+This directory contains **90+ hooks/utilities** organized into the following categories:
 
 | Category | Hook Count | Description |
 |----------|------------|-------------|
-| WebSocket | 4 | Real-time data connections |
-| TanStack Query | 10 | Server state management |
-| Polling/Legacy | 5 | Manual polling implementations |
-| UI/UX | 8 | Keyboard, gestures, toasts |
+| AI Services | 6 | AI degradation, metrics, model status |
+| Monitoring | 8 | Circuit breakers, health, performance |
+| WebSocket | 12 | Real-time data connections |
+| Data Queries | 25 | TanStack Query hooks for fetching |
+| Data Mutations | 10 | TanStack Query mutations for writes |
+| UI/UX | 12 | Keyboard, gestures, toasts, navigation |
 | PWA/Offline | 3 | Network status, caching, notifications |
-| AI Services | 2 | AI degradation and metrics |
-| Utilities | 5 | Event emitter, throttling, storage |
+| Utilities | 8 | Event emitter, throttling, storage, forms |
+| Pagination | 4 | Cursor and offset pagination |
+
+## Comprehensive Hooks Reference
+
+### AI Services Hooks
+
+| Hook | Purpose | Parameters | Return Value | Endpoint/Source |
+|------|---------|------------|--------------|-----------------|
+| `useAIServiceStatus` | Track AI service degradation via WebSocket | None | `{ degradationMode, services, availableFeatures, hasUnavailableService, isOffline, isDegraded, getServiceState, isFeatureAvailable, lastUpdate }` | `/ws/events` |
+| `useAIMetrics` | Fetch AI performance metrics from multiple endpoints | `{ pollingInterval?: number }` | `{ data: AIPerformanceState, isLoading, error, refresh }` | `/api/metrics`, `/api/system/telemetry`, `/api/system/health` |
+| `useModelZooStatus` | Poll Model Zoo status with VRAM stats (legacy) | `{ pollingInterval?: number }` | `{ models, vramStats, isLoading, error, refresh }` | `/api/system/models` |
+| `useModelZooStatusQuery` | TanStack Query for Model Zoo status | `{ enabled?, refetchInterval? }` | `{ data, models, vramStats, isLoading, isRefetching, error, refetch }` | `/api/system/models` |
+| `useAnalysisStream` | SSE-based streaming LLM analysis | `{ onProgress?, onComplete?, onError? }` | `{ status, accumulatedText, result, error, startStream, stopStream, isStreaming }` | `/api/analysis/stream` |
+| `useDetectionEnrichment` | Fetch enrichment data for a detection | `detectionId: number` | `{ data, isLoading, error, refetch }` | `/api/detections/{id}/enrichment` |
+
+### Monitoring Hooks
+
+| Hook | Purpose | Parameters | Return Value | Endpoint/Source |
+|------|---------|------------|--------------|-----------------|
+| `useCircuitBreakerStatus` | Track circuit breaker states via WebSocket | None | `{ breakers, summary, hasOpenBreaker, hasHalfOpenBreaker, allClosed, lastUpdate, getBreaker, isConnected }` | `/ws/system` |
+| `useSystemStatus` | System health via WebSocket | None | `{ status, isConnected }` | `/ws/system` |
+| `useHealthStatus` | REST-based health polling (legacy) | `{ pollingInterval?, enabled? }` | `{ health, isLoading, error, overallStatus, services, refresh }` | `/api/system/health` |
+| `useHealthStatusQuery` | TanStack Query health status | `{ enabled?, refetchInterval? }` | `{ data, isLoading, error, isStale, refetch }` | `/api/system/health` |
+| `useFullHealthQuery` | Comprehensive health with circuit breakers | `{ enabled?, refetchInterval? }` | `{ data, overallStatus, postgres, redis, aiServices, circuitBreakers, workers, criticalUnhealthyCount }` | `/api/system/health/full` |
+| `usePerformanceMetrics` | Real-time performance via WebSocket | None | `{ current, history, alerts, isConnected, timeRange, setTimeRange }` | `/ws/system` |
+| `useGpuStatsQuery` | TanStack Query GPU stats | `{ enabled?, refetchInterval? }` | `{ data, utilization, memoryUsed, temperature, isLoading, error, refetch }` | `/api/system/gpu` |
+| `useGpuHistory` | GPU polling with history buffer (legacy) | `{ pollingInterval?, maxDataPoints?, autoStart? }` | `{ current, history, isLoading, error, start, stop, clearHistory }` | `/api/system/gpu` |
+
+### WebSocket Hooks
+
+| Hook | Purpose | Parameters | Return Value | Endpoint/Source |
+|------|---------|------------|--------------|-----------------|
+| `useWebSocket` | Low-level WebSocket connection manager | `WebSocketOptions` | `{ isConnected, lastMessage, send, connect, disconnect, hasExhaustedRetries, reconnectCount, lastHeartbeat }` | Any WebSocket |
+| `useWebSocketStatus` | Enhanced WebSocket with channel status | `{ url, name, ...options }` | `{ channelStatus, lastMessage, send, connect, disconnect }` | Any WebSocket |
+| `useConnectionStatus` | Unified status for events+system channels | None | `{ summary, events, systemStatus, clearEvents }` | `/ws/events`, `/ws/system` |
+| `useEventStream` | Security events via WebSocket | None | `{ events, isConnected, latestEvent, clearEvents }` | `/ws/events` |
+| `useAlertWebSocket` | Alert state changes via WebSocket | `{ onAlertCreated?, onAlertUpdated?, onAlertAcknowledged?, onAlertResolved?, autoInvalidateCache? }` | `{ isConnected, lastAlert, lastEventType, connect, disconnect, hasExhaustedRetries, reconnectCount }` | `/ws/events` |
+| `useEventLifecycleWebSocket` | Event lifecycle (create/update/delete) | `{ onEventCreated?, onEventUpdated?, onEventDeleted?, autoInvalidateCache? }` | `{ isConnected, lastEventPayload, lastEventType, connect, disconnect }` | `/ws/events` |
+| `useCameraStatusWebSocket` | Camera status changes via WebSocket | `{ onCameraOnline?, onCameraOffline?, onCameraError?, onCameraUpdated? }` | `{ cameraStatuses, isConnected, reconnectCount, lastEvent, reconnect }` | `/ws/events` |
+| `useSceneChangeAlerts` | Scene change detection alerts | `{ maxAlerts?, autoDismissMs? }` | `{ alerts, unacknowledgedCount, hasAlerts, dismissAlert, dismissAll, hasBlockedCameras, hasTamperedCameras, blockedCameraIds, tamperedCameraIds }` | `/ws/events` |
+| `useJobWebSocket` | Background job status updates | `{ jobType?, onJobUpdate? }` | `{ jobs, isConnected, reconnectCount }` | `/ws/jobs` |
+| `useJobLogsWebSocket` | Streaming job logs via WebSocket | `{ jobId, enabled? }` | `{ logs, isConnected, clearLogs }` | `/ws/jobs/{id}/logs` |
+| `useWebSocketEvent` | Subscribe to specific WebSocket event types | `{ eventType, handler }` | `{ isConnected }` | Any WebSocket |
+| `useWebSocketEvents` | Subscribe to multiple WebSocket event types | `{ handlers: Record }` | `{ isConnected }` | Any WebSocket |
+
+### Data Query Hooks (TanStack Query)
+
+| Hook | Purpose | Parameters | Return Value | Endpoint |
+|------|---------|------------|--------------|----------|
+| `useCamerasQuery` | Fetch all cameras | `{ enabled? }` | `{ data, cameras, isLoading, error, refetch }` | `/api/cameras` |
+| `useCameraQuery` | Fetch single camera | `cameraId: string` | `{ data, isLoading, error, refetch }` | `/api/cameras/{id}` |
+| `useEventsInfiniteQuery` | Infinite scroll security events | `{ filters?, limit? }` | `{ data, events, hasNextPage, fetchNextPage, isLoading }` | `/api/events` |
+| `useRecentEventsQuery` | Recent events for dashboard | `{ limit?, enabled? }` | `{ data, events, isLoading, error }` | `/api/events/recent` |
+| `useDetectionsInfiniteQuery` | Infinite scroll detections | `{ filters?, limit? }` | `{ data, detections, hasNextPage, fetchNextPage }` | `/api/detections` |
+| `useAlertsInfiniteQuery` | Infinite scroll alerts | `{ riskFilter?, status? }` | `{ data, alerts, hasNextPage, fetchNextPage }` | `/api/alerts` |
+| `useEntitiesInfiniteQuery` | Infinite scroll entities | `{ timeRange?, limit? }` | `{ data, entities, hasNextPage, fetchNextPage }` | `/api/entities` |
+| `useEntityHistory` | Entity sighting history | `entityId: string` | `{ data, history, isLoading, error }` | `/api/entities/{id}/history` |
+| `useEntityStats` | Entity statistics | `entityId: string` | `{ data, stats, isLoading, error }` | `/api/entities/{id}/stats` |
+| `useStorageStatsQuery` | Storage disk usage | `{ enabled?, refetchInterval? }` | `{ data, diskUsagePercent, diskTotalBytes, isLoading, error }` | `/api/system/storage` |
+| `useCameraUptimeQuery` | Camera uptime statistics | `cameraId: string` | `{ data, isLoading, error }` | `/api/cameras/{id}/uptime` |
+| `useDetectionTrendsQuery` | Detection trends over time | `{ timeRange }` | `{ data, trends, isLoading, error }` | `/api/analytics/detection-trends` |
+| `useJobsSearchQuery` | Search background jobs | `{ query?, status?, type? }` | `{ data, jobs, isLoading, error }` | `/api/jobs/search` |
+| `useJobHistoryQuery` | Job execution history | `jobId: string` | `{ data, history, isLoading, error }` | `/api/jobs/{id}/history` |
+| `useJobLogsQuery` | Fetch job logs (REST) | `jobId: string` | `{ data, logs, isLoading, error }` | `/api/jobs/{id}/logs` |
+| `useRecordingsQuery` | Fetch request recordings | `{ limit?, enabled? }` | `{ data, recordings, totalCount, isEmpty, isLoading }` | `/api/debug/recordings` |
+| `useDebugConfigQuery` | Debug configuration | `{ enabled? }` | `{ data, entries, isLoading, error }` | `/api/debug/config` |
+| `useLogLevelQuery` | Current log level | `{ enabled? }` | `{ data, level, isLoading, error }` | `/api/debug/log-level` |
+| `useProfileQuery` | Profiling status | `{ enabled? }` | `{ data, isActive, isLoading, error }` | `/api/debug/profile` |
+| `useSystemConfigQuery` | System configuration | `{ enabled? }` | `{ data, config, isLoading, error }` | `/api/system/config` |
+| `usePromptConfig` | Prompt configuration | `promptName: string` | `{ data, config, isLoading, error }` | `/api/prompts/{name}` |
+| `usePromptHistory` | Prompt version history | `promptName: string` | `{ data, versions, isLoading, error }` | `/api/prompts/{name}/history` |
+| `usePipelineErrorsQuery` | Pipeline error logs | `{ enabled? }` | `{ data, errors, isLoading, error }` | `/api/debug/pipeline-errors` |
+| `useRedisDebugInfoQuery` | Redis debug info | `{ enabled? }` | `{ data, info, isLoading, error }` | `/api/debug/redis` |
+| `useWebSocketConnectionsQuery` | Active WebSocket connections | `{ enabled? }` | `{ data, connections, isLoading, error }` | `/api/debug/websocket-connections` |
+
+### Data Mutation Hooks (TanStack Query)
+
+| Hook | Purpose | Parameters | Return Value | Endpoint |
+|------|---------|------------|--------------|----------|
+| `useCameraMutation` | Create/update/delete cameras | None | `{ createMutation, updateMutation, deleteMutation }` | `/api/cameras` |
+| `useRecordingMutations` | Replay/delete request recordings | None | `{ replayMutation, deleteMutation, clearAllMutation, isReplaying, isDeleting, isClearing }` | `/api/debug/recordings` |
+| `useProfilingMutations` | Start/stop/download profiling | None | `useStartProfilingMutation`, `useStopProfilingMutation`, `useDownloadProfileMutation` | `/api/debug/profile` |
+| `useJobMutations` | Cancel/retry/delete jobs | None | `{ cancelMutation, retryMutation, deleteMutation }` | `/api/jobs` |
+| `useCleanupPreviewMutation` | Preview storage cleanup | None | `{ mutation, previewData, isPending, preview, reset }` | `/api/system/storage/cleanup` |
+| `useCleanupMutation` | Execute storage cleanup | None | `{ mutation, isPending, error }` | `/api/system/storage/cleanup` |
+| `useAdminMutations` | Admin seed/clear operations | None | `useSeedCamerasMutation`, `useSeedEventsMutation`, `useClearSeededDataMutation` | `/api/admin/*` |
+| `useUpdatePromptConfig` | Update prompt configuration | None | `{ mutation, isPending, error }` | `/api/prompts/{name}` |
+| `useRestorePromptVersion` | Restore prompt to version | None | `{ mutation, isPending, error }` | `/api/prompts/{name}/restore` |
+| `useSetLogLevelMutation` | Change log level | None | `{ setLevel, isPending, error }` | `/api/debug/log-level` |
+| `useSnoozeEvent` | Snooze security event | None | `{ snooze, isPending, error }` | `/api/events/{id}/snooze` |
+
+### Saved Searches & Persistence Hooks
+
+| Hook | Purpose | Parameters | Return Value | Storage |
+|------|---------|------------|--------------|---------|
+| `useSavedSearches` | Manage saved searches | None | `{ savedSearches, saveSearch, deleteSearch, loadSearch, clearAll }` | localStorage (`hsi_saved_searches`) |
+| `useLocalStorage` | Generic localStorage persistence | `key: string, defaultValue: T` | `[value, setValue]` | localStorage |
+| `useSettings` | App settings management | None | `{ settings, updateSettings, resetSettings }` | localStorage |
+| `useSystemPageSections` | System page section states | None | `{ sectionStates, toggleSection, expandAll, collapseAll }` | localStorage |
+| `useDevToolsSections` | Dev tools section states | None | `{ sectionStates, toggleSection }` | localStorage |
+
+### UI/UX Hooks
+
+| Hook | Purpose | Parameters | Return Value |
+|------|---------|------------|--------------|
+| `useKeyboardShortcuts` | Global keyboard navigation (g+d, ?, Cmd+K) | `{ onOpenHelp?, onOpenCommandPalette? }` | `{ isPendingChord }` |
+| `useListNavigation` | j/k style list navigation | `{ itemCount, onSelect?, wrap? }` | `{ selectedIndex, setSelectedIndex, resetSelection }` |
+| `useToast` | Toast notifications via sonner | None | `{ success, error, warning, info, loading, dismiss, promise }` |
+| `useIsMobile` | Mobile viewport detection | `breakpoint?: number` | `boolean` |
+| `useSwipeGesture` | Touch swipe detection | `{ onSwipe, threshold?, timeout? }` | `ref callback` |
+| `useInfiniteScroll` | Intersection observer for infinite scroll | `{ onLoadMore, hasMore, threshold? }` | `{ ref, isLoading }` |
+| `useDateRangeState` | Date range with URL persistence | `{ defaultPreset? }` | `{ range, preset, setPreset, setCustomRange }` |
+| `usePaginationState` | Pagination state with URL sync | `{ type, defaultPageSize? }` | Cursor or offset pagination state |
+| `useRateLimitCountdown` | Countdown timer for rate limits | `retryAfter: number` | `{ countdown, isRateLimited, formatCountdown }` |
+| `useRateLimit` | Rate limit state management | None | `{ isRateLimited, retryAfter, setRateLimited, clear }` |
+| `useAudioNotifications` | Audio alert sounds | `{ enabled? }` | `{ playSound, stopSound }` |
+| `useDesktopNotifications` | Desktop notification API | `{ enabled? }` | `{ show, permission, requestPermission }` |
+
+### PWA/Offline Hooks
+
+| Hook | Purpose | Parameters | Return Value |
+|------|---------|------------|--------------|
+| `useNetworkStatus` | Browser connectivity tracking | `{ onOnline?, onOffline? }` | `{ isOnline, isOffline, lastOnlineAt, wasOffline, clearWasOffline }` |
+| `useCachedEvents` | IndexedDB event caching | None | `{ cachedEvents, cachedCount, isInitialized, cacheEvent, loadCachedEvents, removeCachedEvent, clearCache }` |
+| `usePushNotifications` | Browser push notifications | None | `{ permission, isSupported, hasPermission, requestPermission, showNotification, showSecurityAlert }` |
+
+### Utility Hooks
+
+| Hook | Purpose | Parameters | Return Value |
+|------|---------|------------|--------------|
+| `usePolling` | Generic REST endpoint polling | `{ fetcher, interval, enabled?, onSuccess?, onError? }` | `{ data, loading, error, refetch }` |
+| `useThrottledValue` | Throttle value updates | `value: T, { interval? }` | `T` (throttled) |
+| `useRetry` | Retry with exponential backoff | `{ maxAttempts?, baseDelay? }` | `{ retry, isRetrying, retryCount, reset }` |
+| `useCursorPaginatedQuery` | Generic cursor pagination | `{ queryKey, fetcher, limit? }` | `{ data, items, hasNextPage, fetchNextPage, hasPreviousPage, fetchPreviousPage }` |
+| `useFormWithApiErrors` | Map API validation errors to forms | `form: UseFormReturn` | `{ applyApiValidationErrors, useApiMutation }` |
+| `useServiceStatus` | Per-service status tracking | `{ onStatusChange? }` | `{ services, getStatus }` |
+| `useDebounce` | Debounce value updates | `value: T, delay: number` | `T` (debounced) |
+| `typedEventEmitter` | Type-safe WebSocket event emitter class | N/A (class) | `TypedWebSocketEmitter` |
 
 ## Key Files
 
@@ -213,6 +352,16 @@ Hook for tracking AI service degradation status via WebSocket.
 - Tracks degradation modes: `normal`, `degraded`, `minimal`, `offline`
 - Provides circuit breaker states for each AI service
 - Tracks available features based on service availability
+- Type guards for runtime message validation
+
+**Degradation Modes:**
+
+| Mode | Description |
+|------|-------------|
+| `normal` | All AI services healthy |
+| `degraded` | Non-critical services (Florence-2, CLIP) unavailable |
+| `minimal` | Critical services (RT-DETRv2, Nemotron) partially available |
+| `offline` | All AI services unavailable |
 
 **Types:**
 
@@ -245,6 +394,390 @@ interface UseAIServiceStatusResult {
   getServiceState: (name: AIServiceName) => AIServiceState | null;
   isFeatureAvailable: (feature: string) => boolean;
   lastUpdate: string | null;
+}
+```
+
+**Usage Example:**
+
+```typescript
+function AIStatusBanner() {
+  const { degradationMode, isDegraded, services, getServiceState } = useAIServiceStatus();
+
+  if (!isDegraded) return null;
+
+  const rtdetr = getServiceState('rtdetr');
+
+  return (
+    <Banner variant="warning">
+      System in {degradationMode} mode.
+      {rtdetr?.status === 'unavailable' && ' Object detection unavailable.'}
+    </Banner>
+  );
+}
+```
+
+### `useCircuitBreakerStatus.ts`
+
+Hook for tracking circuit breaker states via WebSocket. Circuit breakers protect services from cascading failures by temporarily blocking requests when a service is unhealthy.
+
+**Features:**
+
+- Subscribes to `circuit_breaker_update` messages via `/ws/system`
+- Tracks per-breaker state, failure counts, and timestamps
+- Provides summary counts and derived boolean flags
+- Type-safe with comprehensive type guards
+
+**Circuit Breaker States:**
+
+| State | Description |
+|-------|-------------|
+| `closed` | Normal operation, requests flow through |
+| `open` | Service unhealthy, requests are blocked |
+| `half_open` | Testing if service has recovered |
+
+**Types:**
+
+```typescript
+type CircuitBreakerStateType = 'closed' | 'open' | 'half_open';
+
+interface CircuitBreakerState {
+  name: string;                      // e.g., 'rtdetr', 'nemotron'
+  state: CircuitBreakerStateType;
+  failure_count: number;
+  success_count: number;
+  last_failure_time?: string | null;
+  last_success_time?: string | null;
+}
+
+interface CircuitBreakerSummary {
+  total: number;
+  closed: number;
+  open: number;
+  half_open: number;
+}
+```
+
+**Return Interface:**
+
+```typescript
+interface UseCircuitBreakerStatusReturn {
+  breakers: Record<string, CircuitBreakerState>;
+  summary: CircuitBreakerSummary;
+  hasOpenBreaker: boolean;      // True if any breaker is open
+  hasHalfOpenBreaker: boolean;  // True if any breaker is half_open
+  allClosed: boolean;           // True if all breakers are healthy
+  lastUpdate: string | null;
+  getBreaker: (name: string) => CircuitBreakerState | null;
+  isConnected: boolean;
+}
+```
+
+**Usage Example:**
+
+```typescript
+function CircuitBreakerDisplay() {
+  const { breakers, summary, hasOpenBreaker, allClosed } = useCircuitBreakerStatus();
+
+  return (
+    <div>
+      <Badge color={allClosed ? 'green' : 'red'}>
+        {summary.closed}/{summary.total} Healthy
+      </Badge>
+      {hasOpenBreaker && (
+        <Alert>Some services are protected by open circuit breakers</Alert>
+      )}
+      {Object.values(breakers).map(breaker => (
+        <div key={breaker.name}>
+          {breaker.name}: {breaker.state} (failures: {breaker.failure_count})
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### `useSceneChangeAlerts.ts`
+
+Hook for tracking unacknowledged scene change alerts from WebSocket. Scene changes indicate potential camera tampering and should be reviewed.
+
+**Features:**
+
+- Subscribes to `scene_change` messages via `/ws/events`
+- Tracks unacknowledged alerts with dismiss/acknowledge functionality
+- Provides computed flags for blocked and tampered cameras
+- Configurable max alerts and auto-dismiss timeout
+
+**Change Types:**
+
+| Type | Severity | Description |
+|------|----------|-------------|
+| `view_blocked` | High | Camera view is obstructed |
+| `view_tampered` | High | Camera has been tampered with |
+| `angle_changed` | Medium | Camera angle has shifted |
+
+**Types:**
+
+```typescript
+interface SceneChangeAlert {
+  id: number;
+  cameraId: string;
+  detectedAt: string;
+  changeType: string;
+  similarityScore: number;  // 0-1, lower = more different from baseline
+  dismissed: boolean;
+  receivedAt: Date;
+}
+
+interface UseSceneChangeAlertsOptions {
+  maxAlerts?: number;       // Default: 50
+  autoDismissMs?: number;   // 0 = never auto-dismiss
+}
+```
+
+**Return Interface:**
+
+```typescript
+interface UseSceneChangeAlertsReturn {
+  alerts: SceneChangeAlert[];
+  unacknowledgedCount: number;
+  hasAlerts: boolean;
+  dismissAlert: (id: number) => void;
+  dismissAll: () => void;
+  acknowledgeAlert: (id: number) => void;  // alias for dismissAlert
+  acknowledgeAll: () => void;              // alias for dismissAll
+  clearAlerts: () => void;
+  isConnected: boolean;
+  hasBlockedCameras: boolean;
+  hasTamperedCameras: boolean;
+  blockedCameraIds: string[];
+  tamperedCameraIds: string[];
+}
+```
+
+**Usage Example:**
+
+```typescript
+function SceneChangeMonitor() {
+  const { hasAlerts, unacknowledgedCount, alerts, dismissAll, hasBlockedCameras } =
+    useSceneChangeAlerts({ maxAlerts: 100 });
+
+  return (
+    <div>
+      {hasBlockedCameras && <Alert severity="critical">Camera view blocked!</Alert>}
+      {hasAlerts && (
+        <Badge count={unacknowledgedCount} onClick={dismissAll}>
+          Scene Changes
+        </Badge>
+      )}
+      {alerts.map(alert => (
+        <div key={alert.id}>
+          {alert.cameraId}: {formatChangeType(alert.changeType)}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### `useAnalysisStream.ts`
+
+React hook for SSE-based streaming LLM analysis. Provides progressive updates during Nemotron inference, allowing the UI to display partial results and typing indicators.
+
+**Features:**
+
+- Creates Server-Sent Events connection for streaming analysis
+- Tracks connection status: `idle`, `connecting`, `connected`, `complete`, `error`
+- Accumulates text progressively during inference
+- Provides callbacks for progress, completion, and errors
+- Safe cleanup on unmount
+
+**Types:**
+
+```typescript
+type AnalysisStreamStatus = 'idle' | 'connecting' | 'connected' | 'complete' | 'error';
+
+interface AnalysisStreamResult {
+  eventId: number;
+  riskScore: number;    // 0-100
+  riskLevel: string;
+  summary: string;
+}
+
+interface AnalysisStreamError {
+  code: string;
+  message: string;
+  recoverable: boolean;
+}
+```
+
+**Return Interface:**
+
+```typescript
+interface UseAnalysisStreamReturn {
+  status: AnalysisStreamStatus;
+  accumulatedText: string;         // Progressive text during streaming
+  result: AnalysisStreamResult | null;
+  error: AnalysisStreamError | null;
+  startStream: (params: AnalysisStreamParams) => void;
+  stopStream: () => void;
+  isStreaming: boolean;
+}
+```
+
+**Usage Example:**
+
+```typescript
+function LiveAnalysis({ batchId, cameraId }) {
+  const { status, accumulatedText, result, error, startStream, stopStream, isStreaming } =
+    useAnalysisStream({
+      onComplete: (result) => console.log('Analysis complete:', result.riskScore),
+    });
+
+  useEffect(() => {
+    startStream({ batchId, cameraId });
+    return () => stopStream();
+  }, [batchId, cameraId, startStream, stopStream]);
+
+  if (error) return <div>Error: {error.message}</div>;
+  if (isStreaming) return <div>Analyzing... {accumulatedText}</div>;
+  if (result) return <div>Risk: {result.riskLevel} ({result.riskScore})</div>;
+  return null;
+}
+```
+
+### `useRecordingMutations.ts`
+
+TanStack Query mutations for request recording operations (replay, delete, clear). Used in the Developer Tools panel for debugging API interactions.
+
+**Features:**
+
+- Replay recorded requests and compare responses
+- Delete individual recordings
+- Clear all recordings
+- Automatic cache invalidation on success
+
+**Return Interface:**
+
+```typescript
+interface UseRecordingMutationsReturn {
+  replayMutation: UseMutationResult<ReplayResponse, Error, string>;
+  deleteMutation: UseMutationResult<{ message: string }, Error, string>;
+  clearAllMutation: UseMutationResult<{ message: string; deleted_count: number }, Error, void>;
+  isReplaying: boolean;
+  isDeleting: boolean;
+  isClearing: boolean;
+  isAnyMutating: boolean;
+}
+```
+
+**Usage Example:**
+
+```typescript
+function RecordingsPanel() {
+  const { replayMutation, deleteMutation, clearAllMutation, isReplaying } = useRecordingMutations();
+
+  const handleReplay = (recordingId: string) => {
+    replayMutation.mutate(recordingId, {
+      onSuccess: (data) => console.log('Replay result:', data),
+    });
+  };
+
+  const handleDelete = (recordingId: string) => {
+    deleteMutation.mutate(recordingId);
+  };
+
+  const handleClearAll = () => {
+    if (confirm('Delete all recordings?')) {
+      clearAllMutation.mutate();
+    }
+  };
+
+  return (
+    <div>
+      <Button onClick={handleClearAll} disabled={clearAllMutation.isPending}>
+        Clear All
+      </Button>
+      {/* ... recording list ... */}
+    </div>
+  );
+}
+```
+
+### `useProfilingMutations.ts`
+
+React Query mutations for performance profiling operations. Used in the Developer Tools panel to capture and analyze backend performance.
+
+**Features:**
+
+- Start CPU profiling with `useStartProfilingMutation`
+- Stop profiling and get results with `useStopProfilingMutation`
+- Download .prof file with `useDownloadProfileMutation`
+- Automatic cache invalidation on state changes
+
+**Return Interfaces:**
+
+```typescript
+interface UseStartProfilingMutationReturn {
+  start: () => Promise<StartProfilingResponse>;
+  isPending: boolean;
+  error: Error | null;
+  reset: () => void;
+}
+
+interface UseStopProfilingMutationReturn {
+  stop: () => Promise<StopProfilingResponse>;
+  results: StopProfilingResponse | undefined;  // Top functions by CPU time
+  isPending: boolean;
+  error: Error | null;
+  reset: () => void;
+}
+
+interface UseDownloadProfileMutationReturn {
+  download: () => Promise<Blob>;
+  isPending: boolean;
+  error: Error | null;
+  reset: () => void;
+}
+```
+
+**Usage Example:**
+
+```typescript
+function ProfilingPanel() {
+  const { start, isPending: isStarting } = useStartProfilingMutation();
+  const { stop, results, isPending: isStopping } = useStopProfilingMutation();
+  const { download, isPending: isDownloading } = useDownloadProfileMutation();
+
+  const handleStart = async () => {
+    await start();
+    console.log('Profiling started');
+  };
+
+  const handleStop = async () => {
+    const result = await stop();
+    console.log('Top functions:', result.results.top_functions);
+  };
+
+  const handleDownload = async () => {
+    const blob = await download();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'profile.prof';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div>
+      <Button onClick={handleStart} disabled={isStarting}>Start Profiling</Button>
+      <Button onClick={handleStop} disabled={isStopping}>Stop Profiling</Button>
+      <Button onClick={handleDownload} disabled={isDownloading}>Download</Button>
+      {results && (
+        <ProfilingResults data={results.results} />
+      )}
+    </div>
+  );
 }
 ```
 
@@ -826,7 +1359,7 @@ interface UseDetectionEnrichmentReturn {
 
 ### `useModelZooStatus.ts`
 
-Hook for fetching and polling Model Zoo status including VRAM statistics.
+Hook for fetching and polling Model Zoo status including VRAM statistics. This is the legacy polling hook; prefer `useModelZooStatusQuery` for new development.
 
 **Features:**
 
@@ -834,6 +1367,34 @@ Hook for fetching and polling Model Zoo status including VRAM statistics.
 - Provides list of all AI models in the Model Zoo
 - Calculates VRAM usage statistics (budget, used, available, percentage)
 - Manual refresh capability
+- Tracks loading state per request
+
+**Options Interface:**
+
+```typescript
+interface UseModelZooStatusOptions {
+  pollingInterval?: number;  // default: 10000 (10 seconds), 0 to disable
+}
+```
+
+**Types:**
+
+```typescript
+interface VRAMStats {
+  budget_mb: number;       // Total VRAM budget
+  used_mb: number;         // Currently used VRAM
+  available_mb: number;    // Available VRAM
+  usage_percent: number;   // Usage percentage (0-100)
+}
+
+interface ModelStatusResponse {
+  name: string;
+  loaded: boolean;
+  memory_mb: number;
+  load_time_seconds: number | null;
+  last_inference_time: string | null;
+}
+```
 
 **Return Interface:**
 
@@ -847,27 +1408,119 @@ interface UseModelZooStatusReturn {
 }
 ```
 
+**Usage Example:**
+
+```typescript
+function ModelZooPanel() {
+  const { models, vramStats, isLoading, error, refresh } = useModelZooStatus({
+    pollingInterval: 10000,
+  });
+
+  if (isLoading && !models.length) return <Spinner />;
+  if (error) return <ErrorMessage message={error} />;
+
+  return (
+    <div>
+      {vramStats && (
+        <ProgressBar
+          value={vramStats.usage_percent}
+          label={`VRAM: ${vramStats.used_mb}/${vramStats.budget_mb} MB`}
+        />
+      )}
+      <h3>Loaded Models</h3>
+      {models.filter(m => m.loaded).map(model => (
+        <div key={model.name}>
+          {model.name}: {model.memory_mb} MB
+        </div>
+      ))}
+      <Button onClick={refresh}>Refresh</Button>
+    </div>
+  );
+}
+```
+
 ### `useSavedSearches.ts`
 
-Hook for managing saved searches with localStorage persistence.
+Hook for managing saved searches with localStorage persistence. Allows users to save, recall, and manage frequently used search configurations.
 
 **Features:**
 
 - Persists searches to localStorage (key: `hsi_saved_searches`)
-- Limits to 10 most recent searches
+- Limits to 10 most recent searches (configurable via `MAX_SAVED_SEARCHES`)
 - CRUD operations: save, delete, load, clearAll
 - Cross-tab sync via storage event listener
-- Handles localStorage errors gracefully
+- Handles localStorage errors gracefully (quota exceeded, unavailable)
+- Type guards for runtime validation of stored data
+
+**Types:**
+
+```typescript
+interface SavedSearch {
+  id: string;              // Unique identifier (generated)
+  name: string;            // User-defined name
+  query: string;           // The search query string
+  filters: SearchFilters;  // Applied filters
+  createdAt: string;       // ISO timestamp
+}
+
+interface LoadedSearch {
+  query: string;
+  filters: SearchFilters;
+}
+```
 
 **Return Interface:**
 
 ```typescript
 interface UseSavedSearchesReturn {
-  savedSearches: SavedSearch[];
+  savedSearches: SavedSearch[];  // Newest first
   saveSearch: (name: string, query: string, filters: SearchFilters) => void;
   deleteSearch: (id: string) => void;
   loadSearch: (id: string) => LoadedSearch | null;
   clearAll: () => void;
+}
+```
+
+**Usage Example:**
+
+```typescript
+function SearchPanel() {
+  const { savedSearches, saveSearch, deleteSearch, loadSearch, clearAll } = useSavedSearches();
+  const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState<SearchFilters>({});
+
+  const handleSave = () => {
+    const name = prompt('Enter a name for this search:');
+    if (name) {
+      saveSearch(name, query, filters);
+    }
+  };
+
+  const handleLoad = (id: string) => {
+    const search = loadSearch(id);
+    if (search) {
+      setQuery(search.query);
+      setFilters(search.filters);
+    }
+  };
+
+  return (
+    <div>
+      <SearchBar query={query} filters={filters} onChange={setQuery} onFiltersChange={setFilters} />
+      <Button onClick={handleSave}>Save Search</Button>
+
+      <h3>Saved Searches</h3>
+      {savedSearches.map(search => (
+        <div key={search.id}>
+          <span onClick={() => handleLoad(search.id)}>{search.name}</span>
+          <Button onClick={() => deleteSearch(search.id)}>Delete</Button>
+        </div>
+      ))}
+      {savedSearches.length > 0 && (
+        <Button onClick={clearAll}>Clear All</Button>
+      )}
+    </div>
+  );
 }
 ```
 
@@ -1103,6 +1756,189 @@ interface UseSystemPageSectionsReturn {
   expandAll: () => void;
   collapseAll: () => void;
   resetToDefaults: () => void;
+}
+```
+
+### `useAlertWebSocket.ts`
+
+WebSocket hook for real-time alert state changes. Subscribes to alert events and provides callbacks for handling alert lifecycle.
+
+**Events Handled:**
+
+| Event | Description |
+|-------|-------------|
+| `alert_created` | New alert triggered from rule evaluation |
+| `alert_updated` | Alert modified (metadata, channels updated) |
+| `alert_acknowledged` | Alert marked as seen by user |
+| `alert_resolved` | Alert resolved/dismissed |
+
+**Options Interface:**
+
+```typescript
+interface UseAlertWebSocketOptions {
+  url?: string;                    // WebSocket URL (default: env or ws://localhost:8000/ws/events)
+  autoInvalidateCache?: boolean;   // Auto-invalidate React Query cache (default: true)
+  onAlertCreated?: AlertEventHandler;
+  onAlertUpdated?: AlertEventHandler;
+  onAlertAcknowledged?: AlertEventHandler;
+  onAlertResolved?: AlertEventHandler;
+  onAnyAlertEvent?: (eventType: string, alert: WebSocketAlertData) => void;
+  enabled?: boolean;               // Enable connection (default: true)
+}
+```
+
+**Return Interface:**
+
+```typescript
+interface UseAlertWebSocketReturn {
+  isConnected: boolean;
+  lastAlert: WebSocketAlertData | null;
+  lastEventType: string | null;
+  connect: () => void;
+  disconnect: () => void;
+  hasExhaustedRetries: boolean;
+  reconnectCount: number;
+}
+```
+
+**Usage Example:**
+
+```typescript
+function AlertNotifications() {
+  const { isConnected, lastAlert } = useAlertWebSocket({
+    onAlertCreated: (alert) => {
+      showNotification(`New ${alert.severity} alert: ${alert.title}`);
+    },
+    onAlertAcknowledged: (alert) => {
+      console.log('Alert acknowledged:', alert.id);
+    },
+  });
+
+  return <Badge status={isConnected ? 'connected' : 'disconnected'} />;
+}
+```
+
+### `useEventLifecycleWebSocket.ts`
+
+WebSocket hook for real-time security event lifecycle changes (create/update/delete).
+
+**Events Handled:**
+
+| Event | Description |
+|-------|-------------|
+| `event.created` | New security event detected and stored |
+| `event.updated` | Security event modified (risk score, status, etc.) |
+| `event.deleted` | Security event removed |
+
+**Options Interface:**
+
+```typescript
+interface UseEventLifecycleWebSocketOptions {
+  url?: string;
+  autoInvalidateCache?: boolean;  // Auto-invalidate events query cache (default: true)
+  onEventCreated?: (event: EventCreatedPayload) => void;
+  onEventUpdated?: (event: EventUpdatedPayload) => void;
+  onEventDeleted?: (event: EventDeletedPayload) => void;
+  onAnyEventLifecycle?: (eventType: string, data: Payload) => void;
+  enabled?: boolean;
+}
+```
+
+**Return Interface:**
+
+```typescript
+interface UseEventLifecycleWebSocketReturn {
+  isConnected: boolean;
+  lastEventPayload: EventCreatedPayload | EventUpdatedPayload | EventDeletedPayload | null;
+  lastEventType: 'event.created' | 'event.updated' | 'event.deleted' | null;
+  connect: () => void;
+  disconnect: () => void;
+  hasExhaustedRetries: boolean;
+  reconnectCount: number;
+}
+```
+
+**Usage Example:**
+
+```typescript
+function EventMonitor() {
+  const { isConnected, lastEventType } = useEventLifecycleWebSocket({
+    onEventCreated: (event) => {
+      showNotification(`New ${event.risk_level} risk event detected`);
+    },
+    onEventUpdated: (event) => {
+      console.log('Event updated:', event.id, event.updated_fields);
+    },
+    onEventDeleted: (event) => {
+      console.log('Event deleted:', event.id, event.reason);
+    },
+  });
+
+  return <div>Connected: {isConnected ? 'Yes' : 'No'}</div>;
+}
+```
+
+### `useCameraStatusWebSocket.ts`
+
+Hook for subscribing to camera status WebSocket events. Provides real-time updates when camera status changes.
+
+**Events Handled:**
+
+| Event | Description |
+|-------|-------------|
+| `camera.online` | Camera came online |
+| `camera.offline` | Camera went offline |
+| `camera.error` | Camera encountered an error |
+| `camera.updated` | Camera configuration updated |
+
+**Options Interface:**
+
+```typescript
+interface UseCameraStatusWebSocketOptions {
+  url?: string;
+  connectionConfig?: Partial<ConnectionConfig>;
+  onCameraOnline?: (event: CameraStatusEventPayload) => void;
+  onCameraOffline?: (event: CameraStatusEventPayload) => void;
+  onCameraError?: (event: CameraStatusEventPayload) => void;
+  onCameraUpdated?: (event: CameraStatusEventPayload) => void;
+  onCameraStatusChange?: (event: CameraStatusEventPayload) => void;
+  enabled?: boolean;  // Default: true
+}
+```
+
+**Return Interface:**
+
+```typescript
+interface UseCameraStatusWebSocketReturn {
+  cameraStatuses: Record<string, CameraStatusState>;
+  isConnected: boolean;
+  reconnectCount: number;
+  lastEvent: CameraStatusEventPayload | null;
+  reconnect: () => void;
+}
+```
+
+**Usage Example:**
+
+```typescript
+function CameraGrid() {
+  const { cameraStatuses, isConnected } = useCameraStatusWebSocket({
+    onCameraOnline: (event) => console.log('Camera online:', event.camera_name),
+    onCameraOffline: (event) => toast.warning(`Camera offline: ${event.camera_name}`),
+  });
+
+  return (
+    <div>
+      {Object.entries(cameraStatuses).map(([id, status]) => (
+        <CameraCard
+          key={id}
+          name={status.camera_name}
+          status={status.status}
+          lastUpdated={status.lastUpdated}
+        />
+      ))}
+    </div>
+  );
 }
 ```
 

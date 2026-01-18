@@ -182,27 +182,104 @@ When API key auth is enabled, provide key via:
 
 ### `system.py`
 
-System monitoring, health checks, GPU stats, configuration, and telemetry.
+System monitoring, health checks, GPU stats, configuration, telemetry, worker supervision, and pipeline status.
 
 **Router prefix:** `/api/system`
 
-**Endpoints:**
+**Core Health Endpoints:**
 
-| Method | Path                           | Purpose                                          |
-| ------ | ------------------------------ | ------------------------------------------------ |
-| GET    | `/api/system/health`           | Detailed system health check                     |
-| GET    | `/health` (root level)         | Liveness probe (always returns "alive")          |
-| GET    | `/api/system/health/ready`     | Readiness probe (checks all dependencies)        |
-| GET    | `/api/system/gpu`              | Current GPU statistics                           |
-| GET    | `/api/system/gpu/history`      | GPU stats time series                            |
-| GET    | `/api/system/stats`            | System statistics (counts, uptime)               |
-| GET    | `/api/system/config`           | Public configuration settings                    |
-| PATCH  | `/api/system/config`           | Update configuration settings (API key required) |
-| GET    | `/api/system/telemetry`        | Pipeline queue depths and latency stats          |
-| GET    | `/api/system/pipeline-latency` | Pipeline stage transition latencies              |
-| POST   | `/api/system/cleanup`          | Trigger manual cleanup (API key required)        |
-| GET    | `/api/system/severity`         | Severity level definitions and thresholds        |
-| GET    | `/api/system/storage`          | Storage statistics and disk usage                |
+| Method | Path                           | Purpose                                      |
+| ------ | ------------------------------ | -------------------------------------------- |
+| GET    | `/api/system/health`           | Detailed system health check                 |
+| GET    | `/health` (root level)         | Liveness probe (always returns "alive")      |
+| GET    | `/api/system/health/ready`     | Readiness probe (checks all dependencies)    |
+| GET    | `/api/system/health/full`      | Comprehensive health check (all AI services) |
+| GET    | `/api/system/health/websocket` | WebSocket broadcaster circuit breaker status |
+
+**Prometheus Monitoring Endpoints:**
+
+| Method | Path                             | Purpose                                         |
+| ------ | -------------------------------- | ----------------------------------------------- |
+| GET    | `/api/system/monitoring/health`  | Monitoring stack health (Prometheus, exporters) |
+| GET    | `/api/system/monitoring/targets` | Prometheus scrape target status                 |
+
+**GPU and Performance Endpoints:**
+
+| Method | Path                              | Purpose                                       |
+| ------ | --------------------------------- | --------------------------------------------- |
+| GET    | `/api/system/gpu`                 | Current GPU statistics                        |
+| GET    | `/api/system/gpu/history`         | GPU stats time series                         |
+| GET    | `/api/system/performance`         | Real-time performance metrics (GPU, AI, host) |
+| GET    | `/api/system/performance/history` | Historical performance data for time-series   |
+
+**Configuration and Statistics Endpoints:**
+
+| Method | Path                   | Purpose                                          |
+| ------ | ---------------------- | ------------------------------------------------ |
+| GET    | `/api/system/stats`    | System statistics (counts, uptime)               |
+| GET    | `/api/system/config`   | Public configuration settings                    |
+| PATCH  | `/api/system/config`   | Update configuration settings (API key required) |
+| GET    | `/api/system/storage`  | Storage statistics and disk usage                |
+| GET    | `/api/system/severity` | Severity level definitions and thresholds        |
+| PUT    | `/api/system/severity` | Update severity thresholds (API key required)    |
+
+**Telemetry and Pipeline Latency Endpoints:**
+
+| Method | Path                                   | Purpose                                         |
+| ------ | -------------------------------------- | ----------------------------------------------- |
+| GET    | `/api/system/telemetry`                | Pipeline queue depths and latency stats         |
+| GET    | `/api/system/pipeline-latency`         | Pipeline stage transition latencies             |
+| GET    | `/api/system/pipeline-latency/history` | Pipeline latency history for time-series charts |
+
+**Cleanup Endpoints:**
+
+| Method | Path                                 | Purpose                                   |
+| ------ | ------------------------------------ | ----------------------------------------- |
+| POST   | `/api/system/cleanup`                | Trigger manual cleanup (API key required) |
+| POST   | `/api/system/cleanup/orphaned-files` | Clean orphaned files (API key required)   |
+| GET    | `/api/system/cleanup/status`         | Cleanup service status and next run       |
+
+**Circuit Breaker Endpoints:**
+
+| Method | Path                                        | Purpose                                |
+| ------ | ------------------------------------------- | -------------------------------------- |
+| GET    | `/api/system/circuit-breakers`              | All circuit breaker states and metrics |
+| POST   | `/api/system/circuit-breakers/{name}/reset` | Reset circuit breaker to closed state  |
+
+**Worker Supervisor Endpoints (NEM-2457):**
+
+| Method | Path                                            | Purpose                          |
+| ------ | ----------------------------------------------- | -------------------------------- |
+| GET    | `/api/system/supervisor`                        | Worker supervisor status         |
+| GET    | `/api/system/supervisor/status`                 | Worker supervisor status (alias) |
+| POST   | `/api/system/supervisor/workers/{name}/start`   | Start a stopped worker           |
+| POST   | `/api/system/supervisor/workers/{name}/stop`    | Stop a running worker            |
+| POST   | `/api/system/supervisor/workers/{name}/restart` | Restart a worker                 |
+| POST   | `/api/system/supervisor/reset/{name}`           | Reset worker restart count       |
+| GET    | `/api/system/supervisor/restart-history`        | Paginated restart event history  |
+
+**Model Zoo Endpoints:**
+
+| Method | Path                                    | Purpose                                         |
+| ------ | --------------------------------------- | ----------------------------------------------- |
+| GET    | `/api/system/models`                    | Model Zoo registry (all models with VRAM stats) |
+| GET    | `/api/system/models/{model_name}`       | Specific model status                           |
+| GET    | `/api/system/model-zoo/status`          | Compact model status for UI                     |
+| GET    | `/api/system/model-zoo/latency/history` | Model latency history for charts                |
+
+**Anomaly Detection Endpoints:**
+
+| Method | Path                         | Purpose                                     |
+| ------ | ---------------------------- | ------------------------------------------- |
+| GET    | `/api/system/anomaly-config` | Anomaly detection configuration             |
+| PATCH  | `/api/system/anomaly-config` | Update anomaly detection settings (API key) |
+
+**Pipeline Status Endpoints:**
+
+| Method | Path                           | Purpose                                         |
+| ------ | ------------------------------ | ----------------------------------------------- |
+| GET    | `/api/system/pipeline`         | Pipeline architecture status (watcher, batches) |
+| GET    | `/api/system/websocket/events` | WebSocket event type registry with schemas      |
 
 **Health Status Logic:**
 
@@ -216,10 +293,20 @@ System monitoring, health checks, GPU stats, configuration, and telemetry.
 - `degraded` - Database up but Redis down
 - `not_ready` - Database down
 
+**Worker Supervisor States:**
+
+- `running` - Worker is actively processing
+- `stopped` - Worker is stopped (can be started)
+- `crashed` - Worker crashed, pending restart
+- `restarting` - Worker is being restarted
+- `failed` - Worker exceeded max restart limit
+
 **Worker Status Tracking:**
 
 - GPU monitor, cleanup service, system broadcaster, file watcher
+- Detection worker, analysis worker, batch timeout worker
 - Workers registered via `register_workers()` at startup
+- Supervisor provides automatic restart with exponential backoff
 
 **Telemetry:**
 
@@ -238,6 +325,10 @@ System monitoring, health checks, GPU stats, configuration, and telemetry.
 - Manual cleanup with dry_run mode for verification
 - Severity taxonomy and thresholds for frontend consistency
 - Storage stats with disk usage and per-category breakdown
+- Worker supervisor with automatic restart and exponential backoff
+- Model Zoo VRAM budget management (1650 MB dedicated)
+- Prometheus monitoring integration with exporter health tracking
+- WebSocket event registry for frontend discovery
 
 ### `media.py`
 
@@ -594,11 +685,36 @@ Analytics endpoints for detection trends, risk history, camera uptime, and objec
 
 ### `calibration.py`
 
-Camera calibration endpoints (placeholder for future implementation).
+User risk threshold calibration endpoints for personalizing event severity classification.
 
 **Router prefix:** `/api/calibration`
 
-**Note:** This module is currently a placeholder for future camera calibration functionality.
+**Endpoints:**
+
+| Method | Path                        | Purpose                          |
+| ------ | --------------------------- | -------------------------------- |
+| GET    | `/api/calibration`          | Get current calibration settings |
+| PUT    | `/api/calibration`          | Update calibration (full update) |
+| PATCH  | `/api/calibration`          | Partial calibration update       |
+| POST   | `/api/calibration/reset`    | Reset to default thresholds      |
+| GET    | `/api/calibration/defaults` | Get default threshold values     |
+
+**Default Thresholds:**
+
+- `low_threshold`: 30 (scores 0-29 = low risk)
+- `medium_threshold`: 60 (scores 30-59 = medium risk)
+- `high_threshold`: 85 (scores 60-84 = high risk, 85-100 = critical)
+- `decay_factor`: 0.1 (learning rate for threshold adjustment)
+
+**Key Features:**
+
+- Auto-creates calibration record on first GET if none exists
+- Validates threshold ordering (low < medium < high)
+- Preserves feedback counts on reset
+- Single-user system uses `user_id="default"`
+- Supports partial updates (only provided fields changed)
+
+**Related:** Works with Feedback API for threshold adjustment based on user feedback.
 
 ### `exports.py`
 
@@ -870,6 +986,51 @@ Container orchestrator service management for monitoring and control.
 - Container lifecycle management
 - Integration with Docker/Podman
 - Service restart for recovery from failures
+
+### `webhooks.py`
+
+Webhook receivers for external monitoring systems (primarily Alertmanager).
+
+**Router prefix:** `/api/webhooks`
+
+**Endpoints:**
+
+| Method | Path                   | Purpose                                    |
+| ------ | ---------------------- | ------------------------------------------ |
+| POST   | `/api/webhooks/alerts` | Receive Alertmanager webhook notifications |
+
+**Alertmanager Integration:**
+
+- Receives alerts in standard [Alertmanager webhook format](https://prometheus.io/docs/alerting/latest/configuration/#webhook_config)
+- Logs alerts with appropriate severity (ERROR for critical firing, WARNING for warning/high firing, INFO otherwise)
+- Broadcasts alerts to WebSocket clients as `infrastructure_alert` events
+- Supports both `firing` and `resolved` alert statuses
+
+**Alert Labels:**
+
+| Label       | Description               | Example Values                           |
+| ----------- | ------------------------- | ---------------------------------------- |
+| `alertname` | Name of the alert rule    | `HSIGPUMemoryHigh`, `HSIPipelineStalled` |
+| `severity`  | Alert severity level      | `critical`, `warning`, `info`            |
+| `component` | System component affected | `gpu`, `pipeline`, `redis`, `database`   |
+
+**Response:**
+
+```json
+{
+  "status": "ok",
+  "received": 1,
+  "processed": 1,
+  "message": "Processed 1 alert(s) from receiver-name"
+}
+```
+
+**Key Features:**
+
+- Background WebSocket broadcasting (non-blocking)
+- Structured logging with severity-based log levels
+- Graceful degradation when broadcaster unavailable
+- Standard Alertmanager payload validation
 
 ### `entities.py`
 

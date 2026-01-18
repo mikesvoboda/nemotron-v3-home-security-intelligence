@@ -1853,6 +1853,7 @@ For detailed circuit breaker implementation and WebSocket resilience patterns, s
 
 ## Related Documentation
 
+- [System Monitoring API](system-monitoring.md) - Worker supervisor, pipeline status, Prometheus integration
 - [Core Resources API](core-resources.md) - Cameras, events, detections
 - [AI Pipeline API](ai-pipeline.md) - Enrichment and batch processing
 - [Real-time API](realtime.md) - WebSocket streams

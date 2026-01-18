@@ -663,11 +663,37 @@ API_KEYS=["key1-here", "key2-here"]
 
 ## Orphan File Cleanup
 
-| Variable                        | Required | Default | Range  | Description                        |
-| ------------------------------- | -------- | ------- | ------ | ---------------------------------- |
-| `ORPHAN_CLEANUP_ENABLED`        | No       | `true`  | -      | Enable orphan file cleanup job     |
-| `ORPHAN_CLEANUP_INTERVAL_HOURS` | No       | `24`    | 1-168  | Hours between cleanup runs         |
-| `ORPHAN_FILE_AGE_HOURS`         | No       | `48`    | 12-720 | Age threshold for orphan detection |
+Configuration for periodic cleanup of orphaned files (files on disk without corresponding database records).
+
+| Variable                             | Required | Default | Range | Description                                                |
+| ------------------------------------ | -------- | ------- | ----- | ---------------------------------------------------------- |
+| `ORPHAN_CLEANUP_ENABLED`             | No       | `true`  | -     | Enable periodic cleanup of orphaned files                  |
+| `ORPHAN_CLEANUP_SCAN_INTERVAL_HOURS` | No       | `24`    | 1-168 | Hours between cleanup scans (default: daily)               |
+| `ORPHAN_CLEANUP_AGE_THRESHOLD_HOURS` | No       | `24`    | 1-720 | Minimum age (hours) before an orphaned file can be deleted |
+
+> **Safety:** Files younger than `ORPHAN_CLEANUP_AGE_THRESHOLD_HOURS` are skipped to allow for incomplete processing. This prevents deletion of files that may still be in use.
+
+---
+
+## Model Zoo
+
+Configuration for the Model Zoo, which provides on-demand AI model loading during enrichment.
+
+| Variable         | Required | Default             | Description                                   |
+| ---------------- | -------- | ------------------- | --------------------------------------------- |
+| `MODEL_ZOO_PATH` | No       | `/models/model-zoo` | Base directory path for Model Zoo model files |
+
+The Model Zoo contains supplementary AI models loaded on-demand during batch processing:
+
+- License plate detection (yolo11-license-plate)
+- Face detection (yolo11-face)
+- OCR text extraction (paddleocr)
+- Clothing segmentation (segformer-b2-clothes)
+- Violence detection
+- Weather classification
+- And more
+
+> **Note:** Models are loaded sequentially within a ~1,650 MB VRAM budget (shared with the primary Nemotron and RT-DETRv2 models).
 
 ---
 
