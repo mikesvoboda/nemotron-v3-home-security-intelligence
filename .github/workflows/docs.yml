@@ -364,12 +364,84 @@ jobs:
           path: docs-site/
 
   # ============================================================================
+  # Validate Documentation Links
+  # ============================================================================
+  link-check:
+    name: Validate Documentation Links
+    runs-on: ubuntu-latest
+    needs: build-docs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download docs site
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-site
+          path: docs-site/
+
+      - name: Create lychee configuration
+        run: |
+          cat > lychee.toml << 'EOF'
+          # Lychee Configuration for Documentation Link Checking
+
+          # Check external links with a timeout of 30 seconds
+          timeout = 30
+
+          # Maximum number of concurrent requests
+          max_concurrency = 32
+
+          # User agent for external requests
+          user_agent = "lychee/0.14"
+
+          # URLs to accept as valid (even if they fail to respond)
+          accept = [200, 429]
+
+          # Exclude specific patterns
+          exclude = [
+            # Localhost and internal URLs (application-only)
+            "http://localhost",
+            "https://localhost",
+            "127.0.0.1",
+            "0.0.0.0",
+            # Example/placeholder domains
+            "example.com",
+            "example.org",
+            "example.net",
+            # Local development references
+            "file://",
+            # Email addresses (not URLs)
+            "mailto:",
+            # Anchors within same page
+            "^#",
+          ]
+
+          # Glob patterns for files to check
+          include = ["*.md", "*.html"]
+          EOF
+          cat lychee.toml
+
+      - name: Check markdown links
+        uses: lycheeverse/lychee-action@v1
+        with:
+          args: --verbose --config lychee.toml './docs/**/*.md'
+          fail: true
+        continue-on-error: false
+
+      - name: Check HTML links
+        uses: lycheeverse/lychee-action@v1
+        with:
+          args: --verbose --config lychee.toml './docs-site/**/*.html'
+          fail: true
+        continue-on-error: false
+
+  # ============================================================================
   # Deploy to GitHub Pages (main branch only)
   # ============================================================================
   deploy:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    needs: build-docs
+    needs: [build-docs, link-check]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
       name: github-pages

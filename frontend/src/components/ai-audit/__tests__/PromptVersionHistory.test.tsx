@@ -5,12 +5,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import { AIModelEnum } from '../../../types/promptManagement';
 import PromptVersionHistory from '../PromptVersionHistory';
 
 import type { PromptVersionInfo } from '../../../types/promptManagement';
+
+// Base time for consistent testing
+const BASE_TIME = new Date('2024-01-15T10:00:00Z').getTime();
 
 // Mock the useAIAuditPromptHistoryQuery hook
 const mockRefetch = vi.fn();
@@ -53,7 +56,13 @@ const createTestWrapper = () => {
 
 describe('PromptVersionHistory', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(BASE_TIME);
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('Loading State', () => {
@@ -131,7 +140,7 @@ describe('PromptVersionHistory', () => {
         id: 1,
         model: AIModelEnum.NEMOTRON,
         version: 3,
-        created_at: new Date().toISOString(),
+        created_at: new Date(BASE_TIME).toISOString(),
         created_by: 'user@example.com',
         change_description: 'Updated system prompt',
         is_active: true,
@@ -140,7 +149,7 @@ describe('PromptVersionHistory', () => {
         id: 2,
         model: AIModelEnum.NEMOTRON,
         version: 2,
-        created_at: new Date(Date.now() - 86400000).toISOString(),
+        created_at: new Date(BASE_TIME - 86400000).toISOString(), // 1 day ago
         created_by: 'user@example.com',
         change_description: 'Added weather context',
         is_active: false,
@@ -149,7 +158,7 @@ describe('PromptVersionHistory', () => {
         id: 3,
         model: AIModelEnum.FLORENCE2,
         version: 1,
-        created_at: new Date(Date.now() - 172800000).toISOString(),
+        created_at: new Date(BASE_TIME - 172800000).toISOString(), // 2 days ago
         created_by: 'user@example.com',
         change_description: 'Initial configuration',
         is_active: false,
@@ -321,7 +330,7 @@ describe('PromptVersionHistory', () => {
       id: 2,
       model: AIModelEnum.NEMOTRON,
       version: 2,
-      created_at: new Date(Date.now() - 86400000).toISOString(),
+      created_at: new Date(BASE_TIME - 86400000).toISOString(), // 1 day ago
       created_by: 'user@example.com',
       change_description: 'Previous version',
       is_active: false,

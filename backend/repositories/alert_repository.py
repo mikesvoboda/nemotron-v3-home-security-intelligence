@@ -50,66 +50,120 @@ class AlertRepository(Repository[Alert]):
 
     model_class = Alert
 
-    async def get_by_event_id(self, event_id: int) -> Sequence[Alert]:
-        """Get all alerts for a specific event.
+    async def get_by_event_id(
+        self,
+        event_id: int,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> Sequence[Alert]:
+        """Get alerts for a specific event with pagination.
 
         Args:
             event_id: The event ID to filter by.
+            limit: Maximum number of alerts to return (default: 100).
+            offset: Number of alerts to skip (default: 0).
 
         Returns:
             A sequence of alerts associated with the event.
         """
-        stmt = select(Alert).where(Alert.event_id == event_id).order_by(Alert.created_at.desc())
+        stmt = (
+            select(Alert)
+            .where(Alert.event_id == event_id)
+            .order_by(Alert.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def get_by_rule_id(self, rule_id: str) -> Sequence[Alert]:
-        """Get all alerts triggered by a specific rule.
+    async def get_by_rule_id(
+        self,
+        rule_id: str,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> Sequence[Alert]:
+        """Get alerts triggered by a specific rule with pagination.
 
         Args:
             rule_id: The alert rule ID to filter by.
+            limit: Maximum number of alerts to return (default: 100).
+            offset: Number of alerts to skip (default: 0).
 
         Returns:
             A sequence of alerts triggered by the rule.
         """
-        stmt = select(Alert).where(Alert.rule_id == rule_id).order_by(Alert.created_at.desc())
+        stmt = (
+            select(Alert)
+            .where(Alert.rule_id == rule_id)
+            .order_by(Alert.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def get_by_status(self, status: AlertStatus | str) -> Sequence[Alert]:
-        """Get all alerts with a specific status.
+    async def get_by_status(
+        self,
+        status: AlertStatus | str,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> Sequence[Alert]:
+        """Get alerts with a specific status with pagination.
 
         Args:
             status: The status to filter by (e.g., AlertStatus.PENDING or "pending").
+            limit: Maximum number of alerts to return (default: 100).
+            offset: Number of alerts to skip (default: 0).
 
         Returns:
             A sequence of alerts with the specified status.
         """
         status_value = status.value if isinstance(status, AlertStatus) else status
-        stmt = select(Alert).where(Alert.status == status_value).order_by(Alert.created_at.desc())
+        stmt = (
+            select(Alert)
+            .where(Alert.status == status_value)
+            .order_by(Alert.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def get_by_severity(self, severity: AlertSeverity | str) -> Sequence[Alert]:
-        """Get all alerts with a specific severity.
+    async def get_by_severity(
+        self,
+        severity: AlertSeverity | str,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> Sequence[Alert]:
+        """Get alerts with a specific severity with pagination.
 
         Args:
             severity: The severity to filter by (e.g., AlertSeverity.HIGH or "high").
+            limit: Maximum number of alerts to return (default: 100).
+            offset: Number of alerts to skip (default: 0).
 
         Returns:
             A sequence of alerts with the specified severity.
         """
         severity_value = severity.value if isinstance(severity, AlertSeverity) else severity
         stmt = (
-            select(Alert).where(Alert.severity == severity_value).order_by(Alert.created_at.desc())
+            select(Alert)
+            .where(Alert.severity == severity_value)
+            .order_by(Alert.created_at.desc())
+            .limit(limit)
+            .offset(offset)
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
     async def get_by_dedup_key(
-        self, dedup_key: str, since: datetime | None = None
+        self,
+        dedup_key: str,
+        since: datetime | None = None,
+        limit: int = 100,
+        offset: int = 0,
     ) -> Sequence[Alert]:
-        """Get alerts with a specific dedup key, optionally filtered by time.
+        """Get alerts with a specific dedup key with pagination, optionally filtered by time.
 
         Useful for checking if an alert has already been triggered recently
         to prevent duplicate alerts.
@@ -118,6 +172,8 @@ class AlertRepository(Repository[Alert]):
             dedup_key: The deduplication key to search for.
             since: Optional datetime to only return alerts created after this time.
                    If None, returns all alerts with the dedup_key.
+            limit: Maximum number of alerts to return (default: 100).
+            offset: Number of alerts to skip (default: 0).
 
         Returns:
             A sequence of alerts matching the dedup key.
@@ -125,7 +181,7 @@ class AlertRepository(Repository[Alert]):
         stmt = select(Alert).where(Alert.dedup_key == dedup_key)
         if since:
             stmt = stmt.where(Alert.created_at >= since)
-        stmt = stmt.order_by(Alert.created_at.desc())
+        stmt = stmt.order_by(Alert.created_at.desc()).limit(limit).offset(offset)
         result = await self.session.execute(stmt)
         return result.scalars().all()
 

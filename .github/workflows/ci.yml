@@ -222,12 +222,21 @@ jobs:
 
       - name: Combine and check coverage threshold
         run: |
-          # Combine coverage from all shards
-          uv run coverage combine --data-file=.coverage || true
-          # Generate report and check 85% threshold
-          uv run coverage xml -o coverage-unit.xml --rcfile=/dev/null || true
-          # Note: Individual shard coverage may be lower, but combined should meet threshold
-          echo "Coverage merged from all shards"
+          # List available coverage files
+          echo "Available coverage files:"
+          find . -name ".coverage*" -type f || true
+
+          # Only run combine if files exist
+          if compgen -G ".coverage.*" > /dev/null 2>&1; then
+            uv run coverage combine --data-file=.coverage
+            uv run coverage xml -o coverage-unit.xml --rcfile=/dev/null
+            echo "Coverage merged successfully"
+          else
+            echo "::warning::No coverage files found to merge"
+            # Create empty coverage files to prevent downstream failures
+            touch .coverage
+            touch coverage-unit.xml
+          fi
 
       - name: Upload merged unit test coverage
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
