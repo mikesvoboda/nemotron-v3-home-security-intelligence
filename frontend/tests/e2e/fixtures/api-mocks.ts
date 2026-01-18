@@ -652,6 +652,79 @@ export async function setupApiMocks(
     });
   });
 
+  // Analytics Detection Trends endpoint (used by Analytics page charts)
+  await page.route('**/api/analytics/detection-trends*', async (route) => {
+    if (mergedConfig.analyticsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch detection trends' }),
+      });
+    } else {
+      // Generate sample data points for the last 7 days
+      const dataPoints = [];
+      const now = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        dataPoints.push({
+          date: date.toISOString().split('T')[0],
+          count: Math.floor(Math.random() * 100) + 50,
+          by_label: {
+            person: Math.floor(Math.random() * 50) + 20,
+            car: Math.floor(Math.random() * 30) + 10,
+            dog: Math.floor(Math.random() * 20) + 5,
+          },
+        });
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data_points: dataPoints,
+          total_detections: dataPoints.reduce((sum, dp) => sum + dp.count, 0),
+          start_date: dataPoints[0].date,
+          end_date: dataPoints[dataPoints.length - 1].date,
+        }),
+      });
+    }
+  });
+
+  // Analytics Risk History endpoint (used by Analytics page charts)
+  await page.route('**/api/analytics/risk-history*', async (route) => {
+    if (mergedConfig.analyticsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch risk history' }),
+      });
+    } else {
+      // Generate sample risk history for the last 7 days
+      const dataPoints = [];
+      const now = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        dataPoints.push({
+          date: date.toISOString().split('T')[0],
+          average_risk_score: Math.floor(Math.random() * 40) + 30,
+          high_risk_count: Math.floor(Math.random() * 5),
+          medium_risk_count: Math.floor(Math.random() * 15) + 5,
+          low_risk_count: Math.floor(Math.random() * 30) + 20,
+        });
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data_points: dataPoints,
+          start_date: dataPoints[0].date,
+          end_date: dataPoints[dataPoints.length - 1].date,
+        }),
+      });
+    }
+  });
+
   // Event Detections endpoint (BEFORE /api/events)
   // Returns detections for a specific event - used by EventDetailModal
   await page.route('**/api/events/*/detections*', async (route) => {
