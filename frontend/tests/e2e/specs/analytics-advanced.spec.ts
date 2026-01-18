@@ -152,10 +152,11 @@ test.describe('Analytics Advanced - Chart Rendering @critical', () => {
 
   test('displays key metrics cards on Overview tab', async ({ page }) => {
     // Verify all 4 key metric cards are visible
-    const totalEventsCard = page.getByText('Total Events').locator('..');
-    const totalDetectionsCard = page.getByText('Total Detections').locator('..');
-    const avgConfidenceCard = page.getByText('Average Confidence').locator('..');
-    const highRiskCard = page.getByText('High Risk Events').locator('..');
+    // Use .first() to handle cases where text appears in multiple elements
+    const totalEventsCard = page.getByText('Total Events').first().locator('..');
+    const totalDetectionsCard = page.getByText('Total Detections').first().locator('..');
+    const avgConfidenceCard = page.getByText('Average Confidence').first().locator('..');
+    const highRiskCard = page.getByText('High Risk Events').first().locator('..');
 
     await expect(totalEventsCard).toBeVisible();
     await expect(totalDetectionsCard).toBeVisible();
@@ -616,41 +617,17 @@ test.describe('Analytics Advanced - Error Handling', () => {
   let analyticsPage: AnalyticsPage;
 
   test('shows error message when detection trends API fails', async ({ page }) => {
-    await setupApiMocks(page, defaultMockConfig);
-
-    // Mock analytics endpoints - detection trends fails
-    await page.route('**/api/analytics/detection-trends*', async (route) => {
-      await route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: 'Internal server error' }),
-      });
-    });
-
-    await page.route('**/api/analytics/risk-history*', async (route) => {
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(generateRiskHistory(startDate, endDate)),
-      });
-    });
+    // Use analyticsError config to trigger 500 responses for analytics endpoints
+    await setupApiMocks(page, { ...defaultMockConfig, analyticsError: true });
 
     analyticsPage = new AnalyticsPage(page);
     await analyticsPage.goto();
     await analyticsPage.waitForPageLoad();
 
-    // Wait for error to appear - TanStack Query retries, so need longer timeout
-    await page.waitForTimeout(5000);
-
-    // Check for error message or empty state
-    const hasEmptyState = await page.getByText('Failed to load detection trend data').isVisible().catch(() => false);
-    const hasError = await page.getByText(/No detection data available/i).isVisible().catch(() => false);
-    const hasChartPlaceholder = await page.getByText(/Try selecting a different time period/i).isVisible().catch(() => false);
-
-    // Either error message, empty state, or help text should be shown
-    expect(hasEmptyState || hasError || hasChartPlaceholder).toBe(true);
+    // Wait for error message to appear - use toBeVisible with timeout instead of fixed wait
+    // This handles TanStack Query retries automatically
+    const errorMessage = page.getByText(/Failed to load analytics data|Failed to load detection trend data/i);
+    await expect(errorMessage).toBeVisible({ timeout: 15000 });
   });
 
   test('shows empty state when no data available', async ({ page }) => {
