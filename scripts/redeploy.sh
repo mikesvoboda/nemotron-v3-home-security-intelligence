@@ -668,10 +668,51 @@ update_to_latest_main() {
     return 0
 }
 
+kill_dev_servers() {
+    # Kill any development servers that might be using required ports
+    # This prevents port conflicts when starting containers
+    local ports_to_check=(
+        "${FRONTEND_PORT:-5173}"      # Vite dev server
+        "${FRONTEND_HTTPS_PORT:-8443}" # Frontend HTTPS
+        "8000"                         # Backend API
+    )
+
+    print_step "Checking for dev servers on required ports..."
+
+    for port in "${ports_to_check[@]}"; do
+        # Find processes listening on the port (excluding podman/conmon)
+        local pids
+        pids=$(ss -tlnp 2>/dev/null | grep ":${port}" | grep -v "conmon\|podman" | \
+               sed -n 's/.*pid=\([0-9]*\).*/\1/p' | sort -u)
+
+        if [ -n "$pids" ]; then
+            for pid in $pids; do
+                local proc_name
+                proc_name=$(ps -p "$pid" -o comm= 2>/dev/null || echo "unknown")
+                # Only kill node/bun processes (dev servers), not system services
+                if [[ "$proc_name" =~ ^(node|bun|npm|npx|vite)$ ]]; then
+                    print_warn "Killing $proc_name (PID $pid) on port $port"
+                    kill "$pid" 2>/dev/null || true
+                    sleep 1
+                    # Force kill if still running
+                    if kill -0 "$pid" 2>/dev/null; then
+                        kill -9 "$pid" 2>/dev/null || true
+                    fi
+                fi
+            done
+        fi
+    done
+
+    print_success "Dev server check complete"
+}
+
 stop_and_clean() {
     print_header "Stopping All Containers"
 
     cd "$PROJECT_ROOT"
+
+    # Kill any dev servers that might be using required ports
+    kill_dev_servers
 
     # Volume destruction warning
     if [ "$KEEP_VOLUMES" != "true" ]; then

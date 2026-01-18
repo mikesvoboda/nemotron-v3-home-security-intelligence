@@ -69,8 +69,8 @@ export default function AIPerformancePage() {
     setError('Failed to load Grafana dashboard. Please check if Grafana is running.');
   };
 
-  // Grafana dashboard URL with kiosk mode
-  const dashboardUrl = `${grafanaUrl}/d/hsi-consolidated?orgId=1&kiosk`;
+  // Grafana dashboard URL with kiosk mode, dark theme, and auto-refresh
+  const dashboardUrl = `${grafanaUrl}/d/hsi-consolidated?orgId=1&kiosk=1&theme=dark&refresh=30s`;
 
   // Loading state
   if (isLoading) {
@@ -102,7 +102,7 @@ export default function AIPerformancePage() {
         <div className="flex items-center gap-3">
           {/* External Grafana Link */}
           <a
-            href={dashboardUrl.replace('&kiosk', '')}
+            href={`${grafanaUrl}/d/hsi-consolidated?orgId=1`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
