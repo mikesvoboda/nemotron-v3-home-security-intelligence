@@ -231,12 +231,17 @@ def check_coverage_diff(base_branch: str = "origin/main") -> tuple[bool, str]:
 
     try:
         # Run coverage for current branch
+        # NOTE: Use -n0 to disable parallel execution during coverage collection.
+        # pytest-xdist + pytest-cov has race conditions with parallel workers that
+        # can cause workers to crash and falsely report test failures. Running
+        # serially is slower but more reliable for coverage measurement.
         subprocess.run(
             [
                 "uv",
                 "run",
                 "pytest",
                 "backend/tests/unit/",
+                "-n0",  # Disable parallel execution for reliable coverage
                 "--cov=backend",
                 "--cov-report=json",
             ],
