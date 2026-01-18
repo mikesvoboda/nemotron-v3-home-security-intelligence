@@ -279,9 +279,6 @@ describe('EnrichmentPanel', () => {
     });
   });
 
-  // Note: posture enrichment tests removed - EnrichmentPanel now uses ViTPose pose analysis
-  // TODO: Add tests for pose enrichment when pose analysis is testable
-
   describe('license plate enrichment', () => {
     const licensePlateEnrichment: EnrichmentData = {
       license_plate: {

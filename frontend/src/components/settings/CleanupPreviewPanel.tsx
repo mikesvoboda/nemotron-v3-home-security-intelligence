@@ -53,9 +53,9 @@ export default function CleanupPreviewPanel({ className }: CleanupPreviewPanelPr
     }
   }, [cleanupData, resetCleanup]);
 
-  const handlePreview = async () => {
+  const handlePreview = () => {
     resetCleanup(); // Clear any previous cleanup result
-    await preview();
+    preview();
   };
 
   const handleCleanup = async () => {

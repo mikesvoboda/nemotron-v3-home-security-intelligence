@@ -182,16 +182,13 @@ describe('PipelineLatencyPanel', () => {
     expect(within(watchToDetectBar).getByText('100')).toBeInTheDocument(); // sample_count
   });
 
-  // TODO: Fix this flaky test - stage-bar-batch_to_analyze not found intermittently
-  it.skip('identifies and highlights bottleneck stage', async () => {
+  it('identifies and highlights bottleneck stage', async () => {
     render(<PipelineLatencyPanel />);
 
-    await waitFor(() => {
-      expect(screen.getByText('Pipeline Latency Breakdown')).toBeInTheDocument();
-    });
+    // Wait for the specific stage bar to be rendered (not just the header)
+    const batchToAnalyzeBar = await screen.findByTestId('stage-bar-batch_to_analyze');
 
     // batch_to_analyze has highest p95 (450ms), should be marked as bottleneck
-    const batchToAnalyzeBar = screen.getByTestId('stage-bar-batch_to_analyze');
     expect(within(batchToAnalyzeBar).getByText('Bottleneck')).toBeInTheDocument();
 
     // Other stages should not be marked as bottleneck

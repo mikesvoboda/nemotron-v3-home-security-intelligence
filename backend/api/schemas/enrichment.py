@@ -136,23 +136,31 @@ class WeatherEnrichment(BaseModel):
 
 
 class PoseEnrichment(BaseModel):
-    """Pose estimation results (placeholder for future ViTPose integration)."""
+    """Pose estimation results from ViTPose integration."""
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
+                "posture": "standing",
+                "alerts": ["person_crouching"],
+                "security_alerts": ["person_crouching"],
                 "keypoints": [[100, 150, 0.9], [120, 160, 0.85]],
-                "action": "walking",
+                "keypoint_count": 17,
                 "confidence": 0.82,
             }
         }
     )
 
+    posture: str | None = Field(None, description="Detected posture (standing, sitting, etc.)")
+    alerts: list[str] = Field(default_factory=list, description="Pose-related security alerts")
+    security_alerts: list[str] = Field(
+        default_factory=list, description="Backward compatibility alias for alerts"
+    )
     keypoints: list[list[float]] | None = Field(
         None, description="Body keypoints [[x, y, conf], ...]"
     )
-    action: str | None = Field(None, description="Recognized action (walking, running, etc.)")
-    confidence: float | None = Field(None, ge=0.0, le=1.0, description="Action confidence")
+    keypoint_count: int | None = Field(None, ge=0, description="Number of detected keypoints")
+    confidence: float | None = Field(None, ge=0.0, le=1.0, description="Pose estimation confidence")
 
 
 class DepthEnrichment(BaseModel):

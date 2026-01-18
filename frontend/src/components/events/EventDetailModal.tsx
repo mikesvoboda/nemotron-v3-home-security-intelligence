@@ -310,9 +310,10 @@ export default function EventDetailModal({
   };
 
   // Handle thumbnail click to view specific detection
+  // Updates selectedDetectionId which triggers re-render of main display area
+  // The main display uses selectedDetection to determine if showing video or image
   const handleThumbnailClick = (detectionId: number) => {
     setSelectedDetectionId(detectionId);
-    // TODO: Could add logic to update the main image view to show this specific detection
   };
 
   // Handle thumbnail double-click to open lightbox for full-size view
@@ -673,7 +674,20 @@ export default function EventDetailModal({
                             )}
                           </div>
                         </div>
+                      ) : selectedDetectionId && selectedDetection ? (
+                        // Show selected detection's image when a detection thumbnail is clicked
+                        <div className="mb-6 overflow-hidden rounded-lg bg-black">
+                          <DetectionImage
+                            src={getDetectionFullImageUrl(selectedDetectionId)}
+                            alt={`${selectedDetection.object_type || 'Detection'} at ${formatTimestamp(selectedDetection.detected_at)}`}
+                            boxes={[]}
+                            className="w-full"
+                            enableLightbox={true}
+                            lightboxCaption={`${event.camera_name} - ${selectedDetection.object_type || 'Detection'}${selectedDetection.confidence ? ` (${Math.round(selectedDetection.confidence * 100)}%)` : ''}`}
+                          />
+                        </div>
                       ) : imageUrl ? (
+                        // Fallback to event's main image when no detection is selected
                         <div className="mb-6 overflow-hidden rounded-lg bg-black">
                           {hasBoundingBoxes ? (
                             <DetectionImage

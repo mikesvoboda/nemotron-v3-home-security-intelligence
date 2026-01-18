@@ -46,6 +46,7 @@ import {
   fetchModelLeaderboard,
   fetchAuditRecommendations,
 } from '../../services/api';
+import PromptPlayground from '../ai/PromptPlayground';
 import { Skeleton, StatsCardSkeleton } from '../common';
 
 import type {
@@ -670,6 +671,11 @@ export default function AIAuditDashboard({ periodDays = 7, className }: AIAuditD
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Prompt playground state
+  const [isPlaygroundOpen, setIsPlaygroundOpen] = useState(false);
+  const [selectedRecommendation, setSelectedRecommendation] =
+    useState<AiAuditRecommendationItem | null>(null);
+
   // Load all data
   const loadData = useCallback(
     async (showLoading = true) => {
@@ -711,10 +717,16 @@ export default function AIAuditDashboard({ periodDays = 7, className }: AIAuditD
     setIsRefreshing(false);
   };
 
-  // Handle apply recommendation (placeholder for future functionality)
-  const handleApplyRecommendation = (_recommendation: AiAuditRecommendationItem) => {
-    // TODO: Open prompt playground with recommendation context
-    // Implementation pending - will navigate to PromptPlayground with recommendation
+  // Handle apply recommendation - opens the prompt playground with recommendation context
+  const handleApplyRecommendation = (recommendation: AiAuditRecommendationItem) => {
+    setSelectedRecommendation(recommendation);
+    setIsPlaygroundOpen(true);
+  };
+
+  // Handle closing the prompt playground
+  const handleClosePlayground = () => {
+    setIsPlaygroundOpen(false);
+    setSelectedRecommendation(null);
   };
 
   // Error state
@@ -804,6 +816,13 @@ export default function AIAuditDashboard({ periodDays = 7, className }: AIAuditD
           Showing data from the last {periodDays} days
         </Text>
       )}
+
+      {/* Prompt Playground Slide-out Panel */}
+      <PromptPlayground
+        isOpen={isPlaygroundOpen}
+        onClose={handleClosePlayground}
+        recommendation={selectedRecommendation}
+      />
     </div>
   );
 }

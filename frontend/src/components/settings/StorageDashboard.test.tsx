@@ -138,12 +138,10 @@ describe('StorageDashboard', () => {
   });
 
   it('displays error state when fetch fails', async () => {
-    // React Query retries 2 times, so we need 3 rejections for the error to show
+    // Smart retry only retries transient errors (timeouts, rate limits, service unavailable).
+    // A generic Error is not retried, so only 1 rejection is needed.
     const error = new Error('Network error');
-    vi.mocked(api.fetchStorageStats)
-      .mockRejectedValueOnce(error)
-      .mockRejectedValueOnce(error)
-      .mockRejectedValueOnce(error);
+    vi.mocked(api.fetchStorageStats).mockRejectedValueOnce(error);
 
     renderWithProviders(<StorageDashboard />);
 
@@ -159,13 +157,12 @@ describe('StorageDashboard', () => {
   });
 
   it('handles retry button click on error', async () => {
-    // React Query retries 2 times by default, so we need 3 rejections for the initial load
-    // to fail completely, then we resolve on the retry button click
+    // Smart retry only retries transient errors (timeouts, rate limits, service unavailable).
+    // A generic Error is not retried, so the initial failure shows immediately,
+    // then the retry button click triggers a new request that succeeds.
     const error = new Error('Network error');
     vi.mocked(api.fetchStorageStats)
       .mockRejectedValueOnce(error) // Initial attempt
-      .mockRejectedValueOnce(error) // First retry
-      .mockRejectedValueOnce(error) // Second retry
       .mockResolvedValueOnce(mockStorageStats); // After retry button click
 
     renderWithProviders(<StorageDashboard />);
@@ -308,10 +305,7 @@ describe('StorageDashboard', () => {
     });
   });
 
-  // TODO: Fix this test - mutateAsync throws unhandled rejection when API returns error
-  // Component uses `void previewCleanup()` which ignores Promise, causing unhandled rejection
-  // Need to either use mutate() instead of mutateAsync() or add .catch() in component
-  it.skip('handles cleanup preview error', async () => {
+  it('handles cleanup preview error', async () => {
     vi.mocked(api.fetchStorageStats).mockResolvedValue(mockStorageStats);
     vi.mocked(api.previewCleanup).mockRejectedValue(new Error('Preview failed'));
 

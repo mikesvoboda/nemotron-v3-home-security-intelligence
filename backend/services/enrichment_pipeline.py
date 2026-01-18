@@ -963,12 +963,82 @@ class EnrichmentResult:
             "vehicle_classifications": {
                 det_id: result.to_dict() for det_id, result in self.vehicle_classifications.items()
             },
+            "pose_results": {
+                det_id: self._serialize_pose_result(pose)
+                for det_id, pose in self.pose_results.items()
+            },
             "image_quality": (self.image_quality.to_dict() if self.image_quality else None),
             "depth_analysis": (self.depth_analysis.to_dict() if self.depth_analysis else None),
             "quality_change_detected": self.quality_change_detected,
             "quality_change_description": self.quality_change_description,
             "errors": self.errors,
             "processing_time_ms": self.processing_time_ms,
+        }
+
+    def _serialize_pose_result(self, pose: PoseResult) -> dict[str, Any]:
+        """Serialize a PoseResult to the frontend-expected PoseEnrichment format.
+
+        Converts the internal PoseResult dataclass to the schema expected by
+        the frontend (PoseEnrichment), including:
+        - posture: The classified pose type
+        - alerts: Security alerts based on suspicious poses
+        - security_alerts: Backward compatibility alias for alerts
+        - keypoints: [[x, y, confidence], ...] format for visualization
+        - keypoint_count: Number of detected keypoints
+        - confidence: Pose classification confidence
+
+        Args:
+            pose: PoseResult from ViTPose estimation
+
+        Returns:
+            Dictionary matching the PoseEnrichment schema
+        """
+        # Suspicious poses that generate security alerts
+        suspicious_poses = {"crouching", "running", "lying"}
+
+        # Generate security alerts based on pose classification
+        alerts: list[str] = []
+        if pose.pose_class in suspicious_poses and pose.pose_confidence > 0.5:
+            alerts.append(f"person_{pose.pose_class}")
+
+        # Convert keypoints dict to [[x, y, confidence], ...] format
+        # Use COCO keypoint order for consistent indexing
+        keypoint_names = [
+            "nose",
+            "left_eye",
+            "right_eye",
+            "left_ear",
+            "right_ear",
+            "left_shoulder",
+            "right_shoulder",
+            "left_elbow",
+            "right_elbow",
+            "left_wrist",
+            "right_wrist",
+            "left_hip",
+            "right_hip",
+            "left_knee",
+            "right_knee",
+            "left_ankle",
+            "right_ankle",
+        ]
+
+        keypoints: list[list[float]] = []
+        for name in keypoint_names:
+            if name in pose.keypoints:
+                kp = pose.keypoints[name]
+                keypoints.append([kp.x, kp.y, kp.confidence])
+            else:
+                # Missing keypoint - use zeros
+                keypoints.append([0.0, 0.0, 0.0])
+
+        return {
+            "posture": pose.pose_class,
+            "alerts": alerts,
+            "security_alerts": alerts,  # Backward compatibility
+            "keypoints": keypoints,
+            "keypoint_count": len(pose.keypoints),
+            "confidence": pose.pose_confidence,
         }
 
     def to_prompt_context(self, time_of_day: str | None = None) -> dict[str, str]:
@@ -1286,8 +1356,11 @@ class EnrichmentResult:
                     "carrying": None,
                     "confidence": None,
                 }
+            # Basic pose info under person
             enrichment["person"]["pose"] = pose.pose_class
             enrichment["person"]["pose_confidence"] = pose.pose_confidence
+            # Full pose enrichment data matching PoseEnrichment schema
+            enrichment["pose"] = self._serialize_pose_result(pose)
 
         # Person: clothing segmentation (adds additional attributes)
         if det_id_str in self.clothing_segmentation:
