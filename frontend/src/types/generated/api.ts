@@ -20878,9 +20878,7 @@ export interface operations {
     cleanup_orphans_api_admin_cleanup_orphans_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-api-key"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -20932,9 +20930,7 @@ export interface operations {
     seed_cameras_api_admin_seed_cameras_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-api-key"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -20986,9 +20982,7 @@ export interface operations {
     clear_seeded_data_api_admin_seed_clear_delete: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-api-key"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -21049,9 +21043,7 @@ export interface operations {
     seed_events_api_admin_seed_events_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-api-key"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -21110,9 +21102,7 @@ export interface operations {
     seed_pipeline_latency_api_admin_seed_pipeline_latency_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-api-key"?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };

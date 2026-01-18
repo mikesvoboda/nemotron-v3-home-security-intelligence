@@ -119,8 +119,8 @@ describe('DeveloperToolsPage', () => {
       expect(screen.getByTestId('developer-tools-loading')).toBeInTheDocument();
     });
 
-    it('should redirect to home when debug is disabled', async () => {
-      // Mock config with debug: false
+    it('should render the page regardless of debug flag', async () => {
+      // Mock config (debug flag no longer matters)
       server.use(
         http.get('/api/system/config', () => {
           return HttpResponse.json({
@@ -132,33 +132,6 @@ describe('DeveloperToolsPage', () => {
             detection_confidence_threshold: 0.5,
             grafana_url: 'http://localhost:3002',
             debug: false,
-          });
-        })
-      );
-
-      renderWithProviders(<DeveloperToolsPage />);
-
-      await waitFor(() => {
-        // Navigate component should redirect to "/"
-        // In MemoryRouter context, we can't directly test navigation
-        // but we can verify the redirect component renders
-        expect(screen.queryByTestId('developer-tools-page')).not.toBeInTheDocument();
-      });
-    });
-
-    it('should render the page when debug is enabled', async () => {
-      // Mock config with debug: true
-      server.use(
-        http.get('/api/system/config', () => {
-          return HttpResponse.json({
-            app_name: 'Home Security Intelligence',
-            version: '0.1.0',
-            retention_days: 30,
-            batch_window_seconds: 90,
-            batch_idle_timeout_seconds: 30,
-            detection_confidence_threshold: 0.5,
-            grafana_url: 'http://localhost:3002',
-            debug: true,
           });
         })
       );
