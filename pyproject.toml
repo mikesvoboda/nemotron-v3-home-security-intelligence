@@ -440,3 +440,17 @@ pytest_add_cli_args = ["-x", "-q", "--tb=short", "-p", "no:benchmark", "-o", "ad
 also_copy = [
     "backend/",
 ]
+
+# =============================================================================
+# UV Package Manager Configuration
+# =============================================================================
+# Use CPU-only PyTorch wheels for the backend.
+# The backend runs on CPU-only environments (python:slim-bookworm base image).
+# GPU workloads (RT-DETR, Nemotron) run in separate AI containers under ai/.
+#
+# This eliminates ~700MB of unnecessary NVIDIA NCCL libraries that were causing
+# CI Docker builds to fail with "no space left on device" errors.
+[tool.uv]
+extra-index-url = ["https://download.pytorch.org/whl/cpu"]
+# Use best-match strategy to allow PyPI packages when not found on PyTorch CPU index
+index-strategy = "unsafe-best-match"
