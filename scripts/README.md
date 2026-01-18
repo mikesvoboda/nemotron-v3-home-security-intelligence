@@ -65,7 +65,7 @@ This will:
 | Script                | Purpose                                        |
 | --------------------- | ---------------------------------------------- |
 | `dev.sh`              | Start all development services                 |
-| `seed-mock-events.py` | Populate database with mock events and cameras |
+| `seed-events.py` | Populate database with mock events and cameras |
 
 ## Usage Examples
 
@@ -122,19 +122,19 @@ pytest backend/tests/unit/test_feature.py -v
 
 ```bash
 # Seed all cameras (creates folders)
-./scripts/seed-mock-events.py
+./scripts/seed-events.py
 
 # Seed without creating folders
-./scripts/seed-mock-events.py --no-folders
+./scripts/seed-events.py --no-folders
 
 # Seed specific number of cameras
-./scripts/seed-mock-events.py --count 3
+./scripts/seed-events.py --count 3
 
 # Clear and re-seed
-./scripts/seed-mock-events.py --clear --count 6
+./scripts/seed-events.py --clear --count 6
 
 # List current cameras
-./scripts/seed-mock-events.py --list
+./scripts/seed-events.py --list
 ```
 
 ## Prerequisites
@@ -239,7 +239,7 @@ cd backend
 uvicorn main:app --reload
 
 # Seed test data
-./scripts/seed-mock-events.py
+./scripts/seed-events.py
 ```
 
 ## Environment Variables
@@ -302,7 +302,7 @@ VITE_WS_BASE_URL=ws://localhost:8000
 4. **Seed test data:**
 
    ```bash
-   ./scripts/seed-mock-events.py
+   ./scripts/seed-events.py
    ```
 
 5. **Run tests:**
