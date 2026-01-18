@@ -970,6 +970,20 @@ class TestOptimisticLocking:
             version_id=1,
         )
 
+    @pytest.fixture(autouse=True)
+    def reset_mock_state(self, mock_db_session: AsyncMock) -> Generator[None]:
+        """Reset mock state between tests for proper isolation under parallel execution.
+
+        This fixture ensures that mock_db_session state (execute.return_value,
+        commit.side_effect, rollback calls) doesn't persist between tests when
+        running with pytest-xdist work-stealing distribution.
+        """
+        yield
+        # Reset all mocks to clear any state set during the test
+        mock_db_session.execute.reset_mock()
+        mock_db_session.commit.reset_mock()
+        mock_db_session.rollback.reset_mock()
+
     def test_acknowledge_concurrent_modification_returns_409(
         self, alert_client: TestClient, mock_db_session: AsyncMock, sample_alert: Alert
     ) -> None:
