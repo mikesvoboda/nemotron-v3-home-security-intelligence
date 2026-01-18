@@ -133,12 +133,13 @@ test.describe('Tablet Viewport Tests', () => {
     await expect(settingsPage.processingTab).toBeVisible();
   });
 
-  test('system page shows all panels on tablet', async ({ page }) => {
+  test('operations page shows key sections on tablet', async ({ page }) => {
     const systemPage = new SystemPage(page);
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
-    await expect(systemPage.systemOverviewCard).toBeVisible();
-    await expect(systemPage.serviceHealthCard).toBeVisible();
+    // Operations page has pipeline visualization and circuit breakers
+    await expect(page.getByTestId('pipeline-flow-visualization')).toBeVisible();
+    await expect(page.getByTestId('circuit-breakers-section')).toBeVisible();
   });
 });
 
@@ -203,13 +204,14 @@ test.describe('Desktop Viewport Tests', () => {
     await expect(dashboardPage.eventsTodayStat).toBeVisible();
   });
 
-  test('system page shows all metrics on desktop', async ({ page }) => {
+  test('operations page shows all sections on desktop', async ({ page }) => {
     const systemPage = new SystemPage(page);
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
-    await expect(systemPage.systemOverviewCard).toBeVisible();
-    await expect(systemPage.serviceHealthCard).toBeVisible();
-    await expect(systemPage.pipelineQueuesCard).toBeVisible();
+    // Operations page shows pipeline, circuit breakers, and file operations
+    await expect(page.getByTestId('pipeline-flow-visualization')).toBeVisible();
+    await expect(page.getByTestId('circuit-breakers-section')).toBeVisible();
+    await expect(page.getByTestId('file-operations-section')).toBeVisible();
   });
 });
 
@@ -240,13 +242,14 @@ test.describe('Large Desktop Viewport Tests', () => {
     }
   });
 
-  test('system page has room for all panels', async ({ page }) => {
+  test('operations page has room for all sections', async ({ page }) => {
     const systemPage = new SystemPage(page);
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
-    await expect(systemPage.systemOverviewCard).toBeVisible();
-    await expect(systemPage.serviceHealthCard).toBeVisible();
-    await expect(systemPage.timeRangeSelector).toBeVisible();
+    // Operations page shows pipeline, circuit breakers, file operations, and debug toggle
+    await expect(page.getByTestId('pipeline-flow-visualization')).toBeVisible();
+    await expect(page.getByTestId('circuit-breakers-section')).toBeVisible();
+    await expect(page.getByTestId('file-operations-section')).toBeVisible();
   });
 });
 

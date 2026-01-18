@@ -39,7 +39,7 @@ const navItems: NavItem[] = [
   { id: 'audit', label: 'Audit Log', icon: Shield, path: '/audit' },
   { id: 'ai', label: 'AI Performance', icon: Brain, path: '/ai' },
   { id: 'ai-audit', label: 'AI Audit', icon: ClipboardCheck, path: '/ai-audit' },
-  { id: 'system', label: 'System', icon: Server, path: '/system' },
+  { id: 'operations', label: 'Operations', icon: Server, path: '/operations' },
   { id: 'trash', label: 'Trash', icon: Trash2, path: '/trash' },
   {
     id: 'settings',

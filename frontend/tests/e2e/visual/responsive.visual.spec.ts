@@ -89,19 +89,19 @@ test.describe('Responsive Settings Visual', () => {
   }
 });
 
-test.describe('Responsive System Visual', () => {
+test.describe('Responsive Operations Visual', () => {
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
   });
 
   for (const viewport of viewports) {
-    test(`system page renders correctly on ${viewport.name}`, async ({ page }) => {
+    test(`operations page renders correctly on ${viewport.name}`, async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await page.goto('/system');
+      await page.goto('/operations');
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(500);
 
-      await expect(page).toHaveScreenshot(`system-${viewport.name}.png`, {
+      await expect(page).toHaveScreenshot(`operations-${viewport.name}.png`, {
         fullPage: true,
         mask: [
           page.locator('[data-testid="uptime"]'),

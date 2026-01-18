@@ -127,9 +127,9 @@ test.describe('Navigation Tests', () => {
     await expect(page).toHaveURL(/\/audit$/);
   });
 
-  test('URL reflects current page - system', async () => {
-    await page.goto('/system');
-    await expect(page).toHaveURL(/\/system$/);
+  test('URL reflects current page - operations', async () => {
+    await page.goto('/operations');
+    await expect(page).toHaveURL(/\/operations$/);
   });
 
   test('URL reflects current page - settings', async () => {
@@ -225,7 +225,7 @@ test.describe('All Routes Smoke Tests', () => {
       { path: '/entities', title: /Entities/i },
       { path: '/logs', title: /System Logs/i },
       { path: '/audit', title: /Audit Log/i },
-      { path: '/system', title: /System Monitoring/i },
+      { path: '/operations', title: /Operations/i },
       { path: '/settings', title: /Settings/i },
     ];
 
