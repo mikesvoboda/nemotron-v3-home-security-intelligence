@@ -211,32 +211,233 @@ jobs:
           retention-days: 14
 
   # ============================================================================
+  # Memory Stress Test (Runtime Memory Leak Detection)
+  # ============================================================================
+  memory-stress-test:
+    name: Memory Stress Test
+    runs-on: ubuntu-latest
+    # Non-blocking for scheduled runs, blocking for main merges
+    continue-on-error: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      REDIS_URL: redis://localhost:6379
+      BASE_URL: http://localhost:8000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Initialize database
+        run: |
+          cd backend && PYTHONPATH=.. uv run alembic upgrade head
+
+      - name: Start backend server
+        run: |
+          uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
+          BACKEND_PID=$!
+          echo "BACKEND_PID=$BACKEND_PID" >> $GITHUB_ENV
+          echo "Waiting for backend to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/api/system/health/ready > /dev/null 2>&1; then
+              echo "Backend is ready!"
+              break
+            fi
+            echo "Attempt $i/30..."
+            sleep 2
+          done
+
+      - name: Get baseline memory
+        id: baseline
+        run: |
+          # Find the uvicorn worker process
+          UVICORN_PID=$(pgrep -f "python.*uvicorn.*backend.main:app" | tail -1)
+          if [ -z "$UVICORN_PID" ]; then
+            UVICORN_PID=$(pgrep -f "uvicorn.*backend.main:app" | tail -1)
+          fi
+          echo "UVICORN_PID=$UVICORN_PID" >> $GITHUB_ENV
+
+          # Get baseline RSS
+          BASELINE_KB=$(cat /proc/$UVICORN_PID/status | grep "^VmRSS:" | awk '{print $2}')
+          BASELINE_MB=$((BASELINE_KB / 1024))
+          echo "baseline_mb=$BASELINE_MB" >> $GITHUB_OUTPUT
+          echo "Baseline memory: ${BASELINE_MB} MB"
+
+      - name: Run memory stress test
+        id: stress_test
+        run: |
+          mkdir -p memory-stress-results
+
+          # Run load test for 2 minutes with 20 concurrent workers
+          uv run python scripts/load_test.py \
+            --duration 120 \
+            --concurrency 20 \
+            2>&1 | tee memory-stress-results/load-test-output.txt
+
+      - name: Check for memory leak
+        id: memory_check
+        run: |
+          # Get final memory
+          FINAL_KB=$(cat /proc/$UVICORN_PID/status | grep "^VmRSS:" | awk '{print $2}')
+          FINAL_MB=$((FINAL_KB / 1024))
+          BASELINE_MB=${{ steps.baseline.outputs.baseline_mb }}
+
+          GROWTH_MB=$((FINAL_MB - BASELINE_MB))
+          GROWTH_PCT=$((GROWTH_MB * 100 / BASELINE_MB))
+
+          echo "final_mb=$FINAL_MB" >> $GITHUB_OUTPUT
+          echo "growth_mb=$GROWTH_MB" >> $GITHUB_OUTPUT
+          echo "growth_pct=$GROWTH_PCT" >> $GITHUB_OUTPUT
+
+          echo "Memory results:"
+          echo "  Baseline: ${BASELINE_MB} MB"
+          echo "  Final: ${FINAL_MB} MB"
+          echo "  Growth: ${GROWTH_MB} MB (${GROWTH_PCT}%)"
+
+          # Fail if memory grew by more than 50MB or 20%
+          # (generous thresholds to account for CI variability)
+          if [ "$GROWTH_MB" -gt 50 ] || [ "$GROWTH_PCT" -gt 20 ]; then
+            echo "memory_leak=true" >> $GITHUB_OUTPUT
+            echo "::error::Potential memory leak detected! Memory grew by ${GROWTH_MB} MB (${GROWTH_PCT}%)"
+            exit 1
+          else
+            echo "memory_leak=false" >> $GITHUB_OUTPUT
+            echo "No memory leak detected"
+          fi
+
+      - name: Generate memory stress test summary
+        if: always()
+        run: |
+          echo "## Memory Stress Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Baseline Memory | ${{ steps.baseline.outputs.baseline_mb }} MB |" >> $GITHUB_STEP_SUMMARY
+          echo "| Final Memory | ${{ steps.memory_check.outputs.final_mb }} MB |" >> $GITHUB_STEP_SUMMARY
+          echo "| Memory Growth | ${{ steps.memory_check.outputs.growth_mb }} MB (${{ steps.memory_check.outputs.growth_pct }}%) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Memory Leak | ${{ steps.memory_check.outputs.memory_leak == 'true' && '⚠️ DETECTED' || '✅ None' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "memory-stress-results/load-test-output.txt" ]; then
+            echo "### Load Test Output" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '<details><summary>Full output</summary>' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat memory-stress-results/load-test-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '</details>' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload memory stress test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: memory-stress-test-results
+          path: memory-stress-results/
+          retention-days: 14
+
+  # ============================================================================
   # Summary Job
   # ============================================================================
   load-tests-summary:
     name: Load Tests Summary
     runs-on: ubuntu-latest
-    needs: [load-tests]
+    needs: [load-tests, memory-stress-test]
     if: always()
     steps:
       - name: Check load test results
         run: |
+          echo "## Load Tests Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check k6 load tests
           if [ "${{ needs.load-tests.result }}" == "failure" ]; then
+            echo "- k6 Load Tests: ❌ FAILED" >> $GITHUB_STEP_SUMMARY
             echo "::warning::Load tests detected performance issues. Review the artifacts for details."
-            echo ""
-            echo "To run load tests locally:"
-            echo "  ./scripts/load-test.sh all smoke     # Quick smoke test"
-            echo "  ./scripts/load-test.sh all average   # Normal load test"
-            echo "  ./scripts/load-test.sh all stress    # Stress test"
+          elif [ "${{ needs.load-tests.result }}" == "success" ]; then
+            echo "- k6 Load Tests: ✅ PASSED" >> $GITHUB_STEP_SUMMARY
           else
-            echo "Load tests passed!"
+            echo "- k6 Load Tests: ⚠️ ${{ needs.load-tests.result }}" >> $GITHUB_STEP_SUMMARY
           fi
 
+          # Check memory stress test
+          if [ "${{ needs.memory-stress-test.result }}" == "failure" ]; then
+            echo "- Memory Stress Test: ❌ FAILED (potential memory leak)" >> $GITHUB_STEP_SUMMARY
+            echo "::warning::Memory stress test detected a potential memory leak. Review the artifacts for details."
+          elif [ "${{ needs.memory-stress-test.result }}" == "success" ]; then
+            echo "- Memory Stress Test: ✅ PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- Memory Stress Test: ⚠️ ${{ needs.memory-stress-test.result }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Local Testing Commands" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "# k6 load tests" >> $GITHUB_STEP_SUMMARY
+          echo "./scripts/load-test.sh all smoke     # Quick smoke test" >> $GITHUB_STEP_SUMMARY
+          echo "./scripts/load-test.sh all average   # Normal load test" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Memory stress test" >> $GITHUB_STEP_SUMMARY
+          echo "uv run python scripts/load_test.py --duration 120 --concurrency 20" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
       - name: Create Linear issue on failure
-        if: needs.load-tests.result == 'failure' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (needs.load-tests.result == 'failure' || needs.memory-stress-test.result == 'failure') && github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
+          # Determine failure type for issue title
+          K6_FAILED="${{ needs.load-tests.result == 'failure' }}"
+          MEMORY_FAILED="${{ needs.memory-stress-test.result == 'failure' }}"
+
+          if [ "$K6_FAILED" == "true" ] && [ "$MEMORY_FAILED" == "true" ]; then
+            TITLE="Load test and memory stress test failures on main"
+          elif [ "$K6_FAILED" == "true" ]; then
+            TITLE="Load test failure on main"
+          else
+            TITLE="Memory stress test failure (potential memory leak) on main"
+          fi
+
           # Only create issue for failures on main branch pushes (not PRs)
           response=$(curl -s -w "\n%{http_code}" -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
@@ -246,8 +447,8 @@ jobs:
               "variables": {
                 "input": {
                   "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "Load test failure on main",
-                  "description": "## Load Test Failure\n\nThe k6 load tests failed after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Review the load test results in the workflow artifacts\n2. Check for performance regressions in recent changes\n3. Run load tests locally to investigate:\n   ```bash\n   ./scripts/load-test.sh all smoke\n   ./scripts/load-test.sh all average\n   ```\n4. If thresholds need adjustment, update tests/load/config.js",
+                  "title": "'"$TITLE"'",
+                  "description": "## Load/Memory Test Failure\n\n**k6 Load Tests:** '"${{ needs.load-tests.result }}"'\n**Memory Stress Test:** '"${{ needs.memory-stress-test.result }}"'\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Review the test results in the workflow artifacts\n2. Check for performance regressions or memory leaks in recent changes\n3. Run tests locally to investigate:\n   ```bash\n   # k6 load tests\n   ./scripts/load-test.sh all smoke\n   ./scripts/load-test.sh all average\n\n   # Memory stress test\n   uv run python scripts/load_test.py --duration 120 --concurrency 20\n   ```\n4. If thresholds need adjustment, update tests/load/config.js or scripts/load_test.py",
                   "priority": 3,
                   "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
                 }
