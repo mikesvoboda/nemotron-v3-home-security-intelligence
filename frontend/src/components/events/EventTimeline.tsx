@@ -1,15 +1,22 @@
-import { ArrowDownUp, Calendar, CheckSquare, Clock, Download, Filter, Square } from 'lucide-react';
+import { ArrowDownUp, Calendar, CheckSquare, Clock, Download, Filter, Layers, Square } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import EventCard from './EventCard';
+import EventClusterCard from './EventClusterCard';
 import EventDetailModal from './EventDetailModal';
+import EventListView, { type SortField, type SortDirection } from './EventListView';
 import ExportPanel from './ExportPanel';
+import FilterChips from './FilterChips';
 import LiveActivitySection from './LiveActivitySection';
+import TimelineScrubber, { type TimeRange, type ZoomLevel } from './TimelineScrubber';
+import ViewToggle, { type ViewMode } from './ViewToggle';
 import { useEventsInfiniteQuery, type EventFilters } from '../../hooks/useEventsQuery';
 import { useEventStream } from '../../hooks/useEventStream';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { usePaginationState } from '../../hooks/usePaginationState';
+import { useTimelineData } from '../../hooks/useTimelineData';
 import {
   bulkUpdateEvents,
   exportEventsCSV,
@@ -17,6 +24,7 @@ import {
   searchEvents,
   updateEvent,
 } from '../../services/api';
+import { clusterEvents, getClusterStats, isEventCluster, type ClusteredItem } from '../../utils/eventClustering';
 import { countBy } from '../../utils/groupBy';
 import { pipe, getSortTransform, type SortOption } from '../../utils/pipeline';
 import { getRiskLevel } from '../../utils/risk';
@@ -67,6 +75,16 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
+  // State for view mode (grid vs list) - persisted in localStorage
+  const [viewMode, setViewMode] = useLocalStorage<ViewMode>('timeline-view-mode', 'grid');
+
+  // State for clustering toggle - persisted in localStorage
+  const [clusteringEnabled, setClusteringEnabled] = useLocalStorage<boolean>('timeline-clustering-enabled', true);
+
+  // State for list view sorting (separate from the main sortOption which is dropdown-based)
+  const [listSortField, setListSortField] = useState<SortField>('time');
+  const [listSortDirection, setListSortDirection] = useState<SortDirection>('desc');
+
   // State for event detail modal
   const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
 
@@ -81,6 +99,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const [searchTotalCount, setSearchTotalCount] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // State for timeline scrubber (NEM-2932)
+  const [timelineZoomLevel, setTimelineZoomLevel] = useState<ZoomLevel>('day');
 
   // URL search params for deep-linking (e.g., /timeline?camera=cam-1)
   const [searchParams] = useSearchParams();
@@ -110,6 +131,18 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   } = useEventsInfiniteQuery({
     filters: eventFilters,
     limit: 20,
+    enabled: !isSearchMode,
+  });
+
+  // Timeline scrubber data hook (NEM-2932)
+  const {
+    buckets: timelineBuckets,
+    isLoading: timelineLoading,
+  } = useTimelineData({
+    zoomLevel: timelineZoomLevel,
+    startDate: eventFilters.start_date,
+    endDate: eventFilters.end_date,
+    cameraId: eventFilters.camera_id,
     enabled: !isSearchMode,
   });
 
@@ -425,6 +458,62 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // The filter UI still provides value as it indicates user intent and could be passed to backend.
   const filteredEvents = pipe(getSortTransform<Event>(sortOption))(events);
 
+  // Apply list view sorting when in list view mode
+  const listViewEvents = useMemo(() => {
+    if (viewMode !== 'list') return filteredEvents;
+
+    return [...filteredEvents].sort((a, b) => {
+      let comparison = 0;
+      switch (listSortField) {
+        case 'time':
+          comparison = new Date(a.started_at).getTime() - new Date(b.started_at).getTime();
+          break;
+        case 'camera':
+          comparison = (cameraNameMap.get(a.camera_id) || '').localeCompare(
+            cameraNameMap.get(b.camera_id) || ''
+          );
+          break;
+        case 'risk':
+          comparison = (a.risk_score || 0) - (b.risk_score || 0);
+          break;
+      }
+      return listSortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredEvents, viewMode, listSortField, listSortDirection, cameraNameMap]);
+
+  // Apply event clustering to reduce visual noise
+  // Clusters events from same camera within 5-minute window
+  const clusteredItems: ClusteredItem[] = useMemo(() => {
+    if (viewMode === 'list') {
+      // Don't cluster in list view
+      return filteredEvents;
+    }
+    return clusterEvents(filteredEvents, {
+      enabled: clusteringEnabled,
+      maxTimeGapMinutes: 5,
+      minClusterSize: 3,
+      sameCamera: true,
+    });
+  }, [filteredEvents, clusteringEnabled, viewMode]);
+
+  // Add camera names to clusters for display
+  const clusteredItemsWithNames: ClusteredItem[] = useMemo(() => {
+    return clusteredItems.map((item) => {
+      if (isEventCluster(item)) {
+        return {
+          ...item,
+          cameraName: cameraNameMap.get(item.cameraId) || 'Unknown Camera',
+        };
+      }
+      return item;
+    });
+  }, [clusteredItems, cameraNameMap]);
+
+  // Calculate clustering stats for display
+  const clusterStats = useMemo(() => {
+    return getClusterStats(filteredEvents, clusteredItemsWithNames);
+  }, [filteredEvents, clusteredItemsWithNames]);
+
   // Calculate risk level counts for the currently displayed events
   const riskCountsPartial = countBy(
     filteredEvents,
@@ -485,6 +574,29 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       void refetch();
     } catch (err) {
       console.error('Failed to mark event as reviewed:', err);
+    }
+  };
+
+  // Handle mark as reviewed from list view (takes number instead of string)
+  const handleListMarkReviewed = async (eventId: number) => {
+    try {
+      await updateEvent(eventId, { reviewed: true });
+      // Refetch events to reflect changes
+      void refetch();
+    } catch (err) {
+      console.error('Failed to mark event as reviewed:', err);
+    }
+  };
+
+  // Handle list view column sort
+  const handleListSort = (field: SortField) => {
+    if (field === listSortField) {
+      // Toggle direction if same field
+      setListSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      // New field, default to descending
+      setListSortField(field);
+      setListSortDirection('desc');
     }
   };
 
@@ -552,6 +664,24 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-700 to-transparent" />
       </div>
 
+      {/* Timeline Scrubber (NEM-2932) - Visual timeline for navigating events */}
+      {!isSearchMode && (
+        <TimelineScrubber
+          buckets={timelineBuckets}
+          onTimeRangeChange={(range: TimeRange) => {
+            setEventFilters((prev) => ({
+              ...prev,
+              start_date: range.startDate.split('T')[0],
+              end_date: range.endDate.split('T')[0],
+            }));
+          }}
+          zoomLevel={timelineZoomLevel}
+          onZoomChange={setTimelineZoomLevel}
+          isLoading={timelineLoading}
+          className="mb-6"
+        />
+      )}
+
       {/* Full-Text Search Bar */}
       <div className="mb-6 rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
         <div className="mb-3 flex items-center justify-between">
@@ -596,6 +726,16 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       {/* Browse Mode: Filter Bar */}
       {!isSearchMode && (
         <>
+          {/* Quick Filter Chips */}
+          <div className="mb-4 rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
+            <FilterChips
+              filters={eventFilters}
+              riskCounts={riskCounts}
+              onFilterChange={handleFilterChange}
+              onClearFilters={handleClearFilters}
+            />
+          </div>
+
           {/* Filter Bar */}
           <div className="mb-6 rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
             {/* Filter Toggle and Search */}
@@ -892,6 +1032,15 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                   ? '0 events'
                   : `Showing ${filteredEvents.length} of ${totalCount} events`}
               </p>
+              {/* Clustering Stats - only show when clustering is active and has effect */}
+              {clusteringEnabled && viewMode === 'grid' && clusterStats.clusterCount > 0 && (
+                <p className="flex items-center gap-1.5 text-sm text-[#76B900]">
+                  <Layers className="h-3.5 w-3.5" />
+                  <span>
+                    {clusterStats.originalCount} events grouped into {clusterStats.clusterCount} cluster{clusterStats.clusterCount !== 1 ? 's' : ''} ({clusterStats.displayCount} items)
+                  </span>
+                </p>
+              )}
               {/* Risk Summary Badges */}
               {!loading && !error && filteredEvents.length > 0 && (
                 <div className="flex items-center gap-2 text-sm">
@@ -924,28 +1073,54 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
               {hasActiveFilters && <p className="text-sm text-[#76B900]">Filters active</p>}
             </div>
 
-            {/* Bulk Actions Bar */}
+            {/* View Toggle and Bulk Actions Bar */}
             {!loading && !error && filteredEvents.length > 0 && (
               <div className="flex items-center gap-3">
-                {/* Select All Checkbox */}
-                <button
-                  onClick={handleToggleSelectAll}
-                  className="flex items-center gap-2 rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-gray-600 hover:bg-[#252525]"
-                  aria-label={
-                    selectedEventIds.size === filteredEvents.length && filteredEvents.length > 0
-                      ? 'Deselect all events'
-                      : 'Select all events'
-                  }
-                >
-                  {selectedEventIds.size === filteredEvents.length && filteredEvents.length > 0 ? (
-                    <CheckSquare className="h-4 w-4 text-[#76B900]" />
-                  ) : (
-                    <Square className="h-4 w-4" />
-                  )}
-                  <span>
-                    {selectedEventIds.size > 0 ? `${selectedEventIds.size} selected` : 'Select all'}
-                  </span>
-                </button>
+                {/* View Mode Toggle */}
+                <ViewToggle
+                  viewMode={viewMode}
+                  onChange={setViewMode}
+                  persistKey="timeline-view-mode"
+                />
+
+                {/* Clustering Toggle - only show in grid view */}
+                {viewMode === 'grid' && (
+                  <button
+                    onClick={() => setClusteringEnabled(!clusteringEnabled)}
+                    className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                      clusteringEnabled
+                        ? 'border-[#76B900] bg-[#76B900]/10 text-[#76B900]'
+                        : 'border-gray-700 bg-[#1A1A1A] text-gray-300 hover:border-gray-600 hover:bg-[#252525]'
+                    }`}
+                    aria-pressed={clusteringEnabled}
+                    title={clusteringEnabled ? 'Disable event clustering' : 'Enable event clustering'}
+                  >
+                    <Layers className="h-4 w-4" />
+                    <span>Cluster</span>
+                  </button>
+                )}
+
+                {/* Select All Checkbox - only show in grid view since list view has its own */}
+                {viewMode === 'grid' && (
+                  <button
+                    onClick={handleToggleSelectAll}
+                    className="flex items-center gap-2 rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-gray-600 hover:bg-[#252525]"
+                    aria-label={
+                      selectedEventIds.size === filteredEvents.length && filteredEvents.length > 0
+                        ? 'Deselect all events'
+                        : 'Select all events'
+                    }
+                  >
+                    {selectedEventIds.size === filteredEvents.length && filteredEvents.length > 0 ? (
+                      <CheckSquare className="h-4 w-4 text-[#76B900]" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                    <span>
+                      {selectedEventIds.size > 0 ? `${selectedEventIds.size} selected` : 'Select all'}
+                    </span>
+                  </button>
+                )}
 
                 {/* Bulk Mark as Reviewed Button */}
                 {selectedEventIds.size > 0 && (
@@ -1033,32 +1208,89 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                 testId="timeline-empty-state"
               />
             </div>
+          ) : viewMode === 'list' ? (
+            <>
+              {/* List View */}
+              <EventListView
+                events={listViewEvents.map((event) => ({
+                  id: event.id,
+                  camera_id: event.camera_id,
+                  camera_name: cameraNameMap.get(event.camera_id) || 'Unknown Camera',
+                  started_at: event.started_at,
+                  ended_at: event.ended_at,
+                  risk_score: event.risk_score || 0,
+                  risk_level: event.risk_level || getRiskLevel(event.risk_score || 0),
+                  summary: event.summary || null,
+                  thumbnail_url: event.thumbnail_url || null,
+                  reviewed: event.reviewed || false,
+                }))}
+                selectedIds={selectedEventIds}
+                onToggleSelection={handleToggleSelection}
+                onToggleSelectAll={handleToggleSelectAll}
+                onEventClick={(eventId) => setSelectedEventForModal(eventId)}
+                onMarkReviewed={(eventId) => void handleListMarkReviewed(eventId)}
+                sortField={listSortField}
+                sortDirection={listSortDirection}
+                onSort={handleListSort}
+              />
+
+              {/* Infinite Scroll Status */}
+              <InfiniteScrollStatus
+                sentinelRef={sentinelRef}
+                isLoading={isFetchingNextPage || isLoadingMore}
+                hasMore={hasNextPage}
+                error={scrollError}
+                onRetry={retry}
+                totalCount={totalCount}
+                loadedCount={listViewEvents.length}
+                endMessage="You've seen all events"
+                loadingMessage="Loading more events..."
+                className="mt-6"
+              />
+            </>
           ) : (
             <>
+              {/* Grid View */}
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                {filteredEvents.map((event) => (
-                  <div key={event.id} className="relative">
-                    {/* Selection Checkbox */}
-                    <div className="absolute left-2 top-2 z-10">
-                      <button
-                        onClick={() => handleToggleSelection(event.id)}
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 bg-[#1A1A1A]/90 backdrop-blur-sm transition-colors hover:border-gray-600 hover:bg-[#252525]/90"
-                        aria-label={
-                          selectedEventIds.has(event.id)
-                            ? `Deselect event ${event.id}`
-                            : `Select event ${event.id}`
-                        }
-                      >
-                        {selectedEventIds.has(event.id) ? (
-                          <CheckSquare className="h-5 w-5 text-[#76B900]" />
-                        ) : (
-                          <Square className="h-5 w-5 text-gray-400" />
-                        )}
-                      </button>
+                {clusteredItemsWithNames.map((item) => {
+                  // Render cluster card for clusters
+                  if (isEventCluster(item)) {
+                    return (
+                      <EventClusterCard
+                        key={item.clusterId}
+                        cluster={item}
+                        onEventClick={(eventId) => setSelectedEventForModal(eventId)}
+                        hasCheckboxOverlay={false}
+                      />
+                    );
+                  }
+
+                  // Render regular event card for individual events
+                  const event = item;
+                  return (
+                    <div key={event.id} className="relative">
+                      {/* Selection Checkbox */}
+                      <div className="absolute left-2 top-2 z-10">
+                        <button
+                          onClick={() => handleToggleSelection(event.id)}
+                          className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 bg-[#1A1A1A]/90 backdrop-blur-sm transition-colors hover:border-gray-600 hover:bg-[#252525]/90"
+                          aria-label={
+                            selectedEventIds.has(event.id)
+                              ? `Deselect event ${event.id}`
+                              : `Select event ${event.id}`
+                          }
+                        >
+                          {selectedEventIds.has(event.id) ? (
+                            <CheckSquare className="h-5 w-5 text-[#76B900]" />
+                          ) : (
+                            <Square className="h-5 w-5 text-gray-400" />
+                          )}
+                        </button>
+                      </div>
+                      <EventCard {...getEventCardProps(event)} hasCheckboxOverlay />
                     </div>
-                    <EventCard {...getEventCardProps(event)} hasCheckboxOverlay />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Infinite Scroll Status */}

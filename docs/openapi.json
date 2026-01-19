@@ -19752,6 +19752,103 @@
         "title": "TimeRange",
         "type": "string"
       },
+      "TimelineBucketResponse": {
+        "description": "Schema for a single time bucket in the timeline summary (NEM-2932).\n\nEach bucket represents a time period with aggregated event data.",
+        "example": {
+          "event_count": 15,
+          "max_risk_score": 85,
+          "timestamp": "2026-01-15T12:00:00Z"
+        },
+        "properties": {
+          "event_count": {
+            "description": "Number of events in this bucket",
+            "minimum": 0.0,
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "max_risk_score": {
+            "default": 0,
+            "description": "Maximum risk score of events in this bucket",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Max Risk Score",
+            "type": "integer"
+          },
+          "timestamp": {
+            "description": "Start timestamp of this bucket",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "timestamp",
+          "event_count"
+        ],
+        "title": "TimelineBucketResponse",
+        "type": "object"
+      },
+      "TimelineSummaryResponse": {
+        "description": "Schema for timeline summary response (NEM-2932).\n\nReturns bucketed event data for timeline visualization.\nSupports different zoom levels with varying bucket sizes.",
+        "example": {
+          "buckets": [
+            {
+              "event_count": 5,
+              "max_risk_score": 45,
+              "timestamp": "2026-01-15T06:00:00Z"
+            },
+            {
+              "event_count": 12,
+              "max_risk_score": 85,
+              "timestamp": "2026-01-15T07:00:00Z"
+            },
+            {
+              "event_count": 3,
+              "max_risk_score": 25,
+              "timestamp": "2026-01-15T08:00:00Z"
+            }
+          ],
+          "end_date": "2026-01-15T09:00:00Z",
+          "start_date": "2026-01-15T06:00:00Z",
+          "total_events": 20
+        },
+        "properties": {
+          "buckets": {
+            "description": "List of time buckets with aggregated event data",
+            "items": {
+              "$ref": "#/components/schemas/TimelineBucketResponse"
+            },
+            "title": "Buckets",
+            "type": "array"
+          },
+          "end_date": {
+            "description": "End of the timeline range",
+            "format": "date-time",
+            "title": "End Date",
+            "type": "string"
+          },
+          "start_date": {
+            "description": "Start of the timeline range",
+            "format": "date-time",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "total_events": {
+            "description": "Total events in the time range",
+            "minimum": 0.0,
+            "title": "Total Events",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "buckets",
+          "total_events",
+          "start_date",
+          "end_date"
+        ],
+        "title": "TimelineSummaryResponse",
+        "type": "object"
+      },
       "TraceMallocStats": {
         "description": "Tracemalloc statistics if enabled.",
         "properties": {
@@ -27347,6 +27444,109 @@
           }
         },
         "summary": "Get Event Stats",
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/events/timeline-summary": {
+      "get": {
+        "description": "Get timeline summary data for the timeline scrubber visualization (NEM-2932).\n\nReturns event data bucketed by time periods for visualization.\nEach bucket includes:\n- Timestamp (start of the bucket)\n- Event count\n- Maximum risk score in that bucket\n\nBucket sizes based on zoom level:\n- hour: 5-minute buckets (12 buckets per hour)\n- day: 1-hour buckets (24 buckets per day)\n- week: 1-day buckets (7 buckets per week)\n\nArgs:\n    start_date: Start of timeline range (defaults based on bucket_size)\n    end_date: End of timeline range (defaults to now)\n    bucket_size: Zoom level - \"hour\", \"day\", or \"week\"\n    camera_id: Optional camera filter\n    db: Database session\n    cache: Cache service\n\nReturns:\n    TimelineSummaryResponse with bucketed event data",
+        "operationId": "get_timeline_summary_api_events_timeline_summary_get",
+        "parameters": [
+          {
+            "description": "Start of timeline range (ISO format)",
+            "in": "query",
+            "name": "start_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Start of timeline range (ISO format)",
+              "title": "Start Date"
+            }
+          },
+          {
+            "description": "End of timeline range (ISO format)",
+            "in": "query",
+            "name": "end_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "End of timeline range (ISO format)",
+              "title": "End Date"
+            }
+          },
+          {
+            "description": "Zoom level determining bucket size (hour, day, week)",
+            "in": "query",
+            "name": "bucket_size",
+            "required": false,
+            "schema": {
+              "default": "day",
+              "description": "Zoom level determining bucket size (hour, day, week)",
+              "pattern": "^(hour|day|week)$",
+              "title": "Bucket Size",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelineSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Timeline Summary",
         "tags": [
           "events"
         ]
