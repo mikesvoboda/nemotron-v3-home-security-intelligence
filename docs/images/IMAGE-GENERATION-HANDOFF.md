@@ -10,7 +10,7 @@ This document provides all specifications for generating AI images for the Home 
 
 ```bash
 export NVIDIA_API_KEY="your-nvidia-api-key"  # pragma: allowlist secret
-# Alternative: export NVAPIKEY="your-nvidia-api-key"
+# Alternative: export NVAPIKEY="your-nvidia-api-key"  # pragma: allowlist secret
 ```
 
 **Required Tool:**

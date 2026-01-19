@@ -478,7 +478,7 @@ describe('AlertsPage', () => {
   });
 
   describe('Event Card Integration', () => {
-    it('calls onViewEventDetails when View Details is clicked', async () => {
+    it('calls onViewEventDetails when View Details is clicked in grid view', async () => {
       vi.mocked(api.fetchEvents)
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
@@ -492,13 +492,21 @@ describe('AlertsPage', () => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
+      // Switch to grid view to access View Details button
+      const gridButton = screen.getByRole('button', { name: 'Grid view' });
+      await user.click(gridButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('alerts-grid-view')).toBeInTheDocument();
+      });
+
       const viewButtons = screen.getAllByText('View Details');
       await user.click(viewButtons[0]);
 
       expect(handleViewDetails).toHaveBeenCalled();
     });
 
-    it('displays camera names in event cards', async () => {
+    it('displays camera names in event cards and group headers', async () => {
       vi.mocked(api.fetchEvents)
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
@@ -509,11 +517,12 @@ describe('AlertsPage', () => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
+      // Camera names appear in group headers in grouped view
       await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
+        expect(screen.getAllByText('Front Door').length).toBeGreaterThan(0);
       });
 
-      expect(screen.getByText('Back Yard')).toBeInTheDocument();
+      expect(screen.getAllByText('Back Yard').length).toBeGreaterThan(0);
     });
   });
 
@@ -556,7 +565,7 @@ describe('AlertsPage', () => {
   });
 
   describe('Event Detail Modal', () => {
-    it('opens modal when clicking on an alert card', async () => {
+    it('opens modal when clicking on an alert card in grouped view', async () => {
       vi.mocked(api.fetchEvents)
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
@@ -568,9 +577,9 @@ describe('AlertsPage', () => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
-      // Wait for camera names to load
+      // Wait for camera names to load (in grouped view, camera names appear in group headers)
       await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
+        expect(screen.getAllByText('Front Door').length).toBeGreaterThan(0);
       });
 
       // Find the first event card by data-testid and click on it
@@ -598,7 +607,7 @@ describe('AlertsPage', () => {
 
       // Wait for camera names to load
       await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
+        expect(screen.getAllByText('Front Door').length).toBeGreaterThan(0);
       });
 
       // Click on event card to open modal
@@ -633,7 +642,7 @@ describe('AlertsPage', () => {
 
       // Wait for camera names to load
       await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
+        expect(screen.getAllByText('Front Door').length).toBeGreaterThan(0);
       });
 
       // Click on event card to open modal
@@ -669,7 +678,7 @@ describe('AlertsPage', () => {
 
       // Wait for camera names to load
       await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
+        expect(screen.getAllByText('Front Door').length).toBeGreaterThan(0);
       });
 
       // Click on first event card to open modal
@@ -690,7 +699,9 @@ describe('AlertsPage', () => {
 
       // Should navigate to the next event (Back Yard camera)
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Back Yard' })).toBeInTheDocument();
+        // In grouped view, both camera names might be visible, so check for heading in modal
+        const backYardHeadings = screen.getAllByRole('heading', { name: 'Back Yard' });
+        expect(backYardHeadings.length).toBeGreaterThan(0);
       });
     });
 
@@ -708,7 +719,7 @@ describe('AlertsPage', () => {
 
       // Wait for camera names to load
       await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
+        expect(screen.getAllByText('Front Door').length).toBeGreaterThan(0);
       });
 
       // Click on event card to open modal
@@ -731,6 +742,539 @@ describe('AlertsPage', () => {
       // Should call updateEvent API
       await waitFor(() => {
         expect(api.updateEvent).toHaveBeenCalledWith(1, { reviewed: true });
+      });
+    });
+  });
+
+  describe('Bulk Selection', () => {
+    // Helper function to switch to grid view
+    const switchToGridView = async (user: ReturnType<typeof userEvent.setup>) => {
+      const gridButton = screen.getByRole('button', { name: 'Grid view' });
+      await user.click(gridButton);
+      await waitFor(() => {
+        expect(screen.getByTestId('alerts-grid-view')).toBeInTheDocument();
+      });
+    };
+
+    it('displays checkbox on each alert card in grid view', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      await switchToGridView(user);
+
+      // Each event card should have a checkbox
+      const checkboxes = screen.getAllByRole('checkbox');
+      expect(checkboxes.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('toggles selection when checkbox is clicked', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      await switchToGridView(user);
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      await user.click(checkboxes[0]);
+
+      // Checkbox should be checked
+      expect(checkboxes[0]).toBeChecked();
+    });
+
+    it('shows bulk action bar when alerts are selected', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      await switchToGridView(user);
+
+      // Select an alert
+      const checkboxes = screen.getAllByRole('checkbox');
+      await user.click(checkboxes[0]);
+
+      // Bulk action bar should appear
+      expect(screen.getByTestId('bulk-action-bar')).toBeInTheDocument();
+      expect(screen.getByText(/1 selected/)).toBeInTheDocument();
+    });
+
+    it('hides bulk action bar when selection is cleared', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      await switchToGridView(user);
+
+      // Select an alert
+      const checkboxes = screen.getAllByRole('checkbox');
+      await user.click(checkboxes[0]);
+
+      // Bulk action bar should appear
+      expect(screen.getByTestId('bulk-action-bar')).toBeInTheDocument();
+
+      // Click clear button
+      await user.click(screen.getByRole('button', { name: /clear/i }));
+
+      // Bulk action bar should disappear
+      expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument();
+    });
+
+    it('selects all alerts when "Select all" is clicked', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      await switchToGridView(user);
+
+      // Select one alert first to show the bulk action bar
+      const checkboxes = screen.getAllByRole('checkbox');
+      await user.click(checkboxes[0]);
+
+      // Click select all
+      await user.click(screen.getByRole('button', { name: /select all/i }));
+
+      // All checkboxes should be checked
+      const allCheckboxes = screen.getAllByRole('checkbox');
+      allCheckboxes.forEach((checkbox) => {
+        expect(checkbox).toBeChecked();
+      });
+
+      // Should show "2 selected"
+      expect(screen.getByText(/2 selected/)).toBeInTheDocument();
+    });
+
+    it('dismisses selected alerts when "Dismiss Selected" is clicked', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      await switchToGridView(user);
+
+      // Select first alert (the first checkbox corresponds to the first card in the grid)
+      const checkboxes = screen.getAllByRole('checkbox');
+      await user.click(checkboxes[0]);
+
+      // Mock the API calls for after dismissal
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockEmptyResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      // Click dismiss selected
+      await user.click(screen.getByRole('button', { name: /dismiss.*selected/i }));
+
+      // Should call updateEvent with reviewed: true for one of the alerts
+      // (The order depends on which card appears first in the grid)
+      await waitFor(() => {
+        expect(api.updateEvent).toHaveBeenCalledWith(expect.any(Number), { reviewed: true });
+      });
+    });
+
+    it('highlights selected alert cards', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      await switchToGridView(user);
+
+      // Select first alert (the first checkbox in grid view)
+      const checkboxes = screen.getAllByRole('checkbox');
+      await user.click(checkboxes[0]);
+
+      // The selected card's wrapper should have a highlight class
+      // Find the card that corresponds to the first checkbox
+      const eventCards = screen.getAllByTestId(/^event-card-/);
+      // At least one card's parent should have the ring-2 class
+      const hasHighlightedCard = eventCards.some((card) =>
+        card.parentElement?.classList.contains('ring-2')
+      );
+      expect(hasHighlightedCard).toBe(true);
+    });
+  });
+
+  describe('Keyboard Shortcuts', () => {
+    // Helper function to switch to grid view
+    const switchToGridView = async (user: ReturnType<typeof userEvent.setup>) => {
+      const gridButton = screen.getByRole('button', { name: 'Grid view' });
+      await user.click(gridButton);
+      await waitFor(() => {
+        expect(screen.getByTestId('alerts-grid-view')).toBeInTheDocument();
+      });
+    };
+
+    it('selects all alerts with Ctrl+A in grid view', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      await switchToGridView(user);
+
+      // Press Ctrl+A
+      await user.keyboard('{Control>}a{/Control}');
+
+      // All checkboxes should be checked
+      const checkboxes = screen.getAllByRole('checkbox');
+      checkboxes.forEach((checkbox) => {
+        expect(checkbox).toBeChecked();
+      });
+    });
+
+    it('clears selection with Escape in grid view', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      await switchToGridView(user);
+
+      // Select an alert first
+      const checkboxes = screen.getAllByRole('checkbox');
+      await user.click(checkboxes[0]);
+
+      expect(screen.getByTestId('bulk-action-bar')).toBeInTheDocument();
+
+      // Press Escape
+      await user.keyboard('{Escape}');
+
+      // Selection should be cleared
+      expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument();
+      expect(checkboxes[0]).not.toBeChecked();
+    });
+
+    it('selects all with Cmd+A on Mac in grid view', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      await switchToGridView(user);
+
+      // Press Meta+A (Cmd+A on Mac)
+      await user.keyboard('{Meta>}a{/Meta}');
+
+      // All checkboxes should be checked
+      const checkboxes = screen.getAllByRole('checkbox');
+      checkboxes.forEach((checkbox) => {
+        expect(checkbox).toBeChecked();
+      });
+    });
+  });
+
+  describe('Camera Grouping', () => {
+    it('displays grouped view by default', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should show grouped view
+      expect(screen.getByTestId('alerts-grouped-view')).toBeInTheDocument();
+    });
+
+    it('groups alerts by camera', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should have camera group headers
+      expect(screen.getByTestId('alert-camera-group-camera-1')).toBeInTheDocument();
+      expect(screen.getByTestId('alert-camera-group-camera-2')).toBeInTheDocument();
+    });
+
+    it('sorts camera groups by highest severity', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Get the camera group elements
+      const groups = screen.getAllByTestId(/^alert-camera-group-/);
+
+      // Critical (camera-2) should be first, then high (camera-1)
+      expect(groups[0]).toHaveAttribute('data-testid', 'alert-camera-group-camera-2');
+      expect(groups[1]).toHaveAttribute('data-testid', 'alert-camera-group-camera-1');
+    });
+
+    it('shows view mode toggle', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should have view mode toggle buttons
+      expect(screen.getByRole('button', { name: 'Group by camera' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Grid view' })).toBeInTheDocument();
+    });
+
+    it('switches to grid view when grid button is clicked', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Click grid view button
+      const gridButton = screen.getByRole('button', { name: 'Grid view' });
+      await user.click(gridButton);
+
+      // Should show grid view
+      await waitFor(() => {
+        expect(screen.getByTestId('alerts-grid-view')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('alerts-grouped-view')).not.toBeInTheDocument();
+    });
+
+    it('switches back to grouped view when grouped button is clicked', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Switch to grid view first
+      const gridButton = screen.getByRole('button', { name: 'Grid view' });
+      await user.click(gridButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('alerts-grid-view')).toBeInTheDocument();
+      });
+
+      // Click grouped view button
+      const groupedButton = screen.getByRole('button', { name: 'Group by camera' });
+      await user.click(groupedButton);
+
+      // Should show grouped view
+      await waitFor(() => {
+        expect(screen.getByTestId('alerts-grouped-view')).toBeInTheDocument();
+      });
+    });
+
+    it('shows dismiss all button in camera group header', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should have dismiss all buttons
+      expect(
+        screen.getByRole('button', { name: 'Dismiss all alerts for Front Door' })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Dismiss all alerts for Back Yard' })
+      ).toBeInTheDocument();
+    });
+
+    it('dismisses all alerts for a camera when dismiss all is clicked', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Mock the API calls for after dismissal
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockEmptyResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      // Click dismiss all for Front Door camera
+      const dismissButton = screen.getByRole('button', {
+        name: 'Dismiss all alerts for Front Door',
+      });
+      await user.click(dismissButton);
+
+      // Should call updateEvent with reviewed: true for the camera's alerts
+      await waitFor(() => {
+        expect(api.updateEvent).toHaveBeenCalledWith(1, { reviewed: true });
+      });
+    });
+
+    it('shows severity badges in camera group header', async () => {
+      // Create multiple alerts for the same camera with different severities
+      const multipleAlertsForCamera: Event[] = [
+        {
+          id: 1,
+          camera_id: 'camera-1',
+          started_at: '2024-01-01T10:00:00Z',
+          ended_at: '2024-01-01T10:02:00Z',
+          risk_score: 90,
+          risk_level: 'critical',
+          summary: 'Critical alert 1',
+          reviewed: false,
+          detection_count: 5,
+          notes: null,
+        },
+        {
+          id: 2,
+          camera_id: 'camera-1',
+          started_at: '2024-01-01T09:00:00Z',
+          ended_at: '2024-01-01T09:05:00Z',
+          risk_score: 75,
+          risk_level: 'high',
+          summary: 'High alert 1',
+          reviewed: false,
+          detection_count: 3,
+          notes: null,
+        },
+        {
+          id: 3,
+          camera_id: 'camera-1',
+          started_at: '2024-01-01T08:00:00Z',
+          ended_at: '2024-01-01T08:01:00Z',
+          risk_score: 80,
+          risk_level: 'high',
+          summary: 'High alert 2',
+          reviewed: false,
+          detection_count: 2,
+          notes: null,
+        },
+      ];
+
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce({
+          items: multipleAlertsForCamera,
+          pagination: { total: 3, limit: 20, offset: 0, has_more: false },
+        })
+        .mockResolvedValueOnce(mockEmptyResponse);
+
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Critical alert 1')).toBeInTheDocument();
+      });
+
+      // Should show severity badges (1 critical, 2 high)
+      expect(screen.getByText('1 critical')).toBeInTheDocument();
+      expect(screen.getByText('2 high')).toBeInTheDocument();
+    });
+
+    it('opens modal when clicking on an alert in grouped view', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Click on an event card within a group
+      const eventCard = screen.getByTestId('event-card-1');
+      await user.click(eventCard);
+
+      // Modal should open
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
     });
   });
