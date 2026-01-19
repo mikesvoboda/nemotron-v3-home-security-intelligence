@@ -2,7 +2,20 @@
 
 Turn "dumb" security cameras into an intelligent threat detection system — **100% local, no cloud APIs required.**
 
-![Dashboard](docs/images/dashboard.png)
+![Dashboard Tour](docs/images/dashboard-tour.gif)
+
+<details>
+<summary>📸 Static Screenshots</summary>
+
+| Dashboard | Timeline | Entities |
+|-----------|----------|----------|
+| ![Dashboard](docs/images/screenshots/dashboard.png) | ![Timeline](docs/images/screenshots/timeline.png) | ![Entities](docs/images/screenshots/entities.png) |
+
+| Alerts | Analytics | AI Performance |
+|--------|-----------|----------------|
+| ![Alerts](docs/images/screenshots/alerts.png) | ![Analytics](docs/images/screenshots/analytics.png) | ![AI Performance](docs/images/screenshots/ai-performance.png) |
+
+</details>
 
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![Node 20.19+](https://img.shields.io/badge/node-20.19+-green.svg)](https://nodejs.org/)

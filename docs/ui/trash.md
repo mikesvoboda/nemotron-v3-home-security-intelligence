@@ -1,5 +1,7 @@
 # Trash
 
+![Trash Screenshot](../images/screenshots/trash.png)
+
 The Trash page shows events that have been soft-deleted, giving you a safety net to review and restore accidentally deleted items before they are permanently removed.
 
 ## What You're Looking At
