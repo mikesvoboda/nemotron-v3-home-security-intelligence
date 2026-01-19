@@ -73,13 +73,6 @@ const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
 // Trash (soft-deleted events)
 const TrashPage = lazy(() => import('./pages/TrashPage'));
 
-// Developer Tools (debug mode only)
-const DeveloperToolsPage = lazy(() =>
-  import('./components/developer-tools').then((module) => ({
-    default: module.DeveloperToolsPage,
-  }))
-);
-
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -111,7 +104,6 @@ export default function App() {
                           <Route path="/system" element={<Navigate to="/operations" replace />} />
                           <Route path="/settings" element={<SettingsPage />} />
                           <Route path="/trash" element={<TrashPage />} />
-                          <Route path="/dev-tools" element={<DeveloperToolsPage />} />
                         </Routes>
                       </PageTransition>
                     </Suspense>
