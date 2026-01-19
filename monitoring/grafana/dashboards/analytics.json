@@ -95,7 +95,7 @@
           ],
           "method": "GET",
           "refId": "A",
-          "urlPath": "/api/v1/events/stats"
+          "urlPath": "/api/events/stats"
         }
       ],
       "title": "Total Events",
@@ -161,7 +161,7 @@
           ],
           "method": "GET",
           "refId": "A",
-          "urlPath": "/api/v1/detections/stats"
+          "urlPath": "/api/detections/stats"
         }
       ],
       "title": "Total Detections",
@@ -238,7 +238,7 @@
           ],
           "method": "GET",
           "refId": "A",
-          "urlPath": "/api/v1/detections/stats"
+          "urlPath": "/api/detections/stats"
         }
       ],
       "title": "Average Confidence",
@@ -304,14 +304,14 @@
           },
           "fields": [
             {
-              "jsonPath": "$.high_risk_events",
+              "jsonPath": "$.events_by_risk_level.high",
               "name": "High Risk Events",
               "type": "number"
             }
           ],
           "method": "GET",
           "refId": "A",
-          "urlPath": "/api/v1/events/stats"
+          "urlPath": "/api/events/stats"
         }
       ],
       "title": "High Risk Events",
@@ -425,7 +425,7 @@
           ],
           "method": "GET",
           "refId": "A",
-          "urlPath": "/api/v1/detection-trends"
+          "urlPath": "/api/detections/stats"
         }
       ],
       "title": "Detection Trend Over Time",
@@ -561,19 +561,19 @@
           },
           "fields": [
             {
-              "jsonPath": "$.distribution[*].risk_level",
+              "jsonPath": "$.risk_distribution[*].risk_level",
               "name": "Risk Level",
               "type": "string"
             },
             {
-              "jsonPath": "$.distribution[*].count",
+              "jsonPath": "$.risk_distribution[*].count",
               "name": "Count",
               "type": "number"
             }
           ],
           "method": "GET",
           "refId": "A",
-          "urlPath": "/api/v1/events/stats"
+          "urlPath": "/api/events/stats"
         }
       ],
       "title": "Risk Distribution",
@@ -740,7 +740,7 @@
           ],
           "method": "GET",
           "refId": "A",
-          "urlPath": "/api/v1/risk-history"
+          "urlPath": "/api/events/stats"
         }
       ],
       "title": "Risk History",
@@ -841,19 +841,19 @@
           },
           "fields": [
             {
-              "jsonPath": "$.cameras[*].name",
+              "jsonPath": "$.events_by_camera[*].camera_name",
               "name": "Camera",
               "type": "string"
             },
             {
-              "jsonPath": "$.cameras[*].activity_count",
+              "jsonPath": "$.events_by_camera[*].event_count",
               "name": "Activity",
               "type": "number"
             }
           ],
           "method": "GET",
           "refId": "A",
-          "urlPath": "/api/v1/events/stats"
+          "urlPath": "/api/events/stats"
         }
       ],
       "title": "Top Cameras by Activity",
@@ -940,19 +940,19 @@
           },
           "fields": [
             {
-              "jsonPath": "$.by_class[*].object_class",
+              "jsonPath": "$.object_class_distribution[*].object_class",
               "name": "Object Class",
               "type": "string"
             },
             {
-              "jsonPath": "$.by_class[*].count",
+              "jsonPath": "$.object_class_distribution[*].count",
               "name": "Count",
               "type": "number"
             }
           ],
           "method": "GET",
           "refId": "A",
-          "urlPath": "/api/v1/detections/stats"
+          "urlPath": "/api/detections/stats"
         }
       ],
       "title": "Detections by Object Class",
@@ -1146,39 +1146,39 @@
           },
           "fields": [
             {
-              "jsonPath": "$.events[*].id",
+              "jsonPath": "$.items[*].id",
               "name": "ID",
               "type": "number"
             },
             {
-              "jsonPath": "$.events[*].created_at",
+              "jsonPath": "$.items[*].started_at",
               "name": "Timestamp",
               "type": "time"
             },
             {
-              "jsonPath": "$.events[*].camera_name",
+              "jsonPath": "$.items[*].camera_id",
               "name": "Camera",
               "type": "string"
             },
             {
-              "jsonPath": "$.events[*].risk_score",
+              "jsonPath": "$.items[*].risk_score",
               "name": "Risk Score",
               "type": "number"
             },
             {
-              "jsonPath": "$.events[*].summary",
+              "jsonPath": "$.items[*].summary",
               "name": "Summary",
               "type": "string"
             },
             {
-              "jsonPath": "$.events[*].detection_count",
+              "jsonPath": "$.items[*].detection_count",
               "name": "Detections",
               "type": "number"
             }
           ],
           "method": "GET",
           "refId": "A",
-          "urlPath": "/api/v1/events?risk_level=high"
+          "urlPath": "/api/events?risk_level=high&risk_level=critical&limit=20"
         }
       ],
       "title": "High Risk Events",

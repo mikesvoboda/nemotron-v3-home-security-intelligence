@@ -10878,6 +10878,24 @@ export interface components {
          *         "person": 23,
          *         "truck": 6
          *       },
+         *       "object_class_distribution": [
+         *         {
+         *           "count": 23,
+         *           "object_class": "person"
+         *         },
+         *         {
+         *           "count": 20,
+         *           "object_class": "car"
+         *         },
+         *         {
+         *           "count": 6,
+         *           "object_class": "truck"
+         *         },
+         *         {
+         *           "count": 1,
+         *           "object_class": "bicycle"
+         *         }
+         *       ],
          *       "total_detections": 107
          *     }
          */
@@ -10894,6 +10912,11 @@ export interface components {
             detections_by_class: {
                 [key: string]: number;
             };
+            /**
+             * Object Class Distribution
+             * @description Detections by class as array (for Grafana compatibility)
+             */
+            object_class_distribution?: components["schemas"]["ObjectClassDistributionItem"][];
             /**
              * Total Detections
              * @description Total number of detections
@@ -12486,6 +12509,24 @@ export interface components {
          *         "low": 25,
          *         "medium": 12
          *       },
+         *       "risk_distribution": [
+         *         {
+         *           "count": 2,
+         *           "risk_level": "critical"
+         *         },
+         *         {
+         *           "count": 5,
+         *           "risk_level": "high"
+         *         },
+         *         {
+         *           "count": 12,
+         *           "risk_level": "medium"
+         *         },
+         *         {
+         *           "count": 25,
+         *           "risk_level": "low"
+         *         }
+         *       ],
          *       "total_events": 44
          *     }
          */
@@ -12497,6 +12538,11 @@ export interface components {
             events_by_camera: components["schemas"]["EventsByCamera"][];
             /** @description Events grouped by risk level */
             events_by_risk_level: components["schemas"]["EventsByRiskLevel"];
+            /**
+             * Risk Distribution
+             * @description Events by risk level as array (for Grafana compatibility)
+             */
+            risk_distribution?: components["schemas"]["RiskDistributionItem"][];
             /**
              * Total Events
              * @description Total number of events
@@ -16448,6 +16494,26 @@ export interface components {
             total_detections: number;
         };
         /**
+         * ObjectClassDistributionItem
+         * @description Schema for a single object class distribution item (for Grafana compatibility).
+         * @example {
+         *       "count": 23,
+         *       "object_class": "person"
+         *     }
+         */
+        ObjectClassDistributionItem: {
+            /**
+             * Count
+             * @description Number of detections of this class
+             */
+            count: number;
+            /**
+             * Object Class
+             * @description Object class name (e.g., person, car)
+             */
+            object_class: string;
+        };
+        /**
          * ObjectDistributionDataPoint
          * @description Schema for a single object distribution data point.
          * @example {
@@ -18734,6 +18800,26 @@ export interface components {
             items?: components["schemas"]["RestartHistoryEvent"][];
             /** @description Pagination metadata */
             pagination: components["schemas"]["PaginationMeta"];
+        };
+        /**
+         * RiskDistributionItem
+         * @description Schema for a single risk distribution item (for Grafana compatibility).
+         * @example {
+         *       "count": 5,
+         *       "risk_level": "high"
+         *     }
+         */
+        RiskDistributionItem: {
+            /**
+             * Count
+             * @description Number of events with this risk level
+             */
+            count: number;
+            /**
+             * Risk Level
+             * @description Risk level name (critical, high, medium, low)
+             */
+            risk_level: string;
         };
         /**
          * RiskHistoryDataPoint
