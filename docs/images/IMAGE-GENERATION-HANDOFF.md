@@ -7,6 +7,7 @@ This document provides all specifications for generating AI images for the Home 
 ## Prerequisites
 
 **Required Environment Variable:**
+
 ```bash
 export NVIDIA_API_KEY="your-nvidia-api-key"
 # Alternative: export NVAPIKEY="your-nvidia-api-key"
@@ -16,6 +17,7 @@ export NVIDIA_API_KEY="your-nvidia-api-key"
 The nvidia-image-gen skill uses NVIDIA's LLM Gateway with Gemini 3 Pro Image Preview.
 
 **Script Location:**
+
 ```bash
 ~/.claude/skills/nvidia-image-gen/scripts/generate_image.py
 ```
@@ -41,6 +43,7 @@ All images should be saved to the project's `docs/images/` directory.
 **Output Path:** `docs/images/installation-workflow.png`
 
 **Prompt:**
+
 ```
 Technical illustration of software installation workflow, four connected steps: 1. Clone Repository (git icon), 2. Setup Environment (terminal with checkmarks), 3. Download Models (download arrow with AI brain), 4. Configure (settings gear). Excalidraw hand-drawn style with slightly wobbly lines, dark background #0a0a0f, NVIDIA green #76B900 accent arrows connecting steps, electric cyan #22d3ee highlights, clean minimalist infographic, horizontal flow left to right, no text labels, 16:9 aspect ratio
 ```
@@ -54,6 +57,7 @@ Technical illustration of software installation workflow, four connected steps: 
 **Output Path:** `docs/images/ai-pipeline-hero.png`
 
 **Prompt:**
+
 ```
 Technical illustration of AI detection pipeline, showing flow: Camera icon -> Object Detection box (RT-DETRv2) -> Entity Clustering -> Risk Analysis box (Nemotron LLM) -> Security Events. Excalidraw hand-drawn style, dark background #0a0a0f, NVIDIA green #76B900 primary flow lines, electric cyan #22d3ee secondary connections, accent purple #8b5cf6 for AI processing nodes, clean tech diagram aesthetic, horizontal flow, no text labels, 16:9 aspect ratio
 ```
@@ -67,6 +71,7 @@ Technical illustration of AI detection pipeline, showing flow: Camera icon -> Ob
 **Output Path:** `docs/images/websocket-architecture.png`
 
 **Prompt:**
+
 ```
 Technical illustration of WebSocket real-time architecture, central Redis node with pub/sub channels radiating to multiple browser clients, bidirectional arrows showing event flow, backend server connected to Redis. Excalidraw hand-drawn style, dark background #0a0a0f, NVIDIA green #76B900 for data flows, electric cyan #22d3ee for client connections, clean network diagram, radial layout, no text labels, 16:9 aspect ratio
 ```
@@ -80,6 +85,7 @@ Technical illustration of WebSocket real-time architecture, central Redis node w
 **Output Path:** `docs/images/dashboard-hero.png`
 
 **Prompt:**
+
 ```
 Dark mode security dashboard interface mockup, showing grid of camera feed thumbnails with detection bounding boxes highlighting people and vehicles, real-time event feed on right side with risk level color indicators (green/yellow/orange/red), top navigation bar, NVIDIA dark theme #121212 background with #76B900 green accent on active elements, modern clean security operations center aesthetic, 16:9 aspect ratio, no text overlays
 ```
@@ -93,6 +99,7 @@ Dark mode security dashboard interface mockup, showing grid of camera feed thumb
 **Output Path:** `docs/images/timeline-hero.png`
 
 **Prompt:**
+
 ```
 Dark mode security event timeline interface, showing chronological list of security events with risk level color coding (green low, yellow medium, orange high, red critical), thumbnail previews on left, event summaries on right, date filters at top, NVIDIA dark theme #121212 background with #76B900 green accents, clean card-based layout, vertical 2:3 aspect ratio, no text overlays
 ```
@@ -106,6 +113,7 @@ Dark mode security event timeline interface, showing chronological list of secur
 **Output Path:** `docs/images/investigation-hero.png`
 
 **Prompt:**
+
 ```
 Dark mode security investigation interface showing video playback controls, entity tracking timeline with person silhouettes connected across multiple camera feeds, thumbnail filmstrip at bottom, forensic analysis aesthetic, NVIDIA dark theme #121212 background with #76B900 green accents and blue #3B82F6 highlight for selected entity, clean modern UI, vertical 2:3 aspect ratio, no text overlays
 ```
@@ -119,6 +127,7 @@ Dark mode security investigation interface showing video playback controls, enti
 **Output Path:** `docs/images/settings-hero.png`
 
 **Prompt:**
+
 ```
 Dark mode application settings interface with tabbed navigation (Cameras, Processing, AI Models tabs), form inputs with sliders and toggles, camera list table with status indicators, NVIDIA dark theme #121212 background with #76B900 green accent on selected tab, clean administrative interface, vertical 2:3 aspect ratio, no text overlays
 ```
@@ -132,6 +141,7 @@ Dark mode application settings interface with tabbed navigation (Cameras, Proces
 **Output Path:** `docs/images/gpu-setup-architecture.png`
 
 **Prompt:**
+
 ```
 Technical illustration of GPU container architecture, showing NVIDIA GPU at bottom with driver layer, Container Runtime (Docker/Podman) in middle with CDI/nvidia-container-toolkit, AI containers (RT-DETRv2, Nemotron) at top receiving GPU access. Excalidraw hand-drawn style, dark background #0a0a0f, NVIDIA green #76B900 for GPU elements, electric cyan #22d3ee for container layers, vertical stack layout, no text labels, 9:16 aspect ratio
 ```
@@ -145,6 +155,7 @@ Technical illustration of GPU container architecture, showing NVIDIA GPU at bott
 **Output Path:** `docs/images/deployment-modes.png`
 
 **Prompt:**
+
 ```
 Technical illustration comparing three deployment modes side by side: Development (laptop icon), Production (server rack), Hybrid (laptop connected to server). Each with container stacks and AI model indicators. Excalidraw hand-drawn style, dark background #0a0a0f, NVIDIA green #76B900 accents, electric cyan #22d3ee for connections, clean comparison diagram, horizontal layout with three columns, no text labels, 16:9 aspect ratio
 ```
@@ -158,6 +169,7 @@ Technical illustration comparing three deployment modes side by side: Developmen
 **Output Path:** `docs/images/data-model-hero.png`
 
 **Prompt:**
+
 ```
 Technical illustration of database entity relationships, showing connected boxes: Events (center), Detections (many arrows to Events), Entities (connected to Detections), Cameras (arrows to Events), Summaries (arrow from Events). Excalidraw hand-drawn ERD style, dark background #0a0a0f, NVIDIA green #76B900 for primary relationships, electric cyan #22d3ee for foreign keys, clean database diagram aesthetic, no text labels, 16:9 aspect ratio
 ```
@@ -171,6 +183,7 @@ Technical illustration of database entity relationships, showing connected boxes
 **Output Path:** `docs/images/system-monitoring-hero.png`
 
 **Prompt:**
+
 ```
 Dark mode system monitoring dashboard with multiple metric panels: GPU utilization gauge, CPU/Memory bars, real-time graphs with upward trends, container status grid with green healthy indicators, circuit breaker status panel. NVIDIA dark theme #121212 background with #76B900 green for healthy states, orange and red for alerts, clean operations dashboard aesthetic, 16:9 aspect ratio, no text overlays
 ```
@@ -184,6 +197,7 @@ Dark mode system monitoring dashboard with multiple metric panels: GPU utilizati
 **Output Path:** `docs/images/alerts-hero.png`
 
 **Prompt:**
+
 ```
 Dark mode alerts interface showing notification cards with severity indicators (critical red, high orange, medium yellow), bell icon with notification badge, filter dropdown, event thumbnails with warning overlays. NVIDIA dark theme #121212 background with #76B900 green accents, urgency-focused UI, clean card layout, 16:9 aspect ratio, no text overlays
 ```
@@ -197,6 +211,7 @@ Dark mode alerts interface showing notification cards with severity indicators (
 **Output Path:** `docs/images/first-run-hero.png`
 
 **Prompt:**
+
 ```
 Technical illustration of system startup sequence, showing numbered steps: 1. Docker containers starting (stacked boxes), 2. AI models loading (brain with loading indicator), 3. Camera connections establishing (camera icons with connection lines), 4. Dashboard ready (monitor with checkmark). Excalidraw hand-drawn style, dark background #0a0a0f, NVIDIA green #76B900 for progress indicators, vertical timeline layout, no text labels, 9:16 aspect ratio
 ```
@@ -210,6 +225,7 @@ Technical illustration of system startup sequence, showing numbered steps: 1. Do
 **Output Path:** `docs/images/architecture-overview.png`
 
 **Prompt:**
+
 ```
 Technical illustration of full system architecture, showing three tiers: Frontend (React browser), Backend (FastAPI with Redis and PostgreSQL), AI Services (RT-DETRv2, Nemotron, CLIP on GPU). Connections showing data flow between layers. Excalidraw hand-drawn style, dark background #0a0a0f, NVIDIA green #76B900 for primary data paths, electric cyan #22d3ee for secondary flows, accent purple #8b5cf6 for AI tier, clean three-tier architecture diagram, no text labels, 16:9 aspect ratio
 ```
@@ -223,6 +239,7 @@ Technical illustration of full system architecture, showing three tiers: Fronten
 **Output Path:** `docs/images/batch-processing.png`
 
 **Prompt:**
+
 ```
 Technical illustration of batch processing timeline, showing: Detection accumulation (stacking boxes over 90 seconds), batch window closing, LLM analysis (brain processing), event creation (output arrow). Timeline axis at bottom showing seconds. Excalidraw hand-drawn style, dark background #0a0a0f, NVIDIA green #76B900 for active processing, electric cyan #22d3ee for timeline, clean process flow diagram, horizontal layout, no text labels, 16:9 aspect ratio
 ```
@@ -353,6 +370,7 @@ ls -la "$OUTPUT_DIR"/*.png
 After generating each image, validate against these criteria:
 
 ### Visual Quality
+
 - [ ] Dark background (#0a0a0f or #121212) is present
 - [ ] NVIDIA green (#76B900) accents are visible
 - [ ] No text overlays appear in the image
@@ -360,12 +378,14 @@ After generating each image, validate against these criteria:
 - [ ] Correct aspect ratio for intended use
 
 ### Technical Accuracy
+
 - [ ] Diagram elements match the described architecture
 - [ ] Flow direction is correct (left-to-right or top-to-bottom)
 - [ ] Component relationships are accurately represented
 - [ ] Color coding matches risk levels or status states
 
 ### Documentation Integration
+
 - [ ] Image dimensions work with markdown rendering
 - [ ] Alt text is added to the markdown reference
 - [ ] Image is referenced correctly in the documentation file
@@ -386,17 +406,20 @@ After all images are generated:
 ## Troubleshooting
 
 ### "NVIDIA_API_KEY environment variable not set"
+
 ```bash
 export NVIDIA_API_KEY="your-api-key"
 # Then re-run the script
 ```
 
 ### "No image data found in response"
+
 - Rephrase the prompt to be more specific
 - Check API key permissions
 - Verify network connectivity to inference-api.nvidia.com
 
 ### Images not matching expected style
+
 - Ensure "Excalidraw hand-drawn style" is in the prompt
 - Verify dark background colors are specified
 - Re-generate with adjusted prompt if needed
@@ -405,15 +428,15 @@ export NVIDIA_API_KEY="your-api-key"
 
 ## Color Reference
 
-| Name | Hex | Usage |
-|------|-----|-------|
+| Name              | Hex       | Usage                           |
+| ----------------- | --------- | ------------------------------- |
 | Background (dark) | `#0a0a0f` | Primary background for diagrams |
-| Background (UI) | `#121212` | UI mockup backgrounds |
-| NVIDIA Green | `#76B900` | Primary accents, healthy states |
-| Electric Cyan | `#22d3ee` | Secondary accents, connections |
-| Accent Purple | `#8b5cf6` | Highlights, AI elements |
-| Blue Accent | `#3B82F6` | Selection, links |
-| Risk Low | Green | 0-29 risk score |
-| Risk Medium | Yellow | 30-59 risk score |
-| Risk High | Orange | 60-84 risk score |
-| Risk Critical | Red | 85-100 risk score |
+| Background (UI)   | `#121212` | UI mockup backgrounds           |
+| NVIDIA Green      | `#76B900` | Primary accents, healthy states |
+| Electric Cyan     | `#22d3ee` | Secondary accents, connections  |
+| Accent Purple     | `#8b5cf6` | Highlights, AI elements         |
+| Blue Accent       | `#3B82F6` | Selection, links                |
+| Risk Low          | Green     | 0-29 risk score                 |
+| Risk Medium       | Yellow    | 30-59 risk score                |
+| Risk High         | Orange    | 60-84 risk score                |
+| Risk Critical     | Red       | 85-100 risk score               |

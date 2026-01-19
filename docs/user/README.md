@@ -10,12 +10,12 @@ Welcome! This system watches your security cameras around the clock and alerts y
 
 New to the system? Follow this path:
 
-| Step | Guide                                                   | Description                                       | Time    |
-| ---- | ------------------------------------------------------- | ------------------------------------------------- | ------- |
-| 1    | [Getting Started](../getting-started/quick-start.md)    | What the system does and how to open it           | ~5 min  |
-| 2    | [Product Tour](../getting-started/tour.md)              | Interactive tour walkthrough and first-time setup | ~8 min  |
-| 3    | [Dashboard](../ui/dashboard.md)                         | Understanding what you see on screen              | ~8 min  |
-| 4    | [Understanding Alerts](../ui/understanding-alerts.md)   | What risk levels mean and when to take action     | ~10 min |
+| Step | Guide                                                 | Description                                       | Time    |
+| ---- | ----------------------------------------------------- | ------------------------------------------------- | ------- |
+| 1    | [Getting Started](../getting-started/quick-start.md)  | What the system does and how to open it           | ~5 min  |
+| 2    | [Product Tour](../getting-started/tour.md)            | Interactive tour walkthrough and first-time setup | ~8 min  |
+| 3    | [Dashboard](../ui/dashboard.md)                       | Understanding what you see on screen              | ~8 min  |
+| 4    | [Understanding Alerts](../ui/understanding-alerts.md) | What risk levels mean and when to take action     | ~10 min |
 
 ---
 
@@ -25,16 +25,16 @@ These guides help you understand and use the main dashboard.
 
 ### Core Dashboard
 
-| Guide                        | Description                                                    | Time    |
-| ---------------------------- | -------------------------------------------------------------- | ------- |
+| Guide                           | Description                                                     | Time    |
+| ------------------------------- | --------------------------------------------------------------- | ------- |
 | [Dashboard](../ui/dashboard.md) | Main screen layout, widgets, customization, and quick reference | ~15 min |
 
 ### Events and Timeline
 
-| Guide                                       | Description                                                           | Time    |
-| ------------------------------------------- | --------------------------------------------------------------------- | ------- |
-| [Event Timeline](../ui/timeline.md)         | Browse, filter, review events, video clips, entity tracking, and more | ~15 min |
-| [Full-Text Search](../ui/search.md)         | Find specific events by keyword                                       | ~6 min  |
+| Guide                               | Description                                                           | Time    |
+| ----------------------------------- | --------------------------------------------------------------------- | ------- |
+| [Event Timeline](../ui/timeline.md) | Browse, filter, review events, video clips, entity tracking, and more | ~15 min |
+| [Full-Text Search](../ui/search.md) | Find specific events by keyword                                       | ~6 min  |
 
 ### Analytics and Entities
 
@@ -45,10 +45,10 @@ These guides help you understand and use the main dashboard.
 
 ### Customization and Settings
 
-| Guide                               | Description                                          | Time    |
-| ----------------------------------- | ---------------------------------------------------- | ------- |
-| [Settings](../ui/settings.md)       | Camera management, processing options, notifications | ~10 min |
-| [Detection Zones](../ui/zones.md)   | Focus AI analysis on specific areas in camera views  | ~15 min |
+| Guide                             | Description                                          | Time    |
+| --------------------------------- | ---------------------------------------------------- | ------- |
+| [Settings](../ui/settings.md)     | Camera management, processing options, notifications | ~10 min |
+| [Detection Zones](../ui/zones.md) | Focus AI analysis on specific areas in camera views  | ~15 min |
 
 ---
 
@@ -56,10 +56,10 @@ These guides help you understand and use the main dashboard.
 
 When the system detects something important, you will want to know about it.
 
-| Guide                                                       | Description                            | Time    |
-| ----------------------------------------------------------- | -------------------------------------- | ------- |
-| [Understanding Alerts](../ui/understanding-alerts.md)       | What causes alerts and how to respond  | ~10 min |
-| [Alerts and Notifications](../ui/alerts-notifications.md)   | The Alerts page and notification setup | ~8 min  |
+| Guide                                                     | Description                            | Time    |
+| --------------------------------------------------------- | -------------------------------------- | ------- |
+| [Understanding Alerts](../ui/understanding-alerts.md)     | What causes alerts and how to respond  | ~10 min |
+| [Alerts and Notifications](../ui/alerts-notifications.md) | The Alerts page and notification setup | ~8 min  |
 
 ### Quick Reference: Risk Levels
 
@@ -74,22 +74,22 @@ When the system detects something important, you will want to know about it.
 
 ## Mobile and Accessibility
 
-| Guide                                                    | Description                                         | Time    |
-| -------------------------------------------------------- | --------------------------------------------------- | ------- |
-| [Mobile and PWA](../ui/mobile-pwa.md)                    | Install as an app, push notifications, offline mode | ~15 min |
-| [Keyboard Shortcuts](../ui/keyboard-shortcuts.md)        | Command palette and navigation                      | ~5 min  |
-| [Accessibility Features](../reference/accessibility.md)  | Screen readers, keyboard-only use, WCAG info        | ~8 min  |
+| Guide                                                   | Description                                         | Time    |
+| ------------------------------------------------------- | --------------------------------------------------- | ------- |
+| [Mobile and PWA](../ui/mobile-pwa.md)                   | Install as an app, push notifications, offline mode | ~15 min |
+| [Keyboard Shortcuts](../ui/keyboard-shortcuts.md)       | Command palette and navigation                      | ~5 min  |
+| [Accessibility Features](../reference/accessibility.md) | Screen readers, keyboard-only use, WCAG info        | ~8 min  |
 
 ---
 
 ## Advanced Features
 
-| Guide                                                                         | Description                                      | Time    |
-| ----------------------------------------------------------------------------- | ------------------------------------------------ | ------- |
-| [AI Enrichment Data](../ui/dashboard.md#ai-enrichment-data-in-event-details)  | Advanced AI analysis in event details            | ~8 min  |
-| [AI Audit Dashboard](../ui/ai-audit.md)                                       | AI quality metrics and recommendations           | ~8 min  |
-| [AI Performance](../ui/ai-performance.md)                                     | AI model health and Model Zoo monitoring         | ~15 min |
-| [System Monitoring](../ui/system-monitoring.md)                               | System health, circuit breakers, troubleshooting | ~12 min |
+| Guide                                                                        | Description                                      | Time    |
+| ---------------------------------------------------------------------------- | ------------------------------------------------ | ------- |
+| [AI Enrichment Data](../ui/dashboard.md#ai-enrichment-data-in-event-details) | Advanced AI analysis in event details            | ~8 min  |
+| [AI Audit Dashboard](../ui/ai-audit.md)                                      | AI quality metrics and recommendations           | ~8 min  |
+| [AI Performance](../ui/ai-performance.md)                                    | AI model health and Model Zoo monitoring         | ~15 min |
+| [System Monitoring](../ui/system-monitoring.md)                              | System health, circuit breakers, troubleshooting | ~12 min |
 
 ---
 

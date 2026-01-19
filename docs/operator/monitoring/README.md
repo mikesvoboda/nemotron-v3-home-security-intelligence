@@ -78,11 +78,11 @@ flowchart TD
     style FFAIL fill:#ffcdd2
 ```
 
-| Probe     | Use Case                  | Checks                    | Failure Action     |
-| --------- | ------------------------- | ------------------------- | ------------------ |
-| Liveness  | Container orchestration   | Process alive             | Restart container  |
-| Readiness | Traffic routing           | DB, Redis connectivity    | Remove from LB     |
-| Full      | Operational monitoring    | All services + breakers   | Alert, investigate |
+| Probe     | Use Case                | Checks                  | Failure Action     |
+| --------- | ----------------------- | ----------------------- | ------------------ |
+| Liveness  | Container orchestration | Process alive           | Restart container  |
+| Readiness | Traffic routing         | DB, Redis connectivity  | Remove from LB     |
+| Full      | Operational monitoring  | All services + breakers | Alert, investigate |
 
 ### Liveness Probe
 

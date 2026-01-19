@@ -145,4 +145,3 @@ If the dashboard isn't loading or something looks wrong:
 3. Try a different browser if one isn't working
 
 For technical help, contact the person who installed the system.
-

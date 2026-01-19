@@ -889,7 +889,7 @@ analysis_queue (Redis List)
 ├── BLPOP: AnalysisQueueWorker consumes
 └── Max size: 10,000 (auto-trimmed)
 
-````
+```
 
 **Queue Item Schema (detection_queue):**
 
@@ -899,7 +899,7 @@ analysis_queue (Redis List)
   "file_path": "/export/foscam/front_door/image_001.jpg",
   "timestamp": "2025-12-23T10:30:00.000000"
 }
-````
+```
 
 **Queue Item Schema (analysis_queue):**
 
@@ -1153,7 +1153,7 @@ CREATE INDEX idx_logs_source ON logs(source);
 
 -- api_keys
 CREATE UNIQUE INDEX ix_api_keys_key_hash ON api_keys(key_hash);
-````
+```
 
 ### PostgreSQL Configuration
 

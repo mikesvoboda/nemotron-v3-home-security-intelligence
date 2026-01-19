@@ -7,6 +7,7 @@ This directory is the **end-user documentation hub** for the Home Security Intel
 > **Documentation Organization**
 >
 > This directory (`docs/user/`) serves as the **navigation hub** with `README.md` providing structured pathways through user documentation. User documentation has been organized across several directories:
+>
 > - `docs/getting-started/` - Quick start and product tour guides
 > - `docs/ui/` - UI-specific documentation and usability guides
 > - `docs/reference/` - Reference documentation including accessibility
@@ -46,13 +47,13 @@ This directory is the **end-user documentation hub** for the Home Security Intel
 
 ## Related Resources
 
-| Resource                                     | Description                              |
-| -------------------------------------------- | ---------------------------------------- |
-| [docs/getting-started/](../getting-started/) | Quick start and product tour guides      |
-| [docs/ui/](../ui/)                           | UI documentation and usability guides    |
-| [docs/reference/](../reference/)             | Reference docs including accessibility   |
-| [docs/operator/](../operator/)               | System administration guides             |
-| [docs/developer/](../developer/)             | Developer documentation                  |
+| Resource                                     | Description                            |
+| -------------------------------------------- | -------------------------------------- |
+| [docs/getting-started/](../getting-started/) | Quick start and product tour guides    |
+| [docs/ui/](../ui/)                           | UI documentation and usability guides  |
+| [docs/reference/](../reference/)             | Reference docs including accessibility |
+| [docs/operator/](../operator/)               | System administration guides           |
+| [docs/developer/](../developer/)             | Developer documentation                |
 
 ## Entry Points for Agents
 

@@ -17,10 +17,10 @@ Welcome to Home Security Intelligence. This section guides you from zero to a ru
 
 ### End User Guides
 
-| Guide                          | Description                                              |
-| ------------------------------ | -------------------------------------------------------- |
-| [Quick Start](quick-start.md)  | Non-technical intro - what the system does and basic use |
-| [Product Tour](tour.md)        | Interactive walkthrough and first-time setup             |
+| Guide                         | Description                                              |
+| ----------------------------- | -------------------------------------------------------- |
+| [Quick Start](quick-start.md) | Non-technical intro - what the system does and basic use |
+| [Product Tour](tour.md)       | Interactive walkthrough and first-time setup             |
 
 ---
 

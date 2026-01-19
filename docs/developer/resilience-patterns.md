@@ -635,11 +635,11 @@ flowchart TD
 
 **Filtered Pattern Categories:**
 
-| Category              | Example Pattern     | Replacement                |
-| --------------------- | ------------------- | -------------------------- |
-| ChatML Tokens         | `<\|im_start\|>`    | `[FILTERED:chatml_start]`  |
-| Markdown Headers      | `\n##`              | `[FILTERED:md_h2]`         |
-| Instruction Keywords  | `OVERRIDE:`         | `[FILTERED:kw_override]`   |
+| Category             | Example Pattern  | Replacement               |
+| -------------------- | ---------------- | ------------------------- |
+| ChatML Tokens        | `<\|im_start\|>` | `[FILTERED:chatml_start]` |
+| Markdown Headers     | `\n##`           | `[FILTERED:md_h2]`        |
+| Instruction Keywords | `OVERRIDE:`      | `[FILTERED:kw_override]`  |
 
 ### Best Practices
 

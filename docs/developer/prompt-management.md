@@ -414,12 +414,12 @@ flowchart TD
 
 **Rollback Thresholds:**
 
-| Metric                      | Default | Description                        |
-| --------------------------- | ------- | ---------------------------------- |
-| `max_latency_increase_pct`  | 50%     | Rollback if latency increases 50%+ |
-| `max_score_variance`        | 15      | Rollback if score variance > 15    |
-| `min_samples`               | 100     | Minimum samples before checking    |
-| `evaluation_window_hours`   | 1       | Time window for metrics collection |
+| Metric                     | Default | Description                        |
+| -------------------------- | ------- | ---------------------------------- |
+| `max_latency_increase_pct` | 50%     | Rollback if latency increases 50%+ |
+| `max_score_variance`       | 15      | Rollback if score variance > 15    |
+| `min_samples`              | 100     | Minimum samples before checking    |
+| `evaluation_window_hours`  | 1       | Time window for metrics collection |
 
 ### PromptEvaluator
 

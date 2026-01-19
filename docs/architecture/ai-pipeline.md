@@ -202,7 +202,7 @@ Redis Key: dedupe:{sha256_hash}
 Value: file_path
 TTL: 300 seconds (5 minutes, configurable)
 
-````
+```
 
 This prevents duplicate processing from:
 
@@ -219,7 +219,7 @@ This prevents duplicate processing from:
   "timestamp": "2025-12-28T12:00:00.500000",
   "file_hash": "a3f9c8b2d1e4..."
 }
-````
+```
 
 ---
 
@@ -417,12 +417,12 @@ stateDiagram-v2
 
 ### Timing Parameters
 
-| Parameter      | Default | Environment Variable              | Description                                 |
-| -------------- | ------- | --------------------------------- | ------------------------------------------- |
-| Window timeout | 90s     | `BATCH_WINDOW_SECONDS`            | Maximum batch duration from first detection |
-| Idle timeout   | 30s     | `BATCH_IDLE_TIMEOUT_SECONDS`      | Close batch if no new detections            |
-| Check interval | 5s      | `BATCH_CHECK_INTERVAL_SECONDS`    | How often BatchTimeoutWorker runs           |
-| Max detections | 500     | `BATCH_MAX_DETECTIONS`            | Maximum detections per batch before split   |
+| Parameter      | Default | Environment Variable           | Description                                 |
+| -------------- | ------- | ------------------------------ | ------------------------------------------- |
+| Window timeout | 90s     | `BATCH_WINDOW_SECONDS`         | Maximum batch duration from first detection |
+| Idle timeout   | 30s     | `BATCH_IDLE_TIMEOUT_SECONDS`   | Close batch if no new detections            |
+| Check interval | 5s      | `BATCH_CHECK_INTERVAL_SECONDS` | How often BatchTimeoutWorker runs           |
+| Max detections | 500     | `BATCH_MAX_DETECTIONS`         | Maximum detections per batch before split   |
 
 ### Redis Key Structure
 
@@ -436,7 +436,7 @@ batch:{batch_id}:detections -> ["det_1", "det_2", ...] (JSON array)
 batch:{batch_id}:started_at -> 1703764800.123 (Unix timestamp float)
 batch:{batch_id}:last_activity -> 1703764845.456 (Unix timestamp float)
 
-````
+```
 
 ### Fast-Path for Critical Detections
 
@@ -740,7 +740,7 @@ When LLM analysis fails, the analyzer creates an event with default values:
     "summary": "Analysis unavailable - LLM service error",
     "reasoning": "Failed to analyze detections due to service error"
 }
-````
+```
 
 ### Dead Letter Queue (DLQ)
 

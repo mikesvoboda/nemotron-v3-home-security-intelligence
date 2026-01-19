@@ -423,12 +423,12 @@ Risk scores are calculated by the Nemotron AI model, ranging from 0-100. Underst
 
 ### Risk Level Reference
 
-| Level        | Score Range | Color  | Description                                    | Response                                       |
-| ------------ | ----------- | ------ | ---------------------------------------------- | ---------------------------------------------- |
-| **Low**      | 0-29        | Green  | Normal, expected activity                      | No action needed - informational only          |
-| **Medium**   | 30-59       | Yellow | Unusual activity worth monitoring              | Quick review when convenient                   |
-| **High**     | 60-84       | Orange | Concerning activity requiring attention        | Review promptly, consider response             |
-| **Critical** | 85-100      | Red    | Potentially dangerous situation                | Immediate attention required                   |
+| Level        | Score Range | Color  | Description                             | Response                              |
+| ------------ | ----------- | ------ | --------------------------------------- | ------------------------------------- |
+| **Low**      | 0-29        | Green  | Normal, expected activity               | No action needed - informational only |
+| **Medium**   | 30-59       | Yellow | Unusual activity worth monitoring       | Quick review when convenient          |
+| **High**     | 60-84       | Orange | Concerning activity requiring attention | Review promptly, consider response    |
+| **Critical** | 85-100      | Red    | Potentially dangerous situation         | Immediate attention required          |
 
 ### Factors That Influence Risk Scores
 
@@ -455,13 +455,13 @@ Each alert includes an "AI Reasoning" section explaining why the system assigned
 
 No AI system is perfect. Here are common causes of false positive alerts:
 
-| Cause                    | Examples                                         | Typical Score |
-| ------------------------ | ------------------------------------------------ | ------------- |
-| **Pets and Wildlife**    | Dogs, cats, deer, raccoons, birds                | Low           |
-| **Shadows and Lighting** | Tree branches, car headlights, cloud shadows     | Very Low      |
-| **Delivery Workers**     | Amazon, UPS, FedEx, USPS, utility meter readers  | Low to Medium |
-| **Neighbors**            | Dog walkers, kids playing, people checking mail  | Low           |
-| **Weather**              | Rain, snow, fog, blowing debris                  | Low           |
+| Cause                    | Examples                                        | Typical Score |
+| ------------------------ | ----------------------------------------------- | ------------- |
+| **Pets and Wildlife**    | Dogs, cats, deer, raccoons, birds               | Low           |
+| **Shadows and Lighting** | Tree branches, car headlights, cloud shadows    | Very Low      |
+| **Delivery Workers**     | Amazon, UPS, FedEx, USPS, utility meter readers | Low to Medium |
+| **Neighbors**            | Dog walkers, kids playing, people checking mail | Low           |
+| **Weather**              | Rain, snow, fog, blowing debris                 | Low           |
 
 **Tips for handling false positives:**
 

@@ -199,19 +199,19 @@ When enabled via Configure, displays real-time NVIDIA GPU metrics:
 
 **Temperature Color Coding:**
 
-| Range    | Color  | Meaning                      |
-| -------- | ------ | ---------------------------- |
-| < 70C    | Green  | Normal operation             |
-| 70-80C   | Yellow | Moderate load                |
-| >= 80C   | Red    | High load, may throttle      |
+| Range  | Color  | Meaning                 |
+| ------ | ------ | ----------------------- |
+| < 70C  | Green  | Normal operation        |
+| 70-80C | Yellow | Moderate load           |
+| >= 80C | Red    | High load, may throttle |
 
 **Power Color Coding:**
 
-| Range    | Color  | Meaning                      |
-| -------- | ------ | ---------------------------- |
-| < 150W   | Green  | Normal operation             |
-| 150-250W | Yellow | Moderate load                |
-| > 250W   | Red    | High load                    |
+| Range    | Color  | Meaning          |
+| -------- | ------ | ---------------- |
+| < 150W   | Green  | Normal operation |
+| 150-250W | Yellow | Moderate load    |
+| > 250W   | Red    | High load        |
 
 **Controls:**
 

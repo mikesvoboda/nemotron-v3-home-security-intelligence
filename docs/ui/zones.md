@@ -449,35 +449,35 @@ For developers wanting to understand the underlying systems.
 
 ### Related Code
 
-| Component         | Path                                          |
-| ----------------- | --------------------------------------------- |
-| Zone Editor       | `frontend/src/components/zones/ZoneEditor.tsx` |
-| Zone Canvas       | `frontend/src/components/zones/ZoneCanvas.tsx` |
-| Zone Form         | `frontend/src/components/zones/ZoneForm.tsx`   |
-| Zone List         | `frontend/src/components/zones/ZoneList.tsx`   |
-| Backend API       | `backend/api/routes/zones.py`                  |
+| Component   | Path                                           |
+| ----------- | ---------------------------------------------- |
+| Zone Editor | `frontend/src/components/zones/ZoneEditor.tsx` |
+| Zone Canvas | `frontend/src/components/zones/ZoneCanvas.tsx` |
+| Zone Form   | `frontend/src/components/zones/ZoneForm.tsx`   |
+| Zone List   | `frontend/src/components/zones/ZoneList.tsx`   |
+| Backend API | `backend/api/routes/zones.py`                  |
 
 ### API Endpoints
 
-| Endpoint                     | Method | Description             |
-| ---------------------------- | ------ | ----------------------- |
-| `/api/cameras/{id}/zones`    | GET    | List zones for a camera |
-| `/api/cameras/{id}/zones`    | POST   | Create a new zone       |
-| `/api/zones/{id}`            | PUT    | Update a zone           |
-| `/api/zones/{id}`            | DELETE | Delete a zone           |
-| `/api/zones/{id}/toggle`     | PATCH  | Enable/disable a zone   |
+| Endpoint                  | Method | Description             |
+| ------------------------- | ------ | ----------------------- |
+| `/api/cameras/{id}/zones` | GET    | List zones for a camera |
+| `/api/cameras/{id}/zones` | POST   | Create a new zone       |
+| `/api/zones/{id}`         | PUT    | Update a zone           |
+| `/api/zones/{id}`         | DELETE | Delete a zone           |
+| `/api/zones/{id}/toggle`  | PATCH  | Enable/disable a zone   |
 
 ### Zone Data Model
 
 Zones are stored with the following fields:
 
-| Field       | Type    | Description                              |
-| ----------- | ------- | ---------------------------------------- |
-| `id`        | UUID    | Unique identifier                        |
-| `camera_id` | String  | Associated camera                        |
-| `name`      | String  | Human-readable name (1-50 chars)         |
+| Field       | Type    | Description                                  |
+| ----------- | ------- | -------------------------------------------- |
+| `id`        | UUID    | Unique identifier                            |
+| `camera_id` | String  | Associated camera                            |
+| `name`      | String  | Human-readable name (1-50 chars)             |
 | `type`      | Enum    | entry_point, driveway, sidewalk, yard, other |
-| `color`     | String  | Hex color code                           |
-| `priority`  | Integer | 0-100 priority value                     |
-| `enabled`   | Boolean | Whether zone is active                   |
-| `vertices`  | Array   | Normalized coordinate pairs              |
+| `color`     | String  | Hex color code                               |
+| `priority`  | Integer | 0-100 priority value                         |
+| `enabled`   | Boolean | Whether zone is active                       |
+| `vertices`  | Array   | Normalized coordinate pairs                  |

@@ -486,13 +486,13 @@ Check Grafana dashboards for GPU utilization and system resource issues.
 
 ## Quick Reference: Troubleshooting by Symptom
 
-| Symptom                    | Check These Areas                                        |
-| -------------------------- | -------------------------------------------------------- |
-| Events not appearing       | Pipeline Visualization, Workers, Circuit Breakers        |
-| Dashboard feels slow       | Grafana dashboards for system metrics                    |
-| High risk scores incorrect | Circuit Breakers (Nemotron), AI Performance page         |
+| Symptom                    | Check These Areas                                         |
+| -------------------------- | --------------------------------------------------------- |
+| Events not appearing       | Pipeline Visualization, Workers, Circuit Breakers         |
+| Dashboard feels slow       | Grafana dashboards for system metrics                     |
+| High risk scores incorrect | Circuit Breakers (Nemotron), AI Performance page          |
 | Cameras not processing     | Pipeline Visualization (Workers section), Detection queue |
-| High disk usage            | File Operations Panel, Run Cleanup                       |
+| High disk usage            | File Operations Panel, Run Cleanup                        |
 
 ---
 
@@ -509,20 +509,20 @@ For developers wanting to understand the underlying systems.
 
 ### Related Code
 
-| Component               | File Path                                                        |
-| ----------------------- | ---------------------------------------------------------------- |
-| Operations Page         | `frontend/src/components/system/SystemMonitoringPage.tsx`        |
-| Pipeline Visualization  | `frontend/src/components/system/PipelineFlowVisualization.tsx`   |
-| Circuit Breaker Panel   | `frontend/src/components/system/CircuitBreakerPanel.tsx`         |
-| File Operations Panel   | `frontend/src/components/system/FileOperationsPanel.tsx`         |
-| Debug Mode Toggle       | `frontend/src/components/system/DebugModeToggle.tsx`             |
-| Collapsible Section     | `frontend/src/components/system/CollapsibleSection.tsx`          |
-| Profiling Panel         | `frontend/src/components/developer-tools/ProfilingPanel.tsx`     |
-| Recording Replay Panel  | `frontend/src/components/developer-tools/RecordingReplayPanel.tsx` |
-| Config Inspector Panel  | `frontend/src/components/developer-tools/ConfigInspectorPanel.tsx` |
-| Log Level Panel         | `frontend/src/components/developer-tools/LogLevelPanel.tsx`      |
-| Test Data Panel         | `frontend/src/components/developer-tools/TestDataPanel.tsx`      |
-| Backend API Routes      | `backend/api/routes/system.py`                                   |
+| Component              | File Path                                                          |
+| ---------------------- | ------------------------------------------------------------------ |
+| Operations Page        | `frontend/src/components/system/SystemMonitoringPage.tsx`          |
+| Pipeline Visualization | `frontend/src/components/system/PipelineFlowVisualization.tsx`     |
+| Circuit Breaker Panel  | `frontend/src/components/system/CircuitBreakerPanel.tsx`           |
+| File Operations Panel  | `frontend/src/components/system/FileOperationsPanel.tsx`           |
+| Debug Mode Toggle      | `frontend/src/components/system/DebugModeToggle.tsx`               |
+| Collapsible Section    | `frontend/src/components/system/CollapsibleSection.tsx`            |
+| Profiling Panel        | `frontend/src/components/developer-tools/ProfilingPanel.tsx`       |
+| Recording Replay Panel | `frontend/src/components/developer-tools/RecordingReplayPanel.tsx` |
+| Config Inspector Panel | `frontend/src/components/developer-tools/ConfigInspectorPanel.tsx` |
+| Log Level Panel        | `frontend/src/components/developer-tools/LogLevelPanel.tsx`        |
+| Test Data Panel        | `frontend/src/components/developer-tools/TestDataPanel.tsx`        |
+| Backend API Routes     | `backend/api/routes/system.py`                                     |
 
 ### Hooks Used
 
