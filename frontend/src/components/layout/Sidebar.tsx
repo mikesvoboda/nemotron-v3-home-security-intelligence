@@ -1,63 +1,161 @@
-import {
-  Home,
-  Clock,
-  BarChart3,
-  Briefcase,
-  Users,
-  Bell,
-  Settings,
-  ScrollText,
-  Server,
-  Shield,
-  X,
-  Brain,
-  ClipboardCheck,
-  Trash2,
-} from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { ChevronDown, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 
+import { NavGroup, navGroups, STORAGE_KEY } from './sidebarNav';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
 
-interface NavItem {
-  id: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: string;
-  path: string;
-  /** Data attribute for product tour targeting */
-  dataTour?: string;
+/** Helper to load expansion state from localStorage */
+function loadExpansionState(): Record<string, boolean> {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored) as Record<string, boolean>;
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return {};
 }
 
-const navItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
-  { id: 'timeline', label: 'Timeline', icon: Clock, path: '/timeline', dataTour: 'timeline-link' },
-  { id: 'entities', label: 'Entities', icon: Users, path: '/entities' },
-  { id: 'alerts', label: 'Alerts', icon: Bell, path: '/alerts' },
-  { id: 'audit', label: 'Audit Log', icon: Shield, path: '/audit' },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
-  { id: 'jobs', label: 'Jobs', icon: Briefcase, path: '/jobs' },
-  { id: 'ai-audit', label: 'AI Audit', icon: ClipboardCheck, path: '/ai-audit' },
-  { id: 'ai', label: 'AI Performance', icon: Brain, path: '/ai' },
-  { id: 'operations', label: 'Operations', icon: Server, path: '/operations' },
-  { id: 'trash', label: 'Trash', icon: Trash2, path: '/trash' },
-  { id: 'system', label: 'System', icon: Server, path: '/system' },
-  { id: 'logs', label: 'Logs', icon: ScrollText, path: '/logs' },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: Settings,
-    path: '/settings',
-    dataTour: 'settings-link',
-  },
-];
+/** Helper to save expansion state to localStorage */
+function saveExpansionState(state: Record<string, boolean>): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+interface NavGroupComponentProps {
+  group: NavGroup;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onNavClick: () => void;
+}
+
+function NavGroupComponent({ group, isExpanded, onToggle, onNavClick }: NavGroupComponentProps) {
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onToggle();
+      }
+    },
+    [onToggle]
+  );
+
+  return (
+    <div className="mb-2" data-testid={`nav-group-${group.id}`}>
+      {/* Group header */}
+      <button
+        type="button"
+        onClick={onToggle}
+        onKeyDown={handleKeyDown}
+        className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wider text-gray-400 transition-colors duration-200 hover:bg-gray-800 hover:text-gray-300"
+        aria-expanded={isExpanded}
+        aria-controls={`nav-group-content-${group.id}`}
+        data-testid={`nav-group-header-${group.id}`}
+      >
+        <span>{group.label}</span>
+        <ChevronDown
+          className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
+          aria-hidden="true"
+        />
+      </button>
+
+      {/* Group items with animation */}
+      <div
+        id={`nav-group-content-${group.id}`}
+        role="region"
+        aria-labelledby={`nav-group-header-${group.id}`}
+        className={`overflow-hidden transition-all duration-200 ease-in-out ${
+          isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+        }`}
+        data-testid={`nav-group-content-${group.id}`}
+      >
+        <div className="mt-1 space-y-1 pl-2">
+          {group.items.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <NavLink
+                key={item.id}
+                to={item.path}
+                end={item.path === '/'}
+                onClick={onNavClick}
+                data-tour={item.dataTour}
+                className={({ isActive }: { isActive: boolean }) =>
+                  `flex w-full items-center gap-3 rounded-lg px-4 py-2.5 transition-colors duration-200 ${
+                    isActive
+                      ? 'bg-[#76B900] font-semibold text-black'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  } `
+                }
+              >
+                <Icon className="h-5 w-5" />
+                <span className="flex-1 text-left">{item.label}</span>
+                {item.badge && (
+                  <span className="rounded bg-yellow-500 px-2 py-0.5 text-xs font-medium text-black">
+                    {item.badge}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Sidebar() {
   const { isMobileMenuOpen, setMobileMenuOpen } = useSidebarContext();
+  const location = useLocation();
 
-  const handleNavClick = () => {
+  // Initialize expansion state from localStorage or defaults
+  const [expansionState, setExpansionState] = useState<Record<string, boolean>>(() => {
+    const stored = loadExpansionState();
+    const initial: Record<string, boolean> = {};
+    navGroups.forEach((group) => {
+      initial[group.id] = stored[group.id] ?? group.defaultExpanded;
+    });
+    return initial;
+  });
+
+  // Auto-expand group when navigating to a route within it
+  useEffect(() => {
+    const currentPath = location.pathname;
+    navGroups.forEach((group) => {
+      const hasActiveRoute = group.items.some((item) => {
+        if (item.path === '/') {
+          return currentPath === '/';
+        }
+        return currentPath === item.path || currentPath.startsWith(item.path + '/');
+      });
+      if (hasActiveRoute && !expansionState[group.id]) {
+        setExpansionState((prev) => {
+          const next = { ...prev, [group.id]: true };
+          saveExpansionState(next);
+          return next;
+        });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Intentionally exclude expansionState to avoid infinite loops
+  }, [location.pathname]);
+
+  const handleToggleGroup = useCallback((groupId: string) => {
+    setExpansionState((prev) => {
+      const next = { ...prev, [groupId]: !prev[groupId] };
+      saveExpansionState(next);
+      return next;
+    });
+  }, []);
+
+  const handleNavClick = useCallback(() => {
     // Close mobile menu when a link is clicked
     setMobileMenuOpen(false);
-  };
+  }, [setMobileMenuOpen]);
 
   return (
     <aside
@@ -78,35 +176,16 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-2 overflow-y-auto p-4">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <NavLink
-              key={item.id}
-              to={item.path}
-              end={item.path === '/'}
-              onClick={handleNavClick}
-              data-tour={item.dataTour}
-              className={({ isActive }: { isActive: boolean }) =>
-                `flex w-full items-center gap-3 rounded-lg px-4 py-3 transition-colors duration-200 ${
-                  isActive
-                    ? 'bg-[#76B900] font-semibold text-black'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                } `
-              }
-            >
-              <Icon className="h-5 w-5" />
-              <span className="flex-1 text-left">{item.label}</span>
-              {item.badge && (
-                <span className="rounded bg-yellow-500 px-2 py-0.5 text-xs font-medium text-black">
-                  {item.badge}
-                </span>
-              )}
-            </NavLink>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto p-4" aria-label="Main navigation">
+        {navGroups.map((group) => (
+          <NavGroupComponent
+            key={group.id}
+            group={group}
+            isExpanded={expansionState[group.id]}
+            onToggle={() => handleToggleGroup(group.id)}
+            onNavClick={handleNavClick}
+          />
+        ))}
       </nav>
     </aside>
   );

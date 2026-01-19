@@ -1,6 +1,7 @@
-import { AlertTriangle, CheckCircle, HardDrive, Menu, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, HardDrive, Menu, Search, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { useCommandPaletteContext } from '../../hooks/useCommandPaletteContext';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
@@ -152,6 +153,7 @@ function HealthTooltip({ services, isVisible }: HealthTooltipProps) {
 
 export default function Header() {
   const { toggleMobileMenu } = useSidebarContext();
+  const { openCommandPalette } = useCommandPaletteContext();
   const { summary, systemStatus, isPollingFallback, retryConnection } = useConnectionStatus();
   const {
     overallStatus: apiHealth,
@@ -254,6 +256,20 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-2 px-3 md:gap-6 md:px-6">
+        {/* Search / Command Palette Trigger */}
+        <button
+          onClick={openCommandPalette}
+          className="hidden items-center gap-2 rounded-lg border border-[#333] bg-[#222] px-3 py-1.5 text-sm text-[#999] transition-colors hover:border-[#444] hover:bg-[#2a2a2a] hover:text-white sm:flex"
+          aria-label="Open command palette"
+          data-testid="search-trigger"
+        >
+          <Search className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden md:inline">Search...</span>
+          <kbd className="ml-1 hidden rounded bg-[#333] px-1.5 py-0.5 text-xs text-[#666] md:inline-block">
+            {navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl'}K
+          </kbd>
+        </button>
+
         {/* Contextual documentation link */}
         <PageDocsLink />
 
