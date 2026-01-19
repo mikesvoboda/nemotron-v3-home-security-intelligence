@@ -265,7 +265,7 @@ export default function Header() {
         >
           <Search className="h-4 w-4" aria-hidden="true" />
           <span className="hidden md:inline">Search...</span>
-          <kbd className="ml-1 hidden rounded bg-[#333] px-1.5 py-0.5 text-xs text-[#666] md:inline-block">
+          <kbd className="ml-1 hidden rounded bg-[#333] px-1.5 py-0.5 text-xs text-[#ccc] md:inline-block">
             {navigator.platform?.includes('Mac') ? '\u2318' : 'Ctrl'}K
           </kbd>
         </button>
