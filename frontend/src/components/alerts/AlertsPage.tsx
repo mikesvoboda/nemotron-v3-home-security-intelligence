@@ -1,6 +1,8 @@
-import { AlertTriangle, Bell, Loader2, RefreshCw } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { AlertTriangle, Bell, Grid, Loader2, Rows3, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import AlertCameraGroup from './AlertCameraGroup';
+import BulkActionBar from './BulkActionBar';
 import {
   useAlertsInfiniteQuery,
   useInfiniteScroll,
@@ -20,6 +22,23 @@ import type { RiskLevel } from '../../utils/risk';
 import type { Detection } from '../events/EventCard';
 import type { Event as ModalEvent } from '../events/EventDetailModal';
 
+/** Represents a group of alerts for a single camera */
+interface CameraAlertGroup {
+  cameraId: string;
+  cameraName: string;
+  alerts: Event[];
+  highestSeverity: RiskLevel;
+}
+
+// Severity ranking for sorting (lower number = higher severity)
+// Defined outside component to avoid unnecessary recreations
+const SEVERITY_RANK: Record<RiskLevel, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+
 export interface AlertsPageProps {
   onViewEventDetails?: (eventId: number) => void;
   className?: string;
@@ -31,6 +50,10 @@ export interface AlertsPageProps {
  *
  * Uses cursor-based pagination with infinite scroll for efficient loading
  * of large datasets.
+ *
+ * Features:
+ * - Bulk selection and dismiss functionality
+ * - Keyboard shortcuts (Ctrl/Cmd+A to select all, Escape to clear)
  */
 export default function AlertsPage({ onViewEventDetails, className = '' }: AlertsPageProps) {
   // State for selected risk level filter (high or critical)
@@ -38,6 +61,13 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
 
   // State for event detail modal
   const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
+
+  // State for bulk selection
+  const [selectedAlerts, setSelectedAlerts] = useState<Set<number>>(new Set());
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+
+  // State for view mode (grouped by camera or flat grid)
+  const [viewMode, setViewMode] = useState<'grouped' | 'grid'>('grouped');
 
   // Fetch cameras for camera name lookup
   const { cameras } = useCamerasQuery();
@@ -90,6 +120,123 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
     );
   }, [alerts]);
 
+  // Group alerts by camera and sort by highest severity
+  const cameraGroups = useMemo((): CameraAlertGroup[] => {
+    // Group alerts by camera_id
+    const groupMap = new Map<string, Event[]>();
+
+    alerts.forEach((event: Event) => {
+      const existing = groupMap.get(event.camera_id) || [];
+      existing.push(event);
+      groupMap.set(event.camera_id, existing);
+    });
+
+    // Convert to array with metadata
+    const groups: CameraAlertGroup[] = Array.from(groupMap.entries()).map(
+      ([cameraId, cameraAlerts]) => {
+        // Find highest severity in this group
+        let highestSeverity: RiskLevel = 'low';
+        cameraAlerts.forEach((alert) => {
+          const level = (alert.risk_level as RiskLevel) || getRiskLevel(alert.risk_score || 0);
+          if (SEVERITY_RANK[level] < SEVERITY_RANK[highestSeverity]) {
+            highestSeverity = level;
+          }
+        });
+
+        return {
+          cameraId,
+          cameraName: cameraNameMap.get(cameraId) || 'Unknown Camera',
+          alerts: cameraAlerts,
+          highestSeverity,
+        };
+      }
+    );
+
+    // Sort groups by highest severity (critical first, then high, etc.)
+    groups.sort((a, b) => SEVERITY_RANK[a.highestSeverity] - SEVERITY_RANK[b.highestSeverity]);
+
+    return groups;
+  }, [alerts, cameraNameMap]);
+
+  // Bulk selection handlers
+  const toggleSelection = useCallback((alertId: number) => {
+    setSelectedAlerts((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(alertId)) {
+        newSet.delete(alertId);
+      } else {
+        newSet.add(alertId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    const allIds = new Set(alerts.map((event: Event) => event.id));
+    setSelectedAlerts(allIds);
+  }, [alerts]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedAlerts(new Set());
+  }, []);
+
+  const handleBulkDismiss = useCallback(async () => {
+    if (selectedAlerts.size === 0) return;
+
+    setIsBulkProcessing(true);
+    try {
+      // Dismiss all selected alerts by marking them as reviewed
+      const promises = Array.from(selectedAlerts).map((id) =>
+        updateEvent(id, { reviewed: true })
+      );
+      await Promise.all(promises);
+
+      // Clear selection and refetch
+      setSelectedAlerts(new Set());
+      void refetch();
+    } catch (err) {
+      console.error('Failed to dismiss selected alerts:', err);
+    } finally {
+      setIsBulkProcessing(false);
+    }
+  }, [selectedAlerts, refetch]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLInputElement;
+
+      // Escape to clear selection - always works (even when focused on checkbox)
+      if (e.key === 'Escape') {
+        clearSelection();
+        return;
+      }
+
+      // Don't trigger other shortcuts if user is typing in an input (except checkboxes)
+      const isTextInput =
+        (target.tagName === 'INPUT' && target.type !== 'checkbox') ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable;
+      if (isTextInput) {
+        return;
+      }
+
+      // Ctrl/Cmd+A to select all
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        selectAll();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectAll, clearSelection]);
+
+  // Clear selection when alerts change (e.g., filter change)
+  useEffect(() => {
+    setSelectedAlerts(new Set());
+  }, [riskFilter]);
+
   // Convert Event to EventCard props
   const getEventCardProps = (event: Event) => {
     const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
@@ -109,6 +256,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
       onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
       onSnooze: handleSnooze,
+      hasCheckboxOverlay: true,
     };
   };
 
@@ -180,6 +328,31 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
     void refetch();
   };
 
+  // Handle checkbox change
+  const handleCheckboxChange = (eventId: number) => {
+    toggleSelection(eventId);
+  };
+
+  // Handle dismiss all for a camera group
+  const handleDismissAllForCamera = useCallback(
+    async (cameraId: string) => {
+      const group = cameraGroups.find((g) => g.cameraId === cameraId);
+      if (!group) return;
+
+      setIsBulkProcessing(true);
+      try {
+        const promises = group.alerts.map((alert) => updateEvent(alert.id, { reviewed: true }));
+        await Promise.all(promises);
+        void refetch();
+      } catch (err) {
+        console.error('Failed to dismiss alerts for camera:', err);
+      } finally {
+        setIsBulkProcessing(false);
+      }
+    },
+    [cameraGroups, refetch]
+  );
+
   return (
     <div data-testid="alerts-page" className={`flex flex-col ${className}`}>
       {/* Header */}
@@ -209,15 +382,47 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
           </select>
         </div>
 
-        <button
-          onClick={handleRefresh}
-          disabled={isFetching}
-          aria-label="Refresh alerts"
-          className="flex items-center gap-2 rounded-md bg-[#76B900]/10 px-4 py-2 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex rounded-md border border-gray-700 bg-[#1A1A1A]">
+            <button
+              onClick={() => setViewMode('grouped')}
+              aria-pressed={viewMode === 'grouped'}
+              aria-label="Group by camera"
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'grouped'
+                  ? 'bg-[#76B900]/20 text-[#76B900]'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              <Rows3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Grouped</span>
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              aria-pressed={viewMode === 'grid'}
+              aria-label="Grid view"
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'grid'
+                  ? 'bg-[#76B900]/20 text-[#76B900]'
+                  : 'text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              <Grid className="h-4 w-4" />
+              <span className="hidden sm:inline">Grid</span>
+            </button>
+          </div>
+
+          <button
+            onClick={handleRefresh}
+            disabled={isFetching}
+            aria-label="Refresh alerts"
+            className="flex items-center gap-2 rounded-md bg-[#76B900]/10 px-4 py-2 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Results Summary */}
@@ -244,6 +449,16 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
           </div>
         )}
       </div>
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedAlerts.size}
+        totalCount={alerts.length}
+        onSelectAll={selectAll}
+        onClearSelection={clearSelection}
+        onDismissSelected={() => void handleBulkDismiss()}
+        isProcessing={isBulkProcessing}
+      />
 
       {/* Alert List */}
       {isLoading ? (
@@ -276,12 +491,64 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
             </p>
           </div>
         </div>
+      ) : viewMode === 'grouped' ? (
+        <>
+          {/* Grouped View - Alerts grouped by camera */}
+          <div className="flex flex-col gap-4" data-testid="alerts-grouped-view">
+            {cameraGroups.map((group) => (
+              <AlertCameraGroup
+                key={group.cameraId}
+                cameraId={group.cameraId}
+                cameraName={group.cameraName}
+                alerts={group.alerts}
+                onSnooze={handleSnooze}
+                onDismissAll={(cameraId) => void handleDismissAllForCamera(cameraId)}
+                onAlertClick={(eventId) => setSelectedEventForModal(eventId)}
+              />
+            ))}
+          </div>
+
+          {/* Infinite Scroll Sentinel */}
+          <div ref={sentinelRef} className="mt-4 flex justify-center py-4">
+            {(isLoadingMore || isFetchingNextPage) && (
+              <div className="flex items-center gap-2 text-gray-400">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Loading more alerts...</span>
+              </div>
+            )}
+            {!hasNextPage && alerts.length > 0 && (
+              <p className="text-sm text-gray-500">All alerts loaded</p>
+            )}
+          </div>
+        </>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-            {alerts.map((event: Event) => (
-              <EventCard key={event.id} {...getEventCardProps(event)} />
-            ))}
+          {/* Grid View - Flat list of alerts */}
+          <div
+            className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3"
+            data-testid="alerts-grid-view"
+          >
+            {alerts.map((event: Event) => {
+              const isSelected = selectedAlerts.has(event.id);
+              return (
+                <div
+                  key={event.id}
+                  className={`relative ${isSelected ? 'rounded-lg ring-2 ring-[#76B900] ring-offset-2 ring-offset-[#121212]' : ''}`}
+                >
+                  {/* Checkbox overlay */}
+                  <div className="absolute left-3 top-3 z-10">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleCheckboxChange(event.id)}
+                      className="h-5 w-5 cursor-pointer rounded border-gray-600 bg-[#1A1A1A] text-[#76B900] focus:ring-2 focus:ring-[#76B900] focus:ring-offset-0"
+                      aria-label={`Select alert ${event.id}`}
+                    />
+                  </div>
+                  <EventCard {...getEventCardProps(event)} />
+                </div>
+              );
+            })}
           </div>
 
           {/* Infinite Scroll Sentinel */}
