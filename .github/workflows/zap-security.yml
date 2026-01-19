@@ -125,7 +125,7 @@ jobs:
 
       - name: Run ZAP API Scan
         id: zap_scan
-        uses: zaproxy/action-api-scan@77dfa9a647bb0f583e39d4df8531634d6ddd8df4 # v0.9.0
+        uses: zaproxy/action-api-scan@5158fe4d9d8fcc75ea204db81317cce7f9e5453d # v0.10.0
         with:
           target: 'openapi.json'
           format: 'openapi'
