@@ -91,20 +91,25 @@ modules:
         help: 'Batch stage P99 latency in milliseconds'
 
       # Analyze stage latencies
+      # Note: These metrics use default values to handle null gracefully when
+      # no analyze jobs have been processed yet (analyze stage may be inactive)
       - name: hsi_analyze_latency_avg_ms
         path: '{ .latencies.analyze.avg_ms }'
         type: value
         help: 'Analyze stage average latency in milliseconds'
+        default_value: 0
 
       - name: hsi_analyze_latency_p95_ms
         path: '{ .latencies.analyze.p95_ms }'
         type: value
         help: 'Analyze stage P95 latency in milliseconds'
+        default_value: 0
 
       - name: hsi_analyze_latency_p99_ms
         path: '{ .latencies.analyze.p99_ms }'
         type: value
         help: 'Analyze stage P99 latency in milliseconds'
+        default_value: 0
 
   # System statistics
   stats:
