@@ -148,7 +148,7 @@ flowchart TB
 |                      | Redis            | 7.x     | Fast pub/sub for WebSocket, reliable queues for pipeline, ephemeral cache      |
 | **AI - Detection**   | RT-DETRv2        | -       | Real-time transformer detector, 30-50ms inference, COCO-trained                |
 |                      | PyTorch          | 2.x     | GPU acceleration, HuggingFace Transformers integration                         |
-| **AI - Reasoning**   | Nemotron Mini 4B | Q4_K_M  | Small but capable LLM, runs on consumer GPUs, instruction-tuned                |
+| **AI - Reasoning**   | Nemotron-3-Nano-30B | Q4_K_M  | NVIDIA v3 Nano 30B LLM, 128K context, ~14.7GB VRAM (dev: Mini 4B ~3GB)         |
 |                      | llama.cpp        | -       | Efficient inference, GGUF format, GPU offloading, HTTP API                     |
 | **Containerization** | Docker Compose   | 2.x     | Multi-service orchestration, health checks, networking                         |
 | **Monitoring**       | Prometheus       | 2.48    | Time-series metrics, optional monitoring stack                                 |
@@ -355,7 +355,7 @@ flowchart TB
             FLO["Florence-2 Container<br/>Vision extraction (optional)<br/>Port 8092<br/>VRAM varies"]
             CLIP["CLIP Container<br/>Re-ID (optional)<br/>Port 8093<br/>VRAM varies"]
             ENR["Enrichment Container<br/>Model-zoo API (optional)<br/>Port 8094<br/>VRAM varies"]
-            LLM["Nemotron Container<br/>llama.cpp<br/>Port 8091<br/>~3GB VRAM"]
+            LLM["Nemotron Container<br/>llama.cpp<br/>Port 8091<br/>~14.7GB VRAM*"]
         end
 
         subgraph Storage["Persistent Storage"]

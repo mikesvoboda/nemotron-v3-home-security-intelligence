@@ -233,6 +233,39 @@ When backend is containerized but AI runs on the host:
 | Linux    | Docker Engine     | Host IP address                  |
 | Linux    | Podman            | Host IP address                  |
 
+#### Container Networking Resolution Flowchart
+
+```mermaid
+flowchart TD
+    Start([Start: Resolve AI Host]) --> Platform{What platform?}
+
+    Platform -->|macOS| MacRuntime{Container Runtime?}
+    Platform -->|Linux| LinuxRuntime{Container Runtime?}
+
+    MacRuntime -->|Docker Desktop| MacDocker[Use: host.docker.internal]
+    MacRuntime -->|Podman| MacPodman[Use: host.containers.internal]
+
+    LinuxRuntime -->|Docker Engine| LinuxDocker[Use: Host IP Address]
+    LinuxRuntime -->|Podman| LinuxPodman[Use: Host IP Address]
+
+    MacDocker --> SetEnv1["export AI_HOST=host.docker.internal"]
+    MacPodman --> SetEnv2["export AI_HOST=host.containers.internal"]
+    LinuxDocker --> GetIP["AI_HOST=$(hostname -I | awk '{print $1}')"]
+    LinuxPodman --> GetIP
+
+    SetEnv1 --> Verify{Test Connection}
+    SetEnv2 --> Verify
+    GetIP --> SetEnv3["export AI_HOST=$AI_HOST"] --> Verify
+
+    Verify -->|Success| Done([AI Services Reachable])
+    Verify -->|Fail| Debug[Check firewall and service status]
+    Debug --> Verify
+
+    style Start fill:#e1f5fe
+    style Done fill:#c8e6c9
+    style Debug fill:#ffecb3
+```
+
 ```bash
 # macOS with Docker Desktop (default, no action needed)
 docker compose up -d
@@ -324,7 +357,44 @@ curl http://localhost:8094/health   # Enrichment (optional)
 
 ### Startup Order
 
-Services start in dependency order via Docker Compose health checks:
+Services start in dependency order via Docker Compose health checks.
+
+#### Service Startup Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DC as Docker Compose
+    participant PG as PostgreSQL
+    participant RD as Redis
+    participant RT as RT-DETRv2
+    participant NM as Nemotron
+    participant BE as Backend
+    participant FE as Frontend
+
+    Note over DC,FE: Phase 1: Data Infrastructure (0-15s)
+    DC->>PG: Start PostgreSQL
+    DC->>RD: Start Redis
+    PG-->>DC: Healthy (10-15s)
+    RD-->>DC: Healthy (5-10s)
+
+    Note over DC,FE: Phase 2: AI Services (60-180s)
+    DC->>RT: Start RT-DETRv2
+    DC->>NM: Start Nemotron
+    RT-->>DC: Healthy (60-90s, model loading)
+    NM-->>DC: Healthy (90-120s, VRAM allocation)
+
+    Note over DC,FE: Phase 3: Application (30-60s)
+    DC->>BE: Start Backend (depends: PG, RD)
+    BE->>PG: Connect
+    BE->>RD: Connect
+    BE-->>DC: Healthy (30-60s)
+
+    Note over DC,FE: Phase 4: Frontend (10-20s)
+    DC->>FE: Start Frontend (depends: BE)
+    FE->>BE: Health check
+    FE-->>DC: Healthy (10-20s)
+```
 
 **Phase 1: Data Infrastructure (0-15s)**
 

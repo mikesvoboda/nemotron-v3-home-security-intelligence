@@ -296,7 +296,7 @@ Enter     - Select
 
 - [Keyboard Shortcuts](keyboard-shortcuts.md) - Complete shortcut reference
 - [Getting Started](getting-started.md) - System overview
-- [Dashboard Overview](dashboard-overview.md) - Understanding the interface
+- [Dashboard](../ui/dashboard.md) - Understanding the interface
 
 ---
 

@@ -445,7 +445,7 @@ Service state (failure counts, restart history) is persisted to Redis:
 - [AI Services](ai-services.md) - Starting, stopping AI services
 - [Monitoring Guide](monitoring.md) - System health monitoring
 - [WebSocket API](../developer/api/realtime.md) - Real-time events
-- [Troubleshooting](../admin-guide/troubleshooting.md) - Common issues
+- [Troubleshooting](../reference/troubleshooting/index.md) - Common issues
 
 ---
 

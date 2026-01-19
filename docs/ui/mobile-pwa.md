@@ -566,7 +566,7 @@ PWAs update automatically when new versions are deployed:
 
 ## Related Documentation
 
-- [Dashboard Overview](dashboard-overview.md) - Learn about the main dashboard interface
+- [Dashboard](../ui/dashboard.md) - Learn about the main dashboard interface
 - [Understanding Alerts](understanding-alerts.md) - Learn what risk levels mean
 - [Settings](settings.md) - Configure notification preferences
 - [Keyboard Shortcuts](keyboard-shortcuts.md) - Navigate efficiently

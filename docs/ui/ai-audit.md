@@ -2,6 +2,16 @@
 
 The AI Audit page provides transparency into how the AI models make decisions, allowing you to understand, evaluate, and improve the AI-powered security analysis.
 
+## Overview
+
+The AI Audit Dashboard helps you understand how well the AI system is performing. It shows quality metrics, consistency scores, and recommendations for improving the AI's analysis. This page is useful for power users who want to fine-tune their security system or verify the AI is working correctly.
+
+## Accessing the AI Audit Dashboard
+
+1. Click **AI Audit** in the left sidebar
+2. The dashboard loads with data from the last 7 days by default
+3. Use the period selector to change the time range
+
 ## What You're Looking At
 
 The AI Audit Dashboard helps you understand and improve the quality of AI-generated security assessments. It provides:
@@ -38,6 +48,23 @@ Four stat cards display aggregate performance over the selected time period:
 - **4.0-5.0 (Green):** Excellent - AI is performing well
 - **3.0-3.9 (Yellow):** Good - Room for improvement
 - **1.0-2.9 (Red):** Needs attention - Consider prompt adjustments
+
+### Interpreting Your Results
+
+**Signs of Good AI Performance:**
+
+- **Average Quality Score:** 4.0 or higher
+- **Consistency Rate:** 4.0 or higher
+- **Enrichment Utilization:** 70% or higher
+- **Evaluation Coverage:** 80% or higher
+- **Recommendations:** Mostly low priority items
+
+**Warning Signs to Watch For:**
+
+- **Low quality scores** - The AI may need configuration adjustments
+- **Low consistency** - Results vary too much; investigate why
+- **Low enrichment** - Some AI models may not be contributing
+- **High-priority recommendations** - Address these for better accuracy
 
 #### Model Contribution Breakdown
 
@@ -158,9 +185,45 @@ Footer buttons:
 
 **Toast Notifications:** Success, error, and info messages appear in the bottom-right corner and auto-dismiss after 3 seconds.
 
+#### Best Practices for Prompt Editing
+
+**Before Making Changes:**
+
+1. **Export current configurations** as a backup
+2. **Choose representative events** for testing - include low, medium, and high risk events
+3. **Document your changes** using the change description field
+
+**When Editing Prompts:**
+
+1. **Make small, incremental changes** - It is easier to identify what works
+2. **Use the variables provided** - They ensure the AI has the context it needs
+3. **Be specific** - Clear instructions produce more consistent results
+4. **Define output format** - Specify the exact structure you expect
+
+**When Testing:**
+
+1. **Test against multiple events** - At least 3-5 different scenarios
+2. **Include edge cases** - Test with challenging events
+3. **Compare scores** - Look for consistency, not just improvement
+4. **Run A/B tests** before promoting major changes
+
+**After Making Changes:**
+
+1. **Monitor the AI Audit Dashboard** for quality changes
+2. **Check the consistency rate** - It should remain stable
+3. **Review new events** to ensure the changes work in production
+4. **Roll back quickly** if you see problems
+
 ### Batch Audit Tab
 
 Trigger batch evaluation of events to generate quality metrics and recommendations.
+
+#### When to Use Batch Audit
+
+- After making changes to the AI configuration
+- When you want to analyze high-risk events more thoroughly
+- To generate fresh recommendations based on recent patterns
+- To verify AI consistency by re-evaluating the same events
 
 The tab shows summary stats:
 

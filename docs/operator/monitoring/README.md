@@ -41,6 +41,49 @@ Redis Queues     -->   DLQ Stats      -->  Redis       -->   Dashboard
 
 ## Health Check Endpoints
 
+### Health Check Hierarchy
+
+The system provides three levels of health checks, each serving a different purpose:
+
+```mermaid
+flowchart TD
+    subgraph "Health Check Hierarchy"
+        direction TB
+        L["/health<br/>Liveness Probe"] --> R["/api/system/health/ready<br/>Readiness Probe"]
+        R --> F["/api/system/health/full<br/>Full Health Check"]
+    end
+
+    L --> LC{Process Running?}
+    LC -->|Yes| LOK["200 OK<br/>status: alive"]
+    LC -->|No| LFAIL["No Response<br/>Container restart"]
+
+    R --> RC{DB + Redis OK?}
+    RC -->|Yes| ROK["200 OK<br/>ready: true"]
+    RC -->|No| RFAIL["503 Unavailable<br/>ready: false"]
+
+    F --> FC{All Services OK?}
+    FC -->|All Healthy| FOK["200 OK<br/>status: healthy"]
+    FC -->|Non-Critical Failing| FDEG["200 OK<br/>status: degraded"]
+    FC -->|Critical Failing| FFAIL["503 Unavailable<br/>status: unhealthy"]
+
+    style L fill:#e3f2fd
+    style R fill:#e8f5e9
+    style F fill:#fff3e0
+    style LOK fill:#c8e6c9
+    style ROK fill:#c8e6c9
+    style FOK fill:#c8e6c9
+    style FDEG fill:#fff9c4
+    style LFAIL fill:#ffcdd2
+    style RFAIL fill:#ffcdd2
+    style FFAIL fill:#ffcdd2
+```
+
+| Probe     | Use Case                | Checks                  | Failure Action     |
+| --------- | ----------------------- | ----------------------- | ------------------ |
+| Liveness  | Container orchestration | Process alive           | Restart container  |
+| Readiness | Traffic routing         | DB, Redis connectivity  | Remove from LB     |
+| Full      | Operational monitoring  | All services + breakers | Alert, investigate |
+
 ### Liveness Probe
 
 **Endpoint:** `GET /health`
@@ -316,6 +359,41 @@ Recovery attempts use exponential backoff:
 ---
 
 ## Circuit Breaker Integration
+
+### Circuit Breaker State Diagram
+
+The circuit breaker pattern protects the system from cascading failures when AI services become unavailable.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Closed
+
+    Closed --> Open : failure_count >= 5
+    Closed --> Closed : success / reset count
+
+    Open --> HalfOpen : recovery_timeout (30s)
+
+    HalfOpen --> Closed : success_count >= 2
+    HalfOpen --> Open : any failure
+
+    note right of Closed
+        Normal operation
+        Requests pass through
+        Count failures
+    end note
+
+    note right of Open
+        Service failing
+        Requests fail immediately
+        Wait for recovery timeout
+    end note
+
+    note right of HalfOpen
+        Testing recovery
+        Allow max 3 test requests
+        Success closes, failure reopens
+    end note
+```
 
 ### Circuit Breaker States
 

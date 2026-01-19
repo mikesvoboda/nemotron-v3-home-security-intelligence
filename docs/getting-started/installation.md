@@ -108,18 +108,21 @@ The model download script ([`ai/download_models.sh`](../../ai/download_models.sh
 
 ### Models Downloaded
 
-| Model                | Size   | Purpose           | Location                                                        |
-| -------------------- | ------ | ----------------- | --------------------------------------------------------------- |
-| **Nemotron Mini 4B** | ~2.5GB | Risk analysis LLM | `ai/nemotron/` ([lines 90-167](../../ai/download_models.sh:90)) |
-| **RT-DETRv2**        | varies | Object detection  | HuggingFace cache (`HF_HOME`), pulled by the detector service   |
+| Model                   | Size   | Purpose              | Location                                                        |
+| ----------------------- | ------ | -------------------- | --------------------------------------------------------------- |
+| **Nemotron-3-Nano-30B** | ~18GB  | Risk analysis (prod) | `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/`      |
+| **Nemotron Mini 4B**    | ~2.5GB | Risk analysis (dev)  | `ai/nemotron/` ([lines 90-167](../../ai/download_models.sh:90)) |
+| **RT-DETRv2**           | varies | Object detection     | HuggingFace cache (`HF_HOME`), pulled by the detector service   |
 
 ### Using Pre-downloaded Models
 
 If you have models cached locally (e.g., on a shared network drive), you can skip the download:
 
 ```bash
-# For Nemotron (GGUF format)
-export NEMOTRON_GGUF_PATH=/path/to/nemotron-mini-4b-instruct-q4_k_m.gguf
+# For Nemotron (GGUF format) - Production 30B model
+export NEMOTRON_GGUF_PATH=/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
+# Or for development (Mini 4B)
+# export NEMOTRON_GGUF_PATH=/path/to/nemotron-mini-4b-instruct-q4_k_m.gguf
 
 # RT-DETRv2 is loaded via HuggingFace (configure via RTDETR_MODEL_PATH if needed)
 export RTDETR_MODEL_PATH=PekingU/rtdetr_r50vd_coco_o365

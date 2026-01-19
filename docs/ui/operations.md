@@ -12,6 +12,7 @@ The Operations page is your control center for system administration. Unlike the
 - **Circuit Breaker Controls** - Reset tripped circuit breakers to restore service connectivity
 - **File Operations** - Manage disk storage and run cleanup tasks
 - **Debug Mode** - Enable additional diagnostics when troubleshooting
+- **Developer Tools** - Performance profiling, configuration inspection, log level control, and test data generation
 
 For detailed historical metrics and custom dashboards, click the Grafana link banner at the top.
 
@@ -21,13 +22,40 @@ For detailed historical metrics and custom dashboards, click the Grafana link ba
 
 The pipeline visualization shows the four processing stages as a horizontal flow diagram:
 
-```
-+--------+     +--------+     +--------+     +---------+
-| Files  | --> | Detect | --> | Batch  | --> | Analyze |
-+--------+     +--------+     +--------+     +---------+
-  Camera        RT-DETR       Group          Nemotron
-  Uploads       Detection     Related        Risk
-                             Detections      Analysis
+### Diagram: AI Pipeline Flow
+
+```mermaid
+flowchart LR
+    subgraph Files["Files Stage"]
+        F1[Camera Uploads]
+        F2[File Watcher]
+        F1 --> F2
+    end
+
+    subgraph Detect["Detection Stage"]
+        D1[Detection Queue]
+        D2[RT-DETRv2]
+        D1 --> D2
+    end
+
+    subgraph Batch["Batching Stage"]
+        B1[Group Related]
+        B2[Time Windows]
+        B1 --> B2
+    end
+
+    subgraph Analyze["Analysis Stage"]
+        A1[Analysis Queue]
+        A2[Nemotron LLM]
+        A1 --> A2
+    end
+
+    Files --> Detect --> Batch --> Analyze
+
+    style Files fill:#e0f2fe,stroke:#0284c7
+    style Detect fill:#fef3c7,stroke:#ca8a04
+    style Batch fill:#fed7aa,stroke:#ea580c
+    style Analyze fill:#f3e8ff,stroke:#9333ea
 ```
 
 **Stage Cards**: Each stage displays:
@@ -88,6 +116,56 @@ Circuit breakers protect the system from cascading failures by temporarily block
 **When to reset**: After fixing the underlying issue (service restarted, network restored, etc.)
 
 **When NOT to reset**: If the root cause hasn't been addressed - the circuit will just trip again.
+
+### Diagram: Circuit Breaker State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Closed: Initial State
+
+    Closed --> Closed: Request Success
+    Closed --> Open: Failures >= Threshold
+
+    Open --> HalfOpen: Recovery Timeout Expires
+    Open --> Open: Requests Blocked
+
+    HalfOpen --> Closed: Test Calls Succeed
+    HalfOpen --> Open: Test Call Fails
+
+    state Closed {
+        [*] --> Normal
+        Normal: Requests pass through
+        Normal: Green badge
+        Normal: Failure count tracked
+    }
+
+    state Open {
+        [*] --> Blocking
+        Blocking: All requests blocked
+        Blocking: Red badge
+        Blocking: Timer counting down
+    }
+
+    state HalfOpen {
+        [*] --> Testing
+        Testing: Limited test calls allowed
+        Testing: Yellow badge
+        Testing: Evaluating recovery
+    }
+
+    note right of Closed
+        Default: 5 failures to open
+    end note
+
+    note right of Open
+        Default: 30s recovery timeout
+    end note
+
+    note right of HalfOpen
+        Default: 3 test calls allowed
+        2 successes needed to close
+    end note
+```
 
 ### File Operations Panel
 
@@ -156,6 +234,51 @@ When enabled (orange highlight):
 - The toggle state persists to localStorage
 
 **Note**: The Circuit Breakers panel component supports an optional WebSocket Broadcasters debug section that can display event and system broadcaster status. This feature requires additional implementation to pass the `debugMode` and `webSocketStatus` props to the panel.
+
+### Developer Tools Section
+
+A dedicated section for development and debugging tools, accessible below the main operational panels. Each tool is in a collapsible section with state persisted to localStorage via the `useSystemPageSections` hook.
+
+#### Performance Profiling Panel
+
+Monitor and analyze application performance with the `ProfilingPanel` component:
+
+- Start and stop CPU/memory profiling sessions
+- Download profiling data for external analysis
+- View real-time performance metrics
+
+#### Recording & Replay Panel
+
+Capture and replay system behavior for debugging with the `RecordingReplayPanel` component:
+
+- Record API requests and responses
+- Replay recorded sessions for debugging
+- Manage saved recording sessions
+
+#### Configuration Inspector Panel
+
+View and explore runtime configuration with the `ConfigInspectorPanel` component:
+
+- Hierarchical tree view of all configuration values
+- Search and filter by key or value
+- See where each config value is defined (environment, file, default)
+
+#### Log Level Panel
+
+Dynamically adjust logging verbosity with the `LogLevelPanel` component:
+
+- Set log levels per logger (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- Changes take effect immediately without restart
+- View current log level settings
+
+#### Test Data Panel
+
+Generate test data for development with the `TestDataPanel` component:
+
+- Create synthetic security events
+- Generate test detections and alerts
+- Bulk operations for creating multiple test records
+- Cleanup functions to remove test data
 
 ### Grafana Integration Banner
 
@@ -294,6 +417,85 @@ The collapsible sections (Circuit Breakers, File Operations) persist their expan
 
 ---
 
+## Understanding Health Status Colors
+
+Throughout the Operations page, colors indicate health status:
+
+| Color  | Status    | Action Needed                              |
+| ------ | --------- | ------------------------------------------ |
+| Green  | Healthy   | No action needed                           |
+| Yellow | Degraded  | Monitor closely, may resolve automatically |
+| Red    | Unhealthy | Investigate immediately                    |
+| Gray   | Unknown   | Check connection to service                |
+
+---
+
+## Common Questions
+
+### Why is my queue depth high?
+
+High queue depth means images are arriving faster than they can be processed. This can happen when:
+
+- Many cameras detect motion simultaneously
+- GPU is overloaded with other tasks
+- AI models are loading or restarting
+
+Usually resolves automatically. If persistent, consider reducing camera sensitivity or upgrading GPU.
+
+### Why is a circuit breaker open?
+
+A circuit opens when a service fails repeatedly. Check:
+
+1. The service logs for errors
+2. Network connectivity
+3. Available system resources
+
+You can manually reset the circuit once the issue is resolved.
+
+### What does "degraded" mean?
+
+Degraded indicates a service is working but experiencing issues:
+
+- Slow response times
+- Intermittent errors
+- High resource usage
+
+The system continues operating but may be slower than normal.
+
+### Why is a worker stopped?
+
+A stopped worker (red dot) means that background service is not running. Check:
+
+1. Container status in the Containers panel
+2. System logs for error messages
+3. Available system resources
+
+Restarting the container typically resolves this.
+
+### Why are latencies high?
+
+High latency (shown in yellow/red in the Pipeline Metrics) indicates slow processing:
+
+- GPU may be overloaded
+- Large batch of images being processed
+- System resources constrained
+
+Check Grafana dashboards for GPU utilization and system resource issues.
+
+---
+
+## Quick Reference: Troubleshooting by Symptom
+
+| Symptom                    | Check These Areas                                         |
+| -------------------------- | --------------------------------------------------------- |
+| Events not appearing       | Pipeline Visualization, Workers, Circuit Breakers         |
+| Dashboard feels slow       | Grafana dashboards for system metrics                     |
+| High risk scores incorrect | Circuit Breakers (Nemotron), AI Performance page          |
+| Cameras not processing     | Pipeline Visualization (Workers section), Detection queue |
+| High disk usage            | File Operations Panel, Run Cleanup                        |
+
+---
+
 ## Technical Deep Dive
 
 For developers wanting to understand the underlying systems.
@@ -307,15 +509,20 @@ For developers wanting to understand the underlying systems.
 
 ### Related Code
 
-| Component              | File Path                                                      |
-| ---------------------- | -------------------------------------------------------------- |
-| Operations Page        | `frontend/src/components/system/SystemMonitoringPage.tsx`      |
-| Pipeline Visualization | `frontend/src/components/system/PipelineFlowVisualization.tsx` |
-| Circuit Breaker Panel  | `frontend/src/components/system/CircuitBreakerPanel.tsx`       |
-| File Operations Panel  | `frontend/src/components/system/FileOperationsPanel.tsx`       |
-| Debug Mode Toggle      | `frontend/src/components/system/DebugModeToggle.tsx`           |
-| Collapsible Section    | `frontend/src/components/system/CollapsibleSection.tsx`        |
-| Backend API Routes     | `backend/api/routes/system.py`                                 |
+| Component              | File Path                                                          |
+| ---------------------- | ------------------------------------------------------------------ |
+| Operations Page        | `frontend/src/components/system/SystemMonitoringPage.tsx`          |
+| Pipeline Visualization | `frontend/src/components/system/PipelineFlowVisualization.tsx`     |
+| Circuit Breaker Panel  | `frontend/src/components/system/CircuitBreakerPanel.tsx`           |
+| File Operations Panel  | `frontend/src/components/system/FileOperationsPanel.tsx`           |
+| Debug Mode Toggle      | `frontend/src/components/system/DebugModeToggle.tsx`               |
+| Collapsible Section    | `frontend/src/components/system/CollapsibleSection.tsx`            |
+| Profiling Panel        | `frontend/src/components/developer-tools/ProfilingPanel.tsx`       |
+| Recording Replay Panel | `frontend/src/components/developer-tools/RecordingReplayPanel.tsx` |
+| Config Inspector Panel | `frontend/src/components/developer-tools/ConfigInspectorPanel.tsx` |
+| Log Level Panel        | `frontend/src/components/developer-tools/LogLevelPanel.tsx`        |
+| Test Data Panel        | `frontend/src/components/developer-tools/TestDataPanel.tsx`        |
+| Backend API Routes     | `backend/api/routes/system.py`                                     |
 
 ### Hooks Used
 

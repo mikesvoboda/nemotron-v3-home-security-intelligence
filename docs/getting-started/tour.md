@@ -307,18 +307,18 @@ If the dashboard is empty:
 
 Now that you have completed the tour and initial setup:
 
-- **[Dashboard Overview](dashboard-overview.md)** - Deep dive into dashboard features
-- **[Understanding Alerts](understanding-alerts.md)** - Learn about risk levels and responses
-- **[Event Timeline](event-timeline.md)** - Browse and search historical events
-- **[Settings](settings.md)** - Full configuration guide
+- **[Dashboard](../ui/dashboard.md)** - Deep dive into dashboard features
+- **[Understanding Alerts](../ui/understanding-alerts.md)** - Learn about risk levels and responses
+- **[Event Timeline](../ui/timeline.md)** - Browse and search historical events
+- **[Settings](../ui/settings.md)** - Full configuration guide
 
 ---
 
 ## Related Documentation
 
-- [Keyboard Shortcuts](keyboard-shortcuts.md) - Complete shortcut reference
-- [Mobile and PWA Guide](mobile-pwa.md) - Use on phone or tablet
-- [Getting Started](getting-started.md) - System overview for beginners
+- [Keyboard Shortcuts](../ui/keyboard-shortcuts.md) - Complete shortcut reference
+- [Mobile and PWA Guide](../ui/mobile-pwa.md) - Use on phone or tablet
+- [Quick Start](quick-start.md) - System overview for beginners
 
 ---
 

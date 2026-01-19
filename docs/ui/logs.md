@@ -158,6 +158,73 @@ The `/api/logs` endpoint accepts:
 
 Logs follow a **7-day retention policy** by default (configurable via `LOG_RETENTION_DAYS` environment variable). This is shorter than the 30-day retention for events and detections due to the higher volume of log data. Older logs are automatically cleaned up by the cleanup service which runs daily at 03:00.
 
+## Common Use Cases
+
+### Troubleshooting a Specific Issue
+
+1. Use the **Search** bar to find logs containing error messages or keywords
+2. Apply **Log Level** filter to show only ERROR and CRITICAL logs
+3. Apply **Date Range** filters to narrow down to when the issue occurred
+4. Click on relevant log entries to view full details and metadata
+
+### Monitoring a Specific Component
+
+1. Click **Show Filters**
+2. Select the component from the **Component** dropdown (e.g., `detector`, `risk_analyzer`)
+3. Optionally set a **Start Date** to view recent activity
+4. Review the log entries to understand component behavior
+
+### Finding Logs for a Specific Camera
+
+1. Click **Show Filters**
+2. Select the camera from the **Camera** dropdown
+3. The table updates to show only logs related to that camera
+4. Use **Log Level** filter to focus on errors or warnings
+
+### Investigating High Error Counts
+
+1. Check the **Errors Today** card - if it is red with a high count, errors are occurring
+2. Click **Show Filters**
+3. Set **Log Level** to ERROR
+4. Review recent error messages
+5. Click entries to view full details and identify patterns
+
+### Correlating Logs with Security Events
+
+When investigating a security event:
+
+1. Note the Event ID from the event detail page
+2. Go to the Logs Dashboard
+3. Use **Search** to find the Event ID
+4. Review all logs associated with that event to understand processing flow
+
+---
+
+## Best Practices
+
+**Regular Monitoring:**
+
+- Check the **Errors Today** card at the start of each day
+- If errors are present, investigate promptly to prevent cascading issues
+
+**Proactive Warning Review:**
+
+- Periodically filter by WARNING level to identify potential issues before they become errors
+- Look for patterns or recurring warnings that might indicate configuration problems
+
+**Correlation with Events:**
+
+- When reviewing security events, check logs for the same time period
+- Look for errors in the `detector`, `aggregator`, or `risk_analyzer` components that might affect event quality
+
+**Search Tips:**
+
+- Use specific error messages or exception names when searching
+- Combine search with date range filters to narrow results
+- Use camera IDs or event IDs to trace specific workflows
+
+---
+
 ## Troubleshooting
 
 ### No Logs Appear

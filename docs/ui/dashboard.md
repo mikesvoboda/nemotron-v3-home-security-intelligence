@@ -6,7 +6,38 @@ The main monitoring view showing real-time security status across all cameras.
 
 ## What You're Looking At
 
-The Dashboard is your central hub for home security monitoring. It provides a customizable layout with these default widgets:
+The Dashboard is your central hub for home security monitoring. When you open the dashboard, you see the main Security Dashboard page - your home base for monitoring everything happening around your property. The system automatically watches your cameras, detects movement, and uses AI to assess whether activity might be a security concern.
+
+### Layout Overview
+
+```
++--------------------------------------------------+
+|  HEADER: Logo | Live Status | GPU Stats          |
++--------+---------------------------------------+
+| SIDEBAR| MAIN CONTENT                          |
+|        |                                       |
+| [Dash] | Security Dashboard                    |
+| [Time] | +----+ +----+ +----+ +----+           |
+| [Ent]  | | Cam | | Evts| | Risk| | Sys |       |
+| [Alrt] | +----+ +----+ +----+ +----+           |
+| [Logs] |                                       |
+| [Syst] | +------------+ +--------------+       |
+| [Sett] | | RISK GAUGE | | GPU STATS    |       |
+|        | +------------+ +--------------+       |
+|        |                                       |
+|        | CAMERA GRID                           |
+|        | +------+ +------+ +------+            |
+|        | | Cam1 | | Cam2 | | Cam3 |            |
+|        | +------+ +------+ +------+            |
+|        |                                       |
+|        | LIVE ACTIVITY FEED                    |
+|        | +--------------------------------+    |
+|        | | Event 1 | Event 2 | Event 3    |    |
+|        | +--------------------------------+    |
++--------+---------------------------------------+
+```
+
+It provides a customizable layout with these default widgets:
 
 - **Stats Row** - Key metrics including active cameras, events today, current risk level, and system status
 - **Camera Grid** - Live status of all connected cameras with thumbnails
@@ -33,6 +64,20 @@ The Stats Row displays four clickable metric cards at the top of the dashboard:
 
 The **Risk Sparkline** displays a mini chart of the last 10 risk scores, providing a visual trend of recent activity levels.
 
+**Reading the Sparkline:**
+
+| Pattern            | Meaning                                  |
+| ------------------ | ---------------------------------------- |
+| **Flat low line**  | Consistent low-risk activity (normal)    |
+| **Rising trend**   | Risk increasing over recent events       |
+| **Falling trend**  | Risk decreasing - situation improving    |
+| **Spiky pattern**  | Mixed activity with varying risk levels  |
+| **Flat high line** | Sustained high-risk period - investigate |
+
+The sparkline only appears when there are at least 2 recent events to compare. The line color matches the current risk level (green, yellow, orange, or red).
+
+> **Tip:** A rising sparkline with increasing risk scores may indicate developing security concerns worth investigating, even if the current score is still moderate.
+
 ### Risk Levels
 
 The risk score is determined by the NVIDIA Nemotron LLM analyzing detected objects, time of day, location context, and behavioral patterns. Scores map to four severity levels:
@@ -44,6 +89,13 @@ The risk score is determined by the NVIDIA Nemotron LLM analyzing detected objec
 | 60-84       | **High**     | Orange | Suspicious activity requiring attention            |
 | 85-100      | **Critical** | Red    | Potential security threat, immediate action needed |
 
+**What Each Level Typically Means:**
+
+- **Low (0-29):** Regular household activity, family members coming and going, expected deliveries, animals and wildlife, normal neighborhood traffic
+- **Medium (30-59):** Unfamiliar people near property, activity at unusual hours, longer-than-normal presence, vehicles stopping briefly
+- **High (60-84):** Unknown individuals approaching doors/windows, activity late at night, multiple people acting together, repeated visits by same unknown person
+- **Critical (85-100):** Attempted unauthorized entry, suspicious behavior near entry points, known threat indicators, emergency situations
+
 **How Nemotron Calculates Risk:**
 
 1. **Object Detection**: RT-DETRv2 identifies objects (persons, vehicles, animals) with confidence scores
@@ -54,6 +106,48 @@ The risk score is determined by the NVIDIA Nemotron LLM analyzing detected objec
    - Camera location (e.g., entry points vs backyard)
    - Detection frequency and patterns
 4. **Risk Assessment**: LLM generates a score, level, summary, and reasoning
+
+### Diagram: Risk Score Calculation Flow
+
+```mermaid
+flowchart TD
+    subgraph Detection["Object Detection"]
+        A[Camera Captures Image] --> B[RT-DETRv2 Processing]
+        B --> C{Objects Detected?}
+        C -->|No| D[Discard Frame]
+        C -->|Yes| E[Extract Objects with Confidence]
+    end
+
+    subgraph Batching["Batch Aggregation"]
+        E --> F[Add to Detection Batch]
+        F --> G{Batch Complete?}
+        G -->|"90s window OR<br/>30s idle OR<br/>max detections"| H[Close Batch]
+        G -->|No| F
+    end
+
+    subgraph Analysis["Nemotron Analysis"]
+        H --> I[Evaluate Context]
+        I --> J[Time of Day]
+        I --> K[Object Types]
+        I --> L[Camera Location]
+        I --> M[Detection Patterns]
+        J & K & L & M --> N[LLM Risk Assessment]
+    end
+
+    subgraph Output["Risk Output"]
+        N --> O[Risk Score 0-100]
+        O --> P{Score Range}
+        P -->|0-29| Q[Low - Green]
+        P -->|30-59| R[Medium - Yellow]
+        P -->|60-84| S[High - Orange]
+        P -->|85-100| T[Critical - Red]
+    end
+
+    style Detection fill:#e0f2fe
+    style Batching fill:#fef3c7
+    style Analysis fill:#f3e8ff
+    style Output fill:#dcfce7
+```
 
 ### Camera Grid
 
@@ -98,10 +192,31 @@ When enabled via Configure, displays real-time NVIDIA GPU metrics:
 
 - **Utilization** - GPU compute usage percentage
 - **Memory** - VRAM usage (used / total in GB)
-- **Temperature** - GPU temperature with color coding (green < 70C, yellow < 80C, red >= 80C)
+- **Temperature** - GPU temperature with color coding
 - **Power Usage** - Wattage consumption
 - **Inference FPS** - AI model frames per second
 - **History Charts** - Tabbed view of utilization, temperature, and memory trends
+
+**Temperature Color Coding:**
+
+| Range  | Color  | Meaning                 |
+| ------ | ------ | ----------------------- |
+| < 70C  | Green  | Normal operation        |
+| 70-80C | Yellow | Moderate load           |
+| >= 80C | Red    | High load, may throttle |
+
+**Power Color Coding:**
+
+| Range    | Color  | Meaning          |
+| -------- | ------ | ---------------- |
+| < 150W   | Green  | Normal operation |
+| 150-250W | Yellow | Moderate load    |
+| > 250W   | Red    | High load        |
+
+**Controls:**
+
+- **Pause/Resume** - Stop or start data collection
+- **Clear** - Reset the history chart data
 
 ### Pipeline Telemetry (Optional)
 
@@ -112,6 +227,125 @@ When enabled via Configure, displays AI pipeline metrics:
 - **Throughput** - Detections and analyses per minute
 - **Error Rate** - Pipeline error percentage
 - **History Charts** - Detection latency, analysis latency, and throughput trends
+
+### Pipeline Queues (Optional)
+
+Shows the current backlog of images waiting to be processed:
+
+| Queue               | Purpose                                     |
+| ------------------- | ------------------------------------------- |
+| **Detection Queue** | Images waiting for RT-DETR object detection |
+| **Analysis Queue**  | Batches waiting for Nemotron AI analysis    |
+
+**Queue Status Colors:**
+
+| Depth | Color  | Meaning                             |
+| ----- | ------ | ----------------------------------- |
+| 0     | Gray   | Empty queue                         |
+| 1-5   | Green  | Normal operation                    |
+| 6-10  | Yellow | Building up                         |
+| 10+   | Red    | Backlog - processing may be delayed |
+
+A warning message appears when queues exceed the threshold (default: 10), indicating processing is falling behind and events may be delayed.
+
+## AI Enrichment Data in Event Details
+
+When you view an event in detail (by clicking an event in the Activity Feed), the system shows AI Enrichment Analysis - additional information extracted by specialized AI models that run on each detection. This enrichment data provides deeper insight into what was detected.
+
+### What is AI Enrichment?
+
+Basic object detection tells you "there is a person" or "there is a vehicle." AI enrichment goes further:
+
+- **For vehicles:** What type? What color? Any damage? Is there a license plate?
+- **For people:** What are they wearing? Are they carrying anything? Face visible?
+- **For animals:** Is it a cat or dog? Is it likely a household pet?
+- **For the scene:** What's the weather? What's the image quality?
+
+This additional context helps the system assign more accurate risk scores and helps you understand situations at a glance.
+
+### Enrichment Data Types
+
+#### Vehicle Information
+
+| Field          | Description                                      | Example Values                      |
+| -------------- | ------------------------------------------------ | ----------------------------------- |
+| **Type**       | Vehicle category                                 | Sedan, SUV, Pickup, Van, Truck      |
+| **Color**      | Primary vehicle color                            | Silver, Black, White, Red, Blue     |
+| **Damage**     | Detected damage types (security relevant)        | Cracks, Dents, Scratches, Tire Flat |
+| **Commercial** | Whether it appears to be a delivery/work vehicle | Badge shown if detected             |
+
+**Damage Types (Security Relevant):**
+
+- **Glass Shatter** - Broken windows (possible break-in)
+- **Lamp Broken** - Damaged headlights/taillights
+- **Cracks, Dents, Scratches** - Body damage
+- **Tire Flat** - Deflated or damaged tires
+
+#### Person Information
+
+| Field                 | Description                         | Example Values                       |
+| --------------------- | ----------------------------------- | ------------------------------------ |
+| **Clothing**          | General clothing description        | Red t-shirt, Blue jeans, Dark jacket |
+| **Action**            | What the person appears to be doing | Walking, Standing, Crouching         |
+| **Carrying**          | Items being carried                 | Backpack, Package, Bag               |
+| **Suspicious Attire** | Security-relevant clothing flags    | Face covered, All-dark clothing      |
+| **Service Uniform**   | Delivery/service worker clothing    | Visible if detected                  |
+
+**Security Flags:**
+
+- **Suspicious Attire** (yellow warning) - Face coverings, all-dark clothing at night, masks
+- **Service Uniform** (blue info) - Delivery driver uniforms, maintenance worker clothing
+
+#### License Plate Detection
+
+| Field          | Description                      | Format     |
+| -------------- | -------------------------------- | ---------- |
+| **Plate Text** | OCR-extracted plate number       | ABC-1234   |
+| **Confidence** | How confident the OCR reading is | Percentage |
+
+#### Pet Identification
+
+| Field          | Description                        | Example Values  |
+| -------------- | ---------------------------------- | --------------- |
+| **Type**       | Animal type                        | Cat, Dog        |
+| **Breed**      | Detected breed (when identifiable) | Labrador, Tabby |
+| **Confidence** | Classification confidence          | Percentage      |
+
+Pet detection helps reduce false alarms - when the system identifies a high-confidence household pet with no other concerning factors, it can automatically lower the risk score.
+
+#### Weather Conditions
+
+| Field          | Description          | Example Values         |
+| -------------- | -------------------- | ---------------------- |
+| **Condition**  | Detected weather     | Clear, Rain, Snow, Fog |
+| **Confidence** | Detection confidence | Percentage             |
+
+Weather context helps interpret events - a person running in rain may be rushing to get inside rather than fleeing a scene.
+
+### Understanding Confidence Scores
+
+Each enrichment section shows a confidence badge indicating how certain the AI is:
+
+| Confidence Level    | Color  | Meaning                          |
+| ------------------- | ------ | -------------------------------- |
+| **High (>80%)**     | Green  | AI is confident in the result    |
+| **Medium (50-80%)** | Yellow | AI is moderately confident       |
+| **Low (<50%)**      | Red    | AI is uncertain; verify manually |
+
+### How Enrichment Affects Risk Scores
+
+**Factors that increase risk:**
+
+- Suspicious attire (face coverings, all-dark at night)
+- High-security vehicle damage (broken glass, broken lights)
+- Poor image quality (possible camera tampering)
+- Violence detection (when multiple people are present)
+
+**Factors that decrease risk:**
+
+- Confirmed household pets
+- Service uniforms (delivery drivers, maintenance workers)
+- Commercial vehicles (during daytime)
 
 ## Customizing the Dashboard
 
@@ -141,7 +375,53 @@ The dashboard receives real-time updates via WebSocket connections:
 - **Events channel** (`/ws/events`) - New security events as they're created
 - **System channel** (`/ws/system`) - GPU stats, queue depths, service health every 5 seconds
 
-A **(Disconnected)** indicator appears in the header when WebSocket connections are lost. Data will automatically refresh when connectivity is restored.
+### Connection Status
+
+At the top of the dashboard, a status indicator shows whether you are receiving real-time updates:
+
+- **Connected** (green pulsing dot with "LIVE MONITORING") - Everything is working normally
+- **Disconnected** - Real-time updates paused; data may be stale
+
+If disconnected, the dashboard will still show the most recent data but will not update automatically until connection is restored. A **(Disconnected)** indicator appears in the header when WebSocket connections are lost.
+
+**Hovering over the status indicator** displays a tooltip showing the health of individual services (database, Redis, detector, file watcher, Nemotron).
+
+### Diagram: Connection Status States
+
+```mermaid
+stateDiagram-v2
+    [*] --> Connecting: Page Load
+
+    Connecting --> Connected: WebSocket Opens
+    Connecting --> Disconnected: Connection Failed
+
+    Connected --> Disconnected: Connection Lost
+    Connected --> Connected: Heartbeat OK
+
+    Disconnected --> Reconnecting: Auto-Retry (5s)
+
+    Reconnecting --> Connected: Reconnect Success
+    Reconnecting --> Disconnected: Retry Failed
+
+    state Connected {
+        [*] --> LiveMonitoring
+        LiveMonitoring --> LiveMonitoring: Receive Events
+        LiveMonitoring: Green pulsing dot
+        LiveMonitoring: "LIVE MONITORING" badge
+    }
+
+    state Disconnected {
+        [*] --> Stale
+        Stale: Data may be stale
+        Stale: "(Disconnected)" indicator
+    }
+
+    state Reconnecting {
+        [*] --> Attempting
+        Attempting: Exponential backoff
+        Attempting: Max 5 retries
+    }
+```
 
 ## Troubleshooting
 
@@ -177,6 +457,93 @@ No events have been detected in the current time range. Possible causes:
 ### Dashboard looks different than expected
 
 Your dashboard configuration is stored in localStorage. Click **Configure** > **Reset to Defaults** to restore the standard layout.
+
+---
+
+## Navigation
+
+The left sidebar provides navigation to different areas of the application:
+
+| Button        | What It Does                              |
+| ------------- | ----------------------------------------- |
+| **Dashboard** | Main overview (current page)              |
+| **Timeline**  | All past events with filters              |
+| **Entities**  | Tracked people/objects (work in progress) |
+| **Alerts**    | High-priority events only                 |
+| **Logs**      | Technical logs                            |
+| **Audit Log** | Security-sensitive actions (advanced)     |
+| **System**    | Performance monitoring                    |
+| **Settings**  | Configuration options                     |
+
+The current page is highlighted in bright green.
+
+### Keyboard Shortcuts
+
+When viewing event details (from the Activity Feed):
+
+| Key         | Action               |
+| ----------- | -------------------- |
+| Left Arrow  | Go to previous event |
+| Right Arrow | Go to next event     |
+| Escape      | Close the popup      |
+
+---
+
+## Tips for Effective Dashboard Use
+
+### For Everyday Monitoring
+
+1. Keep **Stats Row** and **Camera Grid** visible for a quick overview
+2. Enable **Activity Feed** if you want to see events in real-time
+3. Hide technical widgets (GPU, Pipeline) unless troubleshooting
+4. Check the dashboard periodically to stay aware of security status
+5. Watch the risk gauge - if it turns yellow, orange, or red, investigate the activity feed
+
+### For Technical Monitoring
+
+1. Enable **GPU Statistics** to monitor AI hardware health
+2. Add **Pipeline Telemetry** to track processing performance
+3. Use **Pipeline Queues** to spot processing bottlenecks
+4. Monitor GPU temperature - high temperatures may indicate the system needs attention
+
+### When Investigating Events
+
+1. Use the **Pause** button on the Activity Feed to stop auto-scrolling
+2. Click any event to see full details in a popup window
+3. Review high and critical events promptly
+4. Add notes to events for future reference
+
+---
+
+## Quick Reference
+
+### Color Guide
+
+| Color  | Meaning               | Action            |
+| ------ | --------------------- | ----------------- |
+| Green  | Normal / Low Risk     | No action needed  |
+| Yellow | Caution / Medium Risk | Worth monitoring  |
+| Orange | Warning / High Risk   | Check soon        |
+| Red    | Critical / Urgent     | Check immediately |
+
+### Status Indicators
+
+| Indicator     | Meaning                      |
+| ------------- | ---------------------------- |
+| Pulsing dot   | System active and working    |
+| Solid dot     | Status indicator (see color) |
+| Spinning icon | Loading or refreshing        |
+
+### Common Actions
+
+| I want to...               | Do this...                                     |
+| -------------------------- | ---------------------------------------------- |
+| See what just happened     | Look at the Live Activity feed                 |
+| Find old events            | Go to Timeline and use filters                 |
+| See urgent items only      | Go to Alerts page                              |
+| Mark something as reviewed | Click event, then "Mark as Reviewed"           |
+| Add notes to an event      | Click event, type in Notes section, click Save |
+| Check system health        | Hover over the status indicator in the header  |
 
 ---
 

@@ -3,10 +3,6 @@ title: Getting Started
 description: Introduction to your home security system
 ---
 
-<!-- Nano Banana Pro Prompt:
-"Dark mode quick start guide illustration showing 4-step setup flow (install, configure, connect cameras, view dashboard), each step as an icon in vertical sequence connected by arrows, progress indicator style, NVIDIA dark theme #121212 background with #76B900 green checkmarks for completed steps, clean onboarding visual, vertical 2:3 aspect ratio, no text overlays"
--->
-
 # Getting Started
 
 > Welcome to your home security system! This guide will help you understand what it does and how to use it.
@@ -74,14 +70,6 @@ That's it! The dashboard should appear automatically.
 
 When you open the dashboard, you'll see several sections:
 
-<!-- SCREENSHOT: First Look at Dashboard
-Location: Main dashboard page after first login
-Shows: Complete dashboard view with all main sections visible - header bar with status, left sidebar navigation, quick stats row, risk gauge, camera grid, and activity feed
-Size: 1400x900 pixels (16:9 aspect ratio)
-Alt text: The main security dashboard showing the complete interface a new user will see when first opening the application
--->
-<!-- Screenshot: First-time dashboard view with all main sections visible -->
-
 _Caption: This is what you will see when you first open the dashboard._
 
 ### The Main Dashboard
@@ -129,14 +117,6 @@ Once your cameras are connected and active, real events will start appearing aut
 
 ## Quick Tips for Getting Started
 
-<!-- SCREENSHOT: Risk Gauge Quick Reference
-Location: Risk gauge component on main dashboard
-Shows: The risk gauge in a calm (green/low) state with score around 15-20, showing "Low" label
-Size: 300x300 pixels (1:1 aspect ratio)
-Alt text: Risk gauge showing a low risk score with green coloring, indicating normal activity
--->
-<!-- Screenshot: Risk gauge in green/low state showing calm security status -->
-
 _Caption: The Risk Gauge shows your current security status at a glance._
 
 1. **Check the Risk Gauge first** - If it's green (0-29), everything is calm. Yellow (30-59) means take a look. Orange/Red (60-100) deserves prompt attention. See [Risk Levels Reference](../reference/config/risk-levels.md) for details.
@@ -151,8 +131,8 @@ _Caption: The Risk Gauge shows your current security status at a glance._
 
 ## Next Steps
 
-- **[Using the Dashboard](using-the-dashboard.md)** - Detailed guide to all dashboard features
-- **[Understanding Alerts](understanding-alerts.md)** - What the risk levels mean and when to take action
+- **[Dashboard](../ui/dashboard.md)** - Detailed guide to all dashboard features
+- **[Understanding Alerts](../ui/understanding-alerts.md)** - What the risk levels mean and when to take action
 
 ---
 
@@ -165,83 +145,3 @@ If the dashboard isn't loading or something looks wrong:
 3. Try a different browser if one isn't working
 
 For technical help, contact the person who installed the system.
-
----
-
-## Image Generation Prompts
-
-The following prompts can be used with AI image generators to create visuals for this documentation.
-
-### Hero/Welcome Image
-
-**Prompt:**
-
-```
-Create a friendly, welcoming hero image for a home security dashboard documentation page.
-
-Style: Modern, minimalist, dark theme with NVIDIA green (#76B900) accents
-Mood: Reassuring, professional, approachable - not scary or surveillance-heavy
-Dimensions: 1200x400 pixels (wide banner format)
-
-Content:
-- Abstract representation of a smart home with soft glowing security elements
-- Subtle icons suggesting cameras, AI analysis, and a dashboard screen
-- A protective, calming atmosphere - think "guardian" not "spy"
-- Include abstract data visualization elements (simple charts, status indicators)
-- Dark background (#0E0E0E or #121212) with green and white accents
-
-Avoid:
-- Creepy surveillance imagery
-- Realistic faces or people
-- Aggressive red warning colors as the primary palette
-- Complex technical diagrams
-- Text (the image should work without words)
-
-The overall feeling should be: "Your home is being watched over by friendly, intelligent technology."
-```
-
-### Cameras to AI to Alerts Concept Diagram
-
-**Prompt:**
-
-```
-Create a simple, non-technical diagram showing how a smart security system works, suitable for users who aren't tech-savvy.
-
-Style: Flat design, friendly iconography, dark theme background (#1A1A1A)
-Mood: Simple, clear, not intimidating
-Dimensions: 800x400 pixels (landscape infographic)
-
-Content (left to right flow):
-1. LEFT SECTION - "Your Cameras"
-   - 2-3 simple, friendly camera icons (not surveillance-looking, more like home devices)
-   - Soft glow or pulse effect suggesting they're active
-
-2. MIDDLE SECTION - "Smart Analysis"
-   - A brain or lightbulb icon with a subtle circuit pattern
-   - Small icons around it showing what it detects: person silhouette, car, dog, package
-   - Connecting lines with small dots flowing from cameras to the brain
-
-3. RIGHT SECTION - "You Get Notified"
-   - A simple dashboard screen or phone showing a notification
-   - Green checkmark for "all clear" and a gentle alert indicator
-   - A happy/calm human figure checking the notification
-
-Visual flow:
-- Gentle curved arrows or flowing lines connecting the three sections
-- Progress dots or small animated-style elements showing data moving through the system
-- Color coding: cameras in blue, AI in green (#76B900), notifications in white
-
-Text labels (minimal):
-- "Cameras Watch"
-- "AI Analyzes"
-- "You're Informed"
-
-Avoid:
-- Technical jargon
-- Complex network diagrams
-- Scary security imagery
-- Realistic human faces
-- Red warning colors dominating the image
-
-The diagram should make someone think: "Oh, I get it - cameras see things, the computer figures out what's important, and then I see a summary."
-```

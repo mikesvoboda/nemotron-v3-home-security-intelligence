@@ -98,6 +98,27 @@ The backend automatically selects the appropriate prompt based on available enri
 | **Vision**        | `VISION_ENHANCED_RISK_ANALYSIS_PROMPT`    | Florence-2 extraction + context enrichment         |
 | **Model Zoo**     | `MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT` | Full model zoo (violence, weather, clothing, etc.) |
 
+### Prompt Template Selection Decision Tree
+
+```mermaid
+flowchart TD
+    A[Start: Select Prompt Template] --> B{Model Zoo<br>enrichment available?}
+    B -->|Yes| C[MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT]
+    B -->|No| D{Florence-2 vision<br>attributes available?}
+    D -->|Yes| E[VISION_ENHANCED_RISK_ANALYSIS_PROMPT]
+    D -->|No| F{License plates or<br>faces detected?}
+    F -->|Yes| G[FULL_ENRICHED_RISK_ANALYSIS_PROMPT]
+    F -->|No| H{Zone/baseline/cross-camera<br>context available?}
+    H -->|Yes| I[ENRICHED_RISK_ANALYSIS_PROMPT]
+    H -->|No| J[RISK_ANALYSIS_PROMPT<br>Basic Fallback]
+
+    style C fill:#76B900,color:#000
+    style E fill:#76B900,color:#000
+    style G fill:#76B900,color:#000
+    style I fill:#76B900,color:#000
+    style J fill:#F59E0B,color:#000
+```
+
 ### Basic Prompt (Fallback)
 
 Used when enrichment services are unavailable:
@@ -238,6 +259,55 @@ The LLM produces JSON:
 | 30-59       | `medium`   | Unusual but not threatening        |
 | 60-84       | `high`     | Suspicious, needs attention        |
 | 85-100      | `critical` | Potential threat, immediate action |
+
+### Risk Level State Diagram
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> LOW: score 0-29
+    [*] --> MEDIUM: score 30-59
+    [*] --> HIGH: score 60-84
+    [*] --> CRITICAL: score 85-100
+
+    state LOW {
+        note right of LOW
+            Normal activity
+            No concern
+            No alert triggered
+        end note
+    }
+
+    state MEDIUM {
+        note right of MEDIUM
+            Unusual activity
+            Not threatening
+            Optional notification
+        end note
+    }
+
+    state HIGH {
+        note right of HIGH
+            Suspicious activity
+            Needs attention
+            Alert triggered
+        end note
+    }
+
+    state CRITICAL {
+        note right of CRITICAL
+            Potential threat
+            Immediate action
+            Priority alert
+        end note
+    }
+
+    LOW --> [*]: Event processed
+    MEDIUM --> [*]: Event processed
+    HIGH --> [*]: Event processed
+    CRITICAL --> [*]: Event processed
+```
 
 ---
 
@@ -393,7 +463,7 @@ Clients receive:
 - [Risk Levels Reference](../reference/config/risk-levels.md) - Canonical risk level definitions
 - [AI Overview](../operator/ai-overview.md) - NVIDIA Nemotron deployment
 - [Alerts](alerts.md) - How risk scores trigger alerts
-- [Understanding Alerts](../user-guide/understanding-alerts.md) - User-friendly risk level guide
+- [Understanding Alerts](../ui/understanding-alerts.md) - User-friendly risk level guide
 
 ## External Resources
 

@@ -648,4 +648,4 @@ function Page() {
 - [Frontend Hooks](../architecture/frontend-hooks.md) - Custom React hooks
 - [Development Patterns](../development/patterns.md) - Code patterns
 - [Codebase Tour](codebase-tour.md) - Directory structure overview
-- [Interface Guide](../user-guide/interface-guide.md) - End-user visual feedback guide
+- [Interface Guide](../ui/interface-guide.md) - End-user visual feedback guide

@@ -290,6 +290,44 @@ def calculate_delay(attempt: int, config: RetryConfig) -> float:
 | 5       | 16.0s       | 14.4s - 17.6s   |
 | 6+      | 60.0s (max) | 54s - 66s       |
 
+### Retry Backoff Visualization
+
+```mermaid
+flowchart TD
+    A[Operation Fails] --> B{attempt <=<br>max_retries?}
+    B -->|No| C[FAIL: Max retries<br>exceeded]
+    B -->|Yes| D[Calculate Delay]
+
+    D --> E[base_delay * 2^attempt-1]
+    E --> F{delay > max_delay?}
+    F -->|Yes| G[Cap at max_delay]
+    F -->|No| H[Use calculated delay]
+    G --> I[Apply Jitter]
+    H --> I
+
+    I --> J[delay * 1 - jitter + random * 2*jitter]
+    J --> K[Wait for delay]
+    K --> L[Retry Operation]
+
+    L --> M{Success?}
+    M -->|Yes| N[Return Result]
+    M -->|No| O[Increment attempt]
+    O --> B
+
+    style C fill:#EF4444,color:#fff
+    style N fill:#22C55E,color:#fff
+
+    subgraph Backoff Growth
+        P[Attempt 1: 1s]
+        Q[Attempt 2: 2s]
+        R[Attempt 3: 4s]
+        S[Attempt 4: 8s]
+        T[Attempt 5: 16s]
+        U[Attempt 6+: 60s max]
+        P --> Q --> R --> S --> T --> U
+    end
+```
+
 ### Using Retry Decorators
 
 #### Async Functions
@@ -557,6 +595,52 @@ async def analyze_batch(
     return parse_risk_analysis(response)
 ```
 
+### Prompt Injection Sanitization Flow
+
+```mermaid
+flowchart TD
+    A[User Input Received] --> B[sanitize_for_prompt]
+
+    B --> C{Contains ChatML<br>control tokens?}
+    C -->|Yes| D[Replace with<br>FILTERED:chatml_*]
+    C -->|No| E{Contains markdown<br>headers with newline?}
+
+    D --> E
+    E -->|Yes| F[Replace with<br>FILTERED:md_h*]
+    E -->|No| G{Contains instruction<br>keywords?}
+
+    F --> G
+    G -->|Yes| H[Replace with<br>FILTERED:kw_*]
+    G -->|No| I[Input Sanitized]
+    H --> I
+
+    I --> J{Specialized<br>sanitizer?}
+    J -->|camera_name| K[Strip + Truncate 256]
+    J -->|zone_name| L[Strip + Truncate 256]
+    J -->|object_type| M[Strip + Truncate 128]
+    J -->|description| N[Truncate 2048]
+    J -->|No| O[Return as-is]
+
+    K --> P[Safe for Prompt]
+    L --> P
+    M --> P
+    N --> P
+    O --> P
+
+    style D fill:#EF4444,color:#fff
+    style F fill:#EF4444,color:#fff
+    style H fill:#EF4444,color:#fff
+    style P fill:#22C55E,color:#fff
+```
+
+**Filtered Pattern Categories:**
+
+| Category             | Example Pattern  | Replacement               |
+| -------------------- | ---------------- | ------------------------- |
+| ChatML Tokens        | `<\|im_start\|>` | `[FILTERED:chatml_start]` |
+| Markdown Headers     | `\n##`           | `[FILTERED:md_h2]`        |
+| Instruction Keywords | `OVERRIDE:`      | `[FILTERED:kw_override]`  |
+
 ### Best Practices
 
 1. **Always sanitize user-controlled data** before interpolating into prompts
@@ -728,7 +812,7 @@ class AIServiceClient:
 | --------------------------------------------------------- | ----------------------------- |
 | [Architecture: Resilience](../architecture/resilience.md) | Full resilience architecture  |
 | [Code Patterns](../development/patterns.md)               | General code patterns         |
-| [Security Guide](../admin-guide/security.md)              | Security configuration        |
+| [Security Guide](../operator/admin/security.md)           | Security configuration        |
 | [Detection Service](detection-service.md)                 | RT-DETRv2 integration details |
 | [Risk Analysis](risk-analysis.md)                         | Nemotron LLM integration      |
 

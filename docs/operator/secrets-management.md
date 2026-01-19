@@ -421,4 +421,4 @@ mv secrets/temp.txt secrets/postgres_password.txt
 - [Administration Guide](admin/) - Comprehensive secrets and security guide
 - [Redis Setup](redis.md) - Redis authentication configuration
 - [Database Setup](database.md) - PostgreSQL configuration
-- [Configuration Reference](../admin-guide/configuration.md) - All environment variables
+- [Configuration Reference](../reference/config/env-reference.md) - All environment variables

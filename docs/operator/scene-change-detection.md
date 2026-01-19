@@ -355,7 +355,7 @@ SCENE_CHANGE_ENABLED=false
 - [AI Pipeline Architecture](../architecture/ai-pipeline.md) - How scene changes fit in the pipeline
 - [Camera Setup](../getting-started/first-run.md#configure-your-first-camera) - Camera configuration
 - [Environment Reference](../reference/config/env-reference.md) - All configuration options
-- [Analytics Page](../user-guide/analytics.md) - User guide for analytics features
+- [Analytics Page](../ui/analytics.md) - Analytics dashboard documentation
 
 ---
 

@@ -94,7 +94,7 @@ getting-started/
 
 - **docs/AGENTS.md:** Documentation directory overview
 - **docs/user-guide/:** User documentation
-- **docs/admin-guide/:** Administrator documentation
+- **docs/operator/admin/:** Administrator documentation
 - **docs/operator/ai-installation.md:** AI services setup
 - **docs/operator/deployment/README.md:** Docker deployment details
 - **docs/reference/config/env-reference.md:** Configuration reference

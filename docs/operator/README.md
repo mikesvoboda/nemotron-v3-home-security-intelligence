@@ -48,11 +48,11 @@ curl http://localhost:8000/api/system/health/ready
 | **Storage** | 50GB            | 100GB+ SSD        |
 | **CUDA**    | 11.8+           | 12.x              |
 
-**AI VRAM Usage:**
+**AI VRAM Usage (Production):**
 
 - RT-DETRv2 (object detection): ~4GB
-- Nemotron Mini 4B (risk analysis): ~3GB
-- **Total required:** ~7GB concurrent
+- Nemotron-3-Nano-30B (risk analysis): ~14.7GB
+- **Total required:** ~19GB concurrent (dev: ~7GB with Mini 4B)
 
 **Supported GPUs:** RTX 30/40 series, RTX A-series, Tesla/V100/A100
 

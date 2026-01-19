@@ -252,6 +252,42 @@ Since embeddings are L2-normalized during generation, the dot product equals cos
 
 Default threshold: **0.85** (configurable)
 
+### Similarity Threshold Decision Tree
+
+```mermaid
+flowchart TD
+    A[Compute Cosine Similarity] --> B{similarity >= 0.90?}
+    B -->|Yes| C[VERY HIGH Confidence]
+    B -->|No| D{similarity >= 0.85?}
+
+    D -->|Yes| E[HIGH Confidence]
+    D -->|No| F{similarity >= 0.80?}
+
+    F -->|Yes| G[MODERATE Confidence]
+    F -->|No| H[UNLIKELY Match]
+
+    C --> I[Match: Same Entity]
+    E --> I
+    G --> J[Possible Match:<br>Review recommended]
+    H --> K[No Match:<br>Different entities]
+
+    style C fill:#22C55E,color:#fff
+    style E fill:#22C55E,color:#fff
+    style G fill:#F59E0B,color:#000
+    style H fill:#EF4444,color:#fff
+
+    style I fill:#76B900,color:#000
+    style J fill:#F59E0B,color:#000
+    style K fill:#EF4444,color:#fff
+```
+
+**Threshold Configuration:**
+
+- **>= 0.90 (Very High):** Automatic match, same entity confirmed
+- **0.85-0.90 (High):** Match accepted at default threshold
+- **0.80-0.85 (Moderate):** Possible match, may require human review
+- **< 0.80 (Unlikely):** Different entities, no correlation recorded
+
 ### Finding Matches
 
 ```python

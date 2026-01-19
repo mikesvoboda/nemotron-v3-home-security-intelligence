@@ -347,6 +347,6 @@ podman-compose -f docker-compose.prod.yml config
 
 ## Next Steps
 
-- **[Configuration](../admin-guide/configuration.md)** - Review new configuration options
-- **[Troubleshooting](../admin-guide/troubleshooting.md)** - Resolve common issues
+- **[Configuration Reference](../reference/config/env-reference.md)** - Review new configuration options
+- **[Troubleshooting](../reference/troubleshooting/index.md)** - Resolve common issues
 - **[CHANGELOG](../../CHANGELOG.md)** - Full version history

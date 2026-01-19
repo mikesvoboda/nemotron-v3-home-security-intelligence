@@ -49,6 +49,69 @@ Works with any NVIDIA GPU supporting CUDA compute capability 7.0+:
 
 ## Software Prerequisites
 
+### Installation Prerequisite Chain
+
+The following flowchart shows the dependency chain for AI service installation:
+
+```mermaid
+flowchart TD
+    subgraph "Hardware Layer"
+        GPU[NVIDIA GPU<br/>8GB+ VRAM]
+    end
+
+    subgraph "Driver Layer"
+        Driver[NVIDIA Driver 535+]
+        CUDA[CUDA 11.8+]
+    end
+
+    subgraph "Container Layer"
+        Toolkit[NVIDIA Container Toolkit]
+        Runtime{Docker or Podman}
+    end
+
+    subgraph "Application Layer"
+        Python[Python 3.10+]
+        Llama[llama.cpp<br/>with CUDA]
+        PyDeps[PyTorch + Transformers]
+    end
+
+    subgraph "Model Layer"
+        RTDETR[RT-DETRv2<br/>~160MB]
+        Nemotron[Nemotron<br/>2.5GB-18GB]
+        Optional[Optional Models<br/>Florence/CLIP/Enrichment]
+    end
+
+    subgraph "Service Layer"
+        Detector[ai-detector:8090]
+        LLM[ai-llm:8091]
+        OptServices[ai-florence:8092<br/>ai-clip:8093<br/>ai-enrichment:8094]
+    end
+
+    GPU --> Driver
+    Driver --> CUDA
+    CUDA --> Toolkit
+    Toolkit --> Runtime
+
+    Runtime --> Python
+    Runtime --> Llama
+    Python --> PyDeps
+
+    PyDeps --> RTDETR
+    Llama --> Nemotron
+    PyDeps --> Optional
+
+    RTDETR --> Detector
+    Nemotron --> LLM
+    Optional --> OptServices
+
+    style GPU fill:#e1f5fe
+    style Driver fill:#e8f5e9
+    style Toolkit fill:#fff3e0
+    style Detector fill:#c8e6c9
+    style LLM fill:#c8e6c9
+    style OptServices fill:#e1f5fe
+```
+
 ### Operating System
 
 | OS      | Supported Versions                           |
@@ -246,6 +309,46 @@ This identifies any missing prerequisites.
 ## Optional AI Services Setup
 
 Beyond the core RT-DETRv2 and Nemotron services, three optional AI services provide enhanced detection capabilities. These are only needed for production deployments requiring advanced features.
+
+### Optional AI Services Startup Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant DC as Docker Compose
+    participant GPU as GPU (VRAM)
+    participant FL as Florence-2
+    participant CL as CLIP
+    participant EN as Enrichment
+
+    Note over DC,EN: Optional services start after core services are healthy
+
+    DC->>GPU: Check available VRAM
+    GPU-->>DC: ~10GB available (after core services)
+
+    par Florence-2 Startup
+        DC->>FL: Start ai-florence
+        FL->>GPU: Allocate ~1.2GB VRAM
+        FL-->>DC: Healthy (30-45s)
+    and CLIP Startup
+        DC->>CL: Start ai-clip
+        CL->>GPU: Allocate ~800MB VRAM
+        CL-->>DC: Healthy (20-30s)
+    end
+
+    Note over DC,EN: Enrichment starts last (largest VRAM)
+    DC->>EN: Start ai-enrichment
+    EN->>GPU: Allocate ~6GB VRAM
+    EN-->>DC: Healthy (60-90s)
+
+    Note over DC,EN: Verify all services
+    DC->>FL: GET /health
+    FL-->>DC: 200 OK
+    DC->>CL: GET /health
+    CL-->>DC: 200 OK
+    DC->>EN: GET /health
+    EN-->>DC: 200 OK
+```
 
 ### Service Overview
 
