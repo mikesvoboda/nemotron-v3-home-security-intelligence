@@ -353,8 +353,10 @@ describe('AuditLogPage', () => {
         expect(screen.getByText('Actions by Type')).toBeInTheDocument();
       });
 
-      // Find and click the "Event Reviewed" badge
-      const eventReviewedBadge = screen.getByRole('button', { name: /Event Reviewed/i });
+      // Find the "Actions by Type" stats card and get the badge within it
+      const actionsSection = screen.getByText('Actions by Type').closest('div')?.parentElement;
+      expect(actionsSection).toBeInTheDocument();
+      const eventReviewedBadge = within(actionsSection!).getByRole('button', { name: /Event Reviewed/i });
       await user.click(eventReviewedBadge);
 
       // Verify the API was called with action filter
@@ -408,8 +410,12 @@ describe('AuditLogPage', () => {
         expect(screen.getByText('Actions by Type')).toBeInTheDocument();
       });
 
+      // Find the "Actions by Type" stats card and get the badge within it
+      const actionsSection = screen.getByText('Actions by Type').closest('div')?.parentElement;
+      expect(actionsSection).toBeInTheDocument();
+      const eventReviewedBadge = within(actionsSection!).getByRole('button', { name: /Event Reviewed/i });
+
       // Click to activate filter
-      const eventReviewedBadge = screen.getByRole('button', { name: /Event Reviewed/i });
       await user.click(eventReviewedBadge);
 
       // Verify filter was applied
@@ -772,6 +778,133 @@ describe('AuditLogPage', () => {
       await waitFor(() => {
         expect(api.fetchAuditStats).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('Clickable Table Filters', () => {
+    it('clicking actor in table filters by that actor', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<AuditLogPage />);
+
+      // Wait for table to load
+      await waitFor(() => {
+        expect(screen.getByText('testuser1')).toBeInTheDocument();
+      });
+
+      // Find and click the actor button in the table
+      const table = screen.getByRole('table');
+      const actorButton = within(table).getByLabelText('Filter by actor: testuser1');
+      await user.click(actorButton);
+
+      // Verify the API was called with actor filter
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ actor: 'testuser1' }),
+          expect.anything()
+        );
+      });
+    });
+
+    it('clicking action badge in table filters by that action', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<AuditLogPage />);
+
+      // Wait for table to load
+      await waitFor(() => {
+        expect(screen.getByText('testuser1')).toBeInTheDocument();
+      });
+
+      // Find and click the action badge in the table
+      const table = screen.getByRole('table');
+      const actionButton = within(table).getByLabelText('Filter by action: Event Reviewed');
+      await user.click(actionButton);
+
+      // Verify the API was called with action filter
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ action: 'event_reviewed' }),
+          expect.anything()
+        );
+      });
+    });
+  });
+
+  describe('Filter Chips', () => {
+    it('shows filter chip when action filter is applied from table', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<AuditLogPage />);
+
+      // Wait for table to load
+      await waitFor(() => {
+        expect(screen.getByText('testuser1')).toBeInTheDocument();
+      });
+
+      // Click action badge in table
+      const table = screen.getByRole('table');
+      const actionButton = within(table).getByLabelText('Filter by action: Event Reviewed');
+      await user.click(actionButton);
+
+      // Verify filter chip appears
+      await waitFor(() => {
+        expect(screen.getByText('Active filters:')).toBeInTheDocument();
+        expect(screen.getByLabelText(/Clear action filter: Event Reviewed/i)).toBeInTheDocument();
+      });
+    });
+
+    it('shows filter chip when actor filter is applied from table', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<AuditLogPage />);
+
+      // Wait for table to load
+      await waitFor(() => {
+        expect(screen.getByText('testuser1')).toBeInTheDocument();
+      });
+
+      // Click actor in table
+      const table = screen.getByRole('table');
+      const actorButton = within(table).getByLabelText('Filter by actor: testuser1');
+      await user.click(actorButton);
+
+      // Verify filter chip appears
+      await waitFor(() => {
+        expect(screen.getByText('Active filters:')).toBeInTheDocument();
+        expect(screen.getByLabelText(/Clear actor filter: testuser1/i)).toBeInTheDocument();
+      });
+    });
+
+    it('clears filter when filter chip is clicked', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<AuditLogPage />);
+
+      // Wait for table to load
+      await waitFor(() => {
+        expect(screen.getByText('testuser1')).toBeInTheDocument();
+      });
+
+      // Click actor in table to apply filter
+      const table = screen.getByRole('table');
+      const actorButton = within(table).getByLabelText('Filter by actor: testuser1');
+      await user.click(actorButton);
+
+      // Verify filter chip appears
+      await waitFor(() => {
+        expect(screen.getByLabelText(/Clear actor filter: testuser1/i)).toBeInTheDocument();
+      });
+
+      // Click the filter chip to clear
+      const clearButton = screen.getByLabelText(/Clear actor filter: testuser1/i);
+      await user.click(clearButton);
+
+      // Verify filter was cleared
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenLastCalledWith(
+          expect.objectContaining({ actor: undefined }),
+          expect.anything()
+        );
+      });
+
+      // Verify filter chip is gone
+      expect(screen.queryByText('Active filters:')).not.toBeInTheDocument();
     });
   });
 });

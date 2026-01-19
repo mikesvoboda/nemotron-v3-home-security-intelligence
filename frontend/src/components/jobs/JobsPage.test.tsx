@@ -273,12 +273,53 @@ describe('JobsPage', () => {
       renderWithProviders(<JobsPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('No Jobs Found')).toBeInTheDocument();
+        expect(screen.getByText('No Background Jobs')).toBeInTheDocument();
       });
 
       expect(
-        screen.getByText(/No background jobs have been created yet/i)
+        screen.getByText(/Jobs appear here when you schedule exports/i)
       ).toBeInTheDocument();
+    });
+
+    it('shows correct text in empty state', async () => {
+      vi.mocked(api.searchJobs).mockResolvedValue(mockEmptyResponse);
+
+      renderWithProviders(<JobsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('jobs-empty-state')).toBeInTheDocument();
+      });
+
+      // Check for job-creating action examples
+      expect(screen.getByText('Export Data')).toBeInTheDocument();
+      expect(screen.getByText('Re-evaluate')).toBeInTheDocument();
+      expect(screen.getByText('Bulk Delete')).toBeInTheDocument();
+    });
+
+    it('hides search bar when no jobs exist', async () => {
+      vi.mocked(api.searchJobs).mockResolvedValue(mockEmptyResponse);
+
+      renderWithProviders(<JobsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No Background Jobs')).toBeInTheDocument();
+      });
+
+      // Search bar should not be visible when empty
+      expect(screen.queryByPlaceholderText(/Search/i)).not.toBeInTheDocument();
+    });
+
+    it('shows search bar when jobs exist', async () => {
+      vi.mocked(api.searchJobs).mockResolvedValue(mockJobsResponse);
+
+      renderWithProviders(<JobsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('job-item-job-001')).toBeInTheDocument();
+      });
+
+      // Search bar should be visible when jobs exist
+      expect(screen.getByPlaceholderText(/Search/i)).toBeInTheDocument();
     });
   });
 

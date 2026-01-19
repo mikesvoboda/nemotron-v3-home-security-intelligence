@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 
+import { groupRepeatedLogs } from './logGrouping';
 import LogsTable, { type LogEntry } from './LogsTable';
 
 describe('LogsTable', () => {
@@ -581,6 +582,245 @@ describe('LogsTable', () => {
 
       const tableContainer = container.querySelector('.bg-\\[\\#1F1F1F\\]');
       expect(tableContainer).toBeInTheDocument();
+    });
+  });
+
+  describe('Repeated Message Grouping', () => {
+    const repeatedLogs: LogEntry[] = [
+      {
+        id: 1,
+        timestamp: '2024-01-01T10:00:00Z',
+        level: 'INFO',
+        component: 'api',
+        message: 'Health check passed',
+        camera_id: null,
+        event_id: null,
+        request_id: null,
+        detection_id: null,
+        duration_ms: null,
+        extra: null,
+        source: 'backend',
+      },
+      {
+        id: 2,
+        timestamp: '2024-01-01T10:01:00Z',
+        level: 'INFO',
+        component: 'api',
+        message: 'Health check passed',
+        camera_id: null,
+        event_id: null,
+        request_id: null,
+        detection_id: null,
+        duration_ms: null,
+        extra: null,
+        source: 'backend',
+      },
+      {
+        id: 3,
+        timestamp: '2024-01-01T10:02:00Z',
+        level: 'INFO',
+        component: 'api',
+        message: 'Health check passed',
+        camera_id: null,
+        event_id: null,
+        request_id: null,
+        detection_id: null,
+        duration_ms: null,
+        extra: null,
+        source: 'backend',
+      },
+      {
+        id: 4,
+        timestamp: '2024-01-01T10:03:00Z',
+        level: 'ERROR',
+        component: 'database',
+        message: 'Connection timeout',
+        camera_id: null,
+        event_id: null,
+        request_id: null,
+        detection_id: null,
+        duration_ms: null,
+        extra: null,
+        source: 'backend',
+      },
+      {
+        id: 5,
+        timestamp: '2024-01-01T10:04:00Z',
+        level: 'INFO',
+        component: 'api',
+        message: 'Health check passed',
+        camera_id: null,
+        event_id: null,
+        request_id: null,
+        detection_id: null,
+        duration_ms: null,
+        extra: null,
+        source: 'backend',
+      },
+    ];
+
+    describe('groupRepeatedLogs', () => {
+      it('groups consecutive repeated messages', () => {
+        const groups = groupRepeatedLogs(repeatedLogs);
+
+        // First group: 3 "Health check passed" messages
+        expect(groups[0].count).toBe(3);
+        expect(groups[0].entries[0].message).toBe('Health check passed');
+
+        // Second group: 1 "Connection timeout" message
+        expect(groups[1].count).toBe(1);
+        expect(groups[1].entries[0].message).toBe('Connection timeout');
+
+        // Third group: 1 "Health check passed" message (not consecutive with first)
+        expect(groups[2].count).toBe(1);
+        expect(groups[2].entries[0].message).toBe('Health check passed');
+      });
+
+      it('returns empty array for empty logs', () => {
+        const groups = groupRepeatedLogs([]);
+        expect(groups).toEqual([]);
+      });
+
+      it('handles single log entry', () => {
+        const groups = groupRepeatedLogs([repeatedLogs[0]]);
+        expect(groups.length).toBe(1);
+        expect(groups[0].count).toBe(1);
+      });
+
+      it('does not group logs with different levels', () => {
+        const logsWithDifferentLevels: LogEntry[] = [
+          { ...repeatedLogs[0], level: 'INFO' },
+          { ...repeatedLogs[1], id: 2, level: 'WARNING' },
+        ];
+        const groups = groupRepeatedLogs(logsWithDifferentLevels);
+        expect(groups.length).toBe(2);
+      });
+
+      it('does not group logs with different components', () => {
+        const logsWithDifferentComponents: LogEntry[] = [
+          { ...repeatedLogs[0], component: 'api' },
+          { ...repeatedLogs[1], id: 2, component: 'database' },
+        ];
+        const groups = groupRepeatedLogs(logsWithDifferentComponents);
+        expect(groups.length).toBe(2);
+      });
+    });
+
+    it('displays count badge for grouped messages', () => {
+      render(
+        <LogsTable logs={repeatedLogs} totalCount={5} limit={50} offset={0} enableGrouping />
+      );
+
+      // Should show "3x" badge for the first group
+      expect(screen.getByText('3x')).toBeInTheDocument();
+    });
+
+    it('shows expand button for grouped messages', () => {
+      render(
+        <LogsTable logs={repeatedLogs} totalCount={5} limit={50} offset={0} enableGrouping />
+      );
+
+      // Should show expand button for groups with count > 1
+      const expandButtons = screen.getAllByLabelText('Expand group');
+      expect(expandButtons.length).toBeGreaterThan(0);
+    });
+
+    it('expands group when clicking expand button', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <LogsTable logs={repeatedLogs} totalCount={5} limit={50} offset={0} enableGrouping />
+      );
+
+      // Find and click the expand button
+      const expandButton = screen.getAllByLabelText('Expand group')[0];
+      await user.click(expandButton);
+
+      // After expanding, should show "Collapse group" button
+      expect(screen.getByLabelText('Collapse group')).toBeInTheDocument();
+    });
+
+    it('collapses group when clicking collapse button', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <LogsTable logs={repeatedLogs} totalCount={5} limit={50} offset={0} enableGrouping />
+      );
+
+      // Expand the group first
+      const expandButton = screen.getAllByLabelText('Expand group')[0];
+      await user.click(expandButton);
+
+      // Now collapse it
+      const collapseButton = screen.getByLabelText('Collapse group');
+      await user.click(collapseButton);
+
+      // Should show "Expand group" button again
+      expect(screen.getAllByLabelText('Expand group').length).toBeGreaterThan(0);
+    });
+
+    it('shows individual entries when group is expanded', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <LogsTable logs={repeatedLogs} totalCount={5} limit={50} offset={0} enableGrouping />
+      );
+
+      // Initially, there should be 3 rows visible (3 groups)
+      const table = screen.getByRole('table');
+      const initialRows = within(table).getAllByRole('row');
+      // Header + 3 group rows
+      expect(initialRows.length).toBe(4);
+
+      // Expand the first group
+      const expandButton = screen.getAllByLabelText('Expand group')[0];
+      await user.click(expandButton);
+
+      // After expanding, should have more rows (header + expanded entries + other groups)
+      const expandedRows = within(table).getAllByRole('row');
+      // Header + 3 individual entries + 2 other groups = 6 rows
+      expect(expandedRows.length).toBe(6);
+    });
+
+    it('does not show grouping UI when enableGrouping is false', () => {
+      render(
+        <LogsTable logs={repeatedLogs} totalCount={5} limit={50} offset={0} enableGrouping={false} />
+      );
+
+      // Should not show any expand buttons
+      expect(screen.queryByLabelText('Expand group')).not.toBeInTheDocument();
+
+      // Should not show count badges
+      expect(screen.queryByText('3x')).not.toBeInTheDocument();
+    });
+
+    it('calls onRowClick with correct log entry from group', async () => {
+      const handleRowClick = vi.fn();
+      const user = userEvent.setup();
+
+      render(
+        <LogsTable
+          logs={repeatedLogs}
+          totalCount={5}
+          limit={50}
+          offset={0}
+          enableGrouping
+          onRowClick={handleRowClick}
+        />
+      );
+
+      // Expand the first group
+      const expandButton = screen.getAllByLabelText('Expand group')[0];
+      await user.click(expandButton);
+
+      // Click on one of the individual entries (the second one in the group)
+      const table = screen.getByRole('table');
+      const rows = within(table).getAllByRole('row');
+      // Skip header row and first entry row (index 2 is second entry)
+      await user.click(rows[2]);
+
+      // Should call with the second log entry (id: 2)
+      expect(handleRowClick).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }));
     });
   });
 });

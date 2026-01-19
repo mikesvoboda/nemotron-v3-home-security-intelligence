@@ -125,7 +125,7 @@ describe('useKeyboardShortcuts', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/timeline');
     });
 
-    it('navigates to analytics with g a', () => {
+    it('navigates to alerts with g a', () => {
       renderHook(() => useKeyboardShortcuts());
 
       act(() => {
@@ -136,10 +136,10 @@ describe('useKeyboardShortcuts', () => {
         simulateKeyPress('a');
       });
 
-      expect(mockNavigate).toHaveBeenCalledWith('/analytics');
+      expect(mockNavigate).toHaveBeenCalledWith('/alerts');
     });
 
-    it('navigates to alerts with g l', () => {
+    it('navigates to analytics with g n', () => {
       renderHook(() => useKeyboardShortcuts());
 
       act(() => {
@@ -147,10 +147,10 @@ describe('useKeyboardShortcuts', () => {
       });
 
       act(() => {
-        simulateKeyPress('l');
+        simulateKeyPress('n');
       });
 
-      expect(mockNavigate).toHaveBeenCalledWith('/alerts');
+      expect(mockNavigate).toHaveBeenCalledWith('/analytics');
     });
 
     it('navigates to entities with g e', () => {
@@ -181,7 +181,7 @@ describe('useKeyboardShortcuts', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/logs');
     });
 
-    it('navigates to system monitoring with g s', () => {
+    it('navigates to settings with g s', () => {
       renderHook(() => useKeyboardShortcuts());
 
       act(() => {
@@ -192,10 +192,10 @@ describe('useKeyboardShortcuts', () => {
         simulateKeyPress('s');
       });
 
-      expect(mockNavigate).toHaveBeenCalledWith('/system');
+      expect(mockNavigate).toHaveBeenCalledWith('/settings');
     });
 
-    it('navigates to settings with g ,', () => {
+    it('navigates to system monitoring with g y', () => {
       renderHook(() => useKeyboardShortcuts());
 
       act(() => {
@@ -203,10 +203,10 @@ describe('useKeyboardShortcuts', () => {
       });
 
       act(() => {
-        simulateKeyPress(',');
+        simulateKeyPress('y');
       });
 
-      expect(mockNavigate).toHaveBeenCalledWith('/settings');
+      expect(mockNavigate).toHaveBeenCalledWith('/system');
     });
 
     it('resets chord after timeout', () => {

@@ -339,11 +339,25 @@ export default function CamerasSettings() {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
-                      <span
-                        className={clsx('font-medium capitalize', getStatusColor(camera.status))}
-                      >
-                        {camera.status}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={clsx(
+                            'h-2.5 w-2.5 rounded-full',
+                            camera.status === 'online'
+                              ? 'bg-green-500'
+                              : camera.status === 'error'
+                                ? 'bg-red-500'
+                                : 'bg-gray-500'
+                          )}
+                          aria-hidden="true"
+                          data-testid={`camera-status-indicator-${camera.id}`}
+                        />
+                        <span
+                          className={clsx('font-medium capitalize', getStatusColor(camera.status))}
+                        >
+                          {camera.status}
+                        </span>
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm">
                       <span

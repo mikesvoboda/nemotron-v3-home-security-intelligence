@@ -45,12 +45,12 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     items: [
       { keys: ['g', 'd'], description: 'Go to Dashboard' },
       { keys: ['g', 't'], description: 'Go to Timeline' },
-      { keys: ['g', 'a'], description: 'Go to Analytics' },
-      { keys: ['g', 'l'], description: 'Go to Alerts' },
       { keys: ['g', 'e'], description: 'Go to Entities' },
+      { keys: ['g', 'a'], description: 'Go to Alerts' },
+      { keys: ['g', 's'], description: 'Go to Settings' },
+      { keys: ['g', 'n'], description: 'Go to Analytics' },
       { keys: ['g', 'o'], description: 'Go to Logs' },
-      { keys: ['g', 's'], description: 'Go to System' },
-      { keys: ['g', ','], description: 'Go to Settings' },
+      { keys: ['g', 'y'], description: 'Go to System' },
     ],
   },
   {
