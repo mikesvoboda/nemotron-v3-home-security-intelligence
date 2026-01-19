@@ -270,7 +270,7 @@ export default function StatsRow({
       <button
         type="button"
         onClick={() => {
-          void navigate('/system');
+          void navigate('/operations');
         }}
         className="flex cursor-pointer items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 text-left shadow-sm transition-all duration-200 hover:border-gray-600 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-gray-500/50"
         data-testid="system-card"

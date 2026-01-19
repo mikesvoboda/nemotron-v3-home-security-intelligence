@@ -128,13 +128,16 @@ On hover, displays per-service status breakdown (redis, rtdetr, nemotron, etc.) 
 | ----------- | -------------- | -------------- | ------------ | ----- |
 | dashboard   | Dashboard      | Home           | `/`          | -     |
 | timeline    | Timeline       | Clock          | `/timeline`  | -     |
-| entities    | Entities       | Users          | `/entities`  | WIP   |
+| entities    | Entities       | Users          | `/entities`  | -     |
 | alerts      | Alerts         | Bell           | `/alerts`    | -     |
+| analytics   | Analytics      | BarChart3      | `/analytics` | -     |
+| ai-audit    | AI Audit       | ClipboardCheck | `/ai-audit`  | -     |
+| ai          | AI Performance | Brain          | `/ai`        | -     |
+| jobs        | Jobs           | Briefcase      | `/jobs`      | -     |
+| operations  | Pipeline       | Workflow       | `/operations`| -     |
 | logs        | Logs           | ScrollText     | `/logs`      | -     |
 | audit       | Audit Log      | Shield         | `/audit`     | -     |
-| ai          | AI Performance | Brain          | `/ai`        | -     |
-| ai-audit    | AI Audit       | ClipboardCheck | `/ai-audit`  | -     |
-| system      | System         | Server         | `/system`    | -     |
+| trash       | Trash          | Trash2         | `/trash`     | -     |
 | settings    | Settings       | Settings       | `/settings`  | -     |
 
 **NavItem Interface:**
