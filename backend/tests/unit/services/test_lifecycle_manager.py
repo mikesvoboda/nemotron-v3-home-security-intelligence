@@ -327,9 +327,10 @@ class TestShouldRestart:
     def test_should_restart_at_max_failures(
         self, lifecycle_manager: LifecycleManager, ai_service: ManagedService
     ) -> None:
-        """Test should_restart returns False when at max_failures."""
+        """Test should_restart returns True even at max_failures (services retry forever)."""
         ai_service.failure_count = ai_service.max_failures
-        assert lifecycle_manager.should_restart(ai_service) is False
+        ai_service.last_failure_at = None  # No prior failure = backoff elapsed
+        assert lifecycle_manager.should_restart(ai_service) is True
 
     def test_should_restart_disabled_service(
         self, lifecycle_manager: LifecycleManager, ai_service: ManagedService
@@ -714,30 +715,35 @@ class TestHandleUnhealthy:
         mock_registry.increment_failure.assert_called_once_with(ai_service.name)
 
     @pytest.mark.asyncio
-    async def test_handle_unhealthy_disables_at_max_failures(
+    async def test_handle_unhealthy_continues_retrying_at_max_failures(
         self,
         lifecycle_manager: LifecycleManager,
         ai_service: ManagedService,
         mock_registry: MagicMock,
+        mock_docker_client: AsyncMock,
     ) -> None:
-        """Test handle_unhealthy disables service at max_failures."""
+        """Test handle_unhealthy continues retrying at max_failures (never disables)."""
         mock_registry.increment_failure.return_value = ai_service.max_failures  # 5
+        ai_service.failure_count = ai_service.max_failures - 1
+        ai_service.last_failure_at = None  # No prior failure = can restart
 
         await lifecycle_manager.handle_unhealthy(ai_service)
 
-        mock_registry.update_status.assert_called_once_with(
-            ai_service.name, ContainerServiceStatus.DISABLED
+        # Service should NOT be disabled - it continues retrying
+        mock_registry.set_enabled.assert_not_called()
+        # Service should be restarted (status updated to STARTING)
+        mock_registry.update_status.assert_called_with(
+            ai_service.name, ContainerServiceStatus.STARTING
         )
-        mock_registry.set_enabled.assert_called_once_with(ai_service.name, False)
 
     @pytest.mark.asyncio
-    async def test_handle_unhealthy_invokes_on_disabled_callback(
+    async def test_handle_unhealthy_does_not_invoke_on_disabled_callback(
         self,
         mock_registry: MagicMock,
         mock_docker_client: AsyncMock,
         ai_service: ManagedService,
     ) -> None:
-        """Test handle_unhealthy invokes on_disabled callback."""
+        """Test handle_unhealthy never invokes on_disabled callback (services retry forever)."""
         on_disabled = AsyncMock()
         manager = LifecycleManager(
             registry=mock_registry,
@@ -745,10 +751,13 @@ class TestHandleUnhealthy:
             on_disabled=on_disabled,
         )
         mock_registry.increment_failure.return_value = ai_service.max_failures
+        ai_service.failure_count = ai_service.max_failures - 1
+        ai_service.last_failure_at = None
 
         await manager.handle_unhealthy(ai_service)
 
-        on_disabled.assert_called_once_with(ai_service)
+        # on_disabled should NOT be called - services retry forever
+        on_disabled.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_handle_unhealthy_restarts_if_backoff_elapsed(
@@ -1318,13 +1327,13 @@ class TestSelfHealingIntegration:
     """Integration tests for self-healing behavior."""
 
     @pytest.mark.asyncio
-    async def test_service_disabled_after_max_failures_with_callback(
+    async def test_service_continues_retrying_at_max_failures(
         self,
         mock_registry: MagicMock,
         mock_docker_client: AsyncMock,
         ai_service: ManagedService,
     ) -> None:
-        """Test service is disabled and callback is invoked after max failures."""
+        """Test service continues retrying at max failures (never auto-disabled)."""
         on_disabled = AsyncMock()
         manager = LifecycleManager(
             registry=mock_registry,
@@ -1334,18 +1343,21 @@ class TestSelfHealingIntegration:
 
         # Set failure count to just below max
         ai_service.failure_count = ai_service.max_failures - 1  # 4
+        ai_service.last_failure_at = None  # No prior failure = can restart
         mock_registry.increment_failure.return_value = ai_service.max_failures  # 5
 
         await manager.handle_unhealthy(ai_service)
 
-        # Service should be disabled
-        mock_registry.update_status.assert_called_with(
-            ai_service.name, ContainerServiceStatus.DISABLED
-        )
-        mock_registry.set_enabled.assert_called_with(ai_service.name, False)
+        # Service should NOT be disabled - it continues retrying with backoff
+        mock_registry.set_enabled.assert_not_called()
 
-        # Callback should be invoked
-        on_disabled.assert_called_once_with(ai_service)
+        # Service should be restarted
+        mock_registry.update_status.assert_called_with(
+            ai_service.name, ContainerServiceStatus.STARTING
+        )
+
+        # on_disabled callback should NOT be invoked
+        on_disabled.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_service_restarted_when_backoff_elapsed(
@@ -1416,15 +1428,16 @@ class TestSelfHealingIntegration:
         assert lifecycle_manager.should_restart(ai_service) is False
 
     @pytest.mark.asyncio
-    async def test_should_restart_returns_false_at_max_failures(
+    async def test_should_restart_returns_true_at_max_failures(
         self,
         lifecycle_manager: LifecycleManager,
         ai_service: ManagedService,
     ) -> None:
-        """Test should_restart returns False at max failures."""
+        """Test should_restart returns True even at max failures (services retry forever)."""
         ai_service.failure_count = ai_service.max_failures
+        ai_service.last_failure_at = None  # No prior failure = backoff elapsed
 
-        assert lifecycle_manager.should_restart(ai_service) is False
+        assert lifecycle_manager.should_restart(ai_service) is True
 
     @pytest.mark.asyncio
     async def test_should_restart_returns_true_when_backoff_elapsed(

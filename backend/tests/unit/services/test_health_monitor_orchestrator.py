@@ -418,7 +418,7 @@ class TestHealthMonitorCheckServiceHealth:
 
             assert result is True
             mock_http.assert_called_once_with(
-                host="localhost", port=8090, endpoint="/health", timeout=5.0
+                host="ai-detector", port=8090, endpoint="/health", timeout=5.0
             )
 
     @pytest.mark.asyncio

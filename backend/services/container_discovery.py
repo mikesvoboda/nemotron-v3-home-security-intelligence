@@ -69,6 +69,8 @@ def build_service_configs(
     json_exporter_port = settings.json_exporter_port if settings else 7979
     alertmanager_port = settings.alertmanager_port if settings else 9093
     blackbox_exporter_port = settings.blackbox_exporter_port if settings else 9115
+    jaeger_port = settings.jaeger_port if settings else 16686
+    frontend_port = settings.frontend_port if settings else 8080
 
     infrastructure_configs: dict[str, ServiceConfig] = {
         "postgres": ServiceConfig(
@@ -194,6 +196,26 @@ def build_service_configs(
             restart_backoff_base=10.0,
             restart_backoff_max=120.0,
         ),
+        "jaeger": ServiceConfig(
+            display_name="Jaeger",
+            category=ServiceCategory.MONITORING,
+            port=jaeger_port,
+            health_endpoint="/",
+            startup_grace_period=15,
+            max_failures=5,
+            restart_backoff_base=10.0,
+            restart_backoff_max=120.0,
+        ),
+        "frontend": ServiceConfig(
+            display_name="Frontend",
+            category=ServiceCategory.INFRASTRUCTURE,
+            port=frontend_port,
+            health_endpoint="/health",
+            startup_grace_period=30,
+            max_failures=10,
+            restart_backoff_base=2.0,
+            restart_backoff_max=60.0,
+        ),
     }
 
     configs = {
@@ -226,6 +248,16 @@ INFRASTRUCTURE_CONFIGS: dict[str, ServiceConfig] = {
         port=6379,
         health_cmd="redis-cli ping",
         startup_grace_period=10,
+        max_failures=10,
+        restart_backoff_base=2.0,
+        restart_backoff_max=60.0,
+    ),
+    "frontend": ServiceConfig(
+        display_name="Frontend",
+        category=ServiceCategory.INFRASTRUCTURE,
+        port=8080,
+        health_endpoint="/health",
+        startup_grace_period=30,
         max_failures=10,
         restart_backoff_base=2.0,
         restart_backoff_max=60.0,
@@ -328,6 +360,16 @@ MONITORING_CONFIGS: dict[str, ServiceConfig] = {
         category=ServiceCategory.MONITORING,
         port=9115,
         health_endpoint="/metrics",
+        startup_grace_period=15,
+        max_failures=5,
+        restart_backoff_base=10.0,
+        restart_backoff_max=120.0,
+    ),
+    "jaeger": ServiceConfig(
+        display_name="Jaeger",
+        category=ServiceCategory.MONITORING,
+        port=16686,
+        health_endpoint="/",
         startup_grace_period=15,
         max_failures=5,
         restart_backoff_base=10.0,
