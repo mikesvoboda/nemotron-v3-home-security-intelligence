@@ -236,6 +236,17 @@ async def init_db() -> None:
     # 3. Terminating idle transactions that hold connections open
 
     # asyncpg connect_args for connection health
+    #
+    # IMPORTANT: idle_in_transaction_session_timeout must be longer than the
+    # maximum expected external call duration (e.g., LLM inference timeout).
+    # The default nemotron_read_timeout is 120s, so we set idle_in_transaction
+    # to 180s (3 minutes) to allow for buffering.
+    #
+    # If transactions idle longer than this, PostgreSQL terminates the connection
+    # with "FATAL: terminating connection due to idle-in-transaction timeout".
+    # This is a symptom of code holding sessions open during external calls.
+    # The correct fix is to restructure code to use short-lived sessions, not
+    # to increase this timeout indefinitely.
     connect_args: dict[str, Any] = {
         # Connection timeout (seconds) - how long to wait for initial connection
         "timeout": 60,
@@ -248,10 +259,12 @@ async def init_db() -> None:
             # Abort any statement that takes more than 5 minutes
             # Prevents runaway queries from holding connections
             "statement_timeout": "300000",  # milliseconds
-            # Terminate idle transactions after 60 seconds
-            # Prevents connections from being held open with uncommitted transactions
-            # which can cause "unexpected EOF" when the pool recycles them
-            "idle_in_transaction_session_timeout": "60000",  # milliseconds
+            # Terminate idle transactions after 3 minutes (180 seconds)
+            # This must exceed the LLM timeout (120s) to prevent connection
+            # termination during legitimate batch analysis operations.
+            # NOTE: Sessions should NOT idle this long - if they do, it indicates
+            # a code pattern that should be refactored to use shorter sessions.
+            "idle_in_transaction_session_timeout": "180000",  # milliseconds
             # Lock timeout - prevent deadlocks from holding connections too long
             "lock_timeout": "30000",  # milliseconds
         },
