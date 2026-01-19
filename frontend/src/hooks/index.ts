@@ -494,3 +494,10 @@ export type {
   UseSummaryExpansionOptions,
   UseSummaryExpansionReturn,
 } from './useSummaryExpansion';
+
+// Pull-to-refresh hook (NEM-2970)
+export { usePullToRefresh, default as usePullToRefreshDefault } from './usePullToRefresh';
+export type {
+  PullToRefreshOptions,
+  PullToRefreshReturn,
+} from './usePullToRefresh';
