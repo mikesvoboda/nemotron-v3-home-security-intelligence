@@ -28,6 +28,15 @@ vi.mock('../../hooks/useSidebarContext', () => ({
   }),
 }));
 
+// Mock the useCommandPaletteContext hook
+const mockOpenCommandPalette = vi.fn();
+
+vi.mock('../../hooks/useCommandPaletteContext', () => ({
+  useCommandPaletteContext: () => ({
+    openCommandPalette: mockOpenCommandPalette,
+  }),
+}));
+
 // Helper to create mock channel status
 function createMockChannel(
   name: string,
@@ -1496,6 +1505,53 @@ describe('Header', () => {
         'href',
         expect.stringContaining('github.com/mikesvoboda/nemotron-v3-home-security-intelligence')
       );
+    });
+  });
+
+  describe('Search Trigger Button', () => {
+    it('renders search trigger button', () => {
+      renderHeader();
+      expect(screen.getByTestId('search-trigger')).toBeInTheDocument();
+    });
+
+    it('has accessible label', () => {
+      renderHeader();
+      expect(screen.getByLabelText('Open command palette')).toBeInTheDocument();
+    });
+
+    it('calls openCommandPalette when clicked', () => {
+      renderHeader();
+      const searchButton = screen.getByTestId('search-trigger');
+      fireEvent.click(searchButton);
+      expect(mockOpenCommandPalette).toHaveBeenCalled();
+    });
+
+    it('displays search icon', () => {
+      renderHeader();
+      const searchButton = screen.getByTestId('search-trigger');
+      // The search icon should be a child of the button
+      expect(searchButton.querySelector('svg')).toBeInTheDocument();
+    });
+
+    it('displays keyboard shortcut hint', () => {
+      renderHeader();
+      const searchButton = screen.getByTestId('search-trigger');
+      // Should contain K for the keyboard shortcut
+      expect(searchButton.textContent).toContain('K');
+    });
+
+    it('has correct styling classes for dark theme', () => {
+      renderHeader();
+      const searchButton = screen.getByTestId('search-trigger');
+      expect(searchButton).toHaveClass('bg-[#222]');
+      expect(searchButton).toHaveClass('border-[#333]');
+    });
+
+    it('is hidden on mobile (uses sm:flex)', () => {
+      renderHeader();
+      const searchButton = screen.getByTestId('search-trigger');
+      expect(searchButton).toHaveClass('hidden');
+      expect(searchButton).toHaveClass('sm:flex');
     });
   });
 });

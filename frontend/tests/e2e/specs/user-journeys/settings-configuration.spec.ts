@@ -97,7 +97,7 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     await expect(tabList).toBeVisible({ timeout: 5000 });
 
     // Wait for the active tab panel to be visible (Cameras tab is active by default)
-    const activeTabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])');
+    const activeTabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])').first();
     await expect(activeTabPanel).toBeVisible({ timeout: 5000 });
 
     // When/Then: Verify the cameras section is visible in the active tab panel

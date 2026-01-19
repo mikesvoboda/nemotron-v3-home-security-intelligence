@@ -1,8 +1,12 @@
-import { ReactNode, useCallback, useState } from 'react';
+import { ReactNode, useCallback, useMemo, useState } from 'react';
 
 import Header from './Header';
 import MobileBottomNav from './MobileBottomNav';
 import Sidebar from './Sidebar';
+import {
+  CommandPaletteContext,
+  CommandPaletteContextType,
+} from '../../hooks/useCommandPaletteContext';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useServiceStatus } from '../../hooks/useServiceStatus';
@@ -50,8 +54,16 @@ export default function Layout({ children }: LayoutProps) {
     toggleMobileMenu,
   };
 
+  const commandPaletteContextValue: CommandPaletteContextType = useMemo(
+    () => ({
+      openCommandPalette: () => setCommandPaletteOpen(true),
+    }),
+    []
+  );
+
   return (
-    <SidebarContext.Provider value={sidebarContextValue}>
+    <CommandPaletteContext.Provider value={commandPaletteContextValue}>
+      <SidebarContext.Provider value={sidebarContextValue}>
       <div className="flex min-h-screen flex-col bg-[#0E0E0E]">
         {/* Skip link for keyboard navigation accessibility */}
         <SkipLink />
@@ -92,6 +104,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* Show mobile bottom navigation on mobile viewports */}
         {isMobile && <MobileBottomNav />}
       </div>
-    </SidebarContext.Provider>
+      </SidebarContext.Provider>
+    </CommandPaletteContext.Provider>
   );
 }
