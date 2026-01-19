@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach, type Mock } from 'vitest';
 
 import EventCard, { type Detection, type EventCardProps } from './EventCard';
 
@@ -1088,10 +1088,12 @@ describe('EventCard', () => {
   });
 
   describe('layout and styling', () => {
-    it('applies NVIDIA theme colors', () => {
+    it('applies severity-based background tint (default mockProps has medium severity)', () => {
+      // mockProps.risk_score is 45 which is medium severity
       const { container } = render(<EventCard {...mockProps} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('bg-[#1F1F1F]');
+      // Medium severity applies a subtle yellow tint
+      expect(card).toHaveClass('bg-yellow-500/[0.04]');
     });
 
     it('applies rounded corners', () => {
@@ -1153,25 +1155,28 @@ describe('EventCard', () => {
   });
 
   describe('color-coded left border', () => {
-    it('applies NVIDIA green left border for low risk events', () => {
+    // Note: These tests now use the new severity-based border classes from severityColors utility
+    // The thresholds are: LOW: <30, MEDIUM: 30-59, HIGH: 60-79, CRITICAL: >=80
+
+    it('applies NVIDIA green (primary) left border for low risk events', () => {
       const lowRiskEvent = { ...mockProps, risk_score: 15 };
       const { container } = render(<EventCard {...lowRiskEvent} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('border-l-4', 'border-l-risk-low');
+      expect(card).toHaveClass('border-l-4', 'border-l-primary');
     });
 
-    it('applies NVIDIA yellow left border for medium risk events', () => {
+    it('applies yellow left border for medium risk events', () => {
       const mediumRiskEvent = { ...mockProps, risk_score: 45 };
       const { container } = render(<EventCard {...mediumRiskEvent} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('border-l-4', 'border-l-risk-medium');
+      expect(card).toHaveClass('border-l-4', 'border-l-yellow-500');
     });
 
-    it('applies NVIDIA red left border for high risk events', () => {
+    it('applies orange left border for high risk events', () => {
       const highRiskEvent = { ...mockProps, risk_score: 72 };
       const { container } = render(<EventCard {...highRiskEvent} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('border-l-4', 'border-l-risk-high');
+      expect(card).toHaveClass('border-l-4', 'border-l-orange-500');
     });
 
     it('applies red left border for critical risk events', () => {
@@ -1187,40 +1192,40 @@ describe('EventCard', () => {
       expect(card).toHaveClass('border-l-4');
     });
 
-    // Thresholds match backend defaults: LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
-    it('applies NVIDIA green left border at risk score boundary (29)', () => {
+    // Severity thresholds: LOW: <30, MEDIUM: 30-59, HIGH: 60-79, CRITICAL: >=80
+    it('applies NVIDIA green (primary) left border at risk score boundary (29)', () => {
       const boundaryEvent = { ...mockProps, risk_score: 29 };
       const { container } = render(<EventCard {...boundaryEvent} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('border-l-risk-low');
+      expect(card).toHaveClass('border-l-primary');
     });
 
-    it('applies NVIDIA yellow left border at risk score boundary (30)', () => {
+    it('applies yellow left border at risk score boundary (30)', () => {
       const boundaryEvent = { ...mockProps, risk_score: 30 };
       const { container } = render(<EventCard {...boundaryEvent} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('border-l-risk-medium');
+      expect(card).toHaveClass('border-l-yellow-500');
     });
 
-    it('applies NVIDIA yellow left border at risk score boundary (59)', () => {
+    it('applies yellow left border at risk score boundary (59)', () => {
       const boundaryEvent = { ...mockProps, risk_score: 59 };
       const { container } = render(<EventCard {...boundaryEvent} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('border-l-risk-medium');
+      expect(card).toHaveClass('border-l-yellow-500');
     });
 
-    it('applies NVIDIA red left border at risk score boundary (60)', () => {
+    it('applies orange left border at risk score boundary (60)', () => {
       const boundaryEvent = { ...mockProps, risk_score: 60 };
       const { container } = render(<EventCard {...boundaryEvent} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('border-l-risk-high');
+      expect(card).toHaveClass('border-l-orange-500');
     });
 
-    it('applies NVIDIA red left border at risk score boundary (84)', () => {
-      const boundaryEvent = { ...mockProps, risk_score: 84 };
+    it('applies critical red left border at risk score boundary (80)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 80 };
       const { container } = render(<EventCard {...boundaryEvent} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('border-l-risk-high');
+      expect(card).toHaveClass('border-l-red-500');
     });
 
     it('applies critical red left border at risk score boundary (85)', () => {
@@ -1237,11 +1242,11 @@ describe('EventCard', () => {
       expect(card).toHaveClass('border-l-red-500');
     });
 
-    it('applies NVIDIA green left border at minimum risk score (0)', () => {
+    it('applies NVIDIA green (primary) left border at minimum risk score (0)', () => {
       const minRiskEvent = { ...mockProps, risk_score: 0 };
       const { container } = render(<EventCard {...minRiskEvent} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('border-l-risk-low');
+      expect(card).toHaveClass('border-l-primary');
     });
   });
 
@@ -1606,6 +1611,292 @@ describe('EventCard', () => {
       // Check for green background/border for high confidence
       const greenBgElements = container.querySelectorAll('.bg-green-500\\/20');
       expect(greenBgElements.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('severity-tinted backgrounds', () => {
+    // Helper to mock matchMedia for reduced motion preference
+    const mockMatchMedia = (prefersReducedMotion: boolean) => {
+      const listeners: Array<(e: MediaQueryListEvent) => void> = [];
+      const mockMediaQuery = {
+        matches: prefersReducedMotion,
+        media: '(prefers-reduced-motion: reduce)',
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn((event: string, callback: (e: MediaQueryListEvent) => void) => {
+          if (event === 'change') {
+            listeners.push(callback);
+          }
+        }),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      };
+      return {
+        mockMediaQuery,
+        triggerChange: (newValue: boolean) => {
+          listeners.forEach((listener) =>
+            listener({ matches: newValue } as MediaQueryListEvent)
+          );
+        },
+      };
+    };
+
+    beforeEach(() => {
+      // Default: no reduced motion preference
+      const { mockMediaQuery } = mockMatchMedia(false);
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: vi.fn().mockImplementation(() => mockMediaQuery),
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    describe('data-severity attribute', () => {
+      it('sets data-severity="critical" for risk scores >= 80', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={85} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'critical');
+      });
+
+      it('sets data-severity="high" for risk scores 60-79', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={72} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'high');
+      });
+
+      it('sets data-severity="medium" for risk scores 30-59', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={45} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'medium');
+      });
+
+      it('sets data-severity="low" for risk scores < 30', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={15} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'low');
+      });
+    });
+
+    describe('background tint classes', () => {
+      it('applies red background tint for critical severity (>= 80)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={85} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveClass('bg-red-500/[0.08]');
+      });
+
+      it('applies orange background tint for high severity (60-79)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={72} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveClass('bg-orange-500/[0.06]');
+      });
+
+      it('applies yellow background tint for medium severity (30-59)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={45} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveClass('bg-yellow-500/[0.04]');
+      });
+
+      it('applies transparent background for low severity (< 30)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={15} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveClass('bg-transparent');
+      });
+    });
+
+    describe('border color classes', () => {
+      it('applies red border for critical severity (>= 80)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={85} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveClass('border-l-red-500');
+      });
+
+      it('applies orange border for high severity (60-79)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={72} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveClass('border-l-orange-500');
+      });
+
+      it('applies yellow border for medium severity (30-59)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={45} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveClass('border-l-yellow-500');
+      });
+
+      it('applies primary (NVIDIA green) border for low severity (< 30)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={15} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveClass('border-l-primary');
+      });
+    });
+
+    describe('glow effect for critical severity', () => {
+      it('applies glow shadow class for critical severity', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={85} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveClass('shadow-[0_0_8px_rgba(239,68,68,0.3)]');
+      });
+
+      it('does not apply glow shadow for high severity', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={72} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).not.toHaveClass('shadow-[0_0_8px_rgba(239,68,68,0.3)]');
+      });
+
+      it('does not apply glow shadow for medium severity', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={45} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).not.toHaveClass('shadow-[0_0_8px_rgba(239,68,68,0.3)]');
+      });
+
+      it('does not apply glow shadow for low severity', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={15} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).not.toHaveClass('shadow-[0_0_8px_rgba(239,68,68,0.3)]');
+      });
+    });
+
+    describe('pulse animation for critical severity', () => {
+      it('applies pulse animation class for critical severity when motion is allowed', () => {
+        const { mockMediaQuery } = mockMatchMedia(false);
+        (window.matchMedia as Mock).mockReturnValue(mockMediaQuery);
+
+        const { container } = render(<EventCard {...mockProps} risk_score={85} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveClass('animate-pulse-subtle');
+      });
+
+      it('does not apply pulse animation when prefers-reduced-motion is enabled', () => {
+        const { mockMediaQuery } = mockMatchMedia(true);
+        (window.matchMedia as Mock).mockReturnValue(mockMediaQuery);
+
+        const { container } = render(<EventCard {...mockProps} risk_score={85} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).not.toHaveClass('animate-pulse-subtle');
+      });
+
+      it('does not apply pulse animation for high severity', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={72} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).not.toHaveClass('animate-pulse-subtle');
+      });
+
+      it('does not apply pulse animation for medium severity', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={45} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).not.toHaveClass('animate-pulse-subtle');
+      });
+
+      it('does not apply pulse animation for low severity', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={15} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).not.toHaveClass('animate-pulse-subtle');
+      });
+    });
+
+    describe('severity boundary values', () => {
+      it('applies critical styling at exact boundary (80)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={80} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'critical');
+        expect(card).toHaveClass('bg-red-500/[0.08]');
+        expect(card).toHaveClass('border-l-red-500');
+      });
+
+      it('applies high styling just below critical boundary (79)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={79} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'high');
+        expect(card).toHaveClass('bg-orange-500/[0.06]');
+        expect(card).toHaveClass('border-l-orange-500');
+      });
+
+      it('applies high styling at exact boundary (60)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={60} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'high');
+        expect(card).toHaveClass('bg-orange-500/[0.06]');
+      });
+
+      it('applies medium styling just below high boundary (59)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={59} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'medium');
+        expect(card).toHaveClass('bg-yellow-500/[0.04]');
+      });
+
+      it('applies medium styling at exact boundary (30)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={30} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'medium');
+        expect(card).toHaveClass('bg-yellow-500/[0.04]');
+      });
+
+      it('applies low styling just below medium boundary (29)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={29} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'low');
+        expect(card).toHaveClass('bg-transparent');
+      });
+
+      it('applies low styling at minimum (0)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={0} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'low');
+        expect(card).toHaveClass('bg-transparent');
+        expect(card).toHaveClass('border-l-primary');
+      });
+
+      it('applies critical styling at maximum (100)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={100} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveAttribute('data-severity', 'critical');
+        expect(card).toHaveClass('bg-red-500/[0.08]');
+        expect(card).toHaveClass('border-l-red-500');
+        expect(card).toHaveClass('animate-pulse-subtle');
+      });
+    });
+
+    describe('critical events visual distinction', () => {
+      it('critical events have all three visual indicators (background, border, glow)', () => {
+        const { container } = render(<EventCard {...mockProps} risk_score={90} />);
+        const card = container.firstChild as HTMLElement;
+
+        // Background tint
+        expect(card).toHaveClass('bg-red-500/[0.08]');
+        // Border color
+        expect(card).toHaveClass('border-l-red-500');
+        // Glow effect
+        expect(card).toHaveClass('shadow-[0_0_8px_rgba(239,68,68,0.3)]');
+      });
+
+      it('critical events have animation when motion is allowed', () => {
+        const { mockMediaQuery } = mockMatchMedia(false);
+        (window.matchMedia as Mock).mockReturnValue(mockMediaQuery);
+
+        const { container } = render(<EventCard {...mockProps} risk_score={90} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card).toHaveClass('animate-pulse-subtle');
+      });
+
+      it('critical events stand out from other severity levels', () => {
+        const criticalCard = render(<EventCard {...mockProps} risk_score={90} />);
+        const highCard = render(<EventCard {...mockProps} risk_score={70} />);
+
+        const critical = criticalCard.container.firstChild as HTMLElement;
+        const high = highCard.container.firstChild as HTMLElement;
+
+        // Critical has glow, high does not
+        expect(critical).toHaveClass('shadow-[0_0_8px_rgba(239,68,68,0.3)]');
+        expect(high).not.toHaveClass('shadow-[0_0_8px_rgba(239,68,68,0.3)]');
+
+        // Critical has animation, high does not
+        expect(critical).toHaveClass('animate-pulse-subtle');
+        expect(high).not.toHaveClass('animate-pulse-subtle');
+      });
     });
   });
 });

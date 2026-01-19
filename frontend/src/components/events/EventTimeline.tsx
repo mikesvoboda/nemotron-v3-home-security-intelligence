@@ -11,12 +11,12 @@ import FilterChips from './FilterChips';
 import LiveActivitySection from './LiveActivitySection';
 import TimelineScrubber, { type TimeRange, type ZoomLevel } from './TimelineScrubber';
 import ViewToggle, { type ViewMode } from './ViewToggle';
-import { useTimelineData } from '../../hooks/useTimelineData';
 import { useEventsInfiniteQuery, type EventFilters } from '../../hooks/useEventsQuery';
 import { useEventStream } from '../../hooks/useEventStream';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
-import { usePaginationState } from '../../hooks/usePaginationState';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { usePaginationState } from '../../hooks/usePaginationState';
+import { useTimelineData } from '../../hooks/useTimelineData';
 import {
   bulkUpdateEvents,
   exportEventsCSV,
@@ -663,6 +663,24 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         </span>
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-700 to-transparent" />
       </div>
+
+      {/* Timeline Scrubber (NEM-2932) - Visual timeline for navigating events */}
+      {!isSearchMode && (
+        <TimelineScrubber
+          buckets={timelineBuckets}
+          onTimeRangeChange={(range: TimeRange) => {
+            setEventFilters((prev) => ({
+              ...prev,
+              start_date: range.startDate.split('T')[0],
+              end_date: range.endDate.split('T')[0],
+            }));
+          }}
+          zoomLevel={timelineZoomLevel}
+          onZoomChange={setTimelineZoomLevel}
+          isLoading={timelineLoading}
+          className="mb-6"
+        />
+      )}
 
       {/* Full-Text Search Bar */}
       <div className="mb-6 rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
