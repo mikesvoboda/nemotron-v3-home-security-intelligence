@@ -65,17 +65,39 @@ def create_mock_db_with_id_assignment() -> AsyncMock:
 class TestAdminSecurityControls:
     """Tests for admin endpoint security controls.
 
-    Admin endpoints are always accessible for local deployment (no authentication required).
-    The require_admin_access() function is a no-op placeholder for potential future auth.
+    SECURITY: Admin endpoints require BOTH debug=True AND admin_enabled=True.
+    This provides defense-in-depth against accidentally exposing admin endpoints.
     """
 
     @pytest.mark.asyncio
-    async def test_admin_access_always_allowed_for_local_deployment(self) -> None:
-        """Verify admin access is always allowed (no authentication for local deployment)."""
+    async def test_admin_access_allowed_when_both_enabled(self) -> None:
+        """Verify admin access is allowed when both debug and admin_enabled are True."""
+        from unittest.mock import patch
+
         from backend.api.routes.admin import require_admin_access
 
-        # Should not raise - function is a no-op
-        require_admin_access()
+        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+            mock_settings.return_value.debug = True
+            mock_settings.return_value.admin_enabled = True
+            # Should not raise
+            require_admin_access()
+
+    @pytest.mark.asyncio
+    async def test_admin_access_blocked_in_production_mode(self) -> None:
+        """Verify admin access is blocked when debug=False (production mode)."""
+        from unittest.mock import patch
+
+        from fastapi import HTTPException
+
+        from backend.api.routes.admin import require_admin_access
+
+        with patch("backend.api.routes.admin.get_settings") as mock_settings:
+            mock_settings.return_value.debug = False
+            mock_settings.return_value.admin_enabled = True
+            with pytest.raises(HTTPException) as exc_info:
+                require_admin_access()
+            assert exc_info.value.status_code == 403
+            assert "DEBUG=true" in exc_info.value.detail
 
 
 class TestSeedCamerasEndpoint:
