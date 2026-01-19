@@ -10,6 +10,7 @@ import { SidebarContext, SidebarContextType } from '../../hooks/useSidebarContex
 import CommandPalette from '../common/CommandPalette';
 import { ServiceStatusAlert } from '../common/ServiceStatusAlert';
 import ShortcutsHelpModal from '../common/ShortcutsHelpModal';
+import { SkipLink } from '../common/SkipLink';
 
 interface LayoutProps {
   children: ReactNode;
@@ -53,13 +54,7 @@ export default function Layout({ children }: LayoutProps) {
     <SidebarContext.Provider value={sidebarContextValue}>
       <div className="flex min-h-screen flex-col bg-[#0E0E0E]">
         {/* Skip link for keyboard navigation accessibility */}
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-[#76B900] focus:px-4 focus:py-2 focus:font-medium focus:text-black focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#0E0E0E]"
-          data-testid="skip-link"
-        >
-          Skip to main content
-        </a>
+        <SkipLink />
         <Header />
         <div className="flex flex-1 overflow-hidden">
           {/* Hide sidebar on mobile, show MobileBottomNav instead */}

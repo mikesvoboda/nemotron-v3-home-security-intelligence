@@ -76,7 +76,7 @@ export default function RiskBadge({
         'inline-flex items-center gap-1 rounded-full font-medium',
         sizeClasses,
         colorClasses,
-        shouldAnimate && 'animate-pulse-critical',
+        shouldAnimate && 'motion-safe:animate-pulse-critical',
         className
       )}
       data-testid="risk-badge"

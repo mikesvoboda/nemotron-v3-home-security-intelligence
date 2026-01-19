@@ -308,8 +308,9 @@ describe('EntitiesPage', () => {
         expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
-      // Click the Vehicles filter
-      await user.click(screen.getByText('Vehicles'));
+      // Click the Vehicles filter button (has aria-pressed attribute)
+      const vehiclesFilterButton = screen.getByRole('button', { name: /Vehicles/i, pressed: false });
+      await user.click(vehiclesFilterButton);
 
       await waitFor(() => {
         expect(screen.getByText('No Vehicles Found')).toBeInTheDocument();
@@ -326,9 +327,10 @@ describe('EntitiesPage', () => {
         expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
-      expect(screen.getByText('All')).toBeInTheDocument();
-      expect(screen.getByText('Persons')).toBeInTheDocument();
-      expect(screen.getByText('Vehicles')).toBeInTheDocument();
+      // Check filter buttons exist (they have aria-pressed attribute)
+      expect(screen.getByRole('button', { name: /All/i, pressed: true })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Persons/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Vehicles/i, pressed: false })).toBeInTheDocument();
     });
 
     it('filters entities when Persons button is clicked', async () => {
@@ -358,8 +360,9 @@ describe('EntitiesPage', () => {
         expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
       });
 
-      // Click the Vehicles filter
-      await user.click(screen.getByText('Vehicles'));
+      // Click the Vehicles filter button (has aria-pressed attribute)
+      const vehiclesFilterButton = screen.getByRole('button', { name: /Vehicles/i, pressed: false });
+      await user.click(vehiclesFilterButton);
 
       // API should be called with entity_type filter
       await waitFor(() => {
@@ -707,6 +710,170 @@ describe('EntitiesPage', () => {
       // Check for the dark background class
       const darkBgElements = container.querySelectorAll('[class*="bg-[#1F1F1F]"]');
       expect(darkBgElements.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Entity Grouping', () => {
+    it('groups entities into People and Vehicles sections', async () => {
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      // Should render People group section
+      expect(screen.getByTestId('entity-group-people')).toBeInTheDocument();
+      expect(screen.getByTestId('entity-group-header-people')).toBeInTheDocument();
+
+      // Should render Vehicles group section
+      expect(screen.getByTestId('entity-group-vehicles')).toBeInTheDocument();
+      expect(screen.getByTestId('entity-group-header-vehicles')).toBeInTheDocument();
+    });
+
+    it('displays correct count in each section header', async () => {
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      // People section should show count of 1
+      expect(screen.getByTestId('entity-group-count-people')).toHaveTextContent('1');
+
+      // Vehicles section should show count of 1
+      expect(screen.getByTestId('entity-group-count-vehicles')).toHaveTextContent('1');
+    });
+
+    it('hides empty Unknown section when no unknown entities', async () => {
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      // Unknown section should not be rendered when there are no unknown entities
+      expect(screen.queryByTestId('entity-group-unknown')).not.toBeInTheDocument();
+    });
+
+    it('shows Unknown section collapsed by default when unknown entities exist', async () => {
+      // Add an unknown entity type to the mock data
+      const entitiesWithUnknown: api.EntitySummary[] = [
+        ...mockEntities,
+        {
+          id: 'entity-003',
+          entity_type: 'unknown_type',
+          first_seen: '2024-01-15T07:00:00Z',
+          last_seen: '2024-01-15T07:30:00Z',
+          appearance_count: 1,
+          cameras_seen: ['garage'],
+          thumbnail_url: null,
+        },
+      ];
+
+      mockFetchEntities.mockResolvedValue({
+        items: entitiesWithUnknown,
+        pagination: {
+          total: entitiesWithUnknown.length,
+          limit: 50,
+          offset: 0,
+          has_more: false,
+        },
+      });
+
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      // Unknown section should exist
+      expect(screen.getByTestId('entity-group-unknown')).toBeInTheDocument();
+
+      // Unknown section header should be present
+      expect(screen.getByTestId('entity-group-header-unknown')).toBeInTheDocument();
+
+      // Unknown section should be collapsed by default (content not visible)
+      expect(screen.queryByTestId('entity-group-content-unknown')).not.toBeInTheDocument();
+
+      // Should show collapsed icon
+      expect(screen.getByTestId('collapse-icon-collapsed')).toBeInTheDocument();
+    });
+
+    it('expands Unknown section when header is clicked', async () => {
+      // Add an unknown entity type to the mock data
+      const entitiesWithUnknown: api.EntitySummary[] = [
+        ...mockEntities,
+        {
+          id: 'entity-003',
+          entity_type: 'unknown_type',
+          first_seen: '2024-01-15T07:00:00Z',
+          last_seen: '2024-01-15T07:30:00Z',
+          appearance_count: 1,
+          cameras_seen: ['garage'],
+          thumbnail_url: null,
+        },
+      ];
+
+      mockFetchEntities.mockResolvedValue({
+        items: entitiesWithUnknown,
+        pagination: {
+          total: entitiesWithUnknown.length,
+          limit: 50,
+          offset: 0,
+          has_more: false,
+        },
+      });
+
+      const user = userEvent.setup();
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      // Click the Unknown section header to expand it
+      await user.click(screen.getByTestId('entity-group-header-unknown'));
+
+      // Unknown section content should now be visible
+      await waitFor(() => {
+        expect(screen.getByTestId('entity-group-content-unknown')).toBeInTheDocument();
+      });
+    });
+
+    it('collapses People section when header is clicked', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      // People section content should initially be visible (expanded by default)
+      expect(screen.getByTestId('entity-group-content-people')).toBeInTheDocument();
+
+      // Click the People section header to collapse it
+      await user.click(screen.getByTestId('entity-group-header-people'));
+
+      // People section content should now be hidden
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-group-content-people')).not.toBeInTheDocument();
+      });
+    });
+
+    it('shows entity cards in the appropriate group sections', async () => {
+      renderWithProviders(<EntitiesPage />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-card-skeleton')).not.toBeInTheDocument();
+      });
+
+      // People section should contain entity cards
+      const peopleSection = screen.getByTestId('entity-group-content-people');
+      expect(peopleSection.querySelectorAll('[data-testid="entity-card"]').length).toBe(1);
+
+      // Vehicles section should contain entity cards
+      const vehiclesSection = screen.getByTestId('entity-group-content-vehicles');
+      expect(vehiclesSection.querySelectorAll('[data-testid="entity-card"]').length).toBe(1);
     });
   });
 });

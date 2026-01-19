@@ -15,9 +15,10 @@ describe('LoadingSpinner', () => {
     expect(wrapper).toHaveClass('bg-[#121212]');
   });
 
-  it('displays animated spinner element', () => {
+  it('displays animated spinner element with motion-safe prefix', () => {
     const { container } = render(<LoadingSpinner />);
-    const spinner = container.querySelector('.animate-spin');
+    // Uses motion-safe:animate-spin to respect prefers-reduced-motion
+    const spinner = container.querySelector('.motion-safe\\:animate-spin');
     expect(spinner).toBeInTheDocument();
     expect(spinner).toHaveClass('border-t-green-500');
   });
