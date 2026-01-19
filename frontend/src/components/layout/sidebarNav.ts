@@ -10,7 +10,6 @@ import {
   Briefcase,
   ClipboardCheck,
   Clock,
-  Database,
   Home,
   ScrollText,
   Settings,
@@ -68,7 +67,6 @@ export const navGroups: NavGroup[] = [
     items: [
       { id: 'jobs', label: 'Jobs', icon: Briefcase, path: '/jobs' },
       { id: 'operations', label: 'Pipeline', icon: Workflow, path: '/operations' },
-      { id: 'system', label: 'Infrastructure', icon: Database, path: '/system' },
       { id: 'logs', label: 'Logs', icon: ScrollText, path: '/logs' },
     ],
   },
