@@ -165,17 +165,18 @@ describe('AlertsPage', () => {
       });
     });
 
-    it('displays loading state initially', async () => {
+    it('displays loading skeleton state initially', async () => {
       vi.mocked(api.fetchEvents)
         .mockResolvedValueOnce(mockHighResponse)
         .mockResolvedValueOnce(mockCriticalResponse);
 
       renderWithQueryClient(<AlertsPage />);
 
-      expect(screen.getByText('Loading alerts...')).toBeInTheDocument();
+      // Should show skeleton loading cards
+      expect(screen.getAllByTestId('alert-card-skeleton').length).toBeGreaterThan(0);
 
       await waitFor(() => {
-        expect(screen.queryByText('Loading alerts...')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('alert-card-skeleton')).not.toBeInTheDocument();
       });
     });
 
