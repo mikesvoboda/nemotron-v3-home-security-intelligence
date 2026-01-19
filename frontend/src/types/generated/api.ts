@@ -5314,6 +5314,9 @@ export interface paths {
          *     - Power usage
          *     - Inference FPS
          *
+         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+         *     database load from frequent polling. GPU stats only update every 5 seconds anyway.
+         *
          *     Returns:
          *         GPUStatsResponse with GPU statistics (null values if unavailable)
          */
@@ -5438,6 +5441,9 @@ export interface paths {
          *
          *     Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
          *     If a health check times out, the service is marked as unhealthy.
+         *
+         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+         *     load from frequent readiness probes.
          *
          *     Returns:
          *         ReadinessResponse with overall readiness status and detailed checks.
@@ -6125,6 +6131,9 @@ export interface paths {
          *     - Total number of events
          *     - Total number of detections
          *     - Application uptime
+         *
+         *     Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+         *     database load from three sequential COUNT queries.
          *
          *     Returns:
          *         SystemStatsResponse with system statistics
@@ -9541,7 +9550,7 @@ export interface components {
          *       "batch_window_seconds": 90,
          *       "debug": false,
          *       "detection_confidence_threshold": 0.5,
-         *       "grafana_url": "http://localhost:3002",
+         *       "grafana_url": "/grafana",
          *       "retention_days": 30,
          *       "version": "0.1.0"
          *     }

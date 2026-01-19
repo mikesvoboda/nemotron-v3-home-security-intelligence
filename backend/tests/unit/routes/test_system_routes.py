@@ -36,6 +36,16 @@ from backend.api.schemas.system import (
 from backend.core.redis import RedisClient
 
 
+@pytest.fixture(autouse=True)
+def clear_health_caches_fixture() -> None:
+    """Clear health caches before each test to ensure test isolation.
+
+    The health endpoints cache results for 5 seconds to reduce load.
+    Without clearing, tests may see cached results from previous tests.
+    """
+    system_routes.clear_health_cache()
+
+
 @pytest.mark.asyncio
 async def test_check_database_health_unhealthy_on_exception() -> None:
     db = AsyncMock(spec=AsyncSession)

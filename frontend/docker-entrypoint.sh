@@ -11,6 +11,9 @@ NGINX_CONF="/etc/nginx/conf.d/default.conf"
 # =============================================================================
 RESOLVER=$(grep -m1 '^nameserver' /etc/resolv.conf | awk '{print $2}')
 
+# Grafana upstream URL (can be overridden with GRAFANA_INTERNAL_URL env var)
+GRAFANA_UPSTREAM="${GRAFANA_INTERNAL_URL:-http://grafana:3000}"
+
 if [ -n "$RESOLVER" ]; then
     echo "Configuring nginx with DNS resolver: $RESOLVER"
     sed -i "s/__DNS_RESOLVER__/$RESOLVER/g" "$NGINX_CONF"
@@ -68,6 +71,32 @@ HTTP_LOCATIONS='
         proxy_connect_timeout 60s;
         proxy_send_timeout 86400s;
         proxy_read_timeout 86400s;
+    }
+
+    # Reverse proxy for Grafana dashboards (enables remote access via /grafana/)
+    # Strips /grafana prefix and forwards to Grafana container
+    # This allows embedding Grafana dashboards in iframes from any host
+    location ^~ /grafana/ {
+        # Rewrite /grafana/... to /... for Grafana
+        rewrite ^/grafana/(.*) /$1 break;
+        proxy_pass '"${GRAFANA_UPSTREAM}"';
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Required for Grafana live/WebSocket features
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+
+        # Disable buffering for real-time dashboard updates
+        proxy_buffering off;
     }
 
     # Cache static assets
@@ -269,8 +298,8 @@ server {
 
     # Content Security Policy - restrict resource loading
     # Note: 'unsafe-inline' for styles is required by Tailwind/Tremor
-    # Note: frame-src allows Grafana embeds (localhost:3002 mapped from container port 3000)
-    add_header Content-Security-Policy \"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-src 'self' http://localhost:3002 https://localhost:3002; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;\" always;
+    # Note: frame-src 'self' allows Grafana embeds via nginx proxy at /grafana/
+    add_header Content-Security-Policy \"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;\" always;
 
     # Permissions Policy - restrict browser features
     add_header Permissions-Policy \"accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()\" always;
@@ -309,6 +338,23 @@ server {
         proxy_connect_timeout 60s;
         proxy_send_timeout 86400s;
         proxy_read_timeout 86400s;
+    }
+
+    # Reverse proxy for Grafana dashboards (enables remote access via /grafana/)
+    location ^~ /grafana/ {
+        rewrite ^/grafana/(.*) /\$1 break;
+        proxy_pass ${GRAFANA_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection \"upgrade\";
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+        proxy_buffering off;
     }
 
     # Cache static assets
