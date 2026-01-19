@@ -209,7 +209,7 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
             placeholder="Type to search..."
             className="h-14 flex-1 bg-transparent text-white placeholder-[#666] outline-none"
           />
-          <kbd className="rounded bg-[#2a2a2a] px-2 py-1 text-xs text-[#666]">ESC</kbd>
+          <kbd className="rounded bg-[#2a2a2a] px-2 py-1 text-xs text-[#ccc]">ESC</kbd>
         </div>
 
         {/* Results list */}
@@ -234,7 +234,7 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
                   <span>{item.name}</span>
                 </div>
                 {item.shortcut && (
-                  <kbd className="rounded bg-[#333] px-2 py-0.5 text-xs text-[#666]">
+                  <kbd className="rounded bg-[#333] px-2 py-0.5 text-xs text-[#ccc]">
                     {item.shortcut}
                   </kbd>
                 )}
@@ -244,20 +244,20 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
         </Command.List>
 
         {/* Footer hint */}
-        <div className="flex items-center justify-between border-t border-[#2a2a2a] px-4 py-2 text-xs text-[#666]">
+        <div className="flex items-center justify-between border-t border-[#2a2a2a] px-4 py-2 text-xs text-[#999]">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">
-              <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5">↑</kbd>
-              <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5">↓</kbd>
+              <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5 text-[#ccc]">↑</kbd>
+              <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5 text-[#ccc]">↓</kbd>
               <span>Navigate</span>
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5">↵</kbd>
+              <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5 text-[#ccc]">↵</kbd>
               <span>Select</span>
             </span>
           </div>
           <span className="flex items-center gap-1">
-            <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5">?</kbd>
+            <kbd className="rounded bg-[#2a2a2a] px-1.5 py-0.5 text-[#ccc]">?</kbd>
             <span>Shortcuts help</span>
           </span>
         </div>
