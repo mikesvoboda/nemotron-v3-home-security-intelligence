@@ -292,7 +292,7 @@ export default function DashboardLayout({
             <div
               className={
                 useTwoColumnLayout
-                  ? 'grid grid-cols-1 gap-6 lg:grid-cols-[2fr,1fr] xl:grid-cols-[2.5fr,1fr]'
+                  ? 'grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr,1fr] xl:grid-cols-[2fr,1fr]'
                   : 'space-y-6'
               }
               data-testid="main-content-area"

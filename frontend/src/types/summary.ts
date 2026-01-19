@@ -7,7 +7,7 @@
  * security events, generated every 5 minutes by a background job.
  *
  * @see backend/api/schemas/summary.py - Backend Pydantic schemas
- * @see NEM-2894
+ * @see NEM-2894, NEM-2923
  */
 
 // ============================================================================
@@ -19,9 +19,28 @@
  */
 export type SummaryType = 'hourly' | 'daily';
 
+/**
+ * Icon types for summary bullet points.
+ */
+export type BulletPointIcon = 'alert' | 'location' | 'pattern' | 'time' | 'weather';
+
 // ============================================================================
 // Response Types
 // ============================================================================
+
+/**
+ * A bullet point in a summary with icon and optional severity.
+ */
+export interface SummaryBulletPoint {
+  /** Icon type for the bullet point */
+  icon: BulletPointIcon;
+
+  /** Text content of the bullet point */
+  text: string;
+
+  /** Optional severity level for coloring (0-100) */
+  severity?: number;
+}
 
 /**
  * A single summary response from the API.
@@ -44,6 +63,24 @@ export interface Summary {
 
   /** When this summary was generated (ISO 8601 string) */
   generatedAt: string;
+
+  /** Maximum risk score among events in this summary (0-100, optional) */
+  maxRiskScore?: number;
+
+  /** Structured bullet points for display (optional, may not be provided by backend) */
+  bulletPoints?: SummaryBulletPoint[];
+
+  /** Focus areas identified in this summary (e.g., camera names) */
+  focusAreas?: string[];
+
+  /** Dominant patterns detected (e.g., "person", "vehicle") */
+  dominantPatterns?: string[];
+
+  /** Human-readable formatted time range (e.g., "2:00 PM - 3:00 PM") */
+  timeRangeFormatted?: string;
+
+  /** Weather conditions during the summary period (optional) */
+  weatherConditions?: string;
 }
 
 /**
