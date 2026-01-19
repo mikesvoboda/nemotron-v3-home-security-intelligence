@@ -179,7 +179,8 @@ async def test_get_config_includes_grafana_url(client, mock_redis):
     assert response.status_code == 200
     data = response.json()
     assert "grafana_url" in data
-    assert data["grafana_url"].startswith("http")
+    # grafana_url can be an absolute URL (http://) or a relative path (/grafana)
+    assert data["grafana_url"].startswith("http") or data["grafana_url"].startswith("/")
 
 
 @pytest.mark.asyncio
@@ -441,6 +442,9 @@ async def test_readiness_endpoint_includes_pipeline_workers(client, mock_redis):
             "connected": True,
             "redis_version": "7.0.0",
         }
+
+        # Clear health cache to ensure this test gets fresh results with mocked state
+        system_routes.clear_health_cache()
 
         response = await client.get("/api/system/health/ready")
 
