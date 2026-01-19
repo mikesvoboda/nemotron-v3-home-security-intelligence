@@ -13,7 +13,6 @@ import {
   Brain,
   ClipboardCheck,
   Trash2,
-  Terminal,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
@@ -43,7 +42,6 @@ const navItems: NavItem[] = [
   { id: 'trash', label: 'Trash', icon: Trash2, path: '/trash' },
   { id: 'system', label: 'System', icon: Server, path: '/system' },
   { id: 'logs', label: 'Logs', icon: ScrollText, path: '/logs' },
-  { id: 'dev-tools', label: 'Dev Tools', icon: Terminal, path: '/dev-tools' },
   {
     id: 'settings',
     label: 'Settings',

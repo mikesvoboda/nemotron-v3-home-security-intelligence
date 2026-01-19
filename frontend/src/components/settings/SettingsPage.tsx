@@ -9,11 +9,8 @@ import {
   Settings as SettingsIcon,
   Shield,
   Sliders,
-  Terminal,
-  ExternalLink,
 } from 'lucide-react';
 import { Fragment } from 'react';
-import { Link } from 'react-router-dom';
 
 import { SecureContextWarning } from '../common';
 import AlertRulesSettings from './AlertRulesSettings';
@@ -23,7 +20,6 @@ import CamerasSettings from './CamerasSettings';
 import NotificationSettings from './NotificationSettings';
 import ProcessingSettings from './ProcessingSettings';
 import { PromptManagementPage } from './prompts';
-import { useSystemConfigQuery } from '../../hooks/useSystemConfigQuery';
 import FileOperationsPanel from '../system/FileOperationsPanel';
 
 /**
@@ -50,10 +46,8 @@ import FileOperationsPanel from '../system/FileOperationsPanel';
  *
  * @see NEM-2356 - Add CalibrationPanel to Settings page
  * @see NEM-2388 - Add FileOperationsPanel to Settings page
- * @see NEM-2719 - Developer Tools link when debug mode is enabled
  */
 export default function SettingsPage() {
-  const { debugEnabled } = useSystemConfigQuery();
 
   const tabs = [
     {
@@ -116,18 +110,6 @@ export default function SettingsPage() {
             <p className="text-body-sm mt-2">Configure your security monitoring system</p>
           </div>
 
-          {/* Developer Tools Link - only visible when debug mode is enabled */}
-          {debugEnabled && (
-            <Link
-              to="/dev-tools"
-              className="flex items-center gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-4 py-2 text-sm font-medium text-yellow-500 transition-colors hover:bg-yellow-500/20"
-              data-testid="dev-tools-link"
-            >
-              <Terminal className="h-4 w-4" />
-              Developer Tools
-              <ExternalLink className="h-3 w-3" />
-            </Link>
-          )}
         </div>
 
         {/* Secure Context Warning - shown when not using HTTPS */}
