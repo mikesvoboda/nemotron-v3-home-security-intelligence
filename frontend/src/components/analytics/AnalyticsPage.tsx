@@ -20,7 +20,7 @@ import { fetchConfig } from '../../services/api';
  * AnalyticsPage - Grafana iframe embed for analytics metrics
  */
 export default function AnalyticsPage() {
-  const [grafanaUrl, setGrafanaUrl] = useState<string>('http://localhost:3002');
+  const [grafanaUrl, setGrafanaUrl] = useState<string>('/grafana');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);

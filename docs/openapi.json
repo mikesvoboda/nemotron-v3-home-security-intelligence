@@ -4254,7 +4254,7 @@
           "batch_window_seconds": 90,
           "debug": false,
           "detection_confidence_threshold": 0.5,
-          "grafana_url": "http://localhost:3002",
+          "grafana_url": "/grafana",
           "retention_days": 30,
           "version": "0.1.0"
         },
@@ -31439,7 +31439,7 @@
     },
     "/api/system/gpu": {
       "get": {
-        "description": "Get current GPU statistics.\n\nReturns the most recent GPU statistics including:\n- GPU name\n- GPU utilization percentage\n- Memory usage (used/total)\n- Temperature\n- Power usage\n- Inference FPS\n\nReturns:\n    GPUStatsResponse with GPU statistics (null values if unavailable)",
+        "description": "Get current GPU statistics.\n\nReturns the most recent GPU statistics including:\n- GPU name\n- GPU utilization percentage\n- Memory usage (used/total)\n- Temperature\n- Power usage\n- Inference FPS\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\ndatabase load from frequent polling. GPU stats only update every 5 seconds anyway.\n\nReturns:\n    GPUStatsResponse with GPU statistics (null values if unavailable)",
         "operationId": "get_gpu_stats_api_system_gpu_get",
         "responses": {
           "200": {
@@ -31569,7 +31569,7 @@
     },
     "/api/system/health/ready": {
       "get": {
-        "description": "Kubernetes-style readiness probe endpoint with detailed information.\n\nThis endpoint indicates whether the application is ready to receive\ntraffic and process uploads. It checks all critical dependencies:\n- Database connectivity (critical)\n- Redis connectivity (required for queue processing)\n- AI services availability\n- Background worker status\n\nNote: The canonical readiness probe is GET /ready at the root level.\nThis endpoint provides the same readiness check but with detailed\nservice and worker status information.\n\nUsed by Kubernetes/Docker to determine if traffic should be routed to this instance.\nIf this endpoint returns not_ready, the instance should not receive new requests.\n\nHealth checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).\nIf a health check times out, the service is marked as unhealthy.\n\nReturns:\n    ReadinessResponse with overall readiness status and detailed checks.\n    HTTP 200 if ready, 503 if degraded or not ready.",
+        "description": "Kubernetes-style readiness probe endpoint with detailed information.\n\nThis endpoint indicates whether the application is ready to receive\ntraffic and process uploads. It checks all critical dependencies:\n- Database connectivity (critical)\n- Redis connectivity (required for queue processing)\n- AI services availability\n- Background worker status\n\nNote: The canonical readiness probe is GET /ready at the root level.\nThis endpoint provides the same readiness check but with detailed\nservice and worker status information.\n\nUsed by Kubernetes/Docker to determine if traffic should be routed to this instance.\nIf this endpoint returns not_ready, the instance should not receive new requests.\n\nHealth checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).\nIf a health check times out, the service is marked as unhealthy.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\nload from frequent readiness probes.\n\nReturns:\n    ReadinessResponse with overall readiness status and detailed checks.\n    HTTP 200 if ready, 503 if degraded or not ready.",
         "operationId": "get_readiness_api_system_health_ready_get",
         "responses": {
           "200": {
@@ -32360,7 +32360,7 @@
     },
     "/api/system/stats": {
       "get": {
-        "description": "Get system statistics.\n\nReturns aggregate statistics about the system:\n- Total number of cameras\n- Total number of events\n- Total number of detections\n- Application uptime\n\nReturns:\n    SystemStatsResponse with system statistics",
+        "description": "Get system statistics.\n\nReturns aggregate statistics about the system:\n- Total number of cameras\n- Total number of events\n- Total number of detections\n- Application uptime\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\ndatabase load from three sequential COUNT queries.\n\nReturns:\n    SystemStatsResponse with system statistics",
         "operationId": "get_stats_api_system_stats_get",
         "responses": {
           "200": {

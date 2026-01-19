@@ -13,7 +13,7 @@ import * as api from '../../services/api';
 
 // Mock the fetchConfig API
 vi.mock('../../services/api', () => ({
-  fetchConfig: vi.fn(() => Promise.resolve({ grafana_url: 'http://localhost:3002' })),
+  fetchConfig: vi.fn(() => Promise.resolve({ grafana_url: '/grafana' })),
 }));
 
 const renderWithRouter = () => {
@@ -207,7 +207,7 @@ describe('AIPerformancePage', () => {
 
       await waitFor(() => {
         const iframe = screen.getByTestId('grafana-iframe');
-        expect(iframe).toHaveAttribute('src', 'http://grafana.example.com/d/hsi-consolidated?orgId=1&kiosk');
+        expect(iframe).toHaveAttribute('src', 'http://grafana.example.com/d/hsi-consolidated?orgId=1&kiosk=1&theme=dark&refresh=30s');
       });
     });
 
@@ -222,7 +222,7 @@ describe('AIPerformancePage', () => {
 
       await waitFor(() => {
         const iframe = screen.getByTestId('grafana-iframe');
-        expect(iframe).toHaveAttribute('src', 'http://localhost:3002/d/hsi-consolidated?orgId=1&kiosk');
+        expect(iframe).toHaveAttribute('src', '/grafana/d/hsi-consolidated?orgId=1&kiosk=1&theme=dark&refresh=30s');
       });
 
       consoleSpy.mockRestore();
