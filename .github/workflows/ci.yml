@@ -801,20 +801,59 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          curl -s -X POST https://api.linear.app/graphql \
+          TITLE="[CI] Contract Tests failed on main"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
-              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
               "variables": {
-                "input": {
-                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "[CI] Contract Tests failed on main",
-                  "description": "Contract tests failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate and fix.",
-                  "priority": 2
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
                 }
               }
-            }'
+            }')
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
+
+          if [ -n "$EXISTING_ID" ]; then
+            # Add comment to existing issue
+            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$EXISTING_ID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+            echo "Added comment to existing issue"
+          else
+            # Create new issue
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "Contract tests failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate and fix.",
+                    "priority": 2
+                  }
+                }
+              }'
+            echo "Created new issue"
+          fi
 
   # Main-only: dead code detection runs post-merge for code hygiene
   dead-code:
@@ -845,20 +884,59 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          curl -s -X POST https://api.linear.app/graphql \
+          TITLE="[CI] Dead Code Detection failed on main"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
-              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
               "variables": {
-                "input": {
-                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "[CI] Dead Code Detection failed on main",
-                  "description": "Dead code detection (Vulture) found issues after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate and remove dead code.",
-                  "priority": 3
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
                 }
               }
-            }'
+            }')
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
+
+          if [ -n "$EXISTING_ID" ]; then
+            # Add comment to existing issue
+            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$EXISTING_ID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+            echo "Added comment to existing issue"
+          else
+            # Create new issue
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "Dead code detection (Vulture) found issues after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate and remove dead code.",
+                    "priority": 3
+                  }
+                }
+              }'
+            echo "Created new issue"
+          fi
 
   # Frontend Jobs
 
@@ -1350,20 +1428,59 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          curl -s -X POST https://api.linear.app/graphql \
+          TITLE="[CI] E2E Tests (${{ matrix.browser }}) failed on main"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
-              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
               "variables": {
-                "input": {
-                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "[CI] E2E Tests (${{ matrix.browser }}) failed on main",
-                  "description": "E2E tests for ${{ matrix.browser }} failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate - may be infrastructure flakiness or real test failure.",
-                  "priority": 3
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
                 }
               }
-            }'
+            }')
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
+
+          if [ -n "$EXISTING_ID" ]; then
+            # Add comment to existing issue
+            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$EXISTING_ID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+            echo "Added comment to existing issue"
+          else
+            # Create new issue
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "E2E tests for ${{ matrix.browser }} failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate - may be infrastructure flakiness or real test failure.",
+                    "priority": 3
+                  }
+                }
+              }'
+            echo "Created new issue"
+          fi
 
   # Build Jobs (main-only - verify Docker builds after merge)
   # Separate jobs for backend/frontend to avoid disk space issues
@@ -1411,20 +1528,59 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          curl -s -X POST https://api.linear.app/graphql \
+          TITLE="[CI] Backend Docker build failed on main"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
-              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
               "variables": {
-                "input": {
-                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "[CI] Backend Docker build failed on main",
-                  "description": "Backend Docker build failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate - Docker build must work for deployment.",
-                  "priority": 1
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
                 }
               }
-            }'
+            }')
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
+
+          if [ -n "$EXISTING_ID" ]; then
+            # Add comment to existing issue
+            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$EXISTING_ID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+            echo "Added comment to existing issue"
+          else
+            # Create new issue
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "Backend Docker build failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate - Docker build must work for deployment.",
+                    "priority": 1
+                  }
+                }
+              }'
+            echo "Created new issue"
+          fi
 
   build-frontend:
     name: Build Docker (frontend)
@@ -1460,20 +1616,59 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          curl -s -X POST https://api.linear.app/graphql \
+          TITLE="[CI] Frontend Docker build failed on main"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
-              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
               "variables": {
-                "input": {
-                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "[CI] Frontend Docker build failed on main",
-                  "description": "Frontend Docker build failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate - Docker build must work for deployment.",
-                  "priority": 1
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
                 }
               }
-            }'
+            }')
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
+
+          if [ -n "$EXISTING_ID" ]; then
+            # Add comment to existing issue
+            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$EXISTING_ID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+            echo "Added comment to existing issue"
+          else
+            # Create new issue
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "Frontend Docker build failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate - Docker build must work for deployment.",
+                    "priority": 1
+                  }
+                }
+              }'
+            echo "Created new issue"
+          fi
 
   # Security Validation Job (main-only)
 
@@ -1558,20 +1753,59 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          curl -s -X POST https://api.linear.app/graphql \
+          TITLE="[CI] Security Validation failed on main"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
-              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
               "variables": {
-                "input": {
-                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "[CI] Security Validation failed on main",
-                  "description": "Security validation (DEBUG=false enforcement) failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n**CRITICAL:** Admin endpoints may be exposed. Investigate immediately.",
-                  "priority": 1
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
                 }
               }
-            }'
+            }')
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
+
+          if [ -n "$EXISTING_ID" ]; then
+            # Add comment to existing issue
+            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$EXISTING_ID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+            echo "Added comment to existing issue"
+          else
+            # Create new issue
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "Security validation (DEBUG=false enforcement) failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n**CRITICAL:** Admin endpoints may be exposed. Investigate immediately.",
+                    "priority": 1
+                  }
+                }
+              }'
+            echo "Created new issue"
+          fi
 
   # Test Performance Audit Job (main-only)
 
@@ -1648,20 +1882,59 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          curl -s -X POST https://api.linear.app/graphql \
+          TITLE="[CI] Test Performance Audit failed on main"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
-              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
               "variables": {
-                "input": {
-                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "[CI] Test Performance Audit failed on main",
-                  "description": "Test performance audit found slow tests after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease review and optimize slow tests.",
-                  "priority": 3
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
                 }
               }
-            }'
+            }')
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
+
+          if [ -n "$EXISTING_ID" ]; then
+            # Add comment to existing issue
+            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$EXISTING_ID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+            echo "Added comment to existing issue"
+          else
+            # Create new issue
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "Test performance audit found slow tests after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease review and optimize slow tests.",
+                    "priority": 3
+                  }
+                }
+              }'
+            echo "Created new issue"
+          fi
 
   # Test Count Verification Job (weekly schedule)
   # Prevents accidental test deletion by comparing against baseline counts
@@ -1758,20 +2031,59 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          curl -s -X POST https://api.linear.app/graphql \
+          TITLE="[CI] Test Count Verification failed on main"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
-              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
               "variables": {
-                "input": {
-                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "[CI] Test Count Verification failed on main",
-                  "description": "Test count verification failed after merge to main - tests may have been accidentally deleted.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate and restore any missing tests.",
-                  "priority": 2
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
                 }
               }
-            }'
+            }')
+
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
+
+          if [ -n "$EXISTING_ID" ]; then
+            # Add comment to existing issue
+            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$EXISTING_ID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+            echo "Added comment to existing issue"
+          else
+            # Create new issue
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "Test count verification failed after merge to main - tests may have been accidentally deleted.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\nPlease investigate and restore any missing tests.",
+                    "priority": 2
+                  }
+                }
+              }'
+            echo "Created new issue"
+          fi
 
   # Security Scanning Jobs (Matrix Strategy for Parallelization)
 
