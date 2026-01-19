@@ -102,7 +102,7 @@ groups:
           service: pipeline
         annotations:
           summary: 'AI pipeline error rate is high'
-          description: 'More than 10% of pipeline operations are failing over the last 5 minutes. Error rate: {{ $value | printf "%.1f%%" | humanize }}'
+          description: 'More than 10% of pipeline operations are failing over the last 5 minutes. Error rate: {{ $value | humanizePercentage }}'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aihigherrorrate'
 
       - alert: AIPipelineErrorSpike

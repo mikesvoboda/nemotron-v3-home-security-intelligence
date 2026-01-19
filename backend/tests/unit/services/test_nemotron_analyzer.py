@@ -1918,14 +1918,16 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
         data=mock_enrichment_data,
     )
 
-    # Track calls to _get_enrichment_result
+    # Track calls to _get_enrichment_result_from_data
+    # Note: analyze_batch uses _get_enrichment_result_from_data (not _get_enrichment_result)
+    # because it now uses split sessions to avoid idle-in-transaction timeouts
     enrichment_calls = []
 
     async def tracked_get_enrichment(*args, **kwargs):
         enrichment_calls.append((args, kwargs))
         return mock_enrichment_tracking
 
-    analyzer._get_enrichment_result = tracked_get_enrichment
+    analyzer._get_enrichment_result_from_data = tracked_get_enrichment
 
     # Mock database and LLM
     mock_llm_response = {
@@ -1991,15 +1993,19 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
             detection_ids=detection_ids,
         )
 
-    # Verify _get_enrichment_result was called
-    assert len(enrichment_calls) == 1, "_get_enrichment_result should be called once"
+    # Verify _get_enrichment_result_from_data was called
+    assert len(enrichment_calls) == 1, "_get_enrichment_result_from_data should be called once"
     call_args, call_kwargs = enrichment_calls[0]
 
     # Verify batch_id was passed
     assert call_args[0] == batch_id
 
-    # Verify detections were passed
+    # Verify detection data dicts were passed (not ORM objects)
+    # Note: _get_enrichment_result_from_data receives dicts, not Detection objects
     assert len(call_args[1]) == 2
+    # Verify the first detection data dict has expected keys
+    assert "id" in call_args[1][0]
+    assert call_args[1][0]["id"] == 1001
 
     # Verify camera_id was passed
     assert call_kwargs.get("camera_id") == camera_id
@@ -2048,11 +2054,13 @@ async def test_analyze_batch_handles_enrichment_failure_gracefully(
         ),
     ]
 
-    # Make _run_enrichment_pipeline fail - _get_enrichment_result should catch it
+    # Make _run_enrichment_pipeline_from_data fail - _get_enrichment_result_from_data catches it
+    # Note: analyze_batch uses _get_enrichment_result_from_data (not _get_enrichment_result)
+    # because it now uses split sessions to avoid idle-in-transaction timeouts
     async def failing_pipeline(*args, **kwargs):
         raise RuntimeError("Enrichment pipeline failed")
 
-    analyzer._run_enrichment_pipeline = failing_pipeline
+    analyzer._run_enrichment_pipeline_from_data = failing_pipeline
 
     mock_llm_response = {
         "content": json.dumps(
@@ -2165,13 +2173,15 @@ async def test_analyze_batch_skips_enrichment_when_disabled(mock_redis_client, m
         ),
     ]
 
-    # Track if _run_enrichment_pipeline is called
+    # Track if _run_enrichment_pipeline_from_data is called
+    # Note: analyze_batch uses _run_enrichment_pipeline_from_data (not _run_enrichment_pipeline)
+    # because it now uses split sessions to avoid idle-in-transaction timeouts
     pipeline_called = []
 
     async def tracked_pipeline(*args, **kwargs):
         pipeline_called.append(True)
 
-    analyzer._run_enrichment_pipeline = tracked_pipeline
+    analyzer._run_enrichment_pipeline_from_data = tracked_pipeline
 
     mock_llm_response = {
         "content": json.dumps(
@@ -2385,7 +2395,9 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
         }
 
     analyzer._call_llm = tracked_call_llm
-    analyzer._get_enrichment_result = AsyncMock(return_value=mock_enrichment_tracking)
+    # Note: analyze_batch uses _get_enrichment_result_from_data (not _get_enrichment_result)
+    # because it now uses split sessions to avoid idle-in-transaction timeouts
+    analyzer._get_enrichment_result_from_data = AsyncMock(return_value=mock_enrichment_tracking)
 
     with (
         patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
