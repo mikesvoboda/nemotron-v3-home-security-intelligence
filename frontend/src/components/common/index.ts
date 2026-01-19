@@ -122,6 +122,10 @@ export { default as SafeErrorMessage } from './SafeErrorMessage';
 export type { SafeErrorMessageProps } from './SafeErrorMessage';
 export { sanitizeErrorMessage, extractErrorMessage } from '../../utils/sanitize';
 
+// Pull-to-refresh component (NEM-2970)
+export { PullToRefresh, default as PullToRefreshDefault } from './PullToRefresh';
+export type { PullToRefreshProps } from './PullToRefresh';
+
 export { SkipLink, default as SkipLinkDefault } from './SkipLink';
 export type { SkipLinkProps } from './SkipLink';
 
