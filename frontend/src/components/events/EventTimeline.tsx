@@ -14,6 +14,7 @@ import ViewToggle, { type ViewMode } from './ViewToggle';
 import { useEventsInfiniteQuery, type EventFilters } from '../../hooks/useEventsQuery';
 import { useEventStream } from '../../hooks/useEventStream';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { usePaginationState } from '../../hooks/usePaginationState';
 import { useTimelineData } from '../../hooks/useTimelineData';
@@ -29,7 +30,7 @@ import { countBy } from '../../utils/groupBy';
 import { pipe, getSortTransform, type SortOption } from '../../utils/pipeline';
 import { getRiskLevel } from '../../utils/risk';
 import { parseEventId } from '../../utils/validation';
-import { EmptyState, EventCardSkeleton, InfiniteScrollStatus, SafeErrorMessage } from '../common';
+import { EmptyState, EventCardSkeleton, InfiniteScrollStatus, PullToRefresh, SafeErrorMessage } from '../common';
 import RiskBadge from '../common/RiskBadge';
 import { type ActivityEvent } from '../dashboard/ActivityFeed';
 import ExportModal from '../exports/ExportModal';
@@ -90,6 +91,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
   // WebSocket hook for real-time live activity
   const { events: wsEvents, isConnected: wsConnected } = useEventStream();
+
+  // Mobile detection for pull-to-refresh (NEM-2970)
+  const isMobile = useIsMobile();
 
   // State for full-text search mode
   const [isSearchMode, setIsSearchMode] = useState(false);
@@ -612,6 +616,13 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       setSelectedEventForModal(filteredEvents[newIndex].id);
     }
   };
+
+  // Handle pull-to-refresh (NEM-2970)
+  // Note: refetch returns void, so we wrap it in a Promise for PullToRefresh
+  const handlePullToRefresh = useCallback((): Promise<void> => {
+    refetch();
+    return Promise.resolve();
+  }, [refetch]);
 
   // Convert API Event to ModalEvent format
   const getModalEvent = (): ModalEvent | null => {
@@ -1169,145 +1180,162 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
             )}
           </div>
 
-          {/* Event List */}
-          {loading ? (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-              {Array.from({ length: 6 }, (_, i) => (
-                <EventCardSkeleton key={i} />
-              ))}
-            </div>
-          ) : error ? (
-            <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20">
-              <div className="text-center">
-                <p className="mb-2 text-lg font-semibold text-red-400">Error Loading Events</p>
-                <SafeErrorMessage message={error} size="sm" color="gray" />
-              </div>
-            </div>
-          ) : filteredEvents.length === 0 ? (
-            <div className="rounded-lg border border-gray-800 bg-[#1F1F1F]">
-              <EmptyState
-                icon={Clock}
-                title="No Events Found"
-                description={
-                  hasActiveFilters
-                    ? 'No events match your current filters. Try adjusting your search criteria or clearing some filters.'
-                    : 'No security events have been recorded yet. Events will appear here as they are detected by your cameras.'
-                }
-                variant={hasActiveFilters ? 'muted' : 'default'}
-                actions={
-                  hasActiveFilters
-                    ? [
-                        {
-                          label: 'Clear All Filters',
-                          onClick: handleClearFilters,
-                          variant: 'secondary',
-                        },
-                      ]
-                    : undefined
-                }
-                testId="timeline-empty-state"
-              />
-            </div>
-          ) : viewMode === 'list' ? (
-            <>
-              {/* List View */}
-              <EventListView
-                events={listViewEvents.map((event) => ({
-                  id: event.id,
-                  camera_id: event.camera_id,
-                  camera_name: cameraNameMap.get(event.camera_id) || 'Unknown Camera',
-                  started_at: event.started_at,
-                  ended_at: event.ended_at,
-                  risk_score: event.risk_score || 0,
-                  risk_level: event.risk_level || getRiskLevel(event.risk_score || 0),
-                  summary: event.summary || null,
-                  thumbnail_url: event.thumbnail_url || null,
-                  reviewed: event.reviewed || false,
-                }))}
-                selectedIds={selectedEventIds}
-                onToggleSelection={handleToggleSelection}
-                onToggleSelectAll={handleToggleSelectAll}
-                onEventClick={(eventId) => setSelectedEventForModal(eventId)}
-                onMarkReviewed={(eventId) => void handleListMarkReviewed(eventId)}
-                sortField={listSortField}
-                sortDirection={listSortDirection}
-                onSort={handleListSort}
-              />
-
-              {/* Infinite Scroll Status */}
-              <InfiniteScrollStatus
-                sentinelRef={sentinelRef}
-                isLoading={isFetchingNextPage || isLoadingMore}
-                hasMore={hasNextPage}
-                error={scrollError}
-                onRetry={retry}
-                totalCount={totalCount}
-                loadedCount={listViewEvents.length}
-                endMessage="You've seen all events"
-                loadingMessage="Loading more events..."
-                className="mt-6"
-              />
-            </>
-          ) : (
-            <>
-              {/* Grid View */}
+          {/* Event List - wrapped with PullToRefresh on mobile (NEM-2970) */}
+          {(() => {
+            const eventListContent = loading ? (
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                {clusteredItemsWithNames.map((item) => {
-                  // Render cluster card for clusters
-                  if (isEventCluster(item)) {
-                    return (
-                      <EventClusterCard
-                        key={item.clusterId}
-                        cluster={item}
-                        onEventClick={(eventId) => setSelectedEventForModal(eventId)}
-                        hasCheckboxOverlay={false}
-                      />
-                    );
-                  }
-
-                  // Render regular event card for individual events
-                  const event = item;
-                  return (
-                    <div key={event.id} className="relative">
-                      {/* Selection Checkbox */}
-                      <div className="absolute left-2 top-2 z-10">
-                        <button
-                          onClick={() => handleToggleSelection(event.id)}
-                          className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 bg-[#1A1A1A]/90 backdrop-blur-sm transition-colors hover:border-gray-600 hover:bg-[#252525]/90"
-                          aria-label={
-                            selectedEventIds.has(event.id)
-                              ? `Deselect event ${event.id}`
-                              : `Select event ${event.id}`
-                          }
-                        >
-                          {selectedEventIds.has(event.id) ? (
-                            <CheckSquare className="h-5 w-5 text-[#76B900]" />
-                          ) : (
-                            <Square className="h-5 w-5 text-gray-400" />
-                          )}
-                        </button>
-                      </div>
-                      <EventCard {...getEventCardProps(event)} hasCheckboxOverlay />
-                    </div>
-                  );
-                })}
+                {Array.from({ length: 6 }, (_, i) => (
+                  <EventCardSkeleton key={i} />
+                ))}
               </div>
+            ) : error ? (
+              <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20">
+                <div className="text-center">
+                  <p className="mb-2 text-lg font-semibold text-red-400">Error Loading Events</p>
+                  <SafeErrorMessage message={error} size="sm" color="gray" />
+                </div>
+              </div>
+            ) : filteredEvents.length === 0 ? (
+              <div className="rounded-lg border border-gray-800 bg-[#1F1F1F]">
+                <EmptyState
+                  icon={Clock}
+                  title="No Events Found"
+                  description={
+                    hasActiveFilters
+                      ? 'No events match your current filters. Try adjusting your search criteria or clearing some filters.'
+                      : 'No security events have been recorded yet. Events will appear here as they are detected by your cameras.'
+                  }
+                  variant={hasActiveFilters ? 'muted' : 'default'}
+                  actions={
+                    hasActiveFilters
+                      ? [
+                          {
+                            label: 'Clear All Filters',
+                            onClick: handleClearFilters,
+                            variant: 'secondary',
+                          },
+                        ]
+                      : undefined
+                  }
+                  testId="timeline-empty-state"
+                />
+              </div>
+            ) : viewMode === 'list' ? (
+              <>
+                {/* List View */}
+                <EventListView
+                  events={listViewEvents.map((event) => ({
+                    id: event.id,
+                    camera_id: event.camera_id,
+                    camera_name: cameraNameMap.get(event.camera_id) || 'Unknown Camera',
+                    started_at: event.started_at,
+                    ended_at: event.ended_at,
+                    risk_score: event.risk_score || 0,
+                    risk_level: event.risk_level || getRiskLevel(event.risk_score || 0),
+                    summary: event.summary || null,
+                    thumbnail_url: event.thumbnail_url || null,
+                    reviewed: event.reviewed || false,
+                  }))}
+                  selectedIds={selectedEventIds}
+                  onToggleSelection={handleToggleSelection}
+                  onToggleSelectAll={handleToggleSelectAll}
+                  onEventClick={(eventId) => setSelectedEventForModal(eventId)}
+                  onMarkReviewed={(eventId) => void handleListMarkReviewed(eventId)}
+                  sortField={listSortField}
+                  sortDirection={listSortDirection}
+                  onSort={handleListSort}
+                />
 
-              {/* Infinite Scroll Status */}
-              <InfiniteScrollStatus
-                sentinelRef={sentinelRef}
-                isLoading={isFetchingNextPage || isLoadingMore}
-                hasMore={hasNextPage}
-                error={scrollError}
-                onRetry={retry}
-                totalCount={totalCount}
-                loadedCount={filteredEvents.length}
-                endMessage="You've seen all events"
-                loadingMessage="Loading more events..."
-                className="mt-6"
-              />
-            </>
-          )}
+                {/* Infinite Scroll Status */}
+                <InfiniteScrollStatus
+                  sentinelRef={sentinelRef}
+                  isLoading={isFetchingNextPage || isLoadingMore}
+                  hasMore={hasNextPage}
+                  error={scrollError}
+                  onRetry={retry}
+                  totalCount={totalCount}
+                  loadedCount={listViewEvents.length}
+                  endMessage="You've seen all events"
+                  loadingMessage="Loading more events..."
+                  className="mt-6"
+                />
+              </>
+            ) : (
+              <>
+                {/* Grid View */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                  {clusteredItemsWithNames.map((item) => {
+                    // Render cluster card for clusters
+                    if (isEventCluster(item)) {
+                      return (
+                        <EventClusterCard
+                          key={item.clusterId}
+                          cluster={item}
+                          onEventClick={(eventId) => setSelectedEventForModal(eventId)}
+                          hasCheckboxOverlay={false}
+                        />
+                      );
+                    }
+
+                    // Render regular event card for individual events
+                    const event = item;
+                    return (
+                      <div key={event.id} className="relative">
+                        {/* Selection Checkbox */}
+                        <div className="absolute left-2 top-2 z-10">
+                          <button
+                            onClick={() => handleToggleSelection(event.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 bg-[#1A1A1A]/90 backdrop-blur-sm transition-colors hover:border-gray-600 hover:bg-[#252525]/90"
+                            aria-label={
+                              selectedEventIds.has(event.id)
+                                ? `Deselect event ${event.id}`
+                                : `Select event ${event.id}`
+                            }
+                          >
+                            {selectedEventIds.has(event.id) ? (
+                              <CheckSquare className="h-5 w-5 text-[#76B900]" />
+                            ) : (
+                              <Square className="h-5 w-5 text-gray-400" />
+                            )}
+                          </button>
+                        </div>
+                        <EventCard {...getEventCardProps(event)} hasCheckboxOverlay />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Infinite Scroll Status */}
+                <InfiniteScrollStatus
+                  sentinelRef={sentinelRef}
+                  isLoading={isFetchingNextPage || isLoadingMore}
+                  hasMore={hasNextPage}
+                  error={scrollError}
+                  onRetry={retry}
+                  totalCount={totalCount}
+                  loadedCount={filteredEvents.length}
+                  endMessage="You've seen all events"
+                  loadingMessage="Loading more events..."
+                  className="mt-6"
+                />
+              </>
+            );
+
+            // Wrap with PullToRefresh on mobile devices
+            if (isMobile) {
+              return (
+                <PullToRefresh
+                  onRefresh={handlePullToRefresh}
+                  isRefreshing={loading}
+                  disabled={loading || isSearchMode}
+                >
+                  {eventListContent}
+                </PullToRefresh>
+              );
+            }
+
+            return eventListContent;
+          })()}
         </>
       )}
 
