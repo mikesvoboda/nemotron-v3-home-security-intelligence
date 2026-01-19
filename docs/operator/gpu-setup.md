@@ -1,5 +1,9 @@
 # GPU Setup Guide
 
+![GPU Setup Architecture](../images/gpu-setup-architecture.png)
+
+_AI-generated visualization of GPU container architecture showing NVIDIA GPU, driver layer, container runtime, and AI services._
+
 > Complete guide to configuring NVIDIA GPUs for container-based AI inference.
 
 **Time to read:** ~15 min

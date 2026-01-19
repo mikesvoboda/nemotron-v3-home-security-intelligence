@@ -18,6 +18,10 @@ source_refs:
 
 # Real-Time Architecture
 
+![WebSocket Architecture](../images/websocket-architecture.png)
+
+_AI-generated visualization of WebSocket real-time architecture with Redis pub/sub hub and client connections._
+
 This document details the real-time communication architecture of the Home Security Intelligence system, including WebSocket channels, Redis pub/sub backbone, event broadcasting patterns, and message formats.
 
 ---

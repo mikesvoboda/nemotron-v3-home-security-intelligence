@@ -29,6 +29,10 @@ source_refs:
 
 # AI Pipeline Architecture
 
+![AI Pipeline Hero](../images/ai-pipeline-hero.png)
+
+_AI-generated visualization of the AI detection pipeline from camera input through RT-DETRv2 and Nemotron to security events._
+
 ![AI Pipeline Flow](../images/architecture/ai-pipeline-flow.png)
 
 _End-to-end AI pipeline showing FileWatcher, queues, RT-DETRv2, batch aggregation, Nemotron analysis, and event creation._
@@ -366,6 +370,10 @@ curl http://localhost:8090/health
 ---
 
 ## Batching Logic
+
+![Batch Processing](../images/batch-processing.png)
+
+_AI-generated visualization of the 90-second batch processing timeline showing detection accumulation and LLM analysis._
 
 The BatchAggregator groups related detections into batches before sending them to the LLM for analysis. This provides better context and reduces noise.
 
