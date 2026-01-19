@@ -1,5 +1,7 @@
 import { clsx } from 'clsx';
 
+import Skeleton from '../Skeleton';
+
 export interface ChartSkeletonProps {
   /** Height in pixels (default: 300) */
   height?: number;
@@ -9,6 +11,7 @@ export interface ChartSkeletonProps {
 
 /**
  * ChartSkeleton component - Loading placeholder for chart components
+ * Uses shimmer animation for smooth loading experience
  */
 export default function ChartSkeleton({ height = 300, className }: ChartSkeletonProps) {
   return (
@@ -25,7 +28,7 @@ export default function ChartSkeleton({ height = 300, className }: ChartSkeleton
         data-testid="chart-skeleton-y-axis"
       >
         {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-3 w-8 animate-pulse rounded bg-gray-800" />
+          <Skeleton key={i} variant="text" width={32} height={12} animation="shimmer" />
         ))}
       </div>
 
@@ -37,7 +40,7 @@ export default function ChartSkeleton({ height = 300, className }: ChartSkeleton
         {[65, 45, 80, 55, 70, 40, 85, 60, 75, 50].map((h, i) => (
           <div
             key={i}
-            className="w-full animate-pulse rounded-t bg-gray-800"
+            className="w-full animate-shimmer rounded-t"
             style={{ height: `${h}%` }}
           />
         ))}
@@ -46,7 +49,7 @@ export default function ChartSkeleton({ height = 300, className }: ChartSkeleton
       {/* X-axis labels */}
       <div className="ml-14 mr-4 mt-4 flex justify-around" data-testid="chart-skeleton-x-axis">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-          <div key={i} className="h-3 w-6 animate-pulse rounded bg-gray-800" />
+          <Skeleton key={i} variant="text" width={24} height={12} animation="shimmer" />
         ))}
       </div>
     </div>

@@ -90,11 +90,24 @@ describe('Skeleton', () => {
       expect(skeleton).toHaveClass('animate-pulse');
     });
 
-    it('uses animation duration of 1.5s', () => {
-      render(<Skeleton data-testid="skeleton" />);
+    it('applies pulse animation when animation="pulse"', () => {
+      render(<Skeleton animation="pulse" data-testid="skeleton" />);
       const skeleton = screen.getByTestId('skeleton');
-      // Animation is applied via CSS class, check the class exists
       expect(skeleton).toHaveClass('animate-pulse');
+    });
+
+    it('applies shimmer animation when animation="shimmer"', () => {
+      render(<Skeleton animation="shimmer" data-testid="skeleton" />);
+      const skeleton = screen.getByTestId('skeleton');
+      expect(skeleton).toHaveClass('animate-shimmer');
+      expect(skeleton).not.toHaveClass('animate-pulse');
+    });
+
+    it('applies no animation when animation="none"', () => {
+      render(<Skeleton animation="none" data-testid="skeleton" />);
+      const skeleton = screen.getByTestId('skeleton');
+      expect(skeleton).not.toHaveClass('animate-pulse');
+      expect(skeleton).not.toHaveClass('animate-shimmer');
     });
   });
 

@@ -13,6 +13,7 @@ import { updateEvent } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
 import SafeErrorMessage from '../common/SafeErrorMessage';
+import { AlertCardSkeleton } from '../common/skeletons';
 import EventCard from '../events/EventCard';
 import EventDetailModal from '../events/EventDetailModal';
 
@@ -462,11 +463,10 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
 
       {/* Alert List */}
       {isLoading ? (
-        <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
-          <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-[#76B900]" />
-            <p className="text-gray-400">Loading alerts...</p>
-          </div>
+        <div className="space-y-4">
+          {Array.from({ length: 6 }, (_, i) => (
+            <AlertCardSkeleton key={i} />
+          ))}
         </div>
       ) : isError ? (
         <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20">

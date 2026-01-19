@@ -14,8 +14,8 @@ describe('StatsCardSkeleton', () => {
     render(<StatsCardSkeleton />);
     const icon = screen.getByTestId('stats-card-skeleton-icon');
     expect(icon).toBeInTheDocument();
-    // Icon should be circular
-    expect(icon).toHaveClass('rounded-full');
+    // Icon should be rounded-lg (matching StatsRow cards)
+    expect(icon).toHaveClass('rounded-lg');
   });
 
   it('includes label skeleton', () => {
@@ -39,7 +39,7 @@ describe('StatsCardSkeleton', () => {
   it('has NVIDIA dark theme styling', () => {
     render(<StatsCardSkeleton />);
     const skeleton = screen.getByTestId('stats-card-skeleton');
-    expect(skeleton).toHaveClass('bg-card');
+    expect(skeleton).toHaveClass('bg-[#1A1A1A]');
     expect(skeleton).toHaveClass('border-gray-800');
   });
 
@@ -47,5 +47,12 @@ describe('StatsCardSkeleton', () => {
     render(<StatsCardSkeleton />);
     const skeleton = screen.getByTestId('stats-card-skeleton');
     expect(skeleton).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('uses shimmer animation for loading effect', () => {
+    render(<StatsCardSkeleton />);
+    const skeleton = screen.getByTestId('stats-card-skeleton');
+    const shimmerElements = skeleton.querySelectorAll('.animate-shimmer');
+    expect(shimmerElements.length).toBeGreaterThan(0);
   });
 });

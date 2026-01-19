@@ -6,6 +6,11 @@ import { clsx } from 'clsx';
 export type SkeletonVariant = 'text' | 'circular' | 'rectangular';
 
 /**
+ * Animation type for skeleton loading effect
+ */
+export type SkeletonAnimation = 'pulse' | 'shimmer' | 'none';
+
+/**
  * Skeleton component props
  */
 export interface SkeletonProps {
@@ -30,6 +35,14 @@ export interface SkeletonProps {
    * @default 1
    */
   lines?: number;
+  /**
+   * Animation type for the loading effect
+   * - pulse: Opacity-based fade animation (default)
+   * - shimmer: Left-to-right gradient sweep animation
+   * - none: No animation (static placeholder)
+   * @default 'pulse'
+   */
+  animation?: SkeletonAnimation;
   /**
    * Additional CSS classes
    */
@@ -59,6 +72,15 @@ const defaultDimensions: Record<SkeletonVariant, { width?: string; height?: stri
 };
 
 /**
+ * Mapping of animation type to CSS classes
+ */
+const animationClasses: Record<SkeletonAnimation, string> = {
+  pulse: 'animate-pulse',
+  shimmer: 'animate-shimmer',
+  none: '',
+};
+
+/**
  * Skeleton loading placeholder component
  *
  * Used to display a loading state placeholder while content is being fetched.
@@ -84,6 +106,7 @@ export default function Skeleton({
   width,
   height,
   lines = 1,
+  animation = 'pulse',
   className,
   'data-testid': dataTestId,
 }: SkeletonProps) {
@@ -115,7 +138,12 @@ export default function Skeleton({
         : finalHeight
       : defaults.height;
 
-  const baseClasses = clsx('bg-gray-800', 'animate-pulse', variantClasses[variant], className);
+  const baseClasses = clsx(
+    'bg-gray-800',
+    animationClasses[animation],
+    variantClasses[variant],
+    className
+  );
 
   // Render multiple lines if lines > 1
   if (lines > 1) {

@@ -2,21 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================
-   Reduced Motion Preferences
-   Respects prefers-reduced-motion OS setting
-   ============================================ */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
 /* NVIDIA Theme Custom Utilities */
 
 @layer base {
@@ -369,6 +354,27 @@
   /* Loading skeleton */
   .skeleton {
     @apply animate-pulse rounded bg-gray-800;
+  }
+
+  /* Shimmer animation for loading skeletons */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgb(31 31 31) 0%,
+      rgb(55 55 55) 50%,
+      rgb(31 31 31) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
   }
 
   /* Enhanced slider/range input styles for dark theme visibility */
