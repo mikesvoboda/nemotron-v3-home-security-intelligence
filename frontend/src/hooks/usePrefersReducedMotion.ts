@@ -13,6 +13,17 @@ import { useState, useEffect } from 'react';
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 /**
+ * Get the initial reduced motion preference value.
+ * Safe for SSR - returns false if window is not available.
+ */
+function getInitialValue(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) {
+    return false;
+  }
+  return window.matchMedia(REDUCED_MOTION_QUERY).matches;
+}
+
+/**
  * Custom hook that detects user's reduced motion preference
  *
  * @returns boolean indicating if user prefers reduced motion
@@ -31,8 +42,8 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
  * ```
  */
 export function usePrefersReducedMotion(): boolean {
-  // Initialize with false for SSR safety, then update on mount
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  // Use lazy initialization to get the correct initial value
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(getInitialValue);
 
   useEffect(() => {
     // Check if we're in a browser environment
@@ -42,9 +53,6 @@ export function usePrefersReducedMotion(): boolean {
 
     // Create media query
     const mediaQuery = window.matchMedia(REDUCED_MOTION_QUERY);
-
-    // Set initial value from media query
-    setPrefersReducedMotion(mediaQuery.matches);
 
     // Define handler for media query changes
     const handleChange = (event: MediaQueryListEvent) => {
