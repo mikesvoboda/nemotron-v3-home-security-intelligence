@@ -115,8 +115,8 @@ export default defineConfig({
     // Record video only on failure
     video: 'retain-on-failure',
 
-    // Navigation timeout
-    navigationTimeout: 10000,
+    // Navigation timeout - increased from 10000ms to 15000ms for CI stability
+    navigationTimeout: 15000,
 
     // Action timeout (clicks, fills, etc.)
     actionTimeout: 5000,

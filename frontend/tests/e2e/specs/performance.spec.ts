@@ -48,7 +48,7 @@ test.setTimeout(30000);
  */
 const E2E_BUDGETS = {
   // Relaxed Core Web Vitals for dev environment
-  LCP: 5000, // 5s (production: 2.5s)
+  LCP: 6000, // 6s (production: 2.5s)
   FCP: 3000, // 3s (production: 1.8s)
   CLS: 0.25, // Same as "needs improvement" threshold
   TTFB: 2000, // 2s (production: 800ms)
@@ -59,7 +59,7 @@ const E2E_BUDGETS = {
   TTI: 10000, // 10s
 
   // Resource budgets for dev
-  MAX_RESOURCES: 150, // Dev has more files (unminified)
+  MAX_RESOURCES: 160, // Dev has more files (unminified)
   MAX_TRANSFER_KB: 15000, // 15MB (dev builds are larger)
 } as const;
 

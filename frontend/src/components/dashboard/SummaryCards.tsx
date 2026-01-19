@@ -3,13 +3,27 @@
  *
  * Displays LLM-generated narrative summaries of high/critical security events.
  * Styled using Tremor components for consistency with the rest of the dashboard.
+ *
+ * @see NEM-2923 - Bullet list support
+ * @see NEM-2926 - Visual hierarchy improvements
  */
 
-import { Badge, Card, Flex, Text, Title } from '@tremor/react';
+import { Card, Text } from '@tremor/react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
-import { CheckCircle, Clock, Calendar } from 'lucide-react';
+import { ChevronRight, Clock, Calendar, RefreshCw } from 'lucide-react';
+import { useMemo } from 'react';
 
-import type { Summary, SummaryType } from '@/types/summary';
+import { SeverityBadge } from './SeverityBadge';
+import { SummaryBulletList } from './SummaryBulletList';
+
+import type { Summary, SummaryBulletPoint, SummaryType } from '@/types/summary';
+
+import {
+  calculateSeverity,
+  shouldShowCriticalAnimation,
+  type SeverityResult,
+} from '@/utils/severityCalculator';
+import { extractBulletPoints } from '@/utils/summaryParser';
 
 interface SummaryCardProps {
   /** Type of summary: 'hourly' or 'daily' */
@@ -18,36 +32,92 @@ interface SummaryCardProps {
   summary: Summary | null;
   /** Whether the summary is loading */
   isLoading?: boolean;
+  /** Callback when "View Full Summary" is clicked */
+  onViewFull?: (summary: Summary) => void;
+}
+
+/**
+ * Format the time window for display.
+ * For hourly: "Last 60 minutes"
+ * For daily: "Since midnight"
+ */
+function formatTimeWindow(type: SummaryType): string {
+  return type === 'hourly' ? 'Last 60 minutes' : 'Since midnight';
 }
 
 /**
  * Single summary card component.
  */
-export function SummaryCard({ type, summary, isLoading }: SummaryCardProps) {
+export function SummaryCard({ type, summary, isLoading, onViewFull }: SummaryCardProps) {
   const isHourly = type === 'hourly';
   const title = isHourly ? 'Hourly Summary' : 'Daily Summary';
   const Icon = isHourly ? Clock : Calendar;
 
-  // Determine card styling based on event count
-  const hasEvents = summary && summary.eventCount > 0;
+  // Calculate severity based on content, risk score, and event count
+  const severity: SeverityResult = summary
+    ? calculateSeverity({
+        content: summary.content,
+        eventCount: summary.eventCount,
+        maxRiskScore: summary.maxRiskScore,
+      })
+    : calculateSeverity({ content: '', eventCount: 0 });
 
-  // Format "updated X ago" text
-  const updatedText = summary?.generatedAt
-    ? `Updated ${formatDistanceToNow(parseISO(summary.generatedAt), { addSuffix: false })} ago`
+  // Determine if critical animation should show
+  const showCriticalAnimation = summary && shouldShowCriticalAnimation(severity.level);
+
+  // Format "X minutes ago" text for footer
+  const generatedAgoText = summary?.generatedAt
+    ? `Generated ${formatDistanceToNow(parseISO(summary.generatedAt), { addSuffix: false })} ago`
     : '';
+
+  // Format event count for footer
+  const eventCountText = summary
+    ? `${summary.eventCount} ${summary.eventCount === 1 ? 'event' : 'events'} analyzed`
+    : '';
+
+  // Get bullet points: use backend-provided data or extract from content
+  const bulletPoints: SummaryBulletPoint[] = useMemo(() => {
+    if (!summary) return [];
+    // Prefer backend-provided bullet points
+    if (summary.bulletPoints && summary.bulletPoints.length > 0) {
+      return summary.bulletPoints;
+    }
+    // Fall back to extracting from prose content
+    return extractBulletPoints(summary.content);
+  }, [summary]);
+
+  // Determine whether to show bullet list or prose fallback
+  const hasBulletPoints = bulletPoints.length > 0;
 
   // Loading state
   if (isLoading) {
     return (
       <Card
-        className="mb-4 border-l-4 border-gray-800 bg-[#1A1A1A]"
-        style={{ borderLeftColor: '#d1d5db' }} // gray-300
+        className="relative mb-4 overflow-hidden border-gray-800 bg-[#1A1A1A] pl-4"
         data-testid={`summary-card-${type}-loading`}
       >
-        <Flex justifyContent="start" className="mb-2 gap-2">
-          <Icon className="h-5 w-5 text-gray-500" aria-hidden="true" />
-          <Title className="text-white">{title}</Title>
-        </Flex>
+        {/* Left accent bar - gray for loading */}
+        <div
+          className="absolute bottom-0 left-0 top-0 w-1"
+          style={{ backgroundColor: '#d1d5db' }}
+          data-testid="accent-bar"
+        />
+
+        {/* Header */}
+        <div className="mb-3">
+          {/* Top row: placeholder badge + time window */}
+          <div className="mb-2 flex items-center justify-between">
+            <div className="h-6 w-24 animate-pulse rounded-full bg-gray-700" />
+            <span className="text-xs text-gray-400">{formatTimeWindow(type)}</span>
+          </div>
+          {/* Title row */}
+          <div className="flex items-center gap-2">
+            <Icon className="h-5 w-5 text-gray-500" aria-hidden="true" />
+            <span className="text-sm font-medium text-gray-300">{title}</span>
+          </div>
+        </div>
+
+        {/* Content skeleton */}
         <div className="animate-pulse" data-testid="loading-skeleton">
           <div className="mb-2 h-4 w-3/4 rounded bg-gray-700" />
           <div className="h-4 w-1/2 rounded bg-gray-700" />
@@ -60,14 +130,31 @@ export function SummaryCard({ type, summary, isLoading }: SummaryCardProps) {
   if (!summary) {
     return (
       <Card
-        className="mb-4 border-l-4 border-gray-800 bg-[#1A1A1A]"
-        style={{ borderLeftColor: '#6b7280' }} // gray-500
+        className="relative mb-4 overflow-hidden border-gray-800 bg-[#1A1A1A] pl-4"
         data-testid={`summary-card-${type}-empty`}
       >
-        <Flex justifyContent="start" className="mb-2 gap-2">
-          <Icon className="h-5 w-5 text-gray-500" aria-hidden="true" />
-          <Title className="text-white">{title}</Title>
-        </Flex>
+        {/* Left accent bar - gray for empty */}
+        <div
+          className="absolute bottom-0 left-0 top-0 w-1"
+          style={{ backgroundColor: '#6b7280' }}
+          data-testid="accent-bar"
+        />
+
+        {/* Header */}
+        <div className="mb-3">
+          {/* Top row: No badge for empty state + time window */}
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs text-gray-500">No data</span>
+            <span className="text-xs text-gray-400">{formatTimeWindow(type)}</span>
+          </div>
+          {/* Title row */}
+          <div className="flex items-center gap-2">
+            <Icon className="h-5 w-5 text-gray-500" aria-hidden="true" />
+            <span className="text-sm font-medium text-gray-300">{title}</span>
+          </div>
+        </div>
+
+        {/* Empty state message */}
         <Text className="italic text-gray-500">
           No summary available yet. Summaries are generated every 5 minutes.
         </Text>
@@ -75,41 +162,89 @@ export function SummaryCard({ type, summary, isLoading }: SummaryCardProps) {
     );
   }
 
-  // Determine border color class - use inline style to ensure it applies over Tremor defaults
-  const borderColor = hasEvents ? '#f59e0b' : '#10b981'; // amber-500 : emerald-500
+  // Build card class with optional critical animation
+  const cardClass = showCriticalAnimation
+    ? 'relative mb-4 overflow-hidden border-gray-800 bg-[#1A1A1A] pl-4 animate-pulse-critical'
+    : 'relative mb-4 overflow-hidden border-gray-800 bg-[#1A1A1A] pl-4';
 
   return (
     <Card
-      className="mb-4 border-l-4 border-gray-800 bg-[#1A1A1A]"
-      style={{ borderLeftColor: borderColor }}
+      className={cardClass}
       data-testid={`summary-card-${type}`}
-      data-has-events={hasEvents ? 'true' : 'false'}
+      data-severity={severity.level}
     >
+      {/* Left accent bar */}
+      <div
+        className="absolute bottom-0 left-0 top-0 w-1"
+        style={{ backgroundColor: severity.borderColor }}
+        data-testid="accent-bar"
+      />
+
       {/* Header */}
-      <Flex justifyContent="between" alignItems="center" className="mb-3">
-        <Flex justifyContent="start" className="gap-2">
+      <div className="mb-3">
+        {/* Top row: Severity badge (left) + Time window (right) */}
+        <div className="mb-2 flex items-center justify-between">
+          <SeverityBadge
+            level={severity.level}
+            count={summary.eventCount}
+            pulsing={showCriticalAnimation ?? undefined}
+            size="sm"
+            data-testid={`summary-badge-${type}`}
+          />
+          <span className="text-xs text-gray-400" data-testid={`time-window-${type}`}>
+            {formatTimeWindow(type)}
+          </span>
+        </div>
+        {/* Title row */}
+        <div className="flex items-center gap-2">
           <Icon className="h-5 w-5 text-gray-400" aria-hidden="true" />
-          <Title className="text-white">{title}</Title>
-        </Flex>
-        <Badge
-          color={hasEvents ? 'amber' : 'emerald'}
-          icon={hasEvents ? undefined : CheckCircle}
-          data-testid={`summary-badge-${type}`}
-        >
-          {hasEvents
-            ? `${summary.eventCount} event${summary.eventCount > 1 ? 's' : ''}`
-            : 'All clear'}
-        </Badge>
-      </Flex>
+          <span className="text-sm font-medium text-gray-300">{title}</span>
+        </div>
+      </div>
 
       {/* Content */}
       <div data-testid={`summary-content-${type}`}>
-        <Text className="leading-relaxed text-gray-300">{summary.content}</Text>
+        {hasBulletPoints ? (
+          <SummaryBulletList
+            bullets={bulletPoints}
+            maxItems={4}
+            testIdPrefix={`summary-bullet-${type}`}
+          />
+        ) : (
+          <Text className="line-clamp-3 leading-relaxed text-gray-300">{summary.content}</Text>
+        )}
       </div>
 
+      {/* View Full Summary Link */}
+      {onViewFull && (
+        <button
+          type="button"
+          onClick={() => onViewFull(summary)}
+          className="mt-3 flex items-center gap-1 text-sm text-blue-400 transition-colors hover:text-blue-300"
+          data-testid={`summary-view-full-${type}`}
+        >
+          <span>View Full Summary</span>
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
+
       {/* Footer */}
-      <div data-testid={`summary-updated-${type}`}>
-        <Text className="mt-3 text-sm text-gray-500">{updatedText}</Text>
+      <div
+        className="mt-4 flex items-center justify-between border-t border-gray-800 pt-3"
+        data-testid={`summary-footer-${type}`}
+      >
+        {/* Generated time with refresh icon */}
+        <div
+          className="flex items-center gap-1.5 text-xs text-gray-500"
+          data-testid={`summary-updated-${type}`}
+        >
+          <RefreshCw className="h-3 w-3" aria-hidden="true" />
+          <span>{generatedAgoText}</span>
+        </div>
+        {/* Event count */}
+        <span className="text-xs text-gray-500" data-testid={`summary-event-count-${type}`}>
+          {eventCountText}
+        </span>
       </div>
     </Card>
   );
@@ -122,6 +257,8 @@ interface SummaryCardsProps {
   daily: Summary | null;
   /** Whether summaries are loading */
   isLoading?: boolean;
+  /** Callback when "View Full Summary" is clicked */
+  onViewFull?: (summary: Summary) => void;
 }
 
 /**
@@ -137,11 +274,11 @@ interface SummaryCardsProps {
  * }
  * ```
  */
-export function SummaryCards({ hourly, daily, isLoading }: SummaryCardsProps) {
+export function SummaryCards({ hourly, daily, isLoading, onViewFull }: SummaryCardsProps) {
   return (
     <div className="space-y-4" data-testid="summary-cards">
-      <SummaryCard type="hourly" summary={hourly} isLoading={isLoading} />
-      <SummaryCard type="daily" summary={daily} isLoading={isLoading} />
+      <SummaryCard type="hourly" summary={hourly} isLoading={isLoading} onViewFull={onViewFull} />
+      <SummaryCard type="daily" summary={daily} isLoading={isLoading} onViewFull={onViewFull} />
     </div>
   );
 }

@@ -480,3 +480,10 @@ export type {
 // Dashboard summaries hooks (NEM-2895)
 export { useSummaries, default as useSummariesDefault } from './useSummaries';
 export type { UseSummariesOptions } from './useSummaries';
+
+// Summary expansion state persistence (NEM-2925)
+export { useSummaryExpansion, default as useSummaryExpansionDefault } from './useSummaryExpansion';
+export type {
+  UseSummaryExpansionOptions,
+  UseSummaryExpansionReturn,
+} from './useSummaryExpansion';

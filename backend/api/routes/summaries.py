@@ -10,16 +10,26 @@ Endpoints:
     GET /api/summaries/daily  - Returns latest daily summary only
 """
 
+from __future__ import annotations
+
+from typing import Any
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_cache_service_dep
-from backend.api.schemas.summaries import LatestSummariesResponse, SummaryResponse
+from backend.api.schemas.summaries import (
+    BulletPointSchema,
+    LatestSummariesResponse,
+    StructuredSummarySchema,
+    SummaryResponse,
+)
 from backend.core.database import get_db
 from backend.core.logging import get_logger
 from backend.models.summary import Summary, SummaryType
 from backend.repositories.summary_repository import SummaryRepository
 from backend.services.cache_service import DEFAULT_TTL, CacheService
+from backend.services.summary_parser import parse_summary_content
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/summaries", tags=["summaries"])
@@ -33,17 +43,53 @@ CACHE_KEY_HOURLY = "summaries:hourly"
 CACHE_KEY_DAILY = "summaries:daily"
 
 
+def _build_events_for_parser() -> list[dict[str, Any]]:
+    """Build events list for the summary parser.
+
+    Since we don't have access to full event data at query time
+    (only the summary content), we return an empty list. The parser
+    will extract what it can from the content text itself.
+
+    Returns:
+        Empty list (events not available at query time)
+    """
+    return []
+
+
 def _summary_to_response(summary: Summary | None) -> SummaryResponse | None:
     """Convert a Summary model to a SummaryResponse schema.
+
+    Parses the summary content to extract structured data including
+    bullet points, focus areas, dominant patterns, and weather conditions.
 
     Args:
         summary: Summary model instance or None
 
     Returns:
-        SummaryResponse if summary exists, None otherwise
+        SummaryResponse with structured data if summary exists, None otherwise
     """
     if summary is None:
         return None
+
+    # Parse the summary content to extract structured data
+    events = _build_events_for_parser()
+    parsed = parse_summary_content(summary.content, events=events)
+
+    # Convert parsed data to Pydantic schema
+    structured = StructuredSummarySchema(
+        bullet_points=[
+            BulletPointSchema(
+                icon=bp.icon,
+                text=bp.text,
+                severity=bp.severity,
+            )
+            for bp in parsed.bullet_points
+        ],
+        focus_areas=parsed.focus_areas,
+        dominant_patterns=parsed.dominant_patterns,
+        max_risk_score=parsed.max_risk_score,
+        weather_conditions=parsed.weather_conditions,
+    )
 
     return SummaryResponse(
         id=summary.id,
@@ -52,6 +98,7 @@ def _summary_to_response(summary: Summary | None) -> SummaryResponse | None:
         window_start=summary.window_start,
         window_end=summary.window_end,
         generated_at=summary.generated_at,
+        structured=structured,
     )
 
 
