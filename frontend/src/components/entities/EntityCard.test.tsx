@@ -1,8 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import EntityCard, { type EntityCardProps } from './EntityCard';
+import EntityCard, { type EntityCardProps, getActivityTier, tierStyles, type ActivityTier } from './EntityCard';
 
 describe('EntityCard', () => {
   // Base time for consistent testing
@@ -144,7 +144,7 @@ describe('EntityCard', () => {
       const images = screen.queryAllByRole('img');
       expect(images.length).toBe(0);
       // Should show placeholder icon
-      const placeholder = screen.getByTestId('entity-placeholder');
+      const placeholder = screen.getByTestId('placeholder-thumbnail');
       expect(placeholder).toBeInTheDocument();
     });
 
@@ -152,6 +152,94 @@ describe('EntityCard', () => {
       render(<EntityCard {...mockPersonProps} />);
       const img = screen.getByRole('img');
       expect(img).toHaveAttribute('alt', expect.stringContaining('Person'));
+    });
+
+    it('renders person placeholder for person entities without thumbnail', () => {
+      const personNoThumbnail = { ...mockPersonProps, thumbnail_url: null };
+      const { container } = render(<EntityCard {...personNoThumbnail} />);
+      // Should show User icon for person type
+      const userIcon = container.querySelector(
+        '[data-testid="placeholder-thumbnail"] svg.lucide-user'
+      );
+      expect(userIcon).toBeInTheDocument();
+    });
+
+    it('renders vehicle placeholder for vehicle entities without thumbnail', () => {
+      const { container } = render(<EntityCard {...mockVehicleProps} />);
+      // Should show Car icon for vehicle type
+      const carIcon = container.querySelector(
+        '[data-testid="placeholder-thumbnail"] svg.lucide-car'
+      );
+      expect(carIcon).toBeInTheDocument();
+    });
+
+    it('maintains aspect ratio in thumbnail container', () => {
+      render(<EntityCard {...mockVehicleProps} />);
+      const thumbnailContainer = screen.getByTestId('thumbnail-container');
+      expect(thumbnailContainer).toHaveClass('h-32');
+      expect(thumbnailContainer).toHaveClass('overflow-hidden');
+    });
+  });
+
+  describe('image error fallback', () => {
+    it('falls back to placeholder when image fails to load', () => {
+      render(<EntityCard {...mockPersonProps} />);
+
+      // Initially shows the image
+      const img = screen.getByRole('img');
+      expect(img).toBeInTheDocument();
+
+      // Trigger image error
+      fireEvent.error(img);
+
+      // Should now show placeholder instead
+      const placeholder = screen.getByTestId('placeholder-thumbnail');
+      expect(placeholder).toBeInTheDocument();
+      expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    });
+
+    it('shows person placeholder on image error for person entity', () => {
+      const { container } = render(<EntityCard {...mockPersonProps} />);
+
+      // Trigger image error
+      const img = screen.getByRole('img');
+      fireEvent.error(img);
+
+      // Should show User icon
+      const userIcon = container.querySelector(
+        '[data-testid="placeholder-thumbnail"] svg.lucide-user'
+      );
+      expect(userIcon).toBeInTheDocument();
+    });
+
+    it('shows vehicle placeholder on image error for vehicle entity', () => {
+      const vehicleWithThumbnail = {
+        ...mockVehicleProps,
+        thumbnail_url: 'https://example.com/vehicle.jpg',
+      };
+      const { container } = render(<EntityCard {...vehicleWithThumbnail} />);
+
+      // Trigger image error
+      const img = screen.getByRole('img');
+      fireEvent.error(img);
+
+      // Should show Car icon
+      const carIcon = container.querySelector(
+        '[data-testid="placeholder-thumbnail"] svg.lucide-car'
+      );
+      expect(carIcon).toBeInTheDocument();
+    });
+
+    it('does not display text like "undefined" or "thumbnail" on error', () => {
+      render(<EntityCard {...mockPersonProps} />);
+
+      // Trigger image error
+      const img = screen.getByRole('img');
+      fireEvent.error(img);
+
+      // Should not display problematic text
+      expect(screen.queryByText(/undefined/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/^thumbnail$/i)).not.toBeInTheDocument();
     });
   });
 
@@ -323,6 +411,197 @@ describe('EntityCard', () => {
       };
       render(<EntityCard {...manyCameras} />);
       expect(screen.getByText('8')).toBeInTheDocument();
+    });
+  });
+
+  describe('activity tier calculation (getActivityTier)', () => {
+    // Use a fixed timestamp for testing
+    const NOW = new Date('2024-01-15T12:00:00Z').getTime();
+
+    describe('hot tier', () => {
+      it('returns hot when 20+ sightings AND seen within 24 hours', () => {
+        const lastSeen = new Date(NOW - 12 * 60 * 60 * 1000).toISOString(); // 12 hours ago
+        expect(getActivityTier(20, lastSeen, NOW)).toBe('hot');
+        expect(getActivityTier(25, lastSeen, NOW)).toBe('hot');
+        expect(getActivityTier(100, lastSeen, NOW)).toBe('hot');
+      });
+
+      it('returns hot when exactly at 24 hour boundary', () => {
+        const lastSeen = new Date(NOW - 24 * 60 * 60 * 1000).toISOString(); // exactly 24 hours ago
+        expect(getActivityTier(20, lastSeen, NOW)).toBe('hot');
+      });
+
+      it('does not return hot if less than 20 sightings even if recent', () => {
+        const lastSeen = new Date(NOW - 1 * 60 * 60 * 1000).toISOString(); // 1 hour ago
+        expect(getActivityTier(19, lastSeen, NOW)).not.toBe('hot');
+      });
+
+      it('does not return hot if more than 24 hours old even with many sightings', () => {
+        const lastSeen = new Date(NOW - 25 * 60 * 60 * 1000).toISOString(); // 25 hours ago
+        expect(getActivityTier(20, lastSeen, NOW)).not.toBe('hot');
+      });
+    });
+
+    describe('active tier', () => {
+      it('returns active when 10+ sightings regardless of time', () => {
+        const lastSeen = new Date(NOW - 72 * 60 * 60 * 1000).toISOString(); // 72 hours ago
+        expect(getActivityTier(10, lastSeen, NOW)).toBe('active');
+        expect(getActivityTier(15, lastSeen, NOW)).toBe('active');
+      });
+
+      it('returns active when seen within 48 hours regardless of count', () => {
+        const lastSeen = new Date(NOW - 24 * 60 * 60 * 1000).toISOString(); // 24 hours ago
+        expect(getActivityTier(5, lastSeen, NOW)).toBe('active');
+        expect(getActivityTier(9, lastSeen, NOW)).toBe('active');
+      });
+
+      it('returns active when exactly at 48 hour boundary', () => {
+        const lastSeen = new Date(NOW - 48 * 60 * 60 * 1000).toISOString(); // exactly 48 hours ago
+        expect(getActivityTier(3, lastSeen, NOW)).toBe('active');
+      });
+    });
+
+    describe('normal tier', () => {
+      it('returns normal when 3+ sightings but older than 48 hours', () => {
+        const lastSeen = new Date(NOW - 72 * 60 * 60 * 1000).toISOString(); // 72 hours ago
+        expect(getActivityTier(3, lastSeen, NOW)).toBe('normal');
+        expect(getActivityTier(5, lastSeen, NOW)).toBe('normal');
+        expect(getActivityTier(9, lastSeen, NOW)).toBe('normal');
+      });
+    });
+
+    describe('cold tier', () => {
+      it('returns cold when less than 3 sightings and older than 48 hours', () => {
+        const lastSeen = new Date(NOW - 72 * 60 * 60 * 1000).toISOString(); // 72 hours ago
+        expect(getActivityTier(0, lastSeen, NOW)).toBe('cold');
+        expect(getActivityTier(1, lastSeen, NOW)).toBe('cold');
+        expect(getActivityTier(2, lastSeen, NOW)).toBe('cold');
+      });
+    });
+
+    describe('tier priority', () => {
+      it('hot takes priority over active when both conditions met', () => {
+        const lastSeen = new Date(NOW - 1 * 60 * 60 * 1000).toISOString(); // 1 hour ago
+        // 20 sightings within 24 hours qualifies for both hot (20+ && <24h) and active (10+)
+        expect(getActivityTier(20, lastSeen, NOW)).toBe('hot');
+      });
+    });
+  });
+
+  describe('activity tier styling', () => {
+    it('applies scale-105 class to hot tier entities', () => {
+      const { container } = render(<EntityCard {...mockPersonProps} activity_tier="hot" />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('scale-105');
+    });
+
+    it('applies ring-2 and ring-red-500 classes to hot tier entities', () => {
+      const { container } = render(<EntityCard {...mockPersonProps} activity_tier="hot" />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('ring-2');
+      expect(card).toHaveClass('ring-red-500');
+    });
+
+    it('applies z-10 class to hot tier entities', () => {
+      const { container } = render(<EntityCard {...mockPersonProps} activity_tier="hot" />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('z-10');
+    });
+
+    it('applies ring-1 and ring-[#76B900] classes to active tier entities', () => {
+      const { container } = render(<EntityCard {...mockPersonProps} activity_tier="active" />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('ring-1');
+      expect(card).toHaveClass('ring-[#76B900]');
+    });
+
+    it('does not apply extra styling to normal tier entities', () => {
+      const { container } = render(<EntityCard {...mockPersonProps} activity_tier="normal" />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).not.toHaveClass('ring-1');
+      expect(card).not.toHaveClass('ring-2');
+      expect(card).not.toHaveClass('scale-105');
+      expect(card).not.toHaveClass('opacity-70');
+    });
+
+    it('applies opacity-70 class to cold tier entities', () => {
+      const { container } = render(<EntityCard {...mockPersonProps} activity_tier="cold" />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('opacity-70');
+    });
+
+    it('sets data-activity-tier attribute on card', () => {
+      const { container } = render(<EntityCard {...mockPersonProps} activity_tier="hot" />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveAttribute('data-activity-tier', 'hot');
+    });
+  });
+
+  describe('activity tier badges', () => {
+    it('displays HOT badge for hot tier entities', () => {
+      render(<EntityCard {...mockPersonProps} activity_tier="hot" />);
+      const hotBadge = screen.getByTestId('activity-badge-hot');
+      expect(hotBadge).toBeInTheDocument();
+      expect(hotBadge).toHaveTextContent('HOT');
+    });
+
+    it('HOT badge has animate-pulse class for animation', () => {
+      render(<EntityCard {...mockPersonProps} activity_tier="hot" />);
+      const hotBadge = screen.getByTestId('activity-badge-hot');
+      expect(hotBadge).toHaveClass('animate-pulse');
+    });
+
+    it('displays Active badge for active tier entities', () => {
+      render(<EntityCard {...mockPersonProps} activity_tier="active" />);
+      const activeBadge = screen.getByTestId('activity-badge-active');
+      expect(activeBadge).toBeInTheDocument();
+      expect(activeBadge).toHaveTextContent('Active');
+    });
+
+    it('does not display activity badge for normal tier entities', () => {
+      render(<EntityCard {...mockPersonProps} activity_tier="normal" />);
+      expect(screen.queryByTestId('activity-badge-hot')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('activity-badge-active')).not.toBeInTheDocument();
+    });
+
+    it('does not display activity badge for cold tier entities', () => {
+      render(<EntityCard {...mockPersonProps} activity_tier="cold" />);
+      expect(screen.queryByTestId('activity-badge-hot')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('activity-badge-active')).not.toBeInTheDocument();
+    });
+
+    it('does not display activity badge when activity_tier is undefined', () => {
+      render(<EntityCard {...mockPersonProps} />);
+      expect(screen.queryByTestId('activity-badge-hot')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('activity-badge-active')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('tierStyles constant', () => {
+    it('contains all activity tier keys', () => {
+      const tiers: ActivityTier[] = ['hot', 'active', 'normal', 'cold'];
+      tiers.forEach((tier) => {
+        expect(tierStyles).toHaveProperty(tier);
+      });
+    });
+
+    it('hot tier includes scale-105 and ring-2 ring-red-500', () => {
+      expect(tierStyles.hot).toContain('scale-105');
+      expect(tierStyles.hot).toContain('ring-2');
+      expect(tierStyles.hot).toContain('ring-red-500');
+    });
+
+    it('active tier includes ring-1 and ring-[#76B900]', () => {
+      expect(tierStyles.active).toContain('ring-1');
+      expect(tierStyles.active).toContain('ring-[#76B900]');
+    });
+
+    it('normal tier has empty styling', () => {
+      expect(tierStyles.normal).toBe('');
+    });
+
+    it('cold tier includes opacity-70', () => {
+      expect(tierStyles.cold).toContain('opacity-70');
     });
   });
 });

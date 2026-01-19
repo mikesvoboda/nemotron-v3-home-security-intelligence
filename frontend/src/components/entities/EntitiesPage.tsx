@@ -4,6 +4,7 @@ import {
   Calendar,
   Car,
   Database,
+  HelpCircle,
   Loader2,
   RefreshCw,
   Shield,
@@ -13,8 +14,8 @@ import {
 import { useCallback, useMemo, useState } from 'react';
 
 import EntitiesEmptyState from './EntitiesEmptyState';
-import EntityCard from './EntityCard';
 import EntityDetailModal from './EntityDetailModal';
+import EntityGroupSection from './EntityGroupSection';
 import EntityStatsCard from './EntityStatsCard';
 import { useCamerasQuery } from '../../hooks/useCamerasQuery';
 import { useDateRangeState, type DateRangePreset } from '../../hooks/useDateRangeState';
@@ -254,6 +255,25 @@ export default function EntitiesPage() {
   // Count entities by type (from filtered entities)
   const personCount = filteredByTrust.filter((e) => e.entity_type === 'person').length;
   const vehicleCount = filteredByTrust.filter((e) => e.entity_type === 'vehicle').length;
+
+  // Group entities by type: People, Vehicles, Unknown
+  const groupedEntities = useMemo(() => {
+    const people: typeof filteredByTrust = [];
+    const vehicles: typeof filteredByTrust = [];
+    const unknown: typeof filteredByTrust = [];
+
+    filteredByTrust.forEach((entity) => {
+      if (entity.entity_type === 'person') {
+        people.push(entity);
+      } else if (entity.entity_type === 'vehicle') {
+        vehicles.push(entity);
+      } else {
+        unknown.push(entity);
+      }
+    });
+
+    return { people, vehicles, unknown };
+  }, [filteredByTrust]);
 
   // Count entities by trust status for filter dropdown
   const trustCounts = useMemo(() => {
@@ -615,24 +635,37 @@ export default function EntitiesPage() {
           </div>
         )
       ) : (
-        /* Entity grid with infinite scroll */
+        /* Entity groups with infinite scroll */
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredByTrust.map((entity) => (
-              <EntityCard
-                key={entity.id}
-                id={entity.id}
-                entity_type={entity.entity_type}
-                first_seen={entity.first_seen}
-                last_seen={entity.last_seen}
-                appearance_count={entity.appearance_count}
-                cameras_seen={entity.cameras_seen}
-                thumbnail_url={entity.thumbnail_url}
-                trust_status={getEntityTrustStatus(entity.id, entity.trust_status)}
-                onClick={handleEntityClick}
-              />
-            ))}
-          </div>
+          {/* People Section */}
+          <EntityGroupSection
+            title="People"
+            icon={User}
+            entities={groupedEntities.people}
+            defaultCollapsed={false}
+            onEntityClick={handleEntityClick}
+            getEntityTrustStatus={getEntityTrustStatus}
+          />
+
+          {/* Vehicles Section */}
+          <EntityGroupSection
+            title="Vehicles"
+            icon={Car}
+            entities={groupedEntities.vehicles}
+            defaultCollapsed={false}
+            onEntityClick={handleEntityClick}
+            getEntityTrustStatus={getEntityTrustStatus}
+          />
+
+          {/* Unknown Section - collapsed by default */}
+          <EntityGroupSection
+            title="Unknown"
+            icon={HelpCircle}
+            entities={groupedEntities.unknown}
+            defaultCollapsed={true}
+            onEntityClick={handleEntityClick}
+            getEntityTrustStatus={getEntityTrustStatus}
+          />
 
           {/* Infinite Scroll Status */}
           <InfiniteScrollStatus

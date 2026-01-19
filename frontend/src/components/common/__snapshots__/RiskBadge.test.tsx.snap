@@ -3,7 +3,7 @@
 exports[`RiskBadge > snapshots > renders critical level with animation 1`] = `
 <span
   aria-label="Risk level: Critical"
-  class="inline-flex items-center gap-1 rounded-full font-medium text-sm px-2.5 py-1 bg-risk-critical/10 text-risk-critical animate-pulse-critical"
+  class="inline-flex items-center gap-1 rounded-full font-medium text-sm px-2.5 py-1 bg-risk-critical/10 text-risk-critical motion-safe:animate-pulse-critical"
   data-testid="risk-badge"
   role="status"
 >
@@ -71,7 +71,7 @@ exports[`RiskBadge > snapshots > renders critical level without animation 1`] = 
 exports[`RiskBadge > snapshots > renders critical risk level correctly 1`] = `
 <span
   aria-label="Risk level: Critical"
-  class="inline-flex items-center gap-1 rounded-full font-medium text-sm px-2.5 py-1 bg-risk-critical/10 text-risk-critical animate-pulse-critical"
+  class="inline-flex items-center gap-1 rounded-full font-medium text-sm px-2.5 py-1 bg-risk-critical/10 text-risk-critical motion-safe:animate-pulse-critical"
   data-testid="risk-badge"
   role="status"
 >

@@ -83,27 +83,27 @@ describe('RiskBadge', () => {
     it('applies pulse-critical animation for critical level when animated is true', () => {
       render(<RiskBadge level="critical" animated={true} />);
       const badge = screen.getByText('Critical');
-      // Uses animate-pulse-critical (box-shadow based) instead of animate-pulse (opacity based)
-      // to maintain WCAG 2.1 AA color contrast during animation
-      expect(badge.closest('span')).toHaveClass('animate-pulse-critical');
+      // Uses motion-safe:animate-pulse-critical (box-shadow based) instead of animate-pulse (opacity based)
+      // to maintain WCAG 2.1 AA color contrast during animation and respect prefers-reduced-motion
+      expect(badge.closest('span')).toHaveClass('motion-safe:animate-pulse-critical');
     });
 
     it('does not apply pulse animation for critical level when animated is false', () => {
       render(<RiskBadge level="critical" animated={false} />);
       const badge = screen.getByText('Critical');
-      expect(badge.closest('span')).not.toHaveClass('animate-pulse-critical');
+      expect(badge.closest('span')).not.toHaveClass('motion-safe:animate-pulse-critical');
     });
 
     it('does not apply pulse animation for non-critical levels', () => {
       render(<RiskBadge level="low" animated={true} />);
       const badge = screen.getByText('Low');
-      expect(badge.closest('span')).not.toHaveClass('animate-pulse-critical');
+      expect(badge.closest('span')).not.toHaveClass('motion-safe:animate-pulse-critical');
     });
 
     it('applies pulse-critical animation by default for critical level', () => {
       render(<RiskBadge level="critical" />);
       const badge = screen.getByText('Critical');
-      expect(badge.closest('span')).toHaveClass('animate-pulse-critical');
+      expect(badge.closest('span')).toHaveClass('motion-safe:animate-pulse-critical');
     });
   });
 
