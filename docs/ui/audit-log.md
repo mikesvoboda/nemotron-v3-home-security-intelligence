@@ -1,5 +1,7 @@
 # Audit Log
 
+![Audit Log Screenshot](../images/screenshots/audit-log.png)
+
 The Audit Log page provides a comprehensive record of all security-sensitive operations performed on the system, enabling accountability, compliance tracking, and security monitoring.
 
 ## What You're Looking At

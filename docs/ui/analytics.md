@@ -1,5 +1,7 @@
 # Analytics
 
+![Analytics Screenshot](../images/screenshots/analytics.png)
+
 The analytics dashboard provides comprehensive insights into detection patterns, risk trends, and camera performance over time.
 
 ## What You're Looking At

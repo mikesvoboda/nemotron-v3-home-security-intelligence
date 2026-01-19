@@ -1,5 +1,7 @@
 # System Logs
 
+![Logs Screenshot](../images/screenshots/logs.png)
+
 The centralized logging interface for viewing, filtering, and analyzing system logs from both backend services and frontend components.
 
 ## What You're Looking At

@@ -329,7 +329,9 @@ class TestDailySummaryGeneration:
             patch.object(generator, "_call_nemotron", new_callable=AsyncMock) as mock_nemotron,
         ):
             # Capture the time window arguments
-            async def capture_date_range(start: datetime, end: datetime):
+            async def capture_date_range(
+                start: datetime, end: datetime, *, eager_load_camera: bool = False
+            ):
                 nonlocal captured_start, captured_end
                 captured_start = start
                 captured_end = end
