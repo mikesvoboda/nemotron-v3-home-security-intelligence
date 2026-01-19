@@ -223,6 +223,10 @@ export default {
           '0%, 100%': { boxShadow: '0 0 10px rgba(118, 185, 0, 0.2)' },
           '50%': { boxShadow: '0 0 20px rgba(118, 185, 0, 0.4)' },
         },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
         // Critical risk pulse - uses box-shadow instead of opacity to maintain WCAG 2.1 AA contrast
         'pulse-critical': {
           '0%, 100%': { boxShadow: '0 0 8px rgba(255, 107, 107, 0.3)' },
@@ -261,6 +265,7 @@ export default {
         'fade-in': 'fade-in 0.2s ease-in',
         float: 'float 3s ease-in-out infinite',
         'ambient-pulse': 'ambient-pulse 2s ease-in-out infinite',
+        shimmer: 'shimmer 1.5s ease-in-out infinite',
       },
     },
   },

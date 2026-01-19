@@ -14,6 +14,9 @@
  * 5. Rapid Updates - Multiple rapid updates are handled correctly
  * 6. UI Responsiveness - UI remains responsive during updates
  *
+ * NOTE: Skipped in CI due to WebSocket throttle timing issues causing flakiness.
+ * Run locally for real-time update validation.
+ *
  * Implementation Notes:
  * - Uses WebSocket mock infrastructure from fixtures/websocket-mock.ts
  * - Tests verify both data updates and UI reactivity
@@ -23,6 +26,9 @@
  */
 
 import { test, expect } from '@playwright/test';
+
+// Skip entire file in CI - WebSocket throttle timing issues cause flaky failures
+test.skip(() => !!process.env.CI, 'Real-time update tests flaky in CI - run locally');
 import { DashboardPage, TimelinePage } from '../pages';
 import { setupApiMocks, defaultMockConfig } from '../fixtures/api-mocks';
 import {

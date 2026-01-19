@@ -1,11 +1,13 @@
-import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import LogsDashboard from './LogsDashboard';
+import LogStatsSummary from './LogStatsSummary';
 import * as api from '../../services/api';
 
+import type { LogEntry as LogsTableLogEntry } from './LogsTable';
 import type { Camera, LogEntry, LogsResponse, LogStats } from '../../services/api';
 
 // Mock API module
@@ -792,5 +794,350 @@ describe('LogsDashboard', () => {
       expect(errorCard).toHaveClass('ring-2');
       expect(errorCard).toHaveClass('ring-red-500');
     });
+  });
+
+  describe('Tail Mode', () => {
+    it('shows tail mode toggle button', async () => {
+      renderWithRouter(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to process request')).toBeInTheDocument();
+      });
+
+      expect(screen.getByLabelText('Toggle tail mode')).toBeInTheDocument();
+    });
+
+    it('enables tail mode when clicking toggle button', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to process request')).toBeInTheDocument();
+      });
+
+      const tailButton = screen.getByLabelText('Toggle tail mode');
+      await user.click(tailButton);
+
+      // Should show visual indicator (pulsing dot or active state)
+      expect(tailButton).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('disables tail mode when clicking toggle button again', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to process request')).toBeInTheDocument();
+      });
+
+      const tailButton = screen.getByLabelText('Toggle tail mode');
+
+      // Enable tail mode
+      await user.click(tailButton);
+      expect(tailButton).toHaveAttribute('aria-pressed', 'true');
+
+      // Disable tail mode
+      await user.click(tailButton);
+      expect(tailButton).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('shows pulsing indicator when tail mode is active', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to process request')).toBeInTheDocument();
+      });
+
+      const tailButton = screen.getByLabelText('Toggle tail mode');
+      await user.click(tailButton);
+
+      // Should have pulsing animation class
+      const pulsingIndicator = screen.getByTestId('tail-mode-indicator');
+      expect(pulsingIndicator).toHaveClass('animate-pulse');
+    });
+
+    it('refreshes logs automatically when tail mode is enabled', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to process request')).toBeInTheDocument();
+      });
+
+      // Clear previous calls
+      vi.mocked(api.fetchLogs).mockClear();
+
+      const tailButton = screen.getByLabelText('Toggle tail mode');
+      await user.click(tailButton);
+
+      // Wait for auto-refresh interval (5 seconds)
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+
+      // Should have fetched logs again
+      expect(api.fetchLogs).toHaveBeenCalled();
+    });
+
+    it('stops auto-refresh when tail mode is disabled', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to process request')).toBeInTheDocument();
+      });
+
+      const tailButton = screen.getByLabelText('Toggle tail mode');
+
+      // Enable tail mode
+      await user.click(tailButton);
+
+      // Clear previous calls
+      vi.mocked(api.fetchLogs).mockClear();
+
+      // Disable tail mode
+      await user.click(tailButton);
+
+      // Advance time beyond refresh interval
+      act(() => {
+        vi.advanceTimersByTime(10000);
+      });
+
+      // Should not have fetched logs (auto-refresh stopped)
+      expect(api.fetchLogs).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Log Grouping', () => {
+    it('enables log grouping toggle', async () => {
+      renderWithRouter(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to process request')).toBeInTheDocument();
+      });
+
+      expect(screen.getByLabelText('Toggle log grouping')).toBeInTheDocument();
+    });
+
+    it('groups repeated logs when grouping is enabled', async () => {
+      // Create logs with repeated messages
+      const repeatedLogs: LogEntry[] = [
+        {
+          id: 1,
+          timestamp: '2024-01-01T10:00:00Z',
+          level: 'INFO',
+          component: 'api',
+          message: 'Health check passed',
+          camera_id: null,
+          event_id: null,
+          request_id: null,
+          detection_id: null,
+          duration_ms: null,
+          extra: null,
+          source: 'backend',
+        },
+        {
+          id: 2,
+          timestamp: '2024-01-01T10:01:00Z',
+          level: 'INFO',
+          component: 'api',
+          message: 'Health check passed',
+          camera_id: null,
+          event_id: null,
+          request_id: null,
+          detection_id: null,
+          duration_ms: null,
+          extra: null,
+          source: 'backend',
+        },
+        {
+          id: 3,
+          timestamp: '2024-01-01T10:02:00Z',
+          level: 'INFO',
+          component: 'api',
+          message: 'Health check passed',
+          camera_id: null,
+          event_id: null,
+          request_id: null,
+          detection_id: null,
+          duration_ms: null,
+          extra: null,
+          source: 'backend',
+        },
+      ];
+
+      // Reset the mock and set up the new response BEFORE rendering
+      vi.mocked(api.fetchLogs).mockReset();
+      vi.mocked(api.fetchLogs).mockResolvedValue({
+        items: repeatedLogs,
+        pagination: {
+          total: 3,
+          limit: 50,
+          offset: null,
+          cursor: null,
+          next_cursor: null,
+          has_more: false,
+        },
+      });
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter(<LogsDashboard />);
+
+      // Wait for the logs to appear (use getAllByText since there are multiple)
+      await waitFor(
+        () => {
+          const elements = screen.getAllByText('Health check passed');
+          expect(elements.length).toBeGreaterThan(0);
+        },
+        { timeout: 3000 }
+      );
+
+      // Enable grouping
+      const groupingToggle = screen.getByLabelText('Toggle log grouping');
+      await user.click(groupingToggle);
+
+      // Should show count badge "3x" for grouped messages
+      await waitFor(() => {
+        expect(screen.getByText('3x')).toBeInTheDocument();
+      });
+    });
+  });
+});
+
+describe('LogStatsSummary', () => {
+  const mockLogs: LogsTableLogEntry[] = [
+    {
+      id: 1,
+      timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 min ago
+      level: 'ERROR' as const,
+      component: 'api',
+      message: 'Error 1',
+      camera_id: null,
+      event_id: null,
+      request_id: null,
+      detection_id: null,
+      duration_ms: null,
+      extra: null,
+      source: 'backend',
+    },
+    {
+      id: 2,
+      timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(), // 45 min ago
+      level: 'ERROR' as const,
+      component: 'database',
+      message: 'Error 2',
+      camera_id: null,
+      event_id: null,
+      request_id: null,
+      detection_id: null,
+      duration_ms: null,
+      extra: null,
+      source: 'backend',
+    },
+    {
+      id: 3,
+      timestamp: new Date(Date.now() - 20 * 60 * 1000).toISOString(), // 20 min ago
+      level: 'WARNING' as const,
+      component: 'api',
+      message: 'Warning 1',
+      camera_id: null,
+      event_id: null,
+      request_id: null,
+      detection_id: null,
+      duration_ms: null,
+      extra: null,
+      source: 'backend',
+    },
+    {
+      id: 4,
+      timestamp: new Date(Date.now() - 90 * 60 * 1000).toISOString(), // 90 min ago (outside last hour)
+      level: 'ERROR' as const,
+      component: 'api',
+      message: 'Old Error',
+      camera_id: null,
+      event_id: null,
+      request_id: null,
+      detection_id: null,
+      duration_ms: null,
+      extra: null,
+      source: 'backend',
+    },
+    {
+      id: 5,
+      timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 min ago
+      level: 'INFO' as const,
+      component: 'api',
+      message: 'Info 1',
+      camera_id: null,
+      event_id: null,
+      request_id: null,
+      detection_id: null,
+      duration_ms: null,
+      extra: null,
+      source: 'backend',
+    },
+  ];
+
+  it('shows error count for last hour', () => {
+    render(<LogStatsSummary logs={mockLogs} />);
+
+    // Should show 2 errors (only from last hour)
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('Errors')).toBeInTheDocument();
+  });
+
+  it('shows warning count for last hour', () => {
+    render(<LogStatsSummary logs={mockLogs} />);
+
+    // Should show 1 warning
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('Warnings')).toBeInTheDocument();
+  });
+
+  it('shows total count for last hour', () => {
+    render(<LogStatsSummary logs={mockLogs} />);
+
+    // Should show 4 total logs in last hour (2 errors + 1 warning + 1 info)
+    expect(screen.getByText('4')).toBeInTheDocument();
+    expect(screen.getByText('Total')).toBeInTheDocument();
+  });
+
+  it('displays AlertCircle icon for errors', () => {
+    const { container } = render(<LogStatsSummary logs={mockLogs} />);
+
+    // AlertCircle should be rendered (check for red color)
+    const errorIcon = container.querySelector('.text-red-500');
+    expect(errorIcon).toBeInTheDocument();
+  });
+
+  it('displays AlertTriangle icon for warnings', () => {
+    const { container } = render(<LogStatsSummary logs={mockLogs} />);
+
+    // AlertTriangle should be rendered (check for yellow color)
+    const warningIcon = container.querySelector('.text-yellow-500');
+    expect(warningIcon).toBeInTheDocument();
+  });
+
+  it('displays Activity icon for total', () => {
+    const { container } = render(<LogStatsSummary logs={mockLogs} />);
+
+    // Activity should be rendered (check for gray color)
+    const totalIcon = container.querySelector('.text-gray-400');
+    expect(totalIcon).toBeInTheDocument();
+  });
+
+  it('handles empty logs array', () => {
+    render(<LogStatsSummary logs={[]} />);
+
+    // Should show all zeros
+    const zeros = screen.getAllByText('0');
+    expect(zeros.length).toBe(3); // errors, warnings, total
+  });
+
+  it('shows "Last hour" label', () => {
+    render(<LogStatsSummary logs={mockLogs} />);
+
+    expect(screen.getByText('Last hour')).toBeInTheDocument();
   });
 });

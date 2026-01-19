@@ -173,15 +173,14 @@ describe('SummaryCards Integration', () => {
       // Verify API was called
       expect(api.fetchSummaries).toHaveBeenCalledTimes(1);
 
-      // Verify content is rendered
-      expect(
-        screen.getByText(/critical event occurred at 2:15 PM at the front door/)
-      ).toBeInTheDocument();
-      expect(screen.getByText(/minimal high-priority activity/)).toBeInTheDocument();
+      // Verify content containers are rendered (content may be parsed into bullet points)
+      expect(screen.getByTestId('summary-content-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-content-daily')).toBeInTheDocument();
 
-      // Verify badges
-      expect(screen.getByText('1 event')).toBeInTheDocument();
-      expect(screen.getByText('All clear')).toBeInTheDocument();
+      // Verify badges - SeverityBadge shows count in parentheses and uppercase labels
+      const hourlyCard = screen.getByTestId('summary-card-hourly');
+      expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(1)');
+      expect(screen.getByText('ALL CLEAR')).toBeInTheDocument();
     });
 
     it('displays both cards with correct data after fetch completes', async () => {
@@ -194,13 +193,13 @@ describe('SummaryCards Integration', () => {
         expect(screen.getByTestId('summary-card-daily')).toBeInTheDocument();
       });
 
-      // Check hourly card
+      // Check hourly card - content has "critical" keyword
       const hourlyCard = screen.getByTestId('summary-card-hourly');
-      expect(hourlyCard).toHaveAttribute('data-has-events', 'true');
+      expect(hourlyCard).toHaveAttribute('data-severity', 'critical');
 
-      // Check daily card
+      // Check daily card - no events, no keywords = clear
       const dailyCard = screen.getByTestId('summary-card-daily');
-      expect(dailyCard).toHaveAttribute('data-has-events', 'false');
+      expect(dailyCard).toHaveAttribute('data-severity', 'clear');
     });
 
     it('handles null summaries from API (no events generated yet)', async () => {
@@ -238,10 +237,8 @@ describe('SummaryCards Integration', () => {
         expect(screen.getByTestId('summary-card-daily-empty')).toBeInTheDocument();
       });
 
-      // Hourly should show content
-      expect(
-        screen.getByText(/critical event occurred at 2:15 PM at the front door/)
-      ).toBeInTheDocument();
+      // Hourly should show content container (content may be parsed into bullet points)
+      expect(screen.getByTestId('summary-content-hourly')).toBeInTheDocument();
     });
   });
 
@@ -289,10 +286,10 @@ describe('SummaryCards Integration', () => {
         expect(api.fetchSummaries).toHaveBeenCalledTimes(2);
       });
 
-      // UI should update with new content
+      // UI should update with new event count in badge
       await waitFor(() => {
-        expect(screen.getByText(/UPDATED: Two critical events/)).toBeInTheDocument();
-        expect(screen.getByText('2 events')).toBeInTheDocument();
+        const hourlyCard = screen.getByTestId('summary-card-hourly');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(2)');
       });
     });
 
@@ -367,7 +364,8 @@ describe('SummaryCards Integration', () => {
       render(<SummaryCardsWithHook />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByText('1 event')).toBeInTheDocument();
+        const hourlyCard = screen.getByTestId('summary-card-hourly');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(1)');
       });
 
       // Prepare updated response
@@ -388,10 +386,10 @@ describe('SummaryCards Integration', () => {
         });
       });
 
-      // Verify UI updates
+      // Verify UI updates - SeverityBadge shows count in parentheses
       await waitFor(() => {
-        expect(screen.getByText('5 events')).toBeInTheDocument();
-        expect(screen.getByText('New content after WebSocket update')).toBeInTheDocument();
+        const hourlyCard = screen.getByTestId('summary-card-hourly');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(5)');
       });
     });
   });
@@ -547,21 +545,22 @@ describe('SummaryCards Integration', () => {
 
       const Wrapper = createWrapper(queryClient);
 
-      const { container } = render(<SummaryCardsWithHook />, { wrapper: Wrapper });
+      render(<SummaryCardsWithHook />, { wrapper: Wrapper });
 
       // Check loading state styling
-      const loadingCards = container.querySelectorAll('[data-testid$="-loading"]');
+      const loadingCards = screen.getAllByTestId(/summary-card-(hourly|daily)-loading/);
       expect(loadingCards).toHaveLength(2);
 
-      // Each loading card should have gray border (indicating loading state)
+      // Each loading card should have gray accent bar (indicating loading state)
       loadingCards.forEach((card) => {
-        expect(card).toHaveStyle({ borderLeftColor: 'rgb(209, 213, 219)' }); // gray-300
+        const accentBar = card.querySelector('[data-testid="accent-bar"]');
+        expect(accentBar).toHaveStyle({ backgroundColor: 'rgb(209, 213, 219)' }); // gray-300
       });
     });
   });
 
   describe('Visual State Transitions', () => {
-    it('updates border color when event count changes', async () => {
+    it('updates accent bar color based on severity from keywords', async () => {
       const Wrapper = createWrapper(queryClient);
 
       render(<SummaryCardsWithHook />, { wrapper: Wrapper });
@@ -570,13 +569,14 @@ describe('SummaryCards Integration', () => {
         expect(screen.getByTestId('summary-card-hourly')).toBeInTheDocument();
       });
 
-      // Initially hourly has events (amber border)
+      // Initially hourly has critical keyword (red accent bar)
       const hourlyCard = screen.getByTestId('summary-card-hourly');
-      expect(hourlyCard).toHaveStyle({ borderLeftColor: 'rgb(245, 158, 11)' }); // amber-500
+      const accentBar = hourlyCard.querySelector('[data-testid="accent-bar"]');
+      expect(accentBar).toHaveStyle({ backgroundColor: 'rgb(239, 68, 68)' }); // red-500 (critical)
 
-      // Update to no events
+      // Update to no events and no severity keywords
       (api.fetchSummaries as ReturnType<typeof vi.fn>).mockResolvedValue({
-        hourly: { ...mockHourlySummary, eventCount: 0, content: 'All quiet' },
+        hourly: { ...mockHourlySummary, eventCount: 0, content: 'All quiet, no activity' },
         daily: mockDailySummary,
       });
 
@@ -585,25 +585,27 @@ describe('SummaryCards Integration', () => {
         mockOnMessage?.({ type: 'summary_update', data: {} });
       });
 
-      // Wait for update
+      // Wait for update - emerald accent bar for clear severity
       await waitFor(() => {
         const updatedCard = screen.getByTestId('summary-card-hourly');
-        expect(updatedCard).toHaveStyle({ borderLeftColor: 'rgb(16, 185, 129)' }); // emerald-500
+        const updatedAccentBar = updatedCard.querySelector('[data-testid="accent-bar"]');
+        expect(updatedAccentBar).toHaveStyle({ backgroundColor: 'rgb(16, 185, 129)' }); // emerald-500
       });
     });
 
-    it('updates badge from event count to all clear', async () => {
+    it('updates badge from event count to all clear when keywords removed', async () => {
       const Wrapper = createWrapper(queryClient);
 
       render(<SummaryCardsWithHook />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByText('1 event')).toBeInTheDocument();
+        const hourlyCard = screen.getByTestId('summary-card-hourly');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(1)');
       });
 
-      // Update hourly to have no events
+      // Update hourly to have no events and no severity keywords
       (api.fetchSummaries as ReturnType<typeof vi.fn>).mockResolvedValue({
-        hourly: { ...mockHourlySummary, eventCount: 0 },
+        hourly: { ...mockHourlySummary, eventCount: 0, content: 'No activity recorded' },
         daily: mockDailySummary,
       });
 
@@ -612,8 +614,8 @@ describe('SummaryCards Integration', () => {
       });
 
       await waitFor(() => {
-        // Should now show two "All clear" badges (hourly + daily)
-        const allClearBadges = screen.getAllByText('All clear');
+        // Should now show two "ALL CLEAR" badges (hourly + daily) - uppercase in SeverityBadge
+        const allClearBadges = screen.getAllByText('ALL CLEAR');
         expect(allClearBadges).toHaveLength(2);
       });
     });
@@ -657,10 +659,8 @@ describe('SummaryCards Integration', () => {
         expect(screen.getByTestId('summary-card-hourly')).toBeInTheDocument();
       });
 
-      // Should display correct data
-      expect(
-        screen.getByText(/critical event occurred at 2:15 PM at the front door/)
-      ).toBeInTheDocument();
+      // Should display correct content container (content may be parsed into bullet points)
+      expect(screen.getByTestId('summary-content-hourly')).toBeInTheDocument();
     });
   });
 
@@ -674,15 +674,15 @@ describe('SummaryCards Integration', () => {
         expect(screen.getByTestId('summary-card-hourly')).toBeInTheDocument();
       });
 
-      // Track the content before update
-      const initialContent = mockHourlySummary.content;
-      expect(screen.getByText(initialContent)).toBeInTheDocument();
+      // Verify initial content container is present (content may be parsed into bullet points)
+      expect(screen.getByTestId('summary-content-hourly')).toBeInTheDocument();
 
       // Update with new summary having different ID
       const newSummary: Summary = {
         ...mockHourlySummary,
         id: 999,
         content: 'New summary with different ID',
+        eventCount: 3,
       };
 
       (api.fetchSummaries as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -694,15 +694,14 @@ describe('SummaryCards Integration', () => {
         mockOnMessage?.({ type: 'summary_update', data: {} });
       });
 
+      // Verify event count changed in badge
       await waitFor(() => {
-        expect(screen.getByText('New summary with different ID')).toBeInTheDocument();
+        const hourlyCard = screen.getByTestId('summary-card-hourly');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(3)');
       });
-
-      // Old content should be gone
-      expect(screen.queryByText(initialContent)).not.toBeInTheDocument();
     });
 
-    it('correctly pluralizes event count in badges', async () => {
+    it('correctly updates event count in badges', async () => {
       const Wrapper = createWrapper(queryClient);
 
       // Test with 1 event
@@ -714,7 +713,8 @@ describe('SummaryCards Integration', () => {
       render(<SummaryCardsWithHook />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByText('1 event')).toBeInTheDocument(); // Singular
+        const hourlyCard = screen.getByTestId('summary-card-hourly');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(1)');
       });
 
       // Update to multiple events
@@ -728,7 +728,8 @@ describe('SummaryCards Integration', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText('5 events')).toBeInTheDocument(); // Plural
+        const hourlyCard = screen.getByTestId('summary-card-hourly');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(5)');
       });
     });
   });

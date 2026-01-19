@@ -586,6 +586,55 @@ class TestSummaryToResponse:
         result = _summary_to_response(None)
         assert result is None
 
+    def test_includes_structured_data(
+        self,
+        mock_hourly_summary: MagicMock,
+    ) -> None:
+        """Test that structured data is included in response."""
+        from backend.api.routes.summaries import _summary_to_response
+
+        result = _summary_to_response(mock_hourly_summary)
+
+        assert result is not None
+        assert result.structured is not None
+        # Verify structured data has expected fields
+        assert hasattr(result.structured, "bullet_points")
+        assert hasattr(result.structured, "focus_areas")
+        assert hasattr(result.structured, "dominant_patterns")
+        assert hasattr(result.structured, "max_risk_score")
+        assert hasattr(result.structured, "weather_conditions")
+        # Lists should be initialized (may be empty)
+        assert isinstance(result.structured.bullet_points, list)
+        assert isinstance(result.structured.focus_areas, list)
+        assert isinstance(result.structured.dominant_patterns, list)
+        assert isinstance(result.structured.weather_conditions, list)
+
+    def test_structured_data_extracts_patterns_from_content(self) -> None:
+        """Test that structured data extracts patterns from summary content."""
+        from backend.api.routes.summaries import _summary_to_response
+
+        # Create a summary with content that contains known patterns
+        summary = MagicMock()
+        summary.id = 1
+        summary.summary_type = SummaryType.HOURLY.value
+        summary.content = "Person loitering at Beach Front Left during nighttime hours."
+        summary.event_count = 1
+        summary.event_ids = [101]
+        summary.window_start = datetime(2026, 1, 18, 14, 0, 0, tzinfo=UTC)
+        summary.window_end = datetime(2026, 1, 18, 15, 0, 0, tzinfo=UTC)
+        summary.generated_at = datetime(2026, 1, 18, 14, 55, 0, tzinfo=UTC)
+
+        result = _summary_to_response(summary)
+
+        assert result is not None
+        assert result.structured is not None
+        # Should extract camera name
+        assert "Beach Front Left" in result.structured.focus_areas
+        # Should extract pattern
+        assert "loitering" in result.structured.dominant_patterns
+        # Should extract weather condition
+        assert "nighttime" in result.structured.weather_conditions
+
 
 # =============================================================================
 # OpenAPI Documentation Tests

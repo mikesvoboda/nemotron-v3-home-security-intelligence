@@ -393,7 +393,8 @@ describe('DashboardLayout', () => {
       renderWithProviders(<DashboardLayout {...defaultProps} />);
 
       const mainContent = screen.getByTestId('main-content-area');
-      expect(mainContent).toHaveClass('lg:grid-cols-[2fr,1fr]');
+      // Updated grid ratio for better summary card space (NEM-2926)
+      expect(mainContent).toHaveClass('lg:grid-cols-[1.5fr,1fr]');
     });
 
     it('uses single column when only camera-grid is visible', () => {
@@ -410,7 +411,7 @@ describe('DashboardLayout', () => {
 
       // Should still have main content area but not the two-column class
       const mainContent = screen.getByTestId('main-content-area');
-      expect(mainContent).not.toHaveClass('lg:grid-cols-[2fr,1fr]');
+      expect(mainContent).not.toHaveClass('lg:grid-cols-[1.5fr,1fr]');
       expect(mainContent).toHaveClass('space-y-6');
     });
   });

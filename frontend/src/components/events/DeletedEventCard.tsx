@@ -32,6 +32,12 @@ export interface DeletedEventCardProps {
   isDeleting?: boolean;
   /** Additional CSS classes */
   className?: string;
+  /** Whether the event is selected (for bulk actions) */
+  isSelected?: boolean;
+  /** Callback when selection changes (for bulk actions) */
+  onSelectionChange?: (eventId: number, selected: boolean) => void;
+  /** Whether to show selection checkbox */
+  showSelection?: boolean;
 }
 
 /**
@@ -74,6 +80,9 @@ export default function DeletedEventCard({
   isRestoring = false,
   isDeleting = false,
   className = '',
+  isSelected = false,
+  onSelectionChange,
+  showSelection = false,
 }: DeletedEventCardProps) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
@@ -97,6 +106,10 @@ export default function DeletedEventCard({
 
   const handleCancelDelete = () => {
     setShowConfirmDialog(false);
+  };
+
+  const handleSelectionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onSelectionChange?.(event.id, e.target.checked);
   };
 
   return (
@@ -143,6 +156,20 @@ export default function DeletedEventCard({
 
       {/* Main Content */}
       <div className="flex gap-4 p-4">
+        {/* Selection Checkbox */}
+        {showSelection && (
+          <div className="flex flex-shrink-0 items-center">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={handleSelectionChange}
+              className="h-5 w-5 cursor-pointer rounded border-gray-600 bg-gray-800 text-primary focus:ring-2 focus:ring-primary/50 focus:ring-offset-0"
+              aria-label={`Select event ${event.id}`}
+              data-testid={`select-event-${event.id}`}
+            />
+          </div>
+        )}
+
         {/* Thumbnail */}
         <div className="flex-shrink-0">
           {event.thumbnail_url ? (

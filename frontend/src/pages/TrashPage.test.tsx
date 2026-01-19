@@ -5,7 +5,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -331,6 +331,541 @@ describe('TrashPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('1 event in trash')).toBeInTheDocument();
+    });
+  });
+
+  // ============================================================================
+  // Bulk Selection Tests
+  // ============================================================================
+
+  describe('Bulk Selection', () => {
+    it('shows checkboxes on each trash item', async () => {
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: mockEvents,
+        total: 2,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-event-1')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('select-event-2')).toBeInTheDocument();
+    });
+
+    it('toggles selection when checkbox is clicked', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: mockEvents,
+        total: 2,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-event-1')).toBeInTheDocument();
+      });
+
+      const checkbox1 = screen.getByTestId('select-event-1');
+      expect((checkbox1 as HTMLInputElement).checked).toBe(false);
+
+      await user.click(checkbox1);
+
+      expect((checkbox1 as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('shows bulk action bar when items are selected', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: mockEvents,
+        total: 2,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-event-1')).toBeInTheDocument();
+      });
+
+      // Bulk action bar should not be visible initially
+      expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument();
+
+      // Select an item
+      const checkbox1 = screen.getByTestId('select-event-1');
+      await user.click(checkbox1);
+
+      // Bulk action bar should now be visible
+      expect(screen.getByTestId('bulk-action-bar')).toBeInTheDocument();
+      expect(screen.getByText('1 event selected')).toBeInTheDocument();
+    });
+
+    it('shows correct count when multiple items are selected', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: mockEvents,
+        total: 2,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-event-1')).toBeInTheDocument();
+      });
+
+      // Select both items
+      await user.click(screen.getByTestId('select-event-1'));
+      await user.click(screen.getByTestId('select-event-2'));
+
+      expect(screen.getByText('2 events selected')).toBeInTheDocument();
+    });
+
+    it('clears selection when Clear button is clicked', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: mockEvents,
+        total: 2,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-event-1')).toBeInTheDocument();
+      });
+
+      // Select an item
+      await user.click(screen.getByTestId('select-event-1'));
+      expect(screen.getByTestId('bulk-action-bar')).toBeInTheDocument();
+
+      // Click clear
+      await user.click(screen.getByTestId('clear-selection-button'));
+
+      // Bulk action bar should be hidden
+      expect(screen.queryByTestId('bulk-action-bar')).not.toBeInTheDocument();
+    });
+
+    it('selects all items when Select All is clicked', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: mockEvents,
+        total: 2,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-all-button')).toBeInTheDocument();
+      });
+
+      // Click Select All
+      await user.click(screen.getByTestId('select-all-button'));
+
+      // Both checkboxes should be checked
+      const checkbox1 = screen.getByTestId('select-event-1');
+      const checkbox2 = screen.getByTestId('select-event-2');
+
+      expect((checkbox1 as HTMLInputElement).checked).toBe(true);
+      expect((checkbox2 as HTMLInputElement).checked).toBe(true);
+      expect(screen.getByText('2 events selected')).toBeInTheDocument();
+    });
+
+    it('deselects all when Deselect All is clicked', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: mockEvents,
+        total: 2,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-all-button')).toBeInTheDocument();
+      });
+
+      // Select all first
+      await user.click(screen.getByTestId('select-all-button'));
+
+      // Button text should change to "Deselect All"
+      expect(screen.getByTestId('select-all-button')).toHaveTextContent('Deselect All');
+
+      // Click Deselect All
+      await user.click(screen.getByTestId('select-all-button'));
+
+      // Checkboxes should be unchecked
+      const checkbox1 = screen.getByTestId('select-event-1');
+      const checkbox2 = screen.getByTestId('select-event-2');
+
+      expect((checkbox1 as HTMLInputElement).checked).toBe(false);
+      expect((checkbox2 as HTMLInputElement).checked).toBe(false);
+    });
+  });
+
+  // ============================================================================
+  // Bulk Restore Tests
+  // ============================================================================
+
+  describe('Bulk Restore', () => {
+    it('restores selected items when Restore Selected is clicked', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValue({
+        events: mockEvents,
+        total: 2,
+      });
+
+      vi.mocked(api.restoreEvent).mockResolvedValue({} as api.Event);
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-event-1')).toBeInTheDocument();
+      });
+
+      // Select both items
+      await user.click(screen.getByTestId('select-event-1'));
+      await user.click(screen.getByTestId('select-event-2'));
+
+      // Click Restore Selected
+      await user.click(screen.getByTestId('restore-selected-button'));
+
+      // Both items should be restored
+      await waitFor(() => {
+        expect(api.restoreEvent).toHaveBeenCalledWith(1);
+        expect(api.restoreEvent).toHaveBeenCalledWith(2);
+      });
+    });
+  });
+
+  // ============================================================================
+  // Bulk Delete Tests
+  // ============================================================================
+
+  describe('Bulk Delete', () => {
+    it('shows confirmation modal when Delete Selected is clicked', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: mockEvents,
+        total: 2,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-event-1')).toBeInTheDocument();
+      });
+
+      // Select both items
+      await user.click(screen.getByTestId('select-event-1'));
+      await user.click(screen.getByTestId('select-event-2'));
+
+      // Click Delete Selected
+      await user.click(screen.getByTestId('delete-selected-button'));
+
+      // Confirmation modal should appear
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Permanently Delete 2 Events\?/i)).toBeInTheDocument();
+    });
+
+    it('deletes selected items when confirmed', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValue({
+        events: mockEvents,
+        total: 2,
+      });
+
+      vi.mocked(api.permanentlyDeleteEvent).mockResolvedValue(undefined);
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-event-1')).toBeInTheDocument();
+      });
+
+      // Select both items
+      await user.click(screen.getByTestId('select-event-1'));
+      await user.click(screen.getByTestId('select-event-2'));
+
+      // Click Delete Selected
+      await user.click(screen.getByTestId('delete-selected-button'));
+
+      // Wait for modal
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Confirm deletion
+      const dialog = screen.getByRole('dialog');
+      const confirmButton = within(dialog).getByRole('button', { name: /delete forever/i });
+      await user.click(confirmButton);
+
+      // Both items should be deleted
+      await waitFor(() => {
+        expect(api.permanentlyDeleteEvent).toHaveBeenCalledWith(1);
+        expect(api.permanentlyDeleteEvent).toHaveBeenCalledWith(2);
+      });
+    });
+
+    it('closes modal when Cancel is clicked', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: mockEvents,
+        total: 1,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-event-1')).toBeInTheDocument();
+      });
+
+      // Select item
+      await user.click(screen.getByTestId('select-event-1'));
+
+      // Click Delete Selected
+      await user.click(screen.getByTestId('delete-selected-button'));
+
+      // Wait for modal
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Click Cancel
+      const dialog = screen.getByRole('dialog');
+      const cancelButton = within(dialog).getByRole('button', { name: /cancel/i });
+      await user.click(cancelButton);
+
+      // Modal should be closed - dialog should be gone
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  // ============================================================================
+  // Empty Trash Tests
+  // ============================================================================
+
+  describe('Empty Trash', () => {
+    it('shows Empty Trash button in header', async () => {
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: [createMockDeletedEvent()],
+        total: 1,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('empty-trash-button')).toBeInTheDocument();
+      });
+    });
+
+    it('shows confirmation modal when Empty Trash is clicked', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
+        events: mockEvents,
+        total: 2,
+      });
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('empty-trash-button')).toBeInTheDocument();
+      });
+
+      // Click Empty Trash
+      await user.click(screen.getByTestId('empty-trash-button'));
+
+      // Confirmation modal should appear
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Empty Trash\? \(2 events\)/i)).toBeInTheDocument();
+    });
+
+    it('deletes all items when Empty Trash is confirmed', async () => {
+      const user = userEvent.setup();
+      const mockEvents = [
+        createMockDeletedEvent({ id: 1 }),
+        createMockDeletedEvent({ id: 2 }),
+      ];
+
+      vi.mocked(api.fetchDeletedEvents).mockResolvedValue({
+        events: mockEvents,
+        total: 2,
+      });
+
+      vi.mocked(api.permanentlyDeleteEvent).mockResolvedValue(undefined);
+
+      const queryClient = createTestQueryClient();
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <TrashPage />
+        </QueryClientProvider>
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('empty-trash-button')).toBeInTheDocument();
+      });
+
+      // Click Empty Trash
+      await user.click(screen.getByTestId('empty-trash-button'));
+
+      // Wait for modal
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Confirm deletion
+      const dialog = screen.getByRole('dialog');
+      const confirmButton = within(dialog).getByRole('button', { name: /delete forever/i });
+      await user.click(confirmButton);
+
+      // All items should be deleted
+      await waitFor(() => {
+        expect(api.permanentlyDeleteEvent).toHaveBeenCalledWith(1);
+        expect(api.permanentlyDeleteEvent).toHaveBeenCalledWith(2);
+      });
     });
   });
 });

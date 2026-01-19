@@ -173,7 +173,7 @@ From `frontend/playwright.config.ts`:
 | `browsers`          | Chromium, Firefox, WebKit + visual-chromium|
 | `timeout`           | 15 seconds                                 |
 | `expect.timeout`    | 3 seconds                                  |
-| `navigationTimeout` | 10 seconds                                 |
+| `navigationTimeout` | 15 seconds                                 |
 | `actionTimeout`     | 5s (Chromium), 8s (Firefox/WebKit)         |
 | `retries`           | 2 (CI only)                                |
 | `workers`           | 4 (CI), unlimited (local)                  |

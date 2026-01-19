@@ -25,6 +25,10 @@ export interface AuditTableProps {
   error?: string | null;
   onRowClick?: (log: AuditEntry) => void;
   onPageChange?: (offset: number) => void;
+  onActorClick?: (actor: string) => void;
+  onActionClick?: (action: string) => void;
+  activeActorFilter?: string | null;
+  activeActionFilter?: string | null;
   className?: string;
 }
 
@@ -97,30 +101,71 @@ function formatAction(action: string): string {
 }
 
 /**
+ * Color mapping for specific action types
+ * Uses semantic colors to help users quickly identify action categories
+ */
+const ACTION_COLOR_MAP: Record<string, string> = {
+  // Rule actions
+  rule_created: 'bg-green-500/20 text-green-400 border-green-500/30',
+  rule_updated: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  rule_deleted: 'bg-red-500/20 text-red-400 border-red-500/30',
+  // Event actions
+  event_reviewed: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  event_dismissed: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+  // Camera actions
+  camera_created: 'bg-green-500/20 text-green-400 border-green-500/30',
+  camera_updated: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  camera_deleted: 'bg-red-500/20 text-red-400 border-red-500/30',
+  // Settings actions
+  settings_changed: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  settings_updated: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  // Media actions
+  media_exported: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+};
+
+/**
  * Returns the color classes for an action badge based on action type
  */
 function getActionBadgeClasses(action: string): string {
+  const lowerAction = action.toLowerCase();
+
+  // First check for exact match in color map
+  if (ACTION_COLOR_MAP[lowerAction]) {
+    return ACTION_COLOR_MAP[lowerAction];
+  }
+
+  // Fall back to pattern-based coloring
   const upperAction = action.toUpperCase();
 
   if (upperAction.includes('CREATE') || upperAction.includes('ADD')) {
-    return 'bg-green-500/10 text-green-400 border-green-500/20';
+    return 'bg-green-500/20 text-green-400 border-green-500/30';
   }
   if (
     upperAction.includes('UPDATE') ||
     upperAction.includes('EDIT') ||
-    upperAction.includes('MODIFY')
+    upperAction.includes('MODIFY') ||
+    upperAction.includes('CHANGE')
   ) {
-    return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+    return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
   }
   if (upperAction.includes('DELETE') || upperAction.includes('REMOVE')) {
-    return 'bg-red-500/10 text-red-400 border-red-500/20';
+    return 'bg-red-500/20 text-red-400 border-red-500/30';
+  }
+  if (upperAction.includes('REVIEW')) {
+    return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+  }
+  if (upperAction.includes('DISMISS')) {
+    return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+  }
+  if (upperAction.includes('EXPORT')) {
+    return 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30';
   }
   if (upperAction.includes('READ') || upperAction.includes('VIEW') || upperAction.includes('GET')) {
-    return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+    return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
   }
 
   // Default for other actions
-  return 'bg-gray-500/10 text-gray-300 border-gray-500/20';
+  return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
 }
 
 /**
@@ -156,6 +201,10 @@ export default function AuditTable({
   error = null,
   onRowClick,
   onPageChange,
+  onActorClick,
+  onActionClick,
+  activeActorFilter,
+  activeActionFilter,
   className = '',
 }: AuditTableProps) {
   // Calculate pagination info
@@ -302,19 +351,45 @@ export default function AuditTable({
 
                   {/* Actor */}
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
-                    <span className="font-semibold text-[#76B900]">{log.actor}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onActorClick?.(log.actor);
+                      }}
+                      className={clsx(
+                        'font-semibold transition-colors',
+                        activeActorFilter === log.actor
+                          ? 'text-[#76B900] underline decoration-[#76B900]/50 underline-offset-2'
+                          : 'text-[#76B900] hover:text-[#8CD100] hover:underline hover:underline-offset-2',
+                        onActorClick && 'cursor-pointer'
+                      )}
+                      aria-label={`Filter by actor: ${log.actor}`}
+                      title={`Click to filter by ${log.actor}`}
+                    >
+                      {log.actor}
+                    </button>
                   </td>
 
                   {/* Action */}
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
-                    <span
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onActionClick?.(log.action);
+                      }}
                       className={clsx(
-                        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                        getActionBadgeClasses(log.action)
+                        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all',
+                        getActionBadgeClasses(log.action),
+                        activeActionFilter === log.action && 'ring-2 ring-white/30 ring-offset-1 ring-offset-[#1F1F1F]',
+                        onActionClick && 'cursor-pointer hover:brightness-110'
                       )}
+                      aria-label={`Filter by action: ${formatAction(log.action)}`}
+                      title={`Click to filter by ${formatAction(log.action)}`}
                     >
                       {formatAction(log.action)}
-                    </span>
+                    </button>
                   </td>
 
                   {/* Resource */}
@@ -328,12 +403,17 @@ export default function AuditTable({
                   {/* IP Address */}
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
                     {log.ip_address ? (
-                      <span className="flex items-center gap-1.5 text-gray-400">
-                        <Globe className="h-3.5 w-3.5" />
-                        <span className="font-mono text-xs">{log.ip_address}</span>
+                      <span
+                        className="flex items-center gap-1.5 text-gray-400"
+                        title={log.ip_address}
+                      >
+                        <Globe className="h-3.5 w-3.5 flex-shrink-0" />
+                        <span className="max-w-[120px] truncate font-mono text-xs">
+                          {log.ip_address}
+                        </span>
                       </span>
                     ) : (
-                      <span className="text-gray-600">-</span>
+                      <span className="text-gray-600/50">-</span>
                     )}
                   </td>
 

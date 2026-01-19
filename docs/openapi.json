@@ -2652,6 +2652,44 @@
         "title": "BulkOperationStatus",
         "type": "string"
       },
+      "BulletPointSchema": {
+        "description": "Schema for a single bullet point in a structured summary.\n\nRepresents a visual bullet point for display in the dashboard UI,\nwith an icon, text content, and optional severity level.",
+        "example": {
+          "icon": "camera",
+          "severity": "high",
+          "text": "Activity at Beach Front Left: person detected"
+        },
+        "properties": {
+          "icon": {
+            "description": "Icon identifier (e.g., 'camera', 'alert-triangle')",
+            "title": "Icon",
+            "type": "string"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Severity level ('low', 'medium', 'high', 'critical')",
+            "title": "Severity"
+          },
+          "text": {
+            "description": "Text content of the bullet point",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "icon",
+          "text"
+        ],
+        "title": "BulletPointSchema",
+        "type": "object"
+      },
       "CalibrationDefaultsResponse": {
         "description": "Schema for calibration defaults response.\n\nReturns the system default threshold values.",
         "example": {
@@ -19339,13 +19377,107 @@
         "title": "StorageStatsResponse",
         "type": "object"
       },
+      "StructuredSummarySchema": {
+        "description": "Schema for structured summary data extracted from LLM content.\n\nContains categorized information extracted from the narrative summary\nfor display in the dashboard UI with visual elements.",
+        "example": {
+          "bullet_points": [
+            {
+              "icon": "camera",
+              "severity": "high",
+              "text": "Activity at Beach Front Left: person approaching"
+            },
+            {
+              "icon": "alert-circle",
+              "severity": "high",
+              "text": "Loitering behavior detected"
+            }
+          ],
+          "dominant_patterns": [
+            "loitering",
+            "obscured face"
+          ],
+          "focus_areas": [
+            "Beach Front Left",
+            "Dock Right"
+          ],
+          "max_risk_score": 85,
+          "weather_conditions": [
+            "nighttime"
+          ]
+        },
+        "properties": {
+          "bullet_points": {
+            "description": "List of bullet points for visual display",
+            "items": {
+              "$ref": "#/components/schemas/BulletPointSchema"
+            },
+            "title": "Bullet Points",
+            "type": "array"
+          },
+          "dominant_patterns": {
+            "description": "Behavior patterns detected (loitering, obscured face, etc.)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Dominant Patterns",
+            "type": "array"
+          },
+          "focus_areas": {
+            "description": "Camera names mentioned in the summary",
+            "items": {
+              "type": "string"
+            },
+            "title": "Focus Areas",
+            "type": "array"
+          },
+          "max_risk_score": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Maximum risk score from events (0-100)",
+            "title": "Max Risk Score"
+          },
+          "weather_conditions": {
+            "description": "Weather/environmental conditions (rainy, nighttime, etc.)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Weather Conditions",
+            "type": "array"
+          }
+        },
+        "title": "StructuredSummarySchema",
+        "type": "object"
+      },
       "SummaryResponse": {
-        "description": "Schema for a single summary (hourly or daily).\n\nRepresents an LLM-generated narrative summary of security events within\na specific time window.",
+        "description": "Schema for a single summary (hourly or daily).\n\nRepresents an LLM-generated narrative summary of security events within\na specific time window, with both raw content and structured data.",
         "example": {
           "content": "Over the past hour, one critical event occurred at 2:15 PM when an unrecognized person approached the front door. The individual remained at the door for approximately 45 seconds before leaving via the driveway.",
           "event_count": 1,
           "generated_at": "2026-01-18T14:55:00Z",
           "id": 1,
+          "structured": {
+            "bullet_points": [
+              {
+                "icon": "camera",
+                "severity": "critical",
+                "text": "Activity at front door: unrecognized person"
+              }
+            ],
+            "dominant_patterns": [],
+            "focus_areas": [
+              "Front Door"
+            ],
+            "max_risk_score": 85,
+            "weather_conditions": []
+          },
           "window_end": "2026-01-18T15:00:00Z",
           "window_start": "2026-01-18T14:00:00Z"
         },
@@ -19371,6 +19503,17 @@
             "description": "Summary ID",
             "title": "Id",
             "type": "integer"
+          },
+          "structured": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StructuredSummarySchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Structured data extracted from the summary content"
           },
           "window_end": {
             "description": "End of the time window covered",

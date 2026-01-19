@@ -8377,6 +8377,35 @@ export interface components {
          */
         BulkOperationStatus: "success" | "failed" | "skipped";
         /**
+         * BulletPointSchema
+         * @description Schema for a single bullet point in a structured summary.
+         *
+         *     Represents a visual bullet point for display in the dashboard UI,
+         *     with an icon, text content, and optional severity level.
+         * @example {
+         *       "icon": "camera",
+         *       "severity": "high",
+         *       "text": "Activity at Beach Front Left: person detected"
+         *     }
+         */
+        BulletPointSchema: {
+            /**
+             * Icon
+             * @description Icon identifier (e.g., 'camera', 'alert-triangle')
+             */
+            icon: string;
+            /**
+             * Severity
+             * @description Severity level ('low', 'medium', 'high', 'critical')
+             */
+            severity?: string | null;
+            /**
+             * Text
+             * @description Text content of the bullet point
+             */
+            text: string;
+        };
+        /**
          * CalibrationDefaultsResponse
          * @description Schema for calibration defaults response.
          *
@@ -19920,16 +19949,91 @@ export interface components {
             timestamp: string;
         };
         /**
+         * StructuredSummarySchema
+         * @description Schema for structured summary data extracted from LLM content.
+         *
+         *     Contains categorized information extracted from the narrative summary
+         *     for display in the dashboard UI with visual elements.
+         * @example {
+         *       "bullet_points": [
+         *         {
+         *           "icon": "camera",
+         *           "severity": "high",
+         *           "text": "Activity at Beach Front Left: person approaching"
+         *         },
+         *         {
+         *           "icon": "alert-circle",
+         *           "severity": "high",
+         *           "text": "Loitering behavior detected"
+         *         }
+         *       ],
+         *       "dominant_patterns": [
+         *         "loitering",
+         *         "obscured face"
+         *       ],
+         *       "focus_areas": [
+         *         "Beach Front Left",
+         *         "Dock Right"
+         *       ],
+         *       "max_risk_score": 85,
+         *       "weather_conditions": [
+         *         "nighttime"
+         *       ]
+         *     }
+         */
+        StructuredSummarySchema: {
+            /**
+             * Bullet Points
+             * @description List of bullet points for visual display
+             */
+            bullet_points?: components["schemas"]["BulletPointSchema"][];
+            /**
+             * Dominant Patterns
+             * @description Behavior patterns detected (loitering, obscured face, etc.)
+             */
+            dominant_patterns?: string[];
+            /**
+             * Focus Areas
+             * @description Camera names mentioned in the summary
+             */
+            focus_areas?: string[];
+            /**
+             * Max Risk Score
+             * @description Maximum risk score from events (0-100)
+             */
+            max_risk_score?: number | null;
+            /**
+             * Weather Conditions
+             * @description Weather/environmental conditions (rainy, nighttime, etc.)
+             */
+            weather_conditions?: string[];
+        };
+        /**
          * SummaryResponse
          * @description Schema for a single summary (hourly or daily).
          *
          *     Represents an LLM-generated narrative summary of security events within
-         *     a specific time window.
+         *     a specific time window, with both raw content and structured data.
          * @example {
          *       "content": "Over the past hour, one critical event occurred at 2:15 PM when an unrecognized person approached the front door. The individual remained at the door for approximately 45 seconds before leaving via the driveway.",
          *       "event_count": 1,
          *       "generated_at": "2026-01-18T14:55:00Z",
          *       "id": 1,
+         *       "structured": {
+         *         "bullet_points": [
+         *           {
+         *             "icon": "camera",
+         *             "severity": "critical",
+         *             "text": "Activity at front door: unrecognized person"
+         *           }
+         *         ],
+         *         "dominant_patterns": [],
+         *         "focus_areas": [
+         *           "Front Door"
+         *         ],
+         *         "max_risk_score": 85,
+         *         "weather_conditions": []
+         *       },
          *       "window_end": "2026-01-18T15:00:00Z",
          *       "window_start": "2026-01-18T14:00:00Z"
          *     }
@@ -19956,6 +20060,8 @@ export interface components {
              * @description Summary ID
              */
             id: number;
+            /** @description Structured data extracted from the summary content */
+            structured?: components["schemas"]["StructuredSummarySchema"] | null;
             /**
              * Window End
              * Format: date-time
