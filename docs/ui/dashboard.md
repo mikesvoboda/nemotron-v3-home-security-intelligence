@@ -1,5 +1,9 @@
 # Dashboard
 
+![Dashboard Hero](../images/dashboard-hero.png)
+
+_AI-generated visualization of the security dashboard interface with camera grid and real-time event feed._
+
 ![Dashboard Screenshot](../images/screenshots/dashboard.png)
 
 The main monitoring view showing real-time security status across all cameras.
