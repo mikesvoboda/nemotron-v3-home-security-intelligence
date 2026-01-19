@@ -728,7 +728,7 @@ class AIServiceClient:
 | --------------------------------------------------------- | ----------------------------- |
 | [Architecture: Resilience](../architecture/resilience.md) | Full resilience architecture  |
 | [Code Patterns](../development/patterns.md)               | General code patterns         |
-| [Security Guide](../admin-guide/security.md)              | Security configuration        |
+| [Security Guide](../operator/admin/security.md)           | Security configuration        |
 | [Detection Service](detection-service.md)                 | RT-DETRv2 integration details |
 | [Risk Analysis](risk-analysis.md)                         | Nemotron LLM integration      |
 

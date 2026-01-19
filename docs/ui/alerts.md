@@ -359,6 +359,119 @@ Cooldown: 600 seconds
 2. **Refresh the page** - WebSocket connections may need re-establishment
 3. **Check backend logs** - Look for WebSocket emission errors
 
+## Understanding Risk Levels
+
+Risk scores are calculated by the Nemotron AI model, ranging from 0-100. Understanding these levels helps you prioritize your response.
+
+### Risk Level Reference
+
+| Level        | Score Range | Color  | Description                                    | Response                                       |
+| ------------ | ----------- | ------ | ---------------------------------------------- | ---------------------------------------------- |
+| **Low**      | 0-29        | Green  | Normal, expected activity                      | No action needed - informational only          |
+| **Medium**   | 30-59       | Yellow | Unusual activity worth monitoring              | Quick review when convenient                   |
+| **High**     | 60-84       | Orange | Concerning activity requiring attention        | Review promptly, consider response             |
+| **Critical** | 85-100      | Red    | Potentially dangerous situation                | Immediate attention required                   |
+
+### Factors That Influence Risk Scores
+
+The AI analyzes multiple factors:
+
+- **What was detected** - Person, vehicle, animal, or package
+- **Time of day** - Activity at unusual hours scores higher
+- **Behavior patterns** - Lingering, approaching entry points, or unusual movement
+- **Location context** - Sidewalk vs. trying door handles
+- **Detection confidence** - Clear images produce more reliable scores
+
+### Reading AI Reasoning
+
+Each alert includes an "AI Reasoning" section explaining why the system assigned a particular risk score:
+
+- **What it observed** - "Person detected near side gate at 2:47 AM"
+- **Behavioral analysis** - "Subject exhibited slow, deliberate movement pattern"
+- **Time context** - "Activity occurred outside normal hours"
+- **Risk factors** - "Multiple indicators: unfamiliar individual, unusual hour, lingering behavior"
+
+---
+
+## Common False Positives
+
+No AI system is perfect. Here are common causes of false positive alerts:
+
+| Cause                    | Examples                                         | Typical Score |
+| ------------------------ | ------------------------------------------------ | ------------- |
+| **Pets and Wildlife**    | Dogs, cats, deer, raccoons, birds                | Low           |
+| **Shadows and Lighting** | Tree branches, car headlights, cloud shadows     | Very Low      |
+| **Delivery Workers**     | Amazon, UPS, FedEx, USPS, utility meter readers  | Low to Medium |
+| **Neighbors**            | Dog walkers, kids playing, people checking mail  | Low           |
+| **Weather**              | Rain, snow, fog, blowing debris                  | Low           |
+
+**Tips for handling false positives:**
+
+1. Mark events as reviewed with notes like "FedEx delivery" to build pattern history
+2. If shadow-related alerts are frequent, consider adjusting camera angles
+3. Use detection zones to exclude high-motion areas like roads or tree lines
+
+---
+
+## Alert Deduplication
+
+The system prevents duplicate alerts using a deduplication mechanism to reduce alert fatigue.
+
+### How Deduplication Works
+
+When an alert rule triggers, the system checks if a similar alert was recently sent. If so, the new alert is suppressed during the cooldown period.
+
+**Deduplication Key Format:**
+
+The key combines event characteristics:
+
+```
+{camera_id}:{object_type}:{zone}
+```
+
+**Examples:**
+
+- `front_door:person` - Person detected at front door
+- `backyard:vehicle:driveway` - Vehicle in backyard driveway zone
+- `garage:person:entry` - Person in garage entry zone
+
+### Cooldown Timeline Example
+
+```
+10:00:00 - Alert: "Person at front door" (SENT)
+10:02:00 - Alert: "Person at front door" (suppressed - within 5min cooldown)
+10:04:00 - Alert: "Person at front door" (suppressed - within 5min cooldown)
+10:06:00 - Alert: "Person at front door" (SENT - cooldown expired)
+```
+
+### Why Deduplication Matters
+
+Without deduplication, you might receive:
+
+- 20 alerts for the same person walking to your door
+- Multiple alerts for a car slowly pulling into the driveway
+- Repeated notifications while reviewing a single incident
+
+With deduplication:
+
+- One alert per distinct security event
+- Cooldown period prevents notification spam
+- All underlying detections still visible in event details
+
+---
+
+## Tips for Managing Alerts
+
+1. **Respond to Critical alerts promptly** - Even if most turn out to be nothing, the one time it matters will be worth it
+2. **Set up notifications** - Do not rely solely on checking the dashboard
+3. **Review AI reasoning** - The explanation often provides useful context the summary omits
+4. **Add notes to events** - Document "Delivery driver" or "Neighbor's guest" to build pattern history
+5. **Mark events as reviewed** - Track what you have already looked at
+6. **Trust your instincts** - If something feels wrong even with a low score, investigate
+7. **Use trust classification** - Mark family members as "Trusted" to suppress alerts for them
+
+---
+
 ## Technical Deep Dive
 
 For developers wanting to understand the underlying systems.

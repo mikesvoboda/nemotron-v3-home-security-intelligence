@@ -4,9 +4,12 @@
 
 This directory is the **end-user documentation hub** for the Home Security Intelligence dashboard. It provides a curated entry point for non-technical users who want to understand and operate the security system.
 
-> **Relationship with docs/user-guide/**
+> **Documentation Organization**
 >
-> This directory (`docs/user/`) serves as the **navigation hub** with `README.md` providing structured pathways through user documentation. The detailed user guides live in `docs/user-guide/` which contains comprehensive documentation for each feature.
+> This directory (`docs/user/`) serves as the **navigation hub** with `README.md` providing structured pathways through user documentation. User documentation has been organized across several directories:
+> - `docs/getting-started/` - Quick start and product tour guides
+> - `docs/ui/` - UI-specific documentation and usability guides
+> - `docs/reference/` - Reference documentation including accessibility
 
 ## Directory Contents
 
@@ -43,33 +46,38 @@ This directory is the **end-user documentation hub** for the Home Security Intel
 
 ## Related Resources
 
-| Resource                                             | Description                              |
-| ---------------------------------------------------- | ---------------------------------------- |
-| [docs/user-guide/](../user-guide/)                   | Detailed user documentation (26+ guides) |
-| [docs/user-guide/AGENTS.md](../user-guide/AGENTS.md) | Agent guide for detailed user docs       |
-| [docs/operator/](../operator/)                       | System administration guides             |
-| [docs/developer/](../developer/)                     | Developer documentation                  |
+| Resource                                     | Description                              |
+| -------------------------------------------- | ---------------------------------------- |
+| [docs/getting-started/](../getting-started/) | Quick start and product tour guides      |
+| [docs/ui/](../ui/)                           | UI documentation and usability guides    |
+| [docs/reference/](../reference/)             | Reference docs including accessibility   |
+| [docs/operator/](../operator/)               | System administration guides             |
+| [docs/developer/](../developer/)             | Developer documentation                  |
 
 ## Entry Points for Agents
 
 ### Updating User Documentation
 
-1. For new features: Update `README.md` navigation and add detailed guide to `docs/user-guide/`
-2. For UI changes: Update screenshots in `images/` and corresponding guide descriptions
+1. For new features: Update `README.md` navigation and add guide to appropriate location:
+   - Getting started content -> `docs/getting-started/`
+   - UI/dashboard guides -> `docs/ui/`
+   - Reference docs -> `docs/reference/`
+2. For UI changes: Update screenshots in `docs/images/` and corresponding guide descriptions
 3. Maintain non-technical language throughout
 
 ### Finding User Documentation
 
 - **Hub navigation:** Start with `README.md` in this directory
-- **Detailed guides:** See `docs/user-guide/` for comprehensive feature documentation
-- **Writing guidelines:** See `docs/user-guide/AGENTS.md` for tone and style conventions
+- **Getting started:** See `docs/getting-started/` for quick start and tour guides
+- **UI guides:** See `docs/ui/` for comprehensive UI feature documentation
+- **Reference:** See `docs/reference/` for accessibility and other reference docs
 
 ### Cross-References
 
-The README.md links to guides in `docs/user-guide/` using relative paths:
+The README.md links to guides using relative paths:
 
 ```markdown
-[Getting Started](getting-started.md) -> docs/user-guide/getting-started.md
-[Dashboard Overview](dashboard-overview.md) -> docs/user-guide/dashboard-overview.md
-[Understanding Alerts](understanding-alerts.md) -> docs/user-guide/understanding-alerts.md
+[Quick Start](../getting-started/quick-start.md) -> docs/getting-started/quick-start.md
+[Dashboard](../ui/dashboard.md) -> docs/ui/dashboard.md
+[Understanding Alerts](../ui/understanding-alerts.md) -> docs/ui/understanding-alerts.md
 ```

@@ -106,11 +106,12 @@ sudo fuser -k /dev/nvidia*
 
 **2. Check memory requirements:**
 
-| Service          | Expected VRAM |
-| ---------------- | ------------- |
-| RT-DETRv2        | ~4GB          |
-| Nemotron Mini 4B | ~3GB          |
-| **Total**        | **~7GB**      |
+| Service             | Expected VRAM       |
+| ------------------- | ------------------- |
+| RT-DETRv2           | ~4GB                |
+| Nemotron-3-Nano-30B | ~14.7GB (prod)      |
+| Nemotron Mini 4B    | ~3GB (dev)          |
+| **Total (prod)**    | **~19GB**           |
 
 **3. Use smaller model (Nemotron):**
 

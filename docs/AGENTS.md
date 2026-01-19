@@ -53,17 +53,27 @@ docs/
 │   └── admin/                   # Configuration, secrets, security
 │       └── README.md
 │
-├── user/                        # End-user documentation
+├── user/                        # End-user documentation hub
 │   └── README.md                # Hub: Dashboard, alerts, features
+│
+├── ui/                          # Page-by-page UI documentation
+│   ├── README.md                # UI pages index
+│   ├── dashboard.md             # Dashboard page
+│   ├── timeline.md              # Event timeline page
+│   ├── alerts.md                # Alerts page
+│   ├── settings.md              # Settings page
+│   ├── analytics.md             # Analytics page
+│   ├── entities.md              # Entities page
+│   ├── operations.md            # System monitoring page
+│   ├── zones.md                 # Zones configuration
+│   └── ...                      # Other UI pages
 │
 ├── reference/                   # Shared reference material
 │   ├── README.md                # Hub: Env vars, glossary
 │   └── troubleshooting/         # Common issues and fixes
 │       └── README.md
 │
-├── architecture/                # System design (existing)
-├── user-guide/                  # Detailed user docs (existing)
-├── admin-guide/                 # Admin guides (existing)
+├── architecture/                # System design
 ├── benchmarks/                  # Performance benchmarks
 ├── decisions/                   # Architectural Decision Records
 └── images/                      # Diagrams and screenshots
@@ -112,8 +122,7 @@ Each major directory has its own AGENTS.md:
 | `operator/AGENTS.md`        | Operator documentation         |
 | `reference/AGENTS.md`       | Reference material             |
 | `architecture/AGENTS.md`    | System design documents        |
-| `user-guide/AGENTS.md`      | User documentation             |
-| `admin-guide/AGENTS.md`     | Administrator guides           |
+| `ui/AGENTS.md`              | UI page documentation          |
 | `images/AGENTS.md`          | Visual assets                  |
 
 ## Visual Assets

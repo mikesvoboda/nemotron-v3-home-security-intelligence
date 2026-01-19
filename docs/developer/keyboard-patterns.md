@@ -377,7 +377,7 @@ When adding a new shortcut:
 
 1. Add to `ShortcutsHelpModal.tsx` for the help modal
 2. Add to `CommandPalette.tsx` if it's a navigation shortcut
-3. Update `docs/user-guide/keyboard-shortcuts.md` for user documentation
+3. Update `docs/ui/keyboard-shortcuts.md` for user documentation
 
 ### 5. Handle Platform Differences
 
@@ -496,7 +496,7 @@ test('command palette opens with keyboard', async ({ page }) => {
 
 - [Frontend Hooks](../architecture/frontend-hooks.md) - Overview of all custom hooks
 - [Architecture Overview](../architecture/overview.md) - System architecture
-- [User Keyboard Shortcuts](../user-guide/keyboard-shortcuts.md) - End-user documentation
+- [User Keyboard Shortcuts](../ui/keyboard-shortcuts.md) - End-user documentation
 
 ---
 

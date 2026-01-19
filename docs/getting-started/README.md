@@ -6,12 +6,21 @@ Welcome to Home Security Intelligence. This section guides you from zero to a ru
 
 ## Quick Navigation
 
+### Technical Setup (for operators/installers)
+
 | Step | Guide                             | Description                                  |
 | ---- | --------------------------------- | -------------------------------------------- |
 | 1    | [Prerequisites](prerequisites.md) | Verify hardware and software requirements    |
 | 2    | [Installation](installation.md)   | Clone, setup environment, download AI models |
 | 3    | [First Run](first-run.md)         | Start the system and verify everything works |
 | 4    | [Upgrading](upgrading.md)         | Update to new versions                       |
+
+### End User Guides
+
+| Guide                          | Description                                              |
+| ------------------------------ | -------------------------------------------------------- |
+| [Quick Start](quick-start.md)  | Non-technical intro - what the system does and basic use |
+| [Product Tour](tour.md)        | Interactive walkthrough and first-time setup             |
 
 ---
 

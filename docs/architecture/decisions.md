@@ -220,7 +220,7 @@ The system requires:
 - PostgreSQL database
 - Redis for queues/pub/sub
 - RT-DETRv2 object detection (~4GB VRAM)
-- Nemotron Mini 4B risk analysis (~3GB VRAM, Q4_K_M quantization)
+- Nemotron-3-Nano-30B risk analysis (~14.7GB VRAM, Q4_K_M quantization)
 
 NVIDIA Container Toolkit (CDI) has matured significantly, enabling reliable GPU passthrough in containers. This allows all services to be deployed uniformly using Docker Compose.
 
@@ -402,7 +402,7 @@ After detecting objects, we need an AI model to analyze the context and provide 
 
 ### Decision
 
-Use **Nemotron Mini 4B Instruct** via **llama.cpp** for local LLM inference.
+Use **Nemotron-3-Nano-30B-A3B** via **llama.cpp** for local LLM inference in production. Development can use the smaller **Nemotron Mini 4B** for faster iteration.
 
 ### Alternatives Considered
 
@@ -410,7 +410,8 @@ Use **Nemotron Mini 4B Instruct** via **llama.cpp** for local LLM inference.
 | ----------------------------- | ------------------------------- | -------------------------------------------------- |
 | **Cloud API (GPT-4, Claude)** | Best quality, no GPU needed     | Privacy concerns, latency, cost, internet required |
 | **Local Llama 2 7B**          | Open source, good quality       | ~14GB VRAM, slower                                 |
-| **Local Nemotron 4B**         | NVIDIA-optimized, compact, fast | Smaller context, less general                      |
+| **Local Nemotron 30B**        | NVIDIA-optimized, 128K context  | ~14.7GB VRAM                                       |
+| **Local Nemotron 4B**         | NVIDIA-optimized, compact, fast | Smaller context (4K), less capable                 |
 | **Rule-based scoring**        | Deterministic, fast, no ML      | Cannot understand context, no reasoning            |
 
 ### Consequences
@@ -422,13 +423,13 @@ Use **Nemotron Mini 4B Instruct** via **llama.cpp** for local LLM inference.
 - **Cost**: Zero inference cost after initial setup
 - **Offline**: Works without internet connectivity
 - **NVIDIA-optimized**: Designed for efficient inference on NVIDIA GPUs
+- **Large context**: 128K token context window (production 30B model)
 
 **Negative:**
 
 - Lower quality than GPT-4 or Claude for complex reasoning
 - Q4_K_M quantization trades some accuracy for speed
-- Limited context window (4096 tokens)
-- Requires ~3GB VRAM (Nemotron Mini 4B Q4_K_M)
+- Requires ~14.7GB VRAM (Nemotron-3-Nano-30B) or ~3GB (Mini 4B dev)
 
 **Why Local over Cloud:**
 
@@ -855,7 +856,7 @@ Third Layer "Data":
 
 Bottom Layer "AI":
 - PyTorch logo + "RT-DETRv2" - "30-50ms detection"
-- NVIDIA logo + "Nemotron 4B" - "Local LLM privacy"
+- NVIDIA logo + "Nemotron 30B" - "Local LLM privacy"
 - GPU icon + "RTX A5500" - "24GB VRAM"
 
 Arrows showing data flow between layers.
@@ -881,7 +882,7 @@ Layout: Unified container diagram showing all services in Docker/Podman.
 - Redis container (:6379) - "Queues + Pub/Sub"
 - PostgreSQL container (:5432) - "Database"
 - RT-DETRv2 container (:8090) - "Object detection ~4GB VRAM"
-- Nemotron container (:8091) - "Risk analysis ~3GB VRAM"
+- Nemotron container (:8091) - "Risk analysis ~14.7GB VRAM"
 - Label: "Uniform deployment, all services containerized"
 
 GPU Hardware (green GPU icons):

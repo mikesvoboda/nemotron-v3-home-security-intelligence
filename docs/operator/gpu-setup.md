@@ -11,11 +11,12 @@
 
 Home Security Intelligence uses GPU acceleration for AI inference. The core, always-on services are:
 
-| Service          | Purpose             | VRAM Usage | Inference Time |
-| ---------------- | ------------------- | ---------- | -------------- |
-| RT-DETRv2        | Object detection    | ~4GB       | 30-50ms        |
-| Nemotron Mini 4B | Risk analysis (LLM) | ~3GB       | 2-5s           |
-| **Total**        |                     | **~7GB**   |                |
+| Service             | Purpose             | VRAM Usage          | Inference Time |
+| ------------------- | ------------------- | ------------------- | -------------- |
+| RT-DETRv2           | Object detection    | ~4GB                | 30-50ms        |
+| Nemotron-3-Nano-30B | Risk analysis (LLM) | ~14.7GB (prod)      | 2-5s           |
+| Nemotron Mini 4B    | Risk analysis (LLM) | ~3GB (dev)          | 2-5s           |
+| **Total (prod)**    |                     | **~19GB**           |                |
 
 Additional optional AI services (e.g. Florence-2, CLIP, Enrichment) may also use GPU, depending on your deployment and feature toggles. This guide covers the complete setup from bare metal to working GPU inference.
 
@@ -310,12 +311,14 @@ PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
 ### Per-Service Requirements
 
-| Service            | Base VRAM | Peak VRAM | Notes                      |
-| ------------------ | --------- | --------- | -------------------------- |
-| RT-DETRv2          | ~3.5GB    | ~4.5GB    | Spikes during batch detect |
-| Nemotron Mini 4B   | ~2.8GB    | ~3.2GB    | Context-dependent          |
-| CUDA Context       | ~300MB    | ~500MB    | Per-process overhead       |
-| **Total Required** | **~7GB**  | **~8GB**  | Both services concurrent   |
+| Service              | Base VRAM  | Peak VRAM  | Notes                      |
+| -------------------- | ---------- | ---------- | -------------------------- |
+| RT-DETRv2            | ~3.5GB     | ~4.5GB     | Spikes during batch detect |
+| Nemotron-3-Nano-30B  | ~14GB      | ~15GB      | Production, 128K context   |
+| Nemotron Mini 4B     | ~2.8GB     | ~3.2GB     | Development only           |
+| CUDA Context         | ~300MB     | ~500MB     | Per-process overhead       |
+| **Total (prod)**     | **~18GB**  | **~20GB**  | Both services concurrent   |
+| **Total (dev)**      | **~7GB**   | **~8GB**   | Using Mini 4B              |
 
 ### Monitoring VRAM Usage
 

@@ -69,11 +69,11 @@ The documentation is being restructured into a hub-and-spoke architecture. Some 
 | GPU Setup       | `gpu-setup.md`                     | Complete      |
 | Installation    | `getting-started/installation.md`  | Link from hub |
 | First Run       | `getting-started/first-run.md`     | Link from hub |
-| Configuration   | `admin-guide/configuration.md`     | Link from hub |
-| Monitoring      | `admin-guide/monitoring.md`        | Link from hub |
-| Backup          | `backup.md`                        | Complete      |
-| Retention       | `admin-guide/storage-retention.md` | Link from hub |
-| Troubleshooting | `admin-guide/troubleshooting.md`   | Link from hub |
+| Configuration   | `reference/config/env-reference.md`   | Link from hub |
+| Monitoring      | `monitoring.md`                       | Complete      |
+| Backup          | `backup.md`                           | Complete      |
+| Retention       | `storage-retention.md`                | Complete      |
+| Troubleshooting | `reference/troubleshooting/index.md`  | Link from hub |
 | Upgrading       | `getting-started/upgrading.md`     | Link from hub |
 
 ## Future Spokes

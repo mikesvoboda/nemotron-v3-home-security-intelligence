@@ -153,16 +153,16 @@ cd home-security-intelligence
 
 - Loads the Nemotron GGUF model via llama.cpp
 - Starts HTTP server on port 8091 ([line 16](../../ai/start_llm.sh:16))
-- Uses ~3GB VRAM
-- Configures 4096 token context, 2 parallel requests
+- **Production**: Nemotron-3-Nano-30B (~14.7GB VRAM, 128K context)
+- **Development**: Nemotron Mini 4B (~3GB VRAM, 4K context)
 
-**Expected output:**
+**Expected output (production):**
 
 ```
 Starting Nemotron LLM Server via llama.cpp...
-Model: /path/to/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
+Model: /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 Port: 8091
-Context size: 4096
+Context size: 131072
 GPU layers: 99 (all layers)
 llama server listening at http://0.0.0.0:8091
 ```
@@ -417,6 +417,6 @@ curl http://localhost:8000/api/system/health
 
 System is running. Continue with:
 
-- **[User Guide](../user-guide/dashboard-overview.md)** - Learn to use the dashboard
-- **[Configuration](../admin-guide/configuration.md)** - Customize settings
+- **[Dashboard Guide](../ui/dashboard.md)** - Learn to use the dashboard
+- **[Configuration Reference](../reference/config/env-reference.md)** - Customize settings
 - **[Upgrading](upgrading.md)** - Future version upgrades

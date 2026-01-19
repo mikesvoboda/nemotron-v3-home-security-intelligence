@@ -333,6 +333,55 @@ The selected date range is stored in the URL query parameter `?range=`. Options:
 
 Example custom range URL: `?range=custom&start=2026-01-01&end=2026-01-15`
 
+## Using Analytics Effectively
+
+### Daily Review
+
+1. Check the Overview tab for any unusual spikes
+2. Review High-Risk Events in Risk Analysis
+3. Glance at Camera Performance for uptime issues
+
+### Weekly Review
+
+1. Compare this week's trends to previous weeks
+2. Check if any cameras are underperforming
+3. Review the Activity Heatmap for pattern changes
+4. Adjust Anomaly Configuration if needed
+
+### After Incidents
+
+1. Use the Risk Analysis tab to understand severity
+2. Check Detection Trend for similar past events
+3. Review Camera Uptime to ensure coverage during incident
+4. Verify Scene Change Detection did not miss tampering
+
+## Understanding Baseline Learning
+
+When you select a specific camera, the system displays baseline learning status.
+
+### What is Baseline Learning?
+
+The AI builds a model of "normal" activity for each camera by:
+
+1. Collecting detection samples over time
+2. Analyzing patterns in timing and frequency
+3. Building statistical models of expected behavior
+
+### Learning Indicators
+
+| Indicator         | Samples    | Meaning                           |
+| ----------------- | ---------- | --------------------------------- |
+| Still Learning    | < minimum  | Need more data for reliable model |
+| Learning Complete | >= minimum | Baseline established              |
+
+### Why Baselines Matter
+
+With a complete baseline, the system can:
+
+- Flag unusual activity automatically
+- Reduce false positives for known patterns
+- Detect genuine anomalies more accurately
+
 ## Troubleshooting
 
 ### Charts show "No data available"

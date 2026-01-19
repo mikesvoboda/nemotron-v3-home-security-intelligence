@@ -87,6 +87,26 @@ Powerful search capability across all event data using PostgreSQL full-text sear
 - **Filters Toggle** - Expand advanced filter options within search
   - Shows "Active" badge when filters are applied
 
+**Search Example Queries:**
+
+| Goal                                | Query               | Filters                   |
+| ----------------------------------- | ------------------- | ------------------------- |
+| Find people at front door           | `person front_door` | -                         |
+| Find vehicle events this week       | `vehicle`           | Start Date: 7 days ago    |
+| Find unreviewed suspicious activity | `suspicious`        | Status: Unreviewed        |
+| Find high-risk events with packages | `package`           | Severity: High & Critical |
+| Find nighttime activity             | `night OR dark`     | -                         |
+| Find everything except cats         | `NOT cat`           | -                         |
+
+**Relevance Scoring** - Search results are sorted by relevance:
+
+| Score     | Color       | Meaning         |
+| --------- | ----------- | --------------- |
+| 80%+      | Green       | Excellent match |
+| 50-79%    | Light Green | Good match      |
+| 30-49%    | Yellow      | Moderate match  |
+| Below 30% | Gray        | Weak match      |
+
 #### Browse Mode Filters
 
 When not in search mode, the filter panel provides structured filtering. Expand by clicking "Show Filters":
@@ -426,6 +446,233 @@ Example: `/timeline?camera=front_door&risk_level=critical&event=456`
 ### Selection doesn't persist after scroll
 
 This is by design - new events loaded via infinite scroll need to be explicitly selected. Bulk operations apply only to currently selected events.
+
+---
+
+## Event Video Clips
+
+When you need more context than a single image can provide, video clips let you see the full sequence of events around a detection.
+
+### What are Event Clips?
+
+Event clips are short video sequences generated from the detection images captured during an event. They show you:
+
+- The moments before the detection occurred
+- The detection itself
+- The moments after
+
+This gives you context that static images cannot provide, helping you understand what actually happened.
+
+### Viewing Video Clips
+
+To view a video clip for an event:
+
+1. Open any event by clicking its card in the Event Timeline
+2. In the Event Detail Modal, click the **Video Clip** tab
+3. The video player will appear if a clip is available
+
+### Generating Clips
+
+If no clip exists yet, you will see a message with a **Generate Clip** button:
+
+1. Click **Generate Clip**
+2. Wait for processing (a spinner shows progress)
+3. Once complete, the video player appears automatically
+
+**Tip:** Clip generation uses the detection images from the event to create a video slideshow. The process typically takes a few seconds.
+
+### Clip Generation Details
+
+| Setting          | Value                                     |
+| ---------------- | ----------------------------------------- |
+| Default Duration | Based on event length + pre/post roll     |
+| Format           | MP4 (H.264 video codec)                   |
+| Frame Rate       | 2 frames per second for image sequences   |
+| Quality          | CRF 23 (good balance of quality and size) |
+| Web Optimization | Fast-start enabled for streaming          |
+
+### Downloading Clips
+
+Click the **Download** button below the video player to save the clip to your device. The file will be named `event_{id}_clip.mp4`.
+
+### Clip Storage
+
+Clips are stored for 30 days along with other event data. After that, they are automatically cleaned up to save storage space.
+
+---
+
+## Entity Re-Identification
+
+Entity re-identification helps you track the same person or vehicle as they appear across different cameras. This is especially useful for understanding movement patterns and investigating incidents.
+
+### What is Entity Re-ID?
+
+When a person or vehicle is detected, the system creates a unique visual fingerprint (called an embedding) using AI. This fingerprint can be compared against other detections to find matches, even across different cameras.
+
+![Entity Re-Identification Flow showing how detections from multiple cameras (Front Door, Driveway, Back Yard) are processed through AI to generate visual embeddings, which are then compared using cosine similarity to identify matching entities across camera views](../images/user-guide/entity-reid-flow.png)
+
+_Entity re-identification workflow: Detections from different cameras are converted to AI embeddings and compared to track the same person or vehicle across your property._
+
+### How Matching Works
+
+The system uses CLIP ViT-L, a powerful visual AI model, to analyze each detection:
+
+| Aspect              | Description                     |
+| ------------------- | ------------------------------- |
+| Embedding Dimension | 768-dimensional vector          |
+| Similarity Measure  | Cosine similarity (0-100%)      |
+| Match Threshold     | 85% similarity (configurable)   |
+| Retention Period    | 24 hours for real-time tracking |
+| Entity Types        | Persons and vehicles            |
+
+### Understanding Similarity Scores
+
+| Score     | Meaning                                      |
+| --------- | -------------------------------------------- |
+| 90%+      | Very high confidence - almost certainly same |
+| 85-90%    | High confidence - likely the same entity     |
+| 80-85%    | Moderate confidence - possible match         |
+| Below 80% | Low confidence - may be different entities   |
+
+### Viewing Entity History
+
+When you open an event with detected persons or vehicles, the AI Enrichment panel may show re-identification information:
+
+1. Open an event from the Timeline
+2. Look for the **AI Enrichment Analysis** section
+3. Expand the **Person** or **Vehicle** accordion
+4. Previous sightings appear with camera name, time, and similarity score
+
+### Factors Affecting Matching
+
+Re-identification accuracy depends on:
+
+- **Image Quality:** Clear, well-lit images produce better embeddings
+- **Angle:** Similar viewing angles improve matching
+- **Occlusion:** Partially hidden subjects are harder to match
+- **Clothing/Appearance:** Significant changes (like removing a jacket) may affect matching
+- **Time Gap:** The system retains embeddings for 24 hours
+
+### Using Entity Tracking for Investigations
+
+When investigating an incident:
+
+1. **Start with the primary event** - Find the event of interest
+2. **Check re-ID matches** - See if this person/vehicle appeared elsewhere
+3. **Build a timeline** - Follow their path across cameras
+4. **Note timestamps** - Track arrival, departure, and dwell times
+
+**Privacy Note:** Entity re-identification operates locally on your system. Embeddings are stored temporarily in Redis and automatically expire after 24 hours.
+
+---
+
+## AI Enrichment Details
+
+The AI Enrichment panel provides additional context extracted by vision models:
+
+### Vehicle Analysis
+
+- **Type:** Car, truck, SUV, van, motorcycle
+- **Color:** Primary vehicle color
+- **Damage:** Visible damage indicators
+- **Commercial:** Whether it appears to be a commercial vehicle
+
+### Person Analysis
+
+- **Clothing:** Description of visible attire
+- **Action:** What the person appears to be doing
+- **Carrying:** Objects being carried (packages, bags, tools)
+- **Suspicious Attire:** Flagged if wearing face covering, etc.
+- **Service Uniform:** Identified delivery or service worker attire
+
+### Additional Enrichments
+
+- **License Plate:** OCR text extraction when visible
+- **Pet Identification:** Type and breed recognition
+- **Weather Conditions:** Detected weather from image
+- **Image Quality:** Assessment of image clarity
+
+---
+
+## Investigation Workflow
+
+For a thorough investigation:
+
+1. **Identify the event of interest** in the Timeline
+2. **Open the Event Detail Modal** to see full details
+3. **Review the detection sequence** using the thumbnail strip
+4. **Watch the video clip** if available (or generate one)
+5. **Check AI enrichments** for vehicle/person details
+6. **Review entity re-ID** to see if this person/vehicle appeared elsewhere
+7. **Add notes** documenting your findings
+8. **Mark as reviewed** when complete
+
+---
+
+## Live Activity Feed
+
+The Live Activity Feed shows security events as they happen in real-time at the top of the Timeline page.
+
+### Understanding the Feed
+
+Each event in the feed shows:
+
+1. **Thumbnail** - Small image from when event occurred
+2. **Camera Name** - Which camera detected activity
+3. **Risk Badge** - Colored label showing risk level
+4. **Summary** - Brief AI-generated description
+5. **Timestamp** - When it occurred ("Just now", "5 mins ago", etc.)
+
+### Using the Feed
+
+- Click any event to see full details in a popup
+- Events appear with newest at the bottom (the feed auto-scrolls to keep you at the latest)
+- Feed shows up to 10 recent events
+
+### Auto-Scroll Feature
+
+The feed automatically scrolls when new events arrive:
+
+- Click **Pause** to stop auto-scrolling (useful when reading)
+- Click **Resume** to turn auto-scrolling back on
+
+When paused, you can manually scroll through events.
+
+---
+
+## Event Lifecycle
+
+How events flow through the system:
+
+```
+Camera Detects Motion
+        |
+        v
+AI Analyzes Image
+        |
+        v
+Risk Score Assigned
+        |
+        v
+Event Appears in Feed
+        |
+        v
+Click to View Details
+        |
+        v
+Mark as Reviewed
+```
+
+---
+
+## Tips for Reviewing Events
+
+1. **Start with unreviewed events**: Use the Status filter to show only unreviewed events
+2. **Focus on high risk first**: Sort by Highest Risk to address critical issues first
+3. **Use bulk actions**: Select multiple similar events and mark them reviewed together
+4. **Add notes**: Document your findings for future reference
+5. **Check the detection sequence**: Multiple frames may reveal important context
+6. **Review AI reasoning**: Understand why the system assigned a particular risk level
 
 ---
 

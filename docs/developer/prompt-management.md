@@ -712,7 +712,7 @@ Key test scenarios:
 ## Related Documentation
 
 - [Prompt Management API](api/ai-pipeline.md) - Complete REST API reference
-- [Prompt Playground User Guide](../user-guide/prompt-playground.md) - End-user documentation
+- [AI Audit Dashboard](../ui/ai-audit.md) - Includes Prompt Playground documentation
 - [AI Pipeline Architecture](../architecture/ai-pipeline.md) - How prompts fit in the pipeline
 - [Risk Analysis](risk-analysis.md) - Nemotron prompt usage in risk scoring
 
