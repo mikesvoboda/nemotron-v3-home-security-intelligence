@@ -15,3 +15,6 @@ export type { ChartSkeletonProps } from './ChartSkeleton';
 
 export { default as EntityCardSkeleton } from './EntityCardSkeleton';
 export type { EntityCardSkeletonProps } from './EntityCardSkeleton';
+
+export { default as AlertCardSkeleton } from './AlertCardSkeleton';
+export type { AlertCardSkeletonProps } from './AlertCardSkeleton';

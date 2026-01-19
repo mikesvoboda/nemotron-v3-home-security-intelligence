@@ -1,5 +1,7 @@
 import { clsx } from 'clsx';
 
+import Skeleton from '../Skeleton';
+
 export interface TableRowSkeletonProps {
   /** Number of columns to render (default: 4) */
   columns?: number;
@@ -11,12 +13,16 @@ export interface TableRowSkeletonProps {
 
 /**
  * TableRowSkeleton component - Loading placeholder for table rows
+ * Uses shimmer animation for smooth loading experience
  */
 export default function TableRowSkeleton({
   columns = 4,
   rows = 1,
   className,
 }: TableRowSkeletonProps) {
+  // Variable widths for visual variety
+  const widths = [96, 128, 80, 112, 64, 160];
+
   return (
     <div
       className={clsx('divide-y divide-gray-800', className)}
@@ -31,12 +37,14 @@ export default function TableRowSkeleton({
           data-testid={`table-row-skeleton-row-${rowIndex}`}
         >
           {Array.from({ length: columns }, (_, colIndex) => {
-            const widths = ['w-24', 'w-32', 'w-20', 'w-28', 'w-16', 'w-40'];
-            const widthClass = widths[colIndex % widths.length];
+            const width = widths[colIndex % widths.length];
             return (
-              <div
+              <Skeleton
                 key={colIndex}
-                className={clsx('h-4 animate-pulse rounded bg-gray-800', widthClass)}
+                variant="text"
+                width={width}
+                height={16}
+                animation="shimmer"
                 data-testid={`table-row-skeleton-col-${colIndex}`}
               />
             );
