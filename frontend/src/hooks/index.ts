@@ -134,6 +134,13 @@ export type { SecurityAlertOptions, UsePushNotificationsReturn } from './usePush
 // Mobile Hooks
 export { useIsMobile } from './useIsMobile';
 
+// Chart dimension hooks (NEM-2991)
+export { useChartDimensions, default as useChartDimensionsDefault } from './useChartDimensions';
+export type {
+  ChartDimensions,
+  UseChartDimensionsOptions,
+} from './useChartDimensions';
+
 export { useSwipeGesture } from './useSwipeGesture';
 export type { SwipeDirection, SwipeGestureOptions } from './useSwipeGesture';
 

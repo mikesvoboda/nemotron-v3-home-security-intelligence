@@ -21,6 +21,7 @@ import {
   type CameraStatusValue,
 } from '../../schemas/camera';
 import { formatRelativeTime, isTimestampStale } from '../../utils/time';
+import IconButton from '../common/IconButton';
 import { ZoneEditor } from '../zones';
 
 import type { Camera, CameraCreate, CameraUpdate } from '../../services/api';
@@ -375,31 +376,32 @@ export default function CamerasSettings() {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => setZoneEditorCamera(camera)}
-                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        <IconButton
+                          icon={<MapPin />}
                           aria-label={`Configure zones for ${camera.name}`}
-                          title="Configure detection zones"
-                        >
-                          <MapPin className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenEditModal(camera)}
-                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                          onClick={() => setZoneEditorCamera(camera)}
+                          variant="ghost"
+                          size="md"
+                          tooltip="Configure detection zones"
+                        />
+                        <IconButton
+                          icon={<Edit2 />}
                           aria-label={`Edit ${camera.name}`}
-                          title="Edit camera settings"
+                          onClick={() => handleOpenEditModal(camera)}
+                          variant="ghost"
+                          size="md"
+                          tooltip="Edit camera settings"
                           data-testid={`edit-camera-${camera.id}`}
-                        >
-                          <Edit2 className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenDeleteModal(camera)}
-                          className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        />
+                        <IconButton
+                          icon={<Trash2 />}
                           aria-label={`Delete ${camera.name}`}
-                          title="Delete camera"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
+                          onClick={() => handleOpenDeleteModal(camera)}
+                          variant="ghost"
+                          size="md"
+                          tooltip="Delete camera"
+                          className="hover:!text-red-500 focus-visible:!ring-red-500"
+                        />
                       </div>
                     </td>
                   </tr>

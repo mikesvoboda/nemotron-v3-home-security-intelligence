@@ -2,6 +2,8 @@ import { Dialog, Transition } from '@headlessui/react';
 import { CheckCircle, Clock, Globe, User, X, XCircle } from 'lucide-react';
 import { Fragment, useEffect } from 'react';
 
+import IconButton from '../common/IconButton';
+
 import type { AuditEntry } from './AuditTable';
 
 export interface AuditDetailModalProps {
@@ -144,13 +146,13 @@ export default function AuditDetailModal({ log, isOpen, onClose }: AuditDetailMo
                       {statusBadge.icon}
                       {log.status}
                     </span>
-                    <button
-                      onClick={onClose}
-                      className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                    <IconButton
+                      icon={<X />}
                       aria-label="Close modal"
-                    >
-                      <X className="h-6 w-6" />
-                    </button>
+                      onClick={onClose}
+                      variant="ghost"
+                      size="lg"
+                    />
                   </div>
                 </div>
 

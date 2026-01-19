@@ -20,6 +20,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import EntityTimeline from './EntityTimeline';
 import { useEntityHistory } from '../../hooks/useEntityHistory';
 import { getDetectionImageUrl, getDetectionFullImageUrl } from '../../services/api';
+import IconButton from '../common/IconButton';
 import Lightbox from '../common/Lightbox';
 import DetectionImage from '../detection/DetectionImage';
 
@@ -375,14 +376,14 @@ export default function EntityDetailModal({
                       </div>
                     </div>
 
-                    <button
-                      onClick={onClose}
-                      className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                    <IconButton
+                      icon={<X />}
                       aria-label="Close modal"
+                      onClick={onClose}
+                      variant="ghost"
+                      size="lg"
                       data-testid="close-modal-button"
-                    >
-                      <X className="h-6 w-6" />
-                    </button>
+                    />
                   </div>
 
                   {/* Content */}
@@ -522,32 +523,36 @@ export default function EntityDetailModal({
                             {/* Navigation arrows */}
                             {detections.length > 1 && (
                               <>
-                                <button
+                                <IconButton
+                                  icon={<ChevronLeft />}
+                                  aria-label="Previous detection"
                                   onClick={handlePrevDetection}
                                   disabled={selectedDetectionIndex === 0}
-                                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-30"
-                                  aria-label="Previous detection"
+                                  variant="solid"
+                                  size="lg"
+                                  className="absolute left-2 top-1/2 -translate-y-1/2 !rounded-full !bg-black/60 hover:!bg-black/80"
                                   data-testid="prev-detection-button"
-                                >
-                                  <ChevronLeft className="h-6 w-6" />
-                                </button>
-                                <button
+                                />
+                                <IconButton
+                                  icon={
+                                    isFetchingMoreDetections &&
+                                    selectedDetectionIndex >= detections.length - 1 ? (
+                                      <Loader2 className="animate-spin" />
+                                    ) : (
+                                      <ChevronRight />
+                                    )
+                                  }
+                                  aria-label="Next detection"
                                   onClick={handleNextDetection}
                                   disabled={
                                     selectedDetectionIndex >= detections.length - 1 &&
                                     !hasMoreDetections
                                   }
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-30"
-                                  aria-label="Next detection"
+                                  variant="solid"
+                                  size="lg"
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 !rounded-full !bg-black/60 hover:!bg-black/80"
                                   data-testid="next-detection-button"
-                                >
-                                  {isFetchingMoreDetections &&
-                                  selectedDetectionIndex >= detections.length - 1 ? (
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                  ) : (
-                                    <ChevronRight className="h-6 w-6" />
-                                  )}
-                                </button>
+                                />
                               </>
                             )}
 

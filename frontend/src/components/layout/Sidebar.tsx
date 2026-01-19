@@ -4,6 +4,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 import { NavGroup, navGroups, STORAGE_KEY } from './sidebarNav';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
+import IconButton from '../common/IconButton';
 
 /** Helper to load expansion state from localStorage */
 function loadExpansionState(): Record<string, boolean> {
@@ -165,14 +166,14 @@ export default function Sidebar() {
       {/* Mobile close button */}
       <div className="flex items-center justify-between border-b border-gray-800 px-4 py-4 md:hidden">
         <span className="text-lg font-semibold text-white">Menu</span>
-        <button
-          onClick={() => setMobileMenuOpen(false)}
-          className="rounded-lg p-2 text-text-secondary hover:bg-gray-800 hover:text-white"
+        <IconButton
+          icon={<X />}
           aria-label="Close menu"
+          onClick={() => setMobileMenuOpen(false)}
+          variant="ghost"
+          size="md"
           data-testid="close-menu-button"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        />
       </div>
 
       {/* Navigation */}
