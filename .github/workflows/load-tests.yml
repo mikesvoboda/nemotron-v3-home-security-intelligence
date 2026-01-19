@@ -117,7 +117,7 @@ jobs:
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: true
+          enable-cache: false # Temporarily disabled due to GH Actions cache service 400 errors
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -265,7 +265,7 @@ jobs:
         uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: true
+          enable-cache: false # Temporarily disabled due to GH Actions cache service 400 errors
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
