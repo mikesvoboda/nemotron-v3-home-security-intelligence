@@ -71,7 +71,6 @@ describe('Sidebar', () => {
     // Operations items (renamed)
     expect(screen.getByText('Jobs')).toBeInTheDocument();
     expect(screen.getByText('Pipeline')).toBeInTheDocument();
-    expect(screen.getByText('Infrastructure')).toBeInTheDocument();
     expect(screen.getByText('Logs')).toBeInTheDocument();
     // Admin items
     expect(screen.getByText('Audit Log')).toBeInTheDocument();
@@ -96,7 +95,6 @@ describe('Sidebar', () => {
     renderWithRouter();
     expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /timeline/i })).toHaveAttribute('href', '/timeline');
-    expect(screen.getByRole('link', { name: /infrastructure/i })).toHaveAttribute('href', '/system');
     expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/settings');
   });
 
@@ -147,7 +145,7 @@ describe('Sidebar', () => {
   it('renders all 14 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(14);
+    expect(links).toHaveLength(13);
   });
 
   it('jobs link has correct href', () => {
@@ -384,7 +382,7 @@ describe('Sidebar', () => {
     });
 
     it('exports navItems as flattened list of all items', () => {
-      expect(navItems).toHaveLength(14);
+      expect(navItems).toHaveLength(13);
       expect(navItems.some((item) => item.id === 'dashboard')).toBe(true);
       expect(navItems.some((item) => item.id === 'settings')).toBe(true);
     });
@@ -394,14 +392,4 @@ describe('Sidebar', () => {
     });
   });
 
-  describe('distinct icons', () => {
-    it('uses different icons for Pipeline and Infrastructure (previously both used Server)', () => {
-      // Verify through the exported navGroups that different icons are used
-      const operationsGroup = navGroups.find((g) => g.id === 'operations');
-      const pipelineItem = operationsGroup?.items.find((i) => i.id === 'operations');
-      const infrastructureItem = operationsGroup?.items.find((i) => i.id === 'system');
-
-      expect(pipelineItem?.icon).not.toBe(infrastructureItem?.icon);
-    });
-  });
 });

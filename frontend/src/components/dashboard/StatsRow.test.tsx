@@ -420,11 +420,11 @@ describe('StatsRow', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/alerts');
     });
 
-    it('system card navigates to system page when clicked', () => {
+    it('system card navigates to operations page when clicked', () => {
       renderWithRouter();
       const systemCard = screen.getByTestId('system-card');
       fireEvent.click(systemCard);
-      expect(mockNavigate).toHaveBeenCalledWith('/system');
+      expect(mockNavigate).toHaveBeenCalledWith('/operations');
     });
 
     it('all cards are rendered as buttons', () => {
