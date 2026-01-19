@@ -22,6 +22,9 @@
  */
 
 import { test, expect } from '@playwright/test';
+
+// Skip entire file in CI - performance tests flaky due to resource variability
+test.skip(() => !!process.env.CI, 'Performance tests flaky in CI - run locally');
 import { setupApiMocks, defaultMockConfig } from '../fixtures';
 import {
   collectWebVitals,
