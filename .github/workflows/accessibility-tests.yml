@@ -124,29 +124,67 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          response=$(curl -s -w "\n%{http_code}" -X POST https://api.linear.app/graphql \
+          TITLE="Accessibility test failure on main"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
-              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
               "variables": {
-                "input": {
-                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "Accessibility test failure on main",
-                  "description": "## Accessibility Test Failure\n\nThe accessibility tests (WCAG 2.1 AA compliance) failed after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Download the accessibility-test-report artifact from the workflow run\n2. Open `index.html` to review the axe-core violation reports\n3. Fix accessibility violations following [WCAG 2.1 AA guidelines](https://www.w3.org/WAI/WCAG21/quickref/)\n\n### Common Issues\n\n- Missing alt text on images\n- Form inputs without labels\n- Insufficient color contrast\n- Missing ARIA attributes on interactive elements\n- Keyboard navigation issues",
-                  "priority": 3,
-                  "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
                 }
               }
             }')
 
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
 
-          if [ "$http_code" != "200" ]; then
-            echo "::warning::Failed to create Linear issue (HTTP $http_code)"
-            echo "Response: $body"
+          if [ -n "$EXISTING_ID" ]; then
+            # Add comment to existing issue instead of creating duplicate
+            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$EXISTING_ID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+            echo "Added comment to existing issue"
           else
-            echo "Linear issue created successfully"
-            echo "$body" | jq -r '.data.issueCreate.issue.url // "No URL returned"'
+            # Create new issue
+            response=$(curl -s -w "\n%{http_code}" -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "## Accessibility Test Failure\n\nThe accessibility tests (WCAG 2.1 AA compliance) failed after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Action Required\n\n1. Download the accessibility-test-report artifact from the workflow run\n2. Open `index.html` to review the axe-core violation reports\n3. Fix accessibility violations following [WCAG 2.1 AA guidelines](https://www.w3.org/WAI/WCAG21/quickref/)\n\n### Common Issues\n\n- Missing alt text on images\n- Form inputs without labels\n- Insufficient color contrast\n- Missing ARIA attributes on interactive elements\n- Keyboard navigation issues",
+                    "priority": 3,
+                    "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
+                  }
+                }
+              }')
+
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+
+            if [ "$http_code" != "200" ]; then
+              echo "::warning::Failed to create Linear issue (HTTP $http_code)"
+              echo "Response: $body"
+            else
+              echo "Linear issue created successfully"
+              echo "$body" | jq -r '.data.issueCreate.issue.url // "No URL returned"'
+            fi
           fi
