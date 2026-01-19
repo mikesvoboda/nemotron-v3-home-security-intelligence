@@ -631,6 +631,196 @@ class NemotronAnalyzer:
                 data=None,
             )
 
+    async def _get_enrichment_result_from_data(
+        self,
+        batch_id: str,
+        detections_data: list[dict[str, Any]],
+        camera_id: str | None = None,
+    ) -> EnrichmentTrackingResult | None:
+        """Get enrichment result from detection data dictionaries.
+
+        This is a variant of _get_enrichment_result that works with plain
+        dictionaries instead of ORM objects. This allows running enrichment
+        outside of a database session context, preventing "idle-in-transaction"
+        timeout issues during long-running enrichment operations.
+
+        Args:
+            batch_id: Batch identifier (for logging)
+            detections_data: List of detection data dictionaries with keys:
+                - id: Detection ID
+                - object_type: Detected object type
+                - confidence: Detection confidence
+                - image_path: Path to detection image
+                - bounding_box: Bounding box dict or None
+            camera_id: Camera ID for scene change detection and re-id
+
+        Returns:
+            EnrichmentTrackingResult with status, model results, and data,
+            or None if enrichment is disabled
+        """
+        if not self._use_enrichment_pipeline:
+            return None
+
+        try:
+            tracking_result = await self._run_enrichment_pipeline_from_data(
+                detections_data, camera_id=camera_id
+            )
+
+            if tracking_result:
+                # Log partial failures if any models failed
+                if tracking_result.is_partial:
+                    logger.warning(
+                        "Enrichment pipeline partial failure",
+                        extra={
+                            "batch_id": batch_id,
+                            "succeeded": tracking_result.successful_models,
+                            "failed": tracking_result.failed_models,
+                            "success_rate": f"{tracking_result.success_rate:.0%}",
+                        },
+                    )
+                elif tracking_result.all_failed:
+                    logger.warning(
+                        "Enrichment pipeline failed: all models failed",
+                        extra={
+                            "batch_id": batch_id,
+                            "failed_models": tracking_result.failed_models,
+                        },
+                    )
+                elif tracking_result.has_data:
+                    result = tracking_result.data
+                    if result:
+                        logger.debug(
+                            f"Enrichment pipeline for batch {batch_id}: "
+                            f"{len(result.license_plates)} plates, "
+                            f"{len(result.faces)} faces, "
+                            f"{result.processing_time_ms:.1f}ms, "
+                            f"status={tracking_result.status.value}"
+                        )
+
+            return tracking_result
+
+        except Exception as e:
+            logger.warning(
+                "Enrichment pipeline failed, continuing without enrichment",
+                extra={"batch_id": batch_id, "error": str(e)},
+                exc_info=True,
+            )
+            # Return a failed tracking result instead of None
+            return EnrichmentTrackingResult(
+                status=EnrichmentStatus.FAILED,
+                successful_models=[],
+                failed_models=["all"],
+                errors={"all": str(e)},
+                data=None,
+            )
+
+    async def _run_enrichment_pipeline_from_data(
+        self,
+        detections_data: list[dict[str, Any]],
+        camera_id: str | None = None,
+    ) -> EnrichmentTrackingResult | None:
+        """Run the enrichment pipeline on detection data dictionaries.
+
+        This is a variant of _run_enrichment_pipeline that works with plain
+        dictionaries instead of ORM objects, allowing enrichment to run
+        outside of a database session context.
+
+        Args:
+            detections_data: List of detection data dictionaries
+            camera_id: Camera ID for scene change detection and re-id
+
+        Returns:
+            EnrichmentTrackingResult with status, model results, and data,
+            or None if no enrichment was needed
+        """
+        if not detections_data:
+            return None
+
+        pipeline = self._get_enrichment_pipeline()
+
+        # Convert detection data dicts to DetectionInput format
+        detection_inputs: list[DetectionInput] = []
+        from pathlib import Path
+
+        from PIL import Image
+
+        # Type annotation matches EnrichmentPipeline.enrich_batch signature
+        images: dict[int | None, Image.Image | Path | str] = {}
+
+        for det_data in detections_data:
+            # Get bounding box data
+            bbox = det_data.get("bounding_box")
+            object_type = det_data.get("object_type")
+
+            # Skip detections without bounding boxes or object types
+            if bbox is None or object_type is None:
+                continue
+
+            # Handle bbox as either dict or tuple/list
+            if isinstance(bbox, dict):
+                bbox_x = bbox.get("x") or bbox.get("bbox_x") or bbox.get("x1")
+                bbox_y = bbox.get("y") or bbox.get("bbox_y") or bbox.get("y1")
+                bbox_width = bbox.get("width") or bbox.get("bbox_width")
+                bbox_height = bbox.get("height") or bbox.get("bbox_height")
+
+                if bbox_width is None and "x2" in bbox:
+                    bbox_width = bbox["x2"] - bbox_x
+                if bbox_height is None and "y2" in bbox:
+                    bbox_height = bbox["y2"] - bbox_y
+            elif isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
+                bbox_x, bbox_y, bbox_width, bbox_height = bbox[:4]
+            else:
+                continue
+
+            if any(v is None for v in [bbox_x, bbox_y, bbox_width, bbox_height]):
+                continue
+
+            # Cast to non-None after the check above (mypy can't narrow through any())
+            bbox_x_val = float(bbox_x)  # type: ignore[arg-type]
+            bbox_y_val = float(bbox_y)  # type: ignore[arg-type]
+            bbox_w_val = float(bbox_width)  # type: ignore[arg-type]
+            bbox_h_val = float(bbox_height)  # type: ignore[arg-type]
+
+            # Create DetectionInput with bounding box
+            detection_input = DetectionInput(
+                id=det_data["id"],
+                class_name=object_type,
+                confidence=det_data.get("confidence") or 0.0,
+                bbox=BoundingBox(
+                    x1=bbox_x_val,
+                    y1=bbox_y_val,
+                    x2=bbox_x_val + bbox_w_val,
+                    y2=bbox_y_val + bbox_h_val,
+                ),
+                video_width=det_data.get("video_width"),
+                video_height=det_data.get("video_height"),
+            )
+            detection_inputs.append(detection_input)
+
+            # Map detection ID to image path
+            image_path = det_data.get("image_path") or det_data.get("file_path")
+            if image_path:
+                images[det_data["id"]] = image_path
+
+        if not detection_inputs:
+            return None
+
+        # Set shared image for full-frame analysis (use first detection's image)
+        # This enables vision extraction, scene change detection, and re-id
+        if detections_data:
+            first_image = (
+                detections_data[0].get("image_path") or detections_data[0].get("file_path")
+            )
+            if first_image:
+                images[None] = first_image
+
+        # Run the enrichment pipeline with tracking for partial failure visibility
+        tracking_result = await pipeline.enrich_batch_with_tracking(
+            detection_inputs, images, camera_id=camera_id
+        )
+
+        return tracking_result
+
     def _get_auth_headers(self) -> dict[str, str]:
         """Get authentication and correlation headers for API requests.
 
@@ -648,7 +838,7 @@ class NemotronAnalyzer:
             headers["X-API-Key"] = self._api_key
         return headers
 
-    async def analyze_batch(  # noqa: PLR0912 - Complex orchestration method
+    async def analyze_batch(  # noqa: PLR0912, PLR0915 - Complex orchestration method
         self,
         batch_id: str,
         camera_id: str | None = None,
@@ -658,6 +848,15 @@ class NemotronAnalyzer:
 
         If camera_id and detection_ids are provided (from queue payload), uses them
         directly. Otherwise, fetches batch metadata from Redis (legacy behavior).
+
+        This method uses split sessions to avoid holding database connections open
+        during long-running external operations (LLM calls, enrichment pipeline).
+        This prevents PostgreSQL "idle-in-transaction timeout" errors.
+
+        Session Strategy:
+            1. Session 1 (READ): Fetch camera and detection data
+            2. No session: Run enrichment pipeline and LLM analysis (external calls)
+            3. Session 2 (WRITE): Persist Event, junction table entries, and audit
 
         Args:
             batch_id: Batch identifier to analyze
@@ -714,7 +913,20 @@ class NemotronAnalyzer:
             },
         )
 
-        # Fetch detection details from database
+        # Convert detection_ids to integers (may come as strings from queue payload)
+        try:
+            int_detection_ids = [int(d) for d in detection_ids]
+        except (ValueError, TypeError) as e:
+            raise ValueError(
+                f"Invalid detection_id in batch {batch_id}: {e}. "
+                f"Detection IDs must be numeric (got: {detection_ids})"
+            ) from None
+
+        # =========================================================================
+        # SESSION 1 (READ): Fetch camera and detection data
+        # This session is short-lived - we only read data, then close it before
+        # making external calls (LLM, enrichment) that can take minutes.
+        # =========================================================================
         async with get_session() as session:
             # Get camera details
             camera_result = await session.execute(select(Camera).where(Camera.id == camera_id))
@@ -728,15 +940,6 @@ class NemotronAnalyzer:
             else:
                 camera_name = camera.name
 
-            # Get detection details
-            # Convert detection_ids to integers (may come as strings from queue payload)
-            try:
-                int_detection_ids = [int(d) for d in detection_ids]
-            except (ValueError, TypeError) as e:
-                raise ValueError(
-                    f"Invalid detection_id in batch {batch_id}: {e}. "
-                    f"Detection IDs must be numeric (got: {detection_ids})"
-                ) from None
             # Use batch fetching to handle large detection lists efficiently
             detections = await batch_fetch_detections(session, int_detection_ids)
 
@@ -752,87 +955,127 @@ class NemotronAnalyzer:
             start_time = min(detection_times)
             end_time = max(detection_times)
 
-            # Format detections for prompt
+            # Format detections for prompt (extracts data from ORM objects)
             detections_list = self._format_detections(detections)
 
             # Enrich context if enabled (zone, baseline, cross-camera)
+            # This makes additional DB queries but they're quick
             enriched_context = await self._get_enriched_context(
                 batch_id, camera_id, int_detection_ids, session
             )
 
-            # Run enrichment pipeline for license plates, faces, OCR
-            # Returns EnrichmentTrackingResult which includes status and data (NEM-1672)
-            enrichment_tracking = await self._get_enrichment_result(
-                batch_id, detections, camera_id=camera_id
-            )
-
-            # Extract the actual EnrichmentResult data from the tracking result
-            enrichment_result: EnrichmentResult | None = None
-            if enrichment_tracking is not None and enrichment_tracking.has_data:
-                enrichment_result = enrichment_tracking.data
-
-            # Persist enrichment data to each detection
-            if enrichment_result is not None:
-                for detection in detections:
-                    det_enrichment = enrichment_result.get_enrichment_for_detection(detection.id)
-                    if det_enrichment:
-                        detection.enrichment_data = det_enrichment
-                        logger.debug(
-                            f"Persisted enrichment data for detection {detection.id}",
-                            extra={
-                                "detection_id": detection.id,
-                                "enrichment_keys": list(det_enrichment.keys()),
-                            },
-                        )
-
-            # Call LLM for risk analysis
-            llm_start = time.time()
-            try:
-                risk_data = await self._call_llm(
-                    camera_name=camera_name,
-                    start_time=start_time.isoformat(),
-                    end_time=end_time.isoformat(),
-                    detections_list=detections_list,
-                    enriched_context=enriched_context,
-                    enrichment_result=enrichment_result,
-                )
-                llm_duration_ms = int((time.time() - llm_start) * 1000)
-                llm_duration_seconds = time.time() - llm_start
-                # Record Nemotron AI request duration
-                observe_ai_request_duration("nemotron", llm_duration_seconds)
-                logger.debug(
-                    f"LLM analysis completed for batch {batch_id}",
-                    extra={
-                        "camera_id": camera_id,
-                        "batch_id": batch_id,
-                        "duration_ms": llm_duration_ms,
-                    },
-                )
-            except Exception as e:
-                llm_duration_ms = int((time.time() - llm_start) * 1000)
-                llm_duration_seconds = time.time() - llm_start
-                # Record duration even on failure
-                observe_ai_request_duration("nemotron", llm_duration_seconds)
-                record_pipeline_error("nemotron_analysis_error")
-                sanitized_error = sanitize_error(e)
-                logger.error(
-                    "LLM analysis failed for batch",
-                    extra={
-                        "camera_id": camera_id,
-                        "batch_id": batch_id,
-                        "duration_ms": llm_duration_ms,
-                        "error": sanitized_error,
-                    },
-                    exc_info=True,
-                )
-                # Create fallback risk data - use sanitized error for user-facing content
-                risk_data = {
-                    "risk_score": 50,
-                    "risk_level": "medium",
-                    "summary": "Analysis unavailable - LLM service error",
-                    "reasoning": "Failed to analyze detections due to service error",
+            # Extract detection data needed for enrichment pipeline
+            # We need to capture this before closing the session
+            # Use explicit bbox fields since Detection doesn't have a bounding_box property
+            detections_for_enrichment = [
+                {
+                    "id": d.id,
+                    "object_type": d.object_type,
+                    "confidence": d.confidence,
+                    "file_path": d.file_path,
+                    "bounding_box": {
+                        "bbox_x": d.bbox_x,
+                        "bbox_y": d.bbox_y,
+                        "bbox_width": d.bbox_width,
+                        "bbox_height": d.bbox_height,
+                    }
+                    if d.bbox_x is not None
+                    else None,
+                    "video_width": d.video_width,
+                    "video_height": d.video_height,
                 }
+                for d in detections
+            ]
 
+        # Session 1 is now closed - connection returned to pool
+        # =========================================================================
+
+        # =========================================================================
+        # EXTERNAL CALLS (NO SESSION): Run enrichment pipeline and LLM analysis
+        # These can take 60-120+ seconds. We do NOT hold a DB connection during this.
+        # =========================================================================
+
+        # Run enrichment pipeline for license plates, faces, OCR
+        # Returns EnrichmentTrackingResult which includes status and data (NEM-1672)
+        enrichment_tracking = await self._get_enrichment_result_from_data(
+            batch_id, detections_for_enrichment, camera_id=camera_id
+        )
+
+        # Extract the actual EnrichmentResult data from the tracking result
+        enrichment_result: EnrichmentResult | None = None
+        if enrichment_tracking is not None and enrichment_tracking.has_data:
+            enrichment_result = enrichment_tracking.data
+
+        # Build enrichment data map for persisting to detections later
+        enrichment_data_map: dict[int, dict[str, Any]] = {}
+        if enrichment_result is not None:
+            for det_data in detections_for_enrichment:
+                # det_data["id"] is guaranteed to be int from detections_for_enrichment extraction
+                det_id = int(det_data["id"])  # type: ignore[arg-type]
+                det_enrichment = enrichment_result.get_enrichment_for_detection(det_id)
+                if det_enrichment:
+                    enrichment_data_map[det_id] = det_enrichment
+                    logger.debug(
+                        f"Prepared enrichment data for detection {det_id}",
+                        extra={
+                            "detection_id": det_id,
+                            "enrichment_keys": list(det_enrichment.keys()),
+                        },
+                    )
+
+        # Call LLM for risk analysis (can take 60-120+ seconds)
+        llm_start = time.time()
+        try:
+            risk_data = await self._call_llm(
+                camera_name=camera_name,
+                start_time=start_time.isoformat(),
+                end_time=end_time.isoformat(),
+                detections_list=detections_list,
+                enriched_context=enriched_context,
+                enrichment_result=enrichment_result,
+            )
+            llm_duration_ms = int((time.time() - llm_start) * 1000)
+            llm_duration_seconds = time.time() - llm_start
+            # Record Nemotron AI request duration
+            observe_ai_request_duration("nemotron", llm_duration_seconds)
+            logger.debug(
+                f"LLM analysis completed for batch {batch_id}",
+                extra={
+                    "camera_id": camera_id,
+                    "batch_id": batch_id,
+                    "duration_ms": llm_duration_ms,
+                },
+            )
+        except Exception as e:
+            llm_duration_ms = int((time.time() - llm_start) * 1000)
+            llm_duration_seconds = time.time() - llm_start
+            # Record duration even on failure
+            observe_ai_request_duration("nemotron", llm_duration_seconds)
+            record_pipeline_error("nemotron_analysis_error")
+            sanitized_error = sanitize_error(e)
+            logger.error(
+                "LLM analysis failed for batch",
+                extra={
+                    "camera_id": camera_id,
+                    "batch_id": batch_id,
+                    "duration_ms": llm_duration_ms,
+                    "error": sanitized_error,
+                },
+                exc_info=True,
+            )
+            # Create fallback risk data - use sanitized error for user-facing content
+            risk_data = {
+                "risk_score": 50,
+                "risk_level": "medium",
+                "summary": "Analysis unavailable - LLM service error",
+                "reasoning": "Failed to analyze detections due to service error",
+            }
+
+        # =========================================================================
+        # SESSION 2 (WRITE): Persist Event, junction table entries, and audit
+        # This is a new, short-lived session for writing results to the database.
+        # =========================================================================
+        async with get_session() as session:
             # Create Event record
             event = Event(
                 batch_id=batch_id,
@@ -863,14 +1106,25 @@ class NemotronAnalyzer:
 
             from backend.models.event_detection import event_detections
 
-            for detection_id in int_detection_ids:
+            for det_id in int_detection_ids:
                 stmt = (
                     pg_insert(event_detections)
-                    .values(event_id=event.id, detection_id=detection_id)
+                    .values(event_id=event.id, detection_id=det_id)
                     .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
                 )
                 await session.execute(stmt)
-            # No explicit commit - batched with final commit
+
+            # Persist enrichment data to detections (bulk update)
+            if enrichment_data_map:
+                from sqlalchemy import update as sql_update
+
+                for det_id, enrichment_data in enrichment_data_map.items():
+                    update_stmt = (
+                        sql_update(Detection)
+                        .where(Detection.id == det_id)
+                        .values(enrichment_data=enrichment_data)
+                    )
+                    await session.execute(update_stmt)
 
             # Store idempotency key (NEM-1725) to prevent duplicates on retry
             # Note: This is stored in Redis, not the database transaction
@@ -912,49 +1166,52 @@ class NemotronAnalyzer:
             # NEM-2574: Single commit at end via get_session() context manager
             # The context manager handles: commit on success, rollback on any error
 
-            total_duration_ms = int((time.time() - analysis_start) * 1000)
-            total_duration_seconds = time.time() - analysis_start
+        # Session 2 is now closed - connection returned to pool
+        # =========================================================================
 
-            # Record stage duration and event creation metrics
-            observe_stage_duration("analyze", total_duration_seconds)
-            record_event_created()
-            record_event_by_camera(camera_id, camera_name)
+        total_duration_ms = int((time.time() - analysis_start) * 1000)
+        total_duration_seconds = time.time() - analysis_start
 
-            logger.info(
-                "Created event for batch",
-                extra={
-                    "camera_id": camera_id,
-                    "event_id": event.id,
-                    "batch_id": batch_id,
-                    "risk_score": event.risk_score,
-                    "risk_level": event.risk_level,
-                    "duration_ms": total_duration_ms,
-                },
+        # Record stage duration and event creation metrics
+        observe_stage_duration("analyze", total_duration_seconds)
+        record_event_created()
+        record_event_by_camera(camera_id, camera_name)
+
+        logger.info(
+            "Created event for batch",
+            extra={
+                "camera_id": camera_id,
+                "event_id": event.id,
+                "batch_id": batch_id,
+                "risk_score": event.risk_score,
+                "risk_level": event.risk_level,
+                "duration_ms": total_duration_ms,
+            },
+        )
+
+        # Broadcast via WebSocket if available (optional)
+        try:
+            await self._broadcast_event(event)
+        except Exception as e:
+            logger.warning(
+                "Failed to broadcast event",
+                extra={"event_id": event.id, "error": str(e)},
+                exc_info=True,
             )
 
-            # Broadcast via WebSocket if available (optional)
-            try:
-                await self._broadcast_event(event)
-            except Exception as e:
-                logger.warning(
-                    "Failed to broadcast event",
-                    extra={"event_id": event.id, "error": str(e)},
-                    exc_info=True,
-                )
+        # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
+        try:
+            cache = await get_cache_service()
+            await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_CREATED)
+        except Exception as e:
+            logger.warning(
+                "Failed to invalidate event stats cache",
+                extra={"error": str(e)},
+            )
 
-            # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
-            try:
-                cache = await get_cache_service()
-                await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_CREATED)
-            except Exception as e:
-                logger.warning(
-                    "Failed to invalidate event stats cache",
-                    extra={"error": str(e)},
-                )
+        return event
 
-            return event
-
-    async def analyze_detection_fast_path(  # noqa: PLR0912 - Complex orchestration method
+    async def analyze_detection_fast_path(  # noqa: PLR0912, PLR0915 - Complex orchestration
         self, camera_id: str, detection_id: int | str
     ) -> Event:
         """Analyze a single detection via fast path (high-priority).
@@ -962,6 +1219,15 @@ class NemotronAnalyzer:
         This method is called for high-confidence critical detections that bypass
         the normal batch aggregation process. Creates an Event immediately for
         the single detection.
+
+        This method uses split sessions to avoid holding database connections open
+        during long-running external operations (LLM calls, enrichment pipeline).
+        This prevents PostgreSQL "idle-in-transaction timeout" errors.
+
+        Session Strategy:
+            1. Session 1 (READ): Fetch camera and detection data
+            2. No session: Run enrichment pipeline and LLM analysis (external calls)
+            3. Session 2 (WRITE): Persist Event, junction table entries, and audit
 
         Args:
             camera_id: Camera identifier
@@ -1008,7 +1274,11 @@ class NemotronAnalyzer:
             extra={"camera_id": camera_id, "detection_id": detection_id_int},
         )
 
-        # Fetch detection details from database
+        # =========================================================================
+        # SESSION 1 (READ): Fetch camera and detection data
+        # This session is short-lived - we only read data, then close it before
+        # making external calls (LLM, enrichment) that can take minutes.
+        # =========================================================================
         async with get_session() as session:
             # Get camera details
             camera_result = await session.execute(select(Camera).where(Camera.id == camera_id))
@@ -1031,89 +1301,120 @@ class NemotronAnalyzer:
             if not detection:
                 raise ValueError(f"Detection {detection_id} not found in database")
 
-            # Create single-detection list for analysis
+            # Extract data from ORM object before closing session
             detection_time = detection.detected_at
             detections_list = self._format_detections([detection])
 
-            # Note: batch_id was already generated upfront for idempotency check
+            # Extract detection data for enrichment pipeline
+            detection_data_for_enrichment = {
+                "id": detection.id,
+                "object_type": detection.object_type,
+                "confidence": detection.confidence,
+                "file_path": detection.file_path,
+                "bounding_box": {
+                    "bbox_x": detection.bbox_x,
+                    "bbox_y": detection.bbox_y,
+                    "bbox_width": detection.bbox_width,
+                    "bbox_height": detection.bbox_height,
+                }
+                if detection.bbox_x is not None
+                else None,
+                "video_width": detection.video_width,
+                "video_height": detection.video_height,
+            }
 
             # Enrich context if enabled (zone, baseline, cross-camera)
+            # This makes additional DB queries but they're quick
             enriched_context = await self._get_enriched_context(
                 batch_id, camera_id, [detection_id_int], session
             )
 
-            # Run enrichment pipeline for license plates, faces, OCR
-            # Returns EnrichmentTrackingResult which includes status and data (NEM-1672)
-            enrichment_tracking = await self._get_enrichment_result(
-                batch_id, [detection], camera_id=camera_id
-            )
+        # Session 1 is now closed - connection returned to pool
+        # =========================================================================
 
-            # Extract the actual EnrichmentResult data from the tracking result
-            enrichment_result: EnrichmentResult | None = None
-            if enrichment_tracking is not None and enrichment_tracking.has_data:
-                enrichment_result = enrichment_tracking.data
+        # =========================================================================
+        # EXTERNAL CALLS (NO SESSION): Run enrichment pipeline and LLM analysis
+        # These can take 60-120+ seconds. We do NOT hold a DB connection during this.
+        # =========================================================================
 
-            # Persist enrichment data to the detection
-            if enrichment_result is not None:
-                det_enrichment = enrichment_result.get_enrichment_for_detection(detection.id)
-                if det_enrichment:
-                    detection.enrichment_data = det_enrichment
-                    logger.debug(
-                        f"Persisted enrichment data for fast path detection {detection.id}",
-                        extra={
-                            "detection_id": detection.id,
-                            "enrichment_keys": list(det_enrichment.keys()),
-                        },
-                    )
+        # Run enrichment pipeline for license plates, faces, OCR
+        # Returns EnrichmentTrackingResult which includes status and data (NEM-1672)
+        enrichment_tracking = await self._get_enrichment_result_from_data(
+            batch_id, [detection_data_for_enrichment], camera_id=camera_id
+        )
 
-            # Call LLM for risk analysis
-            llm_start = time.time()
-            try:
-                risk_data = await self._call_llm(
-                    camera_name=camera_name,
-                    start_time=detection_time.isoformat(),
-                    end_time=detection_time.isoformat(),
-                    detections_list=detections_list,
-                    enriched_context=enriched_context,
-                    enrichment_result=enrichment_result,
-                )
-                llm_duration_ms = int((time.time() - llm_start) * 1000)
-                llm_duration_seconds = time.time() - llm_start
-                # Record Nemotron AI request duration
-                observe_ai_request_duration("nemotron", llm_duration_seconds)
+        # Extract the actual EnrichmentResult data from the tracking result
+        enrichment_result: EnrichmentResult | None = None
+        if enrichment_tracking is not None and enrichment_tracking.has_data:
+            enrichment_result = enrichment_tracking.data
+
+        # Build enrichment data map for persisting to detections later
+        enrichment_data_to_persist: dict[str, Any] | None = None
+        if enrichment_result is not None:
+            det_enrichment = enrichment_result.get_enrichment_for_detection(detection_id_int)
+            if det_enrichment:
+                enrichment_data_to_persist = det_enrichment
                 logger.debug(
-                    f"Fast path LLM analysis completed for detection {detection_id}",
+                    f"Prepared enrichment data for fast path detection {detection_id_int}",
                     extra={
-                        "camera_id": camera_id,
                         "detection_id": detection_id_int,
-                        "duration_ms": llm_duration_ms,
+                        "enrichment_keys": list(det_enrichment.keys()),
                     },
                 )
-            except Exception as e:
-                llm_duration_ms = int((time.time() - llm_start) * 1000)
-                llm_duration_seconds = time.time() - llm_start
-                # Record duration even on failure
-                observe_ai_request_duration("nemotron", llm_duration_seconds)
-                record_pipeline_error("nemotron_fast_path_error")
-                sanitized_error = sanitize_error(e)
-                logger.error(
-                    "LLM analysis failed for fast path detection",
-                    extra={
-                        "camera_id": camera_id,
-                        "detection_id": detection_id_int,
-                        "duration_ms": llm_duration_ms,
-                        "error": sanitized_error,
-                    },
-                    exc_info=True,
-                )
-                # Create fallback risk data - use generic message for user-facing content
-                risk_data = {
-                    "risk_score": 50,
-                    "risk_level": "medium",
-                    "summary": "Analysis unavailable - LLM service error",
-                    "reasoning": "Failed to analyze detection due to service error",
-                }
 
+        # Call LLM for risk analysis (can take 60-120+ seconds)
+        llm_start = time.time()
+        try:
+            risk_data = await self._call_llm(
+                camera_name=camera_name,
+                start_time=detection_time.isoformat(),
+                end_time=detection_time.isoformat(),
+                detections_list=detections_list,
+                enriched_context=enriched_context,
+                enrichment_result=enrichment_result,
+            )
+            llm_duration_ms = int((time.time() - llm_start) * 1000)
+            llm_duration_seconds = time.time() - llm_start
+            # Record Nemotron AI request duration
+            observe_ai_request_duration("nemotron", llm_duration_seconds)
+            logger.debug(
+                f"Fast path LLM analysis completed for detection {detection_id}",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_id": detection_id_int,
+                    "duration_ms": llm_duration_ms,
+                },
+            )
+        except Exception as e:
+            llm_duration_ms = int((time.time() - llm_start) * 1000)
+            llm_duration_seconds = time.time() - llm_start
+            # Record duration even on failure
+            observe_ai_request_duration("nemotron", llm_duration_seconds)
+            record_pipeline_error("nemotron_fast_path_error")
+            sanitized_error = sanitize_error(e)
+            logger.error(
+                "LLM analysis failed for fast path detection",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_id": detection_id_int,
+                    "duration_ms": llm_duration_ms,
+                    "error": sanitized_error,
+                },
+                exc_info=True,
+            )
+            # Create fallback risk data - use generic message for user-facing content
+            risk_data = {
+                "risk_score": 50,
+                "risk_level": "medium",
+                "summary": "Analysis unavailable - LLM service error",
+                "reasoning": "Failed to analyze detection due to service error",
+            }
+
+        # =========================================================================
+        # SESSION 2 (WRITE): Persist Event, junction table entries, and audit
+        # This is a new, short-lived session for writing results to the database.
+        # =========================================================================
+        async with get_session() as session:
             # Create Event record with is_fast_path=True
             event = Event(
                 batch_id=batch_id,
@@ -1150,7 +1451,17 @@ class NemotronAnalyzer:
                 .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
             )
             await session.execute(stmt)
-            # No explicit commit - batched with final commit
+
+            # Persist enrichment data to detection (bulk update)
+            if enrichment_data_to_persist:
+                from sqlalchemy import update as sql_update
+
+                update_stmt = (
+                    sql_update(Detection)
+                    .where(Detection.id == detection_id_int)
+                    .values(enrichment_data=enrichment_data_to_persist)
+                )
+                await session.execute(update_stmt)
 
             # Store idempotency key (NEM-1725) to prevent duplicates on retry
             # Note: This is stored in Redis, not the database transaction
@@ -1192,47 +1503,50 @@ class NemotronAnalyzer:
             # NEM-2574: Single commit at end via get_session() context manager
             # The context manager handles: commit on success, rollback on any error
 
-            total_duration_ms = int((time.time() - analysis_start) * 1000)
-            total_duration_seconds = time.time() - analysis_start
+        # Session 2 is now closed - connection returned to pool
+        # =========================================================================
 
-            # Record stage duration and event creation metrics
-            observe_stage_duration("analyze", total_duration_seconds)
-            record_event_created()
-            record_event_by_camera(camera_id, camera_name)
+        total_duration_ms = int((time.time() - analysis_start) * 1000)
+        total_duration_seconds = time.time() - analysis_start
 
-            logger.info(
-                "Created fast path event for detection",
-                extra={
-                    "camera_id": camera_id,
-                    "event_id": event.id,
-                    "detection_id": detection_id_int,
-                    "risk_score": event.risk_score,
-                    "risk_level": event.risk_level,
-                    "duration_ms": total_duration_ms,
-                },
+        # Record stage duration and event creation metrics
+        observe_stage_duration("analyze", total_duration_seconds)
+        record_event_created()
+        record_event_by_camera(camera_id, camera_name)
+
+        logger.info(
+            "Created fast path event for detection",
+            extra={
+                "camera_id": camera_id,
+                "event_id": event.id,
+                "detection_id": detection_id_int,
+                "risk_score": event.risk_score,
+                "risk_level": event.risk_level,
+                "duration_ms": total_duration_ms,
+            },
+        )
+
+        # Broadcast via WebSocket if available (optional)
+        try:
+            await self._broadcast_event(event)
+        except Exception as e:
+            logger.warning(
+                "Failed to broadcast fast path event",
+                extra={"event_id": event.id, "error": str(e)},
+                exc_info=True,
             )
 
-            # Broadcast via WebSocket if available (optional)
-            try:
-                await self._broadcast_event(event)
-            except Exception as e:
-                logger.warning(
-                    "Failed to broadcast fast path event",
-                    extra={"event_id": event.id, "error": str(e)},
-                    exc_info=True,
-                )
+        # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
+        try:
+            cache = await get_cache_service()
+            await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_CREATED)
+        except Exception as e:
+            logger.warning(
+                "Failed to invalidate event stats cache",
+                extra={"error": str(e)},
+            )
 
-            # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
-            try:
-                cache = await get_cache_service()
-                await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_CREATED)
-            except Exception as e:
-                logger.warning(
-                    "Failed to invalidate event stats cache",
-                    extra={"error": str(e)},
-                )
-
-            return event
+        return event
 
     async def health_check(self) -> bool:
         """Check if LLM server is healthy.

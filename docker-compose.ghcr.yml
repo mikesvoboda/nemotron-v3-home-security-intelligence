@@ -156,8 +156,8 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      # nginx-unprivileged listens on port 8080
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080']
+      # Use /health endpoint which returns 200 directly (avoids 301 redirect issues)
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:8080/health']
       interval: 30s
       timeout: 10s
       retries: 3

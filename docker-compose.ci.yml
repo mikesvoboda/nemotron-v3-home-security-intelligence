@@ -108,7 +108,8 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:80']
+      # Use /health endpoint which returns 200 directly (avoids 301 redirect issues)
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:80/health']
       interval: 5s
       timeout: 5s
       retries: 10
