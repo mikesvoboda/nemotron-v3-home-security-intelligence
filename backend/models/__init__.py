@@ -28,6 +28,7 @@ from .notification_preferences import (
 )
 from .prompt_config import PromptConfig
 from .scene_change import SceneChange, SceneChangeType
+from .summary import Summary, SummaryType
 from .user_calibration import UserCalibration
 from .zone import Zone, ZoneShape, ZoneType
 
@@ -75,6 +76,8 @@ __all__ = [
     "SceneChange",
     "SceneChangeType",
     "Severity",
+    "Summary",
+    "SummaryType",
     "TrustStatus",
     "UserCalibration",
     "Zone",

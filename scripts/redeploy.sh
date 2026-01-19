@@ -64,6 +64,8 @@ IMAGE_TAG="${IMAGE_TAG:-latest}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 SEED_FILES_COUNT="${SEED_FILES_COUNT:-0}"
 FOSCAM_PATH="${FOSCAM_PATH:-/export/foscam}"
+# Timeout for compose up commands (in seconds) - prevents hanging on health checks
+COMPOSE_UP_TIMEOUT="${COMPOSE_UP_TIMEOUT:-300}"
 
 # Project name for container naming (derived from directory name)
 PROJECT_NAME="$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/_/g')"
@@ -280,7 +282,7 @@ build_ai_images_podman() {
         local context="${svc#*:}"
 
         print_step "Building $name from $context..."
-        if run_cmd $CONTAINER_CMD build -t "$name" "$context"; then
+        if run_cmd $CONTAINER_CMD build --no-cache -t "$name" "$context"; then
             print_success "$name image built"
         else
             print_fail "Failed to build $name"
@@ -821,7 +823,7 @@ build_images() {
         if [ "$CONTAINER_CMD" = "podman" ]; then
             # Podman: Build core services with compose, AI services directly
             print_step "Building core service images..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" build 2>/dev/null; then
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" build --no-cache 2>/dev/null; then
                 print_success "Core images built"
             else
                 print_info "Core services use pre-built images"
@@ -833,7 +835,7 @@ build_images() {
         else
             # Docker: Use compose normally
             print_step "Building all service images (this may take a few minutes)..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build; then
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build --no-cache; then
                 print_success "All images built"
             else
                 print_fail "Failed to build images"
@@ -850,7 +852,7 @@ build_images() {
         else
             # Docker: Use compose normally
             print_step "Building AI service images (this may take a few minutes)..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build --no-cache ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
                 print_success "AI images built"
             else
                 print_fail "Failed to build AI images"
@@ -948,30 +950,52 @@ start_containers() {
 
     if [ "$DEPLOY_MODE" = "local" ]; then
         # Start all 9 services from locally built images using prod compose
+        # Use timeout to prevent hanging on health check waits (depends_on conditions)
         print_step "Starting all containers from prod compose (local build)..."
-        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d; then
+        print_info "Timeout: ${COMPOSE_UP_TIMEOUT}s (health checks may continue in background)"
+        if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d; then
             print_success "All containers started from local build"
         else
-            print_fail "Failed to start containers"
-            return 1
+            local exit_code=$?
+            if [ $exit_code -eq 124 ]; then
+                print_warn "Compose up timed out after ${COMPOSE_UP_TIMEOUT}s - containers may still be starting"
+                print_info "Health checks will continue in background"
+            else
+                print_fail "Failed to start containers (exit code: $exit_code)"
+                return 1
+            fi
         fi
     elif [ "$DEPLOY_MODE" = "ghcr" ]; then
         # Start only 4 services from GHCR compose (works with both docker and podman)
         print_step "Starting GHCR containers..."
-        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" up -d; then
+        print_info "Timeout: ${COMPOSE_UP_TIMEOUT}s (health checks may continue in background)"
+        if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" up -d; then
             print_success "GHCR containers started"
         else
-            print_fail "Failed to start GHCR containers"
-            return 1
+            local exit_code=$?
+            if [ $exit_code -eq 124 ]; then
+                print_warn "Compose up timed out after ${COMPOSE_UP_TIMEOUT}s - containers may still be starting"
+                print_info "Health checks will continue in background"
+            else
+                print_fail "Failed to start GHCR containers (exit code: $exit_code)"
+                return 1
+            fi
         fi
     elif [ "$DEPLOY_MODE" = "hybrid" ]; then
         # Hybrid: Start core services from GHCR, then AI services
         print_step "Starting core containers from GHCR..."
-        if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" up -d; then
+        print_info "Timeout: ${COMPOSE_UP_TIMEOUT}s (health checks may continue in background)"
+        if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" up -d; then
             print_success "Core containers started (postgres, redis, backend, frontend)"
         else
-            print_fail "Failed to start core containers"
-            return 1
+            local exit_code=$?
+            if [ $exit_code -eq 124 ]; then
+                print_warn "Compose up timed out after ${COMPOSE_UP_TIMEOUT}s - containers may still be starting"
+                print_info "Health checks will continue in background"
+            else
+                print_fail "Failed to start core containers (exit code: $exit_code)"
+                return 1
+            fi
         fi
 
         if [ "$CONTAINER_CMD" = "podman" ]; then
@@ -987,11 +1011,17 @@ start_containers() {
         else
             # Docker: Use compose normally
             print_step "Starting AI containers from prod compose..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
+            if run_cmd timeout "$COMPOSE_UP_TIMEOUT" $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" up -d ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
                 print_success "AI containers started"
             else
-                print_fail "Failed to start AI containers"
-                return 1
+                local exit_code=$?
+                if [ $exit_code -eq 124 ]; then
+                    print_warn "Compose up timed out after ${COMPOSE_UP_TIMEOUT}s - containers may still be starting"
+                    print_info "Health checks will continue in background"
+                else
+                    print_fail "Failed to start AI containers (exit code: $exit_code)"
+                    return 1
+                fi
             fi
         fi
     fi

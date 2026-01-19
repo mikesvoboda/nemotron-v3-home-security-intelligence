@@ -44,6 +44,7 @@ from backend.repositories.camera_repository import CameraRepository
 from backend.repositories.detection_repository import DetectionRepository
 from backend.repositories.entity_repository import EntityRepository
 from backend.repositories.event_repository import EventRepository
+from backend.repositories.summary_repository import SummaryRepository
 from backend.repositories.zone_repository import ZoneRepository
 
 __all__ = [
@@ -54,5 +55,6 @@ __all__ = [
     "EntityRepository",
     "EventRepository",
     "Repository",
+    "SummaryRepository",
     "ZoneRepository",
 ]

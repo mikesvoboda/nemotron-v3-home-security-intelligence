@@ -4880,6 +4880,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/summaries/daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Daily Summary
+         * @description Get the latest daily summary.
+         *
+         *     Returns the most recent daily summary, which covers high/critical events
+         *     since midnight today. Returns null if no daily summary exists.
+         *
+         *     This endpoint is useful when you only need the daily summary without
+         *     the overhead of fetching the hourly summary as well.
+         *
+         *     Returns:
+         *         SummaryResponse with daily summary, or null if none exists
+         */
+        get: operations["get_daily_summary_api_summaries_daily_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/summaries/hourly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Hourly Summary
+         * @description Get the latest hourly summary.
+         *
+         *     Returns the most recent hourly summary, which covers high/critical events
+         *     from the past 60 minutes. Returns null if no hourly summary exists.
+         *
+         *     This endpoint is useful when you only need the hourly summary without
+         *     the overhead of fetching the daily summary as well.
+         *
+         *     Returns:
+         *         SummaryResponse with hourly summary, or null if none exists
+         */
+        get: operations["get_hourly_summary_api_summaries_hourly_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/summaries/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Latest Summaries
+         * @description Get the latest hourly and daily summaries.
+         *
+         *     Returns both the most recent hourly summary (covering the past 60 minutes)
+         *     and the most recent daily summary (covering since midnight today).
+         *
+         *     Either `hourly` or `daily` can be null if no summary exists yet for that
+         *     time period. This can happen when:
+         *     - The system was just started
+         *     - No high/critical events have occurred
+         *
+         *     Response is cached in Redis with a 5-minute TTL to match the summary
+         *     generation frequency. Cache is invalidated when new summaries are generated.
+         *
+         *     Returns:
+         *         LatestSummariesResponse with hourly and daily summaries (or nulls)
+         */
+        get: operations["get_latest_summaries_api_summaries_latest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/anomaly-config": {
         parameters: {
             query?: never;
@@ -14951,6 +15043,37 @@ export interface components {
             sample_count: number;
         };
         /**
+         * LatestSummariesResponse
+         * @description Schema for the combined latest summaries response.
+         *
+         *     Returns both the latest hourly and daily summaries in a single response.
+         *     Either field can be null if no summary exists for that time period.
+         * @example {
+         *       "daily": {
+         *         "content": "Today has seen minimal high-priority activity. The only notable event was at 2:15 PM at the front door. Morning and evening periods have been quiet with routine traffic only.",
+         *         "event_count": 1,
+         *         "generated_at": "2026-01-18T14:55:00Z",
+         *         "id": 2,
+         *         "window_end": "2026-01-18T15:00:00Z",
+         *         "window_start": "2026-01-18T00:00:00Z"
+         *       },
+         *       "hourly": {
+         *         "content": "Over the past hour, one critical event occurred at 2:15 PM when an unrecognized person approached the front door.",
+         *         "event_count": 1,
+         *         "generated_at": "2026-01-18T14:55:00Z",
+         *         "id": 1,
+         *         "window_end": "2026-01-18T15:00:00Z",
+         *         "window_start": "2026-01-18T14:00:00Z"
+         *       }
+         *     }
+         */
+        LatestSummariesResponse: {
+            /** @description Latest daily summary (since midnight), null if none exists */
+            daily?: components["schemas"]["SummaryResponse"] | null;
+            /** @description Latest hourly summary (past 60 minutes), null if none exists */
+            hourly?: components["schemas"]["SummaryResponse"] | null;
+        };
+        /**
          * LeaderboardResponse
          * @description Model leaderboard response.
          * @example {
@@ -19753,6 +19876,56 @@ export interface components {
              * @description Timestamp of storage stats snapshot
              */
             timestamp: string;
+        };
+        /**
+         * SummaryResponse
+         * @description Schema for a single summary (hourly or daily).
+         *
+         *     Represents an LLM-generated narrative summary of security events within
+         *     a specific time window.
+         * @example {
+         *       "content": "Over the past hour, one critical event occurred at 2:15 PM when an unrecognized person approached the front door. The individual remained at the door for approximately 45 seconds before leaving via the driveway.",
+         *       "event_count": 1,
+         *       "generated_at": "2026-01-18T14:55:00Z",
+         *       "id": 1,
+         *       "window_end": "2026-01-18T15:00:00Z",
+         *       "window_start": "2026-01-18T14:00:00Z"
+         *     }
+         */
+        SummaryResponse: {
+            /**
+             * Content
+             * @description LLM-generated narrative text (2-4 sentences)
+             */
+            content: string;
+            /**
+             * Event Count
+             * @description Number of high/critical events included in this summary
+             */
+            event_count: number;
+            /**
+             * Generated At
+             * Format: date-time
+             * @description When the LLM produced this summary
+             */
+            generated_at: string;
+            /**
+             * Id
+             * @description Summary ID
+             */
+            id: number;
+            /**
+             * Window End
+             * Format: date-time
+             * @description End of the time window covered
+             */
+            window_end: string;
+            /**
+             * Window Start
+             * Format: date-time
+             * @description Start of the time window covered
+             */
+            window_start: string;
         };
         /**
          * SupervisedWorkerInfo
@@ -27834,6 +28007,106 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    get_daily_summary_api_summaries_daily_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest daily summary or null if none exists */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "content": "Today has seen minimal high-priority activity...",
+                     *       "event_count": 1,
+                     *       "generated_at": "2026-01-18T14:55:00Z",
+                     *       "id": 2,
+                     *       "window_end": "2026-01-18T15:00:00Z",
+                     *       "window_start": "2026-01-18T00:00:00Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["SummaryResponse"] | null;
+                };
+            };
+        };
+    };
+    get_hourly_summary_api_summaries_hourly_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest hourly summary or null if none exists */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "content": "Over the past hour, one critical event occurred...",
+                     *       "event_count": 1,
+                     *       "generated_at": "2026-01-18T14:55:00Z",
+                     *       "id": 1,
+                     *       "window_end": "2026-01-18T15:00:00Z",
+                     *       "window_start": "2026-01-18T14:00:00Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["SummaryResponse"] | null;
+                };
+            };
+        };
+    };
+    get_latest_summaries_api_summaries_latest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest hourly and daily summaries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "daily": {
+                     *         "content": "Today has seen...",
+                     *         "event_count": 1,
+                     *         "generated_at": "2026-01-18T14:55:00Z",
+                     *         "id": 2,
+                     *         "window_end": "2026-01-18T15:00:00Z",
+                     *         "window_start": "2026-01-18T00:00:00Z"
+                     *       },
+                     *       "hourly": {
+                     *         "content": "Over the past hour...",
+                     *         "event_count": 1,
+                     *         "generated_at": "2026-01-18T14:55:00Z",
+                     *         "id": 1,
+                     *         "window_end": "2026-01-18T15:00:00Z",
+                     *         "window_start": "2026-01-18T14:00:00Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["LatestSummariesResponse"];
+                };
             };
         };
     };

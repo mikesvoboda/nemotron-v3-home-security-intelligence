@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDateRangeState } from '../../hooks/useDateRangeState';
 import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
 import { useRecentEventsQuery } from '../../hooks/useRecentEventsQuery';
+import { useSummaries } from '../../hooks/useSummaries';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
 import { useThrottledValue } from '../../hooks/useThrottledValue';
 import {
@@ -21,6 +22,7 @@ import GpuStats from './GpuStats';
 import PipelineQueues from './PipelineQueues';
 import PipelineTelemetry from './PipelineTelemetry';
 import StatsRow from './StatsRow';
+import { SummaryCards } from './SummaryCards';
 
 /**
  * Throttle interval for WebSocket data updates (in milliseconds).
@@ -78,6 +80,9 @@ export default function DashboardPage() {
   // WebSocket hooks for real-time data
   const { events: wsEvents, isConnected: eventsConnected } = useEventStream();
   const { status: systemStatus, isConnected: systemConnected } = useSystemStatus();
+
+  // Fetch summaries for dashboard cards (hourly and daily summaries)
+  const { hourly: hourlySummary, daily: dailySummary, isLoading: summariesLoading } = useSummaries();
 
   // Throttle WebSocket data to reduce StatsRow re-renders
   // This batches rapid updates within WEBSOCKET_THROTTLE_INTERVAL (500ms)
@@ -381,12 +386,22 @@ export default function DashboardPage() {
         }
         renderActivityFeed={(props) =>
           props ? (
-            <ActivityFeed
-              events={props.events}
-              maxItems={props.maxItems}
-              onEventClick={props.onEventClick}
-              className={props.className}
-            />
+            <>
+              {/* Summary Cards - hourly and daily event summaries */}
+              <div className="mb-6">
+                <SummaryCards
+                  hourly={hourlySummary}
+                  daily={dailySummary}
+                  isLoading={summariesLoading}
+                />
+              </div>
+              <ActivityFeed
+                events={props.events}
+                maxItems={props.maxItems}
+                onEventClick={props.onEventClick}
+                className={props.className}
+              />
+            </>
           ) : null
         }
         renderGpuStats={(props) =>

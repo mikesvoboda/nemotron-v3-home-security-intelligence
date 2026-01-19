@@ -287,3 +287,18 @@ export {
   formatFileSize,
   calculateTimeRemaining,
 } from './export';
+
+// ============================================================================
+// Summary Types
+// ============================================================================
+
+export type {
+  SummaryType,
+  Summary,
+  SummariesLatestResponse,
+  SummaryUpdateMessage,
+  SummaryCardProps,
+  UseSummariesResult,
+} from './summary';
+
+export { isSummary, isSummaryUpdateMessage } from './summary';
