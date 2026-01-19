@@ -11,7 +11,7 @@ import {
   Sliders,
 } from 'lucide-react';
 
-import { SecureContextWarning, Tooltip } from '../common';
+import { SecureContextWarning } from '../common';
 import AlertRulesSettings from './AlertRulesSettings';
 import AmbientStatusSettings from './AmbientStatusSettings';
 import CalibrationPanel from './CalibrationPanel';
@@ -131,27 +131,22 @@ export default function SettingsPage() {
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
-                <Tooltip
+                <Tab
                   key={tab.id}
-                  content={tabDescriptions[tab.id]}
-                  position="bottom"
-                  delay={150}
+                  title={tabDescriptions[tab.id]}
+                  className={({ selected }) =>
+                    clsx(
+                      'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
+                      'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
+                      selected
+                        ? 'bg-[#76B900] text-gray-950 shadow-md'
+                        : 'text-gray-200 hover:bg-gray-800 hover:text-white'
+                    )
+                  }
                 >
-                  <Tab
-                    className={({ selected }) =>
-                      clsx(
-                        'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
-                        'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
-                        selected
-                          ? 'bg-[#76B900] text-gray-950 shadow-md'
-                          : 'text-gray-200 hover:bg-gray-800 hover:text-white'
-                      )
-                    }
-                  >
-                    <Icon className="h-5 w-5" aria-hidden="true" />
-                    <span>{tab.name}</span>
-                  </Tab>
-                </Tooltip>
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                  <span>{tab.name}</span>
+                </Tab>
               );
             })}
           </Tab.List>
