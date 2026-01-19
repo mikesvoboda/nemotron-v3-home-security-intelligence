@@ -19,7 +19,7 @@
 import { test, expect } from '@playwright/test';
 
 // Skip entire file in CI - modal timing issues cause flaky failures
-test.skip(({ }, testInfo) => !!process.env.CI, 'Alert rules tests flaky in CI - run locally');
+test.skip(() => !!process.env.CI, 'Alert rules tests flaky in CI - run locally');
 import { AlertRulesPage } from '../pages';
 import {
   setupApiMocks,

@@ -17,7 +17,7 @@
 import { test, expect } from '../../fixtures';
 
 // Skip entire file in CI - complex workflow tests flaky due to timing issues
-test.skip(({ }, testInfo) => !!process.env.CI, 'User journey tests flaky in CI - run locally');
+test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally');
 
 test.describe('Event Filtering and Search Journey (NEM-2049)', () => {
   test.beforeEach(async ({ page, browserName }) => {

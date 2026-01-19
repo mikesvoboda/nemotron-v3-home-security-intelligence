@@ -19,7 +19,7 @@
 import { test, expect } from '@playwright/test';
 
 // Skip entire file in CI - WebSocket mock timing issues cause flaky failures
-test.skip(({ }, testInfo) => !!process.env.CI, 'AI error handling tests flaky in CI - run locally');
+test.skip(() => !!process.env.CI, 'AI error handling tests flaky in CI - run locally');
 import {
   DashboardPage,
   SystemPage,

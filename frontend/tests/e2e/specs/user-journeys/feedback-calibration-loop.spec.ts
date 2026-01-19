@@ -22,7 +22,7 @@ import { mockEvents, mockUserCalibration } from '../../fixtures/test-data';
 import type { Page } from '@playwright/test';
 
 // Skip entire file in CI - complex workflow tests flaky due to timing issues
-test.skip(({ }, testInfo) => !!process.env.CI, 'User journey tests flaky in CI - run locally');
+test.skip(() => !!process.env.CI, 'User journey tests flaky in CI - run locally');
 
 test.describe('Full Feedback-Calibration Loop @critical', () => {
   // TODO: Fix CI timeout issue - test consistently times out at 15s in parallel execution

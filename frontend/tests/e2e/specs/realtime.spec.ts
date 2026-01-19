@@ -11,7 +11,7 @@
 import { test, expect } from '@playwright/test';
 
 // Skip entire file in CI - WebSocket timing issues cause flaky failures
-test.skip(({ }, testInfo) => !!process.env.CI, 'Real-time tests flaky in CI - run locally');
+test.skip(() => !!process.env.CI, 'Real-time tests flaky in CI - run locally');
 import { DashboardPage, SystemPage, TimelinePage } from '../pages';
 import { setupApiMocks, defaultMockConfig, emptyMockConfig, errorMockConfig } from '../fixtures';
 

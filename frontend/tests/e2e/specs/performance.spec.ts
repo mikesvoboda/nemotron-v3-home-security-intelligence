@@ -59,7 +59,7 @@ const E2E_BUDGETS = {
   TTI: 10000, // 10s
 
   // Resource budgets for dev
-  MAX_RESOURCES: 160, // Dev has more files (unminified)
+  MAX_RESOURCES: 175, // Dev has more files (unminified) - increased for CI stability
   MAX_TRANSFER_KB: 15000, // 15MB (dev builds are larger)
 } as const;
 

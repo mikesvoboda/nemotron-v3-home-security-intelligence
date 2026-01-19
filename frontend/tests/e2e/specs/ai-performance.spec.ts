@@ -18,7 +18,7 @@
 import { test, expect } from '@playwright/test';
 
 // Skip entire file in CI - page load timing issues cause flaky failures
-test.skip(({ }, testInfo) => !!process.env.CI, 'AI performance tests flaky in CI - run locally');
+test.skip(() => !!process.env.CI, 'AI performance tests flaky in CI - run locally');
 import { AIPerformancePage } from '../pages';
 import { setupApiMocks, defaultMockConfig, emptyMockConfig } from '../fixtures';
 

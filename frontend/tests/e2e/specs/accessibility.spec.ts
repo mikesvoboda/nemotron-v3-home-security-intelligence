@@ -19,7 +19,7 @@
 import { test, expect } from '@playwright/test';
 
 // Skip entire file in CI - axe-core tests are flaky due to page load timing issues
-test.skip(({ }, testInfo) => !!process.env.CI, 'Accessibility tests flaky in CI - run locally');
+test.skip(() => !!process.env.CI, 'Accessibility tests flaky in CI - run locally');
 import AxeBuilder from '@axe-core/playwright';
 import {
   DashboardPage,
