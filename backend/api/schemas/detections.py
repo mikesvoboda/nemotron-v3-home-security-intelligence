@@ -259,6 +259,17 @@ class DetectionListResponse(BaseModel):
     )
 
 
+class ObjectClassDistributionItem(BaseModel):
+    """Schema for a single object class distribution item (for Grafana compatibility)."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"object_class": "person", "count": 23}}
+    )
+
+    object_class: str = Field(..., description="Object class name (e.g., person, car)")
+    count: int = Field(..., description="Number of detections of this class")
+
+
 class DetectionStatsResponse(BaseModel):
     """Schema for detection statistics response.
 
@@ -276,6 +287,12 @@ class DetectionStatsResponse(BaseModel):
                     "truck": 6,
                     "bicycle": 1,
                 },
+                "object_class_distribution": [
+                    {"object_class": "person", "count": 23},
+                    {"object_class": "car", "count": 20},
+                    {"object_class": "truck", "count": 6},
+                    {"object_class": "bicycle", "count": 1},
+                ],
                 "average_confidence": 0.87,
             }
         }
@@ -284,6 +301,10 @@ class DetectionStatsResponse(BaseModel):
     total_detections: int = Field(..., description="Total number of detections")
     detections_by_class: dict[str, int] = Field(
         ..., description="Detection counts grouped by object class (e.g., person, car, truck)"
+    )
+    object_class_distribution: list[ObjectClassDistributionItem] = Field(
+        default_factory=list,
+        description="Detections by class as array (for Grafana compatibility)",
     )
     average_confidence: float | None = Field(
         None, description="Average confidence score across all detections"
