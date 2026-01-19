@@ -567,8 +567,10 @@ class TestErrorResponseFormat:
         content_type_404 = response_404.headers.get("content-type", "")
         assert "json" in content_type_404, f"Expected JSON content-type, got: {content_type_404}"
 
-        # 422 error - use admin endpoint with invalid data
-        response_422 = await client.post("/api/admin/seed/cameras", json={"count": 0})
+        # 422 error - use cameras endpoint with invalid data (missing required fields)
+        # Note: Admin endpoints require DEBUG=true AND ADMIN_ENABLED=true, so we use
+        # a non-admin endpoint that triggers Pydantic validation errors
+        response_422 = await client.post("/api/cameras", json={"invalid_field": "value"})
         assert response_422.status_code == 422
         content_type_422 = response_422.headers.get("content-type", "")
         assert "json" in content_type_422, f"Expected JSON content-type, got: {content_type_422}"
