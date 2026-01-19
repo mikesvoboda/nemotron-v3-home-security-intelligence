@@ -1,5 +1,7 @@
 # Settings
 
+![Settings Screenshot](../images/screenshots/settings.png)
+
 The central configuration hub for your home security monitoring system.
 
 ## What You're Looking At

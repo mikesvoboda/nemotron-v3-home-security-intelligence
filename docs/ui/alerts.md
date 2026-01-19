@@ -1,5 +1,7 @@
 # Alerts
 
+![Alerts Screenshot](../images/screenshots/alerts.png)
+
 The Alerts page displays high and critical risk security events that require immediate attention.
 
 ## What You're Looking At

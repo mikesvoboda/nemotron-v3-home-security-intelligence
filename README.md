@@ -2,7 +2,20 @@
 
 Turn "dumb" security cameras into an intelligent threat detection system — **100% local, no cloud APIs required.**
 
-![Dashboard](docs/images/dashboard.png)
+![Dashboard Tour](docs/images/dashboard-tour.gif)
+
+<details>
+<summary>📸 Static Screenshots</summary>
+
+| Dashboard                                           | Timeline                                          | Entities                                          |
+| --------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------- |
+| ![Dashboard](docs/images/screenshots/dashboard.png) | ![Timeline](docs/images/screenshots/timeline.png) | ![Entities](docs/images/screenshots/entities.png) |
+
+| Alerts                                        | Analytics                                           | AI Performance                                                |
+| --------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------- |
+| ![Alerts](docs/images/screenshots/alerts.png) | ![Analytics](docs/images/screenshots/analytics.png) | ![AI Performance](docs/images/screenshots/ai-performance.png) |
+
+</details>
 
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![Node 20.19+](https://img.shields.io/badge/node-20.19+-green.svg)](https://nodejs.org/)
@@ -47,33 +60,33 @@ The brain of this system is [NVIDIA's Nemotron-3-Nano](https://huggingface.co/nv
 
 ## AI Models
 
-| Model                    | Purpose                  | Size   | HuggingFace                                                                                                   |
-| ------------------------ | ------------------------ | ------ | ------------------------------------------------------------------------------------------------------------- |
-| **Nemotron-3-Nano-30B**  | Risk reasoning (LLM)     | 23 GB  | [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF)             |
-| **RT-DETRv2**            | Object detection         | 165 MB | [PekingU/rtdetr_r50vd_coco_o365](https://huggingface.co/PekingU/rtdetr_r50vd_coco_o365)                       |
-| Florence-2-Large         | Dense captioning         | 3.0 GB | [microsoft/Florence-2-large](https://huggingface.co/microsoft/Florence-2-large)                               |
-| CLIP ViT-L               | Entity re-identification | 6.4 GB | [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)                         |
-| FashionCLIP              | Clothing analysis        | 3.5 GB | [patrickjohncyh/fashion-clip](https://huggingface.co/patrickjohncyh/fashion-clip)                             |
-| Depth Anything V2        | Depth estimation         | 95 MB  | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf) |
+| Model                   | Purpose                  | Size   | HuggingFace                                                                                                   |
+| ----------------------- | ------------------------ | ------ | ------------------------------------------------------------------------------------------------------------- |
+| **Nemotron-3-Nano-30B** | Risk reasoning (LLM)     | 23 GB  | [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF)             |
+| **RT-DETRv2**           | Object detection         | 165 MB | [PekingU/rtdetr_r50vd_coco_o365](https://huggingface.co/PekingU/rtdetr_r50vd_coco_o365)                       |
+| Florence-2-Large        | Dense captioning         | 3.0 GB | [microsoft/Florence-2-large](https://huggingface.co/microsoft/Florence-2-large)                               |
+| CLIP ViT-L              | Entity re-identification | 6.4 GB | [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)                         |
+| FashionCLIP             | Clothing analysis        | 3.5 GB | [patrickjohncyh/fashion-clip](https://huggingface.co/patrickjohncyh/fashion-clip)                             |
+| Depth Anything V2       | Depth estimation         | 95 MB  | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf) |
 
 <details>
 <summary><strong>Full Model Zoo (~19GB additional)</strong></summary>
 
-| Model                  | Size   | Purpose                        |
-| ---------------------- | ------ | ------------------------------ |
-| Weather Classification | 2.4 GB | Weather/visibility context     |
-| X-CLIP Base            | 1.5 GB | Action recognition             |
-| Violence Detection     | 656 MB | Violence classifier            |
-| YOLO License Plate     | 656 MB | License plate detection        |
-| Segformer Clothes      | 523 MB | Clothing segmentation          |
-| ViTPose Small          | 127 MB | Pose estimation                |
-| Vehicle Damage         | 120 MB | Damage detection               |
-| Vehicle Segment        | 91 MB  | Vehicle type classification    |
-| Pet Classifier         | 86 MB  | Cat/dog detection              |
-| YOLO Face              | 41 MB  | Face detection                 |
-| YOLO World             | 25 MB  | Open-vocabulary detection      |
-| PaddleOCR              | 12 MB  | Text recognition               |
-| OSNet Re-ID            | 2.9 MB | Person re-identification       |
+| Model                  | Size   | Purpose                     |
+| ---------------------- | ------ | --------------------------- |
+| Weather Classification | 2.4 GB | Weather/visibility context  |
+| X-CLIP Base            | 1.5 GB | Action recognition          |
+| Violence Detection     | 656 MB | Violence classifier         |
+| YOLO License Plate     | 656 MB | License plate detection     |
+| Segformer Clothes      | 523 MB | Clothing segmentation       |
+| ViTPose Small          | 127 MB | Pose estimation             |
+| Vehicle Damage         | 120 MB | Damage detection            |
+| Vehicle Segment        | 91 MB  | Vehicle type classification |
+| Pet Classifier         | 86 MB  | Cat/dog detection           |
+| YOLO Face              | 41 MB  | Face detection              |
+| YOLO World             | 25 MB  | Open-vocabulary detection   |
+| PaddleOCR              | 12 MB  | Text recognition            |
+| OSNet Re-ID            | 2.9 MB | Person re-identification    |
 
 </details>
 
@@ -111,8 +124,7 @@ With all services running on RTX A5500 (24GB):
 | **Containers** | 9                                     |
 | **Open Ports** | 5173 (UI), 8000 (API), 8090-8094 (AI) |
 
-> [!TIP]
-> **Don't have 24GB VRAM?** Reduce `GPU_LAYERS` to offload some layers to CPU RAM, or use a smaller quantization. The system degrades gracefully.
+> [!TIP] > **Don't have 24GB VRAM?** Reduce `GPU_LAYERS` to offload some layers to CPU RAM, or use a smaller quantization. The system degrades gracefully.
 
 </details>
 
@@ -177,11 +189,11 @@ docker compose up -d
 
 ![System Architecture](docs/images/arch-system-overview.png)
 
-| Layer       | Stack                              | Key Files                            |
-| ----------- | ---------------------------------- | ------------------------------------ |
-| Frontend    | React + TypeScript + Tailwind      | `frontend/src/services/api.ts`       |
-| Backend     | FastAPI + SQLAlchemy + Redis       | `backend/services/`, `backend/api/`  |
-| AI Services | llama.cpp + FastAPI                | `ai/rtdetr/`, `ai/nemotron/`         |
+| Layer       | Stack                         | Key Files                           |
+| ----------- | ----------------------------- | ----------------------------------- |
+| Frontend    | React + TypeScript + Tailwind | `frontend/src/services/api.ts`      |
+| Backend     | FastAPI + SQLAlchemy + Redis  | `backend/services/`, `backend/api/` |
+| AI Services | llama.cpp + FastAPI           | `ai/rtdetr/`, `ai/nemotron/`        |
 
 ![Container Architecture](docs/images/architecture/container-architecture.png)
 
@@ -215,15 +227,15 @@ You can:
 
 Common settings:
 
-| Variable                     | Purpose                    |
-| ---------------------------- | -------------------------- |
-| `FOSCAM_BASE_PATH`           | Camera upload directory    |
-| `RTDETR_URL`, `NEMOTRON_URL` | Core AI endpoints          |
-| `FLORENCE_URL`, `CLIP_URL`   | Enrichment AI endpoints    |
-| `RETENTION_DAYS`             | Event retention (days)     |
-| `BATCH_WINDOW_SECONDS`       | Detection batching window  |
-| `FILE_WATCHER_POLLING`       | Use polling (Docker mounts)|
-| `API_KEY_ENABLED`            | Enable API key auth        |
+| Variable                     | Purpose                     |
+| ---------------------------- | --------------------------- |
+| `FOSCAM_BASE_PATH`           | Camera upload directory     |
+| `RTDETR_URL`, `NEMOTRON_URL` | Core AI endpoints           |
+| `FLORENCE_URL`, `CLIP_URL`   | Enrichment AI endpoints     |
+| `RETENTION_DAYS`             | Event retention (days)      |
+| `BATCH_WINDOW_SECONDS`       | Detection batching window   |
+| `FILE_WATCHER_POLLING`       | Use polling (Docker mounts) |
+| `API_KEY_ENABLED`            | Enable API key auth         |
 
 </details>
 

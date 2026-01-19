@@ -909,6 +909,81 @@ run_migrations() {
     return 0
 }
 
+stamp_consolidated_migration() {
+    # When migrations are consolidated, existing databases may have old version references.
+    # This function stamps the database to the current head if needed.
+    print_header "Checking Migration Compatibility"
+
+    if [ "$DRY_RUN" = "true" ]; then
+        print_info "Skipping migration stamp in dry-run mode"
+        return 0
+    fi
+
+    # Wait for postgres to be ready
+    print_step "Waiting for PostgreSQL to be healthy..."
+    local max_attempts=30
+    local attempt=0
+    while [ $attempt -lt $max_attempts ]; do
+        if $CONTAINER_CMD exec "${PROJECT_NAME}_postgres_1" pg_isready -U "${POSTGRES_USER:-security}" > /dev/null 2>&1; then
+            break
+        fi
+        ((attempt++))
+        sleep 2
+    done
+
+    if [ $attempt -eq $max_attempts ]; then
+        print_warn "PostgreSQL not ready - skipping migration stamp"
+        return 0
+    fi
+
+    # Check current alembic version
+    local current_version
+    current_version=$($CONTAINER_CMD exec "${PROJECT_NAME}_postgres_1" psql -U "${POSTGRES_USER:-security}" -d "${POSTGRES_DB:-security}" -t -c "SELECT version_num FROM alembic_version LIMIT 1;" 2>/dev/null | tr -d ' \n')
+
+    if [ -z "$current_version" ]; then
+        print_info "No migration version found - fresh database"
+        return 0
+    fi
+
+    # Get the expected head from the migrations folder (consolidated migration)
+    local expected_head
+    expected_head=$(ls "$PROJECT_ROOT/backend/alembic/versions/"*.py 2>/dev/null | head -1 | xargs -r basename | cut -d'_' -f1)
+
+    if [ -z "$expected_head" ]; then
+        print_warn "Could not determine expected migration head"
+        return 0
+    fi
+
+    print_info "Current DB version: $current_version"
+    print_info "Expected head: $expected_head"
+
+    # If versions match, we're good
+    if [ "$current_version" = "$expected_head" ]; then
+        print_success "Migration version is current"
+        return 0
+    fi
+
+    # Check if current version exists in migrations folder
+    if ls "$PROJECT_ROOT/backend/alembic/versions/"*"${current_version}"*.py > /dev/null 2>&1; then
+        print_info "Current version exists - will run normal migration"
+        return 0
+    fi
+
+    # Version doesn't exist - need to stamp to consolidated head
+    print_warn "Database has obsolete migration version (consolidated migrations)"
+    print_step "Stamping database to consolidated head: $expected_head"
+
+    if $CONTAINER_CMD exec "${PROJECT_NAME}_postgres_1" psql -U "${POSTGRES_USER:-security}" -d "${POSTGRES_DB:-security}" -c "UPDATE alembic_version SET version_num = '$expected_head';" > /dev/null 2>&1; then
+        print_success "Database stamped to consolidated migration"
+    else
+        print_fail "Failed to stamp database - backend may fail to start"
+        print_info "Manual fix: UPDATE alembic_version SET version_num = '$expected_head';"
+        return 1
+    fi
+
+    return 0
+}
+
 prepare_directories() {
     print_header "Preparing Directories"
 
@@ -1351,9 +1426,14 @@ main() {
         exit 1
     fi
 
-    # Run database migrations if volumes were destroyed (fresh database)
+    # Handle database migrations
     if [ "$KEEP_VOLUMES" != "true" ]; then
+        # Fresh database - run migrations normally
         run_migrations
+    else
+        # Existing database - check for consolidated migration compatibility
+        # This handles the case where migrations were consolidated and old version references need updating
+        stamp_consolidated_migration
     fi
 
     # Verify deployment

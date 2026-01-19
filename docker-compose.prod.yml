@@ -29,7 +29,7 @@
 #   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8443)
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
 #   - RTDETR_CONFIDENCE: Detection confidence threshold (default: 0.5)
-#   - GPU_LAYERS: Number of GPU layers for LLM (default: 35)
+#   - GPU_LAYERS: Number of GPU layers for LLM (default: 30)
 #   - CTX_SIZE: LLM context window size (default: 131072)
 #   - HF_CACHE: HuggingFace cache directory (default: ~/.cache/huggingface)
 #   - REDIS_PASSWORD: Redis authentication password (optional, for production use)
@@ -116,7 +116,7 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
     environment:
-      - GPU_LAYERS=${GPU_LAYERS:-35}
+      - GPU_LAYERS=${GPU_LAYERS:-30}
       - CTX_SIZE=${CTX_SIZE:-131072}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']

@@ -70,6 +70,11 @@ from backend.core.docker_client import DockerClient
 from backend.core.logging import enable_deferred_db_logging, redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
 from backend.core.telemetry import setup_telemetry, shutdown_telemetry
+from backend.jobs.summary_job import (
+    SummaryJobScheduler,
+    get_summary_job_scheduler,
+    reset_summary_job_scheduler,
+)
 from backend.models.camera import Camera
 from backend.models.enums import CameraStatus
 from backend.services.background_evaluator import BackgroundEvaluator
@@ -673,6 +678,20 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
             f"idle duration: {settings.background_evaluation_idle_duration}s)"
         )
 
+    # Initialize summary job scheduler for automatic dashboard summary generation (NEM-2891)
+    # Generates hourly and daily summaries of high/critical events every 5 minutes
+    summary_job_scheduler: SummaryJobScheduler | None = None
+    if redis_client is not None:
+        event_broadcaster = await get_broadcaster(redis_client)
+        summary_job_scheduler = get_summary_job_scheduler(
+            interval_minutes=5,
+            redis_client=redis_client,
+            broadcaster=event_broadcaster,
+            timeout=60.0,
+        )
+        await summary_job_scheduler.start()
+        lifespan_logger.info("Summary job scheduler started (5-minute interval)")
+
     # Initialize service health monitor for auto-recovery of AI services
     # Note: This monitors RT-DETRv2 and Nemotron services for health and can trigger restarts
     # Redis is excluded since the application handles Redis failures gracefully already
@@ -796,6 +815,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     if background_evaluator is not None:
         await background_evaluator.stop()
         lifespan_logger.info("Background evaluator stopped")
+
+    # Stop summary job scheduler
+    if summary_job_scheduler is not None:
+        await summary_job_scheduler.stop()
+        lifespan_logger.info("Summary job scheduler stopped")
+        reset_summary_job_scheduler()
 
     await cleanup_service.stop()
     lifespan_logger.info("Cleanup service stopped")

@@ -1,5 +1,7 @@
 # Dashboard
 
+![Dashboard Screenshot](../images/screenshots/dashboard.png)
+
 The main monitoring view showing real-time security status across all cameras.
 
 ## What You're Looking At

@@ -1,5 +1,7 @@
 # Event Timeline
 
+![Timeline Screenshot](../images/screenshots/timeline.png)
+
 The chronological event viewer for reviewing, searching, and managing security detection events.
 
 ## What You're Looking At
