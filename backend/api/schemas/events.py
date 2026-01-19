@@ -265,6 +265,71 @@ class EventStatsResponse(BaseModel):
     events_by_camera: list[EventsByCamera] = Field(..., description="Events grouped by camera")
 
 
+class TimelineBucketResponse(BaseModel):
+    """Schema for a single time bucket in the timeline summary (NEM-2932).
+
+    Each bucket represents a time period with aggregated event data.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "timestamp": "2026-01-15T12:00:00Z",
+                "event_count": 15,
+                "max_risk_score": 85,
+            }
+        }
+    )
+
+    timestamp: datetime = Field(..., description="Start timestamp of this bucket")
+    event_count: int = Field(..., ge=0, description="Number of events in this bucket")
+    max_risk_score: int = Field(
+        0, ge=0, le=100, description="Maximum risk score of events in this bucket"
+    )
+
+
+class TimelineSummaryResponse(BaseModel):
+    """Schema for timeline summary response (NEM-2932).
+
+    Returns bucketed event data for timeline visualization.
+    Supports different zoom levels with varying bucket sizes.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "buckets": [
+                    {
+                        "timestamp": "2026-01-15T06:00:00Z",
+                        "event_count": 5,
+                        "max_risk_score": 45,
+                    },
+                    {
+                        "timestamp": "2026-01-15T07:00:00Z",
+                        "event_count": 12,
+                        "max_risk_score": 85,
+                    },
+                    {
+                        "timestamp": "2026-01-15T08:00:00Z",
+                        "event_count": 3,
+                        "max_risk_score": 25,
+                    },
+                ],
+                "total_events": 20,
+                "start_date": "2026-01-15T06:00:00Z",
+                "end_date": "2026-01-15T09:00:00Z",
+            }
+        }
+    )
+
+    buckets: list[TimelineBucketResponse] = Field(
+        ..., description="List of time buckets with aggregated event data"
+    )
+    total_events: int = Field(..., ge=0, description="Total events in the time range")
+    start_date: datetime = Field(..., description="Start of the timeline range")
+    end_date: datetime = Field(..., description="End of the timeline range")
+
+
 class DeletedEventsListResponse(BaseModel):
     """Schema for listing soft-deleted events (trash view).
 

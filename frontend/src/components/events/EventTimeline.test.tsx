@@ -41,6 +41,27 @@ vi.mock('../../hooks/useInfiniteScroll', () => ({
   useInfiniteScroll: vi.fn(),
 }));
 
+// Mock useTimelineData hook
+vi.mock('../../hooks/useTimelineData', () => ({
+  useTimelineData: vi.fn(() => ({
+    buckets: [],
+    timeRange: { start: new Date(), end: new Date() },
+    isLoading: false,
+  })),
+}));
+
+// Mock useLocalStorage hook
+vi.mock('../../hooks/useLocalStorage', () => ({
+  useLocalStorage: vi.fn((_key: string, defaultValue: unknown) => [defaultValue, vi.fn()]),
+}));
+
+// Mock eventClustering utilities
+vi.mock('../../utils/eventClustering', () => ({
+  clusterEvents: vi.fn((events: unknown[]) => events),
+  getClusterStats: vi.fn(() => ({ totalClusters: 0, clusteredEvents: 0, totalEvents: 0 })),
+  isEventCluster: vi.fn(() => false),
+}));
+
 // Mock ExportModal component
 vi.mock('../exports/ExportModal', () => ({
   default: ({
@@ -80,6 +101,26 @@ vi.mock('../exports/ExportModal', () => ({
       </div>
     );
   },
+}));
+
+// Mock TimelineScrubber component
+vi.mock('./TimelineScrubber', () => ({
+  default: () => <div data-testid="timeline-scrubber">Timeline Scrubber Mock</div>,
+}));
+
+// Mock ViewToggle component
+vi.mock('./ViewToggle', () => ({
+  default: () => <div data-testid="view-toggle">View Toggle Mock</div>,
+}));
+
+// Mock EventClusterCard component
+vi.mock('./EventClusterCard', () => ({
+  default: () => <div data-testid="event-cluster-card">Event Cluster Card Mock</div>,
+}));
+
+// Mock EventListView component
+vi.mock('./EventListView', () => ({
+  default: () => <div data-testid="event-list-view">Event List View Mock</div>,
 }));
 
 // Mock LiveActivitySection component
@@ -219,6 +260,21 @@ describe('EventTimeline', () => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+
+    // Mock matchMedia for reduced motion preference (used by EventCard)
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
 
     // Mock useEventsInfiniteQuery
     vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
@@ -1282,11 +1338,12 @@ describe('EventTimeline', () => {
       // Should show loading state with skeleton loaders
       expect(screen.getAllByTestId('event-card-skeleton').length).toBeGreaterThan(0);
 
-      // Should not show risk badges during loading
-      expect(screen.queryByText('Critical')).not.toBeInTheDocument();
-      expect(screen.queryByText('High')).not.toBeInTheDocument();
-      expect(screen.queryByText('Medium')).not.toBeInTheDocument();
-      expect(screen.queryByText('Low')).not.toBeInTheDocument();
+      // Should not show risk summary badges (counts with colored text) during loading
+      // Note: FilterChips still shows risk level labels, but without counts in the summary section
+      expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument();
+      expect(screen.queryByText('1', { selector: '.text-orange-400' })).not.toBeInTheDocument();
+      expect(screen.queryByText('1', { selector: '.text-yellow-400' })).not.toBeInTheDocument();
+      expect(screen.queryByText('1', { selector: '.text-green-400' })).not.toBeInTheDocument();
     });
 
     it('does not display risk badges when there is an error', async () => {
@@ -1304,11 +1361,12 @@ describe('EventTimeline', () => {
         expect(screen.getByText('Error Loading Events')).toBeInTheDocument();
       });
 
-      // Should not show risk badges on error
-      expect(screen.queryByText('Critical')).not.toBeInTheDocument();
-      expect(screen.queryByText('High')).not.toBeInTheDocument();
-      expect(screen.queryByText('Medium')).not.toBeInTheDocument();
-      expect(screen.queryByText('Low')).not.toBeInTheDocument();
+      // Should not show risk summary badges (counts with colored text) on error
+      // Note: FilterChips still shows risk level labels, but without counts in the summary section
+      expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument();
+      expect(screen.queryByText('1', { selector: '.text-orange-400' })).not.toBeInTheDocument();
+      expect(screen.queryByText('1', { selector: '.text-yellow-400' })).not.toBeInTheDocument();
+      expect(screen.queryByText('1', { selector: '.text-green-400' })).not.toBeInTheDocument();
     });
 
     it('does not display risk badges when no events are found', async () => {
@@ -1322,11 +1380,12 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      // Should not show risk badges when empty
-      expect(screen.queryByText('Critical')).not.toBeInTheDocument();
-      expect(screen.queryByText('High')).not.toBeInTheDocument();
-      expect(screen.queryByText('Medium')).not.toBeInTheDocument();
-      expect(screen.queryByText('Low')).not.toBeInTheDocument();
+      // Should not show risk summary badges (counts with colored text) when empty
+      // Note: FilterChips still shows risk level labels, but without counts in the summary section
+      expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument();
+      expect(screen.queryByText('1', { selector: '.text-orange-400' })).not.toBeInTheDocument();
+      expect(screen.queryByText('1', { selector: '.text-yellow-400' })).not.toBeInTheDocument();
+      expect(screen.queryByText('1', { selector: '.text-green-400' })).not.toBeInTheDocument();
     });
 
     it('only displays badges for risk levels that have events', async () => {
@@ -1368,15 +1427,16 @@ describe('EventTimeline', () => {
         expect(screen.getByText('Person detected')).toBeInTheDocument();
       });
 
-      // Should only show medium risk badge with count of 2
+      // Should only show medium risk badge with count of 2 in the summary section
       await waitFor(() => {
         expect(screen.getByText('2', { selector: '.text-yellow-400' })).toBeInTheDocument(); // Medium
       });
 
-      // Should not show other risk levels
-      expect(screen.queryByText('Critical')).not.toBeInTheDocument();
-      expect(screen.queryByText('High')).not.toBeInTheDocument();
-      expect(screen.queryByText('Low')).not.toBeInTheDocument();
+      // Should not show counts for other risk levels in the summary section
+      // Note: FilterChips still shows risk level labels, but without counts in the summary section
+      expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument();
+      expect(screen.queryByText('1', { selector: '.text-orange-400' })).not.toBeInTheDocument();
+      expect(screen.queryByText('1', { selector: '.text-green-400' })).not.toBeInTheDocument();
     });
   });
 

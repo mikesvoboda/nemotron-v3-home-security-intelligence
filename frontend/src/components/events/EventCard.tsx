@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, Clock, Eye, Moon, Timer, TrendingUp } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 
 import {
   calculateAverageConfidence,
@@ -13,6 +13,7 @@ import {
   sortDetectionsByConfidence,
 } from '../../utils/confidence';
 import { getRiskColor, getRiskLevel } from '../../utils/risk';
+import { getSeverityConfig } from '../../utils/severityColors';
 import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
@@ -67,6 +68,23 @@ const EventCard = memo(function EventCard({
 }: EventCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  // Detect prefers-reduced-motion preference
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mediaQuery.matches);
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      setPrefersReducedMotion(e.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  // Get severity configuration for styling
+  const severityConfig = getSeverityConfig(risk_score);
 
   // Handle snooze action
   const handleSnooze = (seconds: number) => {
@@ -133,15 +151,21 @@ const EventCard = memo(function EventCard({
   // Sort detections by confidence (highest first)
   const sortedDetections = sortDetectionsByConfidence(detections);
 
-  // Get left border color class based on risk level
-  const getBorderColorClass = (): string => {
-    const borderColors: Record<string, string> = {
-      low: 'border-l-risk-low',
-      medium: 'border-l-risk-medium',
-      high: 'border-l-risk-high',
-      critical: 'border-l-red-500',
-    };
-    return borderColors[riskLevel];
+  // Build severity-based styling classes
+  const getSeverityClasses = (): string => {
+    const classes = [severityConfig.bgClass, severityConfig.borderClass];
+
+    // Add glow effect for critical severity
+    if (severityConfig.glowClass) {
+      classes.push(severityConfig.glowClass);
+    }
+
+    // Add pulse animation for critical severity (respecting reduced motion preference)
+    if (severityConfig.shouldPulse && !prefersReducedMotion) {
+      classes.push(severityConfig.pulseClass);
+    }
+
+    return classes.join(' ');
   };
 
   // Handle card click - don't trigger if clicking on interactive elements
@@ -174,8 +198,9 @@ const EventCard = memo(function EventCard({
   return (
     /* eslint-disable jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-tabindex -- Card is accessible via nested buttons (View Details, Snooze) when they exist; role="button" intentionally omitted to avoid WCAG nested-interactive violation */
     <div
-      className={`rounded-lg border border-gray-800 ${getBorderColorClass()} border-l-4 bg-[#1F1F1F] shadow-lg transition-all hover:border-gray-700 ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
+      className={`rounded-lg border border-gray-800 border-l-4 shadow-lg transition-all hover:border-gray-700 ${getSeverityClasses()} ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
       data-testid={`event-card-${id}`}
+      data-severity={severityConfig.level}
       onClick={isClickable ? handleCardClick : undefined}
       onKeyDown={isClickable ? handleKeyDown : undefined}
       tabIndex={isClickable ? 0 : undefined}
