@@ -119,6 +119,64 @@ All conditions in a rule must match for an alert to trigger:
 
 **How conditions work:** When multiple conditions are specified, they are evaluated using AND logic - all conditions must match for the rule to trigger. If a condition field is left empty (e.g., no cameras selected), it matches all values for that field.
 
+### Diagram: Alert Rule Evaluation Flow
+
+```mermaid
+flowchart TD
+    subgraph Trigger["Event Trigger"]
+        A[New Event Created] --> B[Load Enabled Rules]
+    end
+
+    subgraph Evaluation["Rule Evaluation Loop"]
+        B --> C{More Rules?}
+        C -->|Yes| D[Get Next Rule]
+        D --> E{Risk >= Threshold?}
+        E -->|No| C
+        E -->|Yes| F{Object Type Matches?}
+        F -->|No| C
+        F -->|Yes| G{Camera Matches?}
+        G -->|No| C
+        G -->|Yes| H{Confidence >= Min?}
+        H -->|No| C
+        H -->|Yes| I{Within Schedule?}
+        I -->|No| C
+        I -->|Yes| J[All Conditions Met]
+    end
+
+    subgraph Trust["Entity Trust Check"]
+        J --> K{Trusted Entity?}
+        K -->|Yes| L[Suppress Alert]
+        K -->|No| M{Untrusted Entity?}
+        M -->|Yes| N[Escalate Severity]
+        M -->|No| O[Normal Severity]
+    end
+
+    subgraph Dedup["Deduplication Check"]
+        N --> P[Build Dedup Key]
+        O --> P
+        P --> Q{Within Cooldown?}
+        Q -->|Yes| R[Suppress Duplicate]
+        Q -->|No| S[Create Alert]
+    end
+
+    subgraph Delivery["Alert Delivery"]
+        S --> T[Set Status: PENDING]
+        T --> U[Send Notifications]
+        U --> V[Set Status: DELIVERED]
+        V --> W[Broadcast WebSocket]
+    end
+
+    C -->|No| X[Done]
+    L --> C
+    R --> C
+
+    style Trigger fill:#e0f2fe
+    style Evaluation fill:#fef3c7
+    style Trust fill:#f3e8ff
+    style Dedup fill:#fed7aa
+    style Delivery fill:#d1fae5
+```
+
 ### Rule Severity Levels
 
 | Severity     | Use Case                                   |
@@ -527,12 +585,46 @@ For developers wanting to understand the underlying systems.
 
 Alerts have four possible statuses:
 
-```
-PENDING --> DELIVERED --> ACKNOWLEDGED --> DISMISSED
-                    \--> DISMISSED
+### Diagram: Alert Status State Machine
 
-PENDING --> ACKNOWLEDGED --> DISMISSED
-       \--> DISMISSED
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: Alert Created
+
+    PENDING --> DELIVERED: Notification Sent
+    PENDING --> ACKNOWLEDGED: User Acknowledges
+    PENDING --> DISMISSED: User Dismisses
+
+    DELIVERED --> ACKNOWLEDGED: User Acknowledges
+    DELIVERED --> DISMISSED: User Dismisses
+
+    ACKNOWLEDGED --> DISMISSED: User Dismisses
+
+    DISMISSED --> [*]: Final State
+
+    state PENDING {
+        [*] --> Queued
+        Queued: Waiting for delivery
+        Queued: Red "Unacknowledged" badge
+    }
+
+    state DELIVERED {
+        [*] --> Sent
+        Sent: Notifications dispatched
+        Sent: Channels notified
+    }
+
+    state ACKNOWLEDGED {
+        [*] --> Reviewed
+        Reviewed: User has seen alert
+        Reviewed: Green "Acknowledged" badge
+    }
+
+    state DISMISSED {
+        [*] --> Closed
+        Closed: No longer active
+        Closed: Removed from list
+    }
 ```
 
 - **PENDING**: Initial state when alert is created

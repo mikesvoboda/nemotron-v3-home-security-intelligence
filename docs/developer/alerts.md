@@ -110,6 +110,42 @@ sequenceDiagram
     AE->>N: deliver_alert(alert)
 ```
 
+### Alert Rule Condition Evaluation
+
+All conditions in a rule must match (AND logic) for the rule to trigger:
+
+```mermaid
+flowchart TD
+    A[Event Received] --> B{Risk threshold<br>condition set?}
+    B -->|Yes| C{event.risk_score >=<br>rule.risk_threshold?}
+    B -->|No| D{Object types<br>condition set?}
+    C -->|No| FAIL[Rule does NOT match]
+    C -->|Yes| D
+
+    D -->|Yes| E{Detection object_type<br>in rule.object_types?}
+    D -->|No| F{Camera IDs<br>condition set?}
+    E -->|No| FAIL
+    E -->|Yes| F
+
+    F -->|Yes| G{event.camera_id<br>in rule.camera_ids?}
+    F -->|No| H{Min confidence<br>condition set?}
+    G -->|No| FAIL
+    G -->|Yes| H
+
+    H -->|Yes| I{Detection confidence >=<br>rule.min_confidence?}
+    H -->|No| J{Schedule<br>condition set?}
+    I -->|No| FAIL
+    I -->|Yes| J
+
+    J -->|Yes| K{Current time within<br>rule.schedule?}
+    J -->|No| PASS[Rule MATCHES]
+    K -->|No| FAIL
+    K -->|Yes| PASS
+
+    style PASS fill:#22C55E,color:#fff
+    style FAIL fill:#EF4444,color:#fff
+```
+
 ### Deduplication
 
 Prevents alert fatigue using cooldown windows:

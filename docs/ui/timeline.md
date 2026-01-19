@@ -125,6 +125,56 @@ When not in search mode, the filter panel provides structured filtering. Expand 
 - **Active badge** - Green badge shows when any filters are active
 - **Clear All Filters** - Reset all filters to defaults (disabled when no filters active)
 
+### Diagram: Filter Application Flow
+
+```mermaid
+flowchart TD
+    subgraph Input["User Input"]
+        A[User Opens Timeline] --> B{Search or Browse?}
+    end
+
+    subgraph Search["Full-Text Search Path"]
+        B -->|Search| C[Enter Search Query]
+        C --> D[Apply Search Filters]
+        D --> E[PostgreSQL ts_rank Query]
+        E --> F[Sort by Relevance Score]
+    end
+
+    subgraph Browse["Browse Mode Path"]
+        B -->|Browse| G[Select Browse Filters]
+        G --> H[Camera Filter]
+        G --> I[Risk Level Filter]
+        G --> J[Status Filter]
+        G --> K[Object Type Filter]
+        G --> L[Date Range Filter]
+        G --> M[Sort Order]
+    end
+
+    subgraph Query["Query Building"]
+        H & I & J & K & L --> N[Combine with AND Logic]
+        N --> O[Apply Sort Order]
+        M --> O
+        F --> P[Apply Pagination]
+        O --> P
+    end
+
+    subgraph Results["Results Display"]
+        P --> Q[Fetch Page of Events]
+        Q --> R[Render Event Cards]
+        R --> S{More Events?}
+        S -->|Yes| T[Enable Infinite Scroll]
+        T --> U[User Scrolls Down]
+        U --> P
+        S -->|No| V[Show End Message]
+    end
+
+    style Input fill:#e0f2fe
+    style Search fill:#fef3c7
+    style Browse fill:#f3e8ff
+    style Query fill:#fed7aa
+    style Results fill:#d1fae5
+```
+
 **Search Mode Filters** (when in full-text search):
 
 The search bar has its own advanced filters panel with similar options:
@@ -644,23 +694,55 @@ When paused, you can manually scroll through events.
 
 How events flow through the system:
 
-```
-Camera Detects Motion
-        |
-        v
-AI Analyzes Image
-        |
-        v
-Risk Score Assigned
-        |
-        v
-Event Appears in Feed
-        |
-        v
-Click to View Details
-        |
-        v
-Mark as Reviewed
+### Diagram: Event Lifecycle Flow
+
+```mermaid
+flowchart TD
+    subgraph Capture["Camera Capture"]
+        A[Camera Detects Motion] --> B[Image Uploaded via FTP]
+    end
+
+    subgraph Detection["AI Detection"]
+        B --> C[File Watcher Detects Image]
+        C --> D[RT-DETRv2 Object Detection]
+        D --> E{Objects Found?}
+        E -->|No| F[Discard]
+        E -->|Yes| G[Create Detection Record]
+    end
+
+    subgraph Batching["Batch Aggregation"]
+        G --> H[Add to Detection Batch]
+        H --> I{Batch Ready?}
+        I -->|No| H
+        I -->|Yes| J[Close Batch]
+    end
+
+    subgraph Analysis["Risk Analysis"]
+        J --> K[Nemotron LLM Analysis]
+        K --> L[Generate Risk Score]
+        L --> M[Create Summary & Reasoning]
+        M --> N[Create Event Record]
+    end
+
+    subgraph Delivery["Event Delivery"]
+        N --> O[Broadcast via WebSocket]
+        O --> P[Appears in Live Feed]
+        O --> Q[Triggers Alert Rules]
+    end
+
+    subgraph Review["User Review"]
+        P --> R[User Clicks Event]
+        R --> S[View Event Details]
+        S --> T[Add Notes]
+        T --> U[Mark as Reviewed]
+    end
+
+    style Capture fill:#e0f2fe
+    style Detection fill:#fef3c7
+    style Batching fill:#fed7aa
+    style Analysis fill:#f3e8ff
+    style Delivery fill:#d1fae5
+    style Review fill:#dbeafe
 ```
 
 ---

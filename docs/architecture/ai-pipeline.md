@@ -69,7 +69,8 @@ The pipeline processes images through two paths:
 
 _End-to-end sequence showing FTP upload, FileWatcher processing, RT-DETRv2 detection, batch aggregation with fast-path logic, Nemotron LLM analysis, and WebSocket broadcast to dashboard._
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: Pipeline Sequence
+
 ```mermaid
 sequenceDiagram
     participant Camera as Foscam Camera
@@ -128,9 +129,7 @@ sequenceDiagram
     NEM-->>AW: JSON {risk_score, risk_level, summary, reasoning}
     AW->>DB: INSERT Event record
     AW->>WS: Broadcast new event
-
 ```
--->
 
 ### Pipeline Timing Characteristics
 
@@ -391,7 +390,8 @@ The BatchAggregator groups related detections into batches before sending them t
 
 _State machine showing batch lifecycle from creation through collection to closure, with timeout triggers and Redis cleanup._
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: Batch Lifecycle State Machine
+
 ```mermaid
 stateDiagram-v2
     [*] --> NoActiveBatch: No batch exists
@@ -413,9 +413,7 @@ stateDiagram-v2
         Collecting --> Collecting: add_detection()
         Collecting --> [*]: Timeout check triggers
     }
-
 ```
--->
 
 ### Timing Parameters
 
@@ -448,7 +446,8 @@ High-confidence detections of critical object types bypass normal batching for i
 
 _Decision flowchart showing how high-confidence critical detections bypass batching for immediate LLM analysis._
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: Fast-Path Decision Flow
+
 ```mermaid
 flowchart TD
     A[Detection arrives] --> B{confidence >= 0.90?}
@@ -463,9 +462,7 @@ flowchart TD
     D --> I[Add to batch]
     I --> J[Wait for batch timeout]
     J --> K[Normal analysis flow]
-````
-
--->
+```
 
 **Fast-Path Configuration:**
 
@@ -696,7 +693,8 @@ The pipeline is designed for graceful degradation - failures at any stage should
 
 _Flowchart showing graceful error handling through validation stages, with all errors returning empty arrays._
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: Detection Error Handling Flow
+
 ```mermaid
 flowchart TD
     A[Detection Request] --> B{File exists?}
@@ -714,9 +712,7 @@ flowchart TD
     L --> M{Above confidence threshold?}
     M -->|No| N[Filter out, continue]
     M -->|Yes| O[Create Detection record]
-
-````
--->
+```
 
 ### Error Scenarios and Responses
 
@@ -817,7 +813,8 @@ Database table: `events`
 
 _Visualization showing how multiple raw detections aggregate into batches, which transform into risk-scored events through LLM analysis._
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: Detection to Event Transformation
+
 ```mermaid
 flowchart TB
     subgraph "Raw Detections"
@@ -843,9 +840,7 @@ flowchart TB
     D4 --> B
     D5 --> B
     B --> E
-
-````
--->
+```
 
 ---
 
@@ -901,7 +896,8 @@ _Host machine architecture showing GPU-accelerated AI services (RT-DETRv2, Nemot
 
 \*Production uses NVIDIA Nemotron-3-Nano-30B-A3B (~14.7GB); development uses Nemotron Mini 4B (~3GB).
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: AI Service Interaction
+
 ```mermaid
 flowchart TB
     subgraph "Host Machine"
@@ -931,9 +927,7 @@ flowchart TB
 
     style RT fill:#76B900
     style NEM fill:#76B900
-````
-
--->
+```
 
 ---
 

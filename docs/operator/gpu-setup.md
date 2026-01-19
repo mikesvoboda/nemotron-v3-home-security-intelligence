@@ -54,6 +54,52 @@ Additional optional AI services (e.g. Florence-2, CLIP, Enrichment) may also use
 
 ## 2. Installing NVIDIA Drivers
 
+### GPU Driver Installation Workflow
+
+```mermaid
+flowchart TD
+    Start([Start GPU Setup]) --> Check{nvidia-smi<br/>works?}
+
+    Check -->|Yes| VerifyVersion{Driver >= 535?}
+    Check -->|No| DetectOS{Detect OS}
+
+    VerifyVersion -->|Yes| ToolkitCheck{Container Toolkit<br/>Installed?}
+    VerifyVersion -->|No| DetectOS
+
+    DetectOS -->|Ubuntu/Debian| UbuntuInstall["sudo apt update<br/>sudo apt install nvidia-driver-550"]
+    DetectOS -->|Fedora/RHEL| FedoraInstall["sudo dnf install akmod-nvidia<br/>sudo akmods --force"]
+
+    UbuntuInstall --> Reboot([Reboot Required])
+    FedoraInstall --> Reboot
+
+    Reboot --> VerifyDriver{nvidia-smi<br/>works?}
+    VerifyDriver -->|Yes| ToolkitCheck
+    VerifyDriver -->|No| Troubleshoot[Check secure boot,<br/>kernel modules]
+
+    ToolkitCheck -->|Yes| ConfigureRuntime{Runtime<br/>Configured?}
+    ToolkitCheck -->|No| InstallToolkit["Install nvidia-container-toolkit"]
+
+    InstallToolkit --> ConfigureRuntime
+
+    ConfigureRuntime -->|Docker| DockerConfig["nvidia-ctk runtime configure --runtime=docker<br/>systemctl restart docker"]
+    ConfigureRuntime -->|Podman| PodmanConfig["nvidia-ctk cdi generate<br/>--output=/etc/cdi/nvidia.yaml"]
+
+    DockerConfig --> TestContainer{"docker run --gpus all<br/>nvidia-smi"}
+    PodmanConfig --> TestContainer2{"podman run<br/>--device nvidia.com/gpu=all<br/>nvidia-smi"}
+
+    TestContainer -->|Success| Done([GPU Ready for AI Services])
+    TestContainer -->|Fail| Troubleshoot
+    TestContainer2 -->|Success| Done
+    TestContainer2 -->|Fail| Troubleshoot
+
+    Troubleshoot --> Check
+
+    style Start fill:#e1f5fe
+    style Done fill:#c8e6c9
+    style Reboot fill:#fff3e0
+    style Troubleshoot fill:#ffcdd2
+```
+
 ### Check Current Installation
 
 ```bash

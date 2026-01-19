@@ -22,13 +22,40 @@ For detailed historical metrics and custom dashboards, click the Grafana link ba
 
 The pipeline visualization shows the four processing stages as a horizontal flow diagram:
 
-```
-+--------+     +--------+     +--------+     +---------+
-| Files  | --> | Detect | --> | Batch  | --> | Analyze |
-+--------+     +--------+     +--------+     +---------+
-  Camera        RT-DETR       Group          Nemotron
-  Uploads       Detection     Related        Risk
-                             Detections      Analysis
+### Diagram: AI Pipeline Flow
+
+```mermaid
+flowchart LR
+    subgraph Files["Files Stage"]
+        F1[Camera Uploads]
+        F2[File Watcher]
+        F1 --> F2
+    end
+
+    subgraph Detect["Detection Stage"]
+        D1[Detection Queue]
+        D2[RT-DETRv2]
+        D1 --> D2
+    end
+
+    subgraph Batch["Batching Stage"]
+        B1[Group Related]
+        B2[Time Windows]
+        B1 --> B2
+    end
+
+    subgraph Analyze["Analysis Stage"]
+        A1[Analysis Queue]
+        A2[Nemotron LLM]
+        A1 --> A2
+    end
+
+    Files --> Detect --> Batch --> Analyze
+
+    style Files fill:#e0f2fe,stroke:#0284c7
+    style Detect fill:#fef3c7,stroke:#ca8a04
+    style Batch fill:#fed7aa,stroke:#ea580c
+    style Analyze fill:#f3e8ff,stroke:#9333ea
 ```
 
 **Stage Cards**: Each stage displays:
@@ -89,6 +116,56 @@ Circuit breakers protect the system from cascading failures by temporarily block
 **When to reset**: After fixing the underlying issue (service restarted, network restored, etc.)
 
 **When NOT to reset**: If the root cause hasn't been addressed - the circuit will just trip again.
+
+### Diagram: Circuit Breaker State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Closed: Initial State
+
+    Closed --> Closed: Request Success
+    Closed --> Open: Failures >= Threshold
+
+    Open --> HalfOpen: Recovery Timeout Expires
+    Open --> Open: Requests Blocked
+
+    HalfOpen --> Closed: Test Calls Succeed
+    HalfOpen --> Open: Test Call Fails
+
+    state Closed {
+        [*] --> Normal
+        Normal: Requests pass through
+        Normal: Green badge
+        Normal: Failure count tracked
+    }
+
+    state Open {
+        [*] --> Blocking
+        Blocking: All requests blocked
+        Blocking: Red badge
+        Blocking: Timer counting down
+    }
+
+    state HalfOpen {
+        [*] --> Testing
+        Testing: Limited test calls allowed
+        Testing: Yellow badge
+        Testing: Evaluating recovery
+    }
+
+    note right of Closed
+        Default: 5 failures to open
+    end note
+
+    note right of Open
+        Default: 30s recovery timeout
+    end note
+
+    note right of HalfOpen
+        Default: 3 test calls allowed
+        2 successes needed to close
+    end note
+```
 
 ### File Operations Panel
 

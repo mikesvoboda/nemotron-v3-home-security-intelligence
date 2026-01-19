@@ -65,6 +65,40 @@ The SLI/SLO framework provides quantifiable measures of service reliability and 
 
 ## Error Budget Policy
 
+### Error Budget Consumption Flowchart
+
+```mermaid
+flowchart TD
+    Start([Check Error Budget]) --> Calculate[Calculate budget consumed<br/>for 30-day window]
+    Calculate --> Check{Budget Consumed?}
+
+    Check -->|"< 50%"| Green[Normal Operations]
+    Check -->|"50-75%"| Yellow[Caution Zone]
+    Check -->|"75-90%"| Orange[Feature Freeze]
+    Check -->|"> 90%"| Red[Emergency Response]
+
+    Green --> GreenActions["Continue feature development<br/>Normal release cadence<br/>Standard monitoring"]
+    Yellow --> YellowActions["Increase monitoring frequency<br/>Delay risky changes<br/>Review recent deployments"]
+    Orange --> OrangeActions["Halt new features<br/>Focus on reliability<br/>Root cause analysis required"]
+    Red --> RedActions["All hands on reliability<br/>Incident response mode<br/>Rollback consideration"]
+
+    GreenActions --> Monitor[Continue Monitoring]
+    YellowActions --> Monitor
+    OrangeActions --> Monitor
+    RedActions --> Monitor
+
+    Monitor --> Start
+
+    style Green fill:#c8e6c9,stroke:#2e7d32
+    style Yellow fill:#fff9c4,stroke:#f9a825
+    style Orange fill:#ffe0b2,stroke:#ef6c00
+    style Red fill:#ffcdd2,stroke:#c62828
+    style GreenActions fill:#e8f5e9
+    style YellowActions fill:#fffde7
+    style OrangeActions fill:#fff3e0
+    style RedActions fill:#ffebee
+```
+
 ### Consumption Thresholds
 
 | Threshold | Action                                            |
@@ -84,6 +118,56 @@ We use multi-window burn rate alerting to detect SLO violations early:
 | 6h     | 6x        | Critical       | 5 hours                |
 | 1d     | 3x        | Warning        | 10 days                |
 | 3d     | 1x        | Info           | 30 days                |
+
+#### Burn Rate Alerting Windows Visualization
+
+```mermaid
+flowchart LR
+    subgraph "Multi-Window Burn Rate Detection"
+        direction TB
+
+        subgraph "1h Window"
+            W1[1 hour] --> B1["14.4x burn rate"]
+            B1 --> A1["CRITICAL<br/>2h to exhaust"]
+        end
+
+        subgraph "6h Window"
+            W2[6 hours] --> B2["6x burn rate"]
+            B2 --> A2["CRITICAL<br/>5h to exhaust"]
+        end
+
+        subgraph "1d Window"
+            W3[1 day] --> B3["3x burn rate"]
+            B3 --> A3["WARNING<br/>10d to exhaust"]
+        end
+
+        subgraph "3d Window"
+            W4[3 days] --> B4["1x burn rate"]
+            B4 --> A4["INFO<br/>30d to exhaust"]
+        end
+    end
+
+    subgraph "Alert Logic"
+        A1 --> Page["Page on-call immediately"]
+        A2 --> Page
+        A3 --> Notify["Notify team, investigate"]
+        A4 --> Log["Log for review"]
+    end
+
+    style A1 fill:#ffcdd2,stroke:#c62828
+    style A2 fill:#ffcdd2,stroke:#c62828
+    style A3 fill:#fff9c4,stroke:#f9a825
+    style A4 fill:#e3f2fd,stroke:#1976d2
+    style Page fill:#ffebee
+    style Notify fill:#fffde7
+    style Log fill:#e3f2fd
+```
+
+**How it works:**
+
+1. **Short windows (1h, 6h)** detect rapid budget consumption requiring immediate action
+2. **Long windows (1d, 3d)** detect gradual degradation for proactive investigation
+3. **Both conditions must be true** to fire an alert (prevents false positives from spikes)
 
 ## Recording Rules
 

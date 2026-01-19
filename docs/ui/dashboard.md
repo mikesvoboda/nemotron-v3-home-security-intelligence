@@ -107,6 +107,48 @@ The risk score is determined by the NVIDIA Nemotron LLM analyzing detected objec
    - Detection frequency and patterns
 4. **Risk Assessment**: LLM generates a score, level, summary, and reasoning
 
+### Diagram: Risk Score Calculation Flow
+
+```mermaid
+flowchart TD
+    subgraph Detection["Object Detection"]
+        A[Camera Captures Image] --> B[RT-DETRv2 Processing]
+        B --> C{Objects Detected?}
+        C -->|No| D[Discard Frame]
+        C -->|Yes| E[Extract Objects with Confidence]
+    end
+
+    subgraph Batching["Batch Aggregation"]
+        E --> F[Add to Detection Batch]
+        F --> G{Batch Complete?}
+        G -->|"90s window OR<br/>30s idle OR<br/>max detections"| H[Close Batch]
+        G -->|No| F
+    end
+
+    subgraph Analysis["Nemotron Analysis"]
+        H --> I[Evaluate Context]
+        I --> J[Time of Day]
+        I --> K[Object Types]
+        I --> L[Camera Location]
+        I --> M[Detection Patterns]
+        J & K & L & M --> N[LLM Risk Assessment]
+    end
+
+    subgraph Output["Risk Output"]
+        N --> O[Risk Score 0-100]
+        O --> P{Score Range}
+        P -->|0-29| Q[Low - Green]
+        P -->|30-59| R[Medium - Yellow]
+        P -->|60-84| S[High - Orange]
+        P -->|85-100| T[Critical - Red]
+    end
+
+    style Detection fill:#e0f2fe
+    style Batching fill:#fef3c7
+    style Analysis fill:#f3e8ff
+    style Output fill:#dcfce7
+```
+
 ### Camera Grid
 
 Each camera card displays:
@@ -343,6 +385,43 @@ At the top of the dashboard, a status indicator shows whether you are receiving 
 If disconnected, the dashboard will still show the most recent data but will not update automatically until connection is restored. A **(Disconnected)** indicator appears in the header when WebSocket connections are lost.
 
 **Hovering over the status indicator** displays a tooltip showing the health of individual services (database, Redis, detector, file watcher, Nemotron).
+
+### Diagram: Connection Status States
+
+```mermaid
+stateDiagram-v2
+    [*] --> Connecting: Page Load
+
+    Connecting --> Connected: WebSocket Opens
+    Connecting --> Disconnected: Connection Failed
+
+    Connected --> Disconnected: Connection Lost
+    Connected --> Connected: Heartbeat OK
+
+    Disconnected --> Reconnecting: Auto-Retry (5s)
+
+    Reconnecting --> Connected: Reconnect Success
+    Reconnecting --> Disconnected: Retry Failed
+
+    state Connected {
+        [*] --> LiveMonitoring
+        LiveMonitoring --> LiveMonitoring: Receive Events
+        LiveMonitoring: Green pulsing dot
+        LiveMonitoring: "LIVE MONITORING" badge
+    }
+
+    state Disconnected {
+        [*] --> Stale
+        Stale: Data may be stale
+        Stale: "(Disconnected)" indicator
+    }
+
+    state Reconnecting {
+        [*] --> Attempting
+        Attempting: Exponential backoff
+        Attempting: Max 5 retries
+    }
+```
 
 ## Troubleshooting
 

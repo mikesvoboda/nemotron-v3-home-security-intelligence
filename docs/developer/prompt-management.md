@@ -294,6 +294,39 @@ class PromptABTester:
         """Record metrics for analysis."""
 ```
 
+### A/B Testing Traffic Split Flowchart
+
+```mermaid
+flowchart TD
+    A[Incoming Request] --> B{A/B Test<br>enabled?}
+    B -->|No| C[Use Active<br>Production Version]
+    B -->|Yes| D[Generate Random<br>Value 0.0-1.0]
+
+    D --> E{random <=<br>traffic_split?}
+    E -->|Yes| F[Select TREATMENT<br>New Version]
+    E -->|No| G[Select CONTROL<br>Current Version]
+
+    F --> H[Execute with<br>Treatment Prompt]
+    G --> I[Execute with<br>Control Prompt]
+    C --> J[Execute with<br>Production Prompt]
+
+    H --> K[Record Metrics:<br>latency, risk_score, version]
+    I --> K
+    J --> L[Standard Metrics]
+
+    K --> M[Aggregate for<br>Statistical Analysis]
+
+    style F fill:#3B82F6,color:#fff
+    style G fill:#76B900,color:#000
+    style C fill:#76B900,color:#000
+```
+
+**Traffic Split Examples:**
+
+- `traffic_split: 0.1` - 10% traffic to treatment, 90% to control
+- `traffic_split: 0.5` - 50/50 split for balanced comparison
+- `traffic_split: 0.0` - All traffic to control (test disabled)
+
 ### PromptShadowRunner
 
 Runs experimental prompts in parallel without affecting production.
@@ -346,6 +379,47 @@ class PromptRollbackChecker:
     ) -> RollbackExecutionResult:
         """Execute rollback to control version."""
 ```
+
+### Rollback Trigger Detection Flowchart
+
+```mermaid
+flowchart TD
+    A[Collect Metrics<br>from Treatment] --> B{samples >=<br>min_samples?}
+    B -->|No| C[Continue Collecting<br>Wait for more data]
+    B -->|Yes| D[Calculate Treatment<br>Statistics]
+
+    D --> E{latency increase ><br>max_latency_increase_pct?}
+    E -->|Yes| F[TRIGGER ROLLBACK<br>Reason: Latency Degradation]
+    E -->|No| G{score_variance ><br>max_score_variance?}
+
+    G -->|Yes| H[TRIGGER ROLLBACK<br>Reason: Score Variance]
+    G -->|No| I{Within evaluation<br>window?}
+
+    I -->|Yes| J[Continue A/B Test<br>No Issues Detected]
+    I -->|No| K[Evaluation Complete<br>Promote or Reject]
+
+    F --> L[Execute Rollback]
+    H --> L
+
+    L --> M[Deactivate Treatment]
+    M --> N[Restore Control as Active]
+    N --> O[Log Rollback Event]
+    O --> P[Alert Operators]
+
+    style F fill:#EF4444,color:#fff
+    style H fill:#EF4444,color:#fff
+    style J fill:#22C55E,color:#fff
+    style K fill:#3B82F6,color:#fff
+```
+
+**Rollback Thresholds:**
+
+| Metric                      | Default | Description                        |
+| --------------------------- | ------- | ---------------------------------- |
+| `max_latency_increase_pct`  | 50%     | Rollback if latency increases 50%+ |
+| `max_score_variance`        | 15      | Rollback if score variance > 15    |
+| `min_samples`               | 100     | Minimum samples before checking    |
+| `evaluation_window_hours`   | 1       | Time window for metrics collection |
 
 ### PromptEvaluator
 
