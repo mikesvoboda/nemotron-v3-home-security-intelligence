@@ -44,3 +44,8 @@ export type {
   RateLimitContextType,
   RateLimitProviderProps,
 } from './RateLimitContext';
+
+// Announcement context for screen reader announcements
+export { AnnouncementContext, AnnouncementProvider, useAnnounce } from './AnnouncementContext';
+
+export type { AnnouncementContextType, AnnouncementProviderProps } from './AnnouncementContext';

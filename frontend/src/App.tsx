@@ -15,7 +15,7 @@ import {
 } from './components/common';
 import Layout from './components/layout/Layout';
 import RetryingIndicator from './components/RetryingIndicator';
-import { RateLimitProvider } from './contexts';
+import { AnnouncementProvider, RateLimitProvider } from './contexts';
 import { queryClient } from './services/queryClient';
 
 // Lazy-loaded page components for code splitting
@@ -77,48 +77,50 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <RateLimitProvider>
-          <BrowserRouter>
-            <ErrorBoundary
-              title="Application Error"
-              description="The application encountered an unexpected error. Please try again or refresh the page."
-            >
-              {/* Ambient status provider for visual/audio status awareness */}
-              <AmbientStatusProvider>
-                <Layout>
-                  <ChunkLoadErrorBoundary>
-                    <Suspense fallback={<RouteLoadingFallback />}>
-                      <PageTransition>
-                        <Routes>
-                          <Route path="/" element={<DashboardPage />} />
-                          <Route path="/timeline" element={<EventTimeline />} />
-                          <Route path="/analytics" element={<AnalyticsPage />} />
-                          <Route path="/jobs" element={<JobsPage />} />
-                          <Route path="/alerts" element={<AlertsPage />} />
-                          <Route path="/entities" element={<EntitiesPage />} />
-                          <Route path="/logs" element={<LogsDashboard />} />
-                          <Route path="/audit" element={<AuditLogPage />} />
-                          <Route path="/ai" element={<AIPerformancePage />} />
-                          <Route path="/ai-audit" element={<AIAuditPage />} />
-                          <Route path="/operations" element={<OperationsPage />} />
-                          <Route path="/system" element={<Navigate to="/operations" replace />} />
-                          <Route path="/settings" element={<SettingsPage />} />
-                          <Route path="/trash" element={<TrashPage />} />
-                        </Routes>
-                      </PageTransition>
-                    </Suspense>
-                  </ChunkLoadErrorBoundary>
-                </Layout>
-              </AmbientStatusProvider>
-            </ErrorBoundary>
-            {/* Interactive product tour for first-time users */}
-            <ProductTour />
-          </BrowserRouter>
-          {/* Rate limit indicator - fixed position overlay */}
-          <RateLimitIndicator />
-          {/* Retrying indicator - shows when rate limited AND requests in flight */}
-          <RetryingIndicator />
-        </RateLimitProvider>
+        <AnnouncementProvider>
+          <RateLimitProvider>
+            <BrowserRouter>
+              <ErrorBoundary
+                title="Application Error"
+                description="The application encountered an unexpected error. Please try again or refresh the page."
+              >
+                {/* Ambient status provider for visual/audio status awareness */}
+                <AmbientStatusProvider>
+                  <Layout>
+                    <ChunkLoadErrorBoundary>
+                      <Suspense fallback={<RouteLoadingFallback />}>
+                        <PageTransition>
+                          <Routes>
+                            <Route path="/" element={<DashboardPage />} />
+                            <Route path="/timeline" element={<EventTimeline />} />
+                            <Route path="/analytics" element={<AnalyticsPage />} />
+                            <Route path="/jobs" element={<JobsPage />} />
+                            <Route path="/alerts" element={<AlertsPage />} />
+                            <Route path="/entities" element={<EntitiesPage />} />
+                            <Route path="/logs" element={<LogsDashboard />} />
+                            <Route path="/audit" element={<AuditLogPage />} />
+                            <Route path="/ai" element={<AIPerformancePage />} />
+                            <Route path="/ai-audit" element={<AIAuditPage />} />
+                            <Route path="/operations" element={<OperationsPage />} />
+                            <Route path="/system" element={<Navigate to="/operations" replace />} />
+                            <Route path="/settings" element={<SettingsPage />} />
+                            <Route path="/trash" element={<TrashPage />} />
+                          </Routes>
+                        </PageTransition>
+                      </Suspense>
+                    </ChunkLoadErrorBoundary>
+                  </Layout>
+                </AmbientStatusProvider>
+              </ErrorBoundary>
+              {/* Interactive product tour for first-time users */}
+              <ProductTour />
+            </BrowserRouter>
+            {/* Rate limit indicator - fixed position overlay */}
+            <RateLimitIndicator />
+            {/* Retrying indicator - shows when rate limited AND requests in flight */}
+            <RetryingIndicator />
+          </RateLimitProvider>
+        </AnnouncementProvider>
         {/* React Query DevTools - only shown in development */}
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
       </ToastProvider>

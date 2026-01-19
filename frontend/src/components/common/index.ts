@@ -121,3 +121,9 @@ export type { ThumbnailImageProps } from './ThumbnailImage';
 export { default as SafeErrorMessage } from './SafeErrorMessage';
 export type { SafeErrorMessageProps } from './SafeErrorMessage';
 export { sanitizeErrorMessage, extractErrorMessage } from '../../utils/sanitize';
+
+export { SkipLink, default as SkipLinkDefault } from './SkipLink';
+export type { SkipLinkProps } from './SkipLink';
+
+export { LiveRegion } from './LiveRegion';
+export type { LiveRegionProps, Politeness } from './LiveRegion';

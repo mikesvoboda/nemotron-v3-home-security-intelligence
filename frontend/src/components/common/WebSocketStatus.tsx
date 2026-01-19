@@ -58,7 +58,7 @@ function getStateIcon(state: ConnectionState, className: string) {
     case 'connected':
       return <Wifi className={className} aria-hidden="true" />;
     case 'reconnecting':
-      return <RefreshCw className={`${className} animate-spin`} aria-hidden="true" />;
+      return <RefreshCw className={`${className} motion-safe:animate-spin`} aria-hidden="true" />;
     case 'failed':
       return <AlertTriangle className={className} aria-hidden="true" />;
     case 'disconnected':
@@ -75,7 +75,7 @@ function ChannelStatusIcon({ state }: { state: ConnectionState }) {
     case 'connected':
       return <CheckCircle className="h-3 w-3 text-green-500" aria-hidden="true" />;
     case 'reconnecting':
-      return <RefreshCw className="h-3 w-3 animate-spin text-yellow-500" aria-hidden="true" />;
+      return <RefreshCw className="h-3 w-3 motion-safe:animate-spin text-yellow-500" aria-hidden="true" />;
     case 'failed':
       return <AlertTriangle className="h-3 w-3 text-orange-500" aria-hidden="true" />;
     case 'disconnected':
@@ -339,7 +339,7 @@ export default function WebSocketStatus({
 
       {/* Status Dot */}
       <div
-        className={`h-2 w-2 rounded-full ${stateColors.bg} ${overallState === 'connected' ? 'animate-pulse' : ''}`}
+        className={`h-2 w-2 rounded-full ${stateColors.bg} ${overallState === 'connected' ? 'motion-safe:animate-pulse' : ''}`}
         data-testid="overall-status-dot"
         aria-hidden="true"
       />

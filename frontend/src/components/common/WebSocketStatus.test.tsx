@@ -44,7 +44,8 @@ describe('WebSocketStatus', () => {
 
     const statusDot = screen.getByTestId('overall-status-dot');
     expect(statusDot).toHaveClass('bg-green-500');
-    expect(statusDot).toHaveClass('animate-pulse');
+    // Uses motion-safe:animate-pulse to respect prefers-reduced-motion
+    expect(statusDot).toHaveClass('motion-safe:animate-pulse');
   });
 
   it('shows yellow indicator when either channel is reconnecting', () => {
@@ -61,7 +62,7 @@ describe('WebSocketStatus', () => {
 
     const statusDot = screen.getByTestId('overall-status-dot');
     expect(statusDot).toHaveClass('bg-yellow-500');
-    expect(statusDot).not.toHaveClass('animate-pulse');
+    expect(statusDot).not.toHaveClass('motion-safe:animate-pulse');
   });
 
   it('shows red indicator when channels are disconnected', () => {
@@ -372,7 +373,7 @@ describe('WebSocketStatus', () => {
       expect(svg).toBeInTheDocument();
     });
 
-    it('shows spinning RefreshCw icon when reconnecting', () => {
+    it('shows spinning RefreshCw icon when reconnecting with motion-safe prefix', () => {
       const { container } = render(
         <WebSocketStatus
           eventsChannel={createMockChannel({ name: 'Events', state: 'reconnecting' })}
@@ -381,7 +382,8 @@ describe('WebSocketStatus', () => {
       );
 
       const svg = container.querySelector('svg');
-      expect(svg).toHaveClass('animate-spin');
+      // Uses motion-safe:animate-spin to respect prefers-reduced-motion
+      expect(svg).toHaveClass('motion-safe:animate-spin');
     });
   });
 
