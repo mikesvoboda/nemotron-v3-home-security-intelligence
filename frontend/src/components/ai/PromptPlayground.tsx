@@ -52,6 +52,7 @@ import {
   ApiError,
 } from '../../services/api';
 import { applySuggestion, generateDiff } from '../../utils/promptDiff';
+import IconButton from '../common/IconButton';
 
 import type {
   AllPromptsResponse,
@@ -1212,14 +1213,14 @@ export default function PromptPlayground({
                         )}
                       </div>
 
-                      <button
-                        onClick={onClose}
-                        className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                      <IconButton
+                        icon={<X />}
                         aria-label="Close panel"
+                        onClick={onClose}
+                        variant="ghost"
+                        size="lg"
                         data-testid="close-panel-button"
-                      >
-                        <X className="h-6 w-6" />
-                      </button>
+                      />
                     </div>
 
                     {/* Content */}

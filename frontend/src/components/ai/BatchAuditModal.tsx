@@ -12,6 +12,7 @@ import { AlertCircle, Play, X } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 
 import { triggerBatchAudit, AuditApiError, type BatchAuditResponse } from '../../services/auditApi';
+import IconButton from '../common/IconButton';
 
 // ============================================================================
 // Types
@@ -139,13 +140,13 @@ export default function BatchAuditModal({ isOpen, onClose, onSuccess }: BatchAud
                       Queue multiple events for AI self-evaluation
                     </p>
                   </div>
-                  <button
-                    onClick={onClose}
-                    className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                  <IconButton
+                    icon={<X />}
                     aria-label="Close modal"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
+                    onClick={onClose}
+                    variant="ghost"
+                    size="md"
+                  />
                 </div>
 
                 {/* Form */}

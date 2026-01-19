@@ -2,6 +2,8 @@ import { Dialog, Transition } from '@headlessui/react';
 import { ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useState } from 'react';
 
+import IconButton from './IconButton';
+
 export interface LightboxImage {
   src: string;
   alt: string;
@@ -176,14 +178,15 @@ export default function Lightbox({
             >
               <Dialog.Panel className="relative flex max-h-[90vh] max-w-[90vw] flex-col items-center">
                 {/* Close button - top right */}
-                <button
-                  onClick={onClose}
-                  className="absolute -right-2 -top-12 z-10 rounded-full bg-gray-800/80 p-2 text-gray-300 transition-all hover:bg-gray-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-black"
+                <IconButton
+                  icon={<X />}
                   aria-label="Close lightbox"
+                  onClick={onClose}
+                  variant="solid"
+                  size="lg"
+                  className="absolute -right-2 -top-12 z-10 !rounded-full !bg-gray-800/80 hover:!bg-gray-700"
                   data-testid="lightbox-close-button"
-                >
-                  <X className="h-6 w-6" />
-                </button>
+                />
 
                 {/* Image counter - top left */}
                 {showCounter && hasMultipleImages && (
@@ -200,14 +203,15 @@ export default function Lightbox({
                 <div className="relative flex items-center justify-center">
                   {/* Previous button */}
                   {showNavigation && hasMultipleImages && (
-                    <button
-                      onClick={goToPrevious}
-                      className="absolute -left-16 z-10 rounded-full bg-gray-800/80 p-3 text-gray-300 transition-all hover:bg-[#76B900] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-black"
+                    <IconButton
+                      icon={<ChevronLeft />}
                       aria-label="Previous image"
+                      onClick={goToPrevious}
+                      variant="solid"
+                      size="lg"
+                      className="absolute -left-16 z-10 !rounded-full !bg-gray-800/80 hover:!bg-[#76B900] hover:!text-black"
                       data-testid="lightbox-prev-button"
-                    >
-                      <ChevronLeft className="h-6 w-6" />
-                    </button>
+                    />
                   )}
 
                   {/* Image with loading state */}
@@ -232,14 +236,15 @@ export default function Lightbox({
 
                   {/* Next button */}
                   {showNavigation && hasMultipleImages && (
-                    <button
-                      onClick={goToNext}
-                      className="absolute -right-16 z-10 rounded-full bg-gray-800/80 p-3 text-gray-300 transition-all hover:bg-[#76B900] hover:text-black focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-black"
+                    <IconButton
+                      icon={<ChevronRight />}
                       aria-label="Next image"
+                      onClick={goToNext}
+                      variant="solid"
+                      size="lg"
+                      className="absolute -right-16 z-10 !rounded-full !bg-gray-800/80 hover:!bg-[#76B900] hover:!text-black"
                       data-testid="lightbox-next-button"
-                    >
-                      <ChevronRight className="h-6 w-6" />
-                    </button>
+                    />
                   )}
                 </div>
 

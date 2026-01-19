@@ -1,13 +1,14 @@
 import { AlertTriangle, CheckCircle, HardDrive, Menu, Search, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { PageDocsLink } from './PageDocsLink';
 import { useCommandPaletteContext } from '../../hooks/useCommandPaletteContext';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
 import { useStorageStatusStore, CRITICAL_USAGE_THRESHOLD } from '../../stores/storage-status-store';
 import { WebSocketStatus } from '../common';
-import { PageDocsLink } from './PageDocsLink';
+import IconButton from '../common/IconButton';
 
 /**
  * Get the dot color class based on health status
@@ -238,14 +239,15 @@ export default function Header() {
       {/* Branding container - aligned with sidebar width and padding */}
       <div className="flex items-center gap-2 px-4 md:w-64 md:gap-4" data-testid="header-branding">
         {/* Mobile hamburger menu button */}
-        <button
-          onClick={toggleMobileMenu}
-          className="rounded-lg p-2 text-text-secondary hover:bg-gray-800 hover:text-white md:hidden"
+        <IconButton
+          icon={<Menu />}
           aria-label="Open menu"
+          onClick={toggleMobileMenu}
+          variant="ghost"
+          size="lg"
+          className="md:hidden"
           data-testid="hamburger-menu"
-        >
-          <Menu className="h-6 w-6" />
-        </button>
+        />
 
         <div className="flex flex-col">
           <img src="/images/nvidia-logo-white.svg" alt="NVIDIA" className="h-6 w-auto md:h-8" />
