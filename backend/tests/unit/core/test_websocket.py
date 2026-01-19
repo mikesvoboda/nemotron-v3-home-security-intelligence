@@ -377,6 +377,34 @@ class MockEventBroadcaster:
                 pass
         return count
 
+    async def broadcast_summary_update(
+        self,
+        hourly: dict[str, Any] | None = None,
+        daily: dict[str, Any] | None = None,
+    ) -> int:
+        """Broadcast a summary update message to all connected WebSocket clients (NEM-2893).
+
+        Args:
+            hourly: Hourly summary data dictionary (optional)
+            daily: Daily summary data dictionary (optional)
+
+        Returns:
+            Number of clients that received the message
+        """
+        message = {
+            "type": "summary_update",
+            "data": {"hourly": hourly, "daily": daily},
+        }
+        self.messages.append(message)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(message)
+                count += 1
+            except Exception:  # Intentionally ignore send failures
+                pass
+        return count
+
     @classmethod
     def get_instance(cls) -> MockEventBroadcaster:
         """Get the global mock event broadcaster instance.

@@ -463,6 +463,24 @@ class CacheService:
         """
         return await self.invalidate_pattern("detections:*", reason=reason, cache_type="detections")
 
+    async def invalidate_summaries(
+        self,
+        reason: str | CacheInvalidationReason = CacheInvalidationReason.MANUAL,
+    ) -> int:
+        """Invalidate all summaries cache entries.
+
+        Should be called when new summaries are generated to ensure
+        dashboard endpoints return fresh data.
+
+        Args:
+            reason: Reason for invalidation. Use CacheInvalidationReason enum.
+                   (default: CacheInvalidationReason.MANUAL)
+
+        Returns:
+            Number of keys deleted
+        """
+        return await self.invalidate_pattern("summaries:*", reason=reason, cache_type="summaries")
+
     async def exists(self, key: str) -> bool:
         """Check if a cache key exists.
 
@@ -631,6 +649,36 @@ class CacheKeys(metaclass=_CacheKeysMeta):
         """
         prefix = _get_global_prefix()
         return f"{prefix}:queue:{queue_name}"
+
+    @staticmethod
+    def summaries_latest() -> str:
+        """Cache key for latest summaries (both hourly and daily).
+
+        Returns:
+            Prefixed cache key: {PREFIX}:cache:summaries:latest
+        """
+        prefix = _get_global_prefix()
+        return f"{prefix}:cache:summaries:latest"
+
+    @staticmethod
+    def summaries_hourly() -> str:
+        """Cache key for latest hourly summary.
+
+        Returns:
+            Prefixed cache key: {PREFIX}:cache:summaries:hourly
+        """
+        prefix = _get_global_prefix()
+        return f"{prefix}:cache:summaries:hourly"
+
+    @staticmethod
+    def summaries_daily() -> str:
+        """Cache key for latest daily summary.
+
+        Returns:
+            Prefixed cache key: {PREFIX}:cache:summaries:daily
+        """
+        prefix = _get_global_prefix()
+        return f"{prefix}:cache:summaries:daily"
 
 
 # Singleton instance

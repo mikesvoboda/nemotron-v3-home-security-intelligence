@@ -12,6 +12,7 @@ from .logs import router as logs_router
 from .notification_preferences import router as notification_preferences_router
 from .rum import router as rum_router
 from .services import router as services_router
+from .summaries import router as summaries_router
 from .zones import router as zones_router
 
 __all__ = [
@@ -27,5 +28,6 @@ __all__ = [
     "notification_preferences_router",
     "rum_router",
     "services_router",
+    "summaries_router",
     "zones_router",
 ]

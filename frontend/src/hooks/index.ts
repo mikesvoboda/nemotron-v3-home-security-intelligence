@@ -476,3 +476,7 @@ export type {
   UseRedisDebugInfoQueryReturn,
   UseWebSocketConnectionsQueryReturn,
 } from './useDebugQueries';
+
+// Dashboard summaries hooks (NEM-2895)
+export { useSummaries, default as useSummariesDefault } from './useSummaries';
+export type { UseSummariesOptions } from './useSummaries';

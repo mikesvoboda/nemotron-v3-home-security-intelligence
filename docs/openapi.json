@@ -12467,6 +12467,53 @@
         "title": "LatencyHistoryStageStats",
         "type": "object"
       },
+      "LatestSummariesResponse": {
+        "description": "Schema for the combined latest summaries response.\n\nReturns both the latest hourly and daily summaries in a single response.\nEither field can be null if no summary exists for that time period.",
+        "example": {
+          "daily": {
+            "content": "Today has seen minimal high-priority activity. The only notable event was at 2:15 PM at the front door. Morning and evening periods have been quiet with routine traffic only.",
+            "event_count": 1,
+            "generated_at": "2026-01-18T14:55:00Z",
+            "id": 2,
+            "window_end": "2026-01-18T15:00:00Z",
+            "window_start": "2026-01-18T00:00:00Z"
+          },
+          "hourly": {
+            "content": "Over the past hour, one critical event occurred at 2:15 PM when an unrecognized person approached the front door.",
+            "event_count": 1,
+            "generated_at": "2026-01-18T14:55:00Z",
+            "id": 1,
+            "window_end": "2026-01-18T15:00:00Z",
+            "window_start": "2026-01-18T14:00:00Z"
+          }
+        },
+        "properties": {
+          "daily": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SummaryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Latest daily summary (since midnight), null if none exists"
+          },
+          "hourly": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SummaryResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Latest hourly summary (past 60 minutes), null if none exists"
+          }
+        },
+        "title": "LatestSummariesResponse",
+        "type": "object"
+      },
       "LeaderboardResponse": {
         "description": "Model leaderboard response.",
         "example": {
@@ -19290,6 +19337,63 @@
           "timestamp"
         ],
         "title": "StorageStatsResponse",
+        "type": "object"
+      },
+      "SummaryResponse": {
+        "description": "Schema for a single summary (hourly or daily).\n\nRepresents an LLM-generated narrative summary of security events within\na specific time window.",
+        "example": {
+          "content": "Over the past hour, one critical event occurred at 2:15 PM when an unrecognized person approached the front door. The individual remained at the door for approximately 45 seconds before leaving via the driveway.",
+          "event_count": 1,
+          "generated_at": "2026-01-18T14:55:00Z",
+          "id": 1,
+          "window_end": "2026-01-18T15:00:00Z",
+          "window_start": "2026-01-18T14:00:00Z"
+        },
+        "properties": {
+          "content": {
+            "description": "LLM-generated narrative text (2-4 sentences)",
+            "title": "Content",
+            "type": "string"
+          },
+          "event_count": {
+            "description": "Number of high/critical events included in this summary",
+            "minimum": 0.0,
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "generated_at": {
+            "description": "When the LLM produced this summary",
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Summary ID",
+            "title": "Id",
+            "type": "integer"
+          },
+          "window_end": {
+            "description": "End of the time window covered",
+            "format": "date-time",
+            "title": "Window End",
+            "type": "string"
+          },
+          "window_start": {
+            "description": "Start of the time window covered",
+            "format": "date-time",
+            "title": "Window Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "event_count",
+          "window_start",
+          "window_end",
+          "generated_at"
+        ],
+        "title": "SummaryResponse",
         "type": "object"
       },
       "SupervisedWorkerInfo": {
@@ -30485,6 +30589,122 @@
         "summary": "Ingest RUM metrics",
         "tags": [
           "rum"
+        ]
+      }
+    },
+    "/api/summaries/daily": {
+      "get": {
+        "description": "Get the latest daily summary.\n\nReturns the most recent daily summary, which covers high/critical events\nsince midnight today. Returns null if no daily summary exists.\n\nThis endpoint is useful when you only need the daily summary without\nthe overhead of fetching the hourly summary as well.\n\nReturns:\n    SummaryResponse with daily summary, or null if none exists",
+        "operationId": "get_daily_summary_api_summaries_daily_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "content": "Today has seen minimal high-priority activity...",
+                  "event_count": 1,
+                  "generated_at": "2026-01-18T14:55:00Z",
+                  "id": 2,
+                  "window_end": "2026-01-18T15:00:00Z",
+                  "window_start": "2026-01-18T00:00:00Z"
+                },
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SummaryResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Daily Summary Api Summaries Daily Get"
+                }
+              }
+            },
+            "description": "Latest daily summary or null if none exists"
+          }
+        },
+        "summary": "Get Daily Summary",
+        "tags": [
+          "summaries"
+        ]
+      }
+    },
+    "/api/summaries/hourly": {
+      "get": {
+        "description": "Get the latest hourly summary.\n\nReturns the most recent hourly summary, which covers high/critical events\nfrom the past 60 minutes. Returns null if no hourly summary exists.\n\nThis endpoint is useful when you only need the hourly summary without\nthe overhead of fetching the daily summary as well.\n\nReturns:\n    SummaryResponse with hourly summary, or null if none exists",
+        "operationId": "get_hourly_summary_api_summaries_hourly_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "content": "Over the past hour, one critical event occurred...",
+                  "event_count": 1,
+                  "generated_at": "2026-01-18T14:55:00Z",
+                  "id": 1,
+                  "window_end": "2026-01-18T15:00:00Z",
+                  "window_start": "2026-01-18T14:00:00Z"
+                },
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SummaryResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Hourly Summary Api Summaries Hourly Get"
+                }
+              }
+            },
+            "description": "Latest hourly summary or null if none exists"
+          }
+        },
+        "summary": "Get Hourly Summary",
+        "tags": [
+          "summaries"
+        ]
+      }
+    },
+    "/api/summaries/latest": {
+      "get": {
+        "description": "Get the latest hourly and daily summaries.\n\nReturns both the most recent hourly summary (covering the past 60 minutes)\nand the most recent daily summary (covering since midnight today).\n\nEither `hourly` or `daily` can be null if no summary exists yet for that\ntime period. This can happen when:\n- The system was just started\n- No high/critical events have occurred\n\nResponse is cached in Redis with a 5-minute TTL to match the summary\ngeneration frequency. Cache is invalidated when new summaries are generated.\n\nReturns:\n    LatestSummariesResponse with hourly and daily summaries (or nulls)",
+        "operationId": "get_latest_summaries_api_summaries_latest_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "daily": {
+                    "content": "Today has seen...",
+                    "event_count": 1,
+                    "generated_at": "2026-01-18T14:55:00Z",
+                    "id": 2,
+                    "window_end": "2026-01-18T15:00:00Z",
+                    "window_start": "2026-01-18T00:00:00Z"
+                  },
+                  "hourly": {
+                    "content": "Over the past hour...",
+                    "event_count": 1,
+                    "generated_at": "2026-01-18T14:55:00Z",
+                    "id": 1,
+                    "window_end": "2026-01-18T15:00:00Z",
+                    "window_start": "2026-01-18T14:00:00Z"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/LatestSummariesResponse"
+                }
+              }
+            },
+            "description": "Latest hourly and daily summaries"
+          }
+        },
+        "summary": "Get Latest Summaries",
+        "tags": [
+          "summaries"
         ]
       }
     },

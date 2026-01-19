@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 
 import DashboardPage from './DashboardPage';
 import * as useEventStreamHook from '../../hooks/useEventStream';
+import * as useSummariesHook from '../../hooks/useSummaries';
 import * as useSystemStatusHook from '../../hooks/useSystemStatus';
 import * as api from '../../services/api';
 import { renderWithProviders, screen, waitFor } from '../../test-utils/renderWithProviders';
@@ -25,6 +26,9 @@ vi.mock('../../services/api', () => ({
 }));
 vi.mock('../../hooks/useEventStream', () => ({
   useEventStream: vi.fn(),
+}));
+vi.mock('../../hooks/useSummaries', () => ({
+  useSummaries: vi.fn(),
 }));
 vi.mock('../../hooks/useSystemStatus', () => ({
   useSystemStatus: vi.fn(),
@@ -203,6 +207,29 @@ vi.mock('./PipelineQueues', () => ({
   default: () => <div data-testid="pipeline-queues">Pipeline Queues</div>,
 }));
 
+vi.mock('./SummaryCards', () => ({
+  SummaryCards: ({
+    hourly,
+    daily,
+    isLoading,
+  }: {
+    hourly: { content: string; eventCount: number } | null;
+    daily: { content: string; eventCount: number } | null;
+    isLoading?: boolean;
+  }) => (
+    <div
+      data-testid="summary-cards"
+      data-is-loading={isLoading ? 'true' : 'false'}
+      data-has-hourly={hourly ? 'true' : 'false'}
+      data-has-daily={daily ? 'true' : 'false'}
+      data-hourly-content={hourly?.content ?? ''}
+      data-daily-content={daily?.content ?? ''}
+    >
+      Summary Cards
+    </div>
+  ),
+}));
+
 describe('DashboardPage', () => {
   const mockCameras = [
     {
@@ -332,6 +359,14 @@ describe('DashboardPage', () => {
     (useSystemStatusHook.useSystemStatus as Mock).mockReturnValue({
       status: mockSystemStatus,
       isConnected: true,
+    });
+
+    (useSummariesHook.useSummaries as Mock).mockReturnValue({
+      hourly: null,
+      daily: null,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
     });
   });
 
@@ -841,6 +876,130 @@ describe('DashboardPage', () => {
 
       // Check that navigate was called (to timeline or event detail)
       expect(mockNavigate).toHaveBeenCalled();
+    });
+  });
+
+  describe('Summary Cards Integration', () => {
+    it('renders SummaryCards component on the dashboard', async () => {
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('summary-cards')).toBeInTheDocument();
+      });
+    });
+
+    it('passes loading state to SummaryCards', async () => {
+      (useSummariesHook.useSummaries as Mock).mockReturnValue({
+        hourly: null,
+        daily: null,
+        isLoading: true,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        const summaryCards = screen.getByTestId('summary-cards');
+        expect(summaryCards).toHaveAttribute('data-is-loading', 'true');
+      });
+    });
+
+    it('passes hourly summary data to SummaryCards', async () => {
+      const mockHourlySummary = {
+        id: 1,
+        content: 'One critical event at 2:15 PM at front door.',
+        eventCount: 1,
+        windowStart: '2026-01-18T14:00:00Z',
+        windowEnd: '2026-01-18T15:00:00Z',
+        generatedAt: '2026-01-18T14:55:00Z',
+      };
+
+      (useSummariesHook.useSummaries as Mock).mockReturnValue({
+        hourly: mockHourlySummary,
+        daily: null,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        const summaryCards = screen.getByTestId('summary-cards');
+        expect(summaryCards).toHaveAttribute('data-has-hourly', 'true');
+        expect(summaryCards).toHaveAttribute(
+          'data-hourly-content',
+          'One critical event at 2:15 PM at front door.'
+        );
+      });
+    });
+
+    it('passes daily summary data to SummaryCards', async () => {
+      const mockDailySummary = {
+        id: 2,
+        content: 'Minimal activity today with one event at 2:15 PM.',
+        eventCount: 1,
+        windowStart: '2026-01-18T00:00:00Z',
+        windowEnd: '2026-01-18T15:00:00Z',
+        generatedAt: '2026-01-18T14:55:00Z',
+      };
+
+      (useSummariesHook.useSummaries as Mock).mockReturnValue({
+        hourly: null,
+        daily: mockDailySummary,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        const summaryCards = screen.getByTestId('summary-cards');
+        expect(summaryCards).toHaveAttribute('data-has-daily', 'true');
+        expect(summaryCards).toHaveAttribute(
+          'data-daily-content',
+          'Minimal activity today with one event at 2:15 PM.'
+        );
+      });
+    });
+
+    it('passes both hourly and daily summaries to SummaryCards', async () => {
+      const mockHourlySummary = {
+        id: 1,
+        content: 'Hourly: one event at front door.',
+        eventCount: 1,
+        windowStart: '2026-01-18T14:00:00Z',
+        windowEnd: '2026-01-18T15:00:00Z',
+        generatedAt: '2026-01-18T14:55:00Z',
+      };
+
+      const mockDailySummary = {
+        id: 2,
+        content: 'Daily: total three events today.',
+        eventCount: 3,
+        windowStart: '2026-01-18T00:00:00Z',
+        windowEnd: '2026-01-18T15:00:00Z',
+        generatedAt: '2026-01-18T14:55:00Z',
+      };
+
+      (useSummariesHook.useSummaries as Mock).mockReturnValue({
+        hourly: mockHourlySummary,
+        daily: mockDailySummary,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      renderWithProviders(<DashboardPage />);
+
+      await waitFor(() => {
+        const summaryCards = screen.getByTestId('summary-cards');
+        expect(summaryCards).toHaveAttribute('data-has-hourly', 'true');
+        expect(summaryCards).toHaveAttribute('data-has-daily', 'true');
+        expect(summaryCards).toHaveAttribute('data-is-loading', 'false');
+      });
     });
   });
 
