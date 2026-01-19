@@ -1,5 +1,7 @@
 # Entities
 
+![Entities Screenshot](../images/screenshots/entities.png)
+
 The Entities page provides comprehensive tracking and re-identification of people and vehicles detected across your security camera network. Using AI-powered visual embeddings, the system automatically recognizes when the same person or vehicle appears on different cameras.
 
 ## What You're Looking At

@@ -1,5 +1,7 @@
 # AI Performance
 
+![AI Performance Screenshot](../images/screenshots/ai-performance.png)
+
 The AI Performance page provides real-time monitoring of the AI pipeline that powers security event detection and risk analysis. It displays metrics for the RT-DETRv2 object detection model, the Nemotron LLM risk analyzer, and the overall processing pipeline.
 
 ## What You're Looking At

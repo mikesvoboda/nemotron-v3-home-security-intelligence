@@ -308,8 +308,11 @@ class SummaryGenerator:
         Returns:
             Sequence of Event objects with risk_level 'high' or 'critical'.
         """
-        # Get events in date range
-        all_events = await event_repo.get_in_date_range(window_start, window_end)
+        # Get events in date range with camera relationship eager loaded
+        # (required for _build_event_context to access event.camera without lazy loading)
+        all_events = await event_repo.get_in_date_range(
+            window_start, window_end, eager_load_camera=True
+        )
 
         # Filter to high/critical only
         high_critical_events = [

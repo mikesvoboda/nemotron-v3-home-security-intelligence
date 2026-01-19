@@ -1,5 +1,7 @@
 # Operations
 
+![Operations Screenshot](../images/screenshots/operations.png)
+
 The operations dashboard for pipeline visualization, circuit breaker management, file cleanup, and detailed system metrics through Grafana integration.
 
 ## What You're Looking At

@@ -1,5 +1,7 @@
 # Jobs
 
+![Jobs Screenshot](../images/screenshots/jobs.png)
+
 The background jobs monitoring page for tracking long-running tasks like exports, cleanup operations, and batch audits.
 
 ## What You're Looking At

@@ -101,12 +101,12 @@ class Alert(Base):
         nullable=True,
     )
     severity: Mapped[AlertSeverity] = mapped_column(
-        Enum(AlertSeverity, name="alert_severity"),
+        Enum(AlertSeverity, name="alert_severity", values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=AlertSeverity.MEDIUM,
     )
     status: Mapped[AlertStatus] = mapped_column(
-        Enum(AlertStatus, name="alert_status"),
+        Enum(AlertStatus, name="alert_status", values_callable=lambda x: [e.value for e in x]),
         nullable=False,
         default=AlertStatus.PENDING,
     )
@@ -238,7 +238,12 @@ class AlertRule(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     severity: Mapped[AlertSeverity] = mapped_column(
-        Enum(AlertSeverity, name="alert_severity", create_type=False),
+        Enum(
+            AlertSeverity,
+            name="alert_severity",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         default=AlertSeverity.MEDIUM,
     )

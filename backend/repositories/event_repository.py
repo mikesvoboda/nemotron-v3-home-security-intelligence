@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import desc, func, select
+from sqlalchemy.orm import selectinload
 
 from backend.models import Event
 from backend.repositories.base import Repository
@@ -125,17 +126,23 @@ class EventRepository(Repository[Event]):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def get_in_date_range(self, start: datetime, end: datetime) -> Sequence[Event]:
+    async def get_in_date_range(
+        self, start: datetime, end: datetime, *, eager_load_camera: bool = False
+    ) -> Sequence[Event]:
         """Get events within a date range.
 
         Args:
             start: The start of the date range (inclusive).
             end: The end of the date range (inclusive).
+            eager_load_camera: If True, eager load the camera relationship
+                to avoid lazy loading issues in async context.
 
         Returns:
             A sequence of events where started_at is within the range.
         """
         stmt = select(Event).where(Event.started_at >= start, Event.started_at <= end)
+        if eager_load_camera:
+            stmt = stmt.options(selectinload(Event.camera))
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
