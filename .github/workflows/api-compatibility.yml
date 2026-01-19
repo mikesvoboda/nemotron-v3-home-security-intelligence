@@ -223,29 +223,67 @@ jobs:
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
-          response=$(curl -s -w "\n%{http_code}" -X POST https://api.linear.app/graphql \
+          TITLE="Breaking API change detected"
+
+          # Check for existing open issue with same title
+          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
             -H "Content-Type: application/json" \
             -H "Authorization: $LINEAR_API_KEY" \
             -d '{
-              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
               "variables": {
-                "input": {
-                  "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                  "title": "Breaking API change detected",
-                  "description": "## Breaking API Change Detected\n\nA breaking API change was detected after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Breaking Changes Detected\n\nPossible issues include:\n- Removed endpoints\n- Removed required parameters\n- Changed response schemas\n- Type changes in request/response bodies\n\n### Action Required\n\n1. Review the API compatibility report in the workflow run\n2. If the breaking change is intentional:\n   - Update frontend API clients\n   - Update API documentation\n   - Consider API versioning for major changes\n3. If unintentional, revert or fix the change\n4. Run locally to investigate:\n   ```bash\n   ./scripts/check-api-compatibility.sh\n   ```",
-                  "priority": 2,
-                  "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
+                "filter": {
+                  "team": { "key": { "eq": "NEM" } },
+                  "title": { "eq": "'"$TITLE"'" },
+                  "state": { "type": { "nin": ["completed", "canceled"] } }
                 }
               }
             }')
 
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
+          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
 
-          if [ "$http_code" != "200" ]; then
-            echo "::warning::Failed to create Linear issue (HTTP $http_code)"
-            echo "Response: $body"
+          if [ -n "$EXISTING_ID" ]; then
+            # Add comment to existing issue instead of creating duplicate
+            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            curl -s -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
+                "variables": {
+                  "input": {
+                    "issueId": "'"$EXISTING_ID"'",
+                    "body": "'"$COMMENT"'"
+                  }
+                }
+              }'
+            echo "Added comment to existing issue"
           else
-            echo "Linear issue created successfully"
-            echo "$body" | jq -r '.data.issueCreate.issue.url // "No URL returned"'
+            # Create new issue
+            response=$(curl -s -w "\n%{http_code}" -X POST https://api.linear.app/graphql \
+              -H "Content-Type: application/json" \
+              -H "Authorization: $LINEAR_API_KEY" \
+              -d '{
+                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+                "variables": {
+                  "input": {
+                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
+                    "title": "'"$TITLE"'",
+                    "description": "## Breaking API Change Detected\n\nA breaking API change was detected after a merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n### Breaking Changes Detected\n\nPossible issues include:\n- Removed endpoints\n- Removed required parameters\n- Changed response schemas\n- Type changes in request/response bodies\n\n### Action Required\n\n1. Review the API compatibility report in the workflow run\n2. If the breaking change is intentional:\n   - Update frontend API clients\n   - Update API documentation\n   - Consider API versioning for major changes\n3. If unintentional, revert or fix the change\n4. Run locally to investigate:\n   ```bash\n   ./scripts/check-api-compatibility.sh\n   ```",
+                    "priority": 2,
+                    "labelIds": ["fef74b6f-0631-42e2-87f9-3c31e4bab170"]
+                  }
+                }
+              }')
+
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+
+            if [ "$http_code" != "200" ]; then
+              echo "::warning::Failed to create Linear issue (HTTP $http_code)"
+              echo "Response: $body"
+            else
+              echo "Linear issue created successfully"
+              echo "$body" | jq -r '.data.issueCreate.issue.url // "No URL returned"'
+            fi
           fi
