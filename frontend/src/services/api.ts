@@ -237,6 +237,7 @@ import type {
   RecordingResponse,
   RecordingsListResponse,
   ReplayResponse} from '../types/generated';
+import type { SummariesLatestResponse } from '../types/summary';
 
 // Re-export entity types for consumers of this module
 export type {
@@ -6375,4 +6376,29 @@ export interface WebSocketConnectionsResponse {
  */
 export async function fetchWebSocketConnections(): Promise<WebSocketConnectionsResponse> {
   return fetchApi<WebSocketConnectionsResponse>('/api/debug/websocket/connections');
+}
+
+// ============================================================================
+// Summary Endpoints (Dashboard Summaries Feature - NEM-2895)
+// ============================================================================
+
+/**
+ * Fetch the latest hourly and daily summaries.
+ *
+ * Summaries are LLM-generated narrative descriptions of high/critical
+ * security events. The hourly summary covers the past 60 minutes,
+ * and the daily summary covers since midnight.
+ *
+ * @returns Latest summaries response with hourly and daily summaries
+ *
+ * @example
+ * ```typescript
+ * const { hourly, daily } = await fetchSummaries();
+ * if (hourly) {
+ *   console.log(`Hourly: ${hourly.content} (${hourly.eventCount} events)`);
+ * }
+ * ```
+ */
+export async function fetchSummaries(): Promise<SummariesLatestResponse> {
+  return fetchApi<SummariesLatestResponse>('/api/summaries/latest');
 }

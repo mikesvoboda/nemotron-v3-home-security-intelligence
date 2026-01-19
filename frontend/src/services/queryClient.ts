@@ -656,6 +656,20 @@ export const queryKeys = {
         ? ([...queryKeys.jobs.all, 'search', params] as const)
         : ([...queryKeys.jobs.all, 'search'] as const),
   },
+
+  /**
+   * Summary-related query keys (Dashboard Summaries Feature - NEM-2895)
+   */
+  summaries: {
+    /** Base key for all summary queries - use for bulk invalidation */
+    all: ['summaries'] as const,
+    /** Latest summaries (hourly and daily) */
+    latest: ['summaries', 'latest'] as const,
+    /** Hourly summary only */
+    hourly: ['summaries', 'hourly'] as const,
+    /** Daily summary only */
+    daily: ['summaries', 'daily'] as const,
+  },
 } as const;
 // QueryClient Factory
 // ============================================================================

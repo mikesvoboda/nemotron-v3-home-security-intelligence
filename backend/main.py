@@ -56,6 +56,7 @@ from backend.api.routes import (
     queues,
     rum,
     services,
+    summaries,
     system,
     webhooks,
     websocket,
@@ -1047,6 +1048,7 @@ app.include_router(prompt_management.router)
 app.include_router(queues.router)
 app.include_router(rum.router)
 app.include_router(services.router)
+app.include_router(summaries.router)
 app.include_router(system.router)
 app.include_router(webhooks.router)
 app.include_router(websocket.router)

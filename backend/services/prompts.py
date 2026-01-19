@@ -918,3 +918,103 @@ def format_detections_with_all_enrichment(  # noqa: PLR0912
         lines.append("")  # Empty line between detections
 
     return "\n".join(lines).strip()
+
+
+# ==============================================================================
+# Summary Generation Prompt Templates
+# ==============================================================================
+# These templates are used by the SummaryGenerator service to create concise
+# narrative summaries of security events for dashboard display.
+
+SUMMARY_SYSTEM_PROMPT = """You are a home security analyst providing clear, concise summaries for a homeowner. Your summaries should be informative but not alarming. Focus on facts and actionable information."""
+
+SUMMARY_PROMPT_TEMPLATE = """Summarize the following security events for the homeowner.
+
+**Time Window:** {window_start} to {window_end}
+**Period:** {period_type}
+**High/Critical Events:** {event_count}
+
+{event_details}
+
+**Instructions:**
+1. Write a concise narrative summary (2-4 sentences maximum)
+2. Highlight what happened and when
+3. Note any patterns (e.g., person and vehicle arriving together, repeated activity)
+4. Mention which areas of the property were affected
+5. Use a calm, informative tone - avoid alarmist language
+
+{empty_state_instruction}
+
+**Response Format:**
+Write only the summary paragraph. No headers, bullets, or formatting. Just natural prose."""
+
+SUMMARY_EMPTY_STATE_INSTRUCTION = """If there are no high/critical events to summarize, write a brief reassuring message like:
+"No high-priority security events in the past {period}. The property has been quiet with only routine activity detected."
+You may mention the count of lower-priority detections if provided."""
+
+SUMMARY_EVENT_FORMAT = """
+Event {index}:
+- Time: {timestamp}
+- Camera: {camera_name}
+- Risk Level: {risk_level} ({risk_score}/100)
+- Summary: {event_summary}
+- Objects Detected: {object_types}
+"""
+
+
+def build_summary_prompt(
+    window_start: str,
+    window_end: str,
+    period_type: str,  # "hour" or "day"
+    events: list[dict[str, Any]],
+    routine_count: int = 0,
+) -> tuple[str, str]:
+    """Build the system and user prompts for summary generation.
+
+    Args:
+        window_start: Formatted start time (e.g., "2:00 PM")
+        window_end: Formatted end time (e.g., "3:00 PM")
+        period_type: "hour" for hourly, "day" for daily
+        events: List of event dicts with keys: timestamp, camera_name,
+                risk_level, risk_score, summary, object_types
+        routine_count: Number of low/medium events (for empty state context)
+
+    Returns:
+        Tuple of (system_prompt, user_prompt)
+    """
+    event_count = len(events)
+
+    # Build event details section
+    if events:
+        event_details = "**Event Details:**\n"
+        for i, event in enumerate(events, 1):
+            event_details += SUMMARY_EVENT_FORMAT.format(
+                index=i,
+                timestamp=event["timestamp"],
+                camera_name=event["camera_name"],
+                risk_level=event["risk_level"],
+                risk_score=event["risk_score"],
+                event_summary=event["summary"],
+                object_types=event["object_types"],
+            )
+    else:
+        event_details = "**Event Details:**\nNo high or critical events in this period."
+        if routine_count > 0:
+            event_details += f"\n({routine_count} routine/low-priority detections occurred)"
+
+    # Build empty state instruction
+    if event_count == 0:
+        empty_instruction = SUMMARY_EMPTY_STATE_INSTRUCTION.format(period=period_type)
+    else:
+        empty_instruction = ""
+
+    user_prompt = SUMMARY_PROMPT_TEMPLATE.format(
+        window_start=window_start,
+        window_end=window_end,
+        period_type=period_type,
+        event_count=event_count,
+        event_details=event_details,
+        empty_state_instruction=empty_instruction,
+    )
+
+    return SUMMARY_SYSTEM_PROMPT, user_prompt

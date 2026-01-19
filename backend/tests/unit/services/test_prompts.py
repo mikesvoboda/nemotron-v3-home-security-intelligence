@@ -22,7 +22,12 @@ from backend.services.prompts import (
     FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
     MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
     RISK_ANALYSIS_PROMPT,
+    SUMMARY_EMPTY_STATE_INSTRUCTION,
+    SUMMARY_EVENT_FORMAT,
+    SUMMARY_PROMPT_TEMPLATE,
+    SUMMARY_SYSTEM_PROMPT,
     VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
+    build_summary_prompt,
     format_action_recognition_context,
     format_clothing_analysis_context,
     format_depth_context,
@@ -2000,12 +2005,321 @@ class TestEfficientStringBuilding:
             assert f"Person det_{i}:" in result
 
 
+# =============================================================================
+# Test Classes for Summary Prompt Templates
+# =============================================================================
+
+
+class TestSummaryPromptTemplates:
+    """Tests for summary generation prompt templates."""
+
+    def test_summary_system_prompt_exists(self) -> None:
+        """Test that SUMMARY_SYSTEM_PROMPT is defined."""
+        assert SUMMARY_SYSTEM_PROMPT is not None
+        assert isinstance(SUMMARY_SYSTEM_PROMPT, str)
+        assert len(SUMMARY_SYSTEM_PROMPT) > 0
+
+    def test_summary_system_prompt_content(self) -> None:
+        """Test that SUMMARY_SYSTEM_PROMPT has expected content."""
+        assert "security analyst" in SUMMARY_SYSTEM_PROMPT.lower()
+        assert "homeowner" in SUMMARY_SYSTEM_PROMPT.lower()
+        assert "informative" in SUMMARY_SYSTEM_PROMPT.lower()
+        assert "alarming" in SUMMARY_SYSTEM_PROMPT.lower()
+
+    def test_summary_prompt_template_exists(self) -> None:
+        """Test that SUMMARY_PROMPT_TEMPLATE is defined."""
+        assert SUMMARY_PROMPT_TEMPLATE is not None
+        assert isinstance(SUMMARY_PROMPT_TEMPLATE, str)
+        assert len(SUMMARY_PROMPT_TEMPLATE) > 0
+
+    def test_summary_prompt_template_has_required_placeholders(self) -> None:
+        """Test that SUMMARY_PROMPT_TEMPLATE contains required placeholders."""
+        required_placeholders = [
+            "{window_start}",
+            "{window_end}",
+            "{period_type}",
+            "{event_count}",
+            "{event_details}",
+            "{empty_state_instruction}",
+        ]
+        for placeholder in required_placeholders:
+            assert placeholder in SUMMARY_PROMPT_TEMPLATE, f"Missing placeholder: {placeholder}"
+
+    def test_summary_prompt_template_instructions(self) -> None:
+        """Test that SUMMARY_PROMPT_TEMPLATE has proper instructions."""
+        assert "2-4 sentences" in SUMMARY_PROMPT_TEMPLATE
+        assert "calm" in SUMMARY_PROMPT_TEMPLATE.lower()
+        assert "informative" in SUMMARY_PROMPT_TEMPLATE.lower()
+        assert "patterns" in SUMMARY_PROMPT_TEMPLATE.lower()
+
+    def test_summary_empty_state_instruction_exists(self) -> None:
+        """Test that SUMMARY_EMPTY_STATE_INSTRUCTION is defined."""
+        assert SUMMARY_EMPTY_STATE_INSTRUCTION is not None
+        assert isinstance(SUMMARY_EMPTY_STATE_INSTRUCTION, str)
+        assert len(SUMMARY_EMPTY_STATE_INSTRUCTION) > 0
+
+    def test_summary_empty_state_instruction_content(self) -> None:
+        """Test that SUMMARY_EMPTY_STATE_INSTRUCTION has expected content."""
+        assert "{period}" in SUMMARY_EMPTY_STATE_INSTRUCTION
+        assert "reassuring" in SUMMARY_EMPTY_STATE_INSTRUCTION.lower()
+        assert "quiet" in SUMMARY_EMPTY_STATE_INSTRUCTION.lower()
+        assert "routine" in SUMMARY_EMPTY_STATE_INSTRUCTION.lower()
+
+    def test_summary_event_format_exists(self) -> None:
+        """Test that SUMMARY_EVENT_FORMAT is defined."""
+        assert SUMMARY_EVENT_FORMAT is not None
+        assert isinstance(SUMMARY_EVENT_FORMAT, str)
+        assert len(SUMMARY_EVENT_FORMAT) > 0
+
+    def test_summary_event_format_has_required_placeholders(self) -> None:
+        """Test that SUMMARY_EVENT_FORMAT contains required placeholders."""
+        required_placeholders = [
+            "{index}",
+            "{timestamp}",
+            "{camera_name}",
+            "{risk_level}",
+            "{risk_score}",
+            "{event_summary}",
+            "{object_types}",
+        ]
+        for placeholder in required_placeholders:
+            assert placeholder in SUMMARY_EVENT_FORMAT, f"Missing placeholder: {placeholder}"
+
+
+class TestBuildSummaryPrompt:
+    """Tests for build_summary_prompt function."""
+
+    def test_with_events(self) -> None:
+        """Test build_summary_prompt with events."""
+        events = [
+            {
+                "timestamp": "2:15 PM",
+                "camera_name": "Front Door",
+                "risk_level": "critical",
+                "risk_score": 92,
+                "summary": "Unknown person at front door",
+                "object_types": "person",
+            }
+        ]
+
+        system, user = build_summary_prompt(
+            window_start="2:00 PM",
+            window_end="3:00 PM",
+            period_type="hour",
+            events=events,
+        )
+
+        assert "security analyst" in system.lower()
+        assert "2:15 PM" in user
+        assert "Front Door" in user
+        assert "critical" in user
+        assert "92/100" in user
+        assert "Unknown person at front door" in user
+        assert "person" in user
+        assert "High/Critical Events:** 1" in user
+
+    def test_empty_events(self) -> None:
+        """Test build_summary_prompt with no events."""
+        _, user = build_summary_prompt(
+            window_start="12:00 AM",
+            window_end="11:59 PM",
+            period_type="day",
+            events=[],
+            routine_count=15,
+        )
+
+        assert "No high or critical events" in user
+        assert "15" in user  # routine count
+        assert "reassuring" in user.lower()
+
+    def test_empty_events_no_routine(self) -> None:
+        """Test build_summary_prompt with no events and no routine count."""
+        _, user = build_summary_prompt(
+            window_start="2:00 PM",
+            window_end="3:00 PM",
+            period_type="hour",
+            events=[],
+            routine_count=0,
+        )
+
+        assert "No high or critical events" in user
+        assert "routine/low-priority detections" not in user
+
+    def test_multiple_events(self) -> None:
+        """Test build_summary_prompt with multiple events."""
+        events = [
+            {
+                "timestamp": "1:00 PM",
+                "camera_name": "Driveway",
+                "risk_level": "high",
+                "risk_score": 75,
+                "summary": "Vehicle detected",
+                "object_types": "vehicle",
+            },
+            {
+                "timestamp": "1:05 PM",
+                "camera_name": "Front Door",
+                "risk_level": "critical",
+                "risk_score": 88,
+                "summary": "Person at door",
+                "object_types": "person",
+            },
+        ]
+
+        _, user = build_summary_prompt(
+            window_start="1:00 PM",
+            window_end="2:00 PM",
+            period_type="hour",
+            events=events,
+        )
+
+        assert "Event 1" in user
+        assert "Event 2" in user
+        assert "Driveway" in user
+        assert "Front Door" in user
+        assert "High/Critical Events:** 2" in user
+
+    def test_period_types(self) -> None:
+        """Test build_summary_prompt with different period types."""
+        _, hourly = build_summary_prompt(
+            window_start="2:00 PM",
+            window_end="3:00 PM",
+            period_type="hour",
+            events=[],
+        )
+
+        _, daily = build_summary_prompt(
+            window_start="12:00 AM",
+            window_end="11:59 PM",
+            period_type="day",
+            events=[],
+        )
+
+        assert "hour" in hourly
+        assert "day" in daily
+
+    def test_returns_tuple(self) -> None:
+        """Test that build_summary_prompt returns a tuple of two strings."""
+        result = build_summary_prompt(
+            window_start="2:00 PM",
+            window_end="3:00 PM",
+            period_type="hour",
+            events=[],
+        )
+
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        assert isinstance(result[0], str)  # system prompt
+        assert isinstance(result[1], str)  # user prompt
+
+    def test_system_prompt_consistency(self) -> None:
+        """Test that system prompt is always the same."""
+        _, _ = build_summary_prompt(
+            window_start="2:00 PM",
+            window_end="3:00 PM",
+            period_type="hour",
+            events=[],
+        )
+
+        system1, _ = build_summary_prompt(
+            window_start="1:00 AM",
+            window_end="2:00 AM",
+            period_type="day",
+            events=[
+                {
+                    "timestamp": "1:30 AM",
+                    "camera_name": "Backyard",
+                    "risk_level": "high",
+                    "risk_score": 70,
+                    "summary": "Motion detected",
+                    "object_types": "person",
+                }
+            ],
+        )
+
+        system2, _ = build_summary_prompt(
+            window_start="9:00 AM",
+            window_end="10:00 AM",
+            period_type="hour",
+            events=[],
+            routine_count=5,
+        )
+
+        assert system1 == system2
+        assert system1 == SUMMARY_SYSTEM_PROMPT
+
+    def test_event_formatting_includes_all_fields(self) -> None:
+        """Test that event formatting includes all event fields."""
+        events = [
+            {
+                "timestamp": "3:45 PM",
+                "camera_name": "Side Gate",
+                "risk_level": "high",
+                "risk_score": 78,
+                "summary": "Person lingering near side gate",
+                "object_types": "person, backpack",
+            }
+        ]
+
+        _, user = build_summary_prompt(
+            window_start="3:00 PM",
+            window_end="4:00 PM",
+            period_type="hour",
+            events=events,
+        )
+
+        # All event fields should be in the prompt
+        assert "3:45 PM" in user
+        assert "Side Gate" in user
+        assert "high" in user
+        assert "78/100" in user
+        assert "Person lingering near side gate" in user
+        assert "person, backpack" in user
+
+    def test_no_empty_state_instruction_when_events_present(self) -> None:
+        """Test that empty state instruction is not included when events exist."""
+        events = [
+            {
+                "timestamp": "2:15 PM",
+                "camera_name": "Front Door",
+                "risk_level": "critical",
+                "risk_score": 90,
+                "summary": "Alert",
+                "object_types": "person",
+            }
+        ]
+
+        _, user = build_summary_prompt(
+            window_start="2:00 PM",
+            window_end="3:00 PM",
+            period_type="hour",
+            events=events,
+        )
+
+        # Should not contain reassuring message when there are events
+        assert "reassuring" not in user.lower()
+        assert "No high-priority security events" not in user
+
+    def test_window_times_in_output(self) -> None:
+        """Test that window times are included in the prompt."""
+        _, user = build_summary_prompt(
+            window_start="9:00 AM",
+            window_end="10:00 AM",
+            period_type="hour",
+            events=[],
+        )
+
+        assert "9:00 AM" in user
+        assert "10:00 AM" in user
+
+
 class TestPromptModuleImports:
     """Tests for module structure and exports."""
 
     def test_all_format_functions_importable(self) -> None:
         """Test all format functions are importable."""
         from backend.services.prompts import (
+            build_summary_prompt,
             format_action_recognition_context,
             format_clothing_analysis_context,
             format_depth_context,
@@ -2031,6 +2345,7 @@ class TestPromptModuleImports:
         assert callable(format_depth_context)
         assert callable(format_image_quality_context)
         assert callable(format_detections_with_all_enrichment)
+        assert callable(build_summary_prompt)
 
     def test_all_prompt_templates_importable(self) -> None:
         """Test all prompt templates are importable."""
@@ -2039,6 +2354,10 @@ class TestPromptModuleImports:
             FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
             MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
             RISK_ANALYSIS_PROMPT,
+            SUMMARY_EMPTY_STATE_INSTRUCTION,
+            SUMMARY_EVENT_FORMAT,
+            SUMMARY_PROMPT_TEMPLATE,
+            SUMMARY_SYSTEM_PROMPT,
             VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
         )
 
@@ -2048,3 +2367,7 @@ class TestPromptModuleImports:
         assert isinstance(FULL_ENRICHED_RISK_ANALYSIS_PROMPT, str)
         assert isinstance(VISION_ENHANCED_RISK_ANALYSIS_PROMPT, str)
         assert isinstance(MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT, str)
+        assert isinstance(SUMMARY_SYSTEM_PROMPT, str)
+        assert isinstance(SUMMARY_PROMPT_TEMPLATE, str)
+        assert isinstance(SUMMARY_EMPTY_STATE_INSTRUCTION, str)
+        assert isinstance(SUMMARY_EVENT_FORMAT, str)
