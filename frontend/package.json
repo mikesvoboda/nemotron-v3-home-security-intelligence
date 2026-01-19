@@ -63,6 +63,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.0",
+    "@babel/core": "^7.28.6",
     "@eslint/js": "^9.39.2",
     "@playwright/test": "^1.57.0",
     "@stryker-mutator/api": "^8.7.1",
