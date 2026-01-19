@@ -714,7 +714,7 @@ class NemotronAnalyzer:
                 data=None,
             )
 
-    async def _run_enrichment_pipeline_from_data(
+    async def _run_enrichment_pipeline_from_data(  # noqa: PLR0912 - Complex enrichment orchestration
         self,
         detections_data: list[dict[str, Any]],
         camera_id: str | None = None,
@@ -838,7 +838,7 @@ class NemotronAnalyzer:
             headers["X-API-Key"] = self._api_key
         return headers
 
-    async def analyze_batch(  # noqa: PLR0912, PLR0915 - Complex orchestration method
+    async def analyze_batch(  # noqa: PLR0912 - Complex orchestration method
         self,
         batch_id: str,
         camera_id: str | None = None,
@@ -1211,7 +1211,7 @@ class NemotronAnalyzer:
 
         return event
 
-    async def analyze_detection_fast_path(  # noqa: PLR0912, PLR0915 - Complex orchestration
+    async def analyze_detection_fast_path(  # noqa: PLR0912 - Complex orchestration
         self, camera_id: str, detection_id: int | str
     ) -> Event:
         """Analyze a single detection via fast path (high-priority).
