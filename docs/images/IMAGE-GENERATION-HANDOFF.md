@@ -9,7 +9,7 @@ This document provides all specifications for generating AI images for the Home 
 **Required Environment Variable:**
 
 ```bash
-export NVIDIA_API_KEY="your-nvidia-api-key"
+export NVIDIA_API_KEY="your-nvidia-api-key"  # pragma: allowlist secret
 # Alternative: export NVAPIKEY="your-nvidia-api-key"
 ```
 
@@ -408,7 +408,7 @@ After all images are generated:
 ### "NVIDIA_API_KEY environment variable not set"
 
 ```bash
-export NVIDIA_API_KEY="your-api-key"
+export NVIDIA_API_KEY="your-api-key"  # pragma: allowlist secret
 # Then re-run the script
 ```
 

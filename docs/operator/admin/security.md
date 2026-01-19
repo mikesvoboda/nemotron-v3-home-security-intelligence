@@ -66,7 +66,7 @@ The setup script generates secure 32-character passwords automatically:
    POSTGRES_USER=security
    POSTGRES_PASSWORD=your-secure-generated-password-here
    POSTGRES_DB=security
-   DATABASE_URL=postgresql+asyncpg://security:your-secure-generated-password-here@postgres:5432/security
+   DATABASE_URL=postgresql+asyncpg://security:your-secure-generated-password-here@postgres:5432/security  # pragma: allowlist secret
    ```
 
 3. **Set secure file permissions:**
