@@ -2,14 +2,19 @@ import { clsx } from 'clsx';
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   AlertOctagon,
   AlertTriangle,
   Info,
   Bug,
   FileText,
 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
 
 import { EmptyState, SafeErrorMessage, TableRowSkeleton } from '../common';
+import { groupRepeatedLogs } from './logGrouping';
+
+import type { LogGroup as BaseLogGroup } from './logGrouping';
 
 export interface LogEntry {
   id: number;
@@ -26,6 +31,9 @@ export interface LogEntry {
   source: string;
 }
 
+// Type alias for LogGroup with proper LogEntry type
+export type LogGroup = BaseLogGroup<LogEntry>;
+
 export interface LogsTableProps {
   logs: LogEntry[];
   totalCount: number;
@@ -36,6 +44,8 @@ export interface LogsTableProps {
   onRowClick?: (log: LogEntry) => void;
   onPageChange?: (offset: number) => void;
   className?: string;
+  /** Enable grouping of repeated consecutive messages */
+  enableGrouping?: boolean;
 }
 
 /**
@@ -135,12 +145,22 @@ export default function LogsTable({
   onRowClick,
   onPageChange,
   className = '',
+  enableGrouping = false,
 }: LogsTableProps) {
+  // State for expanded groups
+  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
+
   // Calculate pagination info
   const currentPage = Math.floor(offset / limit) + 1;
   const totalPages = Math.ceil(totalCount / limit);
   const hasNextPage = offset + limit < totalCount;
   const hasPreviousPage = offset > 0;
+
+  // Group logs when grouping is enabled
+  const logGroups = useMemo(() => {
+    if (!enableGrouping) return null;
+    return groupRepeatedLogs(logs);
+  }, [logs, enableGrouping]);
 
   // Handle pagination
   const handlePreviousPage = () => {
@@ -160,6 +180,179 @@ export default function LogsTable({
     if (onRowClick) {
       onRowClick(log);
     }
+  };
+
+  // Handle group expand/collapse
+  const toggleGroup = (groupId: number) => {
+    setExpandedGroups((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
+      }
+      return newSet;
+    });
+  };
+
+  // Render a single log row
+  const renderLogRow = (log: LogEntry, isGroupChild = false) => (
+    <tr
+      key={log.id}
+      onClick={() => handleRowClick(log)}
+      className={clsx(
+        'transition-colors',
+        onRowClick && 'cursor-pointer hover:bg-[#76B900]/5',
+        isGroupChild && 'bg-zinc-900/50'
+      )}
+    >
+      {/* Timestamp */}
+      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
+        {isGroupChild && <span className="mr-2 text-gray-600">|</span>}
+        {formatTimestamp(log.timestamp)}
+      </td>
+
+      {/* Level Badge */}
+      <td className="whitespace-nowrap px-4 py-3">
+        <span
+          className={clsx(
+            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+            getLevelBadgeClasses(log.level)
+          )}
+          role="status"
+          aria-label={`Log level: ${log.level}`}
+        >
+          <LevelIcon level={log.level} />
+          {log.level}
+        </span>
+      </td>
+
+      {/* Component */}
+      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
+        <span className="font-mono text-[#76B900]">{log.component}</span>
+      </td>
+
+      {/* Message */}
+      <td className="px-4 py-3 text-sm text-gray-300">
+        <span className="line-clamp-2">{truncateMessage(log.message)}</span>
+      </td>
+    </tr>
+  );
+
+  // Render a group row
+  const renderGroupRow = (group: LogGroup) => {
+    const isExpanded = expandedGroups.has(group.groupId);
+    const log = group.representative;
+
+    // When expanded, show individual entries instead of the group summary
+    if (isExpanded && group.count > 1) {
+      return (
+        <React.Fragment key={`group-expanded-${group.groupId}`}>
+          {/* First row with collapse button */}
+          <tr
+            onClick={() => handleRowClick(group.entries[0])}
+            className={clsx('transition-colors', onRowClick && 'cursor-pointer hover:bg-[#76B900]/5')}
+          >
+            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleGroup(group.groupId);
+                  }}
+                  className="flex h-5 w-5 items-center justify-center rounded hover:bg-gray-700"
+                  aria-label="Collapse group"
+                >
+                  <ChevronDown className="h-4 w-4 rotate-180 text-gray-400 transition-transform" />
+                </button>
+                {formatTimestamp(group.entries[0].timestamp)}
+              </div>
+            </td>
+            <td className="whitespace-nowrap px-4 py-3">
+              <span
+                className={clsx(
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                  getLevelBadgeClasses(group.entries[0].level)
+                )}
+                role="status"
+                aria-label={`Log level: ${group.entries[0].level}`}
+              >
+                <LevelIcon level={group.entries[0].level} />
+                {group.entries[0].level}
+              </span>
+            </td>
+            <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
+              <span className="font-mono text-[#76B900]">{group.entries[0].component}</span>
+            </td>
+            <td className="px-4 py-3 text-sm text-gray-300">
+              <span className="line-clamp-2">{truncateMessage(group.entries[0].message)}</span>
+            </td>
+          </tr>
+          {/* Remaining entries */}
+          {group.entries.slice(1).map((entry) => renderLogRow(entry, true))}
+        </React.Fragment>
+      );
+    }
+
+    return (
+      <tr
+        key={`group-${group.groupId}`}
+        onClick={() => (group.count > 1 ? undefined : handleRowClick(log))}
+        className={clsx(
+          'transition-colors',
+          group.count === 1 && onRowClick && 'cursor-pointer hover:bg-[#76B900]/5'
+        )}
+      >
+        {/* Timestamp with expand button for groups */}
+        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
+          <div className="flex items-center gap-2">
+            {group.count > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleGroup(group.groupId);
+                }}
+                className="flex h-5 w-5 items-center justify-center rounded hover:bg-gray-700"
+                aria-label="Expand group"
+              >
+                <ChevronDown className="h-4 w-4 text-gray-400 transition-transform" />
+              </button>
+            )}
+            {formatTimestamp(log.timestamp)}
+            {group.count > 1 && (
+              <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs font-medium text-gray-300">
+                {group.count}x
+              </span>
+            )}
+          </div>
+        </td>
+
+        {/* Level Badge */}
+        <td className="whitespace-nowrap px-4 py-3">
+          <span
+            className={clsx(
+              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+              getLevelBadgeClasses(log.level)
+            )}
+            role="status"
+            aria-label={`Log level: ${log.level}`}
+          >
+            <LevelIcon level={log.level} />
+            {log.level}
+          </span>
+        </td>
+
+        {/* Component */}
+        <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
+          <span className="font-mono text-[#76B900]">{log.component}</span>
+        </td>
+
+        {/* Message */}
+        <td className="px-4 py-3 text-sm text-gray-300">
+          <span className="line-clamp-2">{truncateMessage(log.message)}</span>
+        </td>
+      </tr>
+    );
   };
 
   return (
@@ -245,46 +438,9 @@ export default function LogsTable({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
-              {logs.map((log) => (
-                <tr
-                  key={log.id}
-                  onClick={() => handleRowClick(log)}
-                  className={clsx(
-                    'transition-colors',
-                    onRowClick && 'cursor-pointer hover:bg-[#76B900]/5'
-                  )}
-                >
-                  {/* Timestamp */}
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
-                    {formatTimestamp(log.timestamp)}
-                  </td>
-
-                  {/* Level Badge */}
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <span
-                      className={clsx(
-                        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
-                        getLevelBadgeClasses(log.level)
-                      )}
-                      role="status"
-                      aria-label={`Log level: ${log.level}`}
-                    >
-                      <LevelIcon level={log.level} />
-                      {log.level}
-                    </span>
-                  </td>
-
-                  {/* Component */}
-                  <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
-                    <span className="font-mono text-[#76B900]">{log.component}</span>
-                  </td>
-
-                  {/* Message */}
-                  <td className="px-4 py-3 text-sm text-gray-300">
-                    <span className="line-clamp-2">{truncateMessage(log.message)}</span>
-                  </td>
-                </tr>
-              ))}
+              {enableGrouping && logGroups
+                ? logGroups.map((group) => renderGroupRow(group))
+                : logs.map((log) => renderLogRow(log))}
             </tbody>
           </table>
         )}

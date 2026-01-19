@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import AuditDetailModal from './AuditDetailModal';
@@ -57,6 +58,7 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
   // State for stats card filter selection (for visual feedback)
   const [activeStatsFilter, setActiveStatsFilter] = useState<StatsFilterType | null>(null);
   const [activeActionFilter, setActiveActionFilter] = useState<string | null>(null);
+  const [activeActorFilter, setActiveActorFilter] = useState<string | null>(null);
 
   // Controlled filters for AuditFilters component
   const [controlledFilters, setControlledFilters] = useState<AuditFilterParams>({});
@@ -149,12 +151,14 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
         // Clear the filter
         setActiveStatsFilter(null);
         setActiveActionFilter(null);
+        setActiveActorFilter(null);
         setControlledFilters({});
         return;
       }
 
-      // Clear any action filter when clicking a stats card
+      // Clear any other filters when clicking a stats card
       setActiveActionFilter(null);
+      setActiveActorFilter(null);
       setActiveStatsFilter(filterType);
 
       // Apply the appropriate filter based on card type
@@ -183,24 +187,58 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
     [activeStatsFilter]
   );
 
-  // Handle action badge click
+  // Handle action badge click (from stats cards or table)
   const handleActionClick = useCallback(
     (action: string) => {
       // Toggle behavior: click active filter to clear it
       if (activeActionFilter === action) {
+        setActiveActionFilter(null);
+        setActiveActorFilter(null);
+        setControlledFilters({});
+        setActiveStatsFilter(null);
+        return;
+      }
+
+      // Clear any other filters when clicking an action badge
+      setActiveStatsFilter(null);
+      setActiveActorFilter(null);
+      setActiveActionFilter(action);
+      setControlledFilters({ action });
+    },
+    [activeActionFilter]
+  );
+
+  // Handle actor click from table
+  const handleActorClick = useCallback(
+    (actor: string) => {
+      // Toggle behavior: click active filter to clear it
+      if (activeActorFilter === actor) {
+        setActiveActorFilter(null);
         setActiveActionFilter(null);
         setControlledFilters({});
         setActiveStatsFilter(null);
         return;
       }
 
-      // Clear any stats filter when clicking an action badge
+      // Clear any other filters when clicking an actor
       setActiveStatsFilter(null);
-      setActiveActionFilter(action);
-      setControlledFilters({ action });
+      setActiveActionFilter(null);
+      setActiveActorFilter(actor);
+      setControlledFilters({ actor });
     },
-    [activeActionFilter]
+    [activeActorFilter]
   );
+
+  // Clear a specific filter chip
+  const handleClearFilter = useCallback((filterType: 'action' | 'actor') => {
+    if (filterType === 'action') {
+      setActiveActionFilter(null);
+    } else if (filterType === 'actor') {
+      setActiveActorFilter(null);
+    }
+    setActiveStatsFilter(null);
+    setControlledFilters({});
+  }, []);
 
   return (
     <div className={`flex flex-col ${className}`}>
@@ -289,6 +327,33 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
         />
       </div>
 
+      {/* Active Filter Chips */}
+      {(activeActionFilter || activeActorFilter) && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-gray-400">Active filters:</span>
+          {activeActionFilter && (
+            <button
+              onClick={() => handleClearFilter('action')}
+              className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-sm font-medium text-blue-400 transition-colors hover:bg-blue-500/20"
+              aria-label={`Clear action filter: ${activeActionFilter.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}`}
+            >
+              Action: {activeActionFilter.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {activeActorFilter && (
+            <button
+              onClick={() => handleClearFilter('actor')}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#76B900]/30 bg-[#76B900]/10 px-3 py-1 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20"
+              aria-label={`Clear actor filter: ${activeActorFilter}`}
+            >
+              Actor: {activeActorFilter}
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Audit Table with Pagination */}
       <AuditTable
         logs={logs}
@@ -299,6 +364,10 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
         error={error}
         onRowClick={handleRowClick}
         onPageChange={handlePageChange}
+        onActorClick={handleActorClick}
+        onActionClick={handleActionClick}
+        activeActorFilter={activeActorFilter}
+        activeActionFilter={activeActionFilter}
       />
 
       {/* Detail Modal */}

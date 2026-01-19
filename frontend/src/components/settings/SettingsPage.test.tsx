@@ -211,6 +211,59 @@ describe('SettingsPage', () => {
     expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
   });
 
+  describe('Tab descriptions', () => {
+    it('should have title attribute with description on cameras tab', () => {
+      renderWithProviders(<SettingsPage />);
+
+      const camerasTab = screen.getByRole('tab', { name: /cameras/i });
+      expect(camerasTab).toHaveAttribute('title', 'Add, remove, and configure security cameras');
+    });
+
+    it('should have title attribute with description on rules tab', () => {
+      renderWithProviders(<SettingsPage />);
+
+      const rulesTab = screen.getByRole('tab', { name: /rules/i });
+      expect(rulesTab).toHaveAttribute('title', 'Set up automated alert rules and triggers');
+    });
+
+    it('should have title attribute with description on processing tab', () => {
+      renderWithProviders(<SettingsPage />);
+
+      const processingTab = screen.getByRole('tab', { name: /processing/i });
+      expect(processingTab).toHaveAttribute(
+        'title',
+        'Configure detection sensitivity and AI models'
+      );
+    });
+
+    it('should have title attribute with description on notifications tab', () => {
+      renderWithProviders(<SettingsPage />);
+
+      const notificationsTab = screen.getByRole('tab', { name: /notifications/i });
+      expect(notificationsTab).toHaveAttribute(
+        'title',
+        'Email, push, and webhook notification settings'
+      );
+    });
+
+    it('should have title attribute with description on ambient tab', () => {
+      renderWithProviders(<SettingsPage />);
+
+      const ambientTab = screen.getByRole('tab', { name: /ambient/i });
+      expect(ambientTab).toHaveAttribute(
+        'title',
+        'Background noise and environmental settings'
+      );
+    });
+
+    it('should have title attribute with description on storage tab', () => {
+      renderWithProviders(<SettingsPage />);
+
+      const storageTab = screen.getByRole('tab', { name: /storage/i });
+      expect(storageTab).toHaveAttribute('title', 'Media retention and storage management');
+    });
+  });
+
   describe('Developer Tools link', () => {
     it('should show Developer Tools link when debug mode is enabled', async () => {
       server.use(

@@ -891,6 +891,85 @@ describe('CamerasSettings', () => {
     });
   });
 
+  describe('Camera Status Indicators', () => {
+    beforeEach(() => {
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: mockCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+    });
+
+    it('should display status indicator dot for online cameras', async () => {
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      const onlineIndicator = screen.getByTestId('camera-status-indicator-cam-1');
+      expect(onlineIndicator).toBeInTheDocument();
+      expect(onlineIndicator).toHaveClass('bg-green-500');
+    });
+
+    it('should display status indicator dot for offline cameras', async () => {
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Backyard')).toBeInTheDocument();
+      });
+
+      const offlineIndicator = screen.getByTestId('camera-status-indicator-cam-2');
+      expect(offlineIndicator).toBeInTheDocument();
+      expect(offlineIndicator).toHaveClass('bg-gray-500');
+    });
+
+    it('should display status indicator dot for error cameras', async () => {
+      const camerasWithError: Camera[] = [
+        {
+          id: 'cam-error',
+          name: 'Error Camera',
+          folder_path: '/export/foscam/error',
+          status: 'error',
+          created_at: '2025-01-01T00:00:00Z',
+          last_seen_at: null,
+        },
+      ];
+
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: camerasWithError,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Error Camera')).toBeInTheDocument();
+      });
+
+      const errorIndicator = screen.getByTestId('camera-status-indicator-cam-error');
+      expect(errorIndicator).toBeInTheDocument();
+      expect(errorIndicator).toHaveClass('bg-red-500');
+    });
+
+    it('should have correct styling for status indicator dots', async () => {
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      const indicator = screen.getByTestId('camera-status-indicator-cam-1');
+      // Should be a small rounded dot
+      expect(indicator).toHaveClass('h-2.5', 'w-2.5', 'rounded-full');
+    });
+  });
+
   describe('Status Handling', () => {
     it('should allow changing camera status', async () => {
       vi.mocked(hooks.useCamerasQuery).mockReturnValue({

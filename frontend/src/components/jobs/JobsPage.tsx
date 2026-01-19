@@ -188,20 +188,22 @@ export default function JobsPage() {
         <p className="mt-2 text-gray-400">Monitor background jobs and their progress</p>
       </div>
 
-      {/* Search and Filter Bar */}
-      <div className="mb-6">
-        <JobsSearchBar
-          query={searchQuery}
-          status={urlStatus || undefined}
-          type={urlType}
-          onSearchChange={handleSearchChange}
-          onStatusChange={handleStatusChange}
-          onTypeChange={handleTypeChange}
-          onClear={handleClearFilters}
-          isLoading={isFetchingJobs}
-          totalCount={totalCount}
-        />
-      </div>
+      {/* Search and Filter Bar - hidden when no jobs exist */}
+      {(jobs.length > 0 || hasActiveFilters || isLoadingJobs) && (
+        <div className="mb-6">
+          <JobsSearchBar
+            query={searchQuery}
+            status={urlStatus || undefined}
+            type={urlType}
+            onSearchChange={handleSearchChange}
+            onStatusChange={handleStatusChange}
+            onTypeChange={handleTypeChange}
+            onClear={handleClearFilters}
+            isLoading={isFetchingJobs}
+            totalCount={totalCount}
+          />
+        </div>
+      )}
 
       {/* Loading State */}
       {isLoadingJobs && (
