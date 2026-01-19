@@ -42,6 +42,10 @@ source_refs:
 
 # Architecture Overview
 
+![Architecture Overview](../images/architecture-overview.png)
+
+_AI-generated visualization of the full system architecture showing Frontend, Backend, AI Services, and GPU tiers._
+
 > **Last Updated:** 2026-01-04
 > **Target Audience:** Future maintainers, technical contributors
 

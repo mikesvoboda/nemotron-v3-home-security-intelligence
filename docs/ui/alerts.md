@@ -1,5 +1,9 @@
 # Alerts
 
+![Alerts Hero](../images/alerts-hero.png)
+
+_AI-generated visualization of the alerts interface with severity-coded notification cards._
+
 ![Alerts Screenshot](../images/screenshots/alerts.png)
 
 The Alerts page displays high and critical risk security events that require immediate attention.

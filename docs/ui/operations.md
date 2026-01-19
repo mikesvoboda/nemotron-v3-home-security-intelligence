@@ -1,5 +1,9 @@
 # Operations
 
+![System Monitoring Hero](../images/system-monitoring-hero.png)
+
+_AI-generated visualization of the system monitoring dashboard with GPU metrics, container status, and circuit breakers._
+
 ![Operations Screenshot](../images/screenshots/operations.png)
 
 The operations dashboard for pipeline visualization, circuit breaker management, file cleanup, and detailed system metrics through Grafana integration.

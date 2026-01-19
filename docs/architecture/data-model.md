@@ -29,6 +29,10 @@ source_refs:
 
 # Data Model Reference
 
+![Data Model Hero](../images/data-model-hero.png)
+
+_AI-generated visualization of database entity relationships showing Events, Detections, Entities, Cameras, and Summaries._
+
 > **Audience:** Future maintainers who need to understand what data is stored, where, and why.
 
 This document describes the complete data model for the Home Security Intelligence system, including PostgreSQL tables, Redis data structures, and the data lifecycle from camera capture to event analysis.

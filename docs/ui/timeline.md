@@ -1,5 +1,13 @@
 # Event Timeline
 
+![Timeline Hero](../images/timeline-hero.png)
+
+_AI-generated visualization of the event timeline showing security events with risk-level color coding._
+
+![Investigation Hero](../images/investigation-hero.png)
+
+_AI-generated visualization of the investigation interface with cross-camera entity tracking._
+
 ![Timeline Screenshot](../images/screenshots/timeline.png)
 
 The chronological event viewer for reviewing, searching, and managing security detection events.

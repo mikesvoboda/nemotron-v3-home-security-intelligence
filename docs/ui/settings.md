@@ -1,5 +1,9 @@
 # Settings
 
+![Settings Hero](../images/settings-hero.png)
+
+_AI-generated visualization of the settings interface with 8-tab navigation and camera configuration._
+
 ![Settings Screenshot](../images/screenshots/settings.png)
 
 The central configuration hub for your home security monitoring system.

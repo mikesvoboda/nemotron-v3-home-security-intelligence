@@ -15,6 +15,10 @@ source_refs:
 
 # First Run
 
+![First Run Hero](../images/first-run-hero.png)
+
+_AI-generated visualization of system startup sequence showing container initialization, model loading, camera connections, and dashboard ready state._
+
 This guide walks you through starting the system for the first time and verifying all components are working.
 
 <!-- Nano Banana Pro Prompt:

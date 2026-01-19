@@ -1,5 +1,9 @@
 # Deployment Modes & AI Networking
 
+![Deployment Modes](../images/deployment-modes.png)
+
+_AI-generated visualization comparing Development, Production, and Hybrid deployment modes._
+
 > A practical operator guide for choosing a deployment mode and setting `RTDETR_URL` / `NEMOTRON_URL` / `FLORENCE_URL` / `CLIP_URL` / `ENRICHMENT_URL` correctly.
 
 If you're seeing "AI services unreachable" in health checks, **it's almost always a networking mode mismatch**: the backend is trying to reach the AI services using the wrong hostname.
