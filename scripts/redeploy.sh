@@ -280,7 +280,7 @@ build_ai_images_podman() {
         local context="${svc#*:}"
 
         print_step "Building $name from $context..."
-        if run_cmd $CONTAINER_CMD build -t "$name" "$context"; then
+        if run_cmd $CONTAINER_CMD build --no-cache -t "$name" "$context"; then
             print_success "$name image built"
         else
             print_fail "Failed to build $name"
@@ -821,7 +821,7 @@ build_images() {
         if [ "$CONTAINER_CMD" = "podman" ]; then
             # Podman: Build core services with compose, AI services directly
             print_step "Building core service images..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" build 2>/dev/null; then
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_GHCR" build --no-cache 2>/dev/null; then
                 print_success "Core images built"
             else
                 print_info "Core services use pre-built images"
@@ -833,7 +833,7 @@ build_images() {
         else
             # Docker: Use compose normally
             print_step "Building all service images (this may take a few minutes)..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build; then
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build --no-cache; then
                 print_success "All images built"
             else
                 print_fail "Failed to build images"
@@ -850,7 +850,7 @@ build_images() {
         else
             # Docker: Use compose normally
             print_step "Building AI service images (this may take a few minutes)..."
-            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
+            if run_cmd $COMPOSE_CMD -f "$COMPOSE_FILE_PROD" build --no-cache ai-detector ai-llm ai-florence ai-clip ai-enrichment; then
                 print_success "AI images built"
             else
                 print_fail "Failed to build AI images"
