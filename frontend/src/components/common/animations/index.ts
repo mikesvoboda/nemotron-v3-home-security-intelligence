@@ -124,6 +124,63 @@ export const springTransition = {
   damping: 30,
 };
 
+/**
+ * Bottom sheet spring transition for smooth slide-up animations
+ * Optimized for mobile touch interactions
+ */
+export const bottomSheetSpringTransition = {
+  type: 'spring' as const,
+  stiffness: 300,
+  damping: 30,
+};
+
+/**
+ * Animation variants for bottom sheet modals (mobile)
+ * Slides up from the bottom of the screen with spring physics
+ */
+export const bottomSheetVariants: Variants = {
+  initial: {
+    y: '100%',
+    opacity: 0,
+  },
+  animate: {
+    y: 0,
+    opacity: 1,
+  },
+  exit: {
+    y: '100%',
+    opacity: 0,
+  },
+};
+
+/**
+ * Drag constraints for bottom sheet - allows dragging down only
+ */
+export const bottomSheetDragConstraints = {
+  top: 0,
+  bottom: 0,
+};
+
+/**
+ * Height variants for bottom sheet
+ */
+export type BottomSheetHeight = 'auto' | 'half' | 'full';
+
+/**
+ * Get max-height class for bottom sheet height variant
+ */
+export const getBottomSheetHeightClass = (height: BottomSheetHeight): string => {
+  switch (height) {
+    case 'half':
+      return 'max-h-[50vh]';
+    case 'full':
+      return 'max-h-[calc(100vh-2rem)]';
+    case 'auto':
+    default:
+      return 'max-h-[85vh]';
+  }
+};
+
 export type PageTransitionVariant = keyof typeof pageTransitionVariants;
 export type ModalTransitionVariant = keyof typeof modalTransitionVariants;
 export type ListItemVariant = keyof typeof listItemVariants;

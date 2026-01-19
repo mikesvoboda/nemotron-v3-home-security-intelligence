@@ -8,6 +8,20 @@ export default {
   ],
   theme: {
     extend: {
+      // Minimum height utilities for touch targets (WCAG 2.5.5 AAA compliance)
+      minHeight: {
+        11: '2.75rem', // 44px - WCAG 2.5.5 AAA minimum touch target
+        12: '3rem', // 48px - larger touch target
+        touch: '2.75rem', // alias for 44px minimum
+      },
+
+      // Minimum width utilities for touch targets (WCAG 2.5.5 AAA compliance)
+      minWidth: {
+        11: '2.75rem', // 44px - WCAG 2.5.5 AAA minimum touch target
+        12: '3rem', // 48px - larger touch target
+        touch: '2.75rem', // alias for 44px minimum
+      },
+
       colors: {
         // NVIDIA Theme - Dark Backgrounds
         background: '#0E0E0E',
@@ -269,5 +283,13 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Touch device variants for responsive touch target sizing
+    // Usage: touch:h-12 (applies h-12 on touch devices with coarse pointer)
+    // Usage: mouse:h-10 (applies h-10 on devices with fine pointer/mouse)
+    function ({ addVariant }) {
+      addVariant('touch', '@media (pointer: coarse)');
+      addVariant('mouse', '@media (pointer: fine)');
+    },
+  ],
 };

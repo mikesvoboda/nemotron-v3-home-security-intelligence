@@ -6,6 +6,7 @@ import {
   type EntityAppearance,
   type EntityHistoryResponse,
 } from '../../services/api';
+import IconButton from '../common/IconButton';
 import SafeErrorMessage from '../common/SafeErrorMessage';
 
 export interface ReidHistoryPanelProps {
@@ -207,13 +208,13 @@ export default function ReidHistoryPanel({
           <span className="text-sm text-gray-400">
             {history.count} {history.count === 1 ? 'appearance' : 'appearances'}
           </span>
-          <button
-            onClick={() => void loadHistory()}
-            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+          <IconButton
+            icon={<RefreshCw />}
             aria-label="Refresh history"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
+            onClick={() => void loadHistory()}
+            variant="ghost"
+            size="sm"
+          />
         </div>
       </div>
 

@@ -8,6 +8,8 @@
 import { Maximize2, X } from 'lucide-react';
 import { ReactNode, useState, useEffect } from 'react';
 
+import IconButton from '../common/IconButton';
+
 export interface MobileChartContainerProps {
   /** Chart title displayed in header */
   title: string;
@@ -60,14 +62,13 @@ export default function MobileChartContainer({
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-base font-semibold text-white">{title}</h3>
           {showExpandButton && (
-            <button
-              onClick={() => setIsFullscreen(true)}
-              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+            <IconButton
+              icon={<Maximize2 />}
               aria-label={`Expand ${title} to fullscreen`}
-              type="button"
-            >
-              <Maximize2 className="h-5 w-5" />
-            </button>
+              onClick={() => setIsFullscreen(true)}
+              variant="ghost"
+              size="md"
+            />
           )}
         </div>
 
@@ -98,14 +99,13 @@ export default function MobileChartContainer({
               <h2 id="fullscreen-chart-title" className="text-lg font-semibold text-white">
                 {title}
               </h2>
-              <button
-                onClick={() => setIsFullscreen(false)}
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+              <IconButton
+                icon={<X />}
                 aria-label="Close fullscreen"
-                type="button"
-              >
-                <X className="h-5 w-5" />
-              </button>
+                onClick={() => setIsFullscreen(false)}
+                variant="ghost"
+                size="md"
+              />
             </div>
 
             {/* Chart at full height */}

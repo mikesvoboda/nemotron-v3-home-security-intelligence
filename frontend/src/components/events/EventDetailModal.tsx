@@ -51,6 +51,7 @@ import {
 import { getRiskLevel } from '../../utils/risk';
 import { formatDuration } from '../../utils/time';
 import { EventAuditDetail } from '../audit';
+import IconButton from '../common/IconButton';
 import Lightbox from '../common/Lightbox';
 import RiskBadge from '../common/RiskBadge';
 import DetectionImage from '../detection/DetectionImage';
@@ -579,14 +580,14 @@ export default function EventDetailModal({
                         size="lg"
                       />
                     </div>
-                    <button
-                      onClick={onClose}
-                      className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                    <IconButton
+                      icon={<X />}
                       aria-label="Close modal"
+                      onClick={onClose}
+                      variant="ghost"
+                      size="lg"
                       data-testid="close-modal-button"
-                    >
-                      <X className="h-6 w-6" />
-                    </button>
+                    />
                   </div>
                 </div>
 

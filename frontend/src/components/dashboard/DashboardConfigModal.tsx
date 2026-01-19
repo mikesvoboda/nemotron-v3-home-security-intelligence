@@ -10,6 +10,7 @@ import {
   setWidgetVisibility,
 } from '../../stores/dashboardConfig';
 import AnimatedModal from '../common/AnimatedModal';
+import IconButton from '../common/IconButton';
 
 import type { DashboardConfig, WidgetConfig, WidgetId } from '../../stores/dashboardConfig';
 
@@ -116,14 +117,14 @@ export default function DashboardConfigModal({
             </p>
           </div>
         </div>
-        <button
-          onClick={handleCancel}
-          className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+        <IconButton
+          icon={<X />}
           aria-label="Close"
+          onClick={handleCancel}
+          variant="ghost"
+          size="md"
           data-testid="config-modal-close"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        />
       </div>
 
       {/* Widget List */}
