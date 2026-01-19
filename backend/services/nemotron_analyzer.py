@@ -808,8 +808,8 @@ class NemotronAnalyzer:
         # Set shared image for full-frame analysis (use first detection's image)
         # This enables vision extraction, scene change detection, and re-id
         if detections_data:
-            first_image = (
-                detections_data[0].get("image_path") or detections_data[0].get("file_path")
+            first_image = detections_data[0].get("image_path") or detections_data[0].get(
+                "file_path"
             )
             if first_image:
                 images[None] = first_image
