@@ -16,7 +16,12 @@ export type SystemSectionId =
   | 'host-system'
   | 'circuit-breakers'
   | 'file-operations'
-  | 'services';
+  | 'services'
+  | 'profiling'
+  | 'recording-replay'
+  | 'config-inspector'
+  | 'log-level'
+  | 'test-data';
 
 /**
  * Default expanded state for each section
@@ -43,6 +48,11 @@ const DEFAULT_SECTION_STATES: Record<SystemSectionId, boolean> = {
   'circuit-breakers': false,
   'file-operations': false,
   services: false,
+  profiling: false,
+  'recording-replay': false,
+  'config-inspector': false,
+  'log-level': false,
+  'test-data': false,
 };
 
 const STORAGE_KEY = 'system-page-sections';
