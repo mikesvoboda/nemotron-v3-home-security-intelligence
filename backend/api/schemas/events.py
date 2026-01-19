@@ -231,6 +231,15 @@ class EventsByCamera(BaseModel):
     event_count: int = Field(..., description="Number of events for this camera")
 
 
+class RiskDistributionItem(BaseModel):
+    """Schema for a single risk distribution item (for Grafana compatibility)."""
+
+    model_config = ConfigDict(json_schema_extra={"example": {"risk_level": "high", "count": 5}})
+
+    risk_level: str = Field(..., description="Risk level name (critical, high, medium, low)")
+    count: int = Field(..., description="Number of events with this risk level")
+
+
 class EventStatsResponse(BaseModel):
     """Schema for aggregated event statistics."""
 
@@ -244,6 +253,12 @@ class EventStatsResponse(BaseModel):
                     "medium": 12,
                     "low": 25,
                 },
+                "risk_distribution": [
+                    {"risk_level": "critical", "count": 2},
+                    {"risk_level": "high", "count": 5},
+                    {"risk_level": "medium", "count": 12},
+                    {"risk_level": "low", "count": 25},
+                ],
                 "events_by_camera": [
                     {
                         "camera_id": "front_door",
@@ -262,6 +277,10 @@ class EventStatsResponse(BaseModel):
 
     total_events: int = Field(..., description="Total number of events")
     events_by_risk_level: EventsByRiskLevel = Field(..., description="Events grouped by risk level")
+    risk_distribution: list[RiskDistributionItem] = Field(
+        default_factory=list,
+        description="Events by risk level as array (for Grafana compatibility)",
+    )
     events_by_camera: list[EventsByCamera] = Field(..., description="Events grouped by camera")
 
 

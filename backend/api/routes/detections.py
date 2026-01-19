@@ -424,6 +424,7 @@ async def get_detection_stats(
         return DetectionStatsResponse(
             total_detections=0,
             detections_by_class={},
+            object_class_distribution=[],
             average_confidence=None,
         )
 
@@ -439,9 +440,16 @@ async def get_detection_stats(
         if row.object_type:
             detections_by_class[row.object_type] = row.class_count
 
+    # Build object_class_distribution array for Grafana compatibility
+    object_class_distribution = [
+        {"object_class": obj_class, "count": count}
+        for obj_class, count in detections_by_class.items()
+    ]
+
     return DetectionStatsResponse(
         total_detections=total_detections,
         detections_by_class=detections_by_class,
+        object_class_distribution=object_class_distribution,
         average_confidence=float(avg_confidence) if avg_confidence else None,
     )
 

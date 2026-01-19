@@ -6172,6 +6172,24 @@
             "person": 23,
             "truck": 6
           },
+          "object_class_distribution": [
+            {
+              "count": 23,
+              "object_class": "person"
+            },
+            {
+              "count": 20,
+              "object_class": "car"
+            },
+            {
+              "count": 6,
+              "object_class": "truck"
+            },
+            {
+              "count": 1,
+              "object_class": "bicycle"
+            }
+          ],
           "total_detections": 107
         },
         "properties": {
@@ -6194,6 +6212,14 @@
             "description": "Detection counts grouped by object class (e.g., person, car, truck)",
             "title": "Detections By Class",
             "type": "object"
+          },
+          "object_class_distribution": {
+            "description": "Detections by class as array (for Grafana compatibility)",
+            "items": {
+              "$ref": "#/components/schemas/ObjectClassDistributionItem"
+            },
+            "title": "Object Class Distribution",
+            "type": "array"
           },
           "total_detections": {
             "description": "Total number of detections",
@@ -8491,6 +8517,24 @@
             "low": 25,
             "medium": 12
           },
+          "risk_distribution": [
+            {
+              "count": 2,
+              "risk_level": "critical"
+            },
+            {
+              "count": 5,
+              "risk_level": "high"
+            },
+            {
+              "count": 12,
+              "risk_level": "medium"
+            },
+            {
+              "count": 25,
+              "risk_level": "low"
+            }
+          ],
           "total_events": 44
         },
         "properties": {
@@ -8505,6 +8549,14 @@
           "events_by_risk_level": {
             "$ref": "#/components/schemas/EventsByRiskLevel",
             "description": "Events grouped by risk level"
+          },
+          "risk_distribution": {
+            "description": "Events by risk level as array (for Grafana compatibility)",
+            "items": {
+              "$ref": "#/components/schemas/RiskDistributionItem"
+            },
+            "title": "Risk Distribution",
+            "type": "array"
           },
           "total_events": {
             "description": "Total number of events",
@@ -14365,6 +14417,31 @@
         "title": "ObjectBaseline",
         "type": "object"
       },
+      "ObjectClassDistributionItem": {
+        "description": "Schema for a single object class distribution item (for Grafana compatibility).",
+        "example": {
+          "count": 23,
+          "object_class": "person"
+        },
+        "properties": {
+          "count": {
+            "description": "Number of detections of this class",
+            "title": "Count",
+            "type": "integer"
+          },
+          "object_class": {
+            "description": "Object class name (e.g., person, car)",
+            "title": "Object Class",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_class",
+          "count"
+        ],
+        "title": "ObjectClassDistributionItem",
+        "type": "object"
+      },
       "ObjectDistributionDataPoint": {
         "description": "Schema for a single object distribution data point.",
         "example": {
@@ -17720,6 +17797,31 @@
           "pagination"
         ],
         "title": "RestartHistoryResponse",
+        "type": "object"
+      },
+      "RiskDistributionItem": {
+        "description": "Schema for a single risk distribution item (for Grafana compatibility).",
+        "example": {
+          "count": 5,
+          "risk_level": "high"
+        },
+        "properties": {
+          "count": {
+            "description": "Number of events with this risk level",
+            "title": "Count",
+            "type": "integer"
+          },
+          "risk_level": {
+            "description": "Risk level name (critical, high, medium, low)",
+            "title": "Risk Level",
+            "type": "string"
+          }
+        },
+        "required": [
+          "risk_level",
+          "count"
+        ],
+        "title": "RiskDistributionItem",
         "type": "object"
       },
       "RiskHistoryDataPoint": {
