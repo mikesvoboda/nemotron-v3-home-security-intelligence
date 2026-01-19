@@ -796,9 +796,11 @@ class Settings(BaseSettings):
     )
 
     # Monitoring URLs
+    # Note: Default /grafana uses nginx proxy for remote access compatibility.
+    # Override with GRAFANA_URL env var if accessing Grafana directly (e.g., http://localhost:3002)
     grafana_url: str = Field(
-        default="http://localhost:3002",
-        description="Grafana dashboard URL for frontend link",
+        default="/grafana",
+        description="Grafana dashboard URL for frontend embed (use /grafana for proxied access)",
     )
 
     @field_validator("grafana_url", mode="before")
@@ -807,7 +809,7 @@ class Settings(BaseSettings):
         """Validate Grafana URL with SSRF protection (NEM-1077).
 
         This validates that the Grafana URL:
-        1. Is a valid HTTP/HTTPS URL
+        1. Is a valid HTTP/HTTPS URL or relative path (e.g., /grafana)
         2. Does not point to cloud metadata endpoints
         3. Allows internal IPs (since Grafana is typically local)
 
@@ -821,9 +823,13 @@ class Settings(BaseSettings):
             ValueError: If the URL fails validation
         """
         if v is None or v == "":
-            return "http://localhost:3002"  # Default
+            return "/grafana"  # Default to proxied path for remote access
 
         url_str = str(v)
+
+        # Allow relative paths like /grafana for nginx proxy
+        if url_str.startswith("/"):
+            return url_str
 
         try:
             return validate_grafana_url(url_str)

@@ -296,16 +296,20 @@ async def classify_actions(
 
             # Final safety check: convert frames to numpy arrays explicitly
             # This catches any edge cases where PIL images become invalid after validation
+            # Also convert to RGB to ensure consistent color mode for X-CLIP processor
             validated_frames = []
             for i, frame in enumerate(padded_frames):
                 try:
                     # Force load and convert to numpy to validate
                     frame.load()
-                    arr = np.array(frame)
+                    # Convert to RGB to ensure consistent color mode
+                    # X-CLIP processor expects RGB format - other modes (RGBA, L, P) can cause failures
+                    rgb_frame = frame.convert("RGB") if frame.mode != "RGB" else frame
+                    arr = np.array(rgb_frame)
                     if arr is None or not hasattr(arr, "shape") or len(arr.shape) < 2:
                         raise ValueError(f"Frame {i} produced invalid numpy array")
-                    # Use the original PIL image since processor expects PIL
-                    validated_frames.append(frame)
+                    # Use the RGB-converted PIL image since processor expects RGB PIL images
+                    validated_frames.append(rgb_frame)
                 except Exception as e:
                     logger.warning(f"Frame {i} failed final validation: {e}")
                     # Try to use another valid frame as replacement

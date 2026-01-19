@@ -13,7 +13,7 @@ import * as api from '../../services/api';
 
 // Mock the fetchConfig API
 vi.mock('../../services/api', () => ({
-  fetchConfig: vi.fn(() => Promise.resolve({ grafana_url: 'http://localhost:3002' })),
+  fetchConfig: vi.fn(() => Promise.resolve({ grafana_url: '/grafana' })),
 }));
 
 const renderWithRouter = () => {
@@ -235,7 +235,7 @@ describe('AnalyticsPage', () => {
         const iframe = screen.getByTestId('grafana-iframe');
         expect(iframe).toHaveAttribute(
           'src',
-          'http://localhost:3002/d/hsi-analytics?orgId=1&kiosk=1&theme=dark&refresh=30s'
+          '/grafana/d/hsi-analytics?orgId=1&kiosk=1&theme=dark&refresh=30s'
         );
       });
 

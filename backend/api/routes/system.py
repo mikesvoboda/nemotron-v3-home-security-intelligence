@@ -330,14 +330,60 @@ class HealthCacheEntry:
 _health_cache: HealthCacheEntry | None = None
 
 
+@dataclass(slots=True)
+class ReadinessCacheEntry:
+    """Cached readiness check response with TTL tracking."""
+
+    response: ReadinessResponse
+    cached_at: float
+    http_status: int
+
+    def is_valid(self) -> bool:
+        """Check if the cached entry is still within TTL."""
+        return (time.time() - self.cached_at) < HEALTH_CACHE_TTL_SECONDS
+
+
+@dataclass(slots=True)
+class GPUStatsCacheEntry:
+    """Cached GPU stats response with TTL tracking."""
+
+    response: GPUStatsResponse
+    cached_at: float
+
+    def is_valid(self) -> bool:
+        """Check if the cached entry is still within TTL (use 5s for GPU stats)."""
+        return (time.time() - self.cached_at) < HEALTH_CACHE_TTL_SECONDS
+
+
+@dataclass(slots=True)
+class SystemStatsCacheEntry:
+    """Cached system stats response with TTL tracking."""
+
+    response: SystemStatsResponse
+    cached_at: float
+
+    def is_valid(self) -> bool:
+        """Check if the cached entry is still within TTL (use 5s for stats)."""
+        return (time.time() - self.cached_at) < HEALTH_CACHE_TTL_SECONDS
+
+
+# Global caches for various endpoints
+_readiness_cache: ReadinessCacheEntry | None = None
+_gpu_stats_cache: GPUStatsCacheEntry | None = None
+_system_stats_cache: SystemStatsCacheEntry | None = None
+
+
 def clear_health_cache() -> None:
-    """Clear the health check cache.
+    """Clear all health check caches.
 
     This is primarily for testing purposes to ensure tests don't see
     stale cached results from previous test runs.
     """
-    global _health_cache  # noqa: PLW0603
+    global _health_cache, _readiness_cache, _gpu_stats_cache, _system_stats_cache  # noqa: PLW0603
     _health_cache = None
+    _readiness_cache = None
+    _gpu_stats_cache = None
+    _system_stats_cache = None
 
 
 # Global references for worker status tracking (set by main.py at startup)
@@ -1151,10 +1197,21 @@ async def get_readiness(
     Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
     If a health check times out, the service is marked as unhealthy.
 
+    Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+    load from frequent readiness probes.
+
     Returns:
         ReadinessResponse with overall readiness status and detailed checks.
         HTTP 200 if ready, 503 if degraded or not ready.
     """
+    global _readiness_cache  # noqa: PLW0603
+
+    # Check if we have a valid cached response
+    if _readiness_cache is not None and _readiness_cache.is_valid():
+        response.status_code = _readiness_cache.http_status
+        return _readiness_cache.response
+
+    # Cache miss or expired - perform full readiness check
     # Check all infrastructure services with timeout protection
     try:
         db_status = await asyncio.wait_for(
@@ -1233,13 +1290,13 @@ async def get_readiness(
 
     # Set appropriate HTTP status code
     # 200 if ready, 503 if not ready or degraded
-    if not ready:
-        response.status_code = 503
+    http_status = 200 if ready else 503
+    response.status_code = http_status
 
     # Check supervisor health (NEM-2462)
     supervisor_healthy = _get_supervisor_health()
 
-    return ReadinessResponse(
+    readiness_response = ReadinessResponse(
         ready=ready,
         status=status,
         services=services,
@@ -1247,6 +1304,15 @@ async def get_readiness(
         timestamp=datetime.now(UTC),
         supervisor_healthy=supervisor_healthy,
     )
+
+    # Cache the response for future requests
+    _readiness_cache = ReadinessCacheEntry(
+        response=readiness_response,
+        cached_at=time.time(),
+        http_status=http_status,
+    )
+
+    return readiness_response
 
 
 @router.get("/health/websocket", response_model=WebSocketHealthResponse)
@@ -1894,9 +1960,19 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
     - Power usage
     - Inference FPS
 
+    Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+    database load from frequent polling. GPU stats only update every 5 seconds anyway.
+
     Returns:
         GPUStatsResponse with GPU statistics (null values if unavailable)
     """
+    global _gpu_stats_cache  # noqa: PLW0603
+
+    # Check if we have a valid cached response
+    if _gpu_stats_cache is not None and _gpu_stats_cache.is_valid():
+        return _gpu_stats_cache.response
+
+    # Cache miss or expired - query database
     stats = await get_latest_gpu_stats(db)
 
     if stats is None:
@@ -1930,7 +2006,7 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
             bar1_used=None,
         )
 
-    return GPUStatsResponse(
+    gpu_response = GPUStatsResponse(
         gpu_name=stats["gpu_name"],
         utilization=stats["utilization"],
         memory_used=stats["memory_used"],
@@ -1958,6 +2034,14 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
         decoder_utilization=stats.get("decoder_utilization"),
         bar1_used=stats.get("bar1_used"),
     )
+
+    # Cache the response for future requests
+    _gpu_stats_cache = GPUStatsCacheEntry(
+        response=gpu_response,
+        cached_at=time.time(),
+    )
+
+    return gpu_response
 
 
 @router.get("/gpu/history", response_model=GPUStatsHistoryResponse)
@@ -2373,9 +2457,19 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> SystemStatsResponse:
     - Total number of detections
     - Application uptime
 
+    Results are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce
+    database load from three sequential COUNT queries.
+
     Returns:
         SystemStatsResponse with system statistics
     """
+    global _system_stats_cache  # noqa: PLW0603
+
+    # Check if we have a valid cached response
+    if _system_stats_cache is not None and _system_stats_cache.is_valid():
+        return _system_stats_cache.response
+
+    # Cache miss or expired - query database
     # Count cameras
     camera_count_stmt = select(func.count()).select_from(Camera)
     camera_result = await db.execute(camera_count_stmt)
@@ -2394,12 +2488,20 @@ async def get_stats(db: AsyncSession = Depends(get_db)) -> SystemStatsResponse:
     # Calculate uptime
     uptime = time.time() - _app_start_time
 
-    return SystemStatsResponse(
+    stats_response = SystemStatsResponse(
         total_cameras=total_cameras,
         total_events=total_events,
         total_detections=total_detections,
         uptime_seconds=uptime,
     )
+
+    # Cache the response for future requests
+    _system_stats_cache = SystemStatsCacheEntry(
+        response=stats_response,
+        cached_at=time.time(),
+    )
+
+    return stats_response
 
 
 # =============================================================================

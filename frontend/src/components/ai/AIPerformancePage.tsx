@@ -20,7 +20,7 @@ import { fetchConfig } from '../../services/api';
  * AIPerformancePage - Grafana iframe embed for AI metrics
  */
 export default function AIPerformancePage() {
-  const [grafanaUrl, setGrafanaUrl] = useState<string>('http://localhost:3002');
+  const [grafanaUrl, setGrafanaUrl] = useState<string>('/grafana');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
