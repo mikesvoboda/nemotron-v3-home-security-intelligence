@@ -245,11 +245,18 @@ export default {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.6' },
         },
+        // Subtle pulse animation for critical event cards
+        // Uses box-shadow opacity change for WCAG AA compliance (no text contrast changes)
+        'pulse-subtle': {
+          '0%, 100%': { boxShadow: '0 0 8px rgba(239, 68, 68, 0.3)' },
+          '50%': { boxShadow: '0 0 16px rgba(239, 68, 68, 0.5)' },
+        },
       },
 
       animation: {
         'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
         'pulse-critical': 'pulse-critical 2s ease-in-out infinite',
+        'pulse-subtle': 'pulse-subtle 2s ease-in-out infinite',
         'slide-in': 'slide-in 0.3s ease-out',
         'fade-in': 'fade-in 0.2s ease-in',
         float: 'float 3s ease-in-out infinite',

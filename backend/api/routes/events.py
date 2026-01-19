@@ -1,7 +1,7 @@
 """API routes for events management."""
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -46,6 +46,8 @@ from backend.api.schemas.events import (
     EventResponse,
     EventStatsResponse,
     EventUpdate,
+    TimelineBucketResponse,
+    TimelineSummaryResponse,
 )
 from backend.api.schemas.hateoas import build_event_links
 from backend.api.schemas.pagination import PaginationMeta
@@ -591,6 +593,182 @@ async def get_event_stats(
         logger.warning(f"Cache write failed: {e}")
 
     return EventStatsResponse(**response)
+
+
+# Bucket sizes in seconds for each zoom level (NEM-2932)
+BUCKET_SIZES = {
+    "hour": 5 * 60,  # 5 minutes for hour view
+    "day": 60 * 60,  # 1 hour for day view
+    "week": 24 * 60 * 60,  # 1 day for week view
+}
+
+# Default time ranges in seconds for each zoom level (NEM-2932)
+DEFAULT_RANGES = {
+    "hour": 60 * 60,  # 1 hour
+    "day": 24 * 60 * 60,  # 24 hours
+    "week": 7 * 24 * 60 * 60,  # 7 days
+}
+
+
+@router.get("/timeline-summary", response_model=TimelineSummaryResponse)
+async def get_timeline_summary(
+    start_date: datetime | None = Query(None, description="Start of timeline range (ISO format)"),
+    end_date: datetime | None = Query(None, description="End of timeline range (ISO format)"),
+    bucket_size: str = Query(
+        "day",
+        description="Zoom level determining bucket size (hour, day, week)",
+        pattern="^(hour|day|week)$",
+    ),
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
+    db: AsyncSession = Depends(get_db),
+    cache: CacheService = Depends(get_cache_service_dep),
+) -> TimelineSummaryResponse:
+    """Get timeline summary data for the timeline scrubber visualization (NEM-2932).
+
+    Returns event data bucketed by time periods for visualization.
+    Each bucket includes:
+    - Timestamp (start of the bucket)
+    - Event count
+    - Maximum risk score in that bucket
+
+    Bucket sizes based on zoom level:
+    - hour: 5-minute buckets (12 buckets per hour)
+    - day: 1-hour buckets (24 buckets per day)
+    - week: 1-day buckets (7 buckets per week)
+
+    Args:
+        start_date: Start of timeline range (defaults based on bucket_size)
+        end_date: End of timeline range (defaults to now)
+        bucket_size: Zoom level - "hour", "day", or "week"
+        camera_id: Optional camera filter
+        db: Database session
+        cache: Cache service
+
+    Returns:
+        TimelineSummaryResponse with bucketed event data
+    """
+    # Calculate effective date range
+    now = datetime.now(UTC)
+    effective_end_date = end_date if end_date else now
+    default_range_seconds = DEFAULT_RANGES.get(bucket_size, DEFAULT_RANGES["day"])
+    effective_start_date = (
+        start_date if start_date else effective_end_date - timedelta(seconds=default_range_seconds)
+    )
+
+    # Validate date range
+    validate_date_range(effective_start_date, effective_end_date)
+
+    # Check cache first
+    start_str = effective_start_date.isoformat() if effective_start_date else None
+    end_str = effective_end_date.isoformat() if effective_end_date else None
+    cache_key = f"timeline_summary:{bucket_size}:{start_str}:{end_str}:{camera_id or 'all'}"
+
+    try:
+        cached_data = await cache.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"Returning cached timeline summary for {cache_key}")
+            return TimelineSummaryResponse(**dict(cached_data))
+    except Exception as e:
+        logger.warning(f"Cache read failed, falling back to database: {e}")
+
+    # Get bucket size in seconds
+    bucket_seconds = BUCKET_SIZES.get(bucket_size, BUCKET_SIZES["day"])
+
+    # Build base query for events in the time range
+    base_filters = [
+        Event.started_at >= effective_start_date,
+        Event.started_at <= effective_end_date,
+        Event.deleted_at.is_(None),  # Exclude soft-deleted events
+    ]
+    if camera_id:
+        base_filters.append(Event.camera_id == camera_id)
+
+    # Query events with their timestamps and risk scores
+    query = select(
+        Event.started_at,
+        Event.risk_score,
+    ).where(*base_filters)
+
+    result = await db.execute(query)
+    events = result.all()
+
+    # Initialize buckets
+    buckets: dict[datetime, dict] = {}
+    bucket_start = effective_start_date
+
+    # Ensure bucket_start is timezone-aware
+    if bucket_start.tzinfo is None:
+        bucket_start = bucket_start.replace(tzinfo=UTC)
+
+    # Ensure effective_end_date is timezone-aware
+    end_with_tz = effective_end_date
+    if end_with_tz.tzinfo is None:
+        end_with_tz = end_with_tz.replace(tzinfo=UTC)
+
+    # Create empty buckets for the entire range
+    while bucket_start <= end_with_tz:
+        buckets[bucket_start] = {
+            "timestamp": bucket_start,
+            "event_count": 0,
+            "max_risk_score": 0,
+        }
+        bucket_start = bucket_start + timedelta(seconds=bucket_seconds)
+
+    # Aggregate events into buckets
+    total_events = 0
+    # Ensure effective_start_date is timezone-aware for calculations
+    start_date_tz = (
+        effective_start_date
+        if effective_start_date.tzinfo is not None
+        else effective_start_date.replace(tzinfo=UTC)
+    )
+
+    for event_started_at, risk_score in events:
+        total_events += 1
+
+        # Ensure event timestamp is timezone-aware
+        event_ts = (
+            event_started_at
+            if event_started_at.tzinfo is not None
+            else event_started_at.replace(tzinfo=UTC)
+        )
+
+        # Calculate which bucket this event belongs to
+        # Find the bucket start time by truncating to bucket boundaries
+        time_since_start = (event_ts - start_date_tz).total_seconds()
+        bucket_index = int(time_since_start // bucket_seconds)
+        bucket_time = start_date_tz + timedelta(seconds=bucket_index * bucket_seconds)
+
+        if bucket_time in buckets:
+            buckets[bucket_time]["event_count"] += 1
+            if risk_score and risk_score > buckets[bucket_time]["max_risk_score"]:
+                buckets[bucket_time]["max_risk_score"] = risk_score
+
+    # Convert buckets dict to sorted list
+    sorted_buckets = sorted(buckets.values(), key=lambda b: b["timestamp"])
+    bucket_responses = [
+        TimelineBucketResponse(
+            timestamp=b["timestamp"],
+            event_count=b["event_count"],
+            max_risk_score=b["max_risk_score"],
+        )
+        for b in sorted_buckets
+    ]
+
+    response = TimelineSummaryResponse(
+        buckets=bucket_responses,
+        total_events=total_events,
+        start_date=effective_start_date,
+        end_date=effective_end_date,
+    )
+
+    # Cache the result
+    try:
+        await cache.set(cache_key, response.model_dump(), ttl=SHORT_TTL)
+    except Exception as e:
+        logger.warning(f"Cache write failed: {e}")
+
+    return response
 
 
 @router.get("/search", response_model=SearchResponseSchema)

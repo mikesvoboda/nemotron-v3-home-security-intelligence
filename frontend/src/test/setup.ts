@@ -49,6 +49,28 @@ beforeAll(() => {
   };
 
   /**
+   * Mock window.matchMedia for components that use media queries.
+   * This is needed for accessibility features like prefers-reduced-motion detection.
+   * jsdom doesn't provide this API, so we mock it for testing.
+   *
+   * Individual tests can override this mock using:
+   *   Object.defineProperty(window, 'matchMedia', { value: customMock });
+   */
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false, // Default: no preference set
+      media: query,
+      onchange: null,
+      addListener: vi.fn(), // Deprecated but still used by some libraries
+      removeListener: vi.fn(), // Deprecated but still used by some libraries
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+
+  /**
    * Mock IntersectionObserver for Headless UI components
    * Some Headless UI components use IntersectionObserver for visibility detection.
    * jsdom doesn't provide this API, so we mock it for testing.
@@ -97,6 +119,12 @@ beforeAll(() => {
 afterEach(() => {
   // Clean up React Testing Library rendered components
   cleanup();
+
+  // Clear localStorage to prevent state leaking between tests
+  // This is important for hooks like useLocalStorage that persist state
+  if (typeof localStorage !== 'undefined') {
+    localStorage.clear();
+  }
 
   // Reset MSW handlers to their initial state (removes test-specific overrides)
   // This ensures each test starts with the default handlers from handlers.ts

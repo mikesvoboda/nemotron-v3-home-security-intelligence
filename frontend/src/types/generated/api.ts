@@ -3394,6 +3394,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/events/timeline-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Timeline Summary
+         * @description Get timeline summary data for the timeline scrubber visualization (NEM-2932).
+         *
+         *     Returns event data bucketed by time periods for visualization.
+         *     Each bucket includes:
+         *     - Timestamp (start of the bucket)
+         *     - Event count
+         *     - Maximum risk score in that bucket
+         *
+         *     Bucket sizes based on zoom level:
+         *     - hour: 5-minute buckets (12 buckets per hour)
+         *     - day: 1-hour buckets (24 buckets per day)
+         *     - week: 1-day buckets (7 buckets per week)
+         *
+         *     Args:
+         *         start_date: Start of timeline range (defaults based on bucket_size)
+         *         end_date: End of timeline range (defaults to now)
+         *         bucket_size: Zoom level - "hour", "day", or "week"
+         *         camera_id: Optional camera filter
+         *         db: Database session
+         *         cache: Cache service
+         *
+         *     Returns:
+         *         TimelineSummaryResponse with bucketed event data
+         */
+        get: operations["get_timeline_summary_api_events_timeline_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events/{event_id}": {
         parameters: {
             query?: never;
@@ -20174,6 +20216,89 @@ export interface components {
          */
         TimeRange: "5m" | "15m" | "60m";
         /**
+         * TimelineBucketResponse
+         * @description Schema for a single time bucket in the timeline summary (NEM-2932).
+         *
+         *     Each bucket represents a time period with aggregated event data.
+         * @example {
+         *       "event_count": 15,
+         *       "max_risk_score": 85,
+         *       "timestamp": "2026-01-15T12:00:00Z"
+         *     }
+         */
+        TimelineBucketResponse: {
+            /**
+             * Event Count
+             * @description Number of events in this bucket
+             */
+            event_count: number;
+            /**
+             * Max Risk Score
+             * @description Maximum risk score of events in this bucket
+             * @default 0
+             */
+            max_risk_score: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Start timestamp of this bucket
+             */
+            timestamp: string;
+        };
+        /**
+         * TimelineSummaryResponse
+         * @description Schema for timeline summary response (NEM-2932).
+         *
+         *     Returns bucketed event data for timeline visualization.
+         *     Supports different zoom levels with varying bucket sizes.
+         * @example {
+         *       "buckets": [
+         *         {
+         *           "event_count": 5,
+         *           "max_risk_score": 45,
+         *           "timestamp": "2026-01-15T06:00:00Z"
+         *         },
+         *         {
+         *           "event_count": 12,
+         *           "max_risk_score": 85,
+         *           "timestamp": "2026-01-15T07:00:00Z"
+         *         },
+         *         {
+         *           "event_count": 3,
+         *           "max_risk_score": 25,
+         *           "timestamp": "2026-01-15T08:00:00Z"
+         *         }
+         *       ],
+         *       "end_date": "2026-01-15T09:00:00Z",
+         *       "start_date": "2026-01-15T06:00:00Z",
+         *       "total_events": 20
+         *     }
+         */
+        TimelineSummaryResponse: {
+            /**
+             * Buckets
+             * @description List of time buckets with aggregated event data
+             */
+            buckets: components["schemas"]["TimelineBucketResponse"][];
+            /**
+             * End Date
+             * Format: date-time
+             * @description End of the timeline range
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date-time
+             * @description Start of the timeline range
+             */
+            start_date: string;
+            /**
+             * Total Events
+             * @description Total events in the time range
+             */
+            total_events: number;
+        };
+        /**
          * TraceMallocStats
          * @description Tracemalloc statistics if enabled.
          */
@@ -25527,6 +25652,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventStatsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_timeline_summary_api_events_timeline_summary_get: {
+        parameters: {
+            query?: {
+                /** @description Start of timeline range (ISO format) */
+                start_date?: string | null;
+                /** @description End of timeline range (ISO format) */
+                end_date?: string | null;
+                /** @description Zoom level determining bucket size (hour, day, week) */
+                bucket_size?: string;
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelineSummaryResponse"];
                 };
             };
             /** @description Validation Error */
