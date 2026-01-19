@@ -81,10 +81,14 @@ export class JobsPage extends BasePage {
   }
 
   /**
-   * Wait for the jobs page to fully load
+   * Wait for the jobs page to fully load (including data loading)
    */
   async waitForJobsLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    // Wait for loading spinner to disappear (if visible)
+    await this.loadingSpinner.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
+    // Wait for filters to be enabled (not loading)
+    await expect(this.searchInput).toBeEnabled({ timeout: 10000 });
   }
 
   /**
