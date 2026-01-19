@@ -127,3 +127,6 @@ export type { SkipLinkProps } from './SkipLink';
 
 export { LiveRegion } from './LiveRegion';
 export type { LiveRegionProps, Politeness } from './LiveRegion';
+
+export { default as Tooltip } from './Tooltip';
+export type { TooltipProps } from './Tooltip';

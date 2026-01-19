@@ -460,4 +460,156 @@ describe('AuditTable', () => {
       expect(screen.getByLabelText('Next page')).toBeInTheDocument();
     });
   });
+
+  describe('Color-Coded Action Badges', () => {
+    it('applies purple color to event_reviewed action', () => {
+      render(<AuditTable {...defaultProps} />);
+
+      const eventReviewedBadge = screen.getByLabelText('Filter by action: Event Reviewed');
+      expect(eventReviewedBadge).toHaveClass('text-purple-400');
+      expect(eventReviewedBadge).toHaveClass('bg-purple-500/20');
+    });
+
+    it('applies green color to camera_created action', () => {
+      render(<AuditTable {...defaultProps} />);
+
+      const cameraCreatedBadge = screen.getByLabelText('Filter by action: Camera Created');
+      expect(cameraCreatedBadge).toHaveClass('text-green-400');
+      expect(cameraCreatedBadge).toHaveClass('bg-green-500/20');
+    });
+
+    it('applies yellow color to settings_updated action', () => {
+      render(<AuditTable {...defaultProps} />);
+
+      const settingsUpdatedBadge = screen.getByLabelText('Filter by action: Settings Updated');
+      expect(settingsUpdatedBadge).toHaveClass('text-yellow-400');
+      expect(settingsUpdatedBadge).toHaveClass('bg-yellow-500/20');
+    });
+  });
+
+  describe('Clickable Actor Filter', () => {
+    it('calls onActorClick when actor is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const mockOnActorClick = vi.fn();
+
+      render(<AuditTable {...defaultProps} onActorClick={mockOnActorClick} />);
+
+      const actorButton = screen.getByLabelText('Filter by actor: testuser1');
+      await user.click(actorButton);
+
+      expect(mockOnActorClick).toHaveBeenCalledWith('testuser1');
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-01T14:00:00Z'));
+    });
+
+    it('shows active styling when actor filter is active', () => {
+      render(<AuditTable {...defaultProps} activeActorFilter="testuser1" />);
+
+      const actorButton = screen.getByLabelText('Filter by actor: testuser1');
+      expect(actorButton).toHaveClass('underline');
+    });
+
+    it('has tooltip with filter instructions', () => {
+      render(<AuditTable {...defaultProps} onActorClick={vi.fn()} />);
+
+      const actorButton = screen.getByLabelText('Filter by actor: testuser1');
+      expect(actorButton).toHaveAttribute('title', 'Click to filter by testuser1');
+    });
+  });
+
+  describe('Clickable Action Filter', () => {
+    it('calls onActionClick when action badge is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const mockOnActionClick = vi.fn();
+
+      render(<AuditTable {...defaultProps} onActionClick={mockOnActionClick} />);
+
+      const actionButton = screen.getByLabelText('Filter by action: Event Reviewed');
+      await user.click(actionButton);
+
+      expect(mockOnActionClick).toHaveBeenCalledWith('event_reviewed');
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-01T14:00:00Z'));
+    });
+
+    it('shows ring styling when action filter is active', () => {
+      render(<AuditTable {...defaultProps} activeActionFilter="event_reviewed" />);
+
+      const actionButton = screen.getByLabelText('Filter by action: Event Reviewed');
+      expect(actionButton).toHaveClass('ring-2');
+    });
+
+    it('has tooltip with filter instructions', () => {
+      render(<AuditTable {...defaultProps} onActionClick={vi.fn()} />);
+
+      const actionButton = screen.getByLabelText('Filter by action: Event Reviewed');
+      expect(actionButton).toHaveAttribute('title', 'Click to filter by Event Reviewed');
+    });
+
+    it('prevents row click when action badge is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const mockOnRowClick = vi.fn();
+      const mockOnActionClick = vi.fn();
+
+      render(
+        <AuditTable
+          {...defaultProps}
+          onRowClick={mockOnRowClick}
+          onActionClick={mockOnActionClick}
+        />
+      );
+
+      const actionButton = screen.getByLabelText('Filter by action: Event Reviewed');
+      await user.click(actionButton);
+
+      expect(mockOnActionClick).toHaveBeenCalled();
+      expect(mockOnRowClick).not.toHaveBeenCalled();
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-01T14:00:00Z'));
+    });
+  });
+
+  describe('IP Address Display', () => {
+    it('truncates long IP addresses with max-width', () => {
+      const logsWithLongIP: AuditEntry[] = [
+        {
+          ...mockAuditLogs[0],
+          ip_address: '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+        },
+      ];
+
+      render(<AuditTable {...defaultProps} logs={logsWithLongIP} totalCount={1} />);
+
+      const ipElement = screen.getByText('2001:0db8:85a3:0000:0000:8a2e:0370:7334');
+      expect(ipElement).toHaveClass('truncate');
+      expect(ipElement).toHaveClass('max-w-[120px]');
+    });
+
+    it('shows full IP on hover via title attribute', () => {
+      const logsWithLongIP: AuditEntry[] = [
+        {
+          ...mockAuditLogs[0],
+          ip_address: '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+        },
+      ];
+
+      render(<AuditTable {...defaultProps} logs={logsWithLongIP} totalCount={1} />);
+
+      const ipContainer = screen.getByText('2001:0db8:85a3:0000:0000:8a2e:0370:7334').closest(
+        'span[title]'
+      );
+      expect(ipContainer).toHaveAttribute('title', '2001:0db8:85a3:0000:0000:8a2e:0370:7334');
+    });
+
+    it('displays muted dash for null IP address', () => {
+      render(<AuditTable {...defaultProps} />);
+
+      // The system user has no IP address
+      const dashElement = screen.getByText('-');
+      expect(dashElement).toHaveClass('text-gray-600/50');
+    });
+  });
 });

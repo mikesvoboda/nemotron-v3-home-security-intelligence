@@ -211,6 +211,95 @@ describe('SettingsPage', () => {
     expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
   });
 
+  describe('Tab descriptions', () => {
+    it('should show tooltip with description when hovering over cameras tab', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<SettingsPage />);
+
+      const camerasTab = screen.getByRole('tab', { name: /cameras/i });
+      await user.hover(camerasTab);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toBeInTheDocument();
+        expect(screen.getByText('Add, remove, and configure security cameras')).toBeInTheDocument();
+      });
+    });
+
+    it('should show tooltip with description when hovering over rules tab', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<SettingsPage />);
+
+      const rulesTab = screen.getByRole('tab', { name: /rules/i });
+      await user.hover(rulesTab);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toBeInTheDocument();
+        expect(screen.getByText('Set up automated alert rules and triggers')).toBeInTheDocument();
+      });
+    });
+
+    it('should show tooltip with description when hovering over processing tab', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<SettingsPage />);
+
+      const processingTab = screen.getByRole('tab', { name: /processing/i });
+      await user.hover(processingTab);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toBeInTheDocument();
+        expect(
+          screen.getByText('Configure detection sensitivity and AI models')
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('should show tooltip with description when hovering over notifications tab', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<SettingsPage />);
+
+      const notificationsTab = screen.getByRole('tab', { name: /notifications/i });
+      await user.hover(notificationsTab);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toBeInTheDocument();
+        expect(
+          screen.getByText('Email, push, and webhook notification settings')
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('should show tooltip with description when hovering over storage tab', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<SettingsPage />);
+
+      const storageTab = screen.getByRole('tab', { name: /storage/i });
+      await user.hover(storageTab);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toBeInTheDocument();
+        expect(screen.getByText('Media retention and storage management')).toBeInTheDocument();
+      });
+    });
+
+    it('should hide tooltip when mouse leaves tab', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<SettingsPage />);
+
+      const camerasTab = screen.getByRole('tab', { name: /cameras/i });
+      await user.hover(camerasTab);
+
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toBeInTheDocument();
+      });
+
+      await user.unhover(camerasTab);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+      });
+    });
+  });
+
   describe('Developer Tools link', () => {
     it('should show Developer Tools link when debug mode is enabled', async () => {
       server.use(

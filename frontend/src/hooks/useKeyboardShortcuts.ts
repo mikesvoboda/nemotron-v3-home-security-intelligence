@@ -19,12 +19,13 @@ const CHORD_TIMEOUT = 1000;
 const CHORD_ROUTES: Record<string, string> = {
   d: '/', // Dashboard
   t: '/timeline', // Timeline
-  a: '/analytics', // Analytics
-  l: '/alerts', // Alerts
   e: '/entities', // Entities
-  o: '/logs', // Logs (o for lOgs since l is taken)
-  s: '/system', // System monitoring
-  ',': '/settings', // Settings (Vim-style)
+  a: '/alerts', // Alerts
+  s: '/settings', // Settings
+  // Additional navigation shortcuts
+  n: '/analytics', // Analytics (aNalytics)
+  o: '/logs', // Logs (lOgs)
+  y: '/system', // System/Operations (sYstem)
 };
 
 /**

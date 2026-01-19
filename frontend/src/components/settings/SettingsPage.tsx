@@ -10,9 +10,8 @@ import {
   Shield,
   Sliders,
 } from 'lucide-react';
-import { Fragment } from 'react';
 
-import { SecureContextWarning } from '../common';
+import { SecureContextWarning, Tooltip } from '../common';
 import AlertRulesSettings from './AlertRulesSettings';
 import AmbientStatusSettings from './AmbientStatusSettings';
 import CalibrationPanel from './CalibrationPanel';
@@ -48,6 +47,17 @@ import FileOperationsPanel from '../system/FileOperationsPanel';
  * @see NEM-2388 - Add FileOperationsPanel to Settings page
  */
 export default function SettingsPage() {
+  /** Tab descriptions shown on hover via tooltips */
+  const tabDescriptions: Record<string, string> = {
+    cameras: 'Add, remove, and configure security cameras',
+    rules: 'Set up automated alert rules and triggers',
+    processing: 'Configure detection sensitivity and AI models',
+    notifications: 'Email, push, and webhook notification settings',
+    ambient: 'Background noise and environmental settings',
+    calibration: 'Camera calibration and zone configuration',
+    prompts: 'Customize AI analysis prompts',
+    storage: 'Media retention and storage management',
+  };
 
   const tabs = [
     {
@@ -121,23 +131,27 @@ export default function SettingsPage() {
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
-                <Tab key={tab.id} as={Fragment}>
-                  {({ selected }) => (
-                    <button
-                      className={clsx(
+                <Tooltip
+                  key={tab.id}
+                  content={tabDescriptions[tab.id]}
+                  position="bottom"
+                  delay={150}
+                >
+                  <Tab
+                    className={({ selected }) =>
+                      clsx(
                         'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
                         'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
                         selected
                           ? 'bg-[#76B900] text-gray-950 shadow-md'
                           : 'text-gray-200 hover:bg-gray-800 hover:text-white'
-                      )}
-                      data-selected={selected}
-                    >
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                      <span>{tab.name}</span>
-                    </button>
-                  )}
-                </Tab>
+                      )
+                    }
+                  >
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                    <span>{tab.name}</span>
+                  </Tab>
+                </Tooltip>
               );
             })}
           </Tab.List>

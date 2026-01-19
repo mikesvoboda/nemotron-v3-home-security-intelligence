@@ -2,7 +2,11 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach, type Mock } from 'vitest';
 
-import EventCard, { type Detection, type EventCardProps } from './EventCard';
+import EventCard, {
+  CollapsibleDetections,
+  type Detection,
+  type EventCardProps,
+} from './EventCard';
 
 describe('EventCard', () => {
   // Base time for consistent testing
@@ -286,7 +290,8 @@ describe('EventCard', () => {
       expect(screen.getByText('car')).toBeInTheDocument();
     });
 
-    it('renders multiple detections', () => {
+    it('renders multiple detections with collapsible behavior', async () => {
+      const user = userEvent.setup();
       const multipleDetections: Detection[] = [
         { label: 'person', confidence: 0.95 },
         { label: 'car', confidence: 0.87 },
@@ -296,11 +301,27 @@ describe('EventCard', () => {
       const eventWithMultiple = { ...mockProps, detections: multipleDetections };
       render(<EventCard {...eventWithMultiple} />);
 
+      // Header shows total count
       expect(screen.getByText('Detections (4)')).toBeInTheDocument();
+
+      // With 4 detections (>3), only top 3 by confidence are visible initially
+      // Sorted by confidence: person (95%), package (91%), car (87%), dog (72%)
       expect(screen.getByText('person')).toBeInTheDocument();
-      expect(screen.getByText('car')).toBeInTheDocument();
-      expect(screen.getByText('dog')).toBeInTheDocument();
       expect(screen.getByText('package')).toBeInTheDocument();
+      expect(screen.getByText('car')).toBeInTheDocument();
+
+      // dog is hidden initially (lowest confidence)
+      expect(screen.queryByText('dog')).not.toBeInTheDocument();
+
+      // "+1 more" button should be visible
+      expect(screen.getByText('+1 more')).toBeInTheDocument();
+
+      // Expand to see all detections
+      const toggleButton = screen.getByTestId('collapsible-detections-toggle');
+      await user.click(toggleButton);
+
+      // Now all should be visible
+      expect(screen.getByText('dog')).toBeInTheDocument();
     });
 
     it('does not render detection list when detections are empty', () => {
@@ -1897,6 +1918,347 @@ describe('EventCard', () => {
         expect(critical).toHaveClass('animate-pulse-subtle');
         expect(high).not.toHaveClass('animate-pulse-subtle');
       });
+    });
+  });
+
+  describe('CollapsibleDetections', () => {
+    const manyDetections: Detection[] = [
+      { label: 'person', confidence: 0.95 },
+      { label: 'car', confidence: 0.87 },
+      { label: 'dog', confidence: 0.72 },
+      { label: 'bicycle', confidence: 0.65 },
+      { label: 'package', confidence: 0.91 },
+      { label: 'cat', confidence: 0.55 },
+    ];
+
+    const fewDetections: Detection[] = [
+      { label: 'person', confidence: 0.95 },
+      { label: 'car', confidence: 0.87 },
+    ];
+
+    it('shows only maxVisible detections initially when there are more', () => {
+      render(<CollapsibleDetections detections={manyDetections} maxVisible={3} />);
+
+      // Should show first 3 detections (sorted by confidence: person 95%, package 91%, car 87%)
+      const container = screen.getByTestId('collapsible-detections');
+      const badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(3);
+    });
+
+    it('shows +N more button when detections exceed maxVisible', () => {
+      render(<CollapsibleDetections detections={manyDetections} maxVisible={3} />);
+
+      // 6 detections - 3 visible = 3 hidden
+      expect(screen.getByText('+3 more')).toBeInTheDocument();
+    });
+
+    it('does not show toggle button when detections are at or below maxVisible', () => {
+      render(<CollapsibleDetections detections={fewDetections} maxVisible={3} />);
+
+      expect(screen.queryByTestId('collapsible-detections-toggle')).not.toBeInTheDocument();
+    });
+
+    it('shows all detections when there are fewer than maxVisible', () => {
+      render(<CollapsibleDetections detections={fewDetections} maxVisible={3} />);
+
+      const container = screen.getByTestId('collapsible-detections');
+      const badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(2);
+    });
+
+    it('expands to show all detections when clicking +N more button', async () => {
+      const user = userEvent.setup();
+      render(<CollapsibleDetections detections={manyDetections} maxVisible={3} />);
+
+      // Initially 3 visible
+      let container = screen.getByTestId('collapsible-detections');
+      let badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(3);
+
+      // Click to expand
+      const toggleButton = screen.getByTestId('collapsible-detections-toggle');
+      await user.click(toggleButton);
+
+      // Now all 6 should be visible
+      container = screen.getByTestId('collapsible-detections');
+      badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(6);
+    });
+
+    it('shows "Show less" button when expanded', async () => {
+      const user = userEvent.setup();
+      render(<CollapsibleDetections detections={manyDetections} maxVisible={3} />);
+
+      // Expand
+      const toggleButton = screen.getByTestId('collapsible-detections-toggle');
+      await user.click(toggleButton);
+
+      // Should now show "Show less"
+      expect(screen.getByText('Show less')).toBeInTheDocument();
+    });
+
+    it('collapses back to maxVisible on "Show less" click', async () => {
+      const user = userEvent.setup();
+      render(<CollapsibleDetections detections={manyDetections} maxVisible={3} />);
+
+      // Expand
+      const toggleButton = screen.getByTestId('collapsible-detections-toggle');
+      await user.click(toggleButton);
+
+      // Verify expanded (6 badges)
+      let container = screen.getByTestId('collapsible-detections');
+      let badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(6);
+
+      // Collapse
+      await user.click(toggleButton);
+
+      // Back to 3 visible
+      container = screen.getByTestId('collapsible-detections');
+      badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(3);
+    });
+
+    it('sorts detections by confidence (highest first)', () => {
+      render(<CollapsibleDetections detections={manyDetections} maxVisible={3} />);
+
+      // Detections sorted by confidence: person (95%), package (91%), car (87%), dog (72%), bicycle (65%), cat (55%)
+      // First 3 visible: person, package, car
+      const container = screen.getByTestId('collapsible-detections');
+      const badges = container.querySelectorAll('[title]');
+
+      expect(badges[0]).toHaveAttribute('title', expect.stringContaining('person'));
+      expect(badges[0]).toHaveAttribute('title', expect.stringContaining('95%'));
+      expect(badges[1]).toHaveAttribute('title', expect.stringContaining('package'));
+      expect(badges[1]).toHaveAttribute('title', expect.stringContaining('91%'));
+      expect(badges[2]).toHaveAttribute('title', expect.stringContaining('car'));
+      expect(badges[2]).toHaveAttribute('title', expect.stringContaining('87%'));
+    });
+
+    it('uses default maxVisible of 3', () => {
+      render(<CollapsibleDetections detections={manyDetections} />);
+
+      const container = screen.getByTestId('collapsible-detections');
+      const badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(3);
+    });
+
+    it('respects custom maxVisible value', () => {
+      render(<CollapsibleDetections detections={manyDetections} maxVisible={2} />);
+
+      const container = screen.getByTestId('collapsible-detections');
+      const badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(2);
+
+      // 6 - 2 = 4 hidden
+      expect(screen.getByText('+4 more')).toBeInTheDocument();
+    });
+
+    it('has correct aria-expanded attribute when collapsed', () => {
+      render(<CollapsibleDetections detections={manyDetections} maxVisible={3} />);
+
+      const toggleButton = screen.getByTestId('collapsible-detections-toggle');
+      expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('has correct aria-expanded attribute when expanded', async () => {
+      const user = userEvent.setup();
+      render(<CollapsibleDetections detections={manyDetections} maxVisible={3} />);
+
+      const toggleButton = screen.getByTestId('collapsible-detections-toggle');
+      await user.click(toggleButton);
+
+      expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('has appropriate aria-label when collapsed', () => {
+      render(<CollapsibleDetections detections={manyDetections} maxVisible={3} />);
+
+      const toggleButton = screen.getByTestId('collapsible-detections-toggle');
+      expect(toggleButton).toHaveAttribute('aria-label', 'Show 3 more detections');
+    });
+
+    it('has appropriate aria-label when expanded', async () => {
+      const user = userEvent.setup();
+      render(<CollapsibleDetections detections={manyDetections} maxVisible={3} />);
+
+      const toggleButton = screen.getByTestId('collapsible-detections-toggle');
+      await user.click(toggleButton);
+
+      expect(toggleButton).toHaveAttribute('aria-label', 'Show fewer detections');
+    });
+
+    it('renders ChevronDown icon when collapsed', () => {
+      const { container } = render(
+        <CollapsibleDetections detections={manyDetections} maxVisible={3} />
+      );
+
+      const chevronDown = container.querySelector('svg.lucide-chevron-down');
+      expect(chevronDown).toBeInTheDocument();
+    });
+
+    it('renders ChevronUp icon when expanded', async () => {
+      const user = userEvent.setup();
+      const { container } = render(
+        <CollapsibleDetections detections={manyDetections} maxVisible={3} />
+      );
+
+      const toggleButton = screen.getByTestId('collapsible-detections-toggle');
+      await user.click(toggleButton);
+
+      const chevronUp = container.querySelector('svg.lucide-chevron-up');
+      expect(chevronUp).toBeInTheDocument();
+    });
+
+    it('handles exactly maxVisible detections (no toggle needed)', () => {
+      const exactDetections: Detection[] = [
+        { label: 'person', confidence: 0.95 },
+        { label: 'car', confidence: 0.87 },
+        { label: 'dog', confidence: 0.72 },
+      ];
+      render(<CollapsibleDetections detections={exactDetections} maxVisible={3} />);
+
+      // All 3 visible, no toggle button
+      const container = screen.getByTestId('collapsible-detections');
+      const badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(3);
+      expect(screen.queryByTestId('collapsible-detections-toggle')).not.toBeInTheDocument();
+    });
+
+    it('handles single detection', () => {
+      const singleDetection: Detection[] = [{ label: 'person', confidence: 0.95 }];
+      render(<CollapsibleDetections detections={singleDetection} maxVisible={3} />);
+
+      const container = screen.getByTestId('collapsible-detections');
+      const badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(1);
+      expect(screen.queryByTestId('collapsible-detections-toggle')).not.toBeInTheDocument();
+    });
+
+    it('handles empty detections array', () => {
+      render(<CollapsibleDetections detections={[]} maxVisible={3} />);
+
+      const container = screen.getByTestId('collapsible-detections');
+      const badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(0);
+      expect(screen.queryByTestId('collapsible-detections-toggle')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('CollapsibleDetections integration with EventCard', () => {
+    // Base time for consistent testing
+    const BASE_TIME = new Date('2024-01-15T10:00:00Z').getTime();
+
+    const manyDetections: Detection[] = [
+      { label: 'person', confidence: 0.95 },
+      { label: 'car', confidence: 0.87 },
+      { label: 'dog', confidence: 0.72 },
+      { label: 'bicycle', confidence: 0.65 },
+      { label: 'package', confidence: 0.91 },
+      { label: 'cat', confidence: 0.55 },
+    ];
+
+    const eventProps: EventCardProps = {
+      id: 'event-456',
+      timestamp: new Date(BASE_TIME - 5 * 60 * 1000).toISOString(),
+      camera_name: 'Front Door',
+      risk_score: 45,
+      risk_label: 'Medium',
+      summary: 'Multiple objects detected',
+      detections: manyDetections,
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('uses CollapsibleDetections in EventCard with 5+ detections', () => {
+      render(<EventCard {...eventProps} />);
+
+      // Should have collapsible-detections container
+      expect(screen.getByTestId('collapsible-detections')).toBeInTheDocument();
+
+      // Should show +N more button
+      expect(screen.getByTestId('collapsible-detections-toggle')).toBeInTheDocument();
+    });
+
+    it('click on toggle does not trigger card navigation', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      render(<EventCard {...eventProps} onClick={handleClick} />);
+
+      // Click on the toggle button
+      const toggleButton = screen.getByTestId('collapsible-detections-toggle');
+      await user.click(toggleButton);
+
+      // Card onClick should NOT be called
+      expect(handleClick).not.toHaveBeenCalled();
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('card click works on non-interactive areas with collapsible detections', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      render(<EventCard {...eventProps} onClick={handleClick} />);
+
+      // Click on the summary text (non-interactive area)
+      const summaryText = screen.getByText('Multiple objects detected');
+      await user.click(summaryText);
+
+      // Card onClick should be called
+      expect(handleClick).toHaveBeenCalledWith('event-456');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('displays correct detection count header with many detections', () => {
+      render(<EventCard {...eventProps} />);
+
+      // Header shows total count
+      expect(screen.getByText('Detections (6)')).toBeInTheDocument();
+    });
+
+    it('expands and collapses detections within EventCard', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      render(<EventCard {...eventProps} />);
+
+      // Initially collapsed - 3 visible + toggle button
+      let container = screen.getByTestId('collapsible-detections');
+      let badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(3);
+      expect(screen.getByText('+3 more')).toBeInTheDocument();
+
+      // Expand
+      const toggleButton = screen.getByTestId('collapsible-detections-toggle');
+      await user.click(toggleButton);
+
+      // Now all 6 visible
+      container = screen.getByTestId('collapsible-detections');
+      badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(6);
+      expect(screen.getByText('Show less')).toBeInTheDocument();
+
+      // Collapse again
+      await user.click(toggleButton);
+
+      // Back to 3 visible
+      container = screen.getByTestId('collapsible-detections');
+      badges = container.querySelectorAll('[title]');
+      expect(badges.length).toBe(3);
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
     });
   });
 });

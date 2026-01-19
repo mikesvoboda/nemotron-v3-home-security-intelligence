@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, Clock, Eye, Moon, Timer, TrendingUp } from 'lucide-react';
-import { memo, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 
 import {
   calculateAverageConfidence,
@@ -23,6 +23,98 @@ export interface Detection {
   label: string;
   confidence: number;
   bbox?: { x: number; y: number; width: number; height: number };
+}
+
+export interface CollapsibleDetectionsProps {
+  detections: Detection[];
+  maxVisible?: number;
+}
+
+/**
+ * CollapsibleDetections component displays detection badges with expand/collapse
+ * functionality when there are more detections than maxVisible.
+ */
+export function CollapsibleDetections({
+  detections,
+  maxVisible = 3,
+}: CollapsibleDetectionsProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Sort detections by confidence (highest first)
+  const sortedDetections = sortDetectionsByConfidence(detections);
+
+  // Determine which detections to show
+  const shouldCollapse = sortedDetections.length > maxVisible;
+  const visibleDetections = isExpanded
+    ? sortedDetections
+    : sortedDetections.slice(0, maxVisible);
+  const hiddenCount = sortedDetections.length - maxVisible;
+
+  // Format confidence as percentage
+  const formatConfidence = (confidence: number): string => {
+    return `${Math.round(confidence * 100)}%`;
+  };
+
+  // Handle toggle click - prevent propagation to avoid card navigation
+  const handleToggle = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsExpanded((prev) => !prev);
+  }, []);
+
+  // Handle keyboard interaction
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsExpanded((prev) => !prev);
+    }
+  }, []);
+
+  return (
+    <div
+      className={`flex flex-wrap gap-2 ${shouldCollapse ? 'transition-all duration-300 ease-in-out' : ''}`}
+      data-testid="collapsible-detections"
+    >
+      {visibleDetections.map((detection, index) => {
+        const level = getConfidenceLevel(detection.confidence);
+        const confidenceLabel = getConfidenceLabel(level);
+        return (
+          <div
+            key={`${detection.label}-${index}`}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
+            title={`${detection.label}: ${formatConfidence(detection.confidence)} - ${confidenceLabel}`}
+          >
+            <span className="font-medium text-white">{detection.label}</span>
+            <span className={`font-semibold ${getConfidenceTextColorClass(level)}`}>
+              {formatConfidence(detection.confidence)}
+            </span>
+          </div>
+        );
+      })}
+      {shouldCollapse && (
+        <button
+          onClick={handleToggle}
+          onKeyDown={handleKeyDown}
+          className="flex items-center gap-1 rounded-full border border-gray-600 bg-gray-700/50 px-3 py-1 text-xs font-medium text-gray-300 transition-colors hover:border-gray-500 hover:bg-gray-600/50"
+          aria-expanded={isExpanded}
+          aria-label={isExpanded ? 'Show fewer detections' : `Show ${hiddenCount} more detections`}
+          data-testid="collapsible-detections-toggle"
+        >
+          {isExpanded ? (
+            <>
+              <span>Show less</span>
+              <ChevronUp className="h-3 w-3" />
+            </>
+          ) : (
+            <>
+              <span>+{hiddenCount} more</span>
+              <ChevronDown className="h-3 w-3" />
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  );
 }
 
 export interface EventCardProps {
@@ -136,20 +228,12 @@ const EventCard = memo(function EventCard({
   // Get risk level from score
   const riskLevel = getRiskLevel(risk_score);
 
-  // Format confidence as percentage
-  const formatConfidence = (confidence: number): string => {
-    return `${Math.round(confidence * 100)}%`;
-  };
-
   // Get unique object types from detections
   const uniqueObjectTypes = Array.from(new Set(detections.map((d) => d.label.toLowerCase())));
 
   // Calculate aggregate confidence metrics
   const avgConfidence = calculateAverageConfidence(detections);
   const maxConfidence = calculateMaxConfidence(detections);
-
-  // Sort detections by confidence (highest first)
-  const sortedDetections = sortDetectionsByConfidence(detections);
 
   // Build severity-based styling classes
   const getSeverityClasses = (): string => {
@@ -331,24 +415,7 @@ const EventCard = memo(function EventCard({
                   </div>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2">
-                {sortedDetections.map((detection, index) => {
-                  const level = getConfidenceLevel(detection.confidence);
-                  const confidenceLabel = getConfidenceLabel(level);
-                  return (
-                    <div
-                      key={`${detection.label}-${index}`}
-                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
-                      title={`${detection.label}: ${formatConfidence(detection.confidence)} - ${confidenceLabel}`}
-                    >
-                      <span className="font-medium text-white">{detection.label}</span>
-                      <span className={`font-semibold ${getConfidenceTextColorClass(level)}`}>
-                        {formatConfidence(detection.confidence)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+              <CollapsibleDetections detections={detections} maxVisible={3} />
             </div>
           )}
 
