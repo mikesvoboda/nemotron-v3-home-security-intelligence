@@ -2,7 +2,7 @@
 #    uv export --no-hashes
 accelerate==1.12.0
     # via home-security-intelligence
-alembic==1.18.0
+alembic==1.18.1
     # via home-security-intelligence
 annotated-doc==0.0.4
     # via fastapi
@@ -84,7 +84,7 @@ httptools==0.7.1
     # via uvicorn
 httpx==0.28.1
     # via home-security-intelligence
-huggingface-hub==1.3.1
+huggingface-hub==1.3.2
     # via
     #   accelerate
     #   home-security-intelligence
@@ -154,7 +154,7 @@ nvidia-cuda-nvrtc-cu12==12.9.86 ; platform_machine == 'x86_64' and sys_platform 
     # via torch
 nvidia-cuda-runtime-cu12==12.9.79 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
-nvidia-cudnn-cu12==9.17.1.4 ; platform_machine == 'x86_64' and sys_platform == 'linux'
+nvidia-cudnn-cu12==9.18.0.77 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
 nvidia-cufft-cu12==11.4.1.4 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
@@ -186,7 +186,7 @@ nvidia-nvtx-cu12==12.9.79 ; platform_machine == 'x86_64' and sys_platform == 'li
     # via torch
 open-clip-torch==3.2.0
     # via home-security-intelligence
-opencv-python==4.12.0.88
+opencv-python==4.13.0.90
     # via ultralytics
 opentelemetry-api==1.39.1
     # via
@@ -275,15 +275,15 @@ piq==0.8.0
     # via home-security-intelligence
 pluggy==1.6.0
     # via pytest
-polars==1.37.0
+polars==1.37.1
     # via ultralytics
-polars-runtime-32==1.37.0
+polars-runtime-32==1.37.1
     # via polars
 pprintpp==0.4.0
     # via pytest-clarity
-prometheus-client==0.23.1
+prometheus-client==0.24.1
     # via home-security-intelligence
-protobuf==6.33.3
+protobuf==6.33.4
     # via
     #   googleapis-common-protos
     #   opentelemetry-proto
@@ -320,7 +320,7 @@ pytest==9.0.2
     #   pytest-randomly
     #   pytest-sugar
 pytest-clarity==1.0.1
-pytest-deadfixtures==3.0.0
+pytest-deadfixtures==3.1.0
 pytest-randomly==4.0.1
 pytest-sugar==1.1.1
 python-dateutil==2.9.0.post0
@@ -378,13 +378,13 @@ setuptools==80.9.0
     # via torch
 six==1.17.0
     # via python-dateutil
-soupsieve==2.8.1
+soupsieve==2.8.2
     # via beautifulsoup4
 sqlalchemy==2.0.45
     # via
     #   alembic
     #   home-security-intelligence
-starlette==0.51.0
+starlette==0.52.1
     # via fastapi
 sympy==1.14.0
     # via torch
@@ -420,7 +420,7 @@ tqdm==4.67.1
     #   huggingface-hub
     #   open-clip-torch
     #   transformers
-transformers==4.57.3
+transformers==4.57.6
     # via home-security-intelligence
 triton==3.5.1 ; platform_machine == 'x86_64' and sys_platform == 'linux'
     # via torch
@@ -445,7 +445,7 @@ typing-inspection==0.4.2
     # via
     #   pydantic
     #   pydantic-settings
-ultralytics==8.3.252
+ultralytics==8.4.6
     # via home-security-intelligence
 ultralytics-thop==2.0.18
     # via ultralytics
