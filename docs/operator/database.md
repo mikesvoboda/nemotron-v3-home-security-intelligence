@@ -48,7 +48,7 @@ docker compose -f docker-compose.prod.yml ps postgres
 
 **Required credentials (must be set in .env):**
 
-> **IMPORTANT:** There is no default password. `POSTGRES_PASSWORD` must be explicitly set or the container will fail to start. See [Security - Database Credentials](../admin-guide/security.md#database-credentials-required) for details.
+> **IMPORTANT:** There is no default password. `POSTGRES_PASSWORD` must be explicitly set or the container will fail to start. See [Security - Database Credentials](admin/security.md#database-credentials-required) for details.
 
 ```bash
 POSTGRES_USER=security                  # Default username

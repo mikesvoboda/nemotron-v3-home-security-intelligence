@@ -4,6 +4,20 @@
 
 The AI Performance page provides real-time monitoring of the AI pipeline that powers security event detection and risk analysis. It displays metrics for the RT-DETRv2 object detection model, the Nemotron LLM risk analyzer, and the overall processing pipeline.
 
+## Overview
+
+The AI Performance page provides real-time monitoring of the AI models that power your security system. Here you can track:
+
+- Model health status (RT-DETRv2 and Nemotron)
+- Processing latency and queue depths
+- Detection and event statistics
+- Risk score distribution
+- **Model Zoo** - 18+ specialized AI models for enhanced detection
+
+## Accessing the AI Performance Page
+
+Click the **Brain icon** or **AI Performance** in the left sidebar, or navigate directly to `/ai`.
+
 ## What You're Looking At
 
 The AI Performance page embeds the **HSI Consolidated Grafana dashboard** in kiosk mode. This provides a unified monitoring experience with all AI metrics visualized through Grafana's powerful charting capabilities.
@@ -98,6 +112,32 @@ Events are categorized by risk level:
 | High       | 61-80       | Suspicious activity requiring attention            |
 | Critical   | 81-100      | Potential security threat, immediate action needed |
 
+### Clickable Risk Score Bars
+
+The risk score distribution chart is interactive. Each bar and count is clickable.
+
+**How It Works:**
+
+1. **Click any bar** in the chart to navigate to the Event Timeline
+2. The Timeline automatically filters to show only events at that risk level
+3. You can quickly investigate all events of a specific severity
+
+| Click Target           | Navigates To                    |
+| ---------------------- | ------------------------------- |
+| **Low bar/count**      | `/timeline?risk_level=low`      |
+| **Medium bar/count**   | `/timeline?risk_level=medium`   |
+| **High bar/count**     | `/timeline?risk_level=high`     |
+| **Critical bar/count** | `/timeline?risk_level=critical` |
+
+**Visual Feedback:**
+
+- **Hover tooltip** - Shows "Click to view X events" on hover
+- **Scale effect** - Bar slightly enlarges on hover
+- **Pointer cursor** - Indicates the bar is clickable
+- **Focus ring** - Green outline when using keyboard navigation
+
+The bars are implemented as buttons for full keyboard accessibility (Tab to navigate, Enter/Space to select).
+
 ### Detection Class Distribution
 
 Objects are detected in these security-relevant categories:
@@ -105,6 +145,155 @@ Objects are detected in these security-relevant categories:
 - **People**: person
 - **Vehicles**: car, truck, bus, motorcycle, bicycle
 - **Animals**: dog, cat, bird
+
+## Model Zoo Section
+
+The Model Zoo contains 18+ specialized AI models that enhance your security detections beyond basic object detection. These models extract additional details like license plates, faces, clothing, and vehicle types.
+
+### Summary Bar
+
+The Model Zoo summary bar at the top displays key statistics:
+
+| Indicator    | Description                                  |
+| ------------ | -------------------------------------------- |
+| **Loaded**   | Models currently in GPU memory (green dot)   |
+| **Unloaded** | Available models not currently loaded (gray) |
+| **Disabled** | Temporarily disabled models (yellow)         |
+| **VRAM**     | GPU memory usage (used/budget)               |
+
+**VRAM (Video RAM)** is the GPU memory used by loaded models. The Model Zoo has a dedicated budget of 1650 MB separate from core AI models.
+
+### Latency Chart
+
+The latency chart shows inference time trends for any Model Zoo model:
+
+1. **Select a model** using the dropdown menu at the top right
+2. **View timing data** displayed as three lines:
+   - **Avg (ms)** - Average inference time (emerald green)
+   - **P50 (ms)** - Median inference time (blue)
+   - **P95 (ms)** - 95th percentile time (amber)
+3. **Time axis** shows the last 60 minutes of data
+
+**Chart Legend:**
+
+| Line Color  | Metric     | Meaning                                 |
+| ----------- | ---------- | --------------------------------------- |
+| **Emerald** | Average    | Typical inference time                  |
+| **Blue**    | P50/Median | Half of inferences are faster than this |
+| **Amber**   | P95        | 95% of inferences are faster than this  |
+
+> **No data?** If a model shows "No data available," it either has not been used recently or is disabled.
+
+### Model Status Cards
+
+Below the chart, each Model Zoo model appears as a status card with:
+
+| Element          | Description                                        |
+| ---------------- | -------------------------------------------------- |
+| **Model Name**   | Human-readable name of the model                   |
+| **Status Dot**   | Color-coded health indicator                       |
+| **Status Label** | Current state (Loaded, Unloaded, Loading, etc.)    |
+| **VRAM**         | GPU memory required when loaded                    |
+| **Last Used**    | Time since model was last used ("2h ago", "Never") |
+| **Category**     | Model type (Detection, Classification, etc.)       |
+
+### Model Status Indicators
+
+| Status       | Dot Color      | Meaning                          |
+| ------------ | -------------- | -------------------------------- |
+| **Loaded**   | Green          | Model is in GPU memory and ready |
+| **Loading**  | Blue (pulsing) | Model is currently being loaded  |
+| **Unloaded** | Gray           | Model available but not loaded   |
+| **Disabled** | Yellow         | Model is turned off              |
+| **Error**    | Red            | Model failed to load             |
+
+### Active vs Disabled Models
+
+Models are organized into two sections:
+
+- **Active Models** - Enabled and available for use
+- **Disabled Models** - Turned off (grayed out, appear at bottom)
+
+**Why are some models disabled?**
+
+- Incompatible with current software versions
+- Moved to a dedicated service
+- Not yet released
+- Temporarily turned off for maintenance
+
+### Model Zoo Categories
+
+#### Detection Models
+
+| Model                    | VRAM    | Purpose                         |
+| ------------------------ | ------- | ------------------------------- |
+| YOLO11 License Plate     | 300 MB  | Find license plates on vehicles |
+| YOLO11 Face              | 200 MB  | Detect faces on people          |
+| YOLO World S             | 1500 MB | Open vocabulary detection       |
+| Vehicle Damage Detection | 2000 MB | Find damage on vehicles         |
+
+#### Classification Models
+
+| Model                      | VRAM    | Purpose                      |
+| -------------------------- | ------- | ---------------------------- |
+| Violence Detection         | 500 MB  | Identify violent activity    |
+| Weather Classification     | 200 MB  | Determine weather conditions |
+| Fashion CLIP               | 500 MB  | Classify clothing types      |
+| Vehicle Segment Classifier | 1500 MB | Identify vehicle types       |
+| Pet Classifier             | 200 MB  | Distinguish cats and dogs    |
+
+#### Other Specialized Models
+
+| Model             | VRAM    | Category           | Purpose               |
+| ----------------- | ------- | ------------------ | --------------------- |
+| SegFormer Clothes | 1500 MB | Segmentation       | Clothing segmentation |
+| ViTPose Small     | 1500 MB | Pose               | Human pose estimation |
+| Depth Anything V2 | 150 MB  | Depth              | Distance estimation   |
+| CLIP ViT-L        | 800 MB  | Embedding          | Visual embeddings     |
+| PaddleOCR         | 100 MB  | OCR                | Read text from plates |
+| X-CLIP Base       | 2000 MB | Action Recognition | Recognize activities  |
+
+### Understanding Model Memory (VRAM)
+
+Models load into your GPU's video memory (VRAM) when needed:
+
+- **VRAM Budget:** 1650 MB for the Model Zoo
+- **Loading Strategy:** One model loads at a time (sequential)
+- **Automatic Management:** Models load/unload based on demand
+
+**Why does this matter?**
+
+- **Loaded models** respond instantly
+- **Unloaded models** need time to load before first use
+- **VRAM constraints** limit how many models can be loaded simultaneously
+
+> **Note:** The core RT-DETRv2 (~650 MB) and Nemotron (~21,700 MB) models have separate VRAM allocations and are always loaded.
+
+### Model Zoo Analytics
+
+Below the Model Zoo status cards, you see additional analytics:
+
+#### Model Contribution Chart
+
+A bar chart showing which models contribute most to event enrichment:
+
+- **Higher bars** = More frequently used models
+- **Sorted by contribution** = Most useful models at top
+- **Hover for details** = See exact percentage
+
+#### Model Leaderboard
+
+A sortable table ranking models by contribution:
+
+| Column           | Description                              |
+| ---------------- | ---------------------------------------- |
+| **Rank**         | Position (top 3 have badges)             |
+| **Model**        | Model name                               |
+| **Contribution** | Percentage of events this model enriched |
+| **Events**       | Number of events processed               |
+| **Quality**      | Correlation with good AI assessments     |
+
+Click column headers to sort by that metric.
 
 ## Settings & Configuration
 
@@ -246,6 +435,69 @@ curl -X DELETE http://localhost:8000/api/dlq/dlq:detection_queue
 2. Check Prometheus metrics endpoint: `curl http://localhost:8000/api/metrics`
 3. Verify Redis is connected (used for queue depth metrics)
 4. Try manual refresh using the "Refresh" button
+
+### Model Zoo Troubleshooting
+
+#### Model Showing "Error" Status
+
+**Symptoms:** Model card shows red dot and "Error" label.
+
+**Possible causes:**
+
+- Model file is missing or corrupted
+- Insufficient GPU memory
+- Model incompatible with current GPU
+
+**What to do:**
+
+1. Check the System page for GPU memory status
+2. Note the model name and check system logs
+3. Restart the AI service if multiple models show errors
+
+#### Model Never Loads
+
+**Symptoms:** Model stays "Unloaded" even when its function should trigger.
+
+**Possible causes:**
+
+- No detections that require this model (e.g., no license plates seen)
+- Model is disabled in configuration
+- Queue is backed up with other processing
+
+**What to do:**
+
+1. Check if the model is in the "Disabled Models" section
+2. Wait for normal detection activity
+3. Check the Pipeline Health panel for queue issues
+
+#### High Latency on a Model
+
+**Symptoms:** Latency chart shows consistently high times (P95 above 500ms for detection models).
+
+**Possible causes:**
+
+- GPU under heavy load
+- Model being loaded/unloaded frequently
+- Large number of objects in images
+
+**What to do:**
+
+1. Check GPU utilization on the System page
+2. Look for patterns in the latency chart
+3. Normal during high-activity periods
+
+#### "No Data Available" for Model Latency
+
+**Symptoms:** Latency chart shows "No data available for [model name]"
+
+**This is normal when:**
+
+- The model has not been used in the last hour
+- The model is disabled
+- No detections have triggered this model type
+
+**What to do:**
+Nothing - this is informational. Data appears when the model is used.
 
 ## Technical Deep Dive
 

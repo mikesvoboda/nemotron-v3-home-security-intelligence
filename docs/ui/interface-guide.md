@@ -212,7 +212,7 @@ The interface is designed to be accessible:
 
 ## Related Documentation
 
-- [Dashboard Overview](dashboard-overview.md) - Main dashboard features
+- [Dashboard](dashboard.md) - Main dashboard features
 - [Keyboard Shortcuts](keyboard-shortcuts.md) - Keyboard navigation
 - [Understanding Alerts](understanding-alerts.md) - Alert types and meanings
-- [Getting Started](getting-started.md) - First-time setup
+- [Getting Started](../getting-started/quick-start.md) - First-time setup

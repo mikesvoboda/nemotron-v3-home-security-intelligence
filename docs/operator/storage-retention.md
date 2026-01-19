@@ -1,27 +1,8 @@
 # Storage and Retention
 
----
-
-title: Storage and Retention
-source_refs:
-
-- backend/services/cleanup_service.py:CleanupService:85
-- backend/services/cleanup_service.py:CleanupStats:44
-- backend/core/config.py:retention_days:88
-- backend/core/config.py:log_retention_days:251
-- frontend/src/components/settings/StorageDashboard.tsx:48
+> Manage disk space and data retention. The cleanup service automatically prunes old records and files based on configurable retention periods.
 
 ---
-
-> **Manage disk space and data retention.** The cleanup service automatically prunes old records and files based on configurable retention periods.
-
-<!-- Nano Banana Pro Prompt:
-"Technical illustration of data storage and cleanup automation,
-hard drives with data flowing, retention timeline visualization,
-dark background #121212, storage purple #A855F7 accent,
-clean minimalist style, vertical 2:3 aspect ratio,
-no text overlays"
--->
 
 ## Overview
 
@@ -34,11 +15,7 @@ The system stores several types of data that grow over time:
 - **Thumbnails** - Generated preview images for detections
 - **Original Images** - Camera uploads (optionally cleaned)
 
-The [`CleanupService`](../../backend/services/cleanup_service.py:85) runs daily to enforce retention policies and reclaim disk space.
-
-![Retention Policies Diagram showing data lifecycle: Database records (events, detections, GPU stats, logs) and file storage (thumbnails, original images) with configurable retention periods flowing through the CleanupService scheduled daily at 03:00, with dry run preview option before permanent deletion](../images/admin/retention-policies.png)
-
-_Retention policies showing data sources (events, detections, GPU stats, logs) and file storage (thumbnails, original images) flowing through the CleanupService (daily at 03:00) with dry run preview capability, targeting PostgreSQL and filesystem storage._
+The `CleanupService` runs daily to enforce retention policies and reclaim disk space.
 
 ---
 
@@ -51,14 +28,14 @@ _Retention policies showing data sources (events, detections, GPU stats, logs) a
 | `RETENTION_DAYS`     | `30`    | Days to keep events, detections, and GPU stats |
 | `LOG_RETENTION_DAYS` | `7`     | Days to keep application logs in database      |
 
-**Source:** [`backend/core/config.py:88-91`](../../backend/core/config.py), [`backend/core/config.py:251-254`](../../backend/core/config.py)
+**Source:** `backend/core/config.py`
 
 ### Cleanup Schedule
 
 The cleanup service runs daily at a configurable time (default: 03:00). Configure in the service initialization:
 
 ```python
-# backend/services/cleanup_service.py:93
+# backend/services/cleanup_service.py
 cleanup_service = CleanupService(
     cleanup_time="03:00",        # HH:MM (24-hour format)
     retention_days=30,           # Override config default
@@ -93,7 +70,7 @@ cleanup_service = CleanupService(
 
 ## Cleanup Statistics
 
-Each cleanup operation returns detailed statistics via [`CleanupStats`](../../backend/services/cleanup_service.py:44):
+Each cleanup operation returns detailed statistics:
 
 ```python
 class CleanupStats:
@@ -116,7 +93,7 @@ INFO: Cleanup completed: <CleanupStats(events=45, detections=328, gpu_stats=8640
 
 ## Storage Dashboard
 
-The frontend [`StorageDashboard`](../../frontend/src/components/settings/StorageDashboard.tsx:48) component provides real-time visibility into storage usage.
+The frontend `StorageDashboard` component provides real-time visibility into storage usage.
 
 ### Features
 
@@ -182,19 +159,6 @@ Response:
 
 Click **Preview Cleanup** in the Storage Dashboard to see what would be deleted without actually deleting anything.
 
-### Programmatic Dry Run
-
-```python
-from backend.services.cleanup_service import CleanupService
-
-cleanup_service = CleanupService(retention_days=30)
-stats = await cleanup_service.dry_run_cleanup()
-print(f"Would delete {stats.events_deleted} events")
-print(f"Would reclaim {stats.space_reclaimed / 1024 / 1024:.1f} MB")
-```
-
-**Source:** [`backend/services/cleanup_service.py:261-353`](../../backend/services/cleanup_service.py)
-
 ---
 
 ## Manual Cleanup
@@ -206,33 +170,13 @@ print(f"Would reclaim {stats.space_reclaimed / 1024 / 1024:.1f} MB")
 curl -X POST "http://localhost:8000/api/system/cleanup"
 ```
 
-### Programmatic Cleanup
-
-```python
-from backend.services.cleanup_service import CleanupService
-
-cleanup_service = CleanupService(retention_days=30)
-stats = await cleanup_service.run_cleanup()
-print(f"Deleted {stats.events_deleted} events, reclaimed {stats.space_reclaimed} bytes")
-```
-
-**Source:** [`backend/services/cleanup_service.py:176-259`](../../backend/services/cleanup_service.py)
-
 ### Cleanup Job Status
 
-To view the latest cleanup status (and whether a cleanup is currently running), use:
+To view the latest cleanup status (and whether a cleanup is currently running):
 
 ```bash
 curl http://localhost:8000/api/system/cleanup/status
 ```
-
----
-
-## Cleanup Process Flow
-
-![Cleanup Sequence](../images/admin/cleanup-sequence.png)
-
-_Cleanup process flow: (1) Preparation - calculate cutoff date and query old records; (2) Database cleanup - delete detections, events, GPU stats, logs, then commit transaction; (3) File cleanup - delete thumbnails and images if enabled; (4) Results - return CleanupStats and log summary._
 
 ---
 
@@ -341,6 +285,7 @@ grep "Cleanup failed" data/logs/security.log
 
 ## See Also
 
-- [Configuration](configuration.md) - Retention and storage settings
-- [Monitoring](monitoring.md) - Health checks and service status
-- [Troubleshooting](troubleshooting.md) - Common issues
+- [Environment Variable Reference](../reference/config/env-reference.md) - All configuration options
+- [Monitoring](monitoring.md) - Health checks and diagnostics
+- [Troubleshooting](../reference/troubleshooting/index.md) - Common issues
+- [Backup](backup.md) - Backup strategies

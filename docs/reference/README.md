@@ -192,7 +192,7 @@ Key terms used throughout the documentation. Full glossary: [Glossary](glossary.
 | Term           | Definition                                                                              |
 | -------------- | --------------------------------------------------------------------------------------- |
 | **RT-DETRv2**  | Real-time object detection model using transformer architecture for accurate detection. |
-| **Nemotron**   | NVIDIA's LLM family. This system uses Nemotron-Mini-4B-Instruct for risk assessment.    |
+| **Nemotron**   | NVIDIA's LLM family. Production uses Nemotron-3-Nano-30B-A3B; development uses Mini 4B. |
 | **Florence-2** | Vision-language model for extracting visual attributes (optional enrichment).           |
 | **CLIP**       | Model for generating image embeddings enabling re-identification across camera frames.  |
 | **Inference**  | The process of running an AI model on input data to produce predictions.                |

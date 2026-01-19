@@ -53,7 +53,8 @@ The real-time system enables instant dashboard updates without polling by using 
 
 ![WebSocket architecture diagram showing data flow from AI pipeline through Redis Pub/Sub to backend broadcasters and WebSocket clients](../images/real-time/websocket-architecture.svg)
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: WebSocket Architecture
+
 ```mermaid
 flowchart TB
     subgraph Pipeline["AI Pipeline"]
@@ -85,27 +86,26 @@ flowchart TB
         C3[Browser N]
     end
 
-    NA - -|publish| CH1
-    GPU - -|publish| CH2
-    HM - -|publish| CH2
+    NA -.->|publish| CH1
+    GPU -.->|publish| CH2
+    HM -.->|publish| CH2
 
-    CH1 - -|subscribe| EB1
-    CH1 - -|subscribe| EB2
-    CH2 - -|subscribe| SB1
-    CH2 - -|subscribe| SB2
+    CH1 -.->|subscribe| EB1
+    CH1 -.->|subscribe| EB2
+    CH2 -.->|subscribe| SB1
+    CH2 -.->|subscribe| SB2
 
-    EB1 & EB2 - -> WS1
-    SB1 & SB2 - -> WS2
+    EB1 & EB2 --> WS1
+    SB1 & SB2 --> WS2
 
-    WS1 - -> C1 & C2 & C3
-    WS2 - -> C1 & C2 & C3
+    WS1 --> C1 & C2 & C3
+    WS2 --> C1 & C2 & C3
 
     style CH1 fill:#A855F7,color:#fff
     style CH2 fill:#A855F7,color:#fff
     style WS1 fill:#3B82F6,color:#fff
     style WS2 fill:#3B82F6,color:#fff
 ```
--->
 
 ### Communication Patterns
 
@@ -136,7 +136,8 @@ Delivers real-time security event notifications as they are created by the AI pi
 
 ![Events channel sequence diagram showing browser connection, EventBroadcaster registration, and event flow](../images/real-time/events-channel-sequence.svg)
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: Events Channel Sequence
+
 ```mermaid
 sequenceDiagram
     participant Client as Browser
@@ -147,7 +148,7 @@ sequenceDiagram
 
     Client->>WS: Connect (upgrade)
     WS->>EB: register(websocket)
-    EB- ->>Client: Connection accepted
+    EB-->>Client: Connection accepted
 
     Note over NA: Event created from batch
 
@@ -161,7 +162,6 @@ sequenceDiagram
     Client->>WS: Disconnect
     WS->>EB: unregister(websocket)
 ```
--->
 
 ### System Channel (`/ws/system`)
 
@@ -169,7 +169,8 @@ Delivers periodic system status updates including GPU statistics and service hea
 
 ![System channel sequence diagram showing GPUMonitor and HealthMonitor periodic updates](../images/real-time/system-channel-sequence.svg)
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: System Channel Sequence
+
 ```mermaid
 sequenceDiagram
     participant Client as Browser
@@ -180,13 +181,13 @@ sequenceDiagram
 
     Client->>WS: Connect (upgrade)
     WS->>SB: register(websocket)
-    SB- ->>Client: Connection accepted
+    SB-->>Client: Connection accepted
 
     loop Every 5 seconds
         SB->>GPU: get_current_stats()
-        GPU- ->>SB: GPU metrics
+        GPU-->>SB: GPU metrics
         SB->>HM: get_status()
-        HM- ->>SB: Service health
+        HM-->>SB: Service health
 
         SB->>WS: send_text(json)
         WS->>Client: {"type": "system_status", "data": {...}}
@@ -195,7 +196,6 @@ sequenceDiagram
     Client->>WS: Disconnect
     WS->>SB: unregister(websocket)
 ```
--->
 
 ### Job Logs Channel (`/ws/jobs/{job_id}/logs`)
 
@@ -255,7 +255,8 @@ def get_event_channel() -> str:
 
 ![Redis pub/sub flow diagram showing publishers, Redis channels, subscribers, and WebSocket clients](../images/real-time/redis-pubsub-flow.svg)
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: Redis Pub/Sub Flow
+
 ```mermaid
 flowchart TB
     subgraph Publishers["Event Publishers"]
@@ -281,19 +282,18 @@ flowchart TB
         C3[Clients on Instance N]
     end
 
-    P1 & P2 - -> PUB
-    PUB - -> CH
-    CH - -> SUB
-    SUB - -> S1 & S2 & S3
+    P1 & P2 --> PUB
+    PUB --> CH
+    CH --> SUB
+    SUB --> S1 & S2 & S3
 
-    S1 - -> C1
-    S2 - -> C2
-    S3 - -> C3
+    S1 --> C1
+    S2 --> C2
+    S3 --> C3
 
     style CH fill:#A855F7,color:#fff
     style SUB fill:#A855F7,color:#fff
 ```
--->
 
 ### Redis Message Format
 

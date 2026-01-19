@@ -95,7 +95,8 @@ The system uses two complementary storage backends optimized for their respectiv
 
 ![Entity Relationship Diagram showing database schema with core tables (cameras, detections, events), alerting tables (alerts, alert_rules, zones), baseline tables (activity_baselines, class_baselines), and system tables (audit_logs, gpu_stats, logs, api_keys)](../images/data-model/entity-relationship.svg)
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: Entity Relationship
+
 ```mermaid
 erDiagram
     cameras ||--o{ detections : "has many"
@@ -264,7 +265,6 @@ erDiagram
         bool is_active "Active/revoked status"
     }
 ```
--->
 
 ---
 
@@ -828,7 +828,8 @@ Camera (front_door)
 
 ![Storage Architecture showing PostgreSQL permanent storage (cameras, detections, events, alerts, gpu_stats, logs, api_keys) and Redis ephemeral storage (queues, dead letter queues, cache, pub/sub)](../images/data-model/storage-architecture.svg)
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: Storage Architecture
+
 ```mermaid
 flowchart TB
     subgraph Permanent["PostgreSQL (Permanent)"]
@@ -854,9 +855,7 @@ flowchart TB
 
     aq --> events
     pubsub --> events
-
 ```
--->
 
 ### What Goes Where
 
@@ -890,7 +889,7 @@ analysis_queue (Redis List)
 ├── BLPOP: AnalysisQueueWorker consumes
 └── Max size: 10,000 (auto-trimmed)
 
-````
+```
 
 **Queue Item Schema (detection_queue):**
 
@@ -900,7 +899,7 @@ analysis_queue (Redis List)
   "file_path": "/export/foscam/front_door/image_001.jpg",
   "timestamp": "2025-12-23T10:30:00.000000"
 }
-````
+```
 
 **Queue Item Schema (analysis_queue):**
 
@@ -997,7 +996,8 @@ system_status (channel)
 
 ![Data Lifecycle State Machine showing the flow from FTP upload through FileWatcher, deduplication, RT-DETRv2 detection, batch aggregation, Nemotron LLM analysis, and WebSocket broadcast](../images/data-model/data-lifecycle-state.svg)
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: Data Lifecycle State Machine
+
 ```mermaid
 stateDiagram-v2
     [*] --> FileUploaded: FTP upload
@@ -1034,9 +1034,7 @@ stateDiagram-v2
     note right of FileUploaded: Image arrives via FTP
     note right of DetectionStored: Detection record in PostgreSQL
     note right of EventCreated: Event record in PostgreSQL
-
-````
--->
+```
 
 ### Record Creation Flow
 
@@ -1155,7 +1153,7 @@ CREATE INDEX idx_logs_source ON logs(source);
 
 -- api_keys
 CREATE UNIQUE INDEX ix_api_keys_key_hash ON api_keys(key_hash);
-````
+```
 
 ### PostgreSQL Configuration
 
@@ -1176,7 +1174,8 @@ The `CleanupService` runs daily at a configurable time (default: 03:00 AM):
 
 ![CleanupService Sequence Diagram showing the daily cleanup operation flow between CleanupService, PostgreSQL, and Filesystem, with statistics tracking and optional image deletion](../images/data-model/cleanup-service-sequence.svg)
 
-<!-- Original Mermaid diagram preserved for reference:
+### Diagram: Cleanup Service Sequence
+
 ```mermaid
 sequenceDiagram
     participant CS as CleanupService
@@ -1197,7 +1196,6 @@ sequenceDiagram
     end
     CS->>CS: Log cleanup statistics
 ```
--->
 
 ### Cleanup Statistics
 

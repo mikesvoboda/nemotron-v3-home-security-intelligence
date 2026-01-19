@@ -218,8 +218,8 @@ Right    +5 seconds
 
 ## Related Documentation
 
-- [Dashboard Overview](dashboard-overview.md) - Understanding the main interface
-- [Event Timeline](event-timeline.md) - Using list navigation in the timeline
+- [Dashboard](dashboard.md) - Understanding the main interface
+- [Event Timeline](timeline.md) - Using list navigation in the timeline
 - [Settings](settings.md) - Configuring the application
 
 ---

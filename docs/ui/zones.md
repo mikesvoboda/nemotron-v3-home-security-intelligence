@@ -1,28 +1,23 @@
----
-title: Detection Zones
-description: Configure detection zones to focus AI analysis on areas that matter most
-source_refs:
-  - frontend/src/components/zones/ZoneEditor.tsx
-  - frontend/src/components/zones/ZoneCanvas.tsx
-  - frontend/src/components/zones/ZoneForm.tsx
-  - frontend/src/components/zones/ZoneList.tsx
-  - backend/api/routes/zones.py
----
-
 # Detection Zones
 
-Detection zones let you define specific areas within each camera view for focused monitoring. Instead of analyzing the entire frame, the AI pays special attention to activity in your designated zones like entry points, driveways, or restricted areas.
+![Zones Screenshot](../images/screenshots/zones.png)
 
----
+Configure detection zones to focus AI analysis on specific areas within each camera view.
+
+## What You're Looking At
+
+Detection zones let you define specific regions within a camera's field of view for focused monitoring. Instead of analyzing the entire frame equally, the AI pays special attention to activity in designated zones like entry points, driveways, or restricted areas.
+
+Zones are configured through the Zone Editor, accessible from the Settings > Cameras tab by clicking the map pin icon on any camera card.
 
 ## Why Use Zones?
 
 Zones help you:
 
-- **Reduce false positives**: Ignore motion from roads, sidewalks, or trees
-- **Prioritize areas**: Get higher-priority alerts for entry points
-- **Organize detections**: See which zone triggered each detection
-- **Customize sensitivity**: Different zones can have different importance levels
+- **Reduce false positives** - Ignore motion from roads, sidewalks, or trees
+- **Prioritize areas** - Get higher-priority alerts for entry points
+- **Organize detections** - See which zone triggered each detection
+- **Customize sensitivity** - Different zones can have different importance levels
 
 ### Without Zones vs. With Zones
 
@@ -39,18 +34,18 @@ Zones help you:
 
 Each zone has a type that helps the AI understand its purpose:
 
-| Type          | Color | Badge Color | Best For                           |
-| ------------- | ----- | ----------- | ---------------------------------- |
-| `entry_point` | Red   | Red/Dark    | Doors, gates, garage entries       |
-| `driveway`    | Amber | Amber/Dark  | Driveways, parking areas           |
-| `sidewalk`    | Blue  | Blue/Dark   | Sidewalks, paths, patios           |
-| `yard`        | Green | Green/Dark  | Private yard areas, gardens        |
-| `other`       | Gray  | Gray/Dark   | Any other area you want to monitor |
+| Type          | Color | Best For                           |
+| ------------- | ----- | ---------------------------------- |
+| `entry_point` | Red   | Doors, gates, garage entries       |
+| `driveway`    | Amber | Driveways, parking areas           |
+| `sidewalk`    | Blue  | Sidewalks, paths, patios           |
+| `yard`        | Green | Private yard areas, gardens        |
+| `other`       | Gray  | Any other area you want to monitor |
 
 ### Choosing the Right Zone Type
 
 ```
-Question: What is the primary activity expected in this area?
+What is the primary activity expected in this area?
 
 Entry/Exit activity  -->  entry_point
 Vehicle movement     -->  driveway
@@ -61,27 +56,29 @@ None of the above    -->  other
 
 ---
 
-## Opening the Zone Editor
+## Key Components
 
-### Step 1: Navigate to Settings
+### Zone Editor
 
-1. Click **Settings** in the left sidebar
-2. Click the **Cameras** tab
-
-### Step 2: Open Zone Editor
-
-1. Find the camera you want to configure
-2. Click the **Zones** button (map pin icon) on the camera card
-3. The Zone Editor modal opens
-
-### Zone Editor Layout
-
-The Zone Editor has two main sections:
+The Zone Editor modal has two main sections:
 
 | Section    | Location | Purpose                            |
 | ---------- | -------- | ---------------------------------- |
 | Canvas     | Left     | Camera snapshot with zone overlays |
 | Zone Panel | Right    | Zone list, form, or drawing help   |
+
+### Zone List
+
+The right panel shows all zones for the current camera:
+
+| Element        | Location     | Information                     |
+| -------------- | ------------ | ------------------------------- |
+| Color Square   | Left         | Zone color for visual reference |
+| Zone Name      | Center       | Name you assigned               |
+| Type Badge     | Below name   | Entry Point, Driveway, etc.     |
+| Priority       | Below name   | Priority value                  |
+| Disabled Badge | Next to name | Shows if zone is disabled       |
+| Action Buttons | Right        | Enable/Disable, Edit, Delete    |
 
 ---
 
@@ -122,14 +119,6 @@ For irregular areas - curved driveways, property boundaries, areas avoiding obst
 | Avoid overlapping     | Overlapping zones can cause confusion          |
 | Press ESC to cancel   | Cancels drawing without creating a zone        |
 
-### Visual Feedback During Drawing
-
-While drawing:
-
-- A dashed outline shows the current shape
-- The shape fills with semi-transparent color
-- Instructions appear at the bottom of the canvas
-
 ---
 
 ## Configuring Zone Settings
@@ -142,17 +131,9 @@ After drawing, the Zone Form appears with these settings:
 | ----- | ---------------------------- | ------------ |
 | Name  | 1-50 characters, descriptive | "Front Door" |
 
-**Good names:**
+**Good names:** "Front Door Entry", "Garage Driveway", "Backyard Fence Line"
 
-- "Front Door Entry"
-- "Garage Driveway"
-- "Backyard Fence Line"
-
-**Bad names:**
-
-- "Zone 1"
-- "z"
-- "asdfgh"
+**Bad names:** "Zone 1", "z", "asdfgh"
 
 ### Zone Type
 
@@ -180,8 +161,6 @@ Choose from 8 predefined colors:
 | Pink   | #EC4899  | Custom/special zones         |
 | Indigo | #6366F1  | Custom/special zones         |
 | Teal   | #14B8A6  | Custom/special zones         |
-
-Choose colors that help you visually distinguish zones at a glance.
 
 ### Priority
 
@@ -213,19 +192,6 @@ Use disable (not delete) when you want to:
 ---
 
 ## Managing Existing Zones
-
-### Zone List
-
-The right panel shows all zones for the current camera:
-
-| Element        | Location     | Information                     |
-| -------------- | ------------ | ------------------------------- |
-| Color Square   | Left         | Zone color for visual reference |
-| Zone Name      | Center       | Name you assigned               |
-| Type Badge     | Below name   | Entry Point, Driveway, etc.     |
-| Priority       | Below name   | Priority value                  |
-| Disabled Badge | Next to name | Shows if zone is disabled       |
-| Action Buttons | Right        | Enable/Disable, Edit, Delete    |
 
 ### Selecting Zones
 
@@ -341,63 +307,6 @@ Recommended Zones:
 
 ---
 
-## Zone Shapes Reference
-
-### Rectangle
-
-```
-    A -------- B
-    |          |
-    |   ZONE   |
-    |          |
-    D -------- C
-
-Coordinates stored: [A, B, C, D]
-Format: [[x1,y1], [x2,y1], [x2,y2], [x1,y2]]
-```
-
-### Polygon
-
-```
-        A
-       / \
-      /   \
-     B     E
-     |     |
-     C --- D
-
-Coordinates stored: [A, B, C, D, E]
-Format: [[x,y], [x,y], [x,y], [x,y], [x,y]]
-```
-
----
-
-## Coordinate System
-
-Zones use **normalized coordinates** (0.0 to 1.0):
-
-```
-(0.0, 0.0) -------- (1.0, 0.0)
-    |                    |
-    |                    |
-    |      (0.5, 0.5)    |
-    |         X          |
-    |                    |
-(0.0, 1.0) -------- (1.0, 1.0)
-```
-
-| Position     | Coordinates |
-| ------------ | ----------- |
-| Top-left     | (0.0, 0.0)  |
-| Top-right    | (1.0, 0.0)  |
-| Bottom-left  | (0.0, 1.0)  |
-| Bottom-right | (1.0, 1.0)  |
-| Center       | (0.5, 0.5)  |
-
-**Why normalized?** Zones work regardless of camera resolution. A zone at (0.2, 0.3) to (0.8, 0.7) covers the same relative area on any camera.
-
----
-
 ## Viewing Zone Activity
 
 ### In the Timeline
@@ -443,6 +352,42 @@ The Event Detail Modal shows:
 | Set all zones to 100      | No way to prioritize                  |
 | Forget to save            | Changes require clicking Save         |
 | Delete instead of disable | Lose zone configuration permanently   |
+
+---
+
+## Coordinate System
+
+Zones use **normalized coordinates** (0.0 to 1.0):
+
+```
+(0.0, 0.0) -------- (1.0, 0.0)
+    |                    |
+    |      (0.5, 0.5)    |
+    |         X          |
+    |                    |
+(0.0, 1.0) -------- (1.0, 1.0)
+```
+
+| Position     | Coordinates |
+| ------------ | ----------- |
+| Top-left     | (0.0, 0.0)  |
+| Top-right    | (1.0, 0.0)  |
+| Bottom-left  | (0.0, 1.0)  |
+| Bottom-right | (1.0, 1.0)  |
+| Center       | (0.5, 0.5)  |
+
+**Why normalized?** Zones work regardless of camera resolution. A zone at (0.2, 0.3) to (0.8, 0.7) covers the same relative area on any camera.
+
+---
+
+## Keyboard Shortcuts
+
+| Key   | Action                              |
+| ----- | ----------------------------------- |
+| ESC   | Cancel current drawing              |
+| Enter | Select first zone in list           |
+| Space | Select first zone in list           |
+| Tab   | Navigate between zones and controls |
 
 ---
 
@@ -496,31 +441,43 @@ The Event Detail Modal shows:
 
 **Fix:** Close and reopen the Zone Editor, or check camera settings.
 
-### Zone Deletion Confirmation Stuck
-
-**Fix:** Click "Cancel" and try again, or refresh the page.
-
 ---
 
-## Keyboard Shortcuts
+## Technical Deep Dive
 
-| Key   | Action                              |
-| ----- | ----------------------------------- |
-| ESC   | Cancel current drawing              |
-| Enter | Select first zone in list           |
-| Space | Select first zone in list           |
-| Tab   | Navigate between zones and controls |
+For developers wanting to understand the underlying systems.
 
----
+### Related Code
 
-## Related Documentation
+| Component   | Path                                           |
+| ----------- | ---------------------------------------------- |
+| Zone Editor | `frontend/src/components/zones/ZoneEditor.tsx` |
+| Zone Canvas | `frontend/src/components/zones/ZoneCanvas.tsx` |
+| Zone Form   | `frontend/src/components/zones/ZoneForm.tsx`   |
+| Zone List   | `frontend/src/components/zones/ZoneList.tsx`   |
+| Backend API | `backend/api/routes/zones.py`                  |
 
-- [Getting Started Tour](getting-started-tour.md) - Initial zone setup
-- [Alerts & Notifications](alerts-notifications.md) - How zones affect alerting
-- [Understanding Alerts](understanding-alerts.md) - Risk scoring with zones
-- [Analytics Dashboard](analytics.md) - Zone activity patterns
-- [Entities](entities.md) - Track people and vehicles across zones
+### API Endpoints
 
----
+| Endpoint                  | Method | Description             |
+| ------------------------- | ------ | ----------------------- |
+| `/api/cameras/{id}/zones` | GET    | List zones for a camera |
+| `/api/cameras/{id}/zones` | POST   | Create a new zone       |
+| `/api/zones/{id}`         | PUT    | Update a zone           |
+| `/api/zones/{id}`         | DELETE | Delete a zone           |
+| `/api/zones/{id}/toggle`  | PATCH  | Enable/disable a zone   |
 
-[Back to User Hub](../user/README.md)
+### Zone Data Model
+
+Zones are stored with the following fields:
+
+| Field       | Type    | Description                                  |
+| ----------- | ------- | -------------------------------------------- |
+| `id`        | UUID    | Unique identifier                            |
+| `camera_id` | String  | Associated camera                            |
+| `name`      | String  | Human-readable name (1-50 chars)             |
+| `type`      | Enum    | entry_point, driveway, sidewalk, yard, other |
+| `color`     | String  | Hex color code                               |
+| `priority`  | Integer | 0-100 priority value                         |
+| `enabled`   | Boolean | Whether zone is active                       |
+| `vertices`  | Array   | Normalized coordinate pairs                  |

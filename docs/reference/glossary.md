@@ -198,7 +198,7 @@ A health check that indicates whether the application is running. If it fails, t
 
 ### Nemotron
 
-NVIDIA's family of large language models. This system uses Nemotron-Mini-4B-Instruct for risk assessment and generating human-readable security analysis.
+NVIDIA's family of large language models. Production deployments use **Nemotron-3-Nano-30B-A3B** (~14.7GB VRAM, 128K context) for risk assessment and generating human-readable security analysis. Development environments can use the smaller Nemotron Mini 4B (~3GB VRAM) for testing.
 
 ---
 

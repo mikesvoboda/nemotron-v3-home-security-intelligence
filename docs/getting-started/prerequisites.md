@@ -35,7 +35,7 @@ no text overlays"
 The system runs two AI models simultaneously:
 
 - **RT-DETRv2** (object detection): ~4GB VRAM ([`ai/start_detector.sh:6-7`](../../ai/start_detector.sh:6))
-- **Nemotron Mini 4B** (risk analysis): ~3GB VRAM ([`ai/start_llm.sh:6-7`](../../ai/start_llm.sh:6))
+- **Nemotron** (risk analysis): ~14.7GB VRAM production (Nemotron-3-Nano-30B) or ~3GB development (Mini 4B)
 
 **Supported GPUs:**
 

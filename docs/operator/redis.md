@@ -397,7 +397,7 @@ Expected output when healthy:
 ## See Also
 
 - [Environment Variable Reference](../reference/config/env-reference.md) - Complete configuration reference
-- [Troubleshooting](../admin-guide/troubleshooting.md) - General troubleshooting guide
+- [Troubleshooting](../reference/troubleshooting/index.md) - General troubleshooting guide
 
 ---
 

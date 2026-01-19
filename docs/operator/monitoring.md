@@ -882,5 +882,5 @@ curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.
 - [GPU Setup Guide](gpu-setup.md) - Initial GPU configuration
 - [AI Performance](ai-performance.md) - AI service tuning
 - [Prometheus Alerting](prometheus-alerting.md) - Alert configuration and routing
-- [Configuration Reference](../admin-guide/configuration.md) - All environment variables
+- [Configuration Reference](../reference/config/env-reference.md) - All environment variables
 - [Troubleshooting Index](../reference/troubleshooting/index.md) - Common issues

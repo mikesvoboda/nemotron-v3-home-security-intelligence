@@ -323,7 +323,7 @@ API_KEYS=["new-key-here"]
 
 ## See Also
 
-- [Security Guide](../../admin-guide/security.md) - Comprehensive security configuration
+- [Security Guide](security.md) - Comprehensive security configuration
 - [API Reference Overview](../../developer/api/README.md) - API authentication details
 - [WebSocket API](../../developer/api/realtime.md) - WebSocket authentication methods
 - [Configuration Reference](../../reference/config/env-reference.md) - Environment variable reference

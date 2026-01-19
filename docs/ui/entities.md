@@ -403,3 +403,46 @@ When no entities have been tracked, the `EntitiesEmptyState` component displays:
 - **CTA button** linking to detection settings
 
 This provides onboarding guidance for new users.
+
+---
+
+## Best Practices for Trust Classification
+
+### Mark as Trusted
+
+- Family members and regular visitors
+- Delivery drivers you recognize
+- Your own vehicles
+- Neighbors you know
+
+### Mark as Suspicious
+
+- Unknown persons lingering on property
+- Vehicles casing the area
+- People attempting to access restricted areas
+- Anyone who triggered a genuine alert
+
+### Leave Unknown
+
+- First-time visitors until identified
+- Entities with insufficient data
+- Ambiguous detections
+
+---
+
+## Privacy Considerations
+
+Entity tracking stores:
+
+- Detection images and thumbnails
+- Appearance timestamps
+- Camera locations
+- Re-identification embeddings
+
+**To protect privacy:**
+
+- Only family members should have access to the system
+- Review and delete entities as needed
+- Set appropriate data retention policies
+- Use trust classification responsibly
+- Embeddings are stored locally and expire after 24 hours
