@@ -1391,7 +1391,7 @@ jobs:
       - name: Build backend image with retry
         # Retry logic for transient registry 502 errors
         # Docker registry can return 502 during layer blob writes due to infrastructure issues
-        uses: nick-fields/retry@7152eba30c6575329ac0576536151aca5a72780e # v3
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
         with:
           timeout_minutes: 30
           max_attempts: 3
@@ -1440,7 +1440,7 @@ jobs:
       - name: Build frontend image with retry
         # Retry logic for transient registry 502 errors
         # Docker registry can return 502 during layer blob writes due to infrastructure issues
-        uses: nick-fields/retry@7152eba30c6575329ac0576536151aca5a72780e # v3
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
         with:
           timeout_minutes: 20
           max_attempts: 3
