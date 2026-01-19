@@ -390,7 +390,7 @@ sympy==1.14.0
     # via torch
 termcolor==3.3.0
     # via pytest-sugar
-tifffile==2025.12.20
+tifffile==2026.1.14
     # via scikit-image
 tiktoken==0.12.0
     # via home-security-intelligence
