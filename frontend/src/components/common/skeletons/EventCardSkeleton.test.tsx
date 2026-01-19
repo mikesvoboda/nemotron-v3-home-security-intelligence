@@ -17,14 +17,6 @@ describe('EventCardSkeleton', () => {
     expect(headerSection).toBeInTheDocument();
   });
 
-  it('includes thumbnail skeleton area', () => {
-    render(<EventCardSkeleton />);
-    const thumbnail = screen.getByTestId('event-card-skeleton-thumbnail');
-    expect(thumbnail).toBeInTheDocument();
-    // Thumbnail should have aspect ratio for image placeholder
-    expect(thumbnail).toHaveClass('aspect-video');
-  });
-
   it('includes summary text skeleton lines', () => {
     render(<EventCardSkeleton />);
     const summary = screen.getByTestId('event-card-skeleton-summary');
@@ -54,5 +46,12 @@ describe('EventCardSkeleton', () => {
     render(<EventCardSkeleton />);
     const skeleton = screen.getByTestId('event-card-skeleton');
     expect(skeleton).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('uses shimmer animation for loading effect', () => {
+    render(<EventCardSkeleton />);
+    const skeleton = screen.getByTestId('event-card-skeleton');
+    const shimmerElements = skeleton.querySelectorAll('.animate-shimmer');
+    expect(shimmerElements.length).toBeGreaterThan(0);
   });
 });

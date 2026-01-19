@@ -28,4 +28,11 @@ describe('EntityCardSkeleton', () => {
     const skeleton = screen.getByTestId('entity-card-skeleton');
     expect(skeleton).toHaveAttribute('aria-hidden', 'true');
   });
+
+  it('uses shimmer animation for loading effect', () => {
+    render(<EntityCardSkeleton />);
+    const skeleton = screen.getByTestId('entity-card-skeleton');
+    const shimmerElements = skeleton.querySelectorAll('.animate-shimmer');
+    expect(shimmerElements.length).toBeGreaterThan(0);
+  });
 });
