@@ -70,6 +70,11 @@ from backend.core.docker_client import DockerClient
 from backend.core.logging import enable_deferred_db_logging, redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
 from backend.core.telemetry import setup_telemetry, shutdown_telemetry
+from backend.jobs.summary_job import (
+    SummaryJobScheduler,
+    get_summary_job_scheduler,
+    reset_summary_job_scheduler,
+)
 from backend.models.camera import Camera
 from backend.models.enums import CameraStatus
 from backend.services.background_evaluator import BackgroundEvaluator
@@ -99,11 +104,6 @@ from backend.services.worker_supervisor import (
     SupervisorConfig,
     get_worker_supervisor,
     reset_worker_supervisor,
-)
-from backend.jobs.summary_job import (
-    SummaryJobScheduler,
-    get_summary_job_scheduler,
-    reset_summary_job_scheduler,
 )
 
 # Graceful shutdown event - set when SIGTERM/SIGINT is received
