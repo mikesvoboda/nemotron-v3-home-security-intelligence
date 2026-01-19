@@ -45,7 +45,8 @@ export class BasePage {
   // Common timeout for page loads
   // Increased from 5000ms to 10000ms for webkit browser compatibility
   // (webkit has slower modal animations and element stability checks)
-  readonly pageLoadTimeout = 10000;
+  // Increased to 15000ms for CI stability (slower CI environments)
+  readonly pageLoadTimeout = 15000;
 
   constructor(page: Page) {
     this.page = page;

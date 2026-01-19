@@ -113,6 +113,12 @@ interface CustomMatchers<R = unknown> {
    * @param collectionKey The key containing the data array (e.g., 'events', 'cameras')
    */
   toBeValidPaginatedResponse(collectionKey: string): R;
+
+  /**
+   * Assert that axe accessibility results have no violations.
+   * Used with vitest-axe for accessibility testing.
+   */
+  toHaveNoViolations(): R;
 }
 
 // Augment Vitest's expect with custom matchers
