@@ -234,7 +234,7 @@ class HealthMonitor:
         # HTTP health check
         if service.health_endpoint:
             return await check_http_health(
-                host="localhost",
+                host=service.name,
                 port=service.port,
                 endpoint=service.health_endpoint,
                 timeout=float(self._settings.health_check_timeout),

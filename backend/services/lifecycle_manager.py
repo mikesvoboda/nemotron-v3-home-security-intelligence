@@ -136,8 +136,10 @@ class LifecycleManager:
 
         Checks:
         1. Service is enabled
-        2. Failure count is below max_failures
-        3. Backoff period has elapsed since last failure
+        2. Backoff period has elapsed since last failure
+
+        Note: Services are never permanently disabled due to failures.
+        They continue retrying with exponential backoff (capped at max_backoff).
 
         Args:
             service: The ManagedService to check.
@@ -147,10 +149,6 @@ class LifecycleManager:
         """
         # Disabled services should not restart
         if not service.enabled:
-            return False
-
-        # At or above max failures - service should be disabled
-        if service.failure_count >= service.max_failures:
             return False
 
         # If no prior failure, restart is allowed
@@ -317,9 +315,11 @@ class LifecycleManager:
         """Handle an unhealthy service.
 
         Increments failure count and either:
-        - Disables the service if max_failures reached
         - Restarts the service if backoff has elapsed (based on PREVIOUS failure)
         - Skips restart if still in backoff period
+
+        Services are never permanently disabled due to failures. They continue
+        retrying with exponential backoff (capped at max_backoff).
 
         The backoff check happens BEFORE updating last_failure_at, so we're
         checking if enough time has elapsed since the previous failure.
@@ -334,17 +334,12 @@ class LifecycleManager:
         # Now increment failure count
         new_count = self.registry.increment_failure(service.name)
 
-        if new_count >= service.max_failures:
-            # Disable service
-            self.registry.update_status(service.name, ContainerServiceStatus.DISABLED)
-            self.registry.set_enabled(service.name, False)
-            await self.registry.persist_state(service.name)
-
-            if self.on_disabled:
-                await self.on_disabled(service)
-
-            logger.error(f"Service {service.name} disabled after {new_count} failures")
-            return
+        # Log warning when exceeding max_failures threshold (but keep retrying)
+        if new_count == service.max_failures:
+            logger.warning(
+                f"Service {service.name} exceeded {service.max_failures} failures, "
+                f"continuing recovery attempts with {service.restart_backoff_max}s max backoff"
+            )
 
         # Update service's failure_count and timestamp AFTER checking restart
         service.failure_count = new_count

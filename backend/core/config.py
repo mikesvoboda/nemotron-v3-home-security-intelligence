@@ -258,6 +258,18 @@ class OrchestratorSettings(BaseSettings):
         le=65535,
         description="Blackbox Exporter container service port for health checks.",
     )
+    jaeger_port: int = Field(
+        16686,
+        ge=1,
+        le=65535,
+        description="Jaeger UI container service port for health checks.",
+    )
+    frontend_port: int = Field(
+        8080,
+        ge=1,
+        le=65535,
+        description="Frontend container internal service port for health checks.",
+    )
 
     # Monitoring feature flag
     monitoring_enabled: bool = Field(
