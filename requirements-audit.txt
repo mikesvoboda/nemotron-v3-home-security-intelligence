@@ -346,7 +346,7 @@ pyyaml==6.0.3
     #   uvicorn
 redis==7.1.0
     # via home-security-intelligence
-regex==2025.11.3
+regex==2026.1.15
     # via
     #   open-clip-torch
     #   tiktoken
