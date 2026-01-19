@@ -580,9 +580,17 @@ async def get_event_stats(
         for camera_id, camera_name, event_count in camera_stats_rows
     ]
 
+    # Build risk_distribution array for Grafana compatibility
+    risk_distribution = [
+        {"risk_level": level, "count": count}
+        for level, count in risk_level_counts.items()
+        if count > 0
+    ]
+
     response = {
         "total_events": total_events,
         "events_by_risk_level": risk_level_counts,
+        "risk_distribution": risk_distribution,
         "events_by_camera": events_by_camera,
     }
 
