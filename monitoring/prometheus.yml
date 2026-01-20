@@ -263,6 +263,14 @@ scrape_configs:
       - targets:
           - 'json-exporter:7979'
 
+  # Alertmanager metrics
+  # Exposes alertmanager_alerts, alertmanager_notifications_*, alertmanager_config_*
+  - job_name: 'alertmanager'
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - 'alertmanager:9093'
+
   # =============================================================================
   # Blackbox Exporter - Synthetic Monitoring (NEM-1637)
   # =============================================================================

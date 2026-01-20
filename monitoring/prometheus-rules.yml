@@ -30,106 +30,60 @@ groups:
         expr: |
           avg_over_time(probe_success{job="blackbox-http-ready"}[30d])
 
-  # Detection Latency SLI
-  # Uses hsi_stage_duration_seconds_bucket with stage="detect"
-  - name: detection_latency_sli
-    interval: 30s
-    rules:
-      # P95 detection latency using stage duration histogram
-      - record: hsi:detection_latency:p95_5m
-        expr: |
-          histogram_quantile(0.95,
-            sum(rate(hsi_stage_duration_seconds_bucket{stage="detect"}[5m])) by (le)
-          )
+  # =============================================================================
+  # NOTE: The following SLI groups are disabled because their underlying metrics
+  # are not yet implemented in backend/core/metrics.py:
+  # - detection_latency_sli (needs hsi_stage_duration_seconds_bucket{stage="detect"})
+  # - analysis_latency_sli (needs hsi_stage_duration_seconds_bucket{stage="analyze"})
+  # - event_processing_sli (needs hsi_event_processing_duration_seconds_bucket)
+  # - websocket_availability_sli (needs hsi_websocket_* metrics)
+  #
+  # To re-enable, implement the metrics and uncomment the groups below.
+  # =============================================================================
 
-      - record: hsi:detection_latency:p99_5m
-        expr: |
-          histogram_quantile(0.99,
-            sum(rate(hsi_stage_duration_seconds_bucket{stage="detect"}[5m])) by (le)
-          )
+  # Detection Latency SLI - DISABLED (metrics not implemented)
+  # - name: detection_latency_sli
+  #   interval: 30s
+  #   rules:
+  #     - record: hsi:detection_latency:p95_5m
+  #       expr: histogram_quantile(0.95, sum(rate(hsi_stage_duration_seconds_bucket{stage="detect"}[5m])) by (le))
+  #     - record: hsi:detection_latency:p99_5m
+  #       expr: histogram_quantile(0.99, sum(rate(hsi_stage_duration_seconds_bucket{stage="detect"}[5m])) by (le))
+  #     - record: hsi:detection:success_rate_5m
+  #       expr: 1 - (sum(rate(hsi_pipeline_errors_total{stage="detect"}[5m])) / (sum(rate(hsi_detections_processed_total[5m])) + 0.001))
+  #     - record: hsi:detection_latency:within_slo_rate5m
+  #       expr: sum(rate(hsi_stage_duration_seconds_bucket{stage="detect",le="2"}[5m])) / (sum(rate(hsi_stage_duration_seconds_count{stage="detect"}[5m])) + 0.001)
 
-      # Detection success rate based on processed vs errors
-      - record: hsi:detection:success_rate_5m
-        expr: |
-          1 - (
-            sum(rate(hsi_pipeline_errors_total{stage="detect"}[5m]))
-            /
-            (sum(rate(hsi_detections_processed_total[5m])) + 0.001)
-          )
+  # Analysis Latency SLI - DISABLED (metrics not implemented)
+  # - name: analysis_latency_sli
+  #   interval: 30s
+  #   rules:
+  #     - record: hsi:analysis_latency:p95_5m
+  #       expr: histogram_quantile(0.95, sum(rate(hsi_stage_duration_seconds_bucket{stage="analyze"}[5m])) by (le))
+  #     - record: hsi:analysis_latency:p99_5m
+  #       expr: histogram_quantile(0.99, sum(rate(hsi_stage_duration_seconds_bucket{stage="analyze"}[5m])) by (le))
+  #     - record: hsi:analysis:success_rate_5m
+  #       expr: 1 - (sum(rate(hsi_pipeline_errors_total{stage="analyze"}[5m])) / (sum(rate(hsi_events_created_total[5m])) + 0.001))
+  #     - record: hsi:analysis_latency:within_slo_rate5m
+  #       expr: sum(rate(hsi_stage_duration_seconds_bucket{stage="analyze",le="30"}[5m])) / (sum(rate(hsi_stage_duration_seconds_count{stage="analyze"}[5m])) + 0.001)
 
-      # Detection within SLO (< 2s)
-      - record: hsi:detection_latency:within_slo_rate5m
-        expr: |
-          sum(rate(hsi_stage_duration_seconds_bucket{stage="detect",le="2"}[5m]))
-          /
-          (sum(rate(hsi_stage_duration_seconds_count{stage="detect"}[5m])) + 0.001)
+  # Event Processing SLI - DISABLED (metrics not implemented)
+  # - name: event_processing_sli
+  #   interval: 30s
+  #   rules:
+  #     - record: hsi:event_processing_latency:p95_5m
+  #       expr: histogram_quantile(0.95, sum(rate(hsi_event_processing_duration_seconds_bucket[5m])) by (le))
+  #     - record: hsi:event_processing_latency:within_slo_rate5m
+  #       expr: sum(rate(hsi_event_processing_duration_seconds_bucket{le="5"}[5m])) / sum(rate(hsi_event_processing_duration_seconds_count[5m]))
 
-  # Analysis Latency SLI
-  # Uses hsi_stage_duration_seconds_bucket with stage="analyze"
-  - name: analysis_latency_sli
-    interval: 30s
-    rules:
-      # P95 analysis latency using stage duration histogram
-      - record: hsi:analysis_latency:p95_5m
-        expr: |
-          histogram_quantile(0.95,
-            sum(rate(hsi_stage_duration_seconds_bucket{stage="analyze"}[5m])) by (le)
-          )
-
-      - record: hsi:analysis_latency:p99_5m
-        expr: |
-          histogram_quantile(0.99,
-            sum(rate(hsi_stage_duration_seconds_bucket{stage="analyze"}[5m])) by (le)
-          )
-
-      # Analysis success rate based on events created vs errors
-      - record: hsi:analysis:success_rate_5m
-        expr: |
-          1 - (
-            sum(rate(hsi_pipeline_errors_total{stage="analyze"}[5m]))
-            /
-            (sum(rate(hsi_events_created_total[5m])) + 0.001)
-          )
-
-      # Analysis within SLO (< 30s)
-      - record: hsi:analysis_latency:within_slo_rate5m
-        expr: |
-          sum(rate(hsi_stage_duration_seconds_bucket{stage="analyze",le="30"}[5m]))
-          /
-          (sum(rate(hsi_stage_duration_seconds_count{stage="analyze"}[5m])) + 0.001)
-
-  # Event Processing SLI
-  - name: event_processing_sli
-    interval: 30s
-    rules:
-      # P95 event processing latency
-      - record: hsi:event_processing_latency:p95_5m
-        expr: |
-          histogram_quantile(0.95,
-            sum(rate(hsi_event_processing_duration_seconds_bucket[5m])) by (le)
-          )
-
-      # Event processing within SLO (< 5s)
-      - record: hsi:event_processing_latency:within_slo_rate5m
-        expr: |
-          sum(rate(hsi_event_processing_duration_seconds_bucket{le="5"}[5m]))
-          /
-          sum(rate(hsi_event_processing_duration_seconds_count[5m]))
-
-  # WebSocket Availability SLI
-  - name: websocket_availability_sli
-    interval: 30s
-    rules:
-      # WebSocket connection success rate
-      - record: hsi:websocket:connection_success_rate_5m
-        expr: |
-          sum(rate(hsi_websocket_connections_successful[5m]))
-          /
-          sum(rate(hsi_websocket_connection_attempts[5m]))
-
-      # Active WebSocket connections
-      - record: hsi:websocket:active_connections
-        expr: sum(hsi_websocket_active_connections)
+  # WebSocket Availability SLI - DISABLED (metrics not implemented)
+  # - name: websocket_availability_sli
+  #   interval: 30s
+  #   rules:
+  #     - record: hsi:websocket:connection_success_rate_5m
+  #       expr: sum(rate(hsi_websocket_connections_successful[5m])) / sum(rate(hsi_websocket_connection_attempts[5m]))
+  #     - record: hsi:websocket:active_connections
+  #       expr: sum(hsi_websocket_active_connections)
 
   # Infrastructure Health SLI
   - name: infrastructure_health_sli
@@ -167,23 +121,13 @@ groups:
             (1 - 0.995)
           )
 
-      # Detection latency error budget remaining (target: 95% within SLO)
-      - record: hsi:error_budget:detection_latency_remaining
-        expr: |
-          1 - (
-            (1 - hsi:detection_latency:within_slo_rate5m)
-            /
-            (1 - 0.95)
-          )
+      # Detection latency error budget remaining - DISABLED (depends on hsi:detection_latency:within_slo_rate5m)
+      # - record: hsi:error_budget:detection_latency_remaining
+      #   expr: 1 - ((1 - hsi:detection_latency:within_slo_rate5m) / (1 - 0.95))
 
-      # Analysis latency error budget remaining (target: 95% within SLO)
-      - record: hsi:error_budget:analysis_latency_remaining
-        expr: |
-          1 - (
-            (1 - hsi:analysis_latency:within_slo_rate5m)
-            /
-            (1 - 0.95)
-          )
+      # Analysis latency error budget remaining - DISABLED (depends on hsi:analysis_latency:within_slo_rate5m)
+      # - record: hsi:error_budget:analysis_latency_remaining
+      #   expr: 1 - ((1 - hsi:analysis_latency:within_slo_rate5m) / (1 - 0.95))
 
   # Burn Rate Calculations
   - name: burn_rate
@@ -202,20 +146,14 @@ groups:
         expr: |
           (1 - hsi:api_availability:ratio_rate1d) / (1 - 0.995)
 
-      # Detection latency burn rates
-      - record: hsi:burn_rate:detection_latency_1h
-        expr: |
-          (1 - avg_over_time(hsi:detection_latency:within_slo_rate5m[1h])) / (1 - 0.95)
+      # Detection latency burn rates - DISABLED (depends on hsi:detection_latency:within_slo_rate5m)
+      # - record: hsi:burn_rate:detection_latency_1h
+      #   expr: (1 - avg_over_time(hsi:detection_latency:within_slo_rate5m[1h])) / (1 - 0.95)
+      # - record: hsi:burn_rate:detection_latency_6h
+      #   expr: (1 - avg_over_time(hsi:detection_latency:within_slo_rate5m[6h])) / (1 - 0.95)
 
-      - record: hsi:burn_rate:detection_latency_6h
-        expr: |
-          (1 - avg_over_time(hsi:detection_latency:within_slo_rate5m[6h])) / (1 - 0.95)
-
-      # Analysis latency burn rates
-      - record: hsi:burn_rate:analysis_latency_1h
-        expr: |
-          (1 - avg_over_time(hsi:analysis_latency:within_slo_rate5m[1h])) / (1 - 0.95)
-
-      - record: hsi:burn_rate:analysis_latency_6h
-        expr: |
-          (1 - avg_over_time(hsi:analysis_latency:within_slo_rate5m[6h])) / (1 - 0.95)
+      # Analysis latency burn rates - DISABLED (depends on hsi:analysis_latency:within_slo_rate5m)
+      # - record: hsi:burn_rate:analysis_latency_1h
+      #   expr: (1 - avg_over_time(hsi:analysis_latency:within_slo_rate5m[1h])) / (1 - 0.95)
+      # - record: hsi:burn_rate:analysis_latency_6h
+      #   expr: (1 - avg_over_time(hsi:analysis_latency:within_slo_rate5m[6h])) / (1 - 0.95)
