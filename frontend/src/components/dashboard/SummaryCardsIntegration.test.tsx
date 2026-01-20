@@ -161,9 +161,9 @@ describe('SummaryCards Integration', () => {
 
       render(<SummaryCardsWithHook />, { wrapper: Wrapper });
 
-      // Initially shows loading state
-      expect(screen.getByTestId('summary-card-hourly-loading')).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-daily-loading')).toBeInTheDocument();
+      // Initially shows loading state (now uses SummaryCardSkeleton)
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
       // Wait for data to load
       await waitFor(() => {
@@ -213,12 +213,12 @@ describe('SummaryCards Integration', () => {
       render(<SummaryCardsWithHook />, { wrapper: Wrapper });
 
       await waitFor(() => {
-        expect(screen.getByTestId('summary-card-hourly-empty')).toBeInTheDocument();
-        expect(screen.getByTestId('summary-card-daily-empty')).toBeInTheDocument();
+        expect(screen.getByTestId('summary-card-empty-hourly')).toBeInTheDocument();
+        expect(screen.getByTestId('summary-card-empty-daily')).toBeInTheDocument();
       });
 
-      // Should show empty state messages
-      const emptyMessages = screen.getAllByText(/No summary available/);
+      // Should show empty state messages (now uses SummaryCardEmpty)
+      const emptyMessages = screen.getAllByText('No activity to summarize');
       expect(emptyMessages).toHaveLength(2);
     });
 
@@ -234,7 +234,7 @@ describe('SummaryCards Integration', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('summary-card-hourly')).toBeInTheDocument();
-        expect(screen.getByTestId('summary-card-daily-empty')).toBeInTheDocument();
+        expect(screen.getByTestId('summary-card-empty-daily')).toBeInTheDocument();
       });
 
       // Hourly should show content container (content may be parsed into bullet points)
@@ -468,8 +468,8 @@ describe('SummaryCards Integration', () => {
 
       render(<SummaryCardsWithHook />, { wrapper: Wrapper });
 
-      // Initially shows loading
-      expect(screen.getByTestId('summary-card-hourly-loading')).toBeInTheDocument();
+      // Initially shows loading (now uses SummaryCardSkeleton)
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
 
       // Eventually shows error
       await waitFor(
@@ -493,16 +493,15 @@ describe('SummaryCards Integration', () => {
 
       render(<SummaryCardsWithHook />, { wrapper: Wrapper });
 
-      // Both cards should show loading state
-      expect(screen.getByTestId('summary-card-hourly-loading')).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-daily-loading')).toBeInTheDocument();
+      // Both cards should show loading state (now uses SummaryCardSkeleton)
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
-      // Loading skeletons should have animation
-      const skeletons = screen.getAllByTestId('loading-skeleton');
-      expect(skeletons).toHaveLength(2);
-      skeletons.forEach((skeleton) => {
-        expect(skeleton).toHaveClass('animate-pulse');
-      });
+      // Loading skeletons should have role="status" for accessibility
+      const skeletonHourly = screen.getByTestId('summary-card-skeleton-hourly');
+      const skeletonDaily = screen.getByTestId('summary-card-skeleton-daily');
+      expect(skeletonHourly).toHaveAttribute('role', 'status');
+      expect(skeletonDaily).toHaveAttribute('role', 'status');
     });
 
     it('transitions from loading to data state correctly', async () => {
@@ -517,9 +516,9 @@ describe('SummaryCards Integration', () => {
 
       render(<SummaryCardsWithHook />, { wrapper: Wrapper });
 
-      // Verify loading state
-      expect(screen.getByTestId('summary-card-hourly-loading')).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-daily-loading')).toBeInTheDocument();
+      // Verify loading state (now uses SummaryCardSkeleton)
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
       // Resolve the promise
       act(() => {
@@ -533,8 +532,8 @@ describe('SummaryCards Integration', () => {
       });
 
       // Loading skeletons should be gone
-      expect(screen.queryByTestId('summary-card-hourly-loading')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('summary-card-daily-loading')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('summary-card-skeleton-hourly')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('summary-card-skeleton-daily')).not.toBeInTheDocument();
     });
 
     it('shows both loading skeletons with proper styling', () => {
@@ -547,14 +546,13 @@ describe('SummaryCards Integration', () => {
 
       render(<SummaryCardsWithHook />, { wrapper: Wrapper });
 
-      // Check loading state styling
-      const loadingCards = screen.getAllByTestId(/summary-card-(hourly|daily)-loading/);
+      // Check loading state styling (now uses SummaryCardSkeleton)
+      const loadingCards = screen.getAllByTestId(/summary-card-skeleton-(hourly|daily)/);
       expect(loadingCards).toHaveLength(2);
 
-      // Each loading card should have gray accent bar (indicating loading state)
+      // Each loading card should have gray border (indicating loading state)
       loadingCards.forEach((card) => {
-        const accentBar = card.querySelector('[data-testid="accent-bar"]');
-        expect(accentBar).toHaveStyle({ backgroundColor: 'rgb(209, 213, 219)' }); // gray-300
+        expect(card).toHaveStyle({ borderLeftColor: 'rgb(209, 213, 219)' }); // gray-300
       });
     });
   });

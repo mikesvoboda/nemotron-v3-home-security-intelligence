@@ -15,6 +15,9 @@ import { useMemo } from 'react';
 
 import { SeverityBadge } from './SeverityBadge';
 import { SummaryBulletList } from './SummaryBulletList';
+import { SummaryCardEmpty } from './SummaryCardEmpty';
+import { SummaryCardError } from './SummaryCardError';
+import { SummaryCardSkeleton } from './SummaryCardSkeleton';
 
 import type { Summary, SummaryBulletPoint, SummaryType } from '@/types/summary';
 
@@ -32,8 +35,16 @@ interface SummaryCardProps {
   summary: Summary | null;
   /** Whether the summary is loading */
   isLoading?: boolean;
+  /** Error that occurred while fetching summary */
+  error?: Error | string | null;
+  /** Callback to retry loading the summary after an error */
+  onRetry?: () => void;
+  /** Whether a retry is currently in progress */
+  isRetrying?: boolean;
   /** Callback when "View Full Summary" is clicked */
   onViewFull?: (summary: Summary) => void;
+  /** Callback to navigate to events (for empty state) */
+  onViewEvents?: () => void;
 }
 
 /**
@@ -48,7 +59,16 @@ function formatTimeWindow(type: SummaryType): string {
 /**
  * Single summary card component.
  */
-export function SummaryCard({ type, summary, isLoading, onViewFull }: SummaryCardProps) {
+export function SummaryCard({
+  type,
+  summary,
+  isLoading,
+  error,
+  onRetry,
+  isRetrying,
+  onViewFull,
+  onViewEvents,
+}: SummaryCardProps) {
   const isHourly = type === 'hourly';
   const title = isHourly ? 'Hourly Summary' : 'Daily Summary';
   const Icon = isHourly ? Clock : Calendar;
@@ -89,77 +109,27 @@ export function SummaryCard({ type, summary, isLoading, onViewFull }: SummaryCar
   // Determine whether to show bullet list or prose fallback
   const hasBulletPoints = bulletPoints.length > 0;
 
-  // Loading state
+  // Loading state - use SummaryCardSkeleton component
   if (isLoading) {
+    return <SummaryCardSkeleton type={type} />;
+  }
+
+  // Error state - use SummaryCardError component
+  if (error && onRetry) {
     return (
-      <Card
-        className="relative mb-4 overflow-hidden border-gray-800 bg-[#1A1A1A] pl-4"
-        data-testid={`summary-card-${type}-loading`}
-      >
-        {/* Left accent bar - gray for loading */}
-        <div
-          className="absolute bottom-0 left-0 top-0 w-1"
-          style={{ backgroundColor: '#d1d5db' }}
-          data-testid="accent-bar"
-        />
-
-        {/* Header */}
-        <div className="mb-3">
-          {/* Top row: placeholder badge + time window */}
-          <div className="mb-2 flex items-center justify-between">
-            <div className="h-6 w-24 animate-pulse rounded-full bg-gray-700" />
-            <span className="text-xs text-gray-400">{formatTimeWindow(type)}</span>
-          </div>
-          {/* Title row */}
-          <div className="flex items-center gap-2">
-            <Icon className="h-5 w-5 text-gray-500" aria-hidden="true" />
-            <span className="text-sm font-medium text-gray-300">{title}</span>
-          </div>
-        </div>
-
-        {/* Content skeleton */}
-        <div className="animate-pulse" data-testid="loading-skeleton">
-          <div className="mb-2 h-4 w-3/4 rounded bg-gray-700" />
-          <div className="h-4 w-1/2 rounded bg-gray-700" />
-        </div>
-      </Card>
+      <SummaryCardError
+        type={type}
+        error={error}
+        onRetry={onRetry}
+        isRetrying={isRetrying}
+      />
     );
   }
 
-  // No summary available
+  // Empty state - show when no summary data is available
+  // Note: eventCount === 0 still shows the regular card with "ALL CLEAR" badge
   if (!summary) {
-    return (
-      <Card
-        className="relative mb-4 overflow-hidden border-gray-800 bg-[#1A1A1A] pl-4"
-        data-testid={`summary-card-${type}-empty`}
-      >
-        {/* Left accent bar - gray for empty */}
-        <div
-          className="absolute bottom-0 left-0 top-0 w-1"
-          style={{ backgroundColor: '#6b7280' }}
-          data-testid="accent-bar"
-        />
-
-        {/* Header */}
-        <div className="mb-3">
-          {/* Top row: No badge for empty state + time window */}
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs text-gray-500">No data</span>
-            <span className="text-xs text-gray-400">{formatTimeWindow(type)}</span>
-          </div>
-          {/* Title row */}
-          <div className="flex items-center gap-2">
-            <Icon className="h-5 w-5 text-gray-500" aria-hidden="true" />
-            <span className="text-sm font-medium text-gray-300">{title}</span>
-          </div>
-        </div>
-
-        {/* Empty state message */}
-        <Text className="italic text-gray-500">
-          No summary available yet. Summaries are generated every 5 minutes.
-        </Text>
-      </Card>
-    );
+    return <SummaryCardEmpty type={type} onViewEvents={onViewEvents} />;
   }
 
   // Build card class with optional critical animation
@@ -257,28 +227,72 @@ interface SummaryCardsProps {
   daily: Summary | null;
   /** Whether summaries are loading */
   isLoading?: boolean;
+  /** Error that occurred while fetching summaries */
+  error?: Error | null;
+  /** Callback to retry loading summaries after an error */
+  onRetry?: () => void;
+  /** Whether a retry is currently in progress */
+  isRetrying?: boolean;
   /** Callback when "View Full Summary" is clicked */
   onViewFull?: (summary: Summary) => void;
+  /** Callback to navigate to events (for empty state) */
+  onViewEvents?: () => void;
 }
 
 /**
  * Container component for both summary cards.
  *
  * Displays hourly summary on top, daily summary below.
+ * Handles loading, error, and empty states using dedicated state components.
  *
  * @example
  * ```tsx
  * function Dashboard() {
- *   const { hourly, daily, isLoading } = useSummaries();
- *   return <SummaryCards hourly={hourly} daily={daily} isLoading={isLoading} />;
+ *   const { hourly, daily, isLoading, error, refetch } = useSummaries();
+ *   return (
+ *     <SummaryCards
+ *       hourly={hourly}
+ *       daily={daily}
+ *       isLoading={isLoading}
+ *       error={error}
+ *       onRetry={refetch}
+ *     />
+ *   );
  * }
  * ```
  */
-export function SummaryCards({ hourly, daily, isLoading, onViewFull }: SummaryCardsProps) {
+export function SummaryCards({
+  hourly,
+  daily,
+  isLoading,
+  error,
+  onRetry,
+  isRetrying,
+  onViewFull,
+  onViewEvents,
+}: SummaryCardsProps) {
   return (
     <div className="space-y-4" data-testid="summary-cards">
-      <SummaryCard type="hourly" summary={hourly} isLoading={isLoading} onViewFull={onViewFull} />
-      <SummaryCard type="daily" summary={daily} isLoading={isLoading} onViewFull={onViewFull} />
+      <SummaryCard
+        type="hourly"
+        summary={hourly}
+        isLoading={isLoading}
+        error={error}
+        onRetry={onRetry}
+        isRetrying={isRetrying}
+        onViewFull={onViewFull}
+        onViewEvents={onViewEvents}
+      />
+      <SummaryCard
+        type="daily"
+        summary={daily}
+        isLoading={isLoading}
+        error={error}
+        onRetry={onRetry}
+        isRetrying={isRetrying}
+        onViewFull={onViewFull}
+        onViewEvents={onViewEvents}
+      />
     </div>
   );
 }

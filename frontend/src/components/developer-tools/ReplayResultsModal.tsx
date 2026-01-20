@@ -10,7 +10,7 @@
 import { clsx } from 'clsx';
 import { X, CheckCircle, AlertTriangle, XCircle, FileX } from 'lucide-react';
 
-import AnimatedModal from '../common/AnimatedModal';
+import ResponsiveModal from '../common/ResponsiveModal';
 
 import type { ReplayResponse } from '../../services/api';
 
@@ -102,11 +102,13 @@ export default function ReplayResultsModal({
   // No result state
   if (!result) {
     return (
-      <AnimatedModal
+      <ResponsiveModal
         isOpen={isOpen}
         onClose={onClose}
         size="lg"
         variant="slideUp"
+        mobileHeight="half"
+        title="Replay Results"
         aria-labelledby="replay-results-title"
       >
         <div className="p-6">
@@ -127,7 +129,7 @@ export default function ReplayResultsModal({
             <p className="mt-4 text-gray-400">No replay results available</p>
           </div>
         </div>
-      </AnimatedModal>
+      </ResponsiveModal>
     );
   }
 
@@ -144,11 +146,13 @@ export default function ReplayResultsModal({
   };
 
   return (
-    <AnimatedModal
+    <ResponsiveModal
       isOpen={isOpen}
       onClose={onClose}
       size="xl"
       variant="slideUp"
+      mobileHeight="full"
+      title="Replay Results"
       aria-labelledby="replay-results-title"
     >
       <div className="max-h-[80vh] overflow-y-auto p-6">
@@ -283,6 +287,6 @@ export default function ReplayResultsModal({
           </p>
         </div>
       </div>
-    </AnimatedModal>
+    </ResponsiveModal>
   );
 }

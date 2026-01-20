@@ -6,9 +6,11 @@ import EventCard from './EventCard';
 import EventClusterCard from './EventClusterCard';
 import EventDetailModal from './EventDetailModal';
 import EventListView, { type SortField, type SortDirection } from './EventListView';
-import ExportPanel from './ExportPanel';
 import FilterChips from './FilterChips';
+import MobileEventCard from './MobileEventCard';
+import { ExportButton } from '../ExportButton';
 import LiveActivitySection from './LiveActivitySection';
+import TimeGroupedEvents from './TimeGroupedEvents';
 import TimelineScrubber, { type TimeRange, type ZoomLevel } from './TimelineScrubber';
 import ViewToggle, { type ViewMode } from './ViewToggle';
 import { useEventsInfiniteQuery, type EventFilters } from '../../hooks/useEventsQuery';
@@ -20,7 +22,6 @@ import { usePaginationState } from '../../hooks/usePaginationState';
 import { useTimelineData } from '../../hooks/useTimelineData';
 import {
   bulkUpdateEvents,
-  exportEventsCSV,
   fetchCameras,
   searchEvents,
   updateEvent,
@@ -72,8 +73,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const [bulkActionError, setBulkActionError] = useState<string | null>(null);
 
   // State for export
-  const [exportLoading, setExportLoading] = useState(false);
-  const [showExportPanel, setShowExportPanel] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
   // State for view mode (grid vs list) - persisted in localStorage
@@ -437,26 +436,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     }
   };
 
-  // Handle export to CSV
-  const handleExport = async () => {
-    setExportLoading(true);
-    setBulkActionError(null);
-    try {
-      // Pass current filters to export (excluding pagination and object_type which isn't supported by export)
-      await exportEventsCSV({
-        camera_id: eventFilters.camera_id,
-        risk_level: eventFilters.risk_level,
-        start_date: eventFilters.start_date,
-        end_date: eventFilters.end_date,
-        reviewed: eventFilters.reviewed,
-      });
-    } catch (err) {
-      setBulkActionError(err instanceof Error ? err.message : 'Failed to export events');
-    } finally {
-      setExportLoading(false);
-    }
-  };
-
   // Apply sorting using functional pipeline pattern
   // Note: Confidence filtering would ideally be done server-side with detection data.
   // The filter UI still provides value as it indicates user intent and could be passed to backend.
@@ -624,6 +603,55 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     return Promise.resolve();
   }, [refetch]);
 
+  // Handle swipe left action (delete/archive event) - Mobile gesture (NEM-3070)
+  const handleSwipeLeft = useCallback(
+    async (eventId: string) => {
+      // For now, swipe left marks as reviewed (archive behavior)
+      // Future enhancement: could add delete confirmation modal
+      try {
+        await updateEvent(parseInt(eventId, 10), { reviewed: true });
+        void refetch();
+      } catch (err) {
+        console.error('Failed to archive event:', err);
+      }
+    },
+    [refetch]
+  );
+
+  // Handle swipe right action (mark as reviewed) - Mobile gesture (NEM-3070)
+  const handleSwipeRight = useCallback(
+    async (eventId: string) => {
+      try {
+        await updateEvent(parseInt(eventId, 10), { reviewed: true });
+        void refetch();
+      } catch (err) {
+        console.error('Failed to mark event as reviewed:', err);
+      }
+    },
+    [refetch]
+  );
+
+  // Convert API Event to MobileEventCard props (NEM-3070)
+  const getMobileEventCardProps = (event: Event) => {
+    const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
+
+    return {
+      id: String(event.id),
+      timestamp: event.started_at,
+      camera_name,
+      risk_score: event.risk_score || 0,
+      risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
+      summary: event.summary || 'No summary available',
+      thumbnail_url: event.thumbnail_url || undefined,
+      detections: [], // Detections not available in list view
+      started_at: event.started_at,
+      ended_at: event.ended_at,
+      onSwipeLeft: (id: string) => void handleSwipeLeft(id),
+      onSwipeRight: (id: string) => void handleSwipeRight(id),
+      onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
+    };
+  };
+
   // Convert API Event to ModalEvent format
   const getModalEvent = (): ModalEvent | null => {
     if (selectedEventForModal === null) return null;
@@ -765,50 +793,24 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                 )}
               </button>
 
-              {/* Quick Export Button */}
-              <button
-                onClick={() => void handleExport()}
-                disabled={exportLoading || totalCount === 0}
-                className="flex items-center gap-2 rounded-md border border-gray-700 bg-[#1A1A1A] px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-[#252525] disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Quick export events to CSV"
-                title="Quick export with current filters"
-              >
-                {exportLoading ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
-                    <span>Exporting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4" />
-                    <span>Quick Export</span>
-                  </>
-                )}
-              </button>
+              {/* Export Button with dropdown for CSV/JSON/ZIP formats (NEM-3066) */}
+              <ExportButton
+                cameraId={eventFilters.camera_id}
+                riskLevel={eventFilters.risk_level}
+                startDate={eventFilters.start_date}
+                endDate={eventFilters.end_date}
+                reviewed={eventFilters.reviewed}
+                disabled={totalCount === 0}
+              />
 
-              {/* Advanced Export Panel Toggle */}
-              <button
-                onClick={() => setShowExportPanel(!showExportPanel)}
-                className={`flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
-                  showExportPanel
-                    ? 'border-[#76B900] bg-[#76B900]/10 text-[#76B900]'
-                    : 'border-gray-700 bg-[#1A1A1A] text-gray-300 hover:border-gray-600 hover:bg-[#252525]'
-                }`}
-                aria-expanded={showExportPanel}
-                aria-label="Toggle advanced export options"
-              >
-                <Download className="h-4 w-4" />
-                <span>Advanced Export</span>
-              </button>
-
-              {/* Export Modal Button */}
+              {/* Export Modal Button for advanced options */}
               <button
                 onClick={() => setShowExportModal(true)}
                 className="flex items-center gap-2 rounded-md border border-gray-700 bg-[#1A1A1A] px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-[#252525]"
-                aria-label="Open export modal"
+                aria-label="Open export modal with more options"
               >
                 <Download className="h-4 w-4" />
-                <span>Export Modal</span>
+                <span>More Options</span>
               </button>
             </div>
 
@@ -1013,27 +1015,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
             )}
           </div>
 
-          {/* Advanced Export Panel */}
-          {showExportPanel && (
-            <div className="mb-6">
-              <ExportPanel
-                initialFilters={{
-                  camera_id: eventFilters.camera_id,
-                  risk_level: eventFilters.risk_level,
-                  start_date: eventFilters.start_date,
-                  end_date: eventFilters.end_date,
-                  reviewed: eventFilters.reviewed,
-                }}
-                onExportStart={() => setExportLoading(true)}
-                onExportComplete={(success) => {
-                  setExportLoading(false);
-                  if (!success) {
-                    // Error will be shown in the ExportPanel
-                  }
-                }}
-              />
-            </div>
-          )}
 
           {/* Results Summary and Bulk Actions */}
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1111,8 +1092,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                   </button>
                 )}
 
-                {/* Select All Checkbox - only show in grid view since list view has its own */}
-                {viewMode === 'grid' && (
+                {/* Select All Checkbox - show in grid and grouped views since list view has its own */}
+                {(viewMode === 'grid' || viewMode === 'grouped') && (
                   <button
                     onClick={handleToggleSelectAll}
                     className="flex items-center gap-2 rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-gray-600 hover:bg-[#252525]"
@@ -1260,6 +1241,33 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                   className="mt-6"
                 />
               </>
+            ) : viewMode === 'grouped' ? (
+              <>
+                {/* Grouped View - Events grouped by time period */}
+                <TimeGroupedEvents
+                  events={filteredEvents}
+                  cameraNameMap={cameraNameMap}
+                  selectedEventIds={selectedEventIds}
+                  onToggleSelection={handleToggleSelection}
+                  onEventClick={(eventId) => setSelectedEventForModal(eventId)}
+                  onViewEventDetails={onViewEventDetails}
+                  isLoading={loading}
+                />
+
+                {/* Infinite Scroll Status */}
+                <InfiniteScrollStatus
+                  sentinelRef={sentinelRef}
+                  isLoading={isFetchingNextPage || isLoadingMore}
+                  hasMore={hasNextPage}
+                  error={scrollError}
+                  onRetry={retry}
+                  totalCount={totalCount}
+                  loadedCount={filteredEvents.length}
+                  endMessage="You've seen all events"
+                  loadingMessage="Loading more events..."
+                  className="mt-6"
+                />
+              </>
             ) : (
               <>
                 {/* Grid View */}
@@ -1279,6 +1287,18 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
                     // Render regular event card for individual events
                     const event = item;
+
+                    // Mobile: Use MobileEventCard with swipe gestures (NEM-3070)
+                    if (isMobile) {
+                      return (
+                        <MobileEventCard
+                          key={event.id}
+                          {...getMobileEventCardProps(event)}
+                        />
+                      );
+                    }
+
+                    // Desktop: Use EventCard with selection checkbox
                     return (
                       <div key={event.id} className="relative">
                         {/* Selection Checkbox */}

@@ -5,10 +5,12 @@ import { PageDocsLink } from './PageDocsLink';
 import { useCommandPaletteContext } from '../../hooks/useCommandPaletteContext';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
+import { useSceneChangeAlerts } from '../../hooks/useSceneChangeAlerts';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
 import { useStorageStatusStore, CRITICAL_USAGE_THRESHOLD } from '../../stores/storage-status-store';
 import { WebSocketStatus } from '../common';
 import IconButton from '../common/IconButton';
+import SceneChangeAlert from '../common/SceneChangeAlert';
 
 /**
  * Get the dot color class based on health status
@@ -164,6 +166,13 @@ export default function Header() {
     refetchInterval: 30000, // Poll every 30 seconds
   });
   const { isCritical: isStorageCritical, status: storageStatus } = useStorageStatusStore();
+  const {
+    alerts: sceneChangeAlerts,
+    unacknowledgedCount: sceneChangeUnacknowledgedCount,
+    hasAlerts: hasSceneChangeAlerts,
+    dismissAlert: dismissSceneChangeAlert,
+    dismissAll: dismissAllSceneChangeAlerts,
+  } = useSceneChangeAlerts();
 
   // Derive status and isConnected from the connection status summary
   const isConnected = summary.allConnected;
@@ -274,6 +283,15 @@ export default function Header() {
 
         {/* Contextual documentation link */}
         <PageDocsLink />
+
+        {/* Scene Change Alerts */}
+        <SceneChangeAlert
+          alerts={sceneChangeAlerts}
+          unacknowledgedCount={sceneChangeUnacknowledgedCount}
+          hasAlerts={hasSceneChangeAlerts}
+          onDismiss={dismissSceneChangeAlert}
+          onDismissAll={dismissAllSceneChangeAlerts}
+        />
 
         {/* System Health Indicator with Tooltip */}
         <div

@@ -11,7 +11,7 @@ import { clsx } from 'clsx';
 import { X, Copy, Check, Loader2, AlertCircle } from 'lucide-react';
 import { useState, useCallback, useMemo } from 'react';
 
-import AnimatedModal from '../common/AnimatedModal';
+import ResponsiveModal from '../common/ResponsiveModal';
 
 import type { RecordingDetailResponse } from '../../services/api';
 
@@ -176,11 +176,13 @@ export default function RecordingDetailModal({
   }, [curlCommand]);
 
   return (
-    <AnimatedModal
+    <ResponsiveModal
       isOpen={isOpen}
       onClose={onClose}
       size="xl"
       variant="slideUp"
+      mobileHeight="full"
+      title="Recording Details"
       aria-labelledby="recording-detail-title"
     >
       <div className="max-h-[80vh] overflow-y-auto p-6">
@@ -353,6 +355,6 @@ export default function RecordingDetailModal({
           </div>
         )}
       </div>
-    </AnimatedModal>
+    </ResponsiveModal>
   );
 }

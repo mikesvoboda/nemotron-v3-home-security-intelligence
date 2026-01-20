@@ -37,14 +37,15 @@ describe('dashboardConfig store', () => {
 
   describe('DEFAULT_CONFIG', () => {
     it('has expected default widgets', () => {
-      expect(DEFAULT_CONFIG.widgets).toHaveLength(6);
+      expect(DEFAULT_CONFIG.widgets).toHaveLength(7);
       expect(DEFAULT_CONFIG.version).toBe(1);
     });
 
-    it('has stats-row, camera-grid, and activity-feed visible by default', () => {
+    it('has stats-row, ai-summary-row, camera-grid, and activity-feed visible by default', () => {
       const visibleWidgets = DEFAULT_CONFIG.widgets.filter((w) => w.visible);
       expect(visibleWidgets.map((w) => w.id)).toEqual([
         'stats-row',
+        'ai-summary-row',
         'camera-grid',
         'activity-feed',
       ]);
@@ -273,10 +274,11 @@ describe('dashboardConfig store', () => {
     it('swaps adjacent widgets correctly', () => {
       const config = { ...DEFAULT_CONFIG, widgets: [...DEFAULT_WIDGETS] };
 
+      // camera-grid is at index 2, ai-summary-row is at index 1
       const updated = moveWidgetUp(config, 'camera-grid');
 
-      expect(updated.widgets[0].id).toBe('camera-grid');
-      expect(updated.widgets[1].id).toBe('stats-row');
+      expect(updated.widgets[1].id).toBe('camera-grid');
+      expect(updated.widgets[2].id).toBe('ai-summary-row');
     });
   });
 
@@ -312,9 +314,10 @@ describe('dashboardConfig store', () => {
     it('swaps adjacent widgets correctly', () => {
       const config = { ...DEFAULT_CONFIG, widgets: [...DEFAULT_WIDGETS] };
 
+      // stats-row is at index 0, ai-summary-row is at index 1
       const updated = moveWidgetDown(config, 'stats-row');
 
-      expect(updated.widgets[0].id).toBe('camera-grid');
+      expect(updated.widgets[0].id).toBe('ai-summary-row');
       expect(updated.widgets[1].id).toBe('stats-row');
     });
   });
@@ -324,7 +327,7 @@ describe('dashboardConfig store', () => {
       const visibleWidgets = getVisibleWidgets(DEFAULT_CONFIG);
 
       expect(visibleWidgets.every((w) => w.visible)).toBe(true);
-      expect(visibleWidgets).toHaveLength(3);
+      expect(visibleWidgets).toHaveLength(4); // stats-row, ai-summary-row, camera-grid, activity-feed
     });
 
     it('returns empty array when no widgets are visible', () => {

@@ -233,7 +233,8 @@ describe('SummaryCards Accessibility Tests', () => {
       const activeElement = document.activeElement;
 
       // Should be able to tab to next element (not stuck in skeleton)
-      expect(activeElement).not.toBe(screen.getByTestId('summary-card-hourly-loading'));
+      // Now uses SummaryCardSkeleton component
+      expect(activeElement).not.toBe(screen.getByTestId('summary-card-skeleton-hourly'));
     });
 
     it('has no keyboard traps in empty state', async () => {
@@ -308,8 +309,10 @@ describe('SummaryCards Accessibility Tests', () => {
     it('loading state provides accessible text', () => {
       render(<SummaryCard type="hourly" summary={null} isLoading={true} />);
 
-      // Loading skeleton should be identifiable
-      expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
+      // Loading skeleton should be identifiable (now uses SummaryCardSkeleton)
+      const skeleton = screen.getByTestId('summary-card-skeleton-hourly');
+      expect(skeleton).toHaveAttribute('role', 'status');
+      expect(skeleton).toHaveAttribute('aria-label', 'Loading hourly summary');
 
       // Title should still be accessible during loading
       expect(screen.getByText('Hourly Summary')).toBeInTheDocument();
@@ -318,9 +321,9 @@ describe('SummaryCards Accessibility Tests', () => {
     it('empty state provides clear messaging', () => {
       render(<SummaryCard type="hourly" summary={null} isLoading={false} />);
 
-      // Empty state message should be accessible
-      expect(screen.getByText(/No summary available yet/)).toBeInTheDocument();
-      expect(screen.getByText(/Summaries are generated every 5 minutes/)).toBeInTheDocument();
+      // Empty state message should be accessible (now uses SummaryCardEmpty)
+      expect(screen.getByText('No activity to summarize')).toBeInTheDocument();
+      expect(screen.getByText(/No high-priority events detected/)).toBeInTheDocument();
     });
 
     it('View Full Summary button has descriptive text', () => {

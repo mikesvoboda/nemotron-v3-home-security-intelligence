@@ -471,7 +471,7 @@ exports[`TrustClassificationControls > Snapshots > renders lg size variant corre
       aria-label="Set trust status to Unknown"
       aria-pressed="true"
       class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-4 py-2 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
-      data-testid="trust-button-unknown"
+      data-testid="trust-button-unclassified"
       disabled=""
       type="button"
     >
@@ -647,7 +647,7 @@ exports[`TrustClassificationControls > Snapshots > renders loading state correct
       aria-label="Set trust status to Unknown"
       aria-pressed="true"
       class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
-      data-testid="trust-button-unknown"
+      data-testid="trust-button-unclassified"
       disabled=""
       type="button"
     >
@@ -832,7 +832,7 @@ exports[`TrustClassificationControls > Snapshots > renders md size variant corre
       aria-label="Set trust status to Unknown"
       aria-pressed="true"
       class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
-      data-testid="trust-button-unknown"
+      data-testid="trust-button-unclassified"
       disabled=""
       type="button"
     >
@@ -1046,7 +1046,7 @@ exports[`TrustClassificationControls > Snapshots > renders sm size variant corre
       aria-label="Set trust status to Unknown"
       aria-pressed="true"
       class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-xs px-2 py-1 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
-      data-testid="trust-button-unknown"
+      data-testid="trust-button-unclassified"
       disabled=""
       type="button"
     >
@@ -1218,7 +1218,7 @@ exports[`TrustClassificationControls > Snapshots > renders trusted status correc
       aria-label="Set trust status to Unknown"
       aria-pressed="false"
       class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-gray-600/20 text-gray-400 hover:bg-gray-600/30 border-gray-500/30"
-      data-testid="trust-button-unknown"
+      data-testid="trust-button-unclassified"
       type="button"
     >
       <svg
@@ -1250,7 +1250,7 @@ exports[`TrustClassificationControls > Snapshots > renders trusted status correc
 </div>
 `;
 
-exports[`TrustClassificationControls > Snapshots > renders unknown status correctly 1`] = `
+exports[`TrustClassificationControls > Snapshots > renders unclassified status correctly 1`] = `
 <div
   class="flex flex-col gap-3"
   data-testid="trust-classification-controls"
@@ -1391,7 +1391,7 @@ exports[`TrustClassificationControls > Snapshots > renders unknown status correc
       aria-label="Set trust status to Unknown"
       aria-pressed="true"
       class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 cursor-default border-[#76B900] bg-[#76B900]/10 text-[#76B900]"
-      data-testid="trust-button-unknown"
+      data-testid="trust-button-unclassified"
       disabled=""
       type="button"
     >
@@ -1566,7 +1566,7 @@ exports[`TrustClassificationControls > Snapshots > renders untrusted status corr
       aria-label="Set trust status to Unknown"
       aria-pressed="false"
       class="flex items-center gap-1.5 rounded-md border font-medium transition-colors text-sm px-3 py-1.5 bg-gray-600/20 text-gray-400 hover:bg-gray-600/30 border-gray-500/30"
-      data-testid="trust-button-unknown"
+      data-testid="trust-button-unclassified"
       type="button"
     >
       <svg

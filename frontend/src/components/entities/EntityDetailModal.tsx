@@ -1,6 +1,5 @@
 import { Dialog, Transition } from '@headlessui/react';
 import {
-  AlertTriangle,
   Camera,
   Car,
   ChevronLeft,
@@ -9,15 +8,13 @@ import {
   Eye,
   Image,
   Loader2,
-  RotateCcw,
-  Shield,
-  ShieldCheck,
   User,
   X,
 } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
 import EntityTimeline from './EntityTimeline';
+import TrustClassificationControls from './TrustClassificationControls';
 import { useEntityHistory } from '../../hooks/useEntityHistory';
 import { getDetectionImageUrl, getDetectionFullImageUrl } from '../../services/api';
 import IconButton from '../common/IconButton';
@@ -143,53 +140,15 @@ export default function EntityDetailModal({
     setLightboxOpen(true);
   }, []);
 
-  // Get trust status display info
-  const getTrustStatusInfo = (status: ApiTrustStatus) => {
-    switch (status) {
-      case 'trusted':
-        return {
-          label: 'Trusted',
-          icon: <ShieldCheck className="h-4 w-4" />,
-          className: 'bg-green-900/30 text-green-400 border border-green-600/40',
-          testId: 'trust-badge-trusted',
-        };
-      case 'untrusted':
-        return {
-          label: 'Suspicious',
-          icon: <AlertTriangle className="h-4 w-4" />,
-          className: 'bg-amber-900/30 text-amber-400 border border-amber-600/40',
-          testId: 'trust-badge-suspicious',
-        };
-      default:
-        return {
-          label: 'Unknown',
-          icon: <Shield className="h-4 w-4" />,
-          className: 'bg-gray-800 text-gray-400 border border-gray-700',
-          testId: 'trust-badge-unknown',
-        };
-    }
-  };
-
-  const trustInfo = getTrustStatusInfo(normalizedTrustStatus);
-
-  // Handle trust status button clicks
-  const handleMarkAsTrusted = useCallback(() => {
-    if (entity && onTrustStatusChange) {
-      onTrustStatusChange(entity.id, 'trusted');
-    }
-  }, [entity, onTrustStatusChange]);
-
-  const handleMarkAsSuspicious = useCallback(() => {
-    if (entity && onTrustStatusChange) {
-      onTrustStatusChange(entity.id, 'untrusted');
-    }
-  }, [entity, onTrustStatusChange]);
-
-  const handleResetTrustStatus = useCallback(() => {
-    if (entity && onTrustStatusChange) {
-      onTrustStatusChange(entity.id, 'unclassified');
-    }
-  }, [entity, onTrustStatusChange]);
+  // Handle trust status change - Promise-returning wrapper for TrustClassificationControls
+  const handleTrustStatusChange = useCallback(
+    async (entityId: string, newStatus: ApiTrustStatus): Promise<void> => {
+      if (onTrustStatusChange) {
+        await Promise.resolve(onTrustStatusChange(entityId, newStatus));
+      }
+    },
+    [onTrustStatusChange]
+  );
 
   // Format timestamp to relative time
   const formatTimestamp = (isoString: string): string => {
@@ -307,72 +266,16 @@ export default function EntityDetailModal({
                         <p className="mt-1 font-mono text-sm text-gray-400" data-testid="entity-id">
                           {entity.id}
                         </p>
-                        {/* Trust status badge */}
-                        <div className="mt-2 flex items-center gap-2">
-                          <span
-                            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${trustInfo.className}`}
-                            data-testid={trustInfo.testId}
-                          >
-                            {trustInfo.icon}
-                            {trustInfo.label}
-                          </span>
-                        </div>
-                        {/* Trust action buttons */}
-                        {onTrustStatusChange && (
-                          <div
-                            className="mt-3 flex flex-wrap items-center gap-2"
-                            data-testid="trust-action-buttons"
-                          >
-                            {normalizedTrustStatus !== 'trusted' && (
-                              <button
-                                onClick={handleMarkAsTrusted}
-                                disabled={isTrustUpdating}
-                                className="flex items-center gap-1.5 rounded-lg bg-green-900/30 px-3 py-1.5 text-xs font-medium text-green-400 transition-colors hover:bg-green-900/50 disabled:cursor-not-allowed disabled:opacity-50"
-                                data-testid="mark-as-trusted-button"
-                                aria-label="Mark entity as trusted"
-                              >
-                                {isTrustUpdating ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <ShieldCheck className="h-3.5 w-3.5" />
-                                )}
-                                Mark as Trusted
-                              </button>
-                            )}
-                            {normalizedTrustStatus !== 'untrusted' && (
-                              <button
-                                onClick={handleMarkAsSuspicious}
-                                disabled={isTrustUpdating}
-                                className="flex items-center gap-1.5 rounded-lg bg-amber-900/30 px-3 py-1.5 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-900/50 disabled:cursor-not-allowed disabled:opacity-50"
-                                data-testid="mark-as-suspicious-button"
-                                aria-label="Mark entity as suspicious"
-                              >
-                                {isTrustUpdating ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <AlertTriangle className="h-3.5 w-3.5" />
-                                )}
-                                Mark as Suspicious
-                              </button>
-                            )}
-                            {normalizedTrustStatus !== 'unclassified' && (
-                              <button
-                                onClick={handleResetTrustStatus}
-                                disabled={isTrustUpdating}
-                                className="flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
-                                data-testid="reset-trust-button"
-                                aria-label="Reset trust status to unknown"
-                              >
-                                {isTrustUpdating ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="h-3.5 w-3.5" />
-                                )}
-                                Reset
-                              </button>
-                            )}
-                          </div>
-                        )}
+                        {/* Trust Classification Controls */}
+                        <TrustClassificationControls
+                          currentStatus={normalizedTrustStatus}
+                          entityId={entity.id}
+                          onStatusChange={handleTrustStatusChange}
+                          isLoading={isTrustUpdating}
+                          readOnly={!onTrustStatusChange}
+                          size="sm"
+                          className="mt-3"
+                        />
                       </div>
                     </div>
 
