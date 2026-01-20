@@ -293,6 +293,7 @@ class TestAnalyzeBatchWithEnrichment:
 
         # Setup Redis mock
         mock_redis_client.get.side_effect = [
+            None,  # idempotency check returns None (no existing event)
             sample_camera.id,
             json.dumps(detection_ids),
         ]
@@ -352,6 +353,7 @@ class TestAnalyzeBatchWithEnrichment:
         detection_ids = [d.id for d in sample_detections]
 
         mock_redis_client.get.side_effect = [
+            None,  # idempotency check returns None (no existing event)
             sample_camera.id,
             json.dumps(detection_ids),
         ]
@@ -424,6 +426,7 @@ class TestAnalyzeBatchWithEnrichment:
         )
 
         mock_redis_client.get.side_effect = [
+            None,  # idempotency check returns None (no existing event)
             sample_camera.id,
             json.dumps(detection_ids),
         ]
@@ -593,6 +596,7 @@ class TestPromptFormattingWithEnrichment:
         detection_ids = [d.id for d in sample_detections]
 
         mock_redis_client.get.side_effect = [
+            None,  # idempotency check returns None (no existing event)
             sample_camera.id,
             json.dumps(detection_ids),
         ]
@@ -650,6 +654,7 @@ class TestPromptFormattingWithEnrichment:
         detection_ids = [d.id for d in sample_detections]
 
         mock_redis_client.get.side_effect = [
+            None,  # idempotency check returns None (no existing event)
             sample_camera.id,
             json.dumps(detection_ids),
         ]
@@ -699,6 +704,7 @@ class TestErrorHandlingWithEnrichment:
         detection_ids = [d.id for d in sample_detections]
 
         mock_redis_client.get.side_effect = [
+            None,  # idempotency check returns None (no existing event)
             sample_camera.id,
             json.dumps(detection_ids),
         ]
@@ -788,6 +794,7 @@ class TestEnrichmentPipelineIntegration:
         detection_ids = [d.id for d in sample_detections]
 
         mock_redis_client.get.side_effect = [
+            None,  # idempotency check returns None (no existing event)
             sample_camera.id,
             json.dumps(detection_ids),
         ]
@@ -837,6 +844,7 @@ class TestEnrichmentPipelineIntegration:
         detection_ids = [d.id for d in sample_detections]
 
         mock_redis_client.get.side_effect = [
+            None,  # idempotency check returns None (no existing event)
             sample_camera.id,
             json.dumps(detection_ids),
         ]
