@@ -88,6 +88,17 @@ groups:
   # GPU Alerts
   - name: gpu_alerts
     rules:
+      # Warning: GPU memory elevated (early warning)
+      - alert: HSIGPUMemoryElevated
+        expr: hsi:gpu:memory_utilization > 0.75
+        for: 10m
+        labels:
+          severity: warning
+          component: gpu
+        annotations:
+          summary: 'HSI GPU memory usage elevated'
+          description: 'GPU memory utilization is above 75% for more than 10 minutes.'
+
       # Critical: GPU memory critically high
       - alert: HSIGPUMemoryHigh
         expr: hsi:gpu:memory_utilization > 0.9
@@ -100,20 +111,10 @@ groups:
           description: 'GPU memory utilization is above 90% for more than 5 minutes. Risk of OOM errors.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-memory-high'
 
-      # Warning: GPU memory elevated
-      - alert: HSIGPUMemoryElevated
-        expr: hsi:gpu:memory_utilization > 0.95
-        for: 10m
-        labels:
-          severity: warning
-          component: gpu
-        annotations:
-          summary: 'HSI GPU memory usage elevated'
-          description: 'GPU memory utilization is above 95% for more than 10 minutes.'
-
       # Warning: GPU utilization low (potential issue)
+      # Uses hsi_total_detections (not hsi_detection_total which doesn't exist)
       - alert: HSIGPUUtilizationLow
-        expr: hsi:gpu:utilization < 10 and hsi_detection_total > 0
+        expr: hsi:gpu:utilization < 10 and hsi_total_detections > 0
         for: 15m
         labels:
           severity: warning
@@ -134,10 +135,11 @@ groups:
           description: 'GPU temperature is {{ $value }}°C, exceeding the 83°C throttling threshold. Performance is degraded.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-throttling'
 
-      # Critical: GPU clock degradation (>20% below baseline)
+      # Warning: GPU clock degradation (>20% below baseline)
+      # Uses hsi_gpu_sm_clock_mhz (not hsi_gpu_clock_speed_mhz which doesn't exist)
       - alert: AIGPUClockDegradation
         expr: |
-          hsi_gpu_clock_speed_mhz < 1200
+          hsi_gpu_sm_clock_mhz < 1200
           and
           hsi_gpu_utilization > 50
         for: 5m
@@ -148,20 +150,55 @@ groups:
           summary: 'GPU clock speed significantly degraded'
           description: 'GPU clock speed is {{ $value }}MHz while under load (>50% utilization). Expected ~1500MHz. Possible thermal or power throttling.'
 
-      # Critical: GPU power draw anomaly (too low = card not working)
-      - alert: AIGPUPowerAnomaly
-        expr: |
-          hsi_gpu_power_draw_watts < 30
-          and
-          hsi_gpu_utilization > 50
+      # Critical: GPU active throttling (any throttle reason)
+      - alert: AIGPUActiveThrottle
+        expr: hsi_gpu_throttle_reasons > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: gpu
+        annotations:
+          summary: 'GPU is actively throttling'
+          description: 'GPU throttle reasons bitmask is non-zero ({{ $value }}). Check for thermal, power, or other throttling.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-throttling'
+
+      # Critical: GPU PCIe replay errors (hardware issues)
+      - alert: AIGPUPCIeErrors
+        expr: increase(hsi_gpu_pcie_replay_counter[5m]) > 10
+        for: 1m
+        labels:
+          severity: critical
+          component: gpu
+        annotations:
+          summary: 'GPU PCIe replay errors increasing'
+          description: 'GPU experiencing {{ $value }} PCIe replay errors in 5 minutes. Indicates hardware/bus issues.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-pcie-errors'
+
+      # Critical: GPU fan failure (0% when temp high)
+      - alert: AIGPUFanFailure
+        expr: hsi_gpu_fan_speed == 0 and hsi_gpu_temperature > 50
         for: 2m
         labels:
           severity: critical
           component: gpu
         annotations:
-          summary: 'GPU power draw abnormally low under load'
-          description: 'GPU drawing only {{ $value }}W despite >50% utilization. Card may be malfunctioning.'
-          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-power-anomaly'
+          summary: 'GPU fan appears to have failed'
+          description: 'GPU fan speed is 0% while temperature is {{ $value }}°C. Risk of thermal damage.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-fan-failure'
+
+      # Warning: GPU not boosting under load (P-state stuck high)
+      - alert: AIGPUNotBoosting
+        expr: |
+          hsi_gpu_pstate > 2
+          and
+          hsi_gpu_utilization > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+        annotations:
+          summary: 'GPU not boosting under load'
+          description: 'GPU is in P-state {{ $value }} (low power) despite >50% utilization. Performance may be limited.'
 
   # Queue Alerts
   - name: queue_alerts
@@ -244,29 +281,18 @@ groups:
           description: 'API error rate is above 10% for more than 2 minutes.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/high-error-rate'
 
-      # Warning: Detection failures
-      - alert: HSIDetectionFailureRate
-        expr: |
-          1 - hsi:detection:success_rate_5m > 0.1
-        for: 5m
-        labels:
-          severity: warning
-          component: detection
-        annotations:
-          summary: 'HSI Detection failure rate elevated'
-          description: 'More than 10% of detections are failing for more than 5 minutes.'
-
-      # Warning: Analysis failures
-      - alert: HSIAnalysisFailureRate
-        expr: |
-          1 - hsi:analysis:success_rate_5m > 0.1
-        for: 5m
-        labels:
-          severity: warning
-          component: analysis
-        annotations:
-          summary: 'HSI Analysis failure rate elevated'
-          description: 'More than 10% of analyses are failing for more than 5 minutes.'
+      # NOTE: Detection and analysis failure rate alerts disabled
+      # These depend on hsi:detection:success_rate_5m and hsi:analysis:success_rate_5m recording rules
+      # which require hsi_pipeline_errors_total to have a 'stage' label (it has 'error_type' instead)
+      # Re-enable when metrics are updated in backend/core/metrics.py
+      # - alert: HSIDetectionFailureRate
+      #   expr: 1 - hsi:detection:success_rate_5m > 0.1
+      #   for: 5m
+      #   ...
+      # - alert: HSIAnalysisFailureRate
+      #   expr: 1 - hsi:analysis:success_rate_5m > 0.1
+      #   for: 5m
+      #   ...
 
   # SLO Burn Rate Alerts (Multi-window)
   - name: slo_burn_rate_alerts
@@ -677,6 +703,7 @@ groups:
   # =============================================================================
   # Monitor circuit breaker state to detect service degradation and cascading failures.
   # Circuit breaker states: 0=closed (healthy), 1=open (failing), 2=half-open (testing)
+  # Note: Metric uses 'exported_service' label, not 'service'
   - name: circuit_breaker_alerts
     rules:
       # Critical: Circuit breaker is open (service is failing)
@@ -686,10 +713,10 @@ groups:
         labels:
           severity: critical
           component: circuit_breaker
-          service: '{{ $labels.service }}'
+          service: '{{ $labels.exported_service }}'
         annotations:
-          summary: 'Circuit breaker OPEN for {{ $labels.service }}'
-          description: 'Circuit breaker for {{ $labels.service }} is in OPEN state, rejecting all calls. The downstream service has exceeded the failure threshold.'
+          summary: 'Circuit breaker OPEN for {{ $labels.exported_service }}'
+          description: 'Circuit breaker for {{ $labels.exported_service }} is in OPEN state, rejecting all calls. The downstream service has exceeded the failure threshold.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/circuit-breaker-open'
 
       # Warning: Circuit breaker stuck in half-open state
@@ -699,10 +726,10 @@ groups:
         labels:
           severity: warning
           component: circuit_breaker
-          service: '{{ $labels.service }}'
+          service: '{{ $labels.exported_service }}'
         annotations:
-          summary: 'Circuit breaker stuck in HALF-OPEN for {{ $labels.service }}'
-          description: 'Circuit breaker for {{ $labels.service }} has been in HALF-OPEN state for >5 minutes. Recovery probes may be failing consistently.'
+          summary: 'Circuit breaker stuck in HALF-OPEN for {{ $labels.exported_service }}'
+          description: 'Circuit breaker for {{ $labels.exported_service }} has been in HALF-OPEN state for >5 minutes. Recovery probes may be failing consistently.'
 
       # Critical: High circuit breaker trip rate (>3 trips in 15m)
       - alert: HSICircuitBreakerTripRate
@@ -712,39 +739,54 @@ groups:
         labels:
           severity: critical
           component: circuit_breaker
-          service: '{{ $labels.service }}'
+          service: '{{ $labels.exported_service }}'
         annotations:
-          summary: 'Circuit breaker for {{ $labels.service }} is flapping'
-          description: 'Circuit breaker for {{ $labels.service }} has changed state {{ $value }} times in 15 minutes. Service is unstable.'
+          summary: 'Circuit breaker for {{ $labels.exported_service }} is flapping'
+          description: 'Circuit breaker for {{ $labels.exported_service }} has changed state {{ $value }} times in 15 minutes. Service is unstable.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/circuit-breaker-flapping'
 
       # Warning: Circuit breaker failure rate increasing
+      # Uses circuit_breaker_calls_total with result label (not hsi_circuit_breaker_*_total)
       - alert: HSICircuitBreakerFailureRate
         expr: |
-          rate(hsi_circuit_breaker_failures_total[5m])
+          rate(circuit_breaker_calls_total{result="failure"}[5m])
           /
-          (rate(hsi_circuit_breaker_calls_total[5m]) + 0.001) > 0.3
+          (rate(circuit_breaker_calls_total[5m]) + 0.001) > 0.3
         for: 2m
         labels:
           severity: warning
           component: circuit_breaker
-          service: '{{ $labels.service }}'
+          service: '{{ $labels.exported_service }}'
         annotations:
-          summary: 'High failure rate for {{ $labels.service }}'
-          description: 'Circuit breaker for {{ $labels.service }} is seeing >30% failure rate. May trip soon.'
+          summary: 'High failure rate for {{ $labels.exported_service }}'
+          description: 'Circuit breaker for {{ $labels.exported_service }} is seeing >30% failure rate. May trip soon.'
+
+      # Critical: Multiple circuit breakers open simultaneously
+      - alert: HSIMultipleCircuitsOpen
+        expr: count(hsi_circuit_breaker_state == 1) >= 2
+        for: 1m
+        labels:
+          severity: critical
+          component: circuit_breaker
+        annotations:
+          summary: 'Multiple circuit breakers are OPEN simultaneously'
+          description: '{{ $value }} circuit breakers are in OPEN state. System is experiencing widespread service degradation.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/multiple-circuits-open'
 
   # =============================================================================
   # LLM/Inference Alerts
   # =============================================================================
   # Monitor LLM throughput, queue depth, and processing health.
+  # Note: Uses hsi_nemotron_tokens_output_total (not hsi_nemotron_tokens_generated_total)
+  # Note: Uses hsi_analysis_queue_depth (not hsi_nemotron_queue_depth which doesn't exist)
   - name: llm_inference_alerts
     rules:
       # Critical: LLM inference throughput is zero
       - alert: NemotronThroughputZero
         expr: |
-          rate(hsi_nemotron_tokens_generated_total[5m]) == 0
+          rate(hsi_nemotron_tokens_output_total[5m]) == 0
           and
-          hsi_nemotron_queue_depth > 0
+          hsi_analysis_queue_depth > 0
         for: 2m
         labels:
           severity: critical
@@ -752,15 +794,15 @@ groups:
           service: nemotron
         annotations:
           summary: 'Nemotron LLM generating zero tokens with queued work'
-          description: 'Nemotron has items queued ({{ $labels.queue_depth }}) but is not generating any tokens. LLM inference may be stuck.'
+          description: 'Nemotron has items queued but is not generating any tokens. LLM inference may be stuck.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/llm-throughput-zero'
 
-      # Warning: LLM throughput degraded (>50% drop)
+      # Warning: LLM throughput degraded
       - alert: NemotronThroughputDegraded
         expr: |
-          rate(hsi_nemotron_tokens_generated_total[5m]) < 100
+          hsi_nemotron_tokens_per_second < 50
           and
-          hsi_nemotron_queue_depth > 5
+          hsi_analysis_queue_depth > 5
         for: 5m
         labels:
           severity: warning
@@ -768,7 +810,7 @@ groups:
           service: nemotron
         annotations:
           summary: 'Nemotron LLM throughput degraded'
-          description: 'Nemotron is generating only {{ $value }} tokens/sec with queue backing up. Expected >500 tokens/sec under load.'
+          description: 'Nemotron is generating only {{ $value }} tokens/sec with queue backing up.'
 
       # Critical: Detection processing stalled
       - alert: HSIDetectionProcessingStalled
@@ -783,7 +825,7 @@ groups:
           service: pipeline
         annotations:
           summary: 'Detection processing has stalled'
-          description: 'No detections processed in 5 minutes despite {{ $value }} items in queue. Pipeline may be blocked.'
+          description: 'No detections processed in 5 minutes despite items in queue. Pipeline may be blocked.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/detection-stalled'
 
       # Warning: Low detection throughput
@@ -799,35 +841,71 @@ groups:
           service: pipeline
         annotations:
           summary: 'Detection throughput below threshold'
-          description: 'Processing <1 detection per 10 seconds while queue has {{ $value }} items. Pipeline may be degraded.'
+          description: 'Processing <1 detection per 10 seconds while queue has items. Pipeline may be degraded.'
 
-      # Critical: LLM queue critically backed up
-      - alert: NemotronQueueCritical
-        expr: hsi_nemotron_queue_depth > 50
+      # Critical: Analysis queue critically backed up (replacement for NemotronQueueCritical)
+      - alert: HSIAnalysisQueueCritical
+        expr: hsi_analysis_queue_depth > 50
         for: 2m
         labels:
           severity: critical
           component: llm
           service: nemotron
         annotations:
-          summary: 'Nemotron queue critically backed up'
-          description: 'Nemotron analysis queue has {{ $value }} items, >50 threshold. Real-time analysis severely delayed.'
+          summary: 'Analysis queue critically backed up'
+          description: 'Analysis queue has {{ $value }} items, >50 threshold. Real-time analysis severely delayed.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/llm-queue-critical'
 
-      # Warning: Prompt tokens unusually high (possible prompt injection or context overflow)
-      - alert: NemotronPromptOverflow
-        expr: |
-          rate(hsi_nemotron_prompt_tokens_total[5m])
-          /
-          (rate(hsi_nemotron_tokens_generated_total[5m]) + 0.001) > 10
+      # Warning: Prompt truncation rate increasing (context overflow)
+      - alert: NemotronPromptTruncation
+        expr: rate(hsi_prompts_truncated_total[5m]) > 0.1
         for: 5m
         labels:
           severity: warning
           component: llm
           service: nemotron
         annotations:
-          summary: 'Unusually high prompt-to-generation token ratio'
-          description: 'Prompt tokens are 10x higher than generated tokens. May indicate context overflow or prompt issues.'
+          summary: 'Prompts being truncated due to context overflow'
+          description: 'Prompt truncation rate is {{ $value }}/sec. Context window may be saturated.'
+
+      # Warning: High context utilization
+      - alert: NemotronContextUtilizationHigh
+        expr: |
+          histogram_quantile(0.95, rate(hsi_llm_context_utilization_bucket[5m])) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: llm
+          service: nemotron
+        annotations:
+          summary: 'LLM context utilization approaching limits'
+          description: 'P95 context utilization is {{ $value | humanizePercentage }}. Risk of truncation.'
+
+      # Critical: RT-DETR model not loaded
+      - alert: RTDETRModelNotLoaded
+        expr: rtdetr_model_loaded == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: detection
+          service: rtdetr
+        annotations:
+          summary: 'RT-DETR detection model not loaded'
+          description: 'RT-DETR model is not loaded. Object detection will fail.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/model-not-loaded'
+
+      # Critical: Florence model not loaded
+      - alert: FlorenceModelNotLoaded
+        expr: florence_model_loaded == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: enrichment
+          service: florence
+        annotations:
+          summary: 'Florence enrichment model not loaded'
+          description: 'Florence model is not loaded. Image enrichment will fail.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/model-not-loaded'
 
   # =============================================================================
   # Database and Cache Cascade Alerts
@@ -852,12 +930,13 @@ groups:
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/cascade-failure'
 
       # Warning: Cache hit ratio degraded
+      # Uses hsi_cache_hits_total and hsi_cache_misses_total (not hsi_redis_cache_*)
       - alert: HSICacheHitRatioDegraded
         expr: |
           (
-            rate(hsi_redis_cache_hits_total[5m])
+            rate(hsi_cache_hits_total[5m])
             /
-            (rate(hsi_redis_cache_hits_total[5m]) + rate(hsi_redis_cache_misses_total[5m]) + 0.001)
+            (rate(hsi_cache_hits_total[5m]) + rate(hsi_cache_misses_total[5m]) + 0.001)
           ) < 0.5
         for: 10m
         labels:
@@ -872,9 +951,9 @@ groups:
       - alert: HSICacheHitRatioCritical
         expr: |
           (
-            rate(hsi_redis_cache_hits_total[5m])
+            rate(hsi_cache_hits_total[5m])
             /
-            (rate(hsi_redis_cache_hits_total[5m]) + rate(hsi_redis_cache_misses_total[5m]) + 0.001)
+            (rate(hsi_cache_hits_total[5m]) + rate(hsi_cache_misses_total[5m]) + 0.001)
           ) < 0.2
         for: 5m
         labels:
