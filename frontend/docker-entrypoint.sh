@@ -74,12 +74,16 @@ HTTP_LOCATIONS='
     }
 
     # Reverse proxy for Grafana dashboards (enables remote access via /grafana/)
-    # Strips /grafana prefix and forwards to Grafana container
+    # Grafana is configured with GF_SERVER_SERVE_FROM_SUB_PATH=true, so it expects /grafana/ prefix
     # This allows embedding Grafana dashboards in iframes from any host
+    # Uses nginx variable for dynamic DNS re-resolution (survives container IP changes)
     location ^~ /grafana/ {
-        # Rewrite /grafana/... to /... for Grafana
-        rewrite ^/grafana/(.*) /$1 break;
-        proxy_pass '"${GRAFANA_UPSTREAM}"';
+        # Dynamic DNS resolution - re-resolves hostname on each request
+        # This prevents 502 errors when Grafana container is recreated with new IP
+        resolver __DNS_RESOLVER__ valid=10s ipv6=off;
+        set $grafana_upstream '"${GRAFANA_UPSTREAM}"';
+        proxy_pass $grafana_upstream;
+
         proxy_http_version 1.1;
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -341,9 +345,11 @@ server {
     }
 
     # Reverse proxy for Grafana dashboards (enables remote access via /grafana/)
+    # Grafana is configured with GF_SERVER_SERVE_FROM_SUB_PATH=true, so it expects /grafana/ prefix
+    # Uses nginx variable for dynamic DNS re-resolution (survives container IP changes)
     location ^~ /grafana/ {
-        rewrite ^/grafana/(.*) /\$1 break;
-        proxy_pass ${GRAFANA_UPSTREAM};
+        set \$grafana_upstream ${GRAFANA_UPSTREAM};
+        proxy_pass \$grafana_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;
