@@ -19,6 +19,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
+  "id": 2,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -1202,5 +1203,6 @@
   "timezone": "browser",
   "title": "HSI Analytics",
   "uid": "hsi-analytics",
+  "version": 1,
   "weekStart": ""
 }
