@@ -51,6 +51,9 @@ class AuditAction(str, Enum):
 
     # Admin actions
     DATA_CLEARED = "data_cleared"
+    DATA_SEEDED = "data_seeded"
+    CACHE_CLEARED = "cache_cleared"
+    QUEUE_RESET = "queue_reset"
 
     # Security actions (NEM-1616)
     RATE_LIMIT_EXCEEDED = "rate_limit_exceeded"

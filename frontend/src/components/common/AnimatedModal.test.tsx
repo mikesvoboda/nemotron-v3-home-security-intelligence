@@ -1,8 +1,17 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AnimatedModal from './AnimatedModal';
+import { logger } from '../../services/logger';
+
+// Mock the logger
+vi.mock('../../services/logger', () => ({
+  logger: {
+    interaction: vi.fn(),
+  },
+}));
 
 // Mock framer-motion to avoid animation timing issues in tests
 vi.mock('framer-motion', () => ({
@@ -470,6 +479,104 @@ describe('AnimatedModal', () => {
 
       const modal = screen.getByTestId('animated-modal');
       expect(modal).toHaveClass('max-w-full');
+    });
+  });
+
+  describe('interaction tracking', () => {
+    it('does not track when modalName is not provided', () => {
+      const { rerender } = render(
+        <AnimatedModal isOpen={false} onClose={mockOnClose}>
+          <div>Modal Content</div>
+        </AnimatedModal>
+      );
+
+      rerender(
+        <AnimatedModal isOpen={true} onClose={mockOnClose}>
+          <div>Modal Content</div>
+        </AnimatedModal>
+      );
+
+      expect(logger.interaction).not.toHaveBeenCalled();
+    });
+
+    it('tracks modal open when modalName is provided', () => {
+      const { rerender } = render(
+        <AnimatedModal isOpen={false} onClose={mockOnClose} modalName="test_modal">
+          <div>Modal Content</div>
+        </AnimatedModal>
+      );
+
+      // Open the modal
+      rerender(
+        <AnimatedModal isOpen={true} onClose={mockOnClose} modalName="test_modal">
+          <div>Modal Content</div>
+        </AnimatedModal>
+      );
+
+      expect(logger.interaction).toHaveBeenCalledWith('open', 'modal.test_modal');
+    });
+
+    it('tracks modal close when modalName is provided', () => {
+      const { rerender } = render(
+        <AnimatedModal isOpen={true} onClose={mockOnClose} modalName="test_modal">
+          <div>Modal Content</div>
+        </AnimatedModal>
+      );
+
+      vi.clearAllMocks();
+
+      // Close the modal
+      rerender(
+        <AnimatedModal isOpen={false} onClose={mockOnClose} modalName="test_modal">
+          <div>Modal Content</div>
+        </AnimatedModal>
+      );
+
+      expect(logger.interaction).toHaveBeenCalledWith('close', 'modal.test_modal');
+    });
+
+    it('does not track on initial render (only tracks state changes)', () => {
+      render(
+        <AnimatedModal isOpen={true} onClose={mockOnClose} modalName="test_modal">
+          <div>Modal Content</div>
+        </AnimatedModal>
+      );
+
+      // Should not log on initial render since it's not a state change
+      expect(logger.interaction).not.toHaveBeenCalled();
+    });
+
+    it('tracks multiple open/close cycles', () => {
+      const { rerender } = render(
+        <AnimatedModal isOpen={false} onClose={mockOnClose} modalName="cycle_modal">
+          <div>Modal Content</div>
+        </AnimatedModal>
+      );
+
+      // Open
+      rerender(
+        <AnimatedModal isOpen={true} onClose={mockOnClose} modalName="cycle_modal">
+          <div>Modal Content</div>
+        </AnimatedModal>
+      );
+      expect(logger.interaction).toHaveBeenCalledWith('open', 'modal.cycle_modal');
+
+      // Close
+      rerender(
+        <AnimatedModal isOpen={false} onClose={mockOnClose} modalName="cycle_modal">
+          <div>Modal Content</div>
+        </AnimatedModal>
+      );
+      expect(logger.interaction).toHaveBeenCalledWith('close', 'modal.cycle_modal');
+
+      // Open again
+      rerender(
+        <AnimatedModal isOpen={true} onClose={mockOnClose} modalName="cycle_modal">
+          <div>Modal Content</div>
+        </AnimatedModal>
+      );
+
+      expect(logger.interaction).toHaveBeenCalledTimes(3);
     });
   });
 });

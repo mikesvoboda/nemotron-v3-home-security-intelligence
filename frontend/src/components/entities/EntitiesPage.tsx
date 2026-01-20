@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowDownAZ,
   Calendar,
   Car,
@@ -23,7 +24,7 @@ import { useEntitiesInfiniteQuery, type EntityFilters } from '../../hooks/useEnt
 import { useEntityDetailQuery } from '../../hooks/useEntitiesQuery';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { updateEntityTrust } from '../../services/api';
-import { EntityCardSkeleton, InfiniteScrollStatus, SafeErrorMessage } from '../common';
+import { EntityCardSkeleton, FeatureErrorBoundary, InfiniteScrollStatus, SafeErrorMessage } from '../common';
 
 import type { SourceFilter, TrustStatus } from '../../services/api';
 
@@ -712,3 +713,31 @@ export default function EntitiesPage() {
 
 // Note: The timeRangeToSince and getTimeRangeLabel helper functions have been
 // removed as their functionality is now provided by the useDateRangeState hook.
+
+/**
+ * EntitiesPage with FeatureErrorBoundary wrapper.
+ *
+ * Wraps the EntitiesPage component in a FeatureErrorBoundary to prevent
+ * errors in the Entities page from crashing the entire application.
+ */
+function EntitiesPageWithErrorBoundary() {
+  return (
+    <FeatureErrorBoundary
+      feature="Entities"
+      fallback={
+        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-red-500/30 bg-red-900/20 p-8 text-center">
+          <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
+          <h3 className="mb-2 text-lg font-semibold text-red-400">Entities Unavailable</h3>
+          <p className="max-w-md text-sm text-gray-400">
+            Unable to load entity tracking. Please refresh the page or try again later.
+            Other parts of the application should still work.
+          </p>
+        </div>
+      }
+    >
+      <EntitiesPage />
+    </FeatureErrorBoundary>
+  );
+}
+
+export { EntitiesPageWithErrorBoundary };

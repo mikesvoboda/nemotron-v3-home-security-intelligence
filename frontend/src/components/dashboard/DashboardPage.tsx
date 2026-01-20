@@ -1,3 +1,4 @@
+import { AlertTriangle } from 'lucide-react';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -14,7 +15,13 @@ import {
   type Camera,
   type EventStatsResponse,
 } from '../../services/api';
-import { CameraCardSkeleton, SafeErrorMessage, StatsCardSkeleton, Skeleton } from '../common';
+import {
+  CameraCardSkeleton,
+  FeatureErrorBoundary,
+  SafeErrorMessage,
+  StatsCardSkeleton,
+  Skeleton,
+} from '../common';
 import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
 import CameraGrid, { type CameraStatus } from './CameraGrid';
 import DashboardLayout from './DashboardLayout';
@@ -440,3 +447,32 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+/**
+ * DashboardPage with FeatureErrorBoundary wrapper.
+ *
+ * Wraps the DashboardPage component in a FeatureErrorBoundary to prevent
+ * errors in the Dashboard from crashing the entire application.
+ * The navigation should remain functional even if the dashboard content errors.
+ */
+function DashboardPageWithErrorBoundary() {
+  return (
+    <FeatureErrorBoundary
+      feature="Dashboard"
+      fallback={
+        <div className="flex min-h-screen flex-col items-center justify-center bg-[#121212] p-8">
+          <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
+          <h3 className="mb-2 text-lg font-semibold text-red-400">Dashboard Unavailable</h3>
+          <p className="max-w-md text-center text-sm text-gray-400">
+            Unable to load the security dashboard. Please refresh the page or try again later.
+            You can still navigate to other sections using the sidebar.
+          </p>
+        </div>
+      }
+    >
+      <DashboardPage />
+    </FeatureErrorBoundary>
+  );
+}
+
+export { DashboardPageWithErrorBoundary };

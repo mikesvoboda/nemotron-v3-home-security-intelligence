@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from backend.api.middleware.correlation import get_correlation_headers
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import observe_ai_request_duration, record_pipeline_error
@@ -146,6 +147,17 @@ class CLIPClient:
 
         logger.info(f"CLIPClient initialized with base_url={self._base_url}")
 
+    def _get_headers(self) -> dict[str, str]:
+        """Get headers for outgoing HTTP requests.
+
+        Includes W3C Trace Context headers (traceparent, tracestate) for
+        distributed tracing and correlation IDs for request tracking.
+
+        Returns:
+            Dictionary of headers to include in requests
+        """
+        return get_correlation_headers()
+
     async def close(self) -> None:
         """Close the HTTP client connections.
 
@@ -244,9 +256,11 @@ class CLIPClient:
             ai_start_time = time.time()
 
             # Send to CLIP service using persistent HTTP client (NEM-1721)
+            # Includes W3C Trace Context headers for distributed tracing
             response = await self._http_client.post(
                 f"{self._base_url}/embed",
                 json=payload,
+                headers=self._get_headers(),
             )
             response.raise_for_status()
 
@@ -421,9 +435,11 @@ class CLIPClient:
             ai_start_time = time.time()
 
             # Send to CLIP service using persistent HTTP client (NEM-1721)
+            # Includes W3C Trace Context headers for distributed tracing
             response = await self._http_client.post(
                 f"{self._base_url}/anomaly-score",
                 json=payload,
+                headers=self._get_headers(),
             )
             response.raise_for_status()
 
@@ -586,9 +602,11 @@ class CLIPClient:
             ai_start_time = time.time()
 
             # Send to CLIP service using persistent HTTP client (NEM-1721)
+            # Includes W3C Trace Context headers for distributed tracing
             response = await self._http_client.post(
                 f"{self._base_url}/classify",
                 json=payload,
+                headers=self._get_headers(),
             )
             response.raise_for_status()
 
@@ -733,9 +751,11 @@ class CLIPClient:
             ai_start_time = time.time()
 
             # Send to CLIP service using persistent HTTP client (NEM-1721)
+            # Includes W3C Trace Context headers for distributed tracing
             response = await self._http_client.post(
                 f"{self._base_url}/similarity",
                 json=payload,
+                headers=self._get_headers(),
             )
             response.raise_for_status()
 
@@ -883,9 +903,11 @@ class CLIPClient:
             ai_start_time = time.time()
 
             # Send to CLIP service using persistent HTTP client (NEM-1721)
+            # Includes W3C Trace Context headers for distributed tracing
             response = await self._http_client.post(
                 f"{self._base_url}/batch-similarity",
                 json=payload,
+                headers=self._get_headers(),
             )
             response.raise_for_status()
 

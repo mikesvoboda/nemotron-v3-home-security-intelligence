@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import httpx
 
+from backend.api.middleware.correlation import get_correlation_headers
 from backend.core.config import get_settings
 from backend.core.exceptions import EnrichmentUnavailableError
 from backend.core.logging import get_logger, sanitize_error
@@ -775,6 +776,17 @@ class EnrichmentClient:
 
         logger.info(f"EnrichmentClient initialized with base_url={self._base_url}")
 
+    def _get_headers(self) -> dict[str, str]:
+        """Get headers for outgoing HTTP requests.
+
+        Includes W3C Trace Context headers (traceparent, tracestate) for
+        distributed tracing and correlation IDs for request tracking.
+
+        Returns:
+            Dictionary of headers to include in requests
+        """
+        return get_correlation_headers()
+
     async def close(self) -> None:
         """Close the HTTP client connections.
 
@@ -972,10 +984,12 @@ class EnrichmentClient:
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
                 # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
                         f"{self._base_url}/{endpoint}",
                         json=payload,
+                        headers=self._get_headers(),
                     )
                     response.raise_for_status()
 
@@ -1157,10 +1171,12 @@ class EnrichmentClient:
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
                 # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
                         f"{self._base_url}/{endpoint}",
                         json=payload,
+                        headers=self._get_headers(),
                     )
                     response.raise_for_status()
 
@@ -1338,10 +1354,12 @@ class EnrichmentClient:
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
                 # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
                         f"{self._base_url}/{endpoint}",
                         json=payload,
+                        headers=self._get_headers(),
                     )
                     response.raise_for_status()
 
@@ -1522,10 +1540,12 @@ class EnrichmentClient:
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
                 # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
                         f"{self._base_url}/{endpoint}",
                         json=payload,
+                        headers=self._get_headers(),
                     )
                     response.raise_for_status()
 
@@ -1741,10 +1761,12 @@ class EnrichmentClient:
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
                 # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
                         f"{self._base_url}/{endpoint}",
                         json=payload,
+                        headers=self._get_headers(),
                     )
                     response.raise_for_status()
 
@@ -1929,10 +1951,12 @@ class EnrichmentClient:
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
                 # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
                         f"{self._base_url}/{endpoint}",
                         json=payload,
+                        headers=self._get_headers(),
                     )
                     response.raise_for_status()
 
@@ -2136,10 +2160,12 @@ class EnrichmentClient:
 
                 # Send to Enrichment service using persistent HTTP client (NEM-1721)
                 # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
+                # Includes W3C Trace Context headers for distributed tracing
                 async with asyncio.timeout(explicit_timeout):
                     response = await self._http_client.post(
                         f"{self._base_url}/{endpoint}",
                         json=payload,
+                        headers=self._get_headers(),
                         timeout=action_timeout,  # Override default timeout for this request
                     )
                     response.raise_for_status()

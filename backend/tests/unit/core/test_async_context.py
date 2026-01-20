@@ -27,11 +27,17 @@ import pytest
 from backend.core.async_context import (
     copy_context_to_task,
     create_task_with_context,
+    create_tracked_task,
+    generate_task_id,
     get_connection_id,
+    get_job_id,
     get_log_context,
+    get_task_id,
     logger_with_context,
     propagate_log_context,
     set_connection_id,
+    set_job_id,
+    set_task_id,
 )
 from backend.core.logging import get_logger, get_request_id, set_request_id
 
@@ -1182,3 +1188,427 @@ class TestAsyncContextIntegration:
         assert results["task1"] == ["req-1", "req-1"]
         assert results["task2"] == ["req-2", "req-2"]
         assert results["task3"] == ["req-3", "req-3"]
+
+
+# =============================================================================
+# Task ID Context Variable Tests
+# =============================================================================
+
+
+class TestTaskIdContextVariable:
+    """Tests for task_id context variable management.
+
+    Tests the fundamental get/set operations for the task_id context
+    variable used to correlate logs from async operations.
+    """
+
+    def test_get_task_id_default_is_none(self) -> None:
+        """Verify task_id defaults to None when not set.
+
+        Given: A fresh context with no task_id set
+        When: get_task_id() is called
+        Then: Returns None
+        """
+        # Ensure clean state
+        set_task_id(None)
+        assert get_task_id() is None
+
+    def test_set_and_get_task_id(self) -> None:
+        """Verify task_id can be set and retrieved.
+
+        Given: No task_id is set
+        When: set_task_id() is called with a value
+        Then: get_task_id() returns that value
+        """
+        token = set_task_id("task-abc123")
+        assert get_task_id() == "task-abc123"
+
+        # Cleanup
+        set_task_id(None)
+
+    def test_set_task_id_returns_token(self) -> None:
+        """Verify set_task_id returns a restoration token.
+
+        Given: A task_id is set
+        When: set_task_id() is called
+        Then: A token is returned that can restore previous value
+        """
+        # Set initial value
+        set_task_id("initial-task")
+
+        # Set new value and capture token
+        token = set_task_id("new-task")
+        assert get_task_id() == "new-task"
+
+        # Token should be a valid token object
+        assert token is not None
+
+        # Cleanup
+        set_task_id(None)
+
+    def test_set_task_id_to_none_clears_value(self) -> None:
+        """Verify setting task_id to None clears it.
+
+        Given: A task_id is set to a value
+        When: set_task_id(None) is called
+        Then: get_task_id() returns None
+        """
+        set_task_id("some-task")
+        assert get_task_id() == "some-task"
+
+        set_task_id(None)
+        assert get_task_id() is None
+
+    @pytest.mark.asyncio
+    async def test_task_id_isolation_between_tasks(self) -> None:
+        """Verify task_id maintains isolation between concurrent tasks.
+
+        Given: Multiple concurrent async tasks
+        When: Each task sets its own task_id
+        Then: Each task sees only its own value, no cross-contamination
+        """
+        results: dict[str, str | None] = {}
+
+        async def task_with_id(task_name: str, task_id: str) -> None:
+            set_task_id(task_id)
+            await asyncio.sleep(0.01)  # Yield to other tasks
+            results[task_name] = get_task_id()
+
+        # Run tasks concurrently
+        await asyncio.gather(
+            task_with_id("task1", "id-1"),
+            task_with_id("task2", "id-2"),
+            task_with_id("task3", "id-3"),
+        )
+
+        # Each task should see its own task_id
+        assert results["task1"] == "id-1"
+        assert results["task2"] == "id-2"
+        assert results["task3"] == "id-3"
+
+
+# =============================================================================
+# Job ID Context Variable Tests
+# =============================================================================
+
+
+class TestJobIdContextVariable:
+    """Tests for job_id context variable management.
+
+    Tests the fundamental get/set operations for the job_id context
+    variable used to correlate logs from scheduled job execution.
+    """
+
+    def test_get_job_id_default_is_none(self) -> None:
+        """Verify job_id defaults to None when not set.
+
+        Given: A fresh context with no job_id set
+        When: get_job_id() is called
+        Then: Returns None
+        """
+        # Ensure clean state
+        set_job_id(None)
+        assert get_job_id() is None
+
+    def test_set_and_get_job_id(self) -> None:
+        """Verify job_id can be set and retrieved.
+
+        Given: No job_id is set
+        When: set_job_id() is called with a value
+        Then: get_job_id() returns that value
+        """
+        token = set_job_id("job-xyz789")
+        assert get_job_id() == "job-xyz789"
+
+        # Cleanup
+        set_job_id(None)
+
+    def test_set_job_id_returns_token(self) -> None:
+        """Verify set_job_id returns a restoration token.
+
+        Given: A job_id is set
+        When: set_job_id() is called
+        Then: A token is returned that can restore previous value
+        """
+        # Set initial value
+        set_job_id("initial-job")
+
+        # Set new value and capture token
+        token = set_job_id("new-job")
+        assert get_job_id() == "new-job"
+
+        # Token should be a valid token object
+        assert token is not None
+
+        # Cleanup
+        set_job_id(None)
+
+    def test_set_job_id_to_none_clears_value(self) -> None:
+        """Verify setting job_id to None clears it.
+
+        Given: A job_id is set to a value
+        When: set_job_id(None) is called
+        Then: get_job_id() returns None
+        """
+        set_job_id("some-job")
+        assert get_job_id() == "some-job"
+
+        set_job_id(None)
+        assert get_job_id() is None
+
+
+# =============================================================================
+# Generate Task ID Tests
+# =============================================================================
+
+
+class TestGenerateTaskId:
+    """Tests for the generate_task_id helper function."""
+
+    def test_generate_task_id_default_prefix(self) -> None:
+        """Verify generate_task_id uses 'task' as default prefix.
+
+        Given: No prefix is specified
+        When: generate_task_id() is called
+        Then: ID starts with 'task-'
+        """
+        task_id = generate_task_id()
+        assert task_id.startswith("task-")
+
+    def test_generate_task_id_custom_prefix(self) -> None:
+        """Verify generate_task_id uses custom prefix when provided.
+
+        Given: A custom prefix 'detect'
+        When: generate_task_id('detect') is called
+        Then: ID starts with 'detect-'
+        """
+        task_id = generate_task_id("detect")
+        assert task_id.startswith("detect-")
+
+    def test_generate_task_id_format(self) -> None:
+        """Verify generate_task_id produces correct format.
+
+        Given: A prefix 'analyze'
+        When: generate_task_id('analyze') is called
+        Then: ID format is 'analyze-<8 hex chars>'
+        """
+        task_id = generate_task_id("analyze")
+        parts = task_id.split("-")
+        assert len(parts) == 2
+        assert parts[0] == "analyze"
+        assert len(parts[1]) == 8
+        # Should be valid hex
+        int(parts[1], 16)
+
+    def test_generate_task_id_uniqueness(self) -> None:
+        """Verify generate_task_id produces unique IDs.
+
+        Given: Multiple calls to generate_task_id
+        When: Generating 100 IDs
+        Then: All IDs are unique
+        """
+        ids = [generate_task_id() for _ in range(100)]
+        assert len(set(ids)) == 100
+
+
+# =============================================================================
+# Create Tracked Task Tests
+# =============================================================================
+
+
+class TestCreateTrackedTask:
+    """Tests for create_tracked_task helper function.
+
+    Tests the enhanced task creation function that automatically generates
+    task_ids and provides logging context for async operations.
+    """
+
+    @pytest.mark.asyncio
+    async def test_create_tracked_task_sets_task_id(self) -> None:
+        """Verify create_tracked_task sets task_id in context.
+
+        Given: A coroutine
+        When: create_tracked_task() is called
+        Then: task_id is set in the task's context
+        """
+        captured_task_id: str | None = None
+
+        async def capture_task_id() -> None:
+            nonlocal captured_task_id
+            captured_task_id = get_task_id()
+
+        task = create_tracked_task(capture_task_id(), task_prefix="test")
+        await task
+
+        assert captured_task_id is not None
+        assert captured_task_id.startswith("test-")
+
+    @pytest.mark.asyncio
+    async def test_create_tracked_task_with_name(self) -> None:
+        """Verify create_tracked_task sets task name.
+
+        Given: A name parameter
+        When: create_tracked_task(name='my_task') is called
+        Then: The task has the specified name
+        """
+
+        async def dummy_coro() -> None:
+            await asyncio.sleep(0.001)
+
+        task = create_tracked_task(dummy_coro(), name="my_task")
+        assert task.get_name() == "my_task"
+        await task
+
+    @pytest.mark.asyncio
+    async def test_create_tracked_task_inherits_request_id(self) -> None:
+        """Verify create_tracked_task inherits request_id from parent.
+
+        Given: A request_id is set in parent context
+        When: create_tracked_task() is called
+        Then: The task inherits the parent's request_id
+        """
+        captured_request_id: str | None = None
+
+        async def capture_context() -> None:
+            nonlocal captured_request_id
+            captured_request_id = get_request_id()
+
+        set_request_id("parent-request")
+
+        task = create_tracked_task(capture_context())
+        await task
+
+        assert captured_request_id == "parent-request"
+
+        # Cleanup
+        set_request_id(None)
+
+    @pytest.mark.asyncio
+    async def test_create_tracked_task_explicit_request_id(self) -> None:
+        """Verify create_tracked_task uses explicit request_id when provided.
+
+        Given: A request_id is set in parent AND explicit request_id is passed
+        When: create_tracked_task(request_id='explicit') is called
+        Then: The task uses the explicit request_id
+        """
+        captured_request_id: str | None = None
+
+        async def capture_context() -> None:
+            nonlocal captured_request_id
+            captured_request_id = get_request_id()
+
+        set_request_id("parent-request")
+
+        task = create_tracked_task(capture_context(), request_id="explicit-request")
+        await task
+
+        assert captured_request_id == "explicit-request"
+
+        # Cleanup
+        set_request_id(None)
+
+    @pytest.mark.asyncio
+    async def test_create_tracked_task_log_context_propagation(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Verify create_tracked_task propagates log context to task.
+
+        Given: Log context is set in parent
+        When: A tracked task is created and logs a message
+        Then: The log includes the task_id and inherited context
+        """
+        from backend.core.logging import log_context
+
+        logger = get_logger("test.tracked_task")
+
+        async def log_in_task() -> None:
+            with caplog.at_level(logging.DEBUG):
+                logger.info("Message from tracked task")
+
+        with log_context(camera_id="front_door", operation="detection"):
+            task = create_tracked_task(log_in_task(), task_prefix="detect")
+            await task
+
+        # Find the message from our task
+        task_records = [r for r in caplog.records if "Message from tracked task" in r.message]
+        assert len(task_records) >= 1
+
+        record = task_records[0]
+        # Should have task_id
+        assert hasattr(record, "task_id")
+        assert record.task_id.startswith("detect-")
+        # Should have inherited context
+        assert hasattr(record, "camera_id")
+        assert record.camera_id == "front_door"
+        assert hasattr(record, "operation")
+        assert record.operation == "detection"
+
+    @pytest.mark.asyncio
+    async def test_create_tracked_task_isolation_between_tasks(self) -> None:
+        """Verify multiple tracked tasks maintain isolated contexts.
+
+        Given: Multiple tracked tasks with different prefixes
+        When: Tasks run concurrently
+        Then: Each has a unique task_id
+        """
+        results: dict[str, str | None] = {}
+
+        async def capture_task_id(key: str) -> None:
+            await asyncio.sleep(0.01)  # Yield to other tasks
+            results[key] = get_task_id()
+
+        task1 = create_tracked_task(capture_task_id("t1"), task_prefix="detect")
+        task2 = create_tracked_task(capture_task_id("t2"), task_prefix="analyze")
+        task3 = create_tracked_task(capture_task_id("t3"), task_prefix="batch")
+
+        await asyncio.gather(task1, task2, task3)
+
+        # Each task should have its own unique task_id
+        assert results["t1"] is not None
+        assert results["t2"] is not None
+        assert results["t3"] is not None
+        assert results["t1"].startswith("detect-")
+        assert results["t2"].startswith("analyze-")
+        assert results["t3"].startswith("batch-")
+        # All should be unique
+        assert len({results["t1"], results["t2"], results["t3"]}) == 3
+
+    @pytest.mark.asyncio
+    async def test_create_tracked_task_preserves_return_value(self) -> None:
+        """Verify create_tracked_task preserves coroutine return value.
+
+        Given: A coroutine that returns a value
+        When: Wrapped in create_tracked_task
+        Then: The task result is the coroutine's return value
+        """
+
+        async def return_value() -> str:
+            return "test-result"
+
+        task = create_tracked_task(return_value())
+        result = await task
+
+        assert result == "test-result"
+
+    @pytest.mark.asyncio
+    async def test_create_tracked_task_logs_start_and_completion(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Verify create_tracked_task logs task start and completion.
+
+        Given: A named tracked task
+        When: The task runs to completion
+        Then: Start and completion are logged
+        """
+
+        async def simple_task() -> None:
+            await asyncio.sleep(0.001)
+
+        with caplog.at_level(logging.DEBUG):
+            task = create_tracked_task(simple_task(), name="test_operation")
+            await task
+
+        # Check for start and completion logs
+        log_messages = [r.message for r in caplog.records]
+        assert any("Task started: test_operation" in msg for msg in log_messages)
+        assert any("Task completed: test_operation" in msg for msg in log_messages)

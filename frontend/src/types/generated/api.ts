@@ -82,6 +82,7 @@ export interface paths {
          *
          *     Args:
          *         request: Seed configuration (count, clear_existing, create_folders)
+         *         http_request: FastAPI request for audit logging
          *         db: Database session
          *         _admin: Admin access validation (via dependency)
          *
@@ -151,6 +152,7 @@ export interface paths {
          *
          *     Args:
          *         request: Seed configuration (count, clear_existing)
+         *         http_request: FastAPI request for audit logging
          *         db: Database session
          *         _admin: Admin access validation (via dependency)
          *
@@ -192,6 +194,8 @@ export interface paths {
          *
          *     Args:
          *         request: Configuration for sample generation
+         *         http_request: FastAPI request for audit logging
+         *         db: Database session for audit logging
          *         _admin: Admin access validation (via dependency)
          *
          *     Returns:
