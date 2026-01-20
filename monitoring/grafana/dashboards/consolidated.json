@@ -1016,7 +1016,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "alertmanager"
+        "uid": "PBFA97CFB590B2093"
       },
       "description": "Currently active (firing) alerts",
       "fieldConfig": {
@@ -1047,12 +1047,12 @@
         "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
         "textMode": "auto"
       },
-      "targets": [{"datasource": {"type": "prometheus", "uid": "alertmanager"}, "expr": "alertmanager_alerts{state=\"active\"}", "legendFormat": "Active", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "alertmanager_alerts{state=\"active\"}", "legendFormat": "Active", "refId": "A"}],
       "title": "Active Alerts",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "alertmanager"},
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
       "description": "Alerts suppressed by silences or inhibition rules",
       "fieldConfig": {
         "defaults": {
@@ -1066,12 +1066,12 @@
       "gridPos": {"h": 5, "w": 4, "x": 4, "y": 66},
       "id": 292,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "alertmanager"}, "expr": "alertmanager_alerts{state=\"suppressed\"}", "legendFormat": "Suppressed", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "alertmanager_alerts{state=\"suppressed\"}", "legendFormat": "Suppressed", "refId": "A"}],
       "title": "Suppressed Alerts",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "alertmanager"},
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
       "description": "Alertmanager configuration reload status",
       "fieldConfig": {
         "defaults": {
@@ -1085,12 +1085,12 @@
       "gridPos": {"h": 5, "w": 4, "x": 8, "y": 66},
       "id": 293,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "alertmanager"}, "expr": "alertmanager_config_last_reload_successful", "legendFormat": "Config Status", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "alertmanager_config_last_reload_successful", "legendFormat": "Config Status", "refId": "A"}],
       "title": "Config Status",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "alertmanager"},
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
       "description": "Webhook notification success rate",
       "fieldConfig": {
         "defaults": {
@@ -1107,12 +1107,12 @@
       "gridPos": {"h": 5, "w": 4, "x": 12, "y": 66},
       "id": 294,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "alertmanager"}, "expr": "100 * (1 - (rate(alertmanager_notification_requests_failed_total{integration=\"webhook\"}[5m]) / rate(alertmanager_notification_requests_total{integration=\"webhook\"}[5m])))", "legendFormat": "Success %", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "100 * (1 - (rate(alertmanager_notification_requests_failed_total{integration=\"webhook\"}[5m]) / rate(alertmanager_notification_requests_total{integration=\"webhook\"}[5m])))", "legendFormat": "Success %", "refId": "A"}],
       "title": "Webhook Success Rate",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "alertmanager"},
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
       "description": "Total notification failures",
       "fieldConfig": {
         "defaults": {
@@ -1126,12 +1126,12 @@
       "gridPos": {"h": 5, "w": 4, "x": 16, "y": 66},
       "id": 295,
       "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "alertmanager"}, "expr": "sum(alertmanager_notification_requests_failed_total)", "legendFormat": "Total Failures", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "sum(alertmanager_notification_requests_failed_total)", "legendFormat": "Total Failures", "refId": "A"}],
       "title": "Total Failures",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "alertmanager"},
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
       "description": "Number of configured alert receivers",
       "fieldConfig": {
         "defaults": {
@@ -1145,12 +1145,12 @@
       "gridPos": {"h": 5, "w": 4, "x": 20, "y": 66},
       "id": 296,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "alertmanager"}, "expr": "alertmanager_receivers", "legendFormat": "Receivers", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "alertmanager_receivers", "legendFormat": "Receivers", "refId": "A"}],
       "title": "Receivers",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "alertmanager"},
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
       "description": "Alert rate over time (firing vs resolved)",
       "fieldConfig": {
         "defaults": {
@@ -1165,12 +1165,12 @@
       "gridPos": {"h": 8, "w": 12, "x": 0, "y": 71},
       "id": 297,
       "options": {"legend": {"calcs": ["sum", "mean"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "alertmanager"}, "expr": "rate(alertmanager_alerts_received_total{status=\"firing\"}[5m])", "legendFormat": "Firing", "refId": "A"}, {"datasource": {"type": "prometheus", "uid": "alertmanager"}, "expr": "rate(alertmanager_alerts_received_total{status=\"resolved\"}[5m])", "legendFormat": "Resolved", "refId": "B"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(alertmanager_alerts_received_total{status=\"firing\"}[5m])", "legendFormat": "Firing", "refId": "A"}, {"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(alertmanager_alerts_received_total{status=\"resolved\"}[5m])", "legendFormat": "Resolved", "refId": "B"}],
       "title": "Alert Rate (Firing vs Resolved)",
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "alertmanager"},
+      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
       "description": "Notification failures by integration type",
       "fieldConfig": {
         "defaults": {
@@ -1185,7 +1185,7 @@
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 71},
       "id": 298,
       "options": {"legend": {"calcs": ["sum", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "alertmanager"}, "expr": "rate(alertmanager_notification_requests_failed_total[5m])", "legendFormat": "{{integration}}", "refId": "A"}],
+      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(alertmanager_notification_requests_failed_total[5m])", "legendFormat": "{{integration}}", "refId": "A"}],
       "title": "Notification Failures by Integration",
       "type": "timeseries"
     },
