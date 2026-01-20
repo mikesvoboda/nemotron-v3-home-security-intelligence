@@ -91,6 +91,7 @@ cd frontend && npm test
 ```bash
 pre-commit install                    # Install pre-commit hooks
 pre-commit install --hook-type pre-push  # Install pre-push hooks
+ln -sf ../../scripts/hooks/post-checkout .git/hooks/post-checkout  # Worktree protection
 ```
 
 For pre-commit hook details, see **[Pre-commit Hooks](docs/development/hooks.md)**.

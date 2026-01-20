@@ -1,0 +1,22 @@
+#!/bin/bash
+# Warn if main worktree switches off 'main' branch
+#
+# This hook helps prevent accidentally working on feature branches in the
+# primary worktree. Use `git worktree add` for feature branches instead.
+#
+# Install: ln -sf ../../scripts/hooks/post-checkout .git/hooks/post-checkout
+
+CURRENT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+# Check if this is the main worktree (not a linked worktree)
+# Main worktree has .git as a directory, linked worktrees have .git as a file
+if [[ -d "$(git rev-parse --git-dir 2>/dev/null)" && ! -f ".git" ]]; then
+  # This is the main worktree
+  if [[ "$CURRENT_BRANCH" != "main" && -n "$CURRENT_BRANCH" ]]; then
+    echo ""
+    echo "⚠️  WARNING: Main worktree is now on '$CURRENT_BRANCH' instead of 'main'"
+    echo "   Consider using: git worktree add ../wt-$CURRENT_BRANCH $CURRENT_BRANCH"
+    echo "   Then return to main: git checkout main"
+    echo ""
+  fi
+fi

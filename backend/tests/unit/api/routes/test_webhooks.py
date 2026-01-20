@@ -15,9 +15,9 @@ from fastapi import BackgroundTasks
 
 from backend.api.routes.webhooks import receive_alertmanager_webhook
 from backend.api.schemas.webhooks import (
-    AlertmanagerAlert,
     AlertmanagerStatus,
     AlertmanagerWebhookPayload,
+    WebhookAlert,
 )
 
 
@@ -30,9 +30,9 @@ class TestReceiveAlertmanagerWebhook:
         severity: str = "warning",
         status: AlertmanagerStatus = AlertmanagerStatus.FIRING,
         component: str = "test",
-    ) -> AlertmanagerAlert:
-        """Helper to create an AlertmanagerAlert for testing."""
-        return AlertmanagerAlert(
+    ) -> WebhookAlert:
+        """Helper to create an WebhookAlert for testing."""
+        return WebhookAlert(
             status=status,
             labels={
                 "alertname": alertname,
@@ -51,7 +51,7 @@ class TestReceiveAlertmanagerWebhook:
 
     def _create_payload(
         self,
-        alerts: list[AlertmanagerAlert] | None = None,
+        alerts: list[WebhookAlert] | None = None,
         status: AlertmanagerStatus = AlertmanagerStatus.FIRING,
         receiver: str = "test-receiver",
     ) -> AlertmanagerWebhookPayload:
@@ -114,7 +114,7 @@ class TestReceiveAlertmanagerWebhook:
     @pytest.mark.asyncio
     async def test_receive_resolved_alert(self) -> None:
         """Test receiving a resolved alert."""
-        alert = AlertmanagerAlert(
+        alert = WebhookAlert(
             status=AlertmanagerStatus.RESOLVED,
             labels={"alertname": "TestAlert", "severity": "warning", "component": "test"},
             annotations={"summary": "Test resolved"},
@@ -247,7 +247,7 @@ class TestReceiveAlertmanagerWebhook:
     @pytest.mark.asyncio
     async def test_alert_with_missing_optional_labels(self) -> None:
         """Test handling of alert with missing optional labels."""
-        alert = AlertmanagerAlert(
+        alert = WebhookAlert(
             status=AlertmanagerStatus.FIRING,
             labels={"alertname": "MinimalAlert"},  # Missing severity and component
             annotations={},  # Missing summary and description
@@ -277,8 +277,8 @@ class TestAlertmanagerSchemas:
         assert AlertmanagerStatus.RESOLVED == "resolved"
 
     def test_alertmanager_alert_required_fields(self) -> None:
-        """Test AlertmanagerAlert with required fields only."""
-        alert = AlertmanagerAlert(
+        """Test WebhookAlert with required fields only."""
+        alert = WebhookAlert(
             status=AlertmanagerStatus.FIRING,
             startsAt=datetime(2026, 1, 17, 12, 0, 0, tzinfo=UTC),
             fingerprint="test-fp",
@@ -289,8 +289,8 @@ class TestAlertmanagerSchemas:
         assert alert.annotations == {}
 
     def test_alertmanager_alert_all_fields(self) -> None:
-        """Test AlertmanagerAlert with all fields."""
-        alert = AlertmanagerAlert(
+        """Test WebhookAlert with all fields."""
+        alert = WebhookAlert(
             status=AlertmanagerStatus.RESOLVED,
             labels={"alertname": "Test", "severity": "critical"},
             annotations={"summary": "Test summary", "description": "Test desc"},
@@ -308,7 +308,7 @@ class TestAlertmanagerSchemas:
 
     def test_alertmanager_webhook_payload(self) -> None:
         """Test AlertmanagerWebhookPayload with all fields."""
-        alert = AlertmanagerAlert(
+        alert = WebhookAlert(
             status=AlertmanagerStatus.FIRING,
             startsAt=datetime(2026, 1, 17, 12, 0, 0, tzinfo=UTC),
             fingerprint="test-fp",

@@ -20,10 +20,11 @@ class AlertmanagerStatus(StrEnum):
     RESOLVED = "resolved"
 
 
-class AlertmanagerAlert(BaseModel):
-    """Schema for a single alert in Alertmanager webhook payload.
+class WebhookAlert(BaseModel):
+    """Schema for a single alert in webhook payload.
 
     Represents one alert instance with its labels, annotations, and timing.
+    This is the legacy webhook schema - prefer AlertmanagerAlert from alertmanager.py.
     """
 
     model_config = ConfigDict(
@@ -111,7 +112,7 @@ class AlertmanagerWebhookPayload(BaseModel):
         default_factory=dict, description="Annotations common to all alerts"
     )
     externalURL: str | None = Field(None, description="Alertmanager external URL")
-    alerts: list[AlertmanagerAlert] = Field(..., description="List of alerts in this group")
+    alerts: list[WebhookAlert] = Field(..., description="List of alerts in this group")
 
 
 class WebhookResponse(BaseModel):
