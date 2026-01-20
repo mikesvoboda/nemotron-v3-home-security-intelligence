@@ -471,6 +471,12 @@ class Settings(BaseSettings):
     app_name: str = "Home Security Intelligence"
     app_version: str = "0.1.0"
     debug: bool = False
+    environment: str = Field(
+        default="production",
+        description="Deployment environment: 'production', 'staging', or 'development'. "
+        "Used for log tagging and environment-specific behavior. "
+        "Set via ENVIRONMENT env var.",
+    )
 
     # Admin endpoints settings
     # SECURITY: Admin endpoints require BOTH debug=True AND admin_enabled=True
@@ -1876,6 +1882,23 @@ class Settings(BaseSettings):
                 stacklevel=2,
             )
         return v
+
+    @field_validator("environment")
+    @classmethod
+    def validate_environment(cls, v: str) -> str:
+        """Validate environment is a known value."""
+        valid_environments = {"production", "staging", "development", "dev", "prod", "test"}
+        v_lower = v.lower()
+        if v_lower not in valid_environments:
+            raise ValueError(
+                f"environment must be one of: {', '.join(sorted(valid_environments))}. Got: '{v}'"
+            )
+        # Normalize common aliases
+        if v_lower == "dev":
+            return "development"
+        if v_lower == "prod":
+            return "production"
+        return v_lower
 
     @field_validator("log_file_path")
     @classmethod

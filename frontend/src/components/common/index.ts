@@ -148,3 +148,6 @@ export type {
   LegendPosition,
   ChartRenderDimensions,
 } from './ResponsiveChart';
+
+// Navigation tracking component
+export { NavigationTracker, default as NavigationTrackerDefault } from './NavigationTracker';

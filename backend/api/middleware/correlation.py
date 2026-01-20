@@ -1,9 +1,10 @@
-"""Correlation ID helpers for outgoing HTTP requests.
+"""Correlation ID and trace context helpers for outgoing HTTP requests.
 
-This module provides utilities for propagating correlation IDs to outgoing
-HTTP requests when calling external services (RT-DETR, Nemotron, etc.).
+This module provides utilities for propagating correlation IDs and W3C Trace Context
+to outgoing HTTP requests when calling external services (RT-DETR, Nemotron, etc.).
 
 NEM-1472: Correlation ID propagation to AI service HTTP clients
+NEM-XXXX: W3C Trace Context propagation for distributed tracing
 
 Usage:
     from backend.api.middleware.correlation import get_correlation_headers
@@ -14,23 +15,34 @@ Usage:
 
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, json=data)
+
+The get_correlation_headers() function now includes both:
+- X-Correlation-ID and X-Request-ID for application-level correlation
+- traceparent and tracestate for W3C Trace Context (OpenTelemetry)
 """
 
 from typing import Any
 
 from backend.api.middleware.request_id import get_correlation_id
 from backend.core.logging import get_request_id
+from backend.core.telemetry import get_trace_headers
 
 
 def get_correlation_headers() -> dict[str, str]:
-    """Get headers for propagating correlation ID to outgoing requests.
+    """Get headers for propagating correlation ID and trace context to outgoing requests.
 
-    This function retrieves the current correlation ID from context and
-    returns a dictionary of headers that should be included in outgoing
-    HTTP requests to propagate the correlation chain.
+    This function retrieves the current correlation ID and W3C Trace Context
+    from context and returns a dictionary of headers that should be included
+    in outgoing HTTP requests to propagate tracing across service boundaries.
+
+    Includes:
+    - X-Correlation-ID: Application-level correlation ID
+    - X-Request-ID: Request-level ID
+    - traceparent: W3C Trace Context parent header (OpenTelemetry)
+    - tracestate: W3C Trace Context state header (OpenTelemetry)
 
     Returns:
-        Dictionary with X-Correlation-ID header if set, empty dict otherwise.
+        Dictionary with correlation and trace context headers.
 
     Example:
         >>> from backend.api.middleware.correlation import get_correlation_headers
@@ -52,6 +64,10 @@ def get_correlation_headers() -> dict[str, str]:
     request_id = get_request_id()
     if request_id:
         headers["X-Request-ID"] = request_id
+
+    # Add W3C Trace Context headers for distributed tracing (NEM-XXXX)
+    # This enables trace continuity across service boundaries in Jaeger/Tempo
+    headers.update(get_trace_headers())
 
     return headers
 

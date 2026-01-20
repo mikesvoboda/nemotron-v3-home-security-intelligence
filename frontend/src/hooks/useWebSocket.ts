@@ -5,6 +5,8 @@ import {
   generateSubscriberId,
   isHeartbeatMessage,
   calculateBackoffDelay,
+  generateMessageId,
+  generateConnectionId,
 } from './webSocketManager';
 import { logger } from '../services/logger';
 
@@ -47,6 +49,8 @@ export interface UseWebSocketReturn {
   reconnectCount: number;
   /** Timestamp of the last heartbeat received from the server */
   lastHeartbeat: Date | null;
+  /** Unique connection ID for tracking and logging */
+  connectionId: string;
 }
 
 export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
@@ -73,6 +77,7 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const [hasExhaustedRetries, setHasExhaustedRetries] = useState(false);
   const [reconnectCount, setReconnectCount] = useState(0);
   const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(null);
+  const [connectionId, setConnectionId] = useState('');
 
   const subscriberIdRef = useRef(generateSubscriberId());
   const unsubscribeRef = useRef<(() => void) | null>(null);
@@ -115,6 +120,9 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
           setIsConnected(true);
           setReconnectCount(0);
           setHasExhaustedRetries(false);
+          // Update connection ID from manager state
+          const state = webSocketManager.getConnectionState(url);
+          setConnectionId(state.connectionId);
           onOpenRef.current?.();
         },
         onClose: () => {
@@ -192,8 +200,9 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     hasExhaustedRetries,
     reconnectCount,
     lastHeartbeat,
+    connectionId,
   };
 }
 
-// Export type guard and backoff function for testing and backward compatibility
-export { isHeartbeatMessage, calculateBackoffDelay };
+// Export type guard, backoff function, and ID generators for testing and backward compatibility
+export { isHeartbeatMessage, calculateBackoffDelay, generateMessageId, generateConnectionId };

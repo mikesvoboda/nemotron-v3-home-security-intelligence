@@ -11,10 +11,11 @@
  * other monitoring dashboards and reduced frontend complexity.
  */
 
-import { BarChart3, RefreshCw, ExternalLink, AlertCircle } from 'lucide-react';
+import { BarChart3, RefreshCw, ExternalLink, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useEffect, useState, useRef, useCallback } from 'react';
 
 import { fetchConfig } from '../../services/api';
+import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
 
 /**
  * AnalyticsPage - Grafana iframe embed for analytics metrics
@@ -148,3 +149,31 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+
+/**
+ * AnalyticsPage with FeatureErrorBoundary wrapper.
+ *
+ * Wraps the AnalyticsPage component in a FeatureErrorBoundary to prevent
+ * errors in the Analytics page from crashing the entire application.
+ */
+function AnalyticsPageWithErrorBoundary() {
+  return (
+    <FeatureErrorBoundary
+      feature="Analytics"
+      fallback={
+        <div className="flex min-h-screen flex-col items-center justify-center bg-[#121212] p-8">
+          <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
+          <h3 className="mb-2 text-lg font-semibold text-red-400">Analytics Unavailable</h3>
+          <p className="max-w-md text-center text-sm text-gray-400">
+            Unable to load analytics dashboard. Please refresh the page or try again later.
+            Other parts of the application should still work.
+          </p>
+        </div>
+      }
+    >
+      <AnalyticsPage />
+    </FeatureErrorBoundary>
+  );
+}
+
+export { AnalyticsPageWithErrorBoundary };

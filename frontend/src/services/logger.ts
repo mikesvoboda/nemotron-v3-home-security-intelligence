@@ -7,7 +7,13 @@
  * - Uses navigator.sendBeacon() on page unload for reliability
  * - Configurable max queue size to prevent memory issues
  * - Page unload handler for guaranteed delivery of final logs
+ *
+ * Backend request ID correlation:
+ * - Includes backend_request_id in API error logs for cross-service tracing
+ * - Uses X-Request-ID header from backend responses
  */
+
+import { getLastRequestId } from './interceptors';
 
 type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
 
@@ -293,11 +299,70 @@ class Logger {
     this.log('INFO', 'user_event', eventName, extra);
   }
 
-  apiError(endpoint: string, status: number, message: string): void {
+  /**
+   * Track user interaction events (clicks, changes, etc.)
+   * @param action - The type of action ('click', 'submit', 'change', 'navigate', 'open', 'close')
+   * @param element - The element identifier (e.g., 'save_alert_button', 'date_range_filter')
+   * @param extra - Additional context data (avoid sensitive information)
+   */
+  interaction(action: string, element: string, extra?: Record<string, unknown>): void {
+    this.event('user_interaction', {
+      action,
+      element,
+      ...extra,
+    });
+  }
+
+  /**
+   * Track form submission events
+   * @param formName - The form identifier (e.g., 'AlertForm', 'SettingsForm')
+   * @param success - Whether the submission was successful
+   * @param extra - Additional context data (avoid sensitive information)
+   */
+  formSubmit(formName: string, success: boolean, extra?: Record<string, unknown>): void {
+    this.event('form_submit', {
+      form: formName,
+      success,
+      ...extra,
+    });
+  }
+
+  /**
+   * Track navigation events between routes
+   * @param from - The source path
+   * @param to - The destination path
+   * @param extra - Additional context data
+   */
+  navigate(from: string, to: string, extra?: Record<string, unknown>): void {
+    this.event('navigation', {
+      from,
+      to,
+      ...extra,
+    });
+  }
+
+  /**
+   * Logs an API error with backend request ID for cross-service correlation.
+   * The backend_request_id comes from the X-Request-ID header in the response.
+   *
+   * @param endpoint - The API endpoint that failed
+   * @param status - The HTTP status code
+   * @param message - The error message
+   * @param extra - Additional context data
+   */
+  apiError(
+    endpoint: string,
+    status: number,
+    message: string,
+    extra?: Record<string, unknown>
+  ): void {
+    const backendRequestId = getLastRequestId();
     this.log('ERROR', 'api', `API error: ${endpoint}`, {
+      ...extra,
       endpoint,
       status,
       message,
+      backend_request_id: backendRequestId,
     });
   }
 

@@ -20,6 +20,7 @@ describe('useServiceStatus', () => {
     hasExhaustedRetries: false,
     reconnectCount: 0,
     lastHeartbeat: null,
+    connectionId: 'mock-ws-001',
   };
 
   let onMessageCallback: ((data: unknown) => void) | undefined;

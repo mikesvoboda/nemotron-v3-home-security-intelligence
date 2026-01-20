@@ -7,6 +7,8 @@ import {
   resetSubscriberCounter,
   ConnectionConfig,
   Subscriber,
+  generateMessageId,
+  generateConnectionId,
 } from './webSocketManager';
 
 // Extend Window interface for WebSocket
@@ -485,5 +487,174 @@ describe('Singleton webSocketManager', () => {
 
   it('should be a singleton instance', () => {
     expect(webSocketManager).toBeInstanceOf(WebSocketManager);
+  });
+});
+
+describe('generateMessageId', () => {
+  it('should generate unique message IDs', () => {
+    const id1 = generateMessageId();
+    const id2 = generateMessageId();
+    const id3 = generateMessageId();
+
+    expect(id1).not.toBe(id2);
+    expect(id2).not.toBe(id3);
+    expect(id1).not.toBe(id3);
+  });
+
+  it('should match the expected format', () => {
+    const id = generateMessageId();
+
+    // Format: msg-{timestamp_base36}-{random_5chars}
+    expect(id).toMatch(/^msg-[a-z0-9]+-[a-z0-9]+$/);
+    expect(id.startsWith('msg-')).toBe(true);
+  });
+
+  it('should include timestamp component', () => {
+    const beforeTime = Date.now().toString(36);
+    const id = generateMessageId();
+    const afterTime = Date.now().toString(36);
+
+    // Extract timestamp from ID (second segment)
+    const timestampPart = id.split('-')[1];
+
+    // Timestamp should be between before and after times
+    expect(timestampPart.length).toBeGreaterThanOrEqual(beforeTime.length - 1);
+    expect(timestampPart.length).toBeLessThanOrEqual(afterTime.length + 1);
+  });
+});
+
+describe('generateConnectionId', () => {
+  it('should generate unique connection IDs', () => {
+    const id1 = generateConnectionId();
+    const id2 = generateConnectionId();
+    const id3 = generateConnectionId();
+
+    expect(id1).not.toBe(id2);
+    expect(id2).not.toBe(id3);
+    expect(id1).not.toBe(id3);
+  });
+
+  it('should match the expected format', () => {
+    const id = generateConnectionId();
+
+    // Format: ws-{timestamp_base36}-{random_5chars}
+    expect(id).toMatch(/^ws-[a-z0-9]+-[a-z0-9]+$/);
+    expect(id.startsWith('ws-')).toBe(true);
+  });
+
+  it('should be different from message IDs', () => {
+    const connectionId = generateConnectionId();
+    const messageId = generateMessageId();
+
+    expect(connectionId.startsWith('ws-')).toBe(true);
+    expect(messageId.startsWith('msg-')).toBe(true);
+    expect(connectionId).not.toBe(messageId);
+  });
+});
+
+describe('Connection ID tracking', () => {
+  let manager: WebSocketManager;
+  let mockWebSocket: MockWebSocket | null = null;
+  let createdWebSockets: MockWebSocket[] = [];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    createdWebSockets = [];
+
+    const MockWebSocketConstructor = vi.fn(function (this: MockWebSocket, url: string) {
+      mockWebSocket = new MockWebSocket(url);
+      createdWebSockets.push(mockWebSocket);
+      Object.assign(this, mockWebSocket);
+      return mockWebSocket;
+    }) as unknown as typeof WebSocket;
+
+    Object.defineProperty(MockWebSocketConstructor, 'CONNECTING', { value: 0 });
+    Object.defineProperty(MockWebSocketConstructor, 'OPEN', { value: 1 });
+    Object.defineProperty(MockWebSocketConstructor, 'CLOSING', { value: 2 });
+    Object.defineProperty(MockWebSocketConstructor, 'CLOSED', { value: 3 });
+
+    vi.stubGlobal('WebSocket', MockWebSocketConstructor);
+
+    manager = new WebSocketManager();
+    resetSubscriberCounter();
+  });
+
+  afterEach(() => {
+    manager.reset();
+    vi.unstubAllGlobals();
+    mockWebSocket = null;
+    createdWebSockets = [];
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  it('should include connectionId in connection state after connecting', async () => {
+    const url = 'ws://localhost:8000/ws/events';
+
+    const subscriber: Subscriber = {
+      id: generateSubscriberId(),
+      onOpen: vi.fn(),
+    };
+
+    manager.subscribe(url, subscriber, defaultConfig);
+    await vi.advanceTimersByTimeAsync(10);
+
+    const state = manager.getConnectionState(url);
+
+    expect(state.connectionId).toBeTruthy();
+    expect(state.connectionId).toMatch(/^ws-[a-z0-9]+-[a-z0-9]+$/);
+    expect(state.isConnected).toBe(true);
+  });
+
+  it('should generate new connectionId on reconnection', async () => {
+    const url = 'ws://localhost:8000/ws/events';
+    const connectionIds: string[] = [];
+
+    const subscriber: Subscriber = {
+      id: generateSubscriberId(),
+      onOpen: () => {
+        const state = manager.getConnectionState(url);
+        connectionIds.push(state.connectionId);
+      },
+    };
+
+    manager.subscribe(url, subscriber, defaultConfig);
+    await vi.advanceTimersByTimeAsync(10);
+
+    // Simulate disconnect
+    mockWebSocket?.close();
+    await vi.advanceTimersByTimeAsync(10);
+
+    // Wait for reconnection
+    await vi.advanceTimersByTimeAsync(1500);
+    await vi.advanceTimersByTimeAsync(10);
+
+    // Should have two different connection IDs
+    expect(connectionIds.length).toBe(2);
+    expect(connectionIds[0]).not.toBe(connectionIds[1]);
+  });
+
+  it('should include lastPongTime in connection state', async () => {
+    const url = 'ws://localhost:8000/ws/events';
+
+    const subscriber: Subscriber = {
+      id: generateSubscriberId(),
+      onHeartbeat: vi.fn(),
+    };
+
+    manager.subscribe(url, subscriber, defaultConfig);
+    await vi.advanceTimersByTimeAsync(10);
+
+    // Initial state should have lastPongTime set on connection
+    const initialState = manager.getConnectionState(url);
+    expect(initialState.lastPongTime).toBeDefined();
+    expect(initialState.lastPongTime).not.toBeNull();
+
+    // Simulate heartbeat
+    mockWebSocket?.simulateMessage({ type: 'ping' });
+
+    const stateAfterHeartbeat = manager.getConnectionState(url);
+    expect(stateAfterHeartbeat.lastPongTime).toBeDefined();
+    expect(stateAfterHeartbeat.lastPongTime).not.toBeNull();
   });
 });

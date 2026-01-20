@@ -9,6 +9,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from backend.core import get_settings
+from backend.core.logging import get_logger, mask_ip
+
+logger = get_logger(__name__)
 
 
 def _hash_key(key: str) -> str:
@@ -67,12 +70,34 @@ async def validate_websocket_api_key(websocket: WebSocket) -> bool:
 
     # No API key provided
     if not api_key:
+        logger.warning(
+            "WebSocket authentication attempt without API key",
+            extra={
+                "path": str(websocket.url.path),
+                "client_ip": mask_ip(websocket.client.host if websocket.client else "unknown"),
+                "security_event": True,
+                "event_type": "ws_auth_missing_key",
+            },
+        )
         return False
 
     # Validate the API key
     key_hash = _hash_key(api_key)
     valid_hashes = _get_valid_key_hashes()
-    return key_hash in valid_hashes
+    is_valid = key_hash in valid_hashes
+
+    if not is_valid:
+        logger.warning(
+            "WebSocket authentication attempt with invalid API key",
+            extra={
+                "path": str(websocket.url.path),
+                "client_ip": mask_ip(websocket.client.host if websocket.client else "unknown"),
+                "security_event": True,
+                "event_type": "ws_auth_invalid_key",
+            },
+        )
+
+    return is_valid
 
 
 async def authenticate_websocket(websocket: WebSocket) -> bool:
@@ -243,6 +268,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Reject if no API key provided
         if not api_key:
+            logger.warning(
+                "Authentication attempt without API key",
+                extra={
+                    "path": request.url.path,
+                    "method": request.method,
+                    "client_ip": mask_ip(request.client.host if request.client else "unknown"),
+                    "security_event": True,
+                    "event_type": "auth_missing_key",
+                },
+            )
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={
@@ -253,6 +288,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Hash and validate API key
         key_hash = self._hash_key(api_key)
         if key_hash not in self.valid_key_hashes:
+            logger.warning(
+                "Authentication attempt with invalid API key",
+                extra={
+                    "path": request.url.path,
+                    "method": request.method,
+                    "client_ip": mask_ip(request.client.host if request.client else "unknown"),
+                    "security_event": True,
+                    "event_type": "auth_invalid_key",
+                },
+            )
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={"detail": "Invalid API key"},

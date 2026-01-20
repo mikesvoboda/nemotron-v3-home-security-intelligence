@@ -24,7 +24,8 @@ import asyncio
 import contextlib
 from typing import TYPE_CHECKING, Any
 
-from backend.core.logging import get_logger
+from backend.core.async_context import generate_task_id, set_job_id
+from backend.core.logging import get_logger, log_context
 from backend.services.cache_service import CacheService
 from backend.services.summary_generator import SummaryGenerator, get_summary_generator
 
@@ -189,6 +190,10 @@ class SummaryJob:
         """
         import time
 
+        # Generate unique job_id for log correlation
+        job_id = generate_task_id("summary-job")
+        set_job_id(job_id)
+
         start_time = time.monotonic()
         result: dict[str, Any] = {
             "success": False,
@@ -197,80 +202,82 @@ class SummaryJob:
             "cache_invalidated": 0,
         }
 
-        logger.info(
-            f"Starting summary generation job (timeout={self._timeout}s)",
-            extra={"job_type": JOB_TYPE_GENERATE_SUMMARIES, "timeout": self._timeout},
-        )
-
-        try:
-            # Generate summaries with timeout
-            async with asyncio.timeout(self._timeout):
-                summaries = await self._generator.generate_all_summaries()
-
-            hourly = summaries.get("hourly")
-            daily = summaries.get("daily")
-
-            result["hourly_event_count"] = hourly.event_count if hourly else 0
-            result["daily_event_count"] = daily.event_count if daily else 0
-
-            # Invalidate cache if Redis client is available
-            if self._redis_client is not None:
-                try:
-                    cache_service = CacheService(self._redis_client)
-                    result["cache_invalidated"] = await invalidate_summary_cache(cache_service)
-                except Exception as e:
-                    logger.warning(f"Cache invalidation failed: {e}")
-
-            # Broadcast update if broadcaster is available
-            if self._broadcaster is not None:
-                await broadcast_summary_update(self._broadcaster, summaries)
-
-            result["success"] = True
-            duration = time.monotonic() - start_time
-
+        # Use log_context to enrich all logs with job context
+        with log_context(job_id=job_id, job_type=JOB_TYPE_GENERATE_SUMMARIES):
             logger.info(
-                "Summary generation job completed successfully",
-                extra={
-                    "job_type": JOB_TYPE_GENERATE_SUMMARIES,
-                    "duration_seconds": round(duration, 2),
-                    "hourly_event_count": result["hourly_event_count"],
-                    "daily_event_count": result["daily_event_count"],
-                    "cache_invalidated": result["cache_invalidated"],
-                },
+                f"Starting summary generation job (timeout={self._timeout}s)",
+                extra={"timeout": self._timeout},
             )
 
-            return result
+            try:
+                # Generate summaries with timeout
+                async with asyncio.timeout(self._timeout):
+                    summaries = await self._generator.generate_all_summaries()
 
-        except TimeoutError:
-            duration = time.monotonic() - start_time
-            error_msg = f"Summary generation timed out after {self._timeout}s"
-            result["error"] = error_msg
+                hourly = summaries.get("hourly")
+                daily = summaries.get("daily")
 
-            logger.error(
-                error_msg,
-                extra={
-                    "job_type": JOB_TYPE_GENERATE_SUMMARIES,
-                    "duration_seconds": round(duration, 2),
-                    "timeout": self._timeout,
-                },
-            )
-            raise
+                result["hourly_event_count"] = hourly.event_count if hourly else 0
+                result["daily_event_count"] = daily.event_count if daily else 0
 
-        except Exception as e:
-            duration = time.monotonic() - start_time
-            result["error"] = str(e)
+                # Invalidate cache if Redis client is available
+                if self._redis_client is not None:
+                    try:
+                        cache_service = CacheService(self._redis_client)
+                        result["cache_invalidated"] = await invalidate_summary_cache(cache_service)
+                    except Exception as e:
+                        logger.warning(f"Cache invalidation failed: {e}")
 
-            logger.error(
-                f"Summary generation job failed: {e}",
-                extra={
-                    "job_type": JOB_TYPE_GENERATE_SUMMARIES,
-                    "duration_seconds": round(duration, 2),
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-                exc_info=True,
-            )
-            raise
+                # Broadcast update if broadcaster is available
+                if self._broadcaster is not None:
+                    await broadcast_summary_update(self._broadcaster, summaries)
+
+                result["success"] = True
+                duration = time.monotonic() - start_time
+
+                logger.info(
+                    "Summary generation job completed successfully",
+                    extra={
+                        "duration_seconds": round(duration, 2),
+                        "hourly_event_count": result["hourly_event_count"],
+                        "daily_event_count": result["daily_event_count"],
+                        "cache_invalidated": result["cache_invalidated"],
+                    },
+                )
+
+                return result
+
+            except TimeoutError:
+                duration = time.monotonic() - start_time
+                error_msg = f"Summary generation timed out after {self._timeout}s"
+                result["error"] = error_msg
+
+                logger.error(
+                    error_msg,
+                    extra={
+                        "duration_seconds": round(duration, 2),
+                        "timeout": self._timeout,
+                    },
+                )
+                raise
+
+            except Exception as e:
+                duration = time.monotonic() - start_time
+                result["error"] = str(e)
+
+                logger.error(
+                    f"Summary generation job failed: {e}",
+                    extra={
+                        "duration_seconds": round(duration, 2),
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                    exc_info=True,
+                )
+                raise
+            finally:
+                # Clear job_id context when job completes
+                set_job_id(None)
 
 
 class SummaryJobScheduler:

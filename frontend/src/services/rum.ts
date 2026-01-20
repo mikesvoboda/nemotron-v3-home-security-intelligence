@@ -30,9 +30,18 @@
 
 /**
  * Core Web Vital metric names supported by web-vitals library,
- * plus custom metrics like PAGE_LOAD_TIME from Navigation Timing API.
+ * plus custom metrics like PAGE_LOAD_TIME from Navigation Timing API
+ * and SLOW_RENDER from React Profiler performance tracking.
  */
-export type WebVitalName = 'LCP' | 'FID' | 'INP' | 'CLS' | 'TTFB' | 'FCP' | 'PAGE_LOAD_TIME';
+export type WebVitalName =
+  | 'LCP'
+  | 'FID'
+  | 'INP'
+  | 'CLS'
+  | 'TTFB'
+  | 'FCP'
+  | 'PAGE_LOAD_TIME'
+  | 'SLOW_RENDER';
 
 /**
  * Rating values returned by web-vitals library.
@@ -43,7 +52,7 @@ export type WebVitalRating = 'good' | 'needs-improvement' | 'poor';
  * Web Vital metric structure matching web-vitals library output.
  */
 export interface WebVitalMetric {
-  /** Metric name (LCP, FID, INP, CLS, TTFB, FCP, PAGE_LOAD_TIME) */
+  /** Metric name (LCP, FID, INP, CLS, TTFB, FCP, PAGE_LOAD_TIME, SLOW_RENDER) */
   name: WebVitalName;
   /** Metric value (milliseconds for most, dimensionless for CLS) */
   value: number;
@@ -57,6 +66,17 @@ export interface WebVitalMetric {
   navigationType?: string;
   /** Page path where metric was measured */
   path?: string;
+  /** Additional metadata for custom metrics like SLOW_RENDER */
+  extra?: {
+    /** Component name for SLOW_RENDER metrics */
+    component?: string;
+    /** Maximum render duration in batch for SLOW_RENDER */
+    max?: number;
+    /** Count of slow renders in batch for SLOW_RENDER */
+    count?: number;
+    /** Other custom metadata */
+    [key: string]: unknown;
+  };
 }
 
 /**

@@ -346,9 +346,10 @@ class TestPrometheusConfigIncludesRules:
 class TestExpectedAlerts:
     """Test that expected alerts are defined as per NEM-1731."""
 
+    # NOTE: AINemotronTimeout is excluded because the required metric
+    # (hsi_ai_request_duration_seconds_bucket) is not yet implemented
     EXPECTED_ALERTS: ClassVar[list[str]] = [
         "AIDetectorUnavailable",
-        "AINemotronTimeout",
         "AIHighErrorRate",
         "AIGPUOverheating",
         "AIGPUMemoryCritical",
@@ -401,6 +402,9 @@ class TestExpectedAlerts:
                     return
         pytest.fail("AIGPUMemoryCritical alert not found")
 
+    @pytest.mark.skip(
+        reason="AINemotronTimeout alert disabled - hsi_ai_request_duration_seconds_bucket metric not implemented"
+    )
     def test_ainemotrontimeout_has_for_duration(self, rules_data: dict):
         """Verify AINemotronTimeout has a 'for' duration defined."""
         for group in rules_data["groups"]:

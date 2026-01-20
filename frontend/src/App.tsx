@@ -7,6 +7,7 @@ import {
   AmbientStatusProvider,
   ChunkLoadErrorBoundary,
   ErrorBoundary,
+  NavigationTracker,
   PageTransition,
   ProductTour,
   RateLimitIndicator,
@@ -80,6 +81,8 @@ export default function App() {
         <AnnouncementProvider>
           <RateLimitProvider>
             <BrowserRouter>
+              {/* Track navigation between routes for analytics */}
+              <NavigationTracker />
               <ErrorBoundary
                 title="Application Error"
                 description="The application encountered an unexpected error. Please try again or refresh the page."

@@ -14,6 +14,13 @@ import {
   defaultRequestInterceptor,
   defaultResponseInterceptor,
   createRetryInterceptor,
+  getLastRequestId,
+  getLastCorrelationId,
+  getRequestIdForUrl,
+  setLastRequestId,
+  setLastCorrelationId,
+  setRequestIdForUrl,
+  clearRequestIds,
 } from './interceptors';
 
 // Type for the mock fetch function
@@ -329,6 +336,146 @@ describe('interceptors', () => {
       };
       expect(config.requestInterceptors).toHaveLength(1);
       expect(config.responseInterceptors).toHaveLength(1);
+    });
+  });
+
+  describe('Request ID Context Store', () => {
+    beforeEach(() => {
+      clearRequestIds();
+    });
+
+    it('stores and retrieves last request ID', () => {
+      expect(getLastRequestId()).toBeNull();
+
+      setLastRequestId('req-123');
+      expect(getLastRequestId()).toBe('req-123');
+
+      setLastRequestId('req-456');
+      expect(getLastRequestId()).toBe('req-456');
+    });
+
+    it('stores and retrieves last correlation ID', () => {
+      expect(getLastCorrelationId()).toBeNull();
+
+      setLastCorrelationId('corr-abc');
+      expect(getLastCorrelationId()).toBe('corr-abc');
+
+      setLastCorrelationId('corr-def');
+      expect(getLastCorrelationId()).toBe('corr-def');
+    });
+
+    it('stores and retrieves request ID for specific URL', () => {
+      expect(getRequestIdForUrl('/api/test')).toBeNull();
+
+      setRequestIdForUrl('/api/test', 'req-111');
+      expect(getRequestIdForUrl('/api/test')).toBe('req-111');
+
+      setRequestIdForUrl('/api/other', 'req-222');
+      expect(getRequestIdForUrl('/api/test')).toBe('req-111');
+      expect(getRequestIdForUrl('/api/other')).toBe('req-222');
+    });
+
+    it('clears all stored request IDs', () => {
+      setLastRequestId('req-123');
+      setLastCorrelationId('corr-abc');
+      setRequestIdForUrl('/api/test', 'req-456');
+
+      clearRequestIds();
+
+      expect(getLastRequestId()).toBeNull();
+      expect(getLastCorrelationId()).toBeNull();
+      expect(getRequestIdForUrl('/api/test')).toBeNull();
+    });
+  });
+
+  describe('defaultResponseInterceptor request ID capture', () => {
+    beforeEach(() => {
+      clearRequestIds();
+    });
+
+    it('captures X-Request-ID header from response', () => {
+      const headers = new Headers();
+      headers.set('X-Request-ID', 'backend-req-789');
+
+      const response = new Response('OK', { status: 200, headers });
+      defaultResponseInterceptor(response, '/api/test', {});
+
+      expect(getLastRequestId()).toBe('backend-req-789');
+      expect(getRequestIdForUrl('/api/test')).toBe('backend-req-789');
+    });
+
+    it('captures X-Correlation-ID header from response', () => {
+      const headers = new Headers();
+      headers.set('X-Correlation-ID', 'trace-xyz');
+
+      const response = new Response('OK', { status: 200, headers });
+      defaultResponseInterceptor(response, '/api/test', {});
+
+      expect(getLastCorrelationId()).toBe('trace-xyz');
+    });
+
+    it('captures both request ID and correlation ID', () => {
+      const headers = new Headers();
+      headers.set('X-Request-ID', 'req-111');
+      headers.set('X-Correlation-ID', 'corr-222');
+
+      const response = new Response('OK', { status: 200, headers });
+      defaultResponseInterceptor(response, '/api/data', {});
+
+      expect(getLastRequestId()).toBe('req-111');
+      expect(getLastCorrelationId()).toBe('corr-222');
+      expect(getRequestIdForUrl('/api/data')).toBe('req-111');
+    });
+
+    it('does not overwrite when headers are missing', () => {
+      setLastRequestId('existing-req');
+      setLastCorrelationId('existing-corr');
+
+      const response = new Response('OK', { status: 200 });
+      defaultResponseInterceptor(response, '/api/test', {});
+
+      // Should not overwrite existing values when headers are not present
+      expect(getLastRequestId()).toBe('existing-req');
+      expect(getLastCorrelationId()).toBe('existing-corr');
+    });
+
+    it('includes request ID in error logs for 4xx responses', () => {
+      const headers = new Headers();
+      headers.set('X-Request-ID', 'error-req-404');
+
+      const response = new Response('Not Found', { status: 404, headers });
+      defaultResponseInterceptor(response, '/api/missing', { method: 'GET' });
+
+      expect(consoleSpy.warn).toHaveBeenCalledWith(
+        expect.stringContaining('[Request-ID: error-req-404]')
+      );
+    });
+
+    it('includes request ID in error logs for 5xx responses', () => {
+      const headers = new Headers();
+      headers.set('X-Request-ID', 'error-req-500');
+
+      const response = new Response('Server Error', { status: 500, headers });
+      defaultResponseInterceptor(response, '/api/broken', { method: 'POST' });
+
+      expect(consoleSpy.error).toHaveBeenCalledWith(
+        expect.stringContaining('[Request-ID: error-req-500]')
+      );
+    });
+
+    it('does not include request ID in success logs', () => {
+      const headers = new Headers();
+      headers.set('X-Request-ID', 'success-req-200');
+
+      const response = new Response('OK', { status: 200, headers });
+      defaultResponseInterceptor(response, '/api/success', { method: 'GET' });
+
+      // Success logs should not include request ID for cleaner output
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const logCall = consoleSpy.log.mock.calls.find((call: unknown[]) =>
+        String(call[0]).includes('/api/success')
+      );
+      expect(logCall?.[0]).not.toContain('[Request-ID:');
     });
   });
 });
