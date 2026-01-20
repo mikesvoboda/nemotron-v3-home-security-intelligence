@@ -176,57 +176,57 @@ def realistic_enrichment_result():
             ),
             person_attributes={
                 1: PersonAttributes(
-                    gender="male",
-                    age_range="adult",
-                    clothing_description="dark jacket, jeans",
-                    pose="walking",
-                    activity="approaching vehicle",
-                    carrying_items=["backpack"],
+                    clothing="dark jacket, jeans",
+                    carrying="backpack",
+                    is_service_worker=False,
+                    action="walking",
+                    caption="Person walking towards vehicle",
                 )
             },
             vehicle_attributes={
                 2: VehicleAttributes(
-                    vehicle_type="sedan",
                     color="blue",
-                    make_model="Honda Civic",
-                    license_plate="ABC1234",
-                    parked=True,
+                    vehicle_type="sedan",
+                    is_commercial=False,
+                    commercial_text=None,
+                    caption="Blue Honda Civic sedan parked in driveway",
                 )
             },
         ),
         violence_detection=ViolenceDetectionResult(
-            violence_detected=False,
-            confidence=0.05,
-            violence_type=None,
-            person_count=1,
+            is_violent=False,
+            confidence=0.95,
+            violent_score=0.05,
+            non_violent_score=0.95,
         ),
         weather_classification=WeatherResult(
-            primary_condition="clear",
+            condition="clear/sunny",
+            simple_condition="clear",
             confidence=0.91,
-            visibility_level="high",
+            all_scores={"clear/sunny": 0.91, "cloudy": 0.05, "rain": 0.04},
         ),
         clothing_classifications={
             "1": ClothingClassification(
-                top_color="dark blue",
-                bottom_color="blue",
-                has_face_covering=False,
-                overall_style="casual",
+                top_category="casual jacket",
                 confidence=0.87,
+                all_scores={"casual jacket": 0.87, "uniform": 0.08, "hoodie": 0.05},
+                is_suspicious=False,
+                is_service_uniform=False,
+                raw_description="dark blue jacket with jeans",
             )
         },
         vehicle_classifications={
             "2": VehicleClassificationResult(
-                vehicle_type="car",
-                vehicle_subtype="sedan",
-                color="blue",
+                vehicle_type="sedan",
+                display_name="Sedan",
                 confidence=0.89,
+                is_commercial=False,
+                all_scores={"sedan": 0.89, "suv": 0.07, "pickup_truck": 0.04},
             )
         },
         vehicle_damage={
             "2": VehicleDamageResult(
-                has_damage=False,
-                damage_detections=[],
-                overall_confidence=0.12,
+                detections=[],
             )
         },
         pet_classifications={},
