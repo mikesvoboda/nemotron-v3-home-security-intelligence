@@ -26,8 +26,9 @@ groups:
       # Service Availability Alerts
       # =========================================================================
 
+      # Uses hsi_ai_healthy_unhealthy gauge (1 when unhealthy, 0 when healthy)
       - alert: AIDetectorUnavailable
-        expr: hsi_ai_healthy == 0
+        expr: hsi_ai_healthy_unhealthy > 0
         for: 2m
         labels:
           severity: critical
@@ -54,36 +55,14 @@ groups:
       # =========================================================================
       # Latency and Performance Alerts
       # =========================================================================
-
-      - alert: AINemotronTimeout
-        expr: |
-          histogram_quantile(0.95,
-            rate(hsi_ai_request_duration_seconds_bucket{service="nemotron"}[5m])
-          ) > 120
-        for: 5m
-        labels:
-          severity: warning
-          component: ai
-          service: nemotron
-        annotations:
-          summary: 'Nemotron LLM inference is timing out'
-          description: 'The 95th percentile inference time for Nemotron has exceeded 120 seconds for 5 minutes. Risk analysis is severely delayed. Current P95: {{ $value | printf "%.1f" }}s'
-          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#ainemotrontimeout'
-
-      - alert: AIDetectorSlow
-        expr: |
-          histogram_quantile(0.95,
-            rate(hsi_ai_request_duration_seconds_bucket{service="rtdetr"}[5m])
-          ) > 5
-        for: 5m
-        labels:
-          severity: warning
-          component: ai
-          service: rtdetr
-        annotations:
-          summary: 'RT-DETR object detection is slow'
-          description: 'The 95th percentile detection time has exceeded 5 seconds for 5 minutes. Detection queue may be backing up. Current P95: {{ $value | printf "%.1f" }}s'
-          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aidetectorslow'
+      # NOTE: AINemotronTimeout and AIDetectorSlow disabled - hsi_ai_request_duration_seconds_bucket metric not implemented
+      # Re-enable when metric is added to backend/core/metrics.py
+      # - alert: AINemotronTimeout
+      #   expr: histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="nemotron"}[5m])) > 120
+      #   ...
+      # - alert: AIDetectorSlow
+      #   expr: histogram_quantile(0.95, rate(hsi_ai_request_duration_seconds_bucket{service="rtdetr"}[5m])) > 5
+      #   ...
 
       # =========================================================================
       # Error Rate Alerts
@@ -161,7 +140,7 @@ groups:
 
       - alert: AIGPUMemoryWarning
         expr: |
-          (hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb) * 100 > 85
+          (hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb) * 100 > 95
         for: 5m
         labels:
           severity: warning
@@ -169,7 +148,7 @@ groups:
           service: nvidia
         annotations:
           summary: 'GPU VRAM usage is high'
-          description: 'GPU VRAM usage has exceeded 85% for more than 5 minutes. Current usage: {{ $value | printf "%.1f" }}%. Consider optimizing batch sizes or model configurations.'
+          description: 'GPU VRAM usage has exceeded 95% for more than 5 minutes. Current usage: {{ $value | printf "%.1f" }}%. Consider optimizing batch sizes or model configurations.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aigpumemorywarning'
 
       # =========================================================================
@@ -204,8 +183,9 @@ groups:
       # System Health Alerts
       # =========================================================================
 
+      # Uses hsi_system_healthy_degraded gauge (1 when degraded, 0 otherwise)
       - alert: AISystemDegraded
-        expr: hsi_system_healthy == 0.5
+        expr: hsi_system_healthy_degraded > 0
         for: 5m
         labels:
           severity: warning
@@ -216,8 +196,9 @@ groups:
           description: 'The HSI system has been in degraded state for more than 5 minutes. Some services may not be functioning properly.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#aisystemdegraded'
 
+      # Uses hsi_system_healthy_unhealthy gauge (1 when unhealthy, 0 otherwise)
       - alert: AISystemUnhealthy
-        expr: hsi_system_healthy == 0
+        expr: hsi_system_healthy_unhealthy > 0
         for: 2m
         labels:
           severity: critical
@@ -235,8 +216,9 @@ groups:
   - name: infrastructure_alerts
     interval: 30s
     rules:
+      # Uses hsi_database_healthy_unhealthy gauge (1 when unhealthy, 0 when healthy)
       - alert: DatabaseUnhealthy
-        expr: hsi_database_healthy == 0
+        expr: hsi_database_healthy_unhealthy > 0
         for: 2m
         labels:
           severity: critical
@@ -247,8 +229,9 @@ groups:
           description: 'PostgreSQL database has been unreachable for more than 2 minutes. Event persistence is failing.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/Runbooks#databaseunhealthy'
 
+      # Uses hsi_redis_healthy_unhealthy gauge (1 when unhealthy, 0 when healthy)
       - alert: RedisUnhealthy
-        expr: hsi_redis_healthy == 0
+        expr: hsi_redis_healthy_unhealthy > 0
         for: 2m
         labels:
           severity: critical
