@@ -36,6 +36,24 @@ _LOC_TOKEN_PATTERN = re.compile(r"<loc_\d+>")
 # The question typically ends with ? followed by the actual answer
 _VQA_PREFIX_PATTERN = re.compile(r"^.*?VQA>[^?]*\?", re.IGNORECASE)
 
+# Patterns for validation of VQA output (NEM-3009)
+# These patterns indicate garbage output that should be rejected
+_GARBAGE_TOKEN_PATTERNS = [
+    re.compile(r"<loc_\d+>"),  # Location tokens
+    re.compile(r"<poly>", re.IGNORECASE),  # Polygon tokens
+    re.compile(r"<pad>", re.IGNORECASE),  # Padding tokens
+    re.compile(r"VQA>", re.IGNORECASE),  # VQA prefix artifact
+]
+
+# Minimum valid length for a meaningful VQA response
+# Single letter outputs like "a" or "-" are considered garbage
+_MIN_VALID_LENGTH = 2
+
+# Short valid responses that are accepted despite being short
+_VALID_SHORT_RESPONSES = frozenset(
+    {"no", "yes", "red", "blue", "green", "white", "black", "gray", "grey", "suv", "van"}
+)
+
 
 def clean_vqa_output(text: str) -> str:
     """Clean Florence-2 VQA output by removing artifacts.
@@ -106,6 +124,93 @@ def clean_vqa_output(text: str) -> str:
     result = " ".join(result.split())
 
     return result.strip()
+
+
+def is_valid_vqa_output(text: str) -> bool:
+    """Validate Florence-2 VQA output for garbage token patterns.
+
+    Florence-2 VQA can return garbage outputs containing location tokens,
+    prompt artifacts, or other invalid patterns instead of actual text answers.
+    This function detects such garbage outputs.
+
+    NEM-3009: VQA outputs like "VQA>person wearing<loc_95><loc_86><loc_901><loc_918>"
+    should be rejected so the system can fall back to scene captioning.
+
+    Args:
+        text: VQA output text to validate
+
+    Returns:
+        True if the output appears to be valid text, False if it contains
+        garbage patterns that indicate a failed VQA response.
+
+    Examples:
+        >>> is_valid_vqa_output("dark hoodie and jeans")
+        True
+        >>> is_valid_vqa_output("<loc_95><loc_86><loc_901><loc_918>")
+        False
+        >>> is_valid_vqa_output("VQA>person wearing<loc_95>")
+        False
+    """
+    if not text or not text.strip():
+        return False
+
+    # Check for garbage token patterns
+    for pattern in _GARBAGE_TOKEN_PATTERNS:
+        if pattern.search(text):
+            return False
+
+    # Check minimum length (unless it's a known valid short response)
+    stripped = text.strip().lower()
+    return not (len(stripped) < _MIN_VALID_LENGTH and stripped not in _VALID_SHORT_RESPONSES)
+
+
+def validate_and_clean_vqa_output(text: str) -> str | None:
+    """Clean and validate Florence-2 VQA output, returning None if invalid.
+
+    This function combines cleaning (removing artifacts) with validation
+    (detecting garbage output). It first cleans the text to remove any
+    recoverable artifacts, then validates the result.
+
+    NEM-3009: When VQA returns garbage like "VQA>person wearing<loc_95><loc_86>",
+    this function returns None to signal that the caller should fall back
+    to scene captioning instead.
+
+    Args:
+        text: Raw VQA output text from Florence-2
+
+    Returns:
+        Cleaned text if valid, or None if the output is garbage.
+        Returning None allows callers to implement fallback behavior.
+
+    Examples:
+        >>> validate_and_clean_vqa_output("dark hoodie and jeans<loc_100>")
+        'dark hoodie and jeans'
+        >>> validate_and_clean_vqa_output("<loc_95><loc_86><loc_901><loc_918>")
+        None
+        >>> validate_and_clean_vqa_output("VQA>person wearing<loc_95>")
+        None
+    """
+    if not text:
+        return None
+
+    # First clean the text
+    cleaned = clean_vqa_output(text)
+
+    # If cleaning resulted in empty string, it's invalid
+    if not cleaned:
+        return None
+
+    # Check for any remaining garbage patterns in the cleaned text
+    # (clean_vqa_output removes loc tokens but this catches edge cases)
+    for pattern in _GARBAGE_TOKEN_PATTERNS:
+        if pattern.search(cleaned):
+            return None
+
+    # Check minimum length
+    if len(cleaned) < _MIN_VALID_LENGTH and cleaned.lower() not in _VALID_SHORT_RESPONSES:
+        return None
+
+    return cleaned
 
 
 # Florence-2 task prompts
@@ -412,32 +517,44 @@ class VisionExtractor:
 
         Returns:
             VehicleAttributes with extracted information
+
+        Note:
+            NEM-3009: VQA responses are validated and garbage outputs (containing
+            location tokens, VQA> prefix, etc.) are rejected. Invalid outputs
+            result in None for that attribute, with the caption providing fallback.
         """
         if bbox is not None:
             image = self._crop_image(image, bbox)
 
-        # Get caption first
+        # Get caption first (used as fallback context when VQA fails)
         caption = await self._query_florence(image, CAPTION_TASK)
 
-        # Query for specific attributes
-        color = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["color"])
-        vehicle_type = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["type"])
+        # Query for specific attributes and validate each response (NEM-3009)
+        color_raw = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["color"])
+        vehicle_type_raw = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["type"])
         commercial_response = await self._query_florence(
             image, VQA_TASK, VEHICLE_QUERIES["commercial"]
         )
+
+        # Validate VQA responses to reject garbage outputs
+        color = validate_and_clean_vqa_output(color_raw)
+        vehicle_type = validate_and_clean_vqa_output(vehicle_type_raw)
 
         is_commercial = self._parse_yes_no(commercial_response)
 
         commercial_text = None
         if is_commercial:
-            commercial_text = await self._query_florence(
+            commercial_text_raw = await self._query_florence(
                 image, VQA_TASK, VEHICLE_QUERIES["commercial_text"]
             )
-            commercial_text = self._parse_none_response(commercial_text)
+            commercial_text_clean = validate_and_clean_vqa_output(commercial_text_raw)
+            commercial_text = (
+                self._parse_none_response(commercial_text_clean) if commercial_text_clean else None
+            )
 
         return VehicleAttributes(
-            color=color.strip() if color else None,
-            vehicle_type=vehicle_type.strip() if vehicle_type else None,
+            color=color,
+            vehicle_type=vehicle_type,
             is_commercial=is_commercial,
             commercial_text=commercial_text,
             caption=caption,
@@ -456,26 +573,36 @@ class VisionExtractor:
 
         Returns:
             PersonAttributes with extracted information
+
+        Note:
+            NEM-3009: VQA responses are validated and garbage outputs (containing
+            location tokens, VQA> prefix, etc.) are rejected. Invalid outputs
+            result in None for that attribute, with the caption providing fallback.
         """
         if bbox is not None:
             image = self._crop_image(image, bbox)
 
-        # Get caption first
+        # Get caption first (used as fallback context when VQA fails)
         caption = await self._query_florence(image, CAPTION_TASK)
 
-        # Query for specific attributes
-        clothing = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["clothing"])
-        carrying_response = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["carrying"])
+        # Query for specific attributes and validate each response (NEM-3009)
+        clothing_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["clothing"])
+        carrying_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["carrying"])
         service_response = await self._query_florence(
             image, VQA_TASK, PERSON_QUERIES["service_worker"]
         )
-        action = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["action"])
+        action_raw = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["action"])
+
+        # Validate VQA responses to reject garbage outputs
+        clothing = validate_and_clean_vqa_output(clothing_raw)
+        carrying_clean = validate_and_clean_vqa_output(carrying_raw)
+        action = validate_and_clean_vqa_output(action_raw)
 
         return PersonAttributes(
-            clothing=clothing.strip() if clothing else None,
-            carrying=self._parse_none_response(carrying_response),
+            clothing=clothing,
+            carrying=self._parse_none_response(carrying_clean) if carrying_clean else None,
             is_service_worker=self._parse_yes_no(service_response),
-            action=action.strip() if action else None,
+            action=action,
             caption=caption,
         )
 

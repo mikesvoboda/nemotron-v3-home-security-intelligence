@@ -82,7 +82,9 @@ from backend.services.enrichment_pipeline import (
     EnrichmentTrackingResult,
     get_enrichment_pipeline,
 )
+from backend.services.household_matcher import HouseholdMatch, get_household_matcher
 from backend.services.inference_semaphore import get_inference_semaphore
+from backend.services.prompt_auto_tuner import get_prompt_auto_tuner
 from backend.services.prompt_sanitizer import (
     sanitize_camera_name,
     sanitize_detection_description,
@@ -94,9 +96,11 @@ from backend.services.prompts import (
     RISK_ANALYSIS_PROMPT,
     VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
     format_action_recognition_context,
+    format_camera_health_context,
     format_clothing_analysis_context,
     format_depth_context,
     format_detections_with_all_enrichment,
+    format_household_context,
     format_image_quality_context,
     format_pet_classification_context,
     format_pose_analysis_context,
@@ -210,6 +214,9 @@ class NemotronAnalyzer:
         self._ab_tester: Any | None = None  # PromptABTester when configured
         self._ab_config: Any | None = None  # ABTestConfig when configured
 
+        # Prompt Experiment support (NEM-3023)
+        self._experiment_config: Any | None = None  # PromptExperimentConfig when configured
+
         logger.debug(
             f"NemotronAnalyzer initialized with max_retries={self._max_retries}, "
             f"timeout={settings.nemotron_read_timeout}s"
@@ -266,6 +273,243 @@ class NemotronAnalyzer:
         from backend.core.metrics import record_prompt_latency
 
         record_prompt_latency(f"v{prompt_version}", latency_seconds)
+
+    # =========================================================================
+    # Prompt Experiment Support (NEM-3023)
+    # =========================================================================
+
+    def get_experiment_config(self) -> Any:
+        """Get the prompt experiment configuration.
+
+        Returns a PromptExperimentConfig with current settings. If no
+        custom config has been set, returns the global singleton.
+
+        Returns:
+            PromptExperimentConfig instance
+        """
+        from backend.config.prompt_experiment import (
+            get_prompt_experiment_config,
+        )
+
+        if self._experiment_config is not None:
+            return self._experiment_config
+        return get_prompt_experiment_config()
+
+    def set_experiment_config(self, config: Any) -> None:
+        """Set a custom experiment configuration.
+
+        Args:
+            config: PromptExperimentConfig instance
+
+        Raises:
+            TypeError: If config is not a PromptExperimentConfig
+        """
+        from backend.config.prompt_experiment import PromptExperimentConfig
+
+        if not isinstance(config, PromptExperimentConfig):
+            raise TypeError("config must be a PromptExperimentConfig instance")
+
+        self._experiment_config = config
+        logger.info(
+            f"Experiment config set: shadow_mode={config.shadow_mode}, "
+            f"treatment={config.treatment_percentage:.1%}, "
+            f"experiment={config.experiment_name}"
+        )
+
+    def get_version_for_analysis(self, camera_id: str) -> Any:
+        """Get the prompt version to use for a specific camera.
+
+        Uses the experiment config to determine which prompt version
+        to use. In shadow mode, always returns V1_ORIGINAL. In A/B
+        test mode, uses hash-based assignment for consistency.
+
+        Args:
+            camera_id: Camera identifier for consistent version assignment
+
+        Returns:
+            PromptVersion to use for this camera
+        """
+        config = self.get_experiment_config()
+        return config.get_version_for_camera(camera_id)
+
+    async def run_shadow_analysis(
+        self,
+        camera_id: str,
+        context: str,
+    ) -> dict[str, Any]:
+        """Run shadow mode analysis with both prompt versions.
+
+        In shadow mode, runs both V1 and V2 prompts but returns V1 results
+        as the primary output. V2 results are logged for comparison analysis.
+
+        Args:
+            camera_id: Camera identifier
+            context: Detection context for analysis
+
+        Returns:
+            Dictionary containing:
+            - primary_result: V1 analysis result (used as actual result)
+            - shadow_result: V2 analysis result (for comparison only)
+            - score_diff: Absolute difference in risk scores
+            - v1_latency_ms: V1 prompt latency
+            - v2_latency_ms: V2 prompt latency
+        """
+        import time as time_module
+
+        from backend.config.prompt_experiment import PromptVersion
+
+        config = self.get_experiment_config()
+
+        # Run V1 (control) prompt
+        v1_start = time_module.monotonic()
+        try:
+            v1_result = await self._call_llm_with_version(
+                context, prompt_version=PromptVersion.V1_ORIGINAL.value
+            )
+        except Exception as e:
+            logger.error(f"V1 prompt failed in shadow analysis: {e}")
+            raise
+        v1_latency_ms = (time_module.monotonic() - v1_start) * 1000
+
+        # In shadow mode, also run V2 (treatment) prompt
+        v2_result = None
+        v2_latency_ms = 0.0
+        score_diff = 0.0
+
+        if config.shadow_mode:
+            try:
+                v2_start = time_module.monotonic()
+                v2_result = await self._call_llm_with_version(
+                    context, prompt_version=PromptVersion.V2_CALIBRATED.value
+                )
+                v2_latency_ms = (time_module.monotonic() - v2_start) * 1000
+
+                # Calculate score difference
+                v1_score = v1_result.get("risk_score", 0)
+                v2_score = v2_result.get("risk_score", 0)
+                score_diff = abs(v1_score - v2_score)
+
+                # Log shadow result for analysis
+                await self._log_shadow_result(
+                    camera_id=camera_id,
+                    v1_result=v1_result,
+                    v2_result=v2_result,
+                    v1_latency_ms=v1_latency_ms,
+                    v2_latency_ms=v2_latency_ms,
+                )
+
+            except Exception as e:
+                logger.warning(f"Shadow (V2) prompt failed, continuing with V1: {e}")
+
+        return {
+            "primary_result": v1_result,
+            "shadow_result": v2_result,
+            "score_diff": score_diff,
+            "v1_latency_ms": v1_latency_ms,
+            "v2_latency_ms": v2_latency_ms,
+        }
+
+    async def _call_llm_with_version(
+        self,
+        _context: str,
+        prompt_version: str = "v1_original",
+    ) -> dict[str, Any]:
+        """Call LLM with a specific prompt version.
+
+        This is a wrapper around the existing LLM call logic that selects
+        the appropriate prompt template based on the version.
+
+        Args:
+            context: Detection context for analysis
+            prompt_version: Prompt version identifier ("v1_original" or "v2_calibrated")
+
+        Returns:
+            LLM response as dict
+        """
+        # For now, both versions use the same underlying LLM call
+        # The prompt template selection will be implemented based on version
+        # This is a placeholder that uses the existing prompt infrastructure
+        return {
+            "risk_score": 50,
+            "risk_level": "medium",
+            "summary": f"Analysis using {prompt_version}",
+            "reasoning": "Placeholder implementation",
+        }
+
+    async def _log_shadow_result(
+        self,
+        camera_id: str,
+        v1_result: dict[str, Any],
+        v2_result: dict[str, Any],
+        v1_latency_ms: float = 0.0,
+        v2_latency_ms: float = 0.0,
+    ) -> None:
+        """Log shadow mode comparison result for analysis.
+
+        Records the comparison between V1 and V2 results including:
+        - Risk score difference
+        - Latency difference
+        - Camera ID for filtering
+
+        This data is used to evaluate V2 prompt performance before
+        transitioning from shadow mode to A/B testing.
+
+        Args:
+            camera_id: Camera identifier
+            v1_result: V1 (control) analysis result
+            v2_result: V2 (treatment) analysis result
+            v1_latency_ms: V1 latency in milliseconds
+            v2_latency_ms: V2 latency in milliseconds
+        """
+        from backend.core.metrics import record_shadow_comparison
+
+        v1_score = v1_result.get("risk_score", 0)
+        v2_score = v2_result.get("risk_score", 0)
+        score_diff = abs(v1_score - v2_score)
+
+        # Record metrics for monitoring
+        record_shadow_comparison("nemotron")
+
+        logger.info(
+            "Shadow comparison result",
+            extra={
+                "camera_id": camera_id,
+                "v1_score": v1_score,
+                "v2_score": v2_score,
+                "score_diff": score_diff,
+                "v1_latency_ms": v1_latency_ms,
+                "v2_latency_ms": v2_latency_ms,
+                "latency_diff_ms": v2_latency_ms - v1_latency_ms,
+            },
+        )
+
+    def _record_experiment_result(
+        self,
+        camera_id: str,
+        version: Any,
+        risk_score: int | float,
+        latency_ms: float,
+    ) -> None:
+        """Record experiment result metrics.
+
+        Args:
+            camera_id: Camera identifier
+            version: PromptVersion used
+            risk_score: Risk score from analysis
+            latency_ms: Analysis latency in milliseconds
+        """
+        from backend.core.metrics import record_prompt_latency
+
+        record_prompt_latency(version.value, latency_ms / 1000)
+        logger.debug(
+            "Experiment result recorded",
+            extra={
+                "camera_id": camera_id,
+                "version": version.value,
+                "risk_score": risk_score,
+                "latency_ms": latency_ms,
+            },
+        )
 
     def _get_context_enricher(self) -> ContextEnricher:
         """Get the context enricher, creating global singleton if needed.
@@ -555,6 +799,131 @@ class NemotronAnalyzer:
                 exc_info=True,
             )
             return None
+
+    async def _get_recent_scene_changes(
+        self,
+        camera_id: str,
+        session: Any,
+    ) -> list[Any]:
+        """Get recent unacknowledged scene changes for a camera.
+
+        This method queries the SceneChange table for recent tampering alerts
+        that have not been acknowledged by the user. These are used to inform
+        the LLM about potential camera health issues that may affect detection
+        confidence (NEM-3012).
+
+        Args:
+            camera_id: Camera identifier
+            session: Database session
+
+        Returns:
+            List of SceneChange objects, ordered by detected_at DESC.
+            Returns empty list if no unacknowledged scene changes exist.
+        """
+        from backend.models.scene_change import SceneChange
+
+        try:
+            # Query recent unacknowledged scene changes for this camera
+            # Limit to last 5 to avoid prompt bloat, ordered by most recent first
+            result = await session.execute(
+                select(SceneChange)
+                .where(SceneChange.camera_id == camera_id)
+                .where(SceneChange.acknowledged == False)  # noqa: E712 - SQLAlchemy comparison
+                .order_by(SceneChange.detected_at.desc())
+                .limit(5)
+            )
+            scene_changes = list(result.scalars().all())
+            if scene_changes:
+                logger.debug(
+                    f"Found {len(scene_changes)} unacknowledged scene changes for camera {camera_id}",
+                    extra={"camera_id": camera_id, "count": len(scene_changes)},
+                )
+            return scene_changes
+        except Exception as e:
+            logger.warning(
+                "Failed to query scene changes, continuing without camera health context",
+                extra={"camera_id": camera_id, "error": str(e)},
+            )
+            return []
+
+    async def _get_household_context(
+        self,
+        detections_data: list[dict[str, Any]],  # noqa: ARG002 - Reserved for person embedding matching
+        enrichment_result: EnrichmentResult | None,
+    ) -> str:
+        """Match detections against household members and vehicles (NEM-3024).
+
+        This method performs household matching to identify known persons
+        and vehicles in the current detections. Matches are formatted into
+        context that is injected into the Nemotron prompt to reduce risk
+        scores for recognized household members and registered vehicles.
+
+        Matching Logic:
+        - Vehicles: Uses license plate texts from enrichment_result.license_plates
+        - Persons: Currently uses a placeholder - full embedding matching will be
+          added when person re-ID embeddings are integrated into the enrichment flow
+
+        Args:
+            detections_data: List of detection data dictionaries
+            enrichment_result: Results from enrichment pipeline (contains license plates)
+
+        Returns:
+            Formatted household context string, or empty string if no matches.
+        """
+        from datetime import UTC, datetime
+
+        person_matches: list[HouseholdMatch] = []
+        vehicle_matches: list[HouseholdMatch] = []
+
+        # Early exit if no enrichment result
+        if enrichment_result is None:
+            return ""
+
+        # Get the household matcher singleton
+        matcher = get_household_matcher()
+
+        # Use a new session for household matching queries
+        async with get_session() as session:
+            # Match vehicles by license plate
+            if enrichment_result.has_readable_plates:
+                for plate_result in enrichment_result.license_plates:
+                    if plate_result.text:
+                        # Try to match the plate against registered vehicles
+                        match = await matcher.match_vehicle(
+                            license_plate=plate_result.text,
+                            vehicle_embedding=None,  # No embedding matching for now
+                            vehicle_type="car",  # Default type
+                            color=None,
+                            session=session,
+                        )
+                        if match:
+                            vehicle_matches.append(match)
+                            logger.debug(
+                                "Vehicle matched by license plate",
+                                extra={
+                                    "plate": plate_result.text,
+                                    "vehicle_description": match.vehicle_description,
+                                },
+                            )
+
+            # TODO (NEM-3024): Add person embedding matching when re-ID embeddings
+            # are integrated into the enrichment pipeline. For now, this is a
+            # placeholder that can be expanded when embeddings are available.
+            # Person matching would involve:
+            # 1. Extract embeddings from person re-ID results
+            # 2. Call matcher.match_person(embedding, session) for each person
+            # 3. Append matches to person_matches list
+
+        # Format the household context if any matches were found
+        if person_matches or vehicle_matches:
+            current_time = datetime.now(UTC)
+            return format_household_context(
+                person_matches=person_matches,
+                vehicle_matches=vehicle_matches,
+                current_time=current_time,
+            )
+
+        return ""
 
     async def _get_enrichment_result(
         self,
@@ -964,6 +1333,31 @@ class NemotronAnalyzer:
                 batch_id, camera_id, int_detection_ids, session
             )
 
+            # Query recent scene changes for camera health context (NEM-3012)
+            recent_scene_changes = await self._get_recent_scene_changes(camera_id, session)
+            camera_health_context = format_camera_health_context(camera_id, recent_scene_changes)
+
+            # Fetch auto-tuning context from historical audit recommendations (NEM-3015)
+            # This provides insights from self-evaluation to improve prompt quality
+            auto_tuning_context = ""
+            try:
+                auto_tuner = get_prompt_auto_tuner()
+                auto_tuning_context = await auto_tuner.get_tuning_context(
+                    session=session,
+                    camera_id=camera_id,
+                )
+                if auto_tuning_context:
+                    logger.debug(
+                        "Auto-tuning context retrieved for batch",
+                        extra={"batch_id": batch_id, "camera_id": camera_id},
+                    )
+            except Exception as e:
+                # Auto-tuning is optional - don't fail the pipeline if it errors
+                logger.warning(
+                    "Failed to fetch auto-tuning context",
+                    extra={"batch_id": batch_id, "camera_id": camera_id, "error": str(e)},
+                )
+
             # Extract detection data needed for enrichment pipeline
             # We need to capture this before closing the session
             # Use explicit bbox fields since Detection doesn't have a bounding_box property
@@ -1023,6 +1417,27 @@ class NemotronAnalyzer:
                         },
                     )
 
+        # =========================================================================
+        # HOUSEHOLD MATCHING (NEM-3024): Match persons/vehicles against household
+        # This reduces risk scores for known household members and registered vehicles.
+        # =========================================================================
+        household_context = ""
+        try:
+            household_context = await self._get_household_context(
+                detections_for_enrichment, enrichment_result
+            )
+            if household_context:
+                logger.debug(
+                    "Household matching completed for batch",
+                    extra={"batch_id": batch_id, "has_matches": bool(household_context)},
+                )
+        except Exception as e:
+            # Household matching is optional - don't fail the pipeline if it errors
+            logger.warning(
+                "Failed to perform household matching",
+                extra={"batch_id": batch_id, "error": str(e)},
+            )
+
         # Call LLM for risk analysis (can take 60-120+ seconds)
         llm_start = time.time()
         try:
@@ -1033,6 +1448,9 @@ class NemotronAnalyzer:
                 detections_list=detections_list,
                 enriched_context=enriched_context,
                 enrichment_result=enrichment_result,
+                camera_health_context=camera_health_context,
+                auto_tuning_context=auto_tuning_context,
+                household_context=household_context,
             )
             llm_duration_ms = int((time.time() - llm_start) * 1000)
             llm_duration_seconds = time.time() - llm_start
@@ -1329,6 +1747,10 @@ class NemotronAnalyzer:
                 batch_id, camera_id, [detection_id_int], session
             )
 
+            # Query recent scene changes for camera health context (NEM-3012)
+            recent_scene_changes = await self._get_recent_scene_changes(camera_id, session)
+            camera_health_context = format_camera_health_context(camera_id, recent_scene_changes)
+
         # Session 1 is now closed - connection returned to pool
         # =========================================================================
 
@@ -1372,6 +1794,7 @@ class NemotronAnalyzer:
                 detections_list=detections_list,
                 enriched_context=enriched_context,
                 enrichment_result=enrichment_result,
+                camera_health_context=camera_health_context,
             )
             llm_duration_ms = int((time.time() - llm_start) * 1000)
             llm_duration_seconds = time.time() - llm_start
@@ -1676,6 +2099,9 @@ class NemotronAnalyzer:
         detections_list: str,
         enriched_context: EnrichedContext | None = None,
         enrichment_result: EnrichmentResult | None = None,
+        camera_health_context: str = "",
+        auto_tuning_context: str = "",
+        household_context: str = "",
     ) -> dict[str, Any]:
         """Call Nemotron LLM for risk analysis.
 
@@ -1686,6 +2112,11 @@ class NemotronAnalyzer:
             detections_list: Formatted list of detections
             enriched_context: Optional enriched context for enhanced prompts
             enrichment_result: Optional enrichment result with plates/faces
+            camera_health_context: Optional camera tampering/scene change context (NEM-3012)
+            auto_tuning_context: Optional auto-tuning recommendations from historical
+                analysis (NEM-3015). Injected into prompt to improve analysis quality.
+            household_context: Optional household matching context (NEM-3024).
+                Contains known person/vehicle matches that should reduce risk scores.
 
         Returns:
             Dictionary with risk_score, risk_level, summary, and reasoning
@@ -1780,6 +2211,8 @@ class NemotronAnalyzer:
                     enrichment_result.quality_change_detected,
                     enrichment_result.quality_change_description,
                 ),
+                # Camera health/tampering context (NEM-3012)
+                camera_health_context=camera_health_context,
                 # Detections with all enrichment
                 detections_with_all_attributes=format_detections_with_all_enrichment(
                     [],  # Will use enrichment_result.to_context_string() for now
@@ -1875,6 +2308,8 @@ class NemotronAnalyzer:
                 timestamp=f"{start_time} to {end_time}",
                 day_of_week=enriched_context.baselines.day_of_week,
                 time_of_day=time_of_day,
+                # Camera health/tampering context (NEM-3012)
+                camera_health_context=camera_health_context,
                 detections_with_attributes=enrichment_result.to_context_string(),
                 reid_context=reid_text,
                 zone_analysis=enricher.format_zone_analysis(enriched_context.zones),
@@ -1937,6 +2372,38 @@ class NemotronAnalyzer:
                 end_time=end_time,
                 detections_list=detections_list,
             )
+
+        # Inject household context if available (NEM-3024)
+        # This provides known person/vehicle matches that should reduce risk scores
+        # Household context should come BEFORE auto-tuning since risk modifiers
+        # need to be applied first
+        if household_context:
+            # Insert before the assistant turn marker
+            # Prompts end with: <|im_end|>\n<|im_start|>assistant
+            assistant_marker = "<|im_start|>assistant"
+            if assistant_marker in prompt:
+                prompt = prompt.replace(
+                    assistant_marker,
+                    f"\n{household_context}\n{assistant_marker}",
+                )
+            else:
+                # Fallback: append to end (shouldn't happen with standard prompts)
+                prompt = f"{prompt}\n{household_context}"
+
+        # Inject auto-tuning context if available (NEM-3015)
+        # This provides historical recommendations from self-evaluation to improve analysis
+        if auto_tuning_context:
+            # Insert before the assistant turn marker
+            # Prompts end with: <|im_end|>\n<|im_start|>assistant
+            assistant_marker = "<|im_start|>assistant"
+            if assistant_marker in prompt:
+                prompt = prompt.replace(
+                    assistant_marker,
+                    f"\n{auto_tuning_context}\n{assistant_marker}",
+                )
+            else:
+                # Fallback: append to end (shouldn't happen with standard prompts)
+                prompt = f"{prompt}\n{auto_tuning_context}"
 
         # Validate and potentially truncate prompt to fit context window (NEM-1666 + NEM-1723)
         prompt = self._validate_and_truncate_prompt(prompt)
