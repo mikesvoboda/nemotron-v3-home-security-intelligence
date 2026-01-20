@@ -1254,3 +1254,293 @@ class TestVisionExtractorVQA:
         await extractor.extract_security_vqa(img, bbox=bbox)
 
         assert crop_called["called"] is True
+
+
+class TestIsValidVQAOutput:
+    """Tests for is_valid_vqa_output validation function.
+
+    The is_valid_vqa_output function validates Florence-2 VQA output to detect
+    garbage responses containing location tokens, prompt artifacts, or other
+    invalid patterns that should not be used in downstream prompts.
+
+    NEM-3009: VQA outputs like "Wearing: VQA>person wearing<loc_95><loc_86><loc_901><loc_918>"
+    should be rejected in favor of fallback to scene captioning.
+    """
+
+    def test_valid_simple_answer(self) -> None:
+        """Test valid simple text answers pass validation."""
+        from backend.services.vision_extractor import is_valid_vqa_output
+
+        assert is_valid_vqa_output("dark hoodie and jeans") is True
+        assert is_valid_vqa_output("blue sedan") is True
+        assert is_valid_vqa_output("Yes, walking towards the door") is True
+        assert is_valid_vqa_output("No unusual objects detected") is True
+
+    def test_rejects_location_tokens(self) -> None:
+        """Test that outputs containing <loc_N> tokens are rejected."""
+        from backend.services.vision_extractor import is_valid_vqa_output
+
+        # Pure location tokens - garbage output
+        assert is_valid_vqa_output("<loc_95><loc_86><loc_901><loc_918>") is False
+
+        # Location tokens mixed with text - still garbage
+        assert is_valid_vqa_output("person wearing<loc_95><loc_86>") is False
+        assert is_valid_vqa_output("<loc_1>blue jacket<loc_2>") is False
+
+        # Single location token
+        assert is_valid_vqa_output("text<loc_123>") is False
+
+    def test_rejects_vqa_prefix_artifact(self) -> None:
+        """Test that outputs containing VQA> prefix are rejected."""
+        from backend.services.vision_extractor import is_valid_vqa_output
+
+        # VQA prefix with echoed question - common garbage pattern
+        assert is_valid_vqa_output("VQA>person wearing") is False
+        assert is_valid_vqa_output("VQA>What color is this?blue") is False
+
+        # Case insensitive
+        assert is_valid_vqa_output("vqa>person wearing") is False
+        assert is_valid_vqa_output("Vqa>test") is False
+
+    def test_rejects_poly_tokens(self) -> None:
+        """Test that outputs containing <poly> tokens are rejected."""
+        from backend.services.vision_extractor import is_valid_vqa_output
+
+        assert is_valid_vqa_output("<poly>some content</poly>") is False
+        assert is_valid_vqa_output("text with <poly> marker") is False
+
+    def test_rejects_pad_tokens(self) -> None:
+        """Test that outputs containing <pad> tokens are rejected."""
+        from backend.services.vision_extractor import is_valid_vqa_output
+
+        assert is_valid_vqa_output("<pad>") is False
+        assert is_valid_vqa_output("text with <pad> token") is False
+        assert is_valid_vqa_output("<pad><pad><pad>") is False
+
+    def test_rejects_empty_and_whitespace(self) -> None:
+        """Test that empty and whitespace-only outputs are rejected."""
+        from backend.services.vision_extractor import is_valid_vqa_output
+
+        assert is_valid_vqa_output("") is False
+        assert is_valid_vqa_output("   ") is False
+        assert is_valid_vqa_output("\n\t") is False
+
+    def test_rejects_combined_garbage_patterns(self) -> None:
+        """Test rejection of outputs combining multiple garbage patterns."""
+        from backend.services.vision_extractor import is_valid_vqa_output
+
+        # Real-world garbage from issue NEM-3009
+        assert is_valid_vqa_output("VQA>person wearing<loc_95><loc_86><loc_901><loc_918>") is False
+
+        # VQA prefix with poly tokens
+        assert is_valid_vqa_output("VQA>What is this<poly>content") is False
+
+        # Multiple token types
+        assert is_valid_vqa_output("<loc_1><pad><poly>") is False
+
+    def test_accepts_valid_after_cleaning(self) -> None:
+        """Test that valid text is accepted even with normal punctuation."""
+        from backend.services.vision_extractor import is_valid_vqa_output
+
+        # Normal punctuation should not trigger false positives
+        assert is_valid_vqa_output("The person is wearing a dark hoodie.") is True
+        assert is_valid_vqa_output("Color: blue, Type: sedan") is True
+        assert is_valid_vqa_output("Yes (with high confidence)") is True
+        assert is_valid_vqa_output("No - nothing unusual detected") is True
+
+    def test_accepts_angle_brackets_in_normal_text(self) -> None:
+        """Test that normal angle brackets (not tokens) are accepted."""
+        from backend.services.vision_extractor import is_valid_vqa_output
+
+        # Normal comparison operators and brackets
+        assert is_valid_vqa_output("The car is < 5 meters away") is True
+        assert is_valid_vqa_output("Temperature > 20 degrees") is True
+
+    def test_rejects_short_garbage_outputs(self) -> None:
+        """Test rejection of outputs that are too short to be meaningful."""
+        from backend.services.vision_extractor import is_valid_vqa_output
+
+        # Single characters that are garbage
+        assert is_valid_vqa_output("a") is False
+        assert is_valid_vqa_output("-") is False
+
+        # But valid short answers are OK
+        assert is_valid_vqa_output("No") is True
+        assert is_valid_vqa_output("Yes") is True
+        assert is_valid_vqa_output("red") is True
+
+
+class TestValidateAndCleanVQAOutput:
+    """Tests for validate_and_clean_vqa_output combined function.
+
+    This function combines validation and cleaning: it first cleans the VQA output
+    to remove artifacts, then validates the result. Returns None if the output
+    is invalid, allowing fallback to scene captioning.
+
+    NEM-3009: This enables the fallback mechanism when VQA returns garbage.
+    """
+
+    def test_cleans_and_validates_good_output(self) -> None:
+        """Test that valid output is cleaned and returned."""
+        from backend.services.vision_extractor import validate_and_clean_vqa_output
+
+        # Clean text passes through
+        result = validate_and_clean_vqa_output("dark hoodie and jeans")
+        assert result == "dark hoodie and jeans"
+
+        # Text with only whitespace issues gets cleaned
+        result = validate_and_clean_vqa_output("  blue sedan  ")
+        assert result == "blue sedan"
+
+    def test_cleans_loc_tokens_then_validates(self) -> None:
+        """Test cleaning of loc tokens followed by validation."""
+        from backend.services.vision_extractor import validate_and_clean_vqa_output
+
+        # Text with loc tokens - should be cleaned and validated
+        result = validate_and_clean_vqa_output("dark hoodie and jeans<loc_100><loc_200>")
+        assert result == "dark hoodie and jeans"
+
+        # Only loc tokens - should return None (invalid after cleaning)
+        result = validate_and_clean_vqa_output("<loc_95><loc_86><loc_901><loc_918>")
+        assert result is None
+
+    def test_handles_vqa_prefix_garbage(self) -> None:
+        """Test that VQA prefix garbage returns None."""
+        from backend.services.vision_extractor import validate_and_clean_vqa_output
+
+        # Real-world garbage from NEM-3009
+        result = validate_and_clean_vqa_output(
+            "VQA>person wearing<loc_95><loc_86><loc_901><loc_918>"
+        )
+        assert result is None
+
+        # VQA prefix with question and answer
+        result = validate_and_clean_vqa_output("VQA>What is the color?Blue sedan")
+        assert result == "Blue sedan"
+
+    def test_returns_none_for_empty_after_cleaning(self) -> None:
+        """Test that outputs that become empty after cleaning return None."""
+        from backend.services.vision_extractor import validate_and_clean_vqa_output
+
+        assert validate_and_clean_vqa_output("") is None
+        assert validate_and_clean_vqa_output("   ") is None
+        assert validate_and_clean_vqa_output("<loc_1><loc_2>") is None
+
+    def test_handles_duplicate_removal_edge_cases(self) -> None:
+        """Test duplicate word removal doesn't break valid text."""
+        from backend.services.vision_extractor import validate_and_clean_vqa_output
+
+        # Consecutive duplicates get cleaned
+        result = validate_and_clean_vqa_output("visible visible tools")
+        assert result == "visible tools"
+
+        # Non-consecutive same words stay (only consecutive duplicates removed)
+        result = validate_and_clean_vqa_output("the weather is the same")
+        assert result == "the weather is the same"
+
+    def test_preserves_meaningful_short_answers(self) -> None:
+        """Test that short but meaningful answers are preserved."""
+        from backend.services.vision_extractor import validate_and_clean_vqa_output
+
+        assert validate_and_clean_vqa_output("Yes") == "Yes"
+        assert validate_and_clean_vqa_output("No") == "No"
+        assert validate_and_clean_vqa_output("red") == "red"
+        assert validate_and_clean_vqa_output("blue") == "blue"
+
+
+class TestVisionExtractorWithVQAValidation:
+    """Tests for VisionExtractor methods using VQA validation and fallback.
+
+    NEM-3009: When VQA returns garbage, the extractor should fall back to
+    scene captioning to provide meaningful output instead.
+    """
+
+    def setup_method(self) -> None:
+        """Reset service before each test."""
+        reset_vision_extractor()
+
+    def teardown_method(self) -> None:
+        """Reset service after each test."""
+        reset_vision_extractor()
+
+    @pytest.mark.asyncio
+    async def test_extract_person_attributes_validates_vqa_output(self) -> None:
+        """Test that person attribute extraction validates VQA responses."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        query_responses = {
+            "What is this person wearing?": "VQA>person wearing<loc_95><loc_86><loc_901><loc_918>",
+            "Is this person carrying anything? If yes, what?": "backpack",
+            "Does this person appear to be a delivery worker or service worker? Answer yes or no.": "No",
+            "What is this person doing?": "walking",
+        }
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "A person in dark clothing walking in the driveway"
+            return query_responses.get(text_input, "")
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+        result = await extractor.extract_person_attributes(img)
+
+        # Clothing should be None (garbage VQA output was rejected)
+        assert result.clothing is None
+        assert result.carrying == "backpack"
+        assert result.action == "walking"
+        assert result.is_service_worker is False
+
+    @pytest.mark.asyncio
+    async def test_extract_vehicle_attributes_validates_vqa_output(self) -> None:
+        """Test that vehicle attribute extraction validates VQA responses."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        query_responses = {
+            "What color is this vehicle?": "<loc_1><loc_2><loc_3><loc_4>",
+            "What type of vehicle is this? (sedan, SUV, pickup, van, truck, motorcycle)": "SUV",
+            "Is this a commercial vehicle? Answer yes or no.": "No",
+        }
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "A white SUV parked in front of the house"
+            return query_responses.get(text_input, "")
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+        result = await extractor.extract_vehicle_attributes(img)
+
+        # Color should be None (garbage output) but vehicle_type should be valid
+        assert result.color is None
+        assert result.vehicle_type == "SUV"
+        assert result.is_commercial is False
+        assert "white SUV" in result.caption
+
+    @pytest.mark.asyncio
+    async def test_extract_scene_analysis_handles_garbage_vqa(self) -> None:
+        """Test that scene analysis handles garbage VQA responses gracefully."""
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "A driveway with a parked car at night"
+            # Return garbage for all VQA queries
+            return "VQA>Are there tools<loc_1><loc_2><loc_3>"
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+        result = await extractor.extract_scene_analysis(img)
+
+        # All lists should be empty since VQA returned garbage
+        assert result.tools_detected == []
+        assert result.unusual_objects == []
+        assert result.abandoned_items == []
+        # But the scene description should still be valid
+        assert "driveway" in result.scene_description.lower()

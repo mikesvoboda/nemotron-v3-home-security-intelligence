@@ -36,6 +36,14 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.enums import CameraStatus
 from backend.models.event import Event
+from backend.models.household import (
+    HouseholdMember,
+    MemberRole,
+    PersonEmbedding,
+    RegisteredVehicle,
+    TrustLevel,
+    VehicleType,
+)
 from backend.models.zone import Zone, ZoneShape, ZoneType
 
 
@@ -408,6 +416,180 @@ class AlertRuleFactory(factory.Factory):
             name="Person Detection",
             object_types=["person"],
             min_confidence=0.85,
+        )
+
+
+# =============================================================================
+# Household Model Factories
+# =============================================================================
+
+
+class HouseholdMemberFactory(factory.Factory):
+    """Factory for creating HouseholdMember model instances.
+
+    Examples:
+        # Create a household member with default values
+        member = HouseholdMemberFactory()
+
+        # Create a service worker
+        member = HouseholdMemberFactory(service_worker=True)
+
+        # Create a partially trusted visitor
+        member = HouseholdMemberFactory(role=MemberRole.FREQUENT_VISITOR, trusted_level=TrustLevel.PARTIAL)
+    """
+
+    class Meta:
+        model = HouseholdMember
+
+    id: int = Sequence(lambda n: n + 1)
+    name: str = Sequence(lambda n: f"Person {n}")
+    role: MemberRole = MemberRole.RESIDENT
+    trusted_level: TrustLevel = TrustLevel.FULL
+    typical_schedule: dict | None = factory.LazyFunction(
+        lambda: {"weekdays": "08:00-17:00", "weekends": "all_day"}
+    )
+    notes: str | None = None
+    created_at: datetime = LazyFunction(lambda: datetime.now(UTC))
+    updated_at: datetime = LazyFunction(lambda: datetime.now(UTC))
+
+    class Params:
+        """Traits for common household member configurations."""
+
+        # Resident trait
+        resident = factory.Trait(
+            role=MemberRole.RESIDENT,
+            trusted_level=TrustLevel.FULL,
+        )
+
+        # Family member trait
+        family = factory.Trait(
+            role=MemberRole.FAMILY,
+            trusted_level=TrustLevel.FULL,
+        )
+
+        # Service worker trait
+        service_worker = factory.Trait(
+            role=MemberRole.SERVICE_WORKER,
+            trusted_level=TrustLevel.PARTIAL,
+            typical_schedule={"weekdays": "09:00-17:00", "weekends": "none"},
+        )
+
+        # Frequent visitor trait
+        frequent_visitor = factory.Trait(
+            role=MemberRole.FREQUENT_VISITOR,
+            trusted_level=TrustLevel.MONITOR,
+        )
+
+        # No schedule trait
+        no_schedule = factory.Trait(typical_schedule=None)
+
+
+class PersonEmbeddingFactory(factory.Factory):
+    """Factory for creating PersonEmbedding model instances.
+
+    Examples:
+        # Create an embedding with default values
+        embedding = PersonEmbeddingFactory()
+
+        # Create an embedding with specific confidence
+        embedding = PersonEmbeddingFactory(confidence=0.95)
+
+        # Create an embedding linked to an event
+        embedding = PersonEmbeddingFactory(source_event_id=123)
+    """
+
+    class Meta:
+        model = PersonEmbedding
+
+    id: int = Sequence(lambda n: n + 1)
+    member_id: int = Sequence(lambda n: n + 1)
+    embedding: bytes = factory.LazyFunction(lambda: b"\x00\x01\x02\x03" * 64)  # 256 bytes
+    source_event_id: int | None = None
+    confidence: float = 1.0
+    created_at: datetime = LazyFunction(lambda: datetime.now(UTC))
+
+    class Params:
+        """Traits for common embedding configurations."""
+
+        # High confidence embedding
+        high_confidence = factory.Trait(confidence=0.98)
+
+        # Low confidence embedding
+        low_confidence = factory.Trait(confidence=0.65)
+
+        # With source event
+        with_source_event = factory.Trait(source_event_id=Sequence(lambda n: n + 1))
+
+
+class RegisteredVehicleFactory(factory.Factory):
+    """Factory for creating RegisteredVehicle model instances.
+
+    Examples:
+        # Create a vehicle with default values
+        vehicle = RegisteredVehicleFactory()
+
+        # Create a motorcycle
+        vehicle = RegisteredVehicleFactory(motorcycle=True)
+
+        # Create an untrusted vehicle
+        vehicle = RegisteredVehicleFactory(trusted=False)
+    """
+
+    class Meta:
+        model = RegisteredVehicle
+
+    id: int = Sequence(lambda n: n + 1)
+    description: str = Sequence(lambda n: f"Vehicle {n}")
+    license_plate: str | None = Sequence(lambda n: f"ABC{n:04d}")
+    vehicle_type: VehicleType = VehicleType.CAR
+    color: str | None = "silver"
+    owner_id: int | None = None
+    trusted: bool = True
+    reid_embedding: bytes | None = None
+    created_at: datetime = LazyFunction(lambda: datetime.now(UTC))
+
+    class Params:
+        """Traits for common vehicle configurations."""
+
+        # Car trait
+        car = factory.Trait(
+            vehicle_type=VehicleType.CAR,
+            description="Sedan",
+        )
+
+        # Truck trait
+        truck = factory.Trait(
+            vehicle_type=VehicleType.TRUCK,
+            description="Pickup Truck",
+        )
+
+        # Motorcycle trait
+        motorcycle = factory.Trait(
+            vehicle_type=VehicleType.MOTORCYCLE,
+            description="Sport Motorcycle",
+        )
+
+        # SUV trait
+        suv = factory.Trait(
+            vehicle_type=VehicleType.SUV,
+            description="Family SUV",
+        )
+
+        # Van trait
+        van = factory.Trait(
+            vehicle_type=VehicleType.VAN,
+            description="Delivery Van",
+        )
+
+        # Untrusted trait
+        untrusted = factory.Trait(trusted=False)
+
+        # With owner trait
+        with_owner = factory.Trait(owner_id=Sequence(lambda n: n + 1))
+
+        # With embedding trait
+        with_embedding = factory.Trait(
+            reid_embedding=factory.LazyFunction(lambda: b"\x00\x01\x02\x03" * 64)
         )
 
 

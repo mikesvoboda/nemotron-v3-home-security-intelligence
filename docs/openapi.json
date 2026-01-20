@@ -249,6 +249,33 @@
         "title": "ActivityBaselineResponse",
         "type": "object"
       },
+      "AddEmbeddingRequest": {
+        "description": "Schema for adding a person embedding from an event.",
+        "example": {
+          "confidence": 0.95,
+          "event_id": 100
+        },
+        "properties": {
+          "confidence": {
+            "default": 1.0,
+            "description": "Reliability score for this embedding (0-1)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "event_id": {
+            "description": "ID of the event to extract embedding from",
+            "title": "Event Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event_id"
+        ],
+        "title": "AddEmbeddingRequest",
+        "type": "object"
+      },
       "AiModelMetrics": {
         "description": "Metrics for RT-DETRv2 model.",
         "example": {
@@ -10959,6 +10986,225 @@
         "title": "HourlyPattern",
         "type": "object"
       },
+      "HouseholdMemberCreate": {
+        "description": "Schema for creating a new household member.",
+        "example": {
+          "name": "John Doe",
+          "notes": "Works from home on Fridays",
+          "role": "resident",
+          "trusted_level": "full",
+          "typical_schedule": {
+            "weekdays": "9-17",
+            "weekends": "flexible"
+          }
+        },
+        "properties": {
+          "name": {
+            "description": "Display name for the person",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Free-form notes about the person",
+            "title": "Notes"
+          },
+          "role": {
+            "$ref": "#/components/schemas/MemberRole",
+            "description": "Role/relationship of the person to the household"
+          },
+          "trusted_level": {
+            "$ref": "#/components/schemas/TrustLevel",
+            "description": "Trust level determining alert suppression behavior"
+          },
+          "typical_schedule": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "JSON object defining expected presence schedule",
+            "title": "Typical Schedule"
+          }
+        },
+        "required": [
+          "name",
+          "role",
+          "trusted_level"
+        ],
+        "title": "HouseholdMemberCreate",
+        "type": "object"
+      },
+      "HouseholdMemberResponse": {
+        "description": "Schema for household member response.",
+        "example": {
+          "created_at": "2025-01-01T10:00:00Z",
+          "id": 1,
+          "name": "John Doe",
+          "notes": "Works from home on Fridays",
+          "role": "resident",
+          "trusted_level": "full",
+          "typical_schedule": {
+            "weekdays": "9-17"
+          },
+          "updated_at": "2025-01-01T12:00:00Z"
+        },
+        "properties": {
+          "created_at": {
+            "description": "When the member was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the household member",
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Display name for the person",
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Notes about the person",
+            "title": "Notes"
+          },
+          "role": {
+            "$ref": "#/components/schemas/MemberRole",
+            "description": "Role/relationship to the household"
+          },
+          "trusted_level": {
+            "$ref": "#/components/schemas/TrustLevel",
+            "description": "Trust level for alert behavior"
+          },
+          "typical_schedule": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Expected presence schedule",
+            "title": "Typical Schedule"
+          },
+          "updated_at": {
+            "description": "When the member was last updated",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "trusted_level",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "HouseholdMemberResponse",
+        "type": "object"
+      },
+      "HouseholdMemberUpdate": {
+        "description": "Schema for updating an existing household member.",
+        "example": {
+          "name": "John Doe Updated",
+          "notes": "Now works remotely full-time",
+          "trusted_level": "partial"
+        },
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display name for the person",
+            "title": "Name"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Free-form notes about the person",
+            "title": "Notes"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberRole"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Role/relationship of the person to the household"
+          },
+          "trusted_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrustLevel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Trust level determining alert suppression behavior"
+          },
+          "typical_schedule": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "JSON object defining expected presence schedule",
+            "title": "Typical Schedule"
+          }
+        },
+        "title": "HouseholdMemberUpdate",
+        "type": "object"
+      },
       "ImageQualityEnrichment": {
         "description": "Image quality assessment results.",
         "example": {
@@ -13072,6 +13318,17 @@
         "title": "MediaErrorResponse",
         "type": "object"
       },
+      "MemberRole": {
+        "description": "Role of a household member for access categorization.",
+        "enum": [
+          "resident",
+          "family",
+          "service_worker",
+          "frequent_visitor"
+        ],
+        "title": "MemberRole",
+        "type": "string"
+      },
       "MemoryGCStats": {
         "description": "Garbage collector statistics.",
         "properties": {
@@ -15104,6 +15361,59 @@
           }
         },
         "title": "PerformanceUpdate",
+        "type": "object"
+      },
+      "PersonEmbeddingResponse": {
+        "description": "Schema for person embedding response.",
+        "example": {
+          "confidence": 0.95,
+          "created_at": "2025-01-01T10:00:00Z",
+          "id": 1,
+          "member_id": 1,
+          "source_event_id": 100
+        },
+        "properties": {
+          "confidence": {
+            "description": "Reliability score (0-1)",
+            "title": "Confidence",
+            "type": "number"
+          },
+          "created_at": {
+            "description": "When the embedding was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the embedding",
+            "title": "Id",
+            "type": "integer"
+          },
+          "member_id": {
+            "description": "ID of the associated household member",
+            "title": "Member Id",
+            "type": "integer"
+          },
+          "source_event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Event ID where embedding was captured",
+            "title": "Source Event Id"
+          }
+        },
+        "required": [
+          "id",
+          "member_id",
+          "confidence",
+          "created_at"
+        ],
+        "title": "PersonEmbeddingResponse",
         "type": "object"
       },
       "PetEnrichment": {
@@ -17654,6 +17964,252 @@
         "title": "RedisMetrics",
         "type": "object"
       },
+      "RegisteredVehicleCreate": {
+        "description": "Schema for creating a new registered vehicle.",
+        "example": {
+          "color": "Silver",
+          "description": "Silver Tesla Model 3",
+          "license_plate": "ABC123",
+          "owner_id": 1,
+          "trusted": true,
+          "vehicle_type": "car"
+        },
+        "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Color description",
+            "title": "Color"
+          },
+          "description": {
+            "description": "Human-readable description (e.g., 'Silver Tesla Model 3')",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "license_plate": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "License plate number",
+            "title": "License Plate"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the vehicle owner (HouseholdMember)",
+            "title": "Owner Id"
+          },
+          "trusted": {
+            "default": true,
+            "description": "Whether this vehicle should suppress alerts",
+            "title": "Trusted",
+            "type": "boolean"
+          },
+          "vehicle_type": {
+            "$ref": "#/components/schemas/VehicleType",
+            "description": "Type/category of the vehicle"
+          }
+        },
+        "required": [
+          "description",
+          "vehicle_type"
+        ],
+        "title": "RegisteredVehicleCreate",
+        "type": "object"
+      },
+      "RegisteredVehicleResponse": {
+        "description": "Schema for registered vehicle response.",
+        "example": {
+          "color": "Silver",
+          "created_at": "2025-01-01T10:00:00Z",
+          "description": "Silver Tesla Model 3",
+          "id": 1,
+          "license_plate": "ABC123",
+          "owner_id": 1,
+          "trusted": true,
+          "vehicle_type": "car"
+        },
+        "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Color description",
+            "title": "Color"
+          },
+          "created_at": {
+            "description": "When the vehicle was registered",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "description": "Human-readable description",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the vehicle",
+            "title": "Id",
+            "type": "integer"
+          },
+          "license_plate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "License plate number",
+            "title": "License Plate"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the vehicle owner",
+            "title": "Owner Id"
+          },
+          "trusted": {
+            "description": "Whether vehicle suppresses alerts",
+            "title": "Trusted",
+            "type": "boolean"
+          },
+          "vehicle_type": {
+            "$ref": "#/components/schemas/VehicleType",
+            "description": "Type of vehicle"
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "vehicle_type",
+          "trusted",
+          "created_at"
+        ],
+        "title": "RegisteredVehicleResponse",
+        "type": "object"
+      },
+      "RegisteredVehicleUpdate": {
+        "description": "Schema for updating an existing registered vehicle.",
+        "example": {
+          "description": "Updated Tesla Description",
+          "license_plate": "NEW456",
+          "trusted": false
+        },
+        "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Color description",
+            "title": "Color"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable description",
+            "title": "Description"
+          },
+          "license_plate": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "License plate number",
+            "title": "License Plate"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the vehicle owner (HouseholdMember)",
+            "title": "Owner Id"
+          },
+          "trusted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether this vehicle should suppress alerts",
+            "title": "Trusted"
+          },
+          "vehicle_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VehicleType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Type/category of the vehicle"
+          }
+        },
+        "title": "RegisteredVehicleUpdate",
+        "type": "object"
+      },
       "ReplayResponse": {
         "description": "Response for request replay.",
         "properties": {
@@ -20130,6 +20686,16 @@
         "title": "TraceMallocStats",
         "type": "object"
       },
+      "TrustLevel": {
+        "description": "Trust level for household members determining alert behavior.\n\n- FULL: Never trigger alerts for this person\n- PARTIAL: Reduced alert severity, still monitored\n- MONITOR: Log activity but don't suppress alerts",
+        "enum": [
+          "full",
+          "partial",
+          "monitor"
+        ],
+        "title": "TrustLevel",
+        "type": "string"
+      },
       "TrustStatus": {
         "description": "Trust classification status for entities.\n\nEntities can be classified as trusted (known/safe), untrusted (unknown/suspicious),\nor unclassified (no classification assigned yet).",
         "enum": [
@@ -20458,6 +21024,19 @@
         },
         "title": "VehicleEnrichment",
         "type": "object"
+      },
+      "VehicleType": {
+        "description": "Type of vehicle for categorization.",
+        "enum": [
+          "car",
+          "truck",
+          "motorcycle",
+          "suv",
+          "van",
+          "other"
+        ],
+        "title": "VehicleType",
+        "type": "string"
       },
       "ViolenceEnrichment": {
         "description": "Violence detection results.",
@@ -28660,6 +29239,447 @@
         "summary": "Get feedback statistics",
         "tags": [
           "feedback"
+        ]
+      }
+    },
+    "/api/household/members": {
+      "get": {
+        "description": "List all household members.\n\nReturns all registered household members ordered by name.\n\nArgs:\n    session: Database session\n\nReturns:\n    List of HouseholdMember objects",
+        "operationId": "list_members_api_household_members_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HouseholdMemberResponse"
+                  },
+                  "title": "Response List Members Api Household Members Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Members",
+        "tags": [
+          "household"
+        ]
+      },
+      "post": {
+        "description": "Create a new household member.\n\nArgs:\n    member: Member creation data\n    session: Database session\n\nReturns:\n    Created HouseholdMember object",
+        "operationId": "create_member_api_household_members_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdMemberCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdMemberResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Member",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/household/members/{member_id}": {
+      "delete": {
+        "description": "Delete a household member.\n\nThis will also delete all associated person embeddings (cascade).\n\nArgs:\n    member_id: ID of the member to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if member not found",
+        "operationId": "delete_member_api_household_members__member_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Member",
+        "tags": [
+          "household"
+        ]
+      },
+      "get": {
+        "description": "Get a specific household member by ID.\n\nArgs:\n    member_id: ID of the member to retrieve\n    session: Database session\n\nReturns:\n    HouseholdMember object\n\nRaises:\n    HTTPException: 404 if member not found",
+        "operationId": "get_member_api_household_members__member_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdMemberResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Member",
+        "tags": [
+          "household"
+        ]
+      },
+      "patch": {
+        "description": "Update an existing household member.\n\nArgs:\n    member_id: ID of the member to update\n    updates: Member update data (all fields optional)\n    session: Database session\n\nReturns:\n    Updated HouseholdMember object\n\nRaises:\n    HTTPException: 404 if member not found",
+        "operationId": "update_member_api_household_members__member_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdMemberUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdMemberResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Member",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/household/members/{member_id}/embeddings": {
+      "post": {
+        "description": "Add a person embedding from an event to a household member.\n\nThis endpoint allows linking a person detection embedding from an event\nto a household member for future re-identification. The embedding data\nis extracted from the event's detection.\n\nArgs:\n    member_id: ID of the household member\n    request: Request containing event_id and confidence\n    session: Database session\n\nReturns:\n    Created PersonEmbedding object\n\nRaises:\n    HTTPException: 404 if member not found\n    HTTPException: 404 if event not found\n    HTTPException: 400 if event has no embedding data",
+        "operationId": "add_embedding_from_event_api_household_members__member_id__embeddings_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddEmbeddingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonEmbeddingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Embedding From Event",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/household/vehicles": {
+      "get": {
+        "description": "List all registered vehicles.\n\nReturns all registered vehicles ordered by description.\n\nArgs:\n    session: Database session\n\nReturns:\n    List of RegisteredVehicle objects",
+        "operationId": "list_vehicles_api_household_vehicles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RegisteredVehicleResponse"
+                  },
+                  "title": "Response List Vehicles Api Household Vehicles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Vehicles",
+        "tags": [
+          "household"
+        ]
+      },
+      "post": {
+        "description": "Create a new registered vehicle.\n\nArgs:\n    vehicle: Vehicle creation data\n    session: Database session\n\nReturns:\n    Created RegisteredVehicle object\n\nRaises:\n    HTTPException: 404 if owner_id is specified but owner doesn't exist",
+        "operationId": "create_vehicle_api_household_vehicles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisteredVehicleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisteredVehicleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Vehicle",
+        "tags": [
+          "household"
+        ]
+      }
+    },
+    "/api/household/vehicles/{vehicle_id}": {
+      "delete": {
+        "description": "Delete a registered vehicle.\n\nArgs:\n    vehicle_id: ID of the vehicle to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if vehicle not found",
+        "operationId": "delete_vehicle_api_household_vehicles__vehicle_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Vehicle",
+        "tags": [
+          "household"
+        ]
+      },
+      "get": {
+        "description": "Get a specific registered vehicle by ID.\n\nArgs:\n    vehicle_id: ID of the vehicle to retrieve\n    session: Database session\n\nReturns:\n    RegisteredVehicle object\n\nRaises:\n    HTTPException: 404 if vehicle not found",
+        "operationId": "get_vehicle_api_household_vehicles__vehicle_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisteredVehicleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Vehicle",
+        "tags": [
+          "household"
+        ]
+      },
+      "patch": {
+        "description": "Update an existing registered vehicle.\n\nArgs:\n    vehicle_id: ID of the vehicle to update\n    updates: Vehicle update data (all fields optional)\n    session: Database session\n\nReturns:\n    Updated RegisteredVehicle object\n\nRaises:\n    HTTPException: 404 if vehicle not found\n    HTTPException: 404 if owner_id is specified but owner doesn't exist",
+        "operationId": "update_vehicle_api_household_vehicles__vehicle_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisteredVehicleUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisteredVehicleResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Vehicle",
+        "tags": [
+          "household"
         ]
       }
     },
