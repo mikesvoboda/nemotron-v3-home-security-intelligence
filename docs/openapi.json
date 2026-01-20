@@ -1489,7 +1489,7 @@
           "alerts": {
             "description": "List of alerts in this group",
             "items": {
-              "$ref": "#/components/schemas/backend__api__schemas__webhooks__AlertmanagerAlert"
+              "$ref": "#/components/schemas/WebhookAlert"
             },
             "title": "Alerts",
             "type": "array"
@@ -22883,6 +22883,90 @@
         "title": "WebVitalName",
         "type": "string"
       },
+      "WebhookAlert": {
+        "description": "Schema for a single alert in webhook payload.\n\nRepresents one alert instance with its labels, annotations, and timing.\nThis is the legacy webhook schema - prefer AlertmanagerAlert from alertmanager.py.",
+        "example": {
+          "annotations": {
+            "description": "GPU memory usage is above 90% for 5 minutes",
+            "summary": "GPU memory usage is high"
+          },
+          "endsAt": "0001-01-01T00:00:00Z",
+          "fingerprint": "abc123def456",
+          "generatorURL": "http://prometheus:9090/graph?...",
+          "labels": {
+            "alertname": "HSIGPUMemoryHigh",
+            "component": "gpu",
+            "severity": "warning"
+          },
+          "startsAt": "2026-01-17T12:22:56.068Z",
+          "status": "firing"
+        },
+        "properties": {
+          "annotations": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Alert annotations (summary, description)",
+            "title": "Annotations",
+            "type": "object"
+          },
+          "endsAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the alert was resolved",
+            "title": "Endsat"
+          },
+          "fingerprint": {
+            "description": "Unique identifier for deduplication",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "generatorURL": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL to the Prometheus graph",
+            "title": "Generatorurl"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Alert labels (alertname, severity, etc.)",
+            "title": "Labels",
+            "type": "object"
+          },
+          "startsAt": {
+            "description": "When the alert started firing",
+            "format": "date-time",
+            "title": "Startsat",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertmanagerStatus",
+            "description": "Alert status (firing or resolved)"
+          }
+        },
+        "required": [
+          "status",
+          "startsAt",
+          "fingerprint"
+        ],
+        "title": "WebhookAlert",
+        "type": "object"
+      },
       "WebhookResponse": {
         "description": "Schema for webhook processing response.",
         "example": {
@@ -23490,90 +23574,6 @@
           }
         },
         "title": "ZoneUpdate",
-        "type": "object"
-      },
-      "backend__api__schemas__webhooks__AlertmanagerAlert": {
-        "description": "Schema for a single alert in Alertmanager webhook payload.\n\nRepresents one alert instance with its labels, annotations, and timing.",
-        "example": {
-          "annotations": {
-            "description": "GPU memory usage is above 90% for 5 minutes",
-            "summary": "GPU memory usage is high"
-          },
-          "endsAt": "0001-01-01T00:00:00Z",
-          "fingerprint": "abc123def456",
-          "generatorURL": "http://prometheus:9090/graph?...",
-          "labels": {
-            "alertname": "HSIGPUMemoryHigh",
-            "component": "gpu",
-            "severity": "warning"
-          },
-          "startsAt": "2026-01-17T12:22:56.068Z",
-          "status": "firing"
-        },
-        "properties": {
-          "annotations": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Alert annotations (summary, description)",
-            "title": "Annotations",
-            "type": "object"
-          },
-          "endsAt": {
-            "anyOf": [
-              {
-                "format": "date-time",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "When the alert was resolved",
-            "title": "Endsat"
-          },
-          "fingerprint": {
-            "description": "Unique identifier for deduplication",
-            "title": "Fingerprint",
-            "type": "string"
-          },
-          "generatorURL": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "URL to the Prometheus graph",
-            "title": "Generatorurl"
-          },
-          "labels": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Alert labels (alertname, severity, etc.)",
-            "title": "Labels",
-            "type": "object"
-          },
-          "startsAt": {
-            "description": "When the alert started firing",
-            "format": "date-time",
-            "title": "Startsat",
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/AlertmanagerStatus",
-            "description": "Alert status (firing or resolved)"
-          }
-        },
-        "required": [
-          "status",
-          "startsAt",
-          "fingerprint"
-        ],
-        "title": "AlertmanagerAlert",
         "type": "object"
       }
     }
