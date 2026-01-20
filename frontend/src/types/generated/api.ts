@@ -3872,6 +3872,239 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/household/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Members
+         * @description List all household members.
+         *
+         *     Returns all registered household members ordered by name.
+         *
+         *     Args:
+         *         session: Database session
+         *
+         *     Returns:
+         *         List of HouseholdMember objects
+         */
+        get: operations["list_members_api_household_members_get"];
+        put?: never;
+        /**
+         * Create Member
+         * @description Create a new household member.
+         *
+         *     Args:
+         *         member: Member creation data
+         *         session: Database session
+         *
+         *     Returns:
+         *         Created HouseholdMember object
+         */
+        post: operations["create_member_api_household_members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/household/members/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Member
+         * @description Get a specific household member by ID.
+         *
+         *     Args:
+         *         member_id: ID of the member to retrieve
+         *         session: Database session
+         *
+         *     Returns:
+         *         HouseholdMember object
+         *
+         *     Raises:
+         *         HTTPException: 404 if member not found
+         */
+        get: operations["get_member_api_household_members__member_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Member
+         * @description Delete a household member.
+         *
+         *     This will also delete all associated person embeddings (cascade).
+         *
+         *     Args:
+         *         member_id: ID of the member to delete
+         *         session: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if member not found
+         */
+        delete: operations["delete_member_api_household_members__member_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Member
+         * @description Update an existing household member.
+         *
+         *     Args:
+         *         member_id: ID of the member to update
+         *         updates: Member update data (all fields optional)
+         *         session: Database session
+         *
+         *     Returns:
+         *         Updated HouseholdMember object
+         *
+         *     Raises:
+         *         HTTPException: 404 if member not found
+         */
+        patch: operations["update_member_api_household_members__member_id__patch"];
+        trace?: never;
+    };
+    "/api/household/members/{member_id}/embeddings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Embedding From Event
+         * @description Add a person embedding from an event to a household member.
+         *
+         *     This endpoint allows linking a person detection embedding from an event
+         *     to a household member for future re-identification. The embedding data
+         *     is extracted from the event's detection.
+         *
+         *     Args:
+         *         member_id: ID of the household member
+         *         request: Request containing event_id and confidence
+         *         session: Database session
+         *
+         *     Returns:
+         *         Created PersonEmbedding object
+         *
+         *     Raises:
+         *         HTTPException: 404 if member not found
+         *         HTTPException: 404 if event not found
+         *         HTTPException: 400 if event has no embedding data
+         */
+        post: operations["add_embedding_from_event_api_household_members__member_id__embeddings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/household/vehicles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Vehicles
+         * @description List all registered vehicles.
+         *
+         *     Returns all registered vehicles ordered by description.
+         *
+         *     Args:
+         *         session: Database session
+         *
+         *     Returns:
+         *         List of RegisteredVehicle objects
+         */
+        get: operations["list_vehicles_api_household_vehicles_get"];
+        put?: never;
+        /**
+         * Create Vehicle
+         * @description Create a new registered vehicle.
+         *
+         *     Args:
+         *         vehicle: Vehicle creation data
+         *         session: Database session
+         *
+         *     Returns:
+         *         Created RegisteredVehicle object
+         *
+         *     Raises:
+         *         HTTPException: 404 if owner_id is specified but owner doesn't exist
+         */
+        post: operations["create_vehicle_api_household_vehicles_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/household/vehicles/{vehicle_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Vehicle
+         * @description Get a specific registered vehicle by ID.
+         *
+         *     Args:
+         *         vehicle_id: ID of the vehicle to retrieve
+         *         session: Database session
+         *
+         *     Returns:
+         *         RegisteredVehicle object
+         *
+         *     Raises:
+         *         HTTPException: 404 if vehicle not found
+         */
+        get: operations["get_vehicle_api_household_vehicles__vehicle_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Vehicle
+         * @description Delete a registered vehicle.
+         *
+         *     Args:
+         *         vehicle_id: ID of the vehicle to delete
+         *         session: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if vehicle not found
+         */
+        delete: operations["delete_vehicle_api_household_vehicles__vehicle_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Vehicle
+         * @description Update an existing registered vehicle.
+         *
+         *     Args:
+         *         vehicle_id: ID of the vehicle to update
+         *         updates: Vehicle update data (all fields optional)
+         *         session: Database session
+         *
+         *     Returns:
+         *         Updated RegisteredVehicle object
+         *
+         *     Raises:
+         *         HTTPException: 404 if vehicle not found
+         *         HTTPException: 404 if owner_id is specified but owner doesn't exist
+         */
+        patch: operations["update_vehicle_api_household_vehicles__vehicle_id__patch"];
+        trace?: never;
+    };
     "/api/jobs": {
         parameters: {
             query?: never;
@@ -6777,6 +7010,27 @@ export interface components {
              * @description Total number of samples across all entries
              */
             total_samples: number;
+        };
+        /**
+         * AddEmbeddingRequest
+         * @description Schema for adding a person embedding from an event.
+         * @example {
+         *       "confidence": 0.95,
+         *       "event_id": 100
+         *     }
+         */
+        AddEmbeddingRequest: {
+            /**
+             * Confidence
+             * @description Reliability score for this embedding (0-1)
+             * @default 1
+             */
+            confidence: number;
+            /**
+             * Event Id
+             * @description ID of the event to extract embedding from
+             */
+            event_id: number;
         };
         /**
          * AiModelMetrics
@@ -14040,6 +14294,131 @@ export interface components {
             std_dev: number;
         };
         /**
+         * HouseholdMemberCreate
+         * @description Schema for creating a new household member.
+         * @example {
+         *       "name": "John Doe",
+         *       "notes": "Works from home on Fridays",
+         *       "role": "resident",
+         *       "trusted_level": "full",
+         *       "typical_schedule": {
+         *         "weekdays": "9-17",
+         *         "weekends": "flexible"
+         *       }
+         *     }
+         */
+        HouseholdMemberCreate: {
+            /**
+             * Name
+             * @description Display name for the person
+             */
+            name: string;
+            /**
+             * Notes
+             * @description Free-form notes about the person
+             */
+            notes?: string | null;
+            /** @description Role/relationship of the person to the household */
+            role: components["schemas"]["MemberRole"];
+            /** @description Trust level determining alert suppression behavior */
+            trusted_level: components["schemas"]["TrustLevel"];
+            /**
+             * Typical Schedule
+             * @description JSON object defining expected presence schedule
+             */
+            typical_schedule?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * HouseholdMemberResponse
+         * @description Schema for household member response.
+         * @example {
+         *       "created_at": "2025-01-01T10:00:00Z",
+         *       "id": 1,
+         *       "name": "John Doe",
+         *       "notes": "Works from home on Fridays",
+         *       "role": "resident",
+         *       "trusted_level": "full",
+         *       "typical_schedule": {
+         *         "weekdays": "9-17"
+         *       },
+         *       "updated_at": "2025-01-01T12:00:00Z"
+         *     }
+         */
+        HouseholdMemberResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the member was created
+             */
+            created_at: string;
+            /**
+             * Id
+             * @description Unique identifier for the household member
+             */
+            id: number;
+            /**
+             * Name
+             * @description Display name for the person
+             */
+            name: string;
+            /**
+             * Notes
+             * @description Notes about the person
+             */
+            notes?: string | null;
+            /** @description Role/relationship to the household */
+            role: components["schemas"]["MemberRole"];
+            /** @description Trust level for alert behavior */
+            trusted_level: components["schemas"]["TrustLevel"];
+            /**
+             * Typical Schedule
+             * @description Expected presence schedule
+             */
+            typical_schedule?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the member was last updated
+             */
+            updated_at: string;
+        };
+        /**
+         * HouseholdMemberUpdate
+         * @description Schema for updating an existing household member.
+         * @example {
+         *       "name": "John Doe Updated",
+         *       "notes": "Now works remotely full-time",
+         *       "trusted_level": "partial"
+         *     }
+         */
+        HouseholdMemberUpdate: {
+            /**
+             * Name
+             * @description Display name for the person
+             */
+            name?: string | null;
+            /**
+             * Notes
+             * @description Free-form notes about the person
+             */
+            notes?: string | null;
+            /** @description Role/relationship of the person to the household */
+            role?: components["schemas"]["MemberRole"] | null;
+            /** @description Trust level determining alert suppression behavior */
+            trusted_level?: components["schemas"]["TrustLevel"] | null;
+            /**
+             * Typical Schedule
+             * @description JSON object defining expected presence schedule
+             */
+            typical_schedule?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
          * ImageQualityEnrichment
          * @description Image quality assessment results.
          * @example {
@@ -15506,6 +15885,12 @@ export interface components {
             path: string;
         };
         /**
+         * MemberRole
+         * @description Role of a household member for access categorization.
+         * @enum {string}
+         */
+        MemberRole: "resident" | "family" | "service_worker" | "frequent_visitor";
+        /**
          * MemoryGCStats
          * @description Garbage collector statistics.
          */
@@ -16952,6 +17337,45 @@ export interface components {
              * @description When this update was generated (UTC)
              */
             timestamp?: string;
+        };
+        /**
+         * PersonEmbeddingResponse
+         * @description Schema for person embedding response.
+         * @example {
+         *       "confidence": 0.95,
+         *       "created_at": "2025-01-01T10:00:00Z",
+         *       "id": 1,
+         *       "member_id": 1,
+         *       "source_event_id": 100
+         *     }
+         */
+        PersonEmbeddingResponse: {
+            /**
+             * Confidence
+             * @description Reliability score (0-1)
+             */
+            confidence: number;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the embedding was created
+             */
+            created_at: string;
+            /**
+             * Id
+             * @description Unique identifier for the embedding
+             */
+            id: number;
+            /**
+             * Member Id
+             * @description ID of the associated household member
+             */
+            member_id: number;
+            /**
+             * Source Event Id
+             * @description Event ID where embedding was captured
+             */
+            source_event_id?: number | null;
         };
         /**
          * PetEnrichment
@@ -18691,6 +19115,140 @@ export interface components {
              * @description Health status: healthy, unhealthy, unreachable
              */
             status: string;
+        };
+        /**
+         * RegisteredVehicleCreate
+         * @description Schema for creating a new registered vehicle.
+         * @example {
+         *       "color": "Silver",
+         *       "description": "Silver Tesla Model 3",
+         *       "license_plate": "ABC123",
+         *       "owner_id": 1,
+         *       "trusted": true,
+         *       "vehicle_type": "car"
+         *     }
+         */
+        RegisteredVehicleCreate: {
+            /**
+             * Color
+             * @description Color description
+             */
+            color?: string | null;
+            /**
+             * Description
+             * @description Human-readable description (e.g., 'Silver Tesla Model 3')
+             */
+            description: string;
+            /**
+             * License Plate
+             * @description License plate number
+             */
+            license_plate?: string | null;
+            /**
+             * Owner Id
+             * @description ID of the vehicle owner (HouseholdMember)
+             */
+            owner_id?: number | null;
+            /**
+             * Trusted
+             * @description Whether this vehicle should suppress alerts
+             * @default true
+             */
+            trusted: boolean;
+            /** @description Type/category of the vehicle */
+            vehicle_type: components["schemas"]["VehicleType"];
+        };
+        /**
+         * RegisteredVehicleResponse
+         * @description Schema for registered vehicle response.
+         * @example {
+         *       "color": "Silver",
+         *       "created_at": "2025-01-01T10:00:00Z",
+         *       "description": "Silver Tesla Model 3",
+         *       "id": 1,
+         *       "license_plate": "ABC123",
+         *       "owner_id": 1,
+         *       "trusted": true,
+         *       "vehicle_type": "car"
+         *     }
+         */
+        RegisteredVehicleResponse: {
+            /**
+             * Color
+             * @description Color description
+             */
+            color?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the vehicle was registered
+             */
+            created_at: string;
+            /**
+             * Description
+             * @description Human-readable description
+             */
+            description: string;
+            /**
+             * Id
+             * @description Unique identifier for the vehicle
+             */
+            id: number;
+            /**
+             * License Plate
+             * @description License plate number
+             */
+            license_plate?: string | null;
+            /**
+             * Owner Id
+             * @description ID of the vehicle owner
+             */
+            owner_id?: number | null;
+            /**
+             * Trusted
+             * @description Whether vehicle suppresses alerts
+             */
+            trusted: boolean;
+            /** @description Type of vehicle */
+            vehicle_type: components["schemas"]["VehicleType"];
+        };
+        /**
+         * RegisteredVehicleUpdate
+         * @description Schema for updating an existing registered vehicle.
+         * @example {
+         *       "description": "Updated Tesla Description",
+         *       "license_plate": "NEW456",
+         *       "trusted": false
+         *     }
+         */
+        RegisteredVehicleUpdate: {
+            /**
+             * Color
+             * @description Color description
+             */
+            color?: string | null;
+            /**
+             * Description
+             * @description Human-readable description
+             */
+            description?: string | null;
+            /**
+             * License Plate
+             * @description License plate number
+             */
+            license_plate?: string | null;
+            /**
+             * Owner Id
+             * @description ID of the vehicle owner (HouseholdMember)
+             */
+            owner_id?: number | null;
+            /**
+             * Trusted
+             * @description Whether this vehicle should suppress alerts
+             */
+            trusted?: boolean | null;
+            /** @description Type/category of the vehicle */
+            vehicle_type?: components["schemas"]["VehicleType"] | null;
         };
         /**
          * ReplayResponse
@@ -20530,6 +21088,16 @@ export interface components {
             }[];
         };
         /**
+         * TrustLevel
+         * @description Trust level for household members determining alert behavior.
+         *
+         *     - FULL: Never trigger alerts for this person
+         *     - PARTIAL: Reduced alert severity, still monitored
+         *     - MONITOR: Log activity but don't suppress alerts
+         * @enum {string}
+         */
+        TrustLevel: "full" | "partial" | "monitor";
+        /**
          * TrustStatus
          * @description Trust classification status for entities.
          *
@@ -20734,6 +21302,12 @@ export interface components {
              */
             type?: string | null;
         };
+        /**
+         * VehicleType
+         * @description Type of vehicle for categorization.
+         * @enum {string}
+         */
+        VehicleType: "car" | "truck" | "motorcycle" | "suv" | "van" | "other";
         /**
          * ViolenceEnrichment
          * @description Violence detection results.
@@ -26557,6 +27131,337 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeedbackStatsResponse"];
+                };
+            };
+        };
+    };
+    list_members_api_household_members_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdMemberResponse"][];
+                };
+            };
+        };
+    };
+    create_member_api_household_members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HouseholdMemberCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdMemberResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_member_api_household_members__member_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdMemberResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_member_api_household_members__member_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_member_api_household_members__member_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HouseholdMemberUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdMemberResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_embedding_from_event_api_household_members__member_id__embeddings_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddEmbeddingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonEmbeddingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_vehicles_api_household_vehicles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisteredVehicleResponse"][];
+                };
+            };
+        };
+    };
+    create_vehicle_api_household_vehicles_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisteredVehicleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisteredVehicleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_vehicle_api_household_vehicles__vehicle_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisteredVehicleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_vehicle_api_household_vehicles__vehicle_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_vehicle_api_household_vehicles__vehicle_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisteredVehicleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisteredVehicleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

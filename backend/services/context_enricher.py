@@ -28,6 +28,7 @@ from backend.models.zone import Zone, ZoneType
 from backend.services.baseline import get_baseline_service
 from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.prompt_sanitizer import sanitize_camera_name, sanitize_zone_name
+from backend.services.prompts import ClassAnomalyResult, format_class_anomaly_context
 from backend.services.zone_service import bbox_center, point_in_zone
 
 logger = get_logger(__name__)
@@ -73,6 +74,8 @@ class BaselineContext:
         current_detections: Actual count per class in current batch
         deviation_score: How unusual this activity is (0=normal, 1=highly unusual)
         is_anomalous: Whether activity is considered anomalous
+        class_anomalies: List of per-class anomaly results (NEM-3014)
+        class_anomaly_context: Formatted string for class anomalies (NEM-3014)
     """
 
     hour_of_day: int
@@ -81,6 +84,8 @@ class BaselineContext:
     current_detections: dict[str, int] = field(default_factory=dict)
     deviation_score: float = 0.0
     is_anomalous: bool = False
+    class_anomalies: list[ClassAnomalyResult] = field(default_factory=list)
+    class_anomaly_context: str = ""
 
 
 @dataclass(slots=True)
@@ -448,9 +453,30 @@ class ContextEnricher:
                 # Boost deviation score for anomalous classes
                 deviation_score = max(deviation_score, anomaly_score * 0.8)
 
+        # NEM-3014: Compute per-class anomalies for prompt context
+        # Build baselines dict in the format expected by format_class_anomaly_context
+        baselines_dict: dict[str, ClassBaseline] = {
+            f"{baseline.camera_id}:{baseline.hour}:{baseline.detection_class}": baseline
+            for baseline in class_baselines
+        }
+        class_anomaly_context_str, class_anomalies = format_class_anomaly_context(
+            camera_id=camera_id,
+            current_hour=hour,
+            detections=current_counts,
+            baselines=baselines_dict,
+        )
+
+        # If class anomalies are detected, also mark as anomalous
+        if class_anomalies:
+            is_anomalous = True
+            # Apply risk modifier boost from anomalies (capped at 0.95)
+            for anomaly in class_anomalies:
+                deviation_score = min(0.95, deviation_score + (anomaly.risk_modifier / 100.0))
+
         logger.debug(
             f"Baseline context for camera {camera_id} at {hour}:00 {day_name}: "
-            f"deviation={deviation_score:.2f}, anomalous={is_anomalous}"
+            f"deviation={deviation_score:.2f}, anomalous={is_anomalous}, "
+            f"class_anomalies={len(class_anomalies)}"
         )
 
         return BaselineContext(
@@ -460,6 +486,8 @@ class ContextEnricher:
             current_detections=current_counts,
             deviation_score=deviation_score,
             is_anomalous=is_anomalous,
+            class_anomalies=class_anomalies,
+            class_anomaly_context=class_anomaly_context_str,
         )
 
     async def _get_cross_camera_activity(
@@ -610,6 +638,11 @@ class ContextEnricher:
             lines.append(
                 f"NOTICE: Activity is unusual for this time (deviation: {baseline.deviation_score:.2f})"
             )
+
+        # NEM-3014: Include per-class anomaly context if available
+        if baseline.class_anomaly_context:
+            lines.append("")  # Blank line for separation
+            lines.append(baseline.class_anomaly_context)
 
         return "\n".join(lines)
 

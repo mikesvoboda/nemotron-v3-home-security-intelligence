@@ -16,19 +16,25 @@ Tests cover:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from backend.services.prompts import (
+    CALIBRATED_SYSTEM_PROMPT,
     ENRICHED_RISK_ANALYSIS_PROMPT,
     FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
+    HOUSEHOLD_CONTEXT_TEMPLATE,
     MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
     RISK_ANALYSIS_PROMPT,
+    SCORING_REFERENCE_TABLE,
     SUMMARY_EMPTY_STATE_INSTRUCTION,
     SUMMARY_EVENT_FORMAT,
     SUMMARY_PROMPT_TEMPLATE,
     SUMMARY_SYSTEM_PROMPT,
     VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
+    ClassAnomalyResult,
     build_summary_prompt,
     format_action_recognition_context,
+    format_class_anomaly_context,
     format_clothing_analysis_context,
     format_depth_context,
     format_detections_with_all_enrichment,
@@ -166,6 +172,17 @@ class MockEnrichmentResult:
     )
     vehicle_damage: dict[str, MockVehicleDamageResult] = field(default_factory=dict)
     pet_classifications: dict[str, MockPetClassificationResult] = field(default_factory=dict)
+
+
+@dataclass
+class MockClassBaseline:
+    """Mock ClassBaseline for testing format_class_anomaly_context.
+
+    Implements the ClassBaselineProtocol interface with frequency and sample_count.
+    """
+
+    frequency: float
+    sample_count: int
 
 
 # =============================================================================
@@ -662,7 +679,8 @@ class TestFormatClothingAnalysisContext:
 
         assert "Face covering detected" in result
         assert "**ALERT**" in result
-        assert "hoodie, jeans" in result
+        # Items are sorted alphabetically after validation (NEM-3010)
+        assert "hoodie, jeans" in result or "jeans, hoodie" in result
 
     def test_with_segmentation_bag_detected(self) -> None:
         """Test formatting with SegFormer detecting bag."""
@@ -1152,6 +1170,250 @@ class TestFormatPetClassificationContext:
 
 
 # =============================================================================
+# Test Classes for Format Functions - Class Anomaly Context (NEM-3014)
+# =============================================================================
+
+
+class TestFormatClassAnomalyContext:
+    """Tests for format_class_anomaly_context function.
+
+    This function identifies per-class anomalies by comparing current detection
+    counts against historical baselines. It flags:
+    - Rare classes (expected < 0.1/hr) when detected
+    - Unusual volume (3x normal) for any class
+    """
+
+    def test_empty_detections(self) -> None:
+        """Test formatting with no detections returns empty string."""
+        context, anomalies = format_class_anomaly_context(
+            camera_id="cam1",
+            current_hour=2,
+            detections={},
+            baselines={},
+        )
+        assert context == ""
+        assert anomalies == []
+
+    def test_no_baselines_returns_empty(self) -> None:
+        """Test that detections without baselines return empty (insufficient data)."""
+        detections = {"person": 3, "vehicle": 2}
+        context, anomalies = format_class_anomaly_context(
+            camera_id="cam1",
+            current_hour=2,
+            detections=detections,
+            baselines={},  # No baselines
+        )
+        assert context == ""
+        assert anomalies == []
+
+    def test_insufficient_samples_returns_empty(self) -> None:
+        """Test that baselines with < 10 samples are ignored."""
+        detections = {"person": 3}
+        baselines = {
+            "cam1:2:person": MockClassBaseline(frequency=1.0, sample_count=5)  # Only 5 samples
+        }
+        context, anomalies = format_class_anomaly_context(
+            camera_id="cam1",
+            current_hour=2,
+            detections=detections,
+            baselines=baselines,
+        )
+        assert context == ""
+        assert anomalies == []
+
+    def test_rare_class_person_high_severity(self) -> None:
+        """Test that rare person detection gets high severity."""
+        detections = {"person": 1}
+        baselines = {
+            "cam1:2:person": MockClassBaseline(frequency=0.05, sample_count=20)  # Rare: < 0.1/hr
+        }
+        context, anomalies = format_class_anomaly_context(
+            camera_id="cam1",
+            current_hour=2,
+            detections=detections,
+            baselines=baselines,
+        )
+
+        assert "## CLASS-SPECIFIC ANOMALIES" in context
+        assert "[HIGH]" in context
+        assert "person RARE at this hour" in context
+        assert "expected: 0.1/hr" in context or "expected: 0.0/hr" in context
+        assert len(anomalies) == 1
+        assert anomalies[0].class_name == "person"
+        assert anomalies[0].severity == "high"
+        assert anomalies[0].risk_modifier == 15
+
+    def test_rare_class_vehicle_high_severity(self) -> None:
+        """Test that rare vehicle detection gets high severity."""
+        detections = {"vehicle": 1}
+        baselines = {"cam1:3:vehicle": MockClassBaseline(frequency=0.02, sample_count=15)}
+        context, anomalies = format_class_anomaly_context(
+            camera_id="cam1",
+            current_hour=3,
+            detections=detections,
+            baselines=baselines,
+        )
+
+        assert "[HIGH]" in context
+        assert "vehicle RARE at this hour" in context
+        assert anomalies[0].severity == "high"
+
+    def test_rare_class_dog_medium_severity(self) -> None:
+        """Test that rare non-security class gets medium severity."""
+        detections = {"dog": 1}
+        baselines = {"cam1:4:dog": MockClassBaseline(frequency=0.01, sample_count=25)}
+        context, anomalies = format_class_anomaly_context(
+            camera_id="cam1",
+            current_hour=4,
+            detections=detections,
+            baselines=baselines,
+        )
+
+        assert "[MEDIUM]" in context
+        assert "dog RARE at this hour" in context
+        assert anomalies[0].severity == "medium"
+
+    def test_unusual_volume_3x_normal(self) -> None:
+        """Test that 3x normal volume is flagged as unusual."""
+        detections = {"person": 10}
+        baselines = {
+            "cam1:14:person": MockClassBaseline(frequency=3.0, sample_count=50)  # 10 > 3*3 = 9
+        }
+        context, anomalies = format_class_anomaly_context(
+            camera_id="cam1",
+            current_hour=14,
+            detections=detections,
+            baselines=baselines,
+        )
+
+        assert "## CLASS-SPECIFIC ANOMALIES" in context
+        assert "[MEDIUM]" in context
+        assert "person UNUSUAL volume" in context
+        assert "10 vs expected 3.0" in context
+        assert len(anomalies) == 1
+        assert anomalies[0].severity == "medium"
+
+    def test_normal_volume_not_flagged(self) -> None:
+        """Test that normal volume (< 3x) is not flagged."""
+        detections = {"person": 5}
+        baselines = {
+            "cam1:10:person": MockClassBaseline(frequency=3.0, sample_count=30)  # 5 < 3*3 = 9
+        }
+        context, anomalies = format_class_anomaly_context(
+            camera_id="cam1",
+            current_hour=10,
+            detections=detections,
+            baselines=baselines,
+        )
+
+        assert context == ""
+        assert anomalies == []
+
+    def test_exactly_3x_not_flagged(self) -> None:
+        """Test that exactly 3x normal is not flagged (must be > 3x)."""
+        detections = {"person": 9}
+        baselines = {
+            "cam1:12:person": MockClassBaseline(frequency=3.0, sample_count=25)  # 9 == 3*3
+        }
+        context, anomalies = format_class_anomaly_context(
+            camera_id="cam1",
+            current_hour=12,
+            detections=detections,
+            baselines=baselines,
+        )
+
+        assert context == ""
+        assert anomalies == []
+
+    def test_multiple_anomalies(self) -> None:
+        """Test formatting with multiple anomalies from different classes."""
+        detections = {"person": 1, "vehicle": 1, "dog": 2}
+        baselines = {
+            "cam1:3:person": MockClassBaseline(frequency=0.05, sample_count=20),  # Rare
+            "cam1:3:vehicle": MockClassBaseline(frequency=0.03, sample_count=15),  # Rare
+            "cam1:3:dog": MockClassBaseline(frequency=5.0, sample_count=30),  # Normal
+        }
+        context, anomalies = format_class_anomaly_context(
+            camera_id="cam1",
+            current_hour=3,
+            detections=detections,
+            baselines=baselines,
+        )
+
+        assert "## CLASS-SPECIFIC ANOMALIES" in context
+        assert "person RARE" in context
+        assert "vehicle RARE" in context
+        assert "dog" not in context  # Not anomalous
+        assert len(anomalies) == 2
+
+    def test_class_anomaly_result_attributes(self) -> None:
+        """Test that ClassAnomalyResult has correct attributes."""
+        result = ClassAnomalyResult(
+            class_name="person",
+            message="person RARE at this hour (expected: 0.1/hr, actual: 1)",
+            severity="high",
+            risk_modifier=15,
+        )
+
+        assert result.class_name == "person"
+        assert "RARE" in result.message
+        assert result.severity == "high"
+        assert result.risk_modifier == 15
+
+    def test_different_camera_different_hour(self) -> None:
+        """Test that baseline key includes camera and hour."""
+        detections = {"person": 1}
+        baselines = {
+            # Wrong camera
+            "cam2:5:person": MockClassBaseline(frequency=0.05, sample_count=20),
+            # Wrong hour
+            "cam1:6:person": MockClassBaseline(frequency=0.05, sample_count=20),
+        }
+        context, anomalies = format_class_anomaly_context(
+            camera_id="cam1",
+            current_hour=5,
+            detections=detections,
+            baselines=baselines,
+        )
+
+        # Should not match because key is cam1:5:person which doesn't exist
+        assert context == ""
+        assert anomalies == []
+
+    def test_car_truck_motorcycle_high_severity(self) -> None:
+        """Test that car, truck, motorcycle variants get high severity."""
+        for vehicle_class in ["car", "truck", "motorcycle"]:
+            detections = {vehicle_class: 1}
+            baselines = {
+                f"cam1:2:{vehicle_class}": MockClassBaseline(frequency=0.02, sample_count=20)
+            }
+            context, anomalies = format_class_anomaly_context(
+                camera_id="cam1",
+                current_hour=2,
+                detections=detections,
+                baselines=baselines,
+            )
+
+            assert "[HIGH]" in context, f"{vehicle_class} should get HIGH severity"
+            assert anomalies[0].severity == "high"
+
+    def test_non_security_classes_medium_severity(self) -> None:
+        """Test that non-security classes (cat, bird, etc.) get medium severity."""
+        for cls in ["cat", "bird", "backpack"]:
+            detections = {cls: 1}
+            baselines = {f"cam1:2:{cls}": MockClassBaseline(frequency=0.02, sample_count=20)}
+            context, anomalies = format_class_anomaly_context(
+                camera_id="cam1",
+                current_hour=2,
+                detections=detections,
+                baselines=baselines,
+            )
+
+            assert "[MEDIUM]" in context, f"{cls} should get MEDIUM severity"
+            assert anomalies[0].severity == "medium"
+
+
+# =============================================================================
 # Test Classes for Format Functions - Depth Context
 # =============================================================================
 
@@ -1534,7 +1796,8 @@ class TestFormatDetectionsWithAllEnrichment:
         )
         result = format_detections_with_all_enrichment(detections, enrichment_result=enrichment)
 
-        assert "hoodie, jeans, hat" in result
+        # Items are sorted alphabetically after validation (NEM-3010)
+        assert "hat, hoodie, jeans" in result
         assert "Face covering: DETECTED **ALERT**" in result
         assert "Bag/backpack: Detected" in result
 
@@ -1887,7 +2150,13 @@ class TestPromptTemplateConsistency:
         ]
         for template in templates:
             assert "<|im_start|>system" in template
-            assert "risk analyzer" in template.lower()
+            # Updated to accept "home security analyst" role (NEM-3019)
+            has_role = (
+                "risk analyzer" in template.lower() or "home security analyst" in template.lower()
+            )
+            assert has_role, (
+                "Template should define system role as risk analyzer or home security analyst"
+            )
 
     def test_all_templates_specify_json_output(self) -> None:
         """Test all templates specify JSON output format."""
@@ -2319,8 +2588,11 @@ class TestPromptModuleImports:
     def test_all_format_functions_importable(self) -> None:
         """Test all format functions are importable."""
         from backend.services.prompts import (
+            ClassAnomalyResult,
             build_summary_prompt,
             format_action_recognition_context,
+            format_camera_health_context,
+            format_class_anomaly_context,
             format_clothing_analysis_context,
             format_depth_context,
             format_detections_with_all_enrichment,
@@ -2346,6 +2618,10 @@ class TestPromptModuleImports:
         assert callable(format_image_quality_context)
         assert callable(format_detections_with_all_enrichment)
         assert callable(build_summary_prompt)
+        assert callable(format_class_anomaly_context)
+        assert callable(format_camera_health_context)  # NEM-3012
+        # Verify ClassAnomalyResult is a dataclass
+        assert hasattr(ClassAnomalyResult, "__dataclass_fields__")
 
     def test_all_prompt_templates_importable(self) -> None:
         """Test all prompt templates are importable."""
@@ -2371,3 +2647,2006 @@ class TestPromptModuleImports:
         assert isinstance(SUMMARY_PROMPT_TEMPLATE, str)
         assert isinstance(SUMMARY_EMPTY_STATE_INSTRUCTION, str)
         assert isinstance(SUMMARY_EVENT_FORMAT, str)
+
+
+# =============================================================================
+# Mock Data Classes for Camera Health Context Testing (NEM-3012)
+# =============================================================================
+
+
+@dataclass
+class MockSceneChange:
+    """Mock SceneChange model for testing camera health context.
+
+    Mimics the SceneChange SQLAlchemy model without database dependencies.
+    """
+
+    similarity_score: float
+    change_type: str  # view_blocked, angle_changed, view_tampered, unknown
+    acknowledged: bool = False
+
+
+# =============================================================================
+# Tests for format_camera_health_context (NEM-3012)
+# =============================================================================
+
+
+class TestFormatCameraHealthContext:
+    """Tests for format_camera_health_context() function.
+
+    This function formats scene tampering detection data (SceneChange) for
+    inclusion in Nemotron prompts. Scene changes indicate potential camera
+    tampering, blocked views, or angle changes that affect detection confidence.
+    """
+
+    def test_empty_scene_changes_returns_empty(self) -> None:
+        """Test that empty scene changes list returns empty string."""
+        from backend.services.prompts import format_camera_health_context
+
+        result = format_camera_health_context("camera_1", [])
+        assert result == ""
+
+    def test_none_scene_changes_returns_empty(self) -> None:
+        """Test that None scene changes returns empty string (graceful handling)."""
+        from backend.services.prompts import format_camera_health_context
+
+        # Function should handle None gracefully
+        result = format_camera_health_context("camera_1", None)  # type: ignore[arg-type]
+        assert result == ""
+
+    def test_all_acknowledged_returns_empty(self) -> None:
+        """Test that all acknowledged scene changes returns empty string."""
+        from backend.services.prompts import format_camera_health_context
+
+        scene_changes = [
+            MockSceneChange(similarity_score=0.5, change_type="view_blocked", acknowledged=True),
+            MockSceneChange(similarity_score=0.7, change_type="angle_changed", acknowledged=True),
+        ]
+        result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+        assert result == ""
+
+    def test_view_blocked_format(self) -> None:
+        """Test format for view_blocked change type."""
+        from backend.services.prompts import format_camera_health_context
+
+        scene_changes = [
+            MockSceneChange(similarity_score=0.3, change_type="view_blocked", acknowledged=False),
+        ]
+        result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+
+        assert "CAMERA HEALTH ALERT" in result
+        assert "BLOCKED" in result
+        assert "30%" in result  # 0.3 formatted as percentage
+        assert "DEGRADED" in result
+
+    def test_angle_changed_format(self) -> None:
+        """Test format for angle_changed change type."""
+        from backend.services.prompts import format_camera_health_context
+
+        scene_changes = [
+            MockSceneChange(similarity_score=0.65, change_type="angle_changed", acknowledged=False),
+        ]
+        result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+
+        assert "CAMERA HEALTH ALERT" in result
+        assert "angle" in result.lower() or "CHANGED" in result
+        assert "65%" in result  # 0.65 formatted as percentage
+        assert "Baseline" in result or "baseline" in result
+
+    def test_tampered_format(self) -> None:
+        """Test format for view_tampered change type."""
+        from backend.services.prompts import format_camera_health_context
+
+        scene_changes = [
+            MockSceneChange(similarity_score=0.2, change_type="view_tampered", acknowledged=False),
+        ]
+        result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+
+        assert "CAMERA HEALTH ALERT" in result
+        assert "TAMPERING" in result
+        assert "20%" in result  # 0.2 formatted as percentage
+        assert "CRITICAL" in result
+
+    def test_unknown_change_type_format(self) -> None:
+        """Test format for unknown change type (fallback)."""
+        from backend.services.prompts import format_camera_health_context
+
+        scene_changes = [
+            MockSceneChange(similarity_score=0.5, change_type="unknown", acknowledged=False),
+        ]
+        result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+
+        # Should still produce a health alert for unknown changes
+        assert "CAMERA HEALTH ALERT" in result
+        assert "50%" in result
+
+    def test_first_unacknowledged_used(self) -> None:
+        """Test that only the first unacknowledged scene change is used."""
+        from backend.services.prompts import format_camera_health_context
+
+        scene_changes = [
+            MockSceneChange(similarity_score=0.9, change_type="angle_changed", acknowledged=True),
+            MockSceneChange(similarity_score=0.3, change_type="view_blocked", acknowledged=False),
+            MockSceneChange(similarity_score=0.2, change_type="view_tampered", acknowledged=False),
+        ]
+        result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+
+        # Should use the first unacknowledged (view_blocked at 0.3)
+        assert "BLOCKED" in result
+        assert "30%" in result
+        # Should NOT include the tampered alert
+        assert "TAMPERING" not in result
+
+    def test_similarity_score_formatting(self) -> None:
+        """Test that similarity scores are formatted as percentages."""
+        from backend.services.prompts import format_camera_health_context
+
+        # Test various scores
+        test_cases = [
+            (0.0, "0%"),
+            (0.5, "50%"),
+            (0.85, "85%"),
+            (1.0, "100%"),
+        ]
+
+        for score, expected in test_cases:
+            scene_changes = [
+                MockSceneChange(
+                    similarity_score=score, change_type="view_blocked", acknowledged=False
+                ),
+            ]
+            result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+            assert expected in result, f"Expected {expected} for score {score}, got: {result}"
+
+    def test_return_type_is_string(self) -> None:
+        """Test that the function always returns a string."""
+        from backend.services.prompts import format_camera_health_context
+
+        # Empty case
+        assert isinstance(format_camera_health_context("cam", []), str)
+
+        # Non-empty case
+        scene_changes = [
+            MockSceneChange(similarity_score=0.5, change_type="view_blocked", acknowledged=False),
+        ]
+        assert isinstance(format_camera_health_context("cam", scene_changes), str)  # type: ignore[arg-type]
+
+    def test_multiline_output(self) -> None:
+        """Test that the output contains multiple lines for readability."""
+        from backend.services.prompts import format_camera_health_context
+
+        scene_changes = [
+            MockSceneChange(similarity_score=0.3, change_type="view_blocked", acknowledged=False),
+        ]
+        result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+
+        # Should have at least 2 lines (header + content)
+        lines = result.strip().split("\n")
+        assert len(lines) >= 2, f"Expected at least 2 lines, got: {lines}"
+
+    def test_importable(self) -> None:
+        """Test that format_camera_health_context is importable from prompts module."""
+        from backend.services.prompts import format_camera_health_context
+
+        assert callable(format_camera_health_context)
+
+
+# =============================================================================
+# Tests for Clothing Validation (NEM-3010)
+# =============================================================================
+
+
+class TestValidateClothingItems:
+    """Tests for validate_clothing_items function - mutual exclusion logic.
+
+    This validates that impossible garment combinations like "pants, skirt, dress"
+    are resolved by keeping only the highest confidence item from each mutually
+    exclusive group.
+    """
+
+    def test_mutual_exclusion_lower_body(self) -> None:
+        """Test that lower body items are mutually exclusive."""
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["pants", "skirt", "dress", "shoes"]
+        confidences = {"pants": 0.8, "skirt": 0.6, "dress": 0.5, "shoes": 0.9}
+        result = validate_clothing_items(items, confidences)
+
+        assert "pants" in result  # Highest confidence in lower body group
+        assert "skirt" not in result
+        assert "dress" not in result
+        assert "shoes" in result  # Non-exclusive item preserved
+
+    def test_mutual_exclusion_dress_wins(self) -> None:
+        """Test that dress with higher confidence wins over pants."""
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["dress", "pants"]
+        confidences = {"dress": 0.95, "pants": 0.7}
+        result = validate_clothing_items(items, confidences)
+
+        assert "dress" in result
+        assert "pants" not in result
+
+    def test_shorts_in_lower_body_exclusion(self) -> None:
+        """Test that shorts are part of lower body mutual exclusion."""
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["shorts", "pants", "upper_clothes"]
+        confidences = {"shorts": 0.9, "pants": 0.6, "upper_clothes": 0.85}
+        result = validate_clothing_items(items, confidences)
+
+        assert "shorts" in result
+        assert "pants" not in result
+        assert "upper_clothes" in result  # Non-exclusive preserved
+
+    def test_non_exclusive_items_preserved(self) -> None:
+        """Test that non-exclusive items like shoes, belt, bag are preserved."""
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["pants", "shoes", "belt", "bag", "hat"]
+        confidences = {"pants": 0.8, "shoes": 0.9, "belt": 0.7, "bag": 0.75, "hat": 0.85}
+        result = validate_clothing_items(items, confidences)
+
+        assert "pants" in result
+        assert "shoes" in result
+        assert "belt" in result
+        assert "bag" in result
+        assert "hat" in result
+
+    def test_single_item_from_exclusive_group_preserved(self) -> None:
+        """Test that single items from exclusive groups pass through."""
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["skirt", "upper_clothes"]
+        confidences = {"skirt": 0.8, "upper_clothes": 0.9}
+        result = validate_clothing_items(items, confidences)
+
+        assert "skirt" in result
+        assert "upper_clothes" in result
+
+    def test_empty_items_returns_empty(self) -> None:
+        """Test that empty input returns empty output."""
+        from backend.services.prompts import validate_clothing_items
+
+        result = validate_clothing_items([], {})
+        assert result == []
+
+    def test_no_conflicts_preserves_all(self) -> None:
+        """Test that items without conflicts are all preserved."""
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["hat", "sunglasses", "scarf", "shoes"]
+        confidences = {"hat": 0.8, "sunglasses": 0.7, "scarf": 0.6, "shoes": 0.9}
+        result = validate_clothing_items(items, confidences)
+
+        assert len(result) == 4
+        assert set(result) == {"hat", "sunglasses", "scarf", "shoes"}
+
+    def test_missing_confidence_defaults_to_zero(self) -> None:
+        """Test that items without confidence scores default to 0."""
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["pants", "skirt"]
+        confidences = {"pants": 0.5}  # skirt has no confidence
+        result = validate_clothing_items(items, confidences)
+
+        assert "pants" in result  # 0.5 > 0 (default)
+        assert "skirt" not in result
+
+    def test_equal_confidence_keeps_one(self) -> None:
+        """Test that equal confidence still keeps only one item."""
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["pants", "skirt"]
+        confidences = {"pants": 0.5, "skirt": 0.5}
+        result = validate_clothing_items(items, confidences)
+
+        # Should keep exactly one of them
+        assert len([i for i in result if i in {"pants", "skirt"}]) == 1
+
+    def test_real_production_case_pants_skirt_dress(self) -> None:
+        """Test the actual production case from NEM-3010: pants, skirt, dress."""
+        from backend.services.prompts import validate_clothing_items
+
+        # Real production case: shoes, upper_clothes, pants, skirt, dress
+        items = ["shoes", "upper_clothes", "pants", "skirt", "dress"]
+        confidences = {
+            "shoes": 0.9,
+            "upper_clothes": 0.85,
+            "pants": 0.7,
+            "skirt": 0.6,
+            "dress": 0.5,
+        }
+        result = validate_clothing_items(items, confidences)
+
+        # Lower body group: only pants (highest at 0.7)
+        assert "pants" in result
+        assert "skirt" not in result
+        assert "dress" not in result
+
+        # Non-exclusive items preserved
+        assert "shoes" in result
+        assert "upper_clothes" in result
+
+    def test_preserves_order_of_non_exclusive_items(self) -> None:
+        """Test that non-exclusive items maintain reasonable ordering."""
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["hat", "sunglasses", "pants", "shoes", "belt"]
+        confidences = {"hat": 0.8, "sunglasses": 0.7, "pants": 0.85, "shoes": 0.9, "belt": 0.6}
+        result = validate_clothing_items(items, confidences)
+
+        # All items should be present since no conflicts
+        assert len(result) == 5
+        assert set(result) == {"hat", "sunglasses", "pants", "shoes", "belt"}
+
+
+class TestValidateClothingItemsIntegration:
+    """Integration tests for clothing validation with format functions."""
+
+    def test_format_clothing_analysis_uses_validation(self) -> None:
+        """Test that format_clothing_analysis_context applies validation."""
+        # This tests the integration after we modify format_clothing_analysis_context
+        # to use validate_clothing_items
+        segmentation = MockClothingSegmentationResult(
+            clothing_items=["pants", "skirt", "dress", "shoes"],
+            has_face_covered=False,
+            has_bag=False,
+        )
+        segmentation_dict = {"det_1": segmentation}
+
+        # Create minimal classification
+        classification = MockClothingClassification(
+            raw_description="Dark clothing",
+            confidence=0.8,
+            is_suspicious=False,
+            is_service_uniform=False,
+            top_category="casual",
+        )
+        classification_dict = {"det_1": classification}
+
+        result = format_clothing_analysis_context(classification_dict, segmentation_dict)
+
+        # After validation, only one of pants/skirt/dress should appear
+        # Count how many of the exclusive items are in the result
+        lower_body_count = sum(
+            1
+            for item in ["pants", "skirt", "dress"]
+            if f", {item}" in result
+            or f": {item}" in result
+            or result.endswith(item)
+            or f"{item}," in result
+        )
+
+        # Should have at most 1 lower body item (validation applied)
+        # Note: This test will fail until we implement the validation
+        assert lower_body_count <= 1 or "pants, skirt, dress" not in result
+
+
+# =============================================================================
+# Test Classes for Format Functions - Enhanced Re-ID Context (NEM-3013)
+# =============================================================================
+
+
+@dataclass
+class MockEntity:
+    """Mock Entity model for testing format_enhanced_reid_context."""
+
+    detection_count: int
+    first_seen_at: datetime
+    last_seen_at: datetime
+    trust_status: str
+
+
+@dataclass
+class MockReIDMatch:
+    """Mock ReIDMatch for testing format_enhanced_reid_context.
+
+    This represents a re-identification match from the reid_service.
+    """
+
+    similarity: float
+    camera_id: str
+    timestamp: datetime
+
+
+class TestFormatEnhancedReidContext:
+    """Tests for format_enhanced_reid_context function (NEM-3013).
+
+    This function formats re-identification context with proper risk weighting
+    based on entity history (detection count, days known, trust status).
+    """
+
+    def test_first_time_visitor_no_entity(self) -> None:
+        """Test formatting for first time seen (no entity record)."""
+        from backend.services.prompts import format_enhanced_reid_context
+
+        result = format_enhanced_reid_context(
+            person_id=1,
+            entity=None,
+            matches=[],
+        )
+
+        assert "Person 1" in result
+        assert "FIRST TIME SEEN" in result
+        assert "unknown" in result.lower()
+        assert "Base risk: 50" in result
+
+    def test_frequent_visitor_trusted(self) -> None:
+        """Test formatting for frequent trusted visitor (20+ detections, 7+ days)."""
+        from datetime import UTC, datetime, timedelta
+
+        from backend.services.prompts import format_enhanced_reid_context
+
+        entity = MockEntity(
+            detection_count=25,
+            first_seen_at=datetime.now(UTC) - timedelta(days=14),
+            last_seen_at=datetime.now(UTC) - timedelta(hours=2),
+            trust_status="trusted",
+        )
+
+        result = format_enhanced_reid_context(
+            person_id=1,
+            entity=entity,
+            matches=[],
+        )
+
+        assert "Person 1" in result
+        assert "FREQUENT VISITOR" in result
+        assert "25" in result  # detection count
+        assert "14" in result  # days known
+        assert "trusted" in result.lower()
+        assert "-40 points" in result
+        assert "established trusted entity" in result.lower()
+
+    def test_frequent_visitor_unknown_trust(self) -> None:
+        """Test formatting for frequent visitor with unknown trust (familiar but unverified)."""
+        from datetime import UTC, datetime, timedelta
+
+        from backend.services.prompts import format_enhanced_reid_context
+
+        entity = MockEntity(
+            detection_count=30,
+            first_seen_at=datetime.now(UTC) - timedelta(days=10),
+            last_seen_at=datetime.now(UTC) - timedelta(hours=1),
+            trust_status="unknown",
+        )
+
+        result = format_enhanced_reid_context(
+            person_id=2,
+            entity=entity,
+            matches=[],
+        )
+
+        assert "Person 2" in result
+        assert "FREQUENT VISITOR" in result
+        assert "30" in result
+        assert "-20 points" in result
+        assert "familiar but unverified" in result.lower()
+
+    def test_returning_visitor_5_plus_detections(self) -> None:
+        """Test formatting for returning visitor (5+ detections)."""
+        from datetime import UTC, datetime, timedelta
+
+        from backend.services.prompts import format_enhanced_reid_context
+
+        entity = MockEntity(
+            detection_count=8,
+            first_seen_at=datetime.now(UTC) - timedelta(days=3),
+            last_seen_at=datetime.now(UTC) - timedelta(minutes=30),
+            trust_status="unknown",
+        )
+
+        result = format_enhanced_reid_context(
+            person_id=3,
+            entity=entity,
+            matches=[],
+        )
+
+        assert "Person 3" in result
+        assert "RETURNING VISITOR" in result
+        assert "8" in result
+        assert "-10 points" in result
+        assert "repeat visitor" in result.lower()
+
+    def test_recent_visitor_insufficient_history(self) -> None:
+        """Test formatting for recent visitor with insufficient history (< 5 detections)."""
+        from datetime import UTC, datetime, timedelta
+
+        from backend.services.prompts import format_enhanced_reid_context
+
+        entity = MockEntity(
+            detection_count=3,
+            first_seen_at=datetime.now(UTC) - timedelta(days=2),
+            last_seen_at=datetime.now(UTC) - timedelta(hours=1),
+            trust_status="unknown",
+        )
+
+        result = format_enhanced_reid_context(
+            person_id=4,
+            entity=entity,
+            matches=[],
+        )
+
+        assert "Person 4" in result
+        assert "RECENT VISITOR" in result
+        assert "3" in result
+        assert "2" in result  # days ago
+        assert "No risk modifier" in result
+        assert "insufficient history" in result.lower()
+
+    def test_frequent_visitor_minimum_threshold(self) -> None:
+        """Test that exactly 20 detections and 7 days meets frequent visitor threshold."""
+        from datetime import UTC, datetime, timedelta
+
+        from backend.services.prompts import format_enhanced_reid_context
+
+        entity = MockEntity(
+            detection_count=20,
+            first_seen_at=datetime.now(UTC) - timedelta(days=7),
+            last_seen_at=datetime.now(UTC) - timedelta(hours=1),
+            trust_status="unknown",
+        )
+
+        result = format_enhanced_reid_context(
+            person_id=5,
+            entity=entity,
+            matches=[],
+        )
+
+        assert "FREQUENT VISITOR" in result
+        assert "-20 points" in result  # unknown trust = -20
+
+    def test_returning_visitor_minimum_threshold(self) -> None:
+        """Test that exactly 5 detections meets returning visitor threshold."""
+        from datetime import UTC, datetime, timedelta
+
+        from backend.services.prompts import format_enhanced_reid_context
+
+        entity = MockEntity(
+            detection_count=5,
+            first_seen_at=datetime.now(UTC) - timedelta(days=1),
+            last_seen_at=datetime.now(UTC) - timedelta(hours=1),
+            trust_status="unknown",
+        )
+
+        result = format_enhanced_reid_context(
+            person_id=6,
+            entity=entity,
+            matches=[],
+        )
+
+        assert "RETURNING VISITOR" in result
+        assert "-10 points" in result
+
+    def test_high_detection_count_but_short_time_period(self) -> None:
+        """Test that high detection count but < 7 days uses returning visitor tier."""
+        from datetime import UTC, datetime, timedelta
+
+        from backend.services.prompts import format_enhanced_reid_context
+
+        # 25 detections but only 3 days - not a frequent visitor yet
+        entity = MockEntity(
+            detection_count=25,
+            first_seen_at=datetime.now(UTC) - timedelta(days=3),
+            last_seen_at=datetime.now(UTC) - timedelta(hours=1),
+            trust_status="unknown",
+        )
+
+        result = format_enhanced_reid_context(
+            person_id=7,
+            entity=entity,
+            matches=[],
+        )
+
+        # Should be returning visitor since days_known < 7
+        assert "RETURNING VISITOR" in result
+        assert "-10 points" in result
+
+    def test_untrusted_entity_modifier(self) -> None:
+        """Test that untrusted entities still get familiarity-based modifiers."""
+        from datetime import UTC, datetime, timedelta
+
+        from backend.services.prompts import format_enhanced_reid_context
+
+        entity = MockEntity(
+            detection_count=30,
+            first_seen_at=datetime.now(UTC) - timedelta(days=20),
+            last_seen_at=datetime.now(UTC) - timedelta(hours=1),
+            trust_status="untrusted",
+        )
+
+        result = format_enhanced_reid_context(
+            person_id=8,
+            entity=entity,
+            matches=[],
+        )
+
+        # Untrusted frequent visitors still get -20 (not trusted -40)
+        assert "FREQUENT VISITOR" in result
+        assert "untrusted" in result.lower()
+        assert "-20 points" in result
+        assert "familiar but unverified" in result.lower()
+
+    def test_includes_reidentification_header(self) -> None:
+        """Test that the output includes the re-identification header."""
+        from backend.services.prompts import format_enhanced_reid_context
+
+        result = format_enhanced_reid_context(
+            person_id=1,
+            entity=None,
+            matches=[],
+        )
+
+        assert "## Person 1 Re-Identification" in result
+
+    def test_zero_detection_count_entity(self) -> None:
+        """Test edge case: entity exists but has 0 detection count."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_enhanced_reid_context
+
+        entity = MockEntity(
+            detection_count=0,
+            first_seen_at=datetime.now(UTC),
+            last_seen_at=datetime.now(UTC),
+            trust_status="unknown",
+        )
+
+        result = format_enhanced_reid_context(
+            person_id=9,
+            entity=entity,
+            matches=[],
+        )
+
+        # Should be treated as recent/insufficient history
+        assert "RECENT VISITOR" in result
+        assert "No risk modifier" in result
+
+
+# =============================================================================
+# Test Classes for Pose/Scene Conflict Resolution (NEM-3011)
+# =============================================================================
+
+
+class TestResolvePoseSceneConflict:
+    """Tests for resolve_pose_scene_conflict function.
+
+    This function resolves conflicts between pose detection (e.g., "running")
+    and scene analysis (e.g., "sitting") to prevent confusing Nemotron with
+    contradictory signals.
+    """
+
+    def test_running_vs_sitting_prefers_scene(self) -> None:
+        """Test that running pose with sitting scene prefers scene interpretation."""
+        from backend.services.prompts import resolve_pose_scene_conflict
+
+        result = resolve_pose_scene_conflict(
+            pose="running",
+            pose_confidence=0.85,
+            scene_description="A person sitting on a bench in the garden",
+            has_motion_blur=False,
+        )
+
+        assert result["conflict_detected"] is True
+        assert result["resolved_pose"] == "unknown"
+        assert "scene" in result["resolution"].lower()
+
+    def test_running_vs_standing_with_motion_blur_prefers_pose(self) -> None:
+        """Test that running with motion blur prefers pose interpretation."""
+        from backend.services.prompts import resolve_pose_scene_conflict
+
+        result = resolve_pose_scene_conflict(
+            pose="running",
+            pose_confidence=0.90,
+            scene_description="A person standing near the door",
+            has_motion_blur=True,
+        )
+
+        assert result["conflict_detected"] is True
+        assert result["resolved_pose"] == "running"
+        assert "pose" in result["resolution"].lower()
+
+    def test_running_vs_standing_without_motion_blur_prefers_scene(self) -> None:
+        """Test that running without motion blur prefers scene interpretation."""
+        from backend.services.prompts import resolve_pose_scene_conflict
+
+        result = resolve_pose_scene_conflict(
+            pose="running",
+            pose_confidence=0.75,
+            scene_description="A person standing at the entrance",
+            has_motion_blur=False,
+        )
+
+        assert result["conflict_detected"] is True
+        assert result["resolved_pose"] == "unknown"
+        assert "scene" in result["resolution"].lower()
+
+    def test_crouching_vs_walking_prefers_pose(self) -> None:
+        """Test that crouching vs walking prefers pose (more specific)."""
+        from backend.services.prompts import resolve_pose_scene_conflict
+
+        result = resolve_pose_scene_conflict(
+            pose="crouching",
+            pose_confidence=0.80,
+            scene_description="Someone walking through the yard",
+            has_motion_blur=False,
+        )
+
+        assert result["conflict_detected"] is True
+        assert result["resolved_pose"] == "crouching"
+        assert "pose" in result["resolution"].lower()
+
+    def test_no_conflict_when_poses_match(self) -> None:
+        """Test that no conflict is detected when pose and scene are consistent."""
+        from backend.services.prompts import resolve_pose_scene_conflict
+
+        result = resolve_pose_scene_conflict(
+            pose="walking",
+            pose_confidence=0.88,
+            scene_description="A person walking down the driveway",
+            has_motion_blur=False,
+        )
+
+        assert result["conflict_detected"] is False
+        assert result["resolved_pose"] == "walking"
+
+    def test_no_conflict_when_scene_does_not_contain_conflicting_pose(self) -> None:
+        """Test no conflict when scene description has no relevant pose info."""
+        from backend.services.prompts import resolve_pose_scene_conflict
+
+        result = resolve_pose_scene_conflict(
+            pose="running",
+            pose_confidence=0.85,
+            scene_description="A vehicle parked in the driveway at night",
+            has_motion_blur=True,
+        )
+
+        assert result["conflict_detected"] is False
+        assert result["resolved_pose"] == "running"
+
+    def test_case_insensitive_scene_matching(self) -> None:
+        """Test that scene matching is case-insensitive."""
+        from backend.services.prompts import resolve_pose_scene_conflict
+
+        result = resolve_pose_scene_conflict(
+            pose="running",
+            pose_confidence=0.82,
+            scene_description="PERSON SITTING ON THE PORCH",
+            has_motion_blur=False,
+        )
+
+        assert result["conflict_detected"] is True
+        assert result["resolved_pose"] == "unknown"
+
+    def test_standing_in_scene_triggers_running_conflict(self) -> None:
+        """Test that standing in scene with running pose triggers conflict."""
+        from backend.services.prompts import resolve_pose_scene_conflict
+
+        # Test with motion blur - should prefer pose
+        result_blur = resolve_pose_scene_conflict(
+            pose="running",
+            pose_confidence=0.88,
+            scene_description="The person appears to be standing near the gate",
+            has_motion_blur=True,
+        )
+
+        assert result_blur["conflict_detected"] is True
+        assert result_blur["resolved_pose"] == "running"
+
+    def test_unknown_pose_returns_no_conflict(self) -> None:
+        """Test that unknown pose types don't trigger conflicts."""
+        from backend.services.prompts import resolve_pose_scene_conflict
+
+        result = resolve_pose_scene_conflict(
+            pose="jumping",
+            pose_confidence=0.75,
+            scene_description="A person sitting on the steps",
+            has_motion_blur=False,
+        )
+
+        assert result["conflict_detected"] is False
+        assert result["resolved_pose"] == "jumping"
+
+    def test_empty_scene_description(self) -> None:
+        """Test handling of empty scene description."""
+        from backend.services.prompts import resolve_pose_scene_conflict
+
+        result = resolve_pose_scene_conflict(
+            pose="running",
+            pose_confidence=0.90,
+            scene_description="",
+            has_motion_blur=True,
+        )
+
+        assert result["conflict_detected"] is False
+        assert result["resolved_pose"] == "running"
+
+
+class TestFormatPoseSceneConflictWarning:
+    """Tests for format_pose_scene_conflict_warning function.
+
+    This function generates a warning message to inject into prompts when
+    a pose/scene conflict is detected.
+    """
+
+    def test_warning_generated_when_conflict_detected(self) -> None:
+        """Test warning is generated when conflict is detected."""
+        from backend.services.prompts import format_pose_scene_conflict_warning
+
+        conflict_result = {
+            "conflict_detected": True,
+            "resolved_pose": "unknown",
+            "resolution": "Preferred scene interpretation",
+        }
+
+        warning = format_pose_scene_conflict_warning(
+            pose="running",
+            scene_description="sitting on bench",
+            conflict_result=conflict_result,
+        )
+
+        assert warning is not None
+        assert "SIGNAL CONFLICT" in warning
+        assert "running" in warning
+        assert "sitting" in warning
+        assert "LOW" in warning or "low" in warning.lower()
+
+    def test_no_warning_when_no_conflict(self) -> None:
+        """Test no warning is generated when no conflict exists."""
+        from backend.services.prompts import format_pose_scene_conflict_warning
+
+        conflict_result = {
+            "conflict_detected": False,
+            "resolved_pose": "walking",
+        }
+
+        warning = format_pose_scene_conflict_warning(
+            pose="walking",
+            scene_description="walking down path",
+            conflict_result=conflict_result,
+        )
+
+        assert warning is None or warning == ""
+
+    def test_warning_includes_behavioral_analysis_note(self) -> None:
+        """Test warning includes note about behavioral analysis confidence."""
+        from backend.services.prompts import format_pose_scene_conflict_warning
+
+        conflict_result = {
+            "conflict_detected": True,
+            "resolved_pose": "unknown",
+            "resolution": "Preferred scene interpretation",
+        }
+
+        warning = format_pose_scene_conflict_warning(
+            pose="running",
+            scene_description="person sitting",
+            conflict_result=conflict_result,
+        )
+
+        assert "behavioral analysis" in warning.lower() or "behavioral" in warning.lower()
+        assert "weight other evidence" in warning.lower() or "confidence" in warning.lower()
+
+    def test_warning_contains_visual_indicator(self) -> None:
+        """Test warning contains visual indicator for attention."""
+        from backend.services.prompts import format_pose_scene_conflict_warning
+
+        conflict_result = {
+            "conflict_detected": True,
+            "resolved_pose": "unknown",
+            "resolution": "Preferred scene interpretation",
+        }
+
+        warning = format_pose_scene_conflict_warning(
+            pose="crouching",
+            scene_description="walking through yard",
+            conflict_result=conflict_result,
+        )
+
+        # Should contain warning marker
+        assert any(marker in warning for marker in ["WARNING", "CONFLICT", "ALERT", "**"])
+
+
+class TestPoseSceneConflictIntegration:
+    """Integration tests for pose/scene conflict resolution in prompts."""
+
+    def test_conflict_resolution_importable(self) -> None:
+        """Test that conflict resolution functions are importable."""
+        from backend.services.prompts import (
+            format_pose_scene_conflict_warning,
+            resolve_pose_scene_conflict,
+        )
+
+        assert callable(resolve_pose_scene_conflict)
+        assert callable(format_pose_scene_conflict_warning)
+
+    def test_full_workflow_running_sitting_conflict(self) -> None:
+        """Test full workflow of detecting and formatting a conflict."""
+        from backend.services.prompts import (
+            format_pose_scene_conflict_warning,
+            resolve_pose_scene_conflict,
+        )
+
+        # Step 1: Detect conflict
+        result = resolve_pose_scene_conflict(
+            pose="running",
+            pose_confidence=0.85,
+            scene_description="A person is sitting on a chair",
+            has_motion_blur=False,
+        )
+
+        # Step 2: Generate warning
+        warning = format_pose_scene_conflict_warning(
+            pose="running",
+            scene_description="A person is sitting on a chair",
+            conflict_result=result,
+        )
+
+        # Verify workflow
+        assert result["conflict_detected"] is True
+        assert warning is not None
+        assert "running" in warning
+        assert "sitting" in warning
+
+    def test_no_warning_for_consistent_detection(self) -> None:
+        """Test no warning when pose and scene are consistent."""
+        from backend.services.prompts import (
+            format_pose_scene_conflict_warning,
+            resolve_pose_scene_conflict,
+        )
+
+        result = resolve_pose_scene_conflict(
+            pose="standing",
+            pose_confidence=0.92,
+            scene_description="A person standing at the front door",
+            has_motion_blur=False,
+        )
+
+        warning = format_pose_scene_conflict_warning(
+            pose="standing",
+            scene_description="A person standing at the front door",
+            conflict_result=result,
+        )
+
+        assert result["conflict_detected"] is False
+        assert warning is None or warning == ""
+
+
+# =============================================================================
+# Test Classes for Calibrated System Prompt (NEM-3019)
+# =============================================================================
+
+
+class TestCalibratedSystemPrompt:
+    """Tests for the CALIBRATED_SYSTEM_PROMPT constant.
+
+    This prompt provides calibration guidance to prevent over-alerting by
+    establishing expected event distributions and scoring principles.
+    """
+
+    def test_calibrated_system_prompt_exists(self) -> None:
+        """Test that CALIBRATED_SYSTEM_PROMPT is defined."""
+        assert CALIBRATED_SYSTEM_PROMPT is not None
+        assert isinstance(CALIBRATED_SYSTEM_PROMPT, str)
+        assert len(CALIBRATED_SYSTEM_PROMPT) > 0
+
+    def test_calibrated_system_prompt_has_critical_principle(self) -> None:
+        """Test that the prompt includes the critical principle about non-threats."""
+        assert "CRITICAL PRINCIPLE" in CALIBRATED_SYSTEM_PROMPT
+        assert "Most detections are NOT threats" in CALIBRATED_SYSTEM_PROMPT
+        assert "Residents" in CALIBRATED_SYSTEM_PROMPT
+        assert "family members" in CALIBRATED_SYSTEM_PROMPT
+        assert "delivery workers" in CALIBRATED_SYSTEM_PROMPT
+        assert "pets" in CALIBRATED_SYSTEM_PROMPT
+
+    def test_calibrated_system_prompt_has_calibration_section(self) -> None:
+        """Test that the prompt includes calibration distribution expectations."""
+        assert "CALIBRATION" in CALIBRATED_SYSTEM_PROMPT
+        # Should have percentage distribution guidance
+        assert "80%" in CALIBRATED_SYSTEM_PROMPT
+        assert "15%" in CALIBRATED_SYSTEM_PROMPT
+        assert "4%" in CALIBRATED_SYSTEM_PROMPT
+        assert "1%" in CALIBRATED_SYSTEM_PROMPT
+
+    def test_calibrated_system_prompt_has_risk_level_ranges(self) -> None:
+        """Test that the prompt includes risk level score ranges."""
+        assert "LOW" in CALIBRATED_SYSTEM_PROMPT
+        assert "MEDIUM" in CALIBRATED_SYSTEM_PROMPT
+        assert "HIGH" in CALIBRATED_SYSTEM_PROMPT
+        assert "CRITICAL" in CALIBRATED_SYSTEM_PROMPT
+        # Score ranges
+        assert "0-29" in CALIBRATED_SYSTEM_PROMPT
+        assert "30-59" in CALIBRATED_SYSTEM_PROMPT
+        assert "60-84" in CALIBRATED_SYSTEM_PROMPT
+        assert "85-100" in CALIBRATED_SYSTEM_PROMPT
+
+    def test_calibrated_system_prompt_has_miscalibration_warning(self) -> None:
+        """Test that the prompt warns about miscalibration."""
+        assert "miscalibrated" in CALIBRATED_SYSTEM_PROMPT
+        assert "20%" in CALIBRATED_SYSTEM_PROMPT
+
+    def test_calibrated_system_prompt_has_json_output_instruction(self) -> None:
+        """Test that the prompt instructs JSON-only output."""
+        assert "JSON" in CALIBRATED_SYSTEM_PROMPT
+        assert "No preamble" in CALIBRATED_SYSTEM_PROMPT or "valid JSON" in CALIBRATED_SYSTEM_PROMPT
+
+    def test_calibrated_system_prompt_mentions_home_security(self) -> None:
+        """Test that the prompt establishes home security context."""
+        assert "home security" in CALIBRATED_SYSTEM_PROMPT
+        assert "residential" in CALIBRATED_SYSTEM_PROMPT
+
+
+class TestScoringReferenceTable:
+    """Tests for the SCORING_REFERENCE_TABLE constant.
+
+    This table provides inline scoring examples to anchor the LLM's risk
+    assessment with concrete scenarios and scores.
+    """
+
+    def test_scoring_reference_table_exists(self) -> None:
+        """Test that SCORING_REFERENCE_TABLE is defined."""
+        assert SCORING_REFERENCE_TABLE is not None
+        assert isinstance(SCORING_REFERENCE_TABLE, str)
+        assert len(SCORING_REFERENCE_TABLE) > 0
+
+    def test_scoring_reference_table_has_table_format(self) -> None:
+        """Test that the table uses markdown table format."""
+        assert "| Scenario" in SCORING_REFERENCE_TABLE
+        assert "| Score" in SCORING_REFERENCE_TABLE
+        assert "| Reasoning" in SCORING_REFERENCE_TABLE
+        assert "|-------" in SCORING_REFERENCE_TABLE
+
+    def test_scoring_reference_table_has_low_risk_scenarios(self) -> None:
+        """Test that the table includes low-risk scenario examples."""
+        # Resident arriving home should be very low risk
+        assert "Resident" in SCORING_REFERENCE_TABLE or "resident" in SCORING_REFERENCE_TABLE
+        # Delivery driver should be low risk
+        assert "Delivery" in SCORING_REFERENCE_TABLE or "delivery" in SCORING_REFERENCE_TABLE
+
+    def test_scoring_reference_table_has_medium_risk_scenarios(self) -> None:
+        """Test that the table includes medium-risk scenario examples."""
+        # Unknown person on sidewalk
+        assert "Unknown" in SCORING_REFERENCE_TABLE or "unknown" in SCORING_REFERENCE_TABLE
+        # Lingering behavior
+        assert "lingering" in SCORING_REFERENCE_TABLE or "Lingering" in SCORING_REFERENCE_TABLE
+
+    def test_scoring_reference_table_has_high_risk_scenarios(self) -> None:
+        """Test that the table includes high-risk scenario examples."""
+        # Testing door handles is high risk
+        assert "door" in SCORING_REFERENCE_TABLE
+
+    def test_scoring_reference_table_has_critical_risk_scenarios(self) -> None:
+        """Test that the table includes critical-risk scenario examples."""
+        # Break-in should be critical
+        assert "break-in" in SCORING_REFERENCE_TABLE or "Break-in" in SCORING_REFERENCE_TABLE
+        # Violence should be critical
+        assert "violence" in SCORING_REFERENCE_TABLE or "Violence" in SCORING_REFERENCE_TABLE
+
+    def test_scoring_reference_table_has_score_ranges(self) -> None:
+        """Test that the table includes specific score ranges."""
+        # Low risk scores (5-15, 15-25)
+        assert "5-15" in SCORING_REFERENCE_TABLE
+        assert "15-25" in SCORING_REFERENCE_TABLE
+        # Medium risk scores (20-35, 45-60)
+        assert "20-35" in SCORING_REFERENCE_TABLE or "45-60" in SCORING_REFERENCE_TABLE
+        # High risk scores (70-85)
+        assert "70-85" in SCORING_REFERENCE_TABLE
+        # Critical risk scores (85-100)
+        assert "85-100" in SCORING_REFERENCE_TABLE
+
+
+class TestHouseholdContextTemplate:
+    """Tests for the HOUSEHOLD_CONTEXT_TEMPLATE constant.
+
+    This template provides household-specific context at the top of the prompt.
+    """
+
+    def test_household_context_template_exists(self) -> None:
+        """Test that HOUSEHOLD_CONTEXT_TEMPLATE is defined."""
+        assert HOUSEHOLD_CONTEXT_TEMPLATE is not None
+        assert isinstance(HOUSEHOLD_CONTEXT_TEMPLATE, str)
+
+    def test_household_context_template_has_header(self) -> None:
+        """Test that the template has a household context header."""
+        assert (
+            "HOUSEHOLD" in HOUSEHOLD_CONTEXT_TEMPLATE or "Household" in HOUSEHOLD_CONTEXT_TEMPLATE
+        )
+
+
+class TestPromptTemplatesHaveCalibrationAtTop:
+    """Tests to verify all prompt templates have calibration guidance at the TOP.
+
+    NEM-3019 requires risk modifiers to appear FIRST in the user prompt,
+    not buried at the bottom where they may be ignored.
+    """
+
+    def test_model_zoo_prompt_has_scoring_reference_early(self) -> None:
+        """Test that MODEL_ZOO_ENHANCED prompt has scoring reference near the top."""
+        prompt = MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+
+        # Find position of key sections
+        detections_pos = prompt.find("## Detections") or prompt.find(
+            "{detections_with_all_attributes}"
+        )
+        scoring_pos = prompt.find("## SCORING REFERENCE") or prompt.find("SCORING REFERENCE")
+
+        # Scoring reference should appear BEFORE detections
+        # (unless it's in a different structure, then it should be early)
+        if scoring_pos > 0 and detections_pos > 0:
+            assert scoring_pos < detections_pos, (
+                "Scoring reference should appear before detections in prompt"
+            )
+
+    def test_vision_enhanced_prompt_has_scoring_reference_early(self) -> None:
+        """Test that VISION_ENHANCED prompt has scoring reference near the top."""
+        prompt = VISION_ENHANCED_RISK_ANALYSIS_PROMPT
+
+        # Should have scoring reference
+        assert "SCORING REFERENCE" in prompt or "Scoring" in prompt or "| Scenario" in prompt
+
+    def test_enriched_prompt_has_scoring_reference(self) -> None:
+        """Test that ENRICHED_RISK_ANALYSIS_PROMPT has scoring reference."""
+        prompt = ENRICHED_RISK_ANALYSIS_PROMPT
+
+        # Should have scoring reference or calibration guidance
+        has_scoring = "SCORING REFERENCE" in prompt or "| Scenario" in prompt
+        has_calibration = "CALIBRATION" in prompt or "calibration" in prompt
+
+        assert has_scoring or has_calibration, (
+            "ENRICHED prompt should have scoring reference or calibration"
+        )
+
+    def test_full_enriched_prompt_has_scoring_reference(self) -> None:
+        """Test that FULL_ENRICHED_RISK_ANALYSIS_PROMPT has scoring reference."""
+        prompt = FULL_ENRICHED_RISK_ANALYSIS_PROMPT
+
+        # Should have scoring reference or calibration guidance
+        has_scoring = "SCORING REFERENCE" in prompt or "| Scenario" in prompt
+        has_calibration = "CALIBRATION" in prompt or "calibration" in prompt
+
+        assert has_scoring or has_calibration, (
+            "FULL_ENRICHED prompt should have scoring reference or calibration"
+        )
+
+    def test_basic_prompt_has_scoring_reference(self) -> None:
+        """Test that basic RISK_ANALYSIS_PROMPT has scoring reference."""
+        prompt = RISK_ANALYSIS_PROMPT
+
+        # Should have scoring reference or calibration guidance
+        has_scoring = "SCORING REFERENCE" in prompt or "| Scenario" in prompt
+        has_calibration = "CALIBRATION" in prompt or "calibration" in prompt
+        has_risk_levels = "low (0-29)" in prompt and "critical (85-100)" in prompt
+
+        assert has_scoring or has_calibration or has_risk_levels, (
+            "Basic prompt should have scoring reference or calibration"
+        )
+
+
+class TestPromptTemplatesUseCalibrationSystemPrompt:
+    """Tests to verify prompt templates use the calibrated system prompt."""
+
+    def test_model_zoo_prompt_uses_calibrated_system_prompt(self) -> None:
+        """Test that MODEL_ZOO_ENHANCED uses calibrated system message."""
+        prompt = MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+
+        # Should include calibration concepts in system section
+        system_section = (
+            prompt.split("<|im_start|>user")[0] if "<|im_start|>user" in prompt else prompt
+        )
+
+        # Check for key calibration concepts
+        has_calibration = any(
+            [
+                "Most detections are NOT threats" in system_section,
+                "CRITICAL PRINCIPLE" in system_section,
+                "miscalibrated" in system_section,
+                "home security analyst" in system_section,
+            ]
+        )
+
+        assert has_calibration, "MODEL_ZOO_ENHANCED system section should have calibration guidance"
+
+    def test_vision_enhanced_prompt_uses_calibrated_system_prompt(self) -> None:
+        """Test that VISION_ENHANCED uses calibrated system message."""
+        prompt = VISION_ENHANCED_RISK_ANALYSIS_PROMPT
+
+        # Should include calibration concepts in system section
+        system_section = (
+            prompt.split("<|im_start|>user")[0] if "<|im_start|>user" in prompt else prompt
+        )
+
+        # Check for key calibration concepts
+        has_calibration = any(
+            [
+                "Most detections are NOT threats" in system_section,
+                "CRITICAL PRINCIPLE" in system_section,
+                "miscalibrated" in system_section,
+                "home security analyst" in system_section,
+            ]
+        )
+
+        assert has_calibration, "VISION_ENHANCED system section should have calibration guidance"
+
+    def test_enriched_prompt_uses_calibrated_system_prompt(self) -> None:
+        """Test that ENRICHED uses calibrated system message."""
+        prompt = ENRICHED_RISK_ANALYSIS_PROMPT
+
+        # Should include calibration concepts in system section
+        system_section = (
+            prompt.split("<|im_start|>user")[0] if "<|im_start|>user" in prompt else prompt
+        )
+
+        # Check for key calibration concepts
+        has_calibration = any(
+            [
+                "Most detections are NOT threats" in system_section,
+                "CRITICAL PRINCIPLE" in system_section,
+                "miscalibrated" in system_section,
+                "home security analyst" in system_section,
+            ]
+        )
+
+        assert has_calibration, "ENRICHED system section should have calibration guidance"
+
+    def test_full_enriched_prompt_uses_calibrated_system_prompt(self) -> None:
+        """Test that FULL_ENRICHED uses calibrated system message."""
+        prompt = FULL_ENRICHED_RISK_ANALYSIS_PROMPT
+
+        # Should include calibration concepts in system section
+        system_section = (
+            prompt.split("<|im_start|>user")[0] if "<|im_start|>user" in prompt else prompt
+        )
+
+        # Check for key calibration concepts
+        has_calibration = any(
+            [
+                "Most detections are NOT threats" in system_section,
+                "CRITICAL PRINCIPLE" in system_section,
+                "miscalibrated" in system_section,
+                "home security analyst" in system_section,
+            ]
+        )
+
+        assert has_calibration, "FULL_ENRICHED system section should have calibration guidance"
+
+    def test_basic_prompt_uses_calibrated_system_prompt(self) -> None:
+        """Test that basic RISK_ANALYSIS_PROMPT uses calibrated system message."""
+        prompt = RISK_ANALYSIS_PROMPT
+
+        # Should include calibration concepts in system section
+        system_section = (
+            prompt.split("<|im_start|>user")[0] if "<|im_start|>user" in prompt else prompt
+        )
+
+        # Check for key calibration concepts
+        has_calibration = any(
+            [
+                "Most detections are NOT threats" in system_section,
+                "CRITICAL PRINCIPLE" in system_section,
+                "miscalibrated" in system_section,
+                "home security analyst" in system_section,
+            ]
+        )
+
+        assert has_calibration, "Basic prompt system section should have calibration guidance"
+
+
+# =============================================================================
+# Mock Classes for build_enrichment_sections Tests
+# =============================================================================
+
+
+@dataclass
+class MockPoseResult:
+    """Mock PoseResult for testing build_enrichment_sections."""
+
+    pose_class: str
+    pose_confidence: float
+    keypoints: dict = field(default_factory=dict)
+    bbox: list[float] | None = None
+
+
+@dataclass
+class MockEnrichmentResultFull:
+    """Full mock EnrichmentResult with all fields for build_enrichment_sections tests.
+
+    This mock includes all the fields that build_enrichment_sections() needs to check.
+    """
+
+    violence_detection: MockViolenceDetectionResult | None = None
+    clothing_classifications: dict[str, MockClothingClassification] = field(default_factory=dict)
+    clothing_segmentation: dict[str, MockClothingSegmentationResult] = field(default_factory=dict)
+    pose_results: dict[str, MockPoseResult] = field(default_factory=dict)
+    vehicle_damage: dict[str, MockVehicleDamageResult] = field(default_factory=dict)
+    pet_classifications: dict[str, MockPetClassificationResult] = field(default_factory=dict)
+
+
+# =============================================================================
+# Test Classes for build_enrichment_sections (NEM-3020)
+# =============================================================================
+
+
+class TestBuildEnrichmentSections:
+    """Tests for build_enrichment_sections function (NEM-3020).
+
+    This function builds prompt sections conditionally, only including sections
+    that have actual meaningful data. Empty or unhelpful sections like
+    "Violence analysis: Not performed" should NOT be included.
+
+    Acceptance Criteria:
+    - Empty sections not included in prompts
+    - Only sections with actual data appear
+    - Violence always shown if detected
+    - Pets shown to reduce FPs (if confidence > 85%)
+    - Low confidence data excluded
+    """
+
+    def test_empty_enrichment_returns_empty_string(self) -> None:
+        """Test that empty enrichment result returns empty string, not empty sections."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull()
+        result = build_enrichment_sections(enrichment)
+
+        assert result == ""
+        # Should NOT contain any of these placeholder texts
+        assert "Violence analysis: Not performed" not in result
+        assert "Vehicle classification: No vehicles analyzed" not in result
+        assert "Pose analysis: Not available" not in result
+        assert "Pet classification: No animals detected" not in result
+
+    def test_violence_included_when_detected(self) -> None:
+        """Test that violence section is included when violence is detected."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            violence_detection=MockViolenceDetectionResult(
+                is_violent=True,
+                confidence=0.95,
+                violent_score=0.95,
+                non_violent_score=0.05,
+            )
+        )
+        result = build_enrichment_sections(enrichment)
+
+        assert "VIOLENCE DETECTED" in result
+        assert "95%" in result
+        assert "ACTION REQUIRED" in result
+
+    def test_violence_excluded_when_not_detected(self) -> None:
+        """Test that violence section is excluded when no violence detected."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            violence_detection=MockViolenceDetectionResult(
+                is_violent=False,
+                confidence=0.92,
+                violent_score=0.08,
+                non_violent_score=0.92,
+            )
+        )
+        result = build_enrichment_sections(enrichment)
+
+        # Should not include "no violence detected" message - that's unhelpful
+        assert "No violence detected" not in result
+        assert "Violence analysis" not in result
+
+    def test_violence_excluded_when_none(self) -> None:
+        """Test that violence section is excluded when violence_detection is None."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(violence_detection=None)
+        result = build_enrichment_sections(enrichment)
+
+        assert "Violence analysis: Not performed" not in result
+        assert "violence" not in result.lower()
+
+    def test_clothing_included_when_meaningful(self) -> None:
+        """Test that clothing section is included when there's meaningful data."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            clothing_classifications={
+                "det_001": MockClothingClassification(
+                    raw_description="blue jeans, white t-shirt",
+                    confidence=0.88,
+                    is_suspicious=False,
+                    is_service_uniform=False,
+                    top_category="casual",
+                )
+            }
+        )
+        result = build_enrichment_sections(enrichment)
+
+        assert "blue jeans, white t-shirt" in result
+        assert "88" in result
+
+    def test_clothing_excluded_when_empty(self) -> None:
+        """Test that clothing section is excluded when no clothing data."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(clothing_classifications={})
+        result = build_enrichment_sections(enrichment)
+
+        assert "Clothing analysis: No person detections analyzed" not in result
+        assert "Clothing" not in result
+
+    def test_suspicious_clothing_included(self) -> None:
+        """Test that suspicious clothing triggers section inclusion with alert."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            clothing_classifications={
+                "det_001": MockClothingClassification(
+                    raw_description="all black clothing, ski mask",
+                    confidence=0.92,
+                    is_suspicious=True,
+                    is_service_uniform=False,
+                    top_category="suspicious_all_black",
+                )
+            }
+        )
+        result = build_enrichment_sections(enrichment)
+
+        assert "all black clothing, ski mask" in result
+        assert "ALERT" in result
+
+    def test_pose_included_when_high_confidence(self) -> None:
+        """Test that pose section is included when confidence > 0.7."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            pose_results={
+                "det_001": MockPoseResult(
+                    pose_class="crouching",
+                    pose_confidence=0.85,
+                )
+            }
+        )
+        result = build_enrichment_sections(enrichment)
+
+        assert "crouching" in result
+        assert "85%" in result
+
+    def test_pose_excluded_when_low_confidence(self) -> None:
+        """Test that pose section is excluded when confidence <= 0.7."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            pose_results={
+                "det_001": MockPoseResult(
+                    pose_class="standing",
+                    pose_confidence=0.65,  # Below 0.7 threshold
+                )
+            }
+        )
+        result = build_enrichment_sections(enrichment)
+
+        # Low confidence pose should be excluded
+        assert "Pose analysis" not in result
+        assert "standing" not in result
+
+    def test_pose_excluded_when_empty(self) -> None:
+        """Test that pose section is excluded when no pose data."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(pose_results={})
+        result = build_enrichment_sections(enrichment)
+
+        assert "Pose analysis: Not available" not in result
+        assert "Pose analysis: No poses detected" not in result
+
+    def test_vehicle_damage_included_when_detected(self) -> None:
+        """Test that vehicle damage section is included when damage detected."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            vehicle_damage={
+                "det_v001": MockVehicleDamageResult(
+                    has_damage=True,
+                    damage_types={"glass_shatter", "dents"},
+                    total_damage_count=3,
+                    highest_confidence=0.88,
+                    has_high_security_damage=True,
+                )
+            }
+        )
+        result = build_enrichment_sections(enrichment)
+
+        assert "damage detected" in result.lower()
+        assert "glass_shatter" in result
+
+    def test_vehicle_damage_excluded_when_no_damage(self) -> None:
+        """Test that vehicle damage section is excluded when no damage."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            vehicle_damage={
+                "det_v001": MockVehicleDamageResult(
+                    has_damage=False,
+                    damage_types=set(),
+                    total_damage_count=0,
+                    highest_confidence=0.0,
+                    has_high_security_damage=False,
+                )
+            }
+        )
+        result = build_enrichment_sections(enrichment)
+
+        # Should not include "no damage detected" message
+        assert "Vehicle damage: No damage detected" not in result
+        assert "Vehicle damage: No vehicles analyzed for damage" not in result
+
+    def test_vehicle_damage_excluded_when_empty(self) -> None:
+        """Test that vehicle damage section is excluded when no vehicles."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(vehicle_damage={})
+        result = build_enrichment_sections(enrichment)
+
+        assert "Vehicle damage" not in result
+
+    def test_pet_included_when_high_confidence(self) -> None:
+        """Test that pet section is included when confidence > 85% (helps reduce FPs)."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            pet_classifications={
+                "det_p001": MockPetClassificationResult(
+                    animal_type="dog",
+                    confidence=0.92,
+                )
+            }
+        )
+        result = build_enrichment_sections(enrichment)
+
+        assert "dog" in result
+        assert "92%" in result
+        # Should include the false positive note
+        assert "FALSE POSITIVE" in result or "household pet" in result.lower()
+
+    def test_pet_excluded_when_low_confidence(self) -> None:
+        """Test that pet section is excluded when confidence <= 85%."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            pet_classifications={
+                "det_p001": MockPetClassificationResult(
+                    animal_type="cat",
+                    confidence=0.80,  # Below 85% threshold
+                )
+            }
+        )
+        result = build_enrichment_sections(enrichment)
+
+        # Low confidence pet should be excluded
+        assert "Pet classification" not in result
+        assert "cat" not in result
+
+    def test_pet_excluded_when_empty(self) -> None:
+        """Test that pet section is excluded when no pets detected."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(pet_classifications={})
+        result = build_enrichment_sections(enrichment)
+
+        assert "Pet classification: No animals detected" not in result
+        assert "Pet" not in result
+
+    def test_multiple_sections_combined(self) -> None:
+        """Test that multiple valid sections are combined with double newlines."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            violence_detection=MockViolenceDetectionResult(
+                is_violent=True,
+                confidence=0.98,
+                violent_score=0.98,
+                non_violent_score=0.02,
+            ),
+            pet_classifications={
+                "det_p001": MockPetClassificationResult(
+                    animal_type="dog",
+                    confidence=0.95,
+                )
+            },
+        )
+        result = build_enrichment_sections(enrichment)
+
+        # Both sections should be present
+        assert "VIOLENCE DETECTED" in result
+        assert "dog" in result
+        # Sections should be separated by double newlines
+        assert "\n\n" in result
+
+    def test_only_high_confidence_pets_included(self) -> None:
+        """Test that only pets with confidence > 85% are included."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            pet_classifications={
+                "det_p001": MockPetClassificationResult(
+                    animal_type="dog",
+                    confidence=0.92,  # Above threshold - included
+                ),
+                "det_p002": MockPetClassificationResult(
+                    animal_type="hamster",
+                    confidence=0.70,  # Below threshold - excluded
+                ),
+            }
+        )
+        result = build_enrichment_sections(enrichment)
+
+        assert "dog" in result
+        # Low confidence pet should be excluded (using hamster to avoid "cat" in "classification")
+        assert "hamster" not in result
+
+    def test_no_empty_section_placeholders(self) -> None:
+        """Test that no placeholder messages appear for missing data."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            # Only violence (not detected)
+            violence_detection=MockViolenceDetectionResult(
+                is_violent=False,
+                confidence=0.9,
+                violent_score=0.1,
+                non_violent_score=0.9,
+            )
+        )
+        result = build_enrichment_sections(enrichment)
+
+        # None of these placeholder messages should appear
+        assert "Not performed" not in result
+        assert "Not available" not in result
+        assert "No vehicles analyzed" not in result
+        assert "No person detections" not in result
+        assert "No animals detected" not in result
+        assert "No poses detected" not in result
+
+    def test_mixed_valid_and_empty_sections(self) -> None:
+        """Test with mix of valid data and empty sections."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            # Empty - should be excluded
+            violence_detection=None,
+            # Valid - should be included
+            clothing_classifications={
+                "det_001": MockClothingClassification(
+                    raw_description="red jacket",
+                    confidence=0.85,
+                    is_suspicious=False,
+                    is_service_uniform=False,
+                    top_category="casual",
+                )
+            },
+            # Empty - should be excluded
+            pose_results={},
+            # No damage - should be excluded
+            vehicle_damage={
+                "det_v001": MockVehicleDamageResult(
+                    has_damage=False,
+                    damage_types=set(),
+                    total_damage_count=0,
+                    highest_confidence=0.0,
+                    has_high_security_damage=False,
+                )
+            },
+            # Low confidence - should be excluded
+            pet_classifications={
+                "det_p001": MockPetClassificationResult(
+                    animal_type="cat",
+                    confidence=0.70,
+                )
+            },
+        )
+        result = build_enrichment_sections(enrichment)
+
+        # Only clothing should be present
+        assert "red jacket" in result
+        assert "Violence" not in result
+        assert "Pose" not in result
+        assert "Vehicle damage" not in result
+        assert "Pet" not in result
+
+    def test_service_uniform_included(self) -> None:
+        """Test that service uniform clothing is included (lower risk indicator)."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            clothing_classifications={
+                "det_001": MockClothingClassification(
+                    raw_description="FedEx uniform",
+                    confidence=0.92,
+                    is_suspicious=False,
+                    is_service_uniform=True,
+                    top_category="delivery_uniform",
+                )
+            }
+        )
+        result = build_enrichment_sections(enrichment)
+
+        assert "FedEx uniform" in result
+        assert "Service/delivery worker" in result or "lower risk" in result
+
+    def test_high_security_vehicle_damage_priority(self) -> None:
+        """Test that high security vehicle damage (glass shatter, lamp broken) is included."""
+        from backend.services.prompts import build_enrichment_sections
+
+        enrichment = MockEnrichmentResultFull(
+            vehicle_damage={
+                "det_v001": MockVehicleDamageResult(
+                    has_damage=True,
+                    damage_types={"glass_shatter"},
+                    total_damage_count=1,
+                    highest_confidence=0.90,
+                    has_high_security_damage=True,
+                )
+            }
+        )
+        result = build_enrichment_sections(enrichment)
+
+        assert "SECURITY ALERT" in result
+        assert "glass_shatter" in result
+
+
+# =============================================================================
+# Mock Data Classes for Household Context Testing (NEM-3024)
+# =============================================================================
+
+
+@dataclass
+class MockHouseholdMatch:
+    """Mock HouseholdMatch for testing format_household_context.
+
+    Mimics the HouseholdMatch dataclass from household_matcher service.
+    """
+
+    member_id: int | None = None
+    member_name: str | None = None
+    vehicle_id: int | None = None
+    vehicle_description: str | None = None
+    similarity: float = 0.0
+    match_type: str = ""
+
+
+# =============================================================================
+# Tests for format_household_context (NEM-3024)
+# =============================================================================
+
+
+class TestFormatHouseholdContext:
+    """Tests for format_household_context function.
+
+    This function formats household matching results for injection into
+    the Nemotron prompt, enabling risk score reduction for known persons
+    and vehicles.
+    """
+
+    def test_no_matches_returns_unknown_context(self) -> None:
+        """Test that empty matches returns base risk 50 context."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context
+
+        result = format_household_context(
+            person_matches=[],
+            vehicle_matches=[],
+            current_time=datetime.now(UTC),
+        )
+
+        # Should indicate no matches and base risk 50
+        assert "RISK MODIFIERS" in result
+        assert "None" in result or "unknown" in result.lower()
+        assert "50" in result
+
+    def test_single_person_match_high_confidence(self) -> None:
+        """Test formatting with high confidence person match."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context
+
+        person_match = MockHouseholdMatch(
+            member_id=1,
+            member_name="John Doe",
+            similarity=0.95,
+            match_type="person",
+        )
+
+        result = format_household_context(
+            person_matches=[person_match],  # type: ignore[list-item]
+            vehicle_matches=[],
+            current_time=datetime.now(UTC),
+        )
+
+        assert "KNOWN PERSON" in result
+        assert "John Doe" in result
+        assert "95%" in result
+        # High confidence person match = base risk 5
+        assert "5" in result or "low" in result.lower()
+
+    def test_single_person_match_lower_confidence(self) -> None:
+        """Test formatting with lower confidence person match (0.85-0.9)."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context
+
+        person_match = MockHouseholdMatch(
+            member_id=2,
+            member_name="Jane Smith",
+            similarity=0.87,
+            match_type="person",
+        )
+
+        result = format_household_context(
+            person_matches=[person_match],  # type: ignore[list-item]
+            vehicle_matches=[],
+            current_time=datetime.now(UTC),
+        )
+
+        assert "KNOWN PERSON" in result
+        assert "Jane Smith" in result
+        assert "87%" in result
+        # Lower confidence person match = base risk 15
+        assert "15" in result
+
+    def test_vehicle_match_by_license_plate(self) -> None:
+        """Test formatting with vehicle matched by license plate."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context
+
+        vehicle_match = MockHouseholdMatch(
+            vehicle_id=1,
+            vehicle_description="Silver Toyota Camry",
+            similarity=1.0,
+            match_type="license_plate",
+        )
+
+        result = format_household_context(
+            person_matches=[],
+            vehicle_matches=[vehicle_match],  # type: ignore[list-item]
+            current_time=datetime.now(UTC),
+        )
+
+        assert "REGISTERED VEHICLE" in result
+        assert "Silver Toyota Camry" in result
+        # Vehicle match reduces base risk to 10
+        assert "10" in result
+
+    def test_vehicle_match_visual(self) -> None:
+        """Test formatting with vehicle matched visually."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context
+
+        vehicle_match = MockHouseholdMatch(
+            vehicle_id=2,
+            vehicle_description="Blue Honda Accord",
+            similarity=0.88,
+            match_type="vehicle_visual",
+        )
+
+        result = format_household_context(
+            person_matches=[],
+            vehicle_matches=[vehicle_match],  # type: ignore[list-item]
+            current_time=datetime.now(UTC),
+        )
+
+        assert "REGISTERED VEHICLE" in result
+        assert "Blue Honda Accord" in result
+
+    def test_combined_person_and_vehicle_match(self) -> None:
+        """Test formatting with both person and vehicle matches."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context
+
+        person_match = MockHouseholdMatch(
+            member_id=1,
+            member_name="John Doe",
+            similarity=0.95,
+            match_type="person",
+        )
+        vehicle_match = MockHouseholdMatch(
+            vehicle_id=1,
+            vehicle_description="Silver Toyota Camry",
+            similarity=1.0,
+            match_type="license_plate",
+        )
+
+        result = format_household_context(
+            person_matches=[person_match],  # type: ignore[list-item]
+            vehicle_matches=[vehicle_match],  # type: ignore[list-item]
+            current_time=datetime.now(UTC),
+        )
+
+        # Both should be mentioned
+        assert "KNOWN PERSON" in result
+        assert "John Doe" in result
+        assert "REGISTERED VEHICLE" in result
+        assert "Silver Toyota Camry" in result
+        # Combined risk should be minimal (person high conf = 5)
+        assert "5" in result
+
+    def test_multiple_person_matches(self) -> None:
+        """Test formatting with multiple person matches."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context
+
+        matches = [
+            MockHouseholdMatch(
+                member_id=1, member_name="John Doe", similarity=0.92, match_type="person"
+            ),
+            MockHouseholdMatch(
+                member_id=2, member_name="Jane Doe", similarity=0.88, match_type="person"
+            ),
+        ]
+
+        result = format_household_context(
+            person_matches=matches,  # type: ignore[arg-type]
+            vehicle_matches=[],
+            current_time=datetime.now(UTC),
+        )
+
+        # Both persons should be mentioned
+        assert "John Doe" in result
+        assert "Jane Doe" in result
+
+    def test_returns_string(self) -> None:
+        """Test that function always returns a string."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context
+
+        result = format_household_context(
+            person_matches=[],
+            vehicle_matches=[],
+            current_time=datetime.now(UTC),
+        )
+
+        assert isinstance(result, str)
+
+    def test_has_section_header(self) -> None:
+        """Test that output has proper section formatting."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context
+
+        result = format_household_context(
+            person_matches=[],
+            vehicle_matches=[],
+            current_time=datetime.now(UTC),
+        )
+
+        # Should have a formatted section header
+        assert "RISK MODIFIERS" in result
+
+    def test_contains_calculated_base_risk(self) -> None:
+        """Test that output contains calculated base risk."""
+        from datetime import UTC, datetime
+
+        from backend.services.prompts import format_household_context
+
+        person_match = MockHouseholdMatch(
+            member_id=1, member_name="Test Person", similarity=0.95, match_type="person"
+        )
+
+        result = format_household_context(
+            person_matches=[person_match],  # type: ignore[list-item]
+            vehicle_matches=[],
+            current_time=datetime.now(UTC),
+        )
+
+        # Should contain "Calculated base risk" or similar
+        assert "base risk" in result.lower() or "risk:" in result.lower()
+
+    def test_importable(self) -> None:
+        """Test that format_household_context is importable from prompts module."""
+        from backend.services.prompts import format_household_context
+
+        assert callable(format_household_context)

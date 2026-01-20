@@ -11,10 +11,12 @@ SQLAlchemy models.
 Tables created (in dependency order):
 - Base tables: cameras, alert_rules, audit_logs, logs, gpu_stats, jobs,
   job_attempts, job_logs, job_transitions, export_jobs, notification_preferences,
-  quiet_hours_periods, prompt_configs, user_calibration, entities, summaries
+  quiet_hours_periods, prompt_configs, user_calibration, entities, summaries,
+  household_members, registered_vehicles
 - Dependent tables: zones, detections, events, event_detections, event_audits,
   event_feedback, alerts, activity_baselines, class_baselines, scene_changes,
-  camera_notification_settings
+  camera_notification_settings, camera_calibrations, person_embeddings,
+  experiment_results
 """
 
 from collections.abc import Sequence
@@ -52,6 +54,13 @@ def upgrade() -> None:
     op.execute("CREATE TYPE zone_shape_enum AS ENUM ('rectangle', 'polygon')")
     op.execute(
         "CREATE TYPE scene_change_type_enum AS ENUM ('view_blocked', 'angle_changed', 'view_tampered', 'unknown')"
+    )
+    op.execute(
+        "CREATE TYPE member_role_enum AS ENUM ('resident', 'family', 'service_worker', 'frequent_visitor')"
+    )
+    op.execute("CREATE TYPE trust_level_enum AS ENUM ('full', 'partial', 'monitor')")
+    op.execute(
+        "CREATE TYPE vehicle_type_enum AS ENUM ('car', 'truck', 'motorcycle', 'suv', 'van', 'other')"
     )
 
     # =========================================================================
@@ -610,6 +619,92 @@ def upgrade() -> None:
     op.create_index("idx_summaries_type_created", "summaries", ["summary_type", "created_at"])
     op.create_index("idx_summaries_created_at", "summaries", ["created_at"])
 
+    # household_members
+    op.create_table(
+        "household_members",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("name", sa.String(100), nullable=False),
+        sa.Column(
+            "role",
+            postgresql.ENUM(
+                "resident",
+                "family",
+                "service_worker",
+                "frequent_visitor",
+                name="member_role_enum",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "trusted_level",
+            postgresql.ENUM(
+                "full", "partial", "monitor", name="trust_level_enum", create_type=False
+            ),
+            nullable=False,
+        ),
+        sa.Column("typical_schedule", postgresql.JSONB(), nullable=True),
+        sa.Column("notes", sa.Text(), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("idx_household_members_role", "household_members", ["role"])
+    op.create_index("idx_household_members_trusted_level", "household_members", ["trusted_level"])
+    op.create_index(
+        "idx_household_members_role_trust", "household_members", ["role", "trusted_level"]
+    )
+
+    # registered_vehicles
+    op.create_table(
+        "registered_vehicles",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("description", sa.String(200), nullable=False),
+        sa.Column("license_plate", sa.String(20), nullable=True),
+        sa.Column(
+            "vehicle_type",
+            postgresql.ENUM(
+                "car",
+                "truck",
+                "motorcycle",
+                "suv",
+                "van",
+                "other",
+                name="vehicle_type_enum",
+                create_type=False,
+            ),
+            nullable=False,
+        ),
+        sa.Column("color", sa.String(50), nullable=True),
+        sa.Column("owner_id", sa.Integer(), nullable=True),
+        sa.Column("trusted", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        sa.Column("reid_embedding", sa.LargeBinary(), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(["owner_id"], ["household_members.id"], ondelete="SET NULL"),
+    )
+    op.create_index("idx_registered_vehicles_owner_id", "registered_vehicles", ["owner_id"])
+    op.create_index(
+        "idx_registered_vehicles_license_plate", "registered_vehicles", ["license_plate"]
+    )
+    op.create_index("idx_registered_vehicles_trusted", "registered_vehicles", ["trusted"])
+    op.create_index("idx_registered_vehicles_vehicle_type", "registered_vehicles", ["vehicle_type"])
+
     # =========================================================================
     # TABLES WITH FOREIGN KEYS TO cameras
     # =========================================================================
@@ -912,6 +1007,53 @@ def upgrade() -> None:
         unique=True,
     )
 
+    # camera_calibrations
+    op.create_table(
+        "camera_calibrations",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("camera_id", sa.String(), nullable=False),
+        sa.Column("total_feedback_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("false_positive_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("false_positive_rate", sa.Float(), nullable=False, server_default="0.0"),
+        sa.Column("risk_offset", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "model_weights",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default=sa.text("'{}'::jsonb"),
+        ),
+        sa.Column(
+            "suppress_patterns",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default=sa.text("'[]'::jsonb"),
+        ),
+        sa.Column("avg_model_score", sa.Float(), nullable=True),
+        sa.Column("avg_user_suggested_score", sa.Float(), nullable=True),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(["camera_id"], ["cameras.id"], ondelete="CASCADE"),
+        sa.UniqueConstraint("camera_id", name="uq_camera_calibrations_camera_id"),
+        sa.CheckConstraint(
+            "risk_offset >= -30 AND risk_offset <= 30",
+            name="ck_camera_calibrations_risk_offset_range",
+        ),
+        sa.CheckConstraint(
+            "false_positive_rate >= 0.0 AND false_positive_rate <= 1.0",
+            name="ck_camera_calibrations_fp_rate_range",
+        ),
+        sa.CheckConstraint(
+            "total_feedback_count >= 0 AND false_positive_count >= 0",
+            name="ck_camera_calibrations_feedback_count",
+        ),
+    )
+    op.create_index("idx_camera_calibrations_camera_id", "camera_calibrations", ["camera_id"])
+
     # =========================================================================
     # TABLES WITH FOREIGN KEYS TO events
     # =========================================================================
@@ -1083,6 +1225,70 @@ def upgrade() -> None:
     op.create_index("idx_event_feedback_type", "event_feedback", ["feedback_type"])
     op.create_index("idx_event_feedback_created_at", "event_feedback", ["created_at"])
 
+    # person_embeddings
+    op.create_table(
+        "person_embeddings",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("member_id", sa.Integer(), nullable=False),
+        sa.Column("embedding", sa.LargeBinary(), nullable=False),
+        sa.Column("source_event_id", sa.Integer(), nullable=True),
+        sa.Column("confidence", sa.Float(), nullable=False, server_default="1.0"),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(["member_id"], ["household_members.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["source_event_id"], ["events.id"], ondelete="SET NULL"),
+    )
+    op.create_index("idx_person_embeddings_member_id", "person_embeddings", ["member_id"])
+    op.create_index(
+        "idx_person_embeddings_source_event_id", "person_embeddings", ["source_event_id"]
+    )
+
+    # experiment_results
+    op.create_table(
+        "experiment_results",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("experiment_name", sa.String(100), nullable=False),
+        sa.Column("experiment_version", sa.String(50), nullable=False),
+        sa.Column("camera_id", sa.String(50), nullable=False),
+        sa.Column("batch_id", sa.String(100), nullable=True),
+        sa.Column("event_id", sa.Integer(), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column("v1_risk_score", sa.Integer(), nullable=False),
+        sa.Column("v1_risk_level", sa.String(20), nullable=True),
+        sa.Column("v1_latency_ms", sa.Float(), nullable=False),
+        sa.Column("v2_risk_score", sa.Integer(), nullable=False),
+        sa.Column("v2_risk_level", sa.String(20), nullable=True),
+        sa.Column("v2_latency_ms", sa.Float(), nullable=False),
+        sa.Column("score_diff", sa.Integer(), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(["event_id"], ["events.id"], ondelete="SET NULL"),
+    )
+    op.create_index(
+        "ix_experiment_results_experiment_created",
+        "experiment_results",
+        ["experiment_name", "created_at"],
+    )
+    op.create_index(
+        "ix_experiment_results_camera_created",
+        "experiment_results",
+        ["camera_id", "created_at"],
+    )
+    op.create_index(
+        "ix_experiment_results_created_at",
+        "experiment_results",
+        ["created_at"],
+    )
+
     # =========================================================================
     # JUNCTION TABLES
     # =========================================================================
@@ -1114,11 +1320,14 @@ def downgrade() -> None:
     op.drop_table("event_detections")
 
     # Tables with FK to events
+    op.drop_table("experiment_results")
+    op.drop_table("person_embeddings")
     op.drop_table("event_feedback")
     op.drop_table("event_audits")
     op.drop_table("alerts")
 
     # Tables with FK to cameras
+    op.drop_table("camera_calibrations")
     op.drop_table("camera_notification_settings")
     op.drop_table("scene_changes")
     op.drop_table("class_baselines")
@@ -1128,6 +1337,8 @@ def downgrade() -> None:
     op.drop_table("zones")
 
     # Base tables
+    op.drop_table("registered_vehicles")
+    op.drop_table("household_members")
     op.drop_table("summaries")
     op.drop_table("entities")
     op.drop_table("user_calibration")
@@ -1146,6 +1357,9 @@ def downgrade() -> None:
     op.drop_table("cameras")
 
     # Drop enum types
+    op.execute("DROP TYPE IF EXISTS vehicle_type_enum")
+    op.execute("DROP TYPE IF EXISTS trust_level_enum")
+    op.execute("DROP TYPE IF EXISTS member_role_enum")
     op.execute("DROP TYPE IF EXISTS scene_change_type_enum")
     op.execute("DROP TYPE IF EXISTS zone_shape_enum")
     op.execute("DROP TYPE IF EXISTS zone_type_enum")

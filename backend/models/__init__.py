@@ -4,6 +4,7 @@ from .alert import Alert, AlertRule, AlertSeverity, AlertStatus
 from .audit import AuditAction, AuditLog, AuditStatus
 from .baseline import ActivityBaseline, ClassBaseline
 from .camera import Base, Camera
+from .camera_calibration import CameraCalibration
 from .detection import Detection
 from .entity import Entity
 from .enums import CameraStatus, EntityType, Severity, TrustStatus
@@ -11,8 +12,17 @@ from .event import Event
 from .event_audit import EventAudit
 from .event_detection import EventDetection, event_detections
 from .event_feedback import EventFeedback, FeedbackType
+from .experiment_result import ExperimentResult
 from .export_job import ExportJob, ExportJobStatus, ExportType
 from .gpu_stats import GPUStats
+from .household import (
+    HouseholdMember,
+    MemberRole,
+    PersonEmbedding,
+    RegisteredVehicle,
+    TrustLevel,
+    VehicleType,
+)
 from .job import Job, JobStatus
 from .job_attempt import JobAttempt, JobAttemptStatus
 from .job_log import JobLog, LogLevel
@@ -43,6 +53,7 @@ __all__ = [
     "AuditStatus",
     "Base",
     "Camera",
+    "CameraCalibration",
     "CameraNotificationSetting",
     "CameraStatus",
     "ClassBaseline",
@@ -54,11 +65,13 @@ __all__ = [
     "EventAudit",
     "EventDetection",
     "EventFeedback",
+    "ExperimentResult",
     "ExportJob",
     "ExportJobStatus",
     "ExportType",
     "FeedbackType",
     "GPUStats",
+    "HouseholdMember",
     "Job",
     "JobAttempt",
     "JobAttemptStatus",
@@ -68,18 +81,23 @@ __all__ = [
     "JobTransitionTrigger",
     "Log",
     "LogLevel",
+    "MemberRole",
     "NotificationPreferences",
     "NotificationSound",
+    "PersonEmbedding",
     "PromptConfig",
     "QuietHoursPeriod",
+    "RegisteredVehicle",
     "RiskLevel",
     "SceneChange",
     "SceneChangeType",
     "Severity",
     "Summary",
     "SummaryType",
+    "TrustLevel",
     "TrustStatus",
     "UserCalibration",
+    "VehicleType",
     "Zone",
     "ZoneShape",
     "ZoneType",
