@@ -73,8 +73,8 @@ services:
 
   ai-detector:
     labels:
-      pyroscope.profile: "true"
-      pyroscope.service: "ai-detector"
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-detector'
     build:
       context: ./ai/rtdetr
       dockerfile: Dockerfile
@@ -112,8 +112,8 @@ services:
 
   ai-llm:
     labels:
-      pyroscope.profile: "true"
-      pyroscope.service: "ai-llm"
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-llm'
     build:
       context: ./ai/nemotron
       dockerfile: Dockerfile
@@ -144,8 +144,8 @@ services:
   # Florence-2 vision-language model for dense captioning and visual understanding
   ai-florence:
     labels:
-      pyroscope.profile: "true"
-      pyroscope.service: "ai-florence"
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-florence'
     build:
       context: ./ai/florence
       dockerfile: Dockerfile
@@ -175,8 +175,8 @@ services:
   # CLIP ViT-L model for entity re-identification embeddings
   ai-clip:
     labels:
-      pyroscope.profile: "true"
-      pyroscope.service: "ai-clip"
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-clip'
     build:
       context: ./ai/clip
       dockerfile: Dockerfile
@@ -206,8 +206,8 @@ services:
   # Combined enrichment service for vehicle, pet, clothing, pose, threat, age, gender, reid, and action classification
   ai-enrichment:
     labels:
-      pyroscope.profile: "true"
-      pyroscope.service: "ai-enrichment"
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-enrichment'
     build:
       context: ./ai/enrichment
       dockerfile: Dockerfile
@@ -683,7 +683,7 @@ services:
   # Pyroscope for continuous profiling (NEM-3097)
   # Collects CPU and memory profiles from application services
   pyroscope:
-    image: grafana/pyroscope:1.4.0
+    image: docker.io/grafana/pyroscope:1.4.0
     container_name: pyroscope
     volumes:
       - ./monitoring/pyroscope/pyroscope-config.yml:/etc/pyroscope/config.yml:ro,z
@@ -708,7 +708,7 @@ services:
   # Alloy for log collection via eBPF (NEM-3093)
   # Collects container logs from Podman and forwards to Loki
   alloy:
-    image: grafana/alloy:v1.0.0
+    image: docker.io/grafana/alloy:v1.0.0
     container_name: alloy
     privileged: true
     pid: host
@@ -717,7 +717,7 @@ services:
       - label:disable
     volumes:
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
-      - /run/podman/podman.sock:/run/podman/podman.sock:ro
+      - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
       - /sys/kernel/debug:/sys/kernel/debug:ro
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /proc:/host/proc:ro
@@ -725,16 +725,18 @@ services:
       - HOST_PROC=/host/proc
     command:
       - run
+      - --stability.level=public-preview
       - /etc/alloy/config.alloy
     ports:
-      - '12345:12345'  # Alloy UI
-      - '4317'         # OTLP gRPC (internal only)
-      - '4318'         # OTLP HTTP (internal only)
+      - '12345:12345' # Alloy UI
+      - '4317' # OTLP gRPC (internal only)
+      - '4318' # OTLP HTTP (internal only)
     depends_on:
       - loki
       - pyroscope
     healthcheck:
-      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:12345/ready']
+      # Alloy doesn't have wget/curl - use process check instead
+      test: ['CMD', 'pgrep', '-f', 'alloy']
       interval: 10s
       timeout: 5s
       retries: 5

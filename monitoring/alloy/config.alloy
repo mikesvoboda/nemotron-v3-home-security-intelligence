@@ -4,18 +4,42 @@
 
 // Discover containers via Podman socket
 discovery.docker "containers" {
-  host = "unix:///run/podman/podman.sock"
+  host = "unix:///run/user/1000/podman/podman.sock"
+}
+
+// Relabel targets to add container metadata as labels
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  // Keep container name as label
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+
+  // Keep image name
+  rule {
+    source_labels = ["__meta_docker_container_image"]
+    target_label  = "image"
+  }
 }
 
 // Scrape container logs from Podman
 loki.source.docker "default" {
-  host       = "unix:///run/podman/podman.sock"
-  targets    = discovery.docker.containers.targets
+  host       = "unix:///run/user/1000/podman/podman.sock"
+  targets    = discovery.relabel.containers.output
   forward_to = [loki.process.parse.receiver]
 }
 
 // Parse and enrich logs
 loki.process "parse" {
+  // Add static job label (required by Loki)
+  stage.static_labels {
+    values = {
+      job = "podman-containers",
+    }
+  }
+
   stage.docker {}
 
   // Extract log level
@@ -44,28 +68,11 @@ loki.write "local" {
 
 // ============================================
 // EBPF PROFILING PIPELINE (AI Services)
+// NOTE: Disabled in rootless Podman - eBPF requires elevated privileges
 // ============================================
-
-// eBPF targets via Podman labels
-discovery.docker "ai_targets" {
-  host = "unix:///run/podman/podman.sock"
-  filter {
-    name   = "label"
-    values = ["pyroscope.profile=true"]
-  }
-}
-
-pyroscope.ebpf "ai_services" {
-  targets    = discovery.docker.ai_targets.targets
-  forward_to = [pyroscope.write.local.receiver]
-}
-
-// Send profiles to Pyroscope
-pyroscope.write "local" {
-  endpoint {
-    url = "http://pyroscope:4040"
-  }
-}
+// The eBPF profiler requires CAP_SYS_ADMIN and kernel access which
+// is not available in rootless container environments.
+// Backend SDK profiling via init_profiling() works as an alternative.
 
 // ============================================
 // OTLP TRACE PIPELINE (Backend Services)

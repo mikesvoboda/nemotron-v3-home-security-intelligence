@@ -60,7 +60,11 @@ class TestTraceContextInLogs:
             assert record.span_id == "fedcba0987654321"
 
     def test_context_filter_no_trace_when_otel_disabled(self):
-        """Test that ContextFilter sets None trace_id when OpenTelemetry is disabled."""
+        """Test that ContextFilter sets empty trace_id when OpenTelemetry is disabled.
+
+        When OpenTelemetry is not active or returns None, the filter sets empty strings
+        rather than None to avoid 'null' values in structured log output.
+        """
         from backend.core.logging import ContextFilter
 
         with patch("backend.core.logging.get_current_trace_context") as mock_get_trace:
@@ -81,9 +85,10 @@ class TestTraceContextInLogs:
 
             assert result is True
             assert hasattr(record, "trace_id")
-            assert record.trace_id is None
+            # Empty string is used instead of None for cleaner log output
+            assert record.trace_id == ""
             assert hasattr(record, "span_id")
-            assert record.span_id is None
+            assert record.span_id == ""
 
     def test_context_filter_preserves_explicit_trace_id(self):
         """Test that explicit trace_id in extra= takes precedence."""
