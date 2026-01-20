@@ -68,6 +68,54 @@ SERVICES: dict[str, ServiceInfo] = {
     "json_exporter": {"port": 7979, "category": "Monitoring", "desc": "JSON exporter"},
 }
 
+# Fixed development passwords - used when no existing .env is found
+# These provide stable, predictable behavior for local development
+DEV_POSTGRES_PASSWORD = "security_dev_password"  # pragma: allowlist secret
+DEV_FTP_PASSWORD = "ftp_dev_password"  # pragma: allowlist secret
+
+
+def load_existing_env(env_path: Path | None = None) -> dict[str, str]:
+    """Load existing .env file values if present.
+
+    This allows setup.py to preserve existing passwords when re-running,
+    preventing state mismatches between .env and database volumes.
+
+    Args:
+        env_path: Path to .env file. Defaults to .env in current directory.
+
+    Returns:
+        Dictionary of existing environment variables from .env file.
+        Empty dict if file doesn't exist or can't be parsed.
+    """
+    if env_path is None:
+        env_path = Path(".env")
+
+    if not env_path.exists():
+        return {}
+
+    env_values: dict[str, str] = {}
+    try:
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                # Skip comments and empty lines
+                if not line or line.startswith("#"):
+                    continue
+                # Parse KEY=value (handle values with = in them)
+                if "=" in line:
+                    key, _, value = line.partition("=")
+                    key = key.strip()
+                    value = value.strip()
+                    # Remove surrounding quotes if present
+                    if value and value[0] in ('"', "'") and value[-1] == value[0]:
+                        value = value[1:-1]
+                    env_values[key] = value
+    except (OSError, UnicodeDecodeError):
+        # Can't read file - return empty dict
+        pass
+
+    return env_values
+
 
 def prompt_with_default(prompt: str, default: str) -> str:
     """Prompt user for input with a default value.
@@ -281,6 +329,12 @@ def run_quick_mode() -> dict:
     print("=" * 60)
     print()
 
+    # Load existing .env values to preserve passwords across runs
+    existing_env = load_existing_env()
+    if existing_env:
+        print("* Found existing .env - using current values as defaults")
+        print()
+
     # Check port conflicts
     print("Checking for port conflicts...")
     conflicts = []
@@ -326,15 +380,27 @@ def run_quick_mode() -> dict:
     ai_models_path = prompt_with_default("AI models path", "/export/ai_models")
     print()
 
-    # Credentials
+    # Credentials - use existing .env values or fixed development defaults
+    # This prevents password mismatches with existing database volumes
     print("-- Credentials " + "-" * 46)
-    print("! SECURITY: Strong passwords are required for database access")
-    postgres_password = prompt_for_password("Database password")
+
+    # Use existing password if available, otherwise use fixed development default
+    default_postgres_pw = existing_env.get("POSTGRES_PASSWORD", DEV_POSTGRES_PASSWORD)
+    default_ftp_pw = existing_env.get("FTP_PASSWORD", DEV_FTP_PASSWORD)
+    default_redis_pw = existing_env.get("REDIS_PASSWORD", "")
+    default_grafana_pw = existing_env.get("GF_SECURITY_ADMIN_PASSWORD", "")
+
+    if existing_env.get("POSTGRES_PASSWORD"):
+        print("* Using existing database password from .env")
+    else:
+        print("* Using development default password (stable across runs)")
+
+    postgres_password = prompt_for_password("Database password", default_postgres_pw)
     print("(Optional) Redis password for production use (press Enter to skip)")
-    redis_password = prompt_with_default("Redis password", "")
+    redis_password = prompt_with_default("Redis password", default_redis_pw)
     print("(Optional) Grafana admin password for monitoring (press Enter to skip)")
-    grafana_password = prompt_with_default("Grafana admin password", "")
-    ftp_password = prompt_with_default("FTP password", generate_password(32))
+    grafana_password = prompt_with_default("Grafana admin password", default_grafana_pw)
+    ftp_password = prompt_with_default("FTP password", default_ftp_pw)
     print()
 
     # Ports (optional customization)
@@ -366,6 +432,9 @@ def run_guided_mode() -> dict:
         Configuration dictionary
     """
     ports = {service: info["port"] for service, info in SERVICES.items()}
+
+    # Load existing .env values to preserve passwords across runs
+    existing_env = load_existing_env()
 
     # Step 1: Foscam Path
     print("=" * 60)
@@ -432,13 +501,23 @@ def run_guided_mode() -> dict:
     print("  Step 3 of 5: Security Credentials")
     print("=" * 60)
     print()
+
+    # Use existing password if available, otherwise use fixed development default
+    default_postgres_pw = existing_env.get("POSTGRES_PASSWORD", DEV_POSTGRES_PASSWORD)
+    default_ftp_pw = existing_env.get("FTP_PASSWORD", DEV_FTP_PASSWORD)
+    default_redis_pw = existing_env.get("REDIS_PASSWORD", "")
+    default_grafana_pw = existing_env.get("GF_SECURITY_ADMIN_PASSWORD", "")
+
+    if existing_env.get("POSTGRES_PASSWORD"):
+        print("* Found existing .env - using current passwords as defaults")
+        print("  Press Enter to keep existing passwords, or enter new ones.")
+    else:
+        print("* Using fixed development defaults for stable local development.")
+        print("  For production, generate unique passwords: openssl rand -base64 32")
+    print()
     print("IMPORTANT: Database credentials are REQUIRED for the system to start.")
-    print("Strong 32-character passwords will be auto-generated if you press Enter.")
     print()
-    print("! The old default password 'security_dev_password' has been removed")
-    print("  for security reasons. You MUST set a password.")
-    print()
-    postgres_password = prompt_for_password("Database password")
+    postgres_password = prompt_for_password("Database password", default_postgres_pw)
     print()
     print("Optional credentials for production deployment:")
     print("  - Redis password: Used for Redis authentication in production")
@@ -446,9 +525,9 @@ def run_guided_mode() -> dict:
     print()
     print("Press Enter to skip optional passwords (use environment variables instead).")
     print()
-    redis_password = prompt_with_default("Redis password (optional)", "")
-    grafana_password = prompt_with_default("Grafana admin password (optional)", "")
-    ftp_password = prompt_with_default("FTP password", generate_password(32))
+    redis_password = prompt_with_default("Redis password (optional)", default_redis_pw)
+    grafana_password = prompt_with_default("Grafana admin password (optional)", default_grafana_pw)
+    ftp_password = prompt_with_default("FTP password", default_ftp_pw)
     print()
 
     # Step 4: Port Configuration
