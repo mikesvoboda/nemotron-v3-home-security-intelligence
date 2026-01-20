@@ -1,0 +1,102 @@
+// ============================================
+// LOG COLLECTION PIPELINE (Podman)
+// ============================================
+
+// Discover containers via Podman socket
+discovery.docker "containers" {
+  host = "unix:///run/user/1000/podman/podman.sock"
+}
+
+// Relabel targets to add container metadata as labels
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  // Keep container name as label
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+
+  // Keep image name
+  rule {
+    source_labels = ["__meta_docker_container_image"]
+    target_label  = "image"
+  }
+}
+
+// Scrape container logs from Podman
+loki.source.docker "default" {
+  host       = "unix:///run/user/1000/podman/podman.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.process.parse.receiver]
+}
+
+// Parse and enrich logs
+loki.process "parse" {
+  // Add static job label (required by Loki)
+  stage.static_labels {
+    values = {
+      job = "podman-containers",
+    }
+  }
+
+  stage.docker {}
+
+  // Extract log level
+  stage.regex {
+    expression = "(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL)"
+  }
+
+  // Extract camera name from AI pipeline logs
+  stage.regex {
+    expression = "camera[=: ]+(?P<camera>[a-z_]+)"
+  }
+
+  stage.labels {
+    values = { level = "", camera = "" }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+// Send to Loki
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// ============================================
+// EBPF PROFILING PIPELINE (AI Services)
+// NOTE: Disabled in rootless Podman - eBPF requires elevated privileges
+// ============================================
+// The eBPF profiler requires CAP_SYS_ADMIN and kernel access which
+// is not available in rootless container environments.
+// Backend SDK profiling via init_profiling() works as an alternative.
+
+// ============================================
+// OTLP TRACE PIPELINE (Backend Services)
+// ============================================
+
+// Receive OTLP traces from backend services
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  output {
+    traces = [otelcol.exporter.otlp.jaeger.input]
+  }
+}
+
+// Export traces to Jaeger
+otelcol.exporter.otlp "jaeger" {
+  client {
+    endpoint = "jaeger:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
