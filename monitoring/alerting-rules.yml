@@ -75,8 +75,9 @@ groups:
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/redis-unhealthy'
 
       # Warning: Redis memory high
+      # Note: Only fires when maxmemory is configured (> 0), avoids false positives from division by zero
       - alert: HSIRedisMemoryHigh
-        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+        expr: redis_memory_max_bytes > 0 and redis_memory_used_bytes / redis_memory_max_bytes > 0.8
         for: 5m
         labels:
           severity: warning
