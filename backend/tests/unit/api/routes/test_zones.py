@@ -16,7 +16,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.models.zone import Zone, ZoneShape, ZoneType
+from backend.models.camera_zone import CameraZone, CameraZoneShape, CameraZoneType
+
+# Aliases for backward compatibility
+Zone = CameraZone
+ZoneShape = CameraZoneShape
+ZoneType = CameraZoneType
 
 
 class TestListZones:

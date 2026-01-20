@@ -181,6 +181,24 @@ export interface WebSocketEventMap {
   'system.health_changed': SystemHealthChangedPayload;
   /** System error event */
   'system.error': SystemErrorPayload;
+
+  // Worker events (NEM-3127)
+  /** Worker started event - pipeline worker began running */
+  'worker.started': WorkerStartedPayload;
+  /** Worker stopped event - pipeline worker stopped */
+  'worker.stopped': WorkerStoppedPayload;
+  /** Worker error event - pipeline worker encountered an error */
+  'worker.error': WorkerErrorPayload;
+  /** Worker health check failed event */
+  'worker.health_check_failed': WorkerHealthCheckFailedPayload;
+  /** Worker restarting event - pipeline worker is restarting */
+  'worker.restarting': WorkerRestartingPayload;
+  /** Worker recovered event - pipeline worker recovered from error */
+  'worker.recovered': WorkerRecoveredPayload;
+
+  // Prometheus alert events (NEM-3123)
+  /** Prometheus/Alertmanager infrastructure alert */
+  'prometheus.alert': PrometheusAlertPayload;
 }
 
 // ============================================================================
@@ -277,6 +295,15 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'job.failed',
   'system.health_changed',
   'system.error',
+  // Worker events (NEM-3127)
+  'worker.started',
+  'worker.stopped',
+  'worker.error',
+  'worker.health_check_failed',
+  'worker.restarting',
+  'worker.recovered',
+  // Prometheus alert events (NEM-3123)
+  'prometheus.alert',
 ] as const;
 
 /**
@@ -470,6 +497,17 @@ export enum WSEventType {
 
   // Scene change events - Camera view monitoring
   SCENE_CHANGE_DETECTED = 'scene_change.detected',
+
+  // Worker events - Pipeline worker lifecycle (NEM-3127)
+  WORKER_STARTED = 'worker.started',
+  WORKER_STOPPED = 'worker.stopped',
+  WORKER_ERROR = 'worker.error',
+  WORKER_HEALTH_CHECK_FAILED = 'worker.health_check_failed',
+  WORKER_RESTARTING = 'worker.restarting',
+  WORKER_RECOVERED = 'worker.recovered',
+
+  // Prometheus alert events - Infrastructure monitoring (NEM-3124)
+  PROMETHEUS_ALERT = 'prometheus.alert',
 
   // Legacy event types for backward compatibility
   // These map to the existing message types in the codebase
@@ -840,6 +878,166 @@ export interface SceneChangeDetectedPayload {
 }
 
 // ============================================================================
+// Worker Event Payloads (NEM-3127)
+// Matches backend/core/websocket/event_schemas.py Worker* payloads
+// ============================================================================
+
+/**
+ * Worker types in the pipeline.
+ */
+export type WorkerType = 'detection' | 'analysis' | 'timeout' | 'metrics';
+
+/**
+ * Worker state values.
+ */
+export type WorkerState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error';
+
+/**
+ * Payload for worker.started events.
+ */
+export interface WorkerStartedPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** ISO 8601 timestamp when started */
+  timestamp: string;
+  /** Additional worker metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Payload for worker.stopped events.
+ */
+export interface WorkerStoppedPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** ISO 8601 timestamp when stopped */
+  timestamp: string;
+  /** Reason for stopping */
+  reason?: string;
+  /** Total items processed before stop */
+  items_processed?: number;
+}
+
+/**
+ * Payload for worker.error events.
+ */
+export interface WorkerErrorPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** Error message */
+  error: string;
+  /** Categorized error type */
+  error_type?: string;
+  /** ISO 8601 timestamp */
+  timestamp: string;
+  /** Additional error details */
+  details?: Record<string, unknown>;
+  /** Whether the error is recoverable */
+  recoverable: boolean;
+}
+
+/**
+ * Payload for worker.health_check_failed events.
+ */
+export interface WorkerHealthCheckFailedPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** Error message or description */
+  error: string;
+  /** Categorized error type */
+  error_type?: string;
+  /** Number of consecutive failures */
+  failure_count: number;
+  /** ISO 8601 timestamp */
+  timestamp: string;
+}
+
+/**
+ * Payload for worker.restarting events.
+ */
+export interface WorkerRestartingPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** Current restart attempt number */
+  attempt: number;
+  /** Maximum restart attempts allowed */
+  max_attempts?: number;
+  /** ISO 8601 timestamp */
+  timestamp: string;
+  /** Reason for restart */
+  reason?: string;
+}
+
+/**
+ * Payload for worker.recovered events.
+ */
+export interface WorkerRecoveredPayload {
+  /** Worker instance name */
+  worker_name: string;
+  /** Type of worker */
+  worker_type: WorkerType;
+  /** State before recovery */
+  previous_state: WorkerState;
+  /** ISO 8601 timestamp */
+  timestamp: string;
+  /** Time to recover in milliseconds */
+  recovery_duration_ms?: number;
+}
+
+// ============================================================================
+// Prometheus Alert Event Payloads (NEM-3124)
+// Matches backend/core/websocket/event_schemas.py PrometheusAlertPayload
+// ============================================================================
+
+/**
+ * Prometheus alert status values.
+ */
+export type PrometheusAlertStatus = 'firing' | 'resolved';
+
+/**
+ * Prometheus alert severity levels.
+ */
+export type PrometheusAlertSeverity = 'critical' | 'warning' | 'info';
+
+/**
+ * Payload for prometheus.alert events.
+ *
+ * Represents a Prometheus/Alertmanager alert received via webhook.
+ * These are infrastructure monitoring alerts (GPU, memory, pipeline health, etc.)
+ * separate from AI-generated security alerts.
+ */
+export interface PrometheusAlertPayload {
+  /** Unique alert fingerprint for deduplication */
+  fingerprint: string;
+  /** Alert status (firing or resolved) */
+  status: PrometheusAlertStatus;
+  /** Name of the alert */
+  alertname: string;
+  /** Alert severity level */
+  severity: PrometheusAlertSeverity;
+  /** Alert labels (key-value pairs) */
+  labels: Record<string, string>;
+  /** Alert annotations (summary, description, etc.) */
+  annotations: Record<string, string>;
+  /** ISO 8601 timestamp when alert started */
+  starts_at: string;
+  /** ISO 8601 timestamp when alert resolved (null if still firing) */
+  ends_at: string | null;
+  /** ISO 8601 timestamp when backend received alert */
+  received_at: string;
+}
+
+// ============================================================================
 // Event Registry Response Types (from API)
 // ============================================================================
 
@@ -926,6 +1124,15 @@ export interface WSEventPayloadMap {
   [WSEventType.GPU_STATS_UPDATED]: GpuStatsUpdatedPayload;
   [WSEventType.SERVICE_STATUS_CHANGED]: ServiceStatusChangedPayload;
   [WSEventType.SCENE_CHANGE_DETECTED]: SceneChangeDetectedPayload;
+  // Worker events (NEM-3127)
+  [WSEventType.WORKER_STARTED]: WorkerStartedPayload;
+  [WSEventType.WORKER_STOPPED]: WorkerStoppedPayload;
+  [WSEventType.WORKER_ERROR]: WorkerErrorPayload;
+  [WSEventType.WORKER_HEALTH_CHECK_FAILED]: WorkerHealthCheckFailedPayload;
+  [WSEventType.WORKER_RESTARTING]: WorkerRestartingPayload;
+  [WSEventType.WORKER_RECOVERED]: WorkerRecoveredPayload;
+  // Prometheus alert events (NEM-3123)
+  [WSEventType.PROMETHEUS_ALERT]: PrometheusAlertPayload;
   // Legacy types
   [WSEventType.EVENT]: SecurityEventData;
   [WSEventType.SERVICE_STATUS]: ServiceStatusData;

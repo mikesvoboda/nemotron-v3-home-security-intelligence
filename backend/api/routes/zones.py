@@ -15,7 +15,7 @@ from backend.api.schemas.zone import (
     ZoneUpdate,
 )
 from backend.core.database import get_db
-from backend.models.zone import Zone
+from backend.models.camera_zone import CameraZone
 
 router = APIRouter(prefix="/api/cameras", tags=["zones"])
 
@@ -39,11 +39,15 @@ async def list_zones(
     # Verify camera exists
     await get_camera_or_404(camera_id, db)
 
-    query = select(Zone).where(Zone.camera_id == camera_id).order_by(Zone.priority.desc())
+    query = (
+        select(CameraZone)
+        .where(CameraZone.camera_id == camera_id)
+        .order_by(CameraZone.priority.desc())
+    )
 
     # Apply enabled filter if provided
     if enabled is not None:
-        query = query.where(Zone.enabled == enabled)
+        query = query.where(CameraZone.enabled == enabled)
 
     result = await db.execute(query)
     zones = result.scalars().all()
@@ -68,7 +72,7 @@ async def create_zone(
     camera_id: str,
     zone_data: ZoneCreate,
     db: AsyncSession = Depends(get_db),
-) -> Zone:
+) -> CameraZone:
     """Create a new zone for a camera.
 
     Args:
@@ -83,7 +87,7 @@ async def create_zone(
     await get_camera_or_404(camera_id, db)
 
     # Create zone with generated UUID
-    zone = Zone(
+    zone = CameraZone(
         id=str(uuid.uuid4()),
         camera_id=camera_id,
         name=zone_data.name,
@@ -107,7 +111,7 @@ async def get_zone(
     camera_id: str,
     zone_id: str,
     db: AsyncSession = Depends(get_db),
-) -> Zone:
+) -> CameraZone:
     """Get a specific zone by ID.
 
     Args:
@@ -116,7 +120,7 @@ async def get_zone(
         db: Database session
 
     Returns:
-        Zone object
+        CameraZone object
 
     Raises:
         HTTPException: 404 if zone not found
@@ -133,7 +137,7 @@ async def update_zone(
     zone_id: str,
     zone_data: ZoneUpdate,
     db: AsyncSession = Depends(get_db),
-) -> Zone:
+) -> CameraZone:
     """Update an existing zone.
 
     Args:

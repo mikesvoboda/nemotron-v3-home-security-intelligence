@@ -49,6 +49,10 @@ class TestWebSocketAlertEventType:
         """Test ALERT_RESOLVED enum value (NEM-2294)."""
         assert WebSocketAlertEventType.ALERT_RESOLVED == "alert_resolved"
 
+    def test_alert_deleted_value(self) -> None:
+        """Test ALERT_DELETED enum value (NEM-3113)."""
+        assert WebSocketAlertEventType.ALERT_DELETED == "alert_deleted"
+
     def test_all_event_types_exist(self) -> None:
         """Test that all expected event types exist."""
         expected_types = {
@@ -57,6 +61,7 @@ class TestWebSocketAlertEventType:
             "alert_acknowledged",
             "alert_resolved",
             "alert_dismissed",
+            "alert_deleted",
         }
         actual_types = {e.value for e in WebSocketAlertEventType}
         assert actual_types == expected_types

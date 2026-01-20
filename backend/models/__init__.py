@@ -1,10 +1,19 @@
 """SQLAlchemy models for home security intelligence system."""
 
 from .alert import Alert, AlertRule, AlertSeverity, AlertStatus
+from .area import Area, camera_areas
 from .audit import AuditAction, AuditLog, AuditStatus
 from .baseline import ActivityBaseline, ClassBaseline
 from .camera import Base, Camera
 from .camera_calibration import CameraCalibration
+from .camera_zone import (
+    CameraZone,
+    CameraZoneShape,
+    CameraZoneType,
+    Zone,
+    ZoneShape,
+    ZoneType,
+)
 from .detection import Detection
 from .enrichment import (
     ActionResult,
@@ -30,6 +39,7 @@ from .household import (
     TrustLevel,
     VehicleType,
 )
+from .household_org import Household
 from .job import Job, JobStatus
 from .job_attempt import JobAttempt, JobAttemptStatus
 from .job_log import JobLog, LogLevel
@@ -43,11 +53,12 @@ from .notification_preferences import (
     QuietHoursPeriod,
     RiskLevel,
 )
+from .prometheus_alert import PrometheusAlert, PrometheusAlertStatus
 from .prompt_config import PromptConfig
+from .property import Property
 from .scene_change import SceneChange, SceneChangeType
 from .summary import Summary, SummaryType
 from .user_calibration import UserCalibration
-from .zone import Zone, ZoneShape, ZoneType
 
 __all__ = [
     "ActionResult",
@@ -56,6 +67,7 @@ __all__ = [
     "AlertRule",
     "AlertSeverity",
     "AlertStatus",
+    "Area",
     "AuditAction",
     "AuditLog",
     "AuditStatus",
@@ -64,6 +76,9 @@ __all__ = [
     "CameraCalibration",
     "CameraNotificationSetting",
     "CameraStatus",
+    "CameraZone",
+    "CameraZoneShape",
+    "CameraZoneType",
     "ClassBaseline",
     "DayOfWeek",
     "DemographicsResult",
@@ -80,6 +95,7 @@ __all__ = [
     "ExportType",
     "FeedbackType",
     "GPUStats",
+    "Household",
     "HouseholdMember",
     "Job",
     "JobAttempt",
@@ -95,7 +111,10 @@ __all__ = [
     "NotificationSound",
     "PersonEmbedding",
     "PoseResult",
+    "PrometheusAlert",
+    "PrometheusAlertStatus",
     "PromptConfig",
+    "Property",
     "QuietHoursPeriod",
     "ReIDEmbedding",
     "RegisteredVehicle",
@@ -113,5 +132,6 @@ __all__ = [
     "Zone",
     "ZoneShape",
     "ZoneType",
+    "camera_areas",
     "event_detections",
 ]

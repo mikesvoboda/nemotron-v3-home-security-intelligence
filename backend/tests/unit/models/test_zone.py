@@ -13,8 +13,13 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from backend.models.zone import Zone, ZoneShape, ZoneType
+from backend.models.camera_zone import CameraZone, CameraZoneShape, CameraZoneType
 from backend.tests.factories import ZoneFactory
+
+# Aliases for backward compatibility
+Zone = CameraZone
+ZoneShape = CameraZoneShape
+ZoneType = CameraZoneType
 
 # Mark as unit tests - no database required
 pytestmark = pytest.mark.unit
@@ -407,7 +412,7 @@ class TestZoneRepr:
     def test_zone_repr_contains_class_name(self, sample_zone):
         """Test repr contains class name."""
         repr_str = repr(sample_zone)
-        assert "Zone" in repr_str
+        assert "CameraZone" in repr_str
 
     def test_zone_repr_contains_id(self, sample_zone):
         """Test repr contains zone id."""
@@ -433,7 +438,7 @@ class TestZoneRepr:
     def test_zone_repr_format(self, sample_zone):
         """Test repr has expected format."""
         repr_str = repr(sample_zone)
-        assert repr_str.startswith("<Zone(")
+        assert repr_str.startswith("<CameraZone(")
         assert repr_str.endswith(")>")
 
 
@@ -463,8 +468,8 @@ class TestZoneTableArgs:
         assert hasattr(Zone, "__table_args__")
 
     def test_zone_tablename(self):
-        """Test Zone has correct table name."""
-        assert Zone.__tablename__ == "zones"
+        """Test CameraZone has correct table name."""
+        assert Zone.__tablename__ == "camera_zones"
 
 
 # =============================================================================

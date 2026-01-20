@@ -32,7 +32,9 @@ import factory
 from factory import LazyAttribute, LazyFunction, Sequence, SubFactory
 
 from backend.models.alert import Alert, AlertRule, AlertSeverity, AlertStatus
+from backend.models.area import Area
 from backend.models.camera import Camera
+from backend.models.camera_zone import CameraZone, CameraZoneShape, CameraZoneType
 from backend.models.detection import Detection
 from backend.models.enums import CameraStatus
 from backend.models.event import Event
@@ -44,7 +46,13 @@ from backend.models.household import (
     TrustLevel,
     VehicleType,
 )
-from backend.models.zone import Zone, ZoneShape, ZoneType
+from backend.models.household_org import Household
+from backend.models.property import Property
+
+# Aliases for backward compatibility in tests
+Zone = CameraZone
+ZoneShape = CameraZoneShape
+ZoneType = CameraZoneType
 
 
 class CameraFactory(factory.Factory):
@@ -424,6 +432,145 @@ class AlertRuleFactory(factory.Factory):
 # =============================================================================
 
 
+class HouseholdFactory(factory.Factory):
+    """Factory for creating Household model instances.
+
+    Examples:
+        # Create a household with default values
+        household = HouseholdFactory()
+
+        # Create a household with a specific name
+        household = HouseholdFactory(name="Svoboda Family")
+
+        # Create multiple households
+        households = HouseholdFactory.create_batch(3)
+    """
+
+    class Meta:
+        model = Household
+
+    id: int = Sequence(lambda n: n + 1)
+    name: str = Sequence(lambda n: f"Household {n}")
+    created_at: datetime = LazyFunction(lambda: datetime.now(UTC))
+
+
+class PropertyFactory(factory.Factory):
+    """Factory for creating Property model instances.
+
+    Examples:
+        # Create a property with default values
+        property = PropertyFactory()
+
+        # Create a property with a specific name
+        property = PropertyFactory(name="Main House", address="123 Main St")
+
+        # Create multiple properties
+        properties = PropertyFactory.create_batch(3)
+    """
+
+    class Meta:
+        model = Property
+
+    id: int = Sequence(lambda n: n + 1)
+    household_id: int = Sequence(lambda n: n + 1)
+    name: str = Sequence(lambda n: f"Property {n}")
+    address: str | None = Sequence(lambda n: f"{n} Main St, City, ST 12345")
+    timezone: str = "UTC"
+    created_at: datetime = LazyFunction(lambda: datetime.now(UTC))
+
+    class Params:
+        """Traits for common property configurations."""
+
+        # Main house trait
+        main_house = factory.Trait(
+            name="Main House",
+            timezone="America/New_York",
+        )
+
+        # Beach house trait
+        beach_house = factory.Trait(
+            name="Beach House",
+            timezone="America/Los_Angeles",
+        )
+
+        # Vacation home trait
+        vacation_home = factory.Trait(
+            name="Vacation Home",
+            timezone="America/Chicago",
+        )
+
+        # No address trait
+        no_address = factory.Trait(address=None)
+
+
+class AreaFactory(factory.Factory):
+    """Factory for creating Area model instances.
+
+    Examples:
+        # Create an area with default values
+        area = AreaFactory()
+
+        # Create a front yard area
+        area = AreaFactory(front_yard=True)
+
+        # Create multiple areas
+        areas = AreaFactory.create_batch(3)
+    """
+
+    class Meta:
+        model = Area
+
+    id: int = Sequence(lambda n: n + 1)
+    property_id: int = Sequence(lambda n: n + 1)
+    name: str = Sequence(lambda n: f"Area {n}")
+    description: str | None = None
+    color: str = "#76B900"  # NVIDIA green
+    created_at: datetime = LazyFunction(lambda: datetime.now(UTC))
+
+    class Params:
+        """Traits for common area configurations."""
+
+        # Front yard trait
+        front_yard = factory.Trait(
+            name="Front Yard",
+            description="Main entrance and lawn area",
+            color="#10B981",  # Green
+        )
+
+        # Driveway trait
+        driveway = factory.Trait(
+            name="Driveway",
+            description="Vehicle entry and parking area",
+            color="#F59E0B",  # Orange
+        )
+
+        # Backyard trait
+        backyard = factory.Trait(
+            name="Backyard",
+            description="Rear yard and garden area",
+            color="#3B82F6",  # Blue
+        )
+
+        # Garage trait
+        garage = factory.Trait(
+            name="Garage",
+            description="Vehicle storage and entry",
+            color="#EF4444",  # Red
+        )
+
+        # Pool area trait
+        pool_area = factory.Trait(
+            name="Pool Area",
+            description="Swimming pool and deck",
+            color="#8B5CF6",  # Purple
+        )
+
+        # With description trait
+        with_description = factory.Trait(
+            description=LazyAttribute(lambda o: f"Description for {o.name}")
+        )
+
+
 class HouseholdMemberFactory(factory.Factory):
     """Factory for creating HouseholdMember model instances.
 
@@ -442,6 +589,7 @@ class HouseholdMemberFactory(factory.Factory):
         model = HouseholdMember
 
     id: int = Sequence(lambda n: n + 1)
+    household_id: int | None = None  # Nullable for backward compatibility
     name: str = Sequence(lambda n: f"Person {n}")
     role: MemberRole = MemberRole.RESIDENT
     trusted_level: TrustLevel = TrustLevel.FULL
@@ -482,6 +630,9 @@ class HouseholdMemberFactory(factory.Factory):
 
         # No schedule trait
         no_schedule = factory.Trait(typical_schedule=None)
+
+        # With household trait
+        with_household = factory.Trait(household_id=Sequence(lambda n: n + 1))
 
 
 class PersonEmbeddingFactory(factory.Factory):
@@ -539,6 +690,7 @@ class RegisteredVehicleFactory(factory.Factory):
         model = RegisteredVehicle
 
     id: int = Sequence(lambda n: n + 1)
+    household_id: int | None = None  # Nullable for backward compatibility
     description: str = Sequence(lambda n: f"Vehicle {n}")
     license_plate: str | None = Sequence(lambda n: f"ABC{n:04d}")
     vehicle_type: VehicleType = VehicleType.CAR
@@ -586,6 +738,9 @@ class RegisteredVehicleFactory(factory.Factory):
 
         # With owner trait
         with_owner = factory.Trait(owner_id=Sequence(lambda n: n + 1))
+
+        # With household trait
+        with_household = factory.Trait(household_id=Sequence(lambda n: n + 1))
 
         # With embedding trait
         with_embedding = factory.Trait(

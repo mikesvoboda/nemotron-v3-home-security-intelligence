@@ -26,6 +26,8 @@ from backend.api.schemas.websocket import (
     WebSocketAlertAcknowledgedMessage,
     WebSocketAlertCreatedMessage,
     WebSocketAlertData,
+    WebSocketAlertDeletedData,
+    WebSocketAlertDeletedMessage,
     WebSocketAlertDismissedMessage,
     WebSocketAlertEventType,
     WebSocketAlertResolvedMessage,
@@ -937,10 +939,13 @@ class EventBroadcaster:
         to clients conform to the expected format for alert events.
 
         Args:
-            alert_data: Alert data dictionary containing alert details
+            alert_data: Alert data dictionary containing alert details.
+                For ALERT_DELETED events, only 'id' and optional 'reason' are required.
+                For all other events, full alert data is required.
             event_type: Type of alert event:
                 - ALERT_CREATED: New alert triggered
                 - ALERT_UPDATED: Alert modified
+                - ALERT_DELETED: Alert permanently deleted
                 - ALERT_ACKNOWLEDGED: Alert marked as seen
                 - ALERT_RESOLVED: Alert resolved/dismissed
 
@@ -950,7 +955,7 @@ class EventBroadcaster:
         Raises:
             ValueError: If the message fails schema validation or has unknown event type
 
-        Example alert_data:
+        Example alert_data (for most events):
             {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
                 "event_id": 123,
@@ -961,32 +966,45 @@ class EventBroadcaster:
                 "created_at": "2026-01-09T12:00:00Z",
                 "updated_at": "2026-01-09T12:00:00Z"
             }
+
+        Example alert_data (for ALERT_DELETED):
+            {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "reason": "Duplicate alert"
+            }
         """
         try:
-            # Validate the alert data
-            validated_data = WebSocketAlertData.model_validate(alert_data)
-
-            # Create the appropriate message type based on event_type
-            validated_message: (
-                WebSocketAlertCreatedMessage
-                | WebSocketAlertUpdatedMessage
-                | WebSocketAlertAcknowledgedMessage
-                | WebSocketAlertDismissedMessage
-                | WebSocketAlertResolvedMessage
-            )
-            if event_type == WebSocketAlertEventType.ALERT_CREATED:
-                validated_message = WebSocketAlertCreatedMessage(data=validated_data)
-            elif event_type == WebSocketAlertEventType.ALERT_UPDATED:
-                validated_message = WebSocketAlertUpdatedMessage(data=validated_data)
-            elif event_type == WebSocketAlertEventType.ALERT_ACKNOWLEDGED:
-                validated_message = WebSocketAlertAcknowledgedMessage(data=validated_data)
-            elif event_type == WebSocketAlertEventType.ALERT_RESOLVED:
-                validated_message = WebSocketAlertResolvedMessage(data=validated_data)
+            # ALERT_DELETED has a different schema (only id and optional reason)
+            if event_type == WebSocketAlertEventType.ALERT_DELETED:
+                validated_deleted_data = WebSocketAlertDeletedData.model_validate(alert_data)
+                validated_message = WebSocketAlertDeletedMessage(data=validated_deleted_data)
+                broadcast_data = validated_message.model_dump(mode="json")
             else:
-                raise ValueError(f"Unknown alert event type: {event_type}")
+                # All other alert events use the full WebSocketAlertData schema
+                validated_data = WebSocketAlertData.model_validate(alert_data)
 
-            # Use the validated message for broadcasting
-            broadcast_data = validated_message.model_dump(mode="json")
+                # Create the appropriate message type based on event_type
+                validated_message_union: (
+                    WebSocketAlertCreatedMessage
+                    | WebSocketAlertUpdatedMessage
+                    | WebSocketAlertAcknowledgedMessage
+                    | WebSocketAlertDismissedMessage
+                    | WebSocketAlertResolvedMessage
+                )
+                if event_type == WebSocketAlertEventType.ALERT_CREATED:
+                    validated_message_union = WebSocketAlertCreatedMessage(data=validated_data)
+                elif event_type == WebSocketAlertEventType.ALERT_UPDATED:
+                    validated_message_union = WebSocketAlertUpdatedMessage(data=validated_data)
+                elif event_type == WebSocketAlertEventType.ALERT_ACKNOWLEDGED:
+                    validated_message_union = WebSocketAlertAcknowledgedMessage(data=validated_data)
+                elif event_type == WebSocketAlertEventType.ALERT_RESOLVED:
+                    validated_message_union = WebSocketAlertResolvedMessage(data=validated_data)
+                elif event_type == WebSocketAlertEventType.ALERT_DISMISSED:
+                    validated_message_union = WebSocketAlertDismissedMessage(data=validated_data)
+                else:
+                    raise ValueError(f"Unknown alert event type: {event_type}")
+
+                broadcast_data = validated_message_union.model_dump(mode="json")
 
             # Publish validated message to Redis channel
             subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)

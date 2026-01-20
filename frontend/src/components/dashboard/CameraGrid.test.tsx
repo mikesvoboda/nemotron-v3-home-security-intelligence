@@ -729,4 +729,88 @@ describe('CameraGrid', () => {
       expect(screen.getByLabelText('Camera Error ARIA Camera, status: Error')).toBeInTheDocument();
     });
   });
+
+  describe('Scene Change Activity Indicators (NEM-3126)', () => {
+    it('should show scene change indicator when camera has activity (array)', () => {
+      const cameras: CameraStatus[] = [
+        { id: 'cam1', name: 'Front Door', status: 'online' },
+        { id: 'cam2', name: 'Backyard', status: 'online' },
+      ];
+
+      render(
+        <CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1']} />
+      );
+
+      expect(screen.getByTestId('scene-change-indicator-cam1')).toBeInTheDocument();
+      expect(screen.queryByTestId('scene-change-indicator-cam2')).not.toBeInTheDocument();
+      expect(screen.getByText('Scene Change')).toBeInTheDocument();
+    });
+
+    it('should show scene change indicator when camera has activity (Set)', () => {
+      const cameras: CameraStatus[] = [
+        { id: 'cam1', name: 'Front Door', status: 'online' },
+        { id: 'cam2', name: 'Backyard', status: 'online' },
+      ];
+
+      render(
+        <CameraGrid cameras={cameras} sceneChangeActivityIds={new Set(['cam2'])} />
+      );
+
+      expect(screen.queryByTestId('scene-change-indicator-cam1')).not.toBeInTheDocument();
+      expect(screen.getByTestId('scene-change-indicator-cam2')).toBeInTheDocument();
+    });
+
+    it('should show scene change indicator for multiple cameras', () => {
+      const cameras: CameraStatus[] = [
+        { id: 'cam1', name: 'Front Door', status: 'online' },
+        { id: 'cam2', name: 'Backyard', status: 'online' },
+        { id: 'cam3', name: 'Garage', status: 'online' },
+      ];
+
+      render(
+        <CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1', 'cam3']} />
+      );
+
+      expect(screen.getByTestId('scene-change-indicator-cam1')).toBeInTheDocument();
+      expect(screen.queryByTestId('scene-change-indicator-cam2')).not.toBeInTheDocument();
+      expect(screen.getByTestId('scene-change-indicator-cam3')).toBeInTheDocument();
+      // Should show "Scene Change" text for both cameras
+      expect(screen.getAllByText('Scene Change')).toHaveLength(2);
+    });
+
+    it('should not show scene change indicator when sceneChangeActivityIds is undefined', () => {
+      const cameras: CameraStatus[] = [
+        { id: 'cam1', name: 'Front Door', status: 'online' },
+      ];
+
+      render(<CameraGrid cameras={cameras} />);
+
+      expect(screen.queryByTestId('scene-change-indicator-cam1')).not.toBeInTheDocument();
+    });
+
+    it('should not show scene change indicator when sceneChangeActivityIds is empty', () => {
+      const cameras: CameraStatus[] = [
+        { id: 'cam1', name: 'Front Door', status: 'online' },
+      ];
+
+      render(<CameraGrid cameras={cameras} sceneChangeActivityIds={[]} />);
+
+      expect(screen.queryByTestId('scene-change-indicator-cam1')).not.toBeInTheDocument();
+    });
+
+    it('should apply pulsing animation to scene change indicator', () => {
+      const cameras: CameraStatus[] = [
+        { id: 'cam1', name: 'Front Door', status: 'online' },
+      ];
+
+      render(
+        <CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1']} />
+      );
+
+      const indicator = screen.getByTestId('scene-change-indicator-cam1');
+      // The AlertTriangle icon should have animate-pulse class
+      const icon = indicator.querySelector('svg');
+      expect(icon).toHaveClass('animate-pulse');
+    });
+  });
 });

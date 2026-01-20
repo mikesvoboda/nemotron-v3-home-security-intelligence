@@ -10,9 +10,14 @@ from __future__ import annotations
 
 import pytest
 
-from backend.models import Camera, Zone, ZoneShape, ZoneType
+from backend.models import Camera, CameraZone, CameraZoneShape, CameraZoneType
 from backend.repositories.zone_repository import ZoneRepository
 from backend.tests.conftest import unique_id
+
+# Aliases for backward compatibility
+Zone = CameraZone
+ZoneShape = CameraZoneShape
+ZoneType = CameraZoneType
 
 
 @pytest.fixture

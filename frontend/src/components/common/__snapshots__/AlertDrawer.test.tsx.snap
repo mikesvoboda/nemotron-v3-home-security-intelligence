@@ -1,0 +1,7 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`AlertDrawer > snapshots > renders empty state correctly 1`] = `<div />`;
+
+exports[`AlertDrawer > snapshots > renders with alerts correctly 1`] = `<div />`;
+
+exports[`AlertDrawer > snapshots > renders with resolved alerts correctly 1`] = `<div />`;

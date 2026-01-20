@@ -670,6 +670,47 @@ export const queryKeys = {
     /** Daily summary only */
     daily: ['summaries', 'daily'] as const,
   },
+
+  /**
+   * Hierarchy-related query keys (Organizational Structure - NEM-3137)
+   */
+  hierarchy: {
+    /** Base key for all hierarchy queries - use for bulk invalidation */
+    all: ['hierarchy'] as const,
+
+    /** Household query keys */
+    households: {
+      /** Base key for all household queries */
+      all: ['hierarchy', 'households'] as const,
+      /** List of all households */
+      list: () => [...queryKeys.hierarchy.households.all, 'list'] as const,
+      /** Single household by ID */
+      detail: (id: number) => [...queryKeys.hierarchy.households.all, 'detail', id] as const,
+    },
+
+    /** Property query keys */
+    properties: {
+      /** Base key for all property queries */
+      all: ['hierarchy', 'properties'] as const,
+      /** List of properties for a household */
+      list: (householdId: number) =>
+        [...queryKeys.hierarchy.properties.all, 'list', householdId] as const,
+      /** Single property by ID */
+      detail: (id: number) => [...queryKeys.hierarchy.properties.all, 'detail', id] as const,
+    },
+
+    /** Area query keys */
+    areas: {
+      /** Base key for all area queries */
+      all: ['hierarchy', 'areas'] as const,
+      /** List of areas for a property */
+      list: (propertyId: number) => [...queryKeys.hierarchy.areas.all, 'list', propertyId] as const,
+      /** Single area by ID */
+      detail: (id: number) => [...queryKeys.hierarchy.areas.all, 'detail', id] as const,
+      /** Cameras linked to an area */
+      cameras: (areaId: number) => [...queryKeys.hierarchy.areas.all, 'cameras', areaId] as const,
+    },
+  },
 } as const;
 // QueryClient Factory
 // ============================================================================

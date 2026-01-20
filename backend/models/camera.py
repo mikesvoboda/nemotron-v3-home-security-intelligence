@@ -6,17 +6,19 @@ import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, Index, String
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from .enums import CameraStatus
 
 if TYPE_CHECKING:
+    from .area import Area
     from .baseline import ActivityBaseline, ClassBaseline
+    from .camera_zone import CameraZone
     from .detection import Detection
     from .event import Event
+    from .property import Property
     from .scene_change import SceneChange
-    from .zone import Zone
 
 
 def normalize_camera_id(folder_name: str) -> str:
@@ -83,6 +85,7 @@ class Camera(Base):
     __table_args__ = (
         Index("idx_cameras_name_unique", "name", unique=True),
         Index("idx_cameras_folder_path_unique", "folder_path", unique=True),
+        Index("idx_cameras_property_id", "property_id"),
         # CHECK constraint for status enum-like values
         CheckConstraint(
             "status IN ('online', 'offline', 'error', 'unknown')",
@@ -101,6 +104,9 @@ class Camera(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
     )
+    property_id: Mapped[int | None] = mapped_column(
+        ForeignKey("properties.id"), nullable=True, default=None
+    )
 
     # Relationships
     detections: Mapped[list[Detection]] = relationship(
@@ -109,8 +115,8 @@ class Camera(Base):
     events: Mapped[list[Event]] = relationship(
         "Event", back_populates="camera", cascade="all, delete-orphan"
     )
-    zones: Mapped[list[Zone]] = relationship(
-        "Zone", back_populates="camera", cascade="all, delete-orphan"
+    camera_zones: Mapped[list[CameraZone]] = relationship(
+        "CameraZone", back_populates="camera", cascade="all, delete-orphan"
     )
     activity_baselines: Mapped[list[ActivityBaseline]] = relationship(
         "ActivityBaseline",
@@ -123,6 +129,16 @@ class Camera(Base):
     )
     scene_changes: Mapped[list[SceneChange]] = relationship(
         "SceneChange", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
+    )
+    # Note: Named 'property_ref' to avoid shadowing Python's built-in @property decorator
+    property_ref: Mapped[Property | None] = relationship(
+        "Property",
+        back_populates="cameras",
+    )
+    areas: Mapped[list[Area]] = relationship(
+        "Area",
+        secondary="camera_areas",
+        back_populates="cameras",
     )
 
     @property
