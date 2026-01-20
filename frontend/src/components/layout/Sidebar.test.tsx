@@ -142,7 +142,7 @@ describe('Sidebar', () => {
     expect(settingsLink).toHaveClass('bg-[#76B900]');
   });
 
-  it('renders all 14 navigation items', () => {
+  it('renders all 13 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
     expect(links).toHaveLength(13);
@@ -391,5 +391,4 @@ describe('Sidebar', () => {
       expect(STORAGE_KEY).toBe('sidebar-expansion-state');
     });
   });
-
 });
