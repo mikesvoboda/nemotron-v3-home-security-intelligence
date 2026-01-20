@@ -13,6 +13,7 @@ Port: 8094 (configurable via PORT env var)
 Expected VRAM: ~2.65GB total
 """
 
+import asyncio
 import base64
 import binascii
 import io
@@ -21,12 +22,14 @@ import os
 import time
 import warnings
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import torch
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
+from model_manager import ModelConfig, ModelPriority, OnDemandModelManager
 from PIL import Image, UnidentifiedImageError
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, Field
@@ -47,6 +50,9 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# Track service start time for uptime calculation
+SERVICE_START_TIME = datetime.now(UTC)
 
 # =============================================================================
 # Prometheus Metrics
@@ -88,6 +94,17 @@ DEPTH_MODEL_LOADED = Gauge(
 GPU_MEMORY_USED_GB = Gauge(
     "enrichment_gpu_memory_used_gb",
     "GPU memory used in GB",
+)
+
+# Unified enrichment endpoint metrics
+ENRICH_MODELS_USED = Counter(
+    "enrichment_enrich_models_used_total",
+    "Models used in unified enrichment requests",
+    ["model"],
+)
+POSE_MODEL_LOADED = Gauge(
+    "enrichment_pose_model_loaded",
+    "Whether the pose analyzer is loaded (1) or not (0)",
 )
 
 # Size limits for image uploads (10MB is reasonable for security camera images)
@@ -491,58 +508,147 @@ class PetClassifier:
 # Clothing Classifier (FashionCLIP)
 # =============================================================================
 
-# Security-focused clothing classification prompts
+# Category-specific confidence thresholds for clothing classification
+# Lower thresholds for suspicious categories ensure they are flagged with less certainty
+# Higher thresholds for normal categories reduce false positives
+CLOTHING_CATEGORY_THRESHOLDS: dict[str, float] = {
+    "suspicious": 0.25,  # Low threshold - flag even with moderate confidence
+    "delivery": 0.40,  # Medium threshold - clear uniform identification
+    "authority": 0.45,  # Medium-high threshold - avoid misidentifying authority figures
+    "utility": 0.40,  # Medium threshold - work uniforms
+    "casual": 0.35,  # Medium-low threshold - common default
+    "weather": 0.35,  # Medium-low threshold - weather-appropriate clothing
+    "carrying": 0.30,  # Low threshold - important for threat assessment
+    "athletic": 0.35,  # Medium-low threshold
+}
+
+# Default threshold for categories not explicitly listed
+DEFAULT_CLOTHING_THRESHOLD: float = 0.35
+
+# Security-focused clothing classification prompts organized by category (~40 prompts)
+SECURITY_CLOTHING_PROMPTS_BY_CATEGORY: dict[str, list[str]] = {
+    # Potentially suspicious attire - items that may indicate concealment or criminal intent
+    "suspicious": [
+        "person wearing dark hoodie with hood up",
+        "person wearing ski mask or balaclava",
+        "person wearing all black clothing",
+        "person with face partially covered",
+        "person wearing face mask at night",
+        "person wearing gloves in warm weather",
+        "person with hat and sunglasses obscuring face",
+        "person wearing bandana over face",
+    ],
+    # Delivery uniforms - legitimate package carriers
+    "delivery": [
+        "delivery driver in uniform",
+        "postal worker in uniform",
+        "UPS driver in brown uniform",
+        "FedEx driver in purple uniform",
+        "Amazon delivery driver in blue vest",
+        "DoorDash delivery person with red bag",
+        "food delivery courier with insulated bag",
+        "package courier in company uniform",
+    ],
+    # Authority and emergency services
+    "authority": [
+        "police officer in uniform",
+        "security guard in uniform",
+        "firefighter in gear",
+        "paramedic or EMT in uniform",
+        "military personnel in uniform",
+    ],
+    # Utility and maintenance workers
+    "utility": [
+        "maintenance worker in uniform",
+        "utility worker with safety vest",
+        "construction worker in hard hat",
+        "electrician in work clothes",
+        "landscaper or gardener in work clothes",
+        "cable technician in company uniform",
+        "plumber in work attire",
+    ],
+    # Casual and everyday wear
+    "casual": [
+        "person in casual everyday clothes",
+        "person in casual business attire",
+        "person in jeans and t-shirt",
+        "person in shorts and casual top",
+        "person in professional suit",
+        "person in formal dress attire",
+    ],
+    # Weather-appropriate clothing
+    "weather": [
+        "person in rain jacket or raincoat",
+        "person in winter coat",
+        "person in light summer clothing",
+        "person wearing umbrella or rain gear",
+    ],
+    # Carrying items - critical for security assessment
+    "carrying": [
+        "person carrying a large box or package",
+        "person with a backpack",
+        "person carrying a duffel bag",
+        "person carrying tools or equipment",
+        "person carrying nothing visible",
+        "person with hands in pockets",
+    ],
+    # Athletic and active wear
+    "athletic": [
+        "person in workout clothes",
+        "person walking dog in casual wear",
+        "person jogging in athletic wear",
+        "person in outdoor or hiking clothing",
+    ],
+}
+
+# Flatten prompts for backward compatibility with existing classify() interface
 SECURITY_CLOTHING_PROMPTS: list[str] = [
-    # Potentially suspicious attire
-    "person wearing dark hoodie",
-    "person wearing face mask",
-    "person wearing ski mask or balaclava",
-    "person wearing gloves",
-    "person wearing all black clothing",
-    "person with obscured face",
-    # Delivery and service uniforms
-    "delivery uniform",
-    "Amazon delivery vest",
-    "FedEx uniform",
-    "UPS uniform",
-    "USPS postal worker uniform",
-    "high-visibility vest or safety vest",
-    "utility worker uniform",
-    "maintenance worker clothing",
-    # General clothing categories
-    "casual clothing",
-    "business attire or suit",
-    "athletic wear or sportswear",
-    "outdoor or hiking clothing",
-    "winter coat or jacket",
-    "rain jacket or raincoat",
+    prompt for prompts in SECURITY_CLOTHING_PROMPTS_BY_CATEGORY.values() for prompt in prompts
 ]
 
-# Suspicious clothing categories
+# Suspicious clothing categories (for is_suspicious flag)
 SUSPICIOUS_CATEGORIES: frozenset[str] = frozenset(
-    {
-        "person wearing dark hoodie",
-        "person wearing face mask",
-        "person wearing ski mask or balaclava",
-        "person wearing gloves",
-        "person wearing all black clothing",
-        "person with obscured face",
-    }
+    SECURITY_CLOTHING_PROMPTS_BY_CATEGORY["suspicious"]
 )
 
-# Service/uniform categories
+# Service/uniform categories (for is_service_uniform flag)
 SERVICE_CATEGORIES: frozenset[str] = frozenset(
-    {
-        "delivery uniform",
-        "Amazon delivery vest",
-        "FedEx uniform",
-        "UPS uniform",
-        "USPS postal worker uniform",
-        "high-visibility vest or safety vest",
-        "utility worker uniform",
-        "maintenance worker clothing",
-    }
+    SECURITY_CLOTHING_PROMPTS_BY_CATEGORY["delivery"]
+    + SECURITY_CLOTHING_PROMPTS_BY_CATEGORY["utility"]
 )
+
+# Authority categories (for special handling)
+AUTHORITY_CATEGORIES: frozenset[str] = frozenset(SECURITY_CLOTHING_PROMPTS_BY_CATEGORY["authority"])
+
+# Carrying categories (important for threat context)
+CARRYING_CATEGORIES: frozenset[str] = frozenset(SECURITY_CLOTHING_PROMPTS_BY_CATEGORY["carrying"])
+
+
+def get_category_for_prompt(prompt: str) -> str:
+    """Get the category name for a given prompt.
+
+    Args:
+        prompt: The clothing classification prompt
+
+    Returns:
+        Category name (e.g., "suspicious", "delivery", "casual")
+    """
+    for category, prompts in SECURITY_CLOTHING_PROMPTS_BY_CATEGORY.items():
+        if prompt in prompts:
+            return category
+    return "unknown"
+
+
+def get_threshold_for_category(category: str) -> float:
+    """Get the confidence threshold for a given category.
+
+    Args:
+        category: The category name
+
+    Returns:
+        Confidence threshold for flagging this category
+    """
+    return CLOTHING_CATEGORY_THRESHOLDS.get(category, DEFAULT_CLOTHING_THRESHOLD)
 
 
 class ClothingClassifier:
@@ -690,6 +796,128 @@ class ClothingClassifier:
             "is_suspicious": is_suspicious,
             "is_service_uniform": is_service,
             "all_scores": {k: round(v, 4) for k, v in top_k_scores.items()},
+        }
+
+    def classify_multilabel(
+        self,
+        image: Image.Image,
+        use_category_thresholds: bool = True,
+    ) -> dict[str, Any]:
+        """Classify clothing with multi-label support per category.
+
+        Unlike classify(), this method returns the best match per category,
+        allowing identification of multiple attributes (e.g., suspicious hoodie
+        AND carrying a backpack).
+
+        Args:
+            image: PIL Image of person crop
+            use_category_thresholds: If True, use per-category confidence thresholds
+                                     to filter results. If False, include all categories.
+
+        Returns:
+            Dictionary with:
+            - matched_categories: Dict of category -> {prompt, confidence, above_threshold}
+            - primary_category: The highest-confidence category overall
+            - is_suspicious: True if any suspicious category is above threshold
+            - is_service_uniform: True if any service category is above threshold
+            - is_authority: True if any authority category is above threshold
+            - carrying_item: Description of what person is carrying (if detected)
+            - all_scores: Dict of all prompts to their confidence scores
+        """
+        if self.model is None or self.preprocess is None or self.tokenizer is None:
+            raise RuntimeError("Model not loaded")
+
+        # Ensure RGB mode
+        rgb_image = image.convert("RGB") if image.mode != "RGB" else image
+
+        # Process image using open_clip preprocess
+        image_tensor = self.preprocess(rgb_image).unsqueeze(0).to(self.device)
+
+        # Tokenize all prompts
+        all_prompts = SECURITY_CLOTHING_PROMPTS
+        text_tokens = self.tokenizer(all_prompts).to(self.device)
+
+        # Get image and text features
+        with torch.no_grad():
+            image_features = self.model.encode_image(image_tensor)
+            text_features = self.model.encode_text(text_tokens)
+
+            # Normalize features
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+            text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
+            # Compute similarity scores
+            similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)
+            scores = similarity[0].cpu().numpy()
+
+        # Create score dictionary for all prompts
+        all_scores = {
+            prompt: float(score) for prompt, score in zip(all_prompts, scores, strict=True)
+        }
+
+        # Find best match per category
+        matched_categories: dict[str, dict[str, Any]] = {}
+        for category, prompts in SECURITY_CLOTHING_PROMPTS_BY_CATEGORY.items():
+            # Get scores for this category's prompts
+            category_scores = [(p, all_scores[p]) for p in prompts]
+            # Sort by score descending
+            category_scores.sort(key=lambda x: x[1], reverse=True)
+
+            best_prompt, best_score = category_scores[0]
+            threshold = get_threshold_for_category(category)
+            above_threshold = best_score >= threshold if use_category_thresholds else True
+
+            matched_categories[category] = {
+                "prompt": best_prompt,
+                "confidence": round(best_score, 4),
+                "threshold": threshold,
+                "above_threshold": above_threshold,
+            }
+
+        # Find primary category (highest confidence that's above threshold)
+        valid_categories = [
+            (cat, data) for cat, data in matched_categories.items() if data["above_threshold"]
+        ]
+        if valid_categories:
+            primary_category = max(valid_categories, key=lambda x: x[1]["confidence"])[0]
+        else:
+            # Fall back to highest confidence regardless of threshold
+            primary_category = max(matched_categories.items(), key=lambda x: x[1]["confidence"])[0]
+
+        # Determine flags based on threshold-passing categories
+        suspicious_match = matched_categories.get("suspicious", {})
+        is_suspicious = suspicious_match.get("above_threshold", False)
+
+        delivery_match = matched_categories.get("delivery", {})
+        utility_match = matched_categories.get("utility", {})
+        is_service_uniform = delivery_match.get("above_threshold", False) or utility_match.get(
+            "above_threshold", False
+        )
+
+        authority_match = matched_categories.get("authority", {})
+        is_authority = authority_match.get("above_threshold", False)
+
+        # Extract carrying item if above threshold
+        carrying_match = matched_categories.get("carrying", {})
+        carrying_item = None
+        if carrying_match.get("above_threshold", False):
+            carrying_prompt = carrying_match.get("prompt", "")
+            # Extract item from prompt like "person carrying a large box or package"
+            carrying_item = (
+                carrying_prompt.replace("person ", "").replace("carrying ", "").replace("with ", "")
+            )
+
+        # Build result
+        return {
+            "matched_categories": matched_categories,
+            "primary_category": primary_category,
+            "primary_prompt": matched_categories[primary_category]["prompt"],
+            "primary_confidence": matched_categories[primary_category]["confidence"],
+            "is_suspicious": is_suspicious,
+            "is_service_uniform": is_service_uniform,
+            "is_authority": is_authority,
+            "carrying_item": carrying_item,
+            "all_scores": {k: round(v, 4) for k, v in all_scores.items()},
         }
 
     def _extract_clothing_type(self, category: str) -> str:
@@ -1112,14 +1340,250 @@ class HealthResponse(BaseModel):
     cuda_available: bool
 
 
+class DetailedModelStatus(BaseModel):
+    """Detailed status of a single model for /models/status endpoint."""
+
+    name: str
+    loaded: bool
+    vram_mb: int
+    priority: str
+    last_used: str | None = None
+
+
+class SystemStatus(BaseModel):
+    """System status response for /models/status endpoint."""
+
+    status: str  # "healthy", "degraded", "unhealthy"
+    vram_total_mb: int
+    vram_used_mb: int
+    vram_available_mb: int
+    vram_budget_mb: int
+    loaded_models: list[DetailedModelStatus]
+    pending_loads: list[str]
+    uptime_seconds: float
+
+
+class ReadinessResponse(BaseModel):
+    """Readiness probe response."""
+
+    ready: bool
+    gpu_available: bool
+    model_manager_initialized: bool
+
+
+class ModelPreloadResponse(BaseModel):
+    """Response for model preload endpoint."""
+
+    status: str
+    model: str
+    message: str | None = None
+
+
+class ModelUnloadResponse(BaseModel):
+    """Response for model unload endpoint."""
+
+    status: str
+    model: str
+
+
+class ModelRegistryEntry(BaseModel):
+    """Single model entry in the registry."""
+
+    name: str
+    vram_mb: int
+    priority: str
+    loaded: bool
+
+
+class ModelRegistryResponse(BaseModel):
+    """Response for model registry endpoint."""
+
+    models: list[ModelRegistryEntry]
+
+
 # =============================================================================
-# Global Model Instances
+# Unified Enrichment Endpoint Schemas
 # =============================================================================
 
+
+class EnrichmentRequest(BaseModel):
+    """Request format for unified enrichment endpoint.
+
+    This endpoint accepts detection context and returns all relevant enrichments
+    by automatically selecting appropriate models based on detection type.
+    """
+
+    image: str = Field(..., description="Base64 encoded image")
+    detection_type: str = Field(
+        ...,
+        description="Type of detection: 'person', 'vehicle', 'animal', or 'object'",
+        json_schema_extra={"enum": ["person", "vehicle", "animal", "object"]},
+    )
+    bbox: BoundingBox = Field(..., description="Bounding box of the detection")
+    frames: list[str] | None = Field(
+        default=None,
+        description="Optional list of base64 encoded frames for action recognition",
+    )
+    options: dict[str, bool] = Field(
+        default_factory=dict,
+        description="Additional options: action_recognition, include_depth, include_pose",
+    )
+
+
+class PoseResult(BaseModel):
+    """Result from pose estimation."""
+
+    keypoints: list[dict] = Field(..., description="List of keypoint dictionaries")
+    posture: str = Field(..., description="Classified posture (standing, sitting, etc.)")
+    alerts: list[str] = Field(
+        default_factory=list,
+        description="Security-relevant pose alerts",
+    )
+
+
+class ClothingResult(BaseModel):
+    """Result from clothing classification."""
+
+    clothing_type: str = Field(..., description="Primary clothing type")
+    color: str = Field(..., description="Primary color")
+    style: str = Field(..., description="Overall style classification")
+    confidence: float = Field(..., description="Classification confidence (0-1)")
+    top_category: str = Field(..., description="Top matched category")
+    description: str = Field(..., description="Human-readable description")
+    is_suspicious: bool = Field(..., description="Whether clothing is potentially suspicious")
+    is_service_uniform: bool = Field(..., description="Whether clothing is a service uniform")
+
+
+class DemographicsResult(BaseModel):
+    """Result from demographics analysis (placeholder for future implementation)."""
+
+    age_range: str = Field(default="unknown", description="Estimated age range")
+    age_confidence: float = Field(default=0.0, description="Age estimation confidence")
+    gender: str = Field(default="unknown", description="Estimated gender")
+    gender_confidence: float = Field(default=0.0, description="Gender estimation confidence")
+
+
+class VehicleEnrichmentResult(BaseModel):
+    """Result from vehicle classification."""
+
+    vehicle_type: str = Field(..., description="Classified vehicle type")
+    display_name: str = Field(..., description="Human-readable vehicle type")
+    color: str | None = Field(default=None, description="Vehicle color if detected")
+    is_commercial: bool = Field(..., description="Whether vehicle is commercial/delivery type")
+    confidence: float = Field(..., description="Classification confidence (0-1)")
+
+
+class ThreatResult(BaseModel):
+    """Result from threat detection (placeholder for future implementation)."""
+
+    threats: list[dict] = Field(
+        default_factory=list,
+        description="List of detected threats with type, confidence, bbox, severity",
+    )
+    has_threat: bool = Field(default=False, description="Whether any threat was detected")
+
+
+class DepthResult(BaseModel):
+    """Result from depth estimation."""
+
+    estimated_distance_m: float = Field(..., description="Estimated distance in meters")
+    relative_depth: float = Field(..., description="Normalized depth value (0=close, 1=far)")
+    proximity_label: str = Field(..., description="Human-readable proximity description")
+
+
+class PetEnrichmentResult(BaseModel):
+    """Result from pet classification."""
+
+    pet_type: str = Field(..., description="Classified pet type (cat/dog)")
+    breed: str = Field(default="unknown", description="Pet breed if detected")
+    confidence: float = Field(..., description="Classification confidence (0-1)")
+    is_household_pet: bool = Field(default=True, description="Whether this is a household pet")
+
+
+class EnrichmentResponse(BaseModel):
+    """Response format for unified enrichment endpoint.
+
+    Contains all enrichment results based on detection type.
+    Fields are optional and populated based on applicable models.
+    """
+
+    pose: PoseResult | None = Field(default=None, description="Pose estimation results")
+    clothing: ClothingResult | None = Field(
+        default=None, description="Clothing classification results"
+    )
+    demographics: DemographicsResult | None = Field(
+        default=None, description="Demographics analysis results"
+    )
+    vehicle: VehicleEnrichmentResult | None = Field(
+        default=None, description="Vehicle classification results"
+    )
+    pet: PetEnrichmentResult | None = Field(default=None, description="Pet classification results")
+    threat: ThreatResult | None = Field(default=None, description="Threat detection results")
+    reid_embedding: list[float] | None = Field(
+        default=None, description="Re-identification embedding vector"
+    )
+    action: dict | None = Field(default=None, description="Action recognition results")
+    depth: DepthResult | None = Field(default=None, description="Depth estimation results")
+    models_used: list[str] = Field(
+        default_factory=list, description="List of models that were executed"
+    )
+    inference_time_ms: float = Field(..., description="Total inference time in milliseconds")
+
+
+# =============================================================================
+# On-Demand Model Manager (replaces always-loaded global instances)
+# =============================================================================
+
+# Global model manager instance
+model_manager: OnDemandModelManager | None = None
+
+# Legacy global instances - kept for backward compatibility during transition
+# These are now populated on-demand from the model manager
 vehicle_classifier: VehicleClassifier | None = None
 pet_classifier: PetClassifier | None = None
 clothing_classifier: ClothingClassifier | None = None
 depth_estimator: DepthEstimator | None = None
+
+# Import PoseAnalyzer from vitpose module
+try:
+    from vitpose import PoseAnalyzer
+except ImportError:
+    # Fallback for different import contexts
+    try:
+        from ai.enrichment.vitpose import PoseAnalyzer
+    except ImportError:
+        PoseAnalyzer = None  # type: ignore[misc, assignment]
+        logger.warning("PoseAnalyzer not available - pose estimation will be disabled")
+
+pose_analyzer: PoseAnalyzer | None = None  # type: ignore[valid-type]
+
+
+def _unload_model(model: Any) -> None:
+    """Helper function to unload a model and free its resources.
+
+    Args:
+        model: The model instance to unload
+    """
+    # Delete model reference
+    if hasattr(model, "model") and model.model is not None:
+        del model.model
+        model.model = None
+
+    if hasattr(model, "processor") and model.processor is not None:
+        del model.processor
+        model.processor = None
+
+    if hasattr(model, "transform") and model.transform is not None:
+        del model.transform
+        model.transform = None
+
+    if hasattr(model, "tokenizer") and model.tokenizer is not None:
+        del model.tokenizer
+        model.tokenizer = None
+
+    if hasattr(model, "preprocess") and model.preprocess is not None:
+        del model.preprocess
+        model.preprocess = None
 
 
 def get_vram_usage() -> float | None:
@@ -1130,6 +1594,26 @@ def get_vram_usage() -> float | None:
     except Exception as e:
         logger.warning(f"Failed to get VRAM usage: {e}")
     return None
+
+
+def get_gpu_memory_info() -> tuple[int, int, int]:
+    """Get GPU memory info in MB.
+
+    Returns:
+        Tuple of (total_mb, used_mb, available_mb).
+        Returns (0, 0, 0) if CUDA is not available.
+    """
+    try:
+        if torch.cuda.is_available():
+            total = torch.cuda.get_device_properties(0).total_memory // (1024 * 1024)
+            reserved = torch.cuda.memory_reserved(0) // (1024 * 1024)
+            allocated = torch.cuda.memory_allocated(0) // (1024 * 1024)
+            # Available is total minus reserved (reserved includes allocated + fragmented)
+            available = total - reserved
+            return total, allocated, available
+    except Exception as e:
+        logger.warning(f"Failed to get GPU memory info: {e}")
+    return 0, 0, 0
 
 
 def decode_and_crop_image(
@@ -1218,11 +1702,19 @@ def decode_and_crop_image(
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):  # noqa: PLR0912
-    """Lifespan context manager for FastAPI app."""
-    global vehicle_classifier, pet_classifier, clothing_classifier, depth_estimator  # noqa: PLW0603
+async def lifespan(_app: FastAPI):
+    """Lifespan context manager for FastAPI app.
 
-    logger.info("Starting Combined Enrichment Service...")
+    This now uses on-demand model loading instead of loading all models at startup.
+    Models are registered with the OnDemandModelManager and loaded when first requested.
+    """
+    global model_manager  # noqa: PLW0603
+
+    logger.info("Starting Combined Enrichment Service with on-demand model loading...")
+
+    # Get configuration from environment
+    vram_budget_gb = float(os.environ.get("VRAM_BUDGET_GB", "6.8"))
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     # Get model paths from environment
     vehicle_model_path = os.environ.get(
@@ -1231,83 +1723,111 @@ async def lifespan(_app: FastAPI):  # noqa: PLR0912
     pet_model_path = os.environ.get("PET_MODEL_PATH", "/models/pet-classifier")
     clothing_model_path = os.environ.get("CLOTHING_MODEL_PATH", "/models/fashion-clip")
     depth_model_path = os.environ.get("DEPTH_MODEL_PATH", "/models/depth-anything-v2-small")
+    pose_model_path = os.environ.get("POSE_MODEL_PATH", "/models/vitpose-plus-small")
 
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    # Initialize the on-demand model manager
+    model_manager = OnDemandModelManager(vram_budget_gb=vram_budget_gb)
 
-    # Load vehicle classifier
-    try:
-        vehicle_classifier = VehicleClassifier(
-            model_path=vehicle_model_path,
-            device=device,
+    # Register all models (but don't load them yet)
+    # Vehicle Classifier (~1.5GB)
+    model_manager.register_model(
+        ModelConfig(
+            name="vehicle_classifier",
+            vram_mb=1500,
+            priority=ModelPriority.MEDIUM,
+            loader_fn=lambda path=vehicle_model_path, dev=device: _create_and_load_model(
+                VehicleClassifier, path, dev
+            ),
+            unloader_fn=_unload_model,
         )
-        vehicle_classifier.load_model()
-        logger.info("Vehicle classifier loaded successfully")
-    except FileNotFoundError:
-        logger.warning(f"Vehicle model not found at {vehicle_model_path}")
-    except Exception as e:
-        logger.error(f"Failed to load vehicle classifier: {e}")
+    )
 
-    # Load pet classifier
-    try:
-        pet_classifier = PetClassifier(
-            model_path=pet_model_path,
-            device=device,
+    # Pet Classifier (~200MB)
+    model_manager.register_model(
+        ModelConfig(
+            name="pet_classifier",
+            vram_mb=200,
+            priority=ModelPriority.MEDIUM,
+            loader_fn=lambda path=pet_model_path, dev=device: _create_and_load_model(
+                PetClassifier, path, dev
+            ),
+            unloader_fn=_unload_model,
         )
-        pet_classifier.load_model()
-        logger.info("Pet classifier loaded successfully")
-    except FileNotFoundError:
-        logger.warning(f"Pet model not found at {pet_model_path}")
-    except Exception as e:
-        logger.error(f"Failed to load pet classifier: {e}")
+    )
 
-    # Load clothing classifier
-    try:
-        clothing_classifier = ClothingClassifier(
-            model_path=clothing_model_path,
-            device=device,
+    # FashionCLIP Clothing Classifier (~800MB)
+    model_manager.register_model(
+        ModelConfig(
+            name="fashion_clip",
+            vram_mb=800,
+            priority=ModelPriority.HIGH,
+            loader_fn=lambda path=clothing_model_path, dev=device: _create_and_load_model(
+                ClothingClassifier, path, dev
+            ),
+            unloader_fn=_unload_model,
         )
-        clothing_classifier.load_model()
-        logger.info("Clothing classifier loaded successfully")
-    except FileNotFoundError:
-        logger.warning(f"Clothing model not found at {clothing_model_path}")
-    except Exception as e:
-        logger.error(f"Failed to load clothing classifier: {e}")
+    )
 
-    # Load depth estimator
-    try:
-        depth_estimator = DepthEstimator(
-            model_path=depth_model_path,
-            device=device,
+    # Depth Estimator (~150MB)
+    model_manager.register_model(
+        ModelConfig(
+            name="depth_estimator",
+            vram_mb=150,
+            priority=ModelPriority.LOW,
+            loader_fn=lambda path=depth_model_path, dev=device: _create_and_load_model(
+                DepthEstimator, path, dev
+            ),
+            unloader_fn=_unload_model,
         )
-        depth_estimator.load_model()
-        logger.info("Depth estimator loaded successfully")
-    except FileNotFoundError:
-        logger.warning(f"Depth model not found at {depth_model_path}")
-    except Exception as e:
-        logger.error(f"Failed to load depth estimator: {e}")
+    )
 
-    vram = get_vram_usage()
-    logger.info(f"All models loaded. Total VRAM usage: {vram:.2f} GB" if vram else "VRAM: N/A")
+    # Pose Analyzer (~300MB) - only if PoseAnalyzer is available
+    if PoseAnalyzer is not None:
+        model_manager.register_model(
+            ModelConfig(
+                name="pose_analyzer",
+                vram_mb=300,
+                priority=ModelPriority.HIGH,
+                loader_fn=lambda path=pose_model_path, dev=device: _create_and_load_model(
+                    PoseAnalyzer, path, dev
+                ),
+                unloader_fn=_unload_model,
+            )
+        )
+
+    logger.info(
+        f"OnDemandModelManager initialized with {vram_budget_gb}GB VRAM budget. "
+        f"Registered {len(model_manager.model_registry)} models for on-demand loading."
+    )
 
     yield
 
-    # Shutdown
+    # Shutdown - unload all models
     logger.info("Shutting down Combined Enrichment Service...")
 
-    # Clean up models
-    if vehicle_classifier and vehicle_classifier.model:
-        del vehicle_classifier.model
-    if pet_classifier and pet_classifier.model:
-        del pet_classifier.model
-    if clothing_classifier and clothing_classifier.model:
-        del clothing_classifier.model
-    if depth_estimator and depth_estimator.model:
-        del depth_estimator.model
+    if model_manager is not None:
+        await model_manager.unload_all()
 
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
 
     logger.info("Shutdown complete")
+
+
+def _create_and_load_model(model_class: type, model_path: str, device: str) -> Any:
+    """Create a model instance and load it.
+
+    Args:
+        model_class: The model class to instantiate
+        model_path: Path to the model files
+        device: Device to load the model on
+
+    Returns:
+        The loaded model instance
+    """
+    instance = model_class(model_path=model_path, device=device)
+    instance.load_model()
+    return instance
 
 
 # Create FastAPI app
@@ -1321,38 +1841,42 @@ app = FastAPI(
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
-    """Health check endpoint with all model statuses."""
+    """Health check endpoint with all model statuses.
+
+    With on-demand loading, 'healthy' means the model manager is initialized
+    and ready to load models. Individual model status shows which are currently loaded.
+    """
     cuda_available = torch.cuda.is_available()
     device = "cuda:0" if cuda_available else "cpu"
     vram_used = get_vram_usage()
 
-    models = [
-        ModelStatus(
-            name="vehicle-segment-classification",
-            loaded=vehicle_classifier is not None and vehicle_classifier.model is not None,
-            vram_mb=1500 if vehicle_classifier and vehicle_classifier.model else None,
-        ),
-        ModelStatus(
-            name="pet-classifier",
-            loaded=pet_classifier is not None and pet_classifier.model is not None,
-            vram_mb=200 if pet_classifier and pet_classifier.model else None,
-        ),
-        ModelStatus(
-            name="fashion-clip",
-            loaded=clothing_classifier is not None and clothing_classifier.model is not None,
-            vram_mb=800 if clothing_classifier and clothing_classifier.model else None,
-        ),
-        ModelStatus(
-            name="depth-anything-v2-small",
-            loaded=depth_estimator is not None and depth_estimator.model is not None,
-            vram_mb=150 if depth_estimator and depth_estimator.model else None,
-        ),
-    ]
+    # Build model status list from model manager
+    models: list[ModelStatus] = []
 
-    all_loaded = all(m.loaded for m in models)
-    any_loaded = any(m.loaded for m in models)
+    if model_manager is not None:
+        # Model name to display name mapping
+        display_names = {
+            "vehicle_classifier": "vehicle-segment-classification",
+            "pet_classifier": "pet-classifier",
+            "fashion_clip": "fashion-clip",
+            "depth_estimator": "depth-anything-v2-small",
+            "pose_analyzer": "vitpose-plus-small",
+        }
 
-    status = "healthy" if all_loaded else ("degraded" if any_loaded else "unhealthy")
+        for name, config in model_manager.model_registry.items():
+            is_loaded = model_manager.is_loaded(name)
+            models.append(
+                ModelStatus(
+                    name=display_names.get(name, name),
+                    loaded=is_loaded,
+                    vram_mb=config.vram_mb if is_loaded else None,
+                )
+            )
+
+        # Status is healthy if manager is ready (models load on-demand)
+        status = "healthy" if model_manager is not None else "unhealthy"
+    else:
+        status = "unhealthy"
 
     return HealthResponse(
         status=status,
@@ -1370,19 +1894,19 @@ async def metrics() -> Response:
     Returns metrics in Prometheus text format for scraping.
     Updates GPU metrics gauges before returning.
     """
-    # Update model status gauges
-    VEHICLE_MODEL_LOADED.set(
-        1 if vehicle_classifier is not None and vehicle_classifier.model is not None else 0
-    )
-    PET_MODEL_LOADED.set(
-        1 if pet_classifier is not None and pet_classifier.model is not None else 0
-    )
-    CLOTHING_MODEL_LOADED.set(
-        1 if clothing_classifier is not None and clothing_classifier.model is not None else 0
-    )
-    DEPTH_MODEL_LOADED.set(
-        1 if depth_estimator is not None and depth_estimator.model is not None else 0
-    )
+    # Update model status gauges from model manager
+    if model_manager is not None:
+        VEHICLE_MODEL_LOADED.set(1 if model_manager.is_loaded("vehicle_classifier") else 0)
+        PET_MODEL_LOADED.set(1 if model_manager.is_loaded("pet_classifier") else 0)
+        CLOTHING_MODEL_LOADED.set(1 if model_manager.is_loaded("fashion_clip") else 0)
+        DEPTH_MODEL_LOADED.set(1 if model_manager.is_loaded("depth_estimator") else 0)
+        POSE_MODEL_LOADED.set(1 if model_manager.is_loaded("pose_analyzer") else 0)
+    else:
+        VEHICLE_MODEL_LOADED.set(0)
+        PET_MODEL_LOADED.set(0)
+        CLOTHING_MODEL_LOADED.set(0)
+        DEPTH_MODEL_LOADED.set(0)
+        POSE_MODEL_LOADED.set(0)
 
     # Update GPU metrics gauges
     if torch.cuda.is_available():
@@ -1393,24 +1917,102 @@ async def metrics() -> Response:
     return Response(content=generate_latest(), media_type="text/plain; charset=utf-8")
 
 
+# =============================================================================
+# Health Check and Status Endpoints (NEM-3046)
+# =============================================================================
+
+
+@app.get("/readiness", response_model=ReadinessResponse)
+async def readiness_check() -> ReadinessResponse:
+    """Readiness probe - check if service can handle requests.
+
+    This endpoint is designed for Kubernetes readiness probes. It returns
+    ready=True if the GPU is available and the model manager is initialized.
+    """
+    gpu_available = torch.cuda.is_available()
+    manager_initialized = model_manager is not None
+
+    return ReadinessResponse(
+        ready=gpu_available and manager_initialized,
+        gpu_available=gpu_available,
+        model_manager_initialized=manager_initialized,
+    )
+
+
+@app.get("/models/status", response_model=SystemStatus)
+async def get_model_status() -> SystemStatus:
+    """Detailed status of all models and VRAM usage.
+
+    Returns comprehensive information about:
+    - Overall system health status
+    - GPU VRAM usage (total, used, available)
+    - List of loaded models with their VRAM usage and last access time
+    - List of models currently being loaded
+    - Service uptime
+    """
+    if model_manager is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
+
+    total, used, available = get_gpu_memory_info()
+
+    loaded: list[DetailedModelStatus] = []
+    for name, info in model_manager.loaded_models.items():
+        loaded.append(
+            DetailedModelStatus(
+                name=name,
+                loaded=True,
+                vram_mb=info.vram_mb,
+                priority=info.priority.name,
+                last_used=info.last_used.isoformat() if info.last_used else None,
+            )
+        )
+
+    # Determine overall status based on VRAM usage
+    vram_usage_pct = used / total if total > 0 else 0
+    if not torch.cuda.is_available():
+        status = "unhealthy"
+    elif vram_usage_pct > 0.95:
+        status = "degraded"
+    else:
+        status = "healthy"
+
+    uptime = (datetime.now(UTC) - SERVICE_START_TIME).total_seconds()
+
+    return SystemStatus(
+        status=status,
+        vram_total_mb=total,
+        vram_used_mb=used,
+        vram_available_mb=available,
+        vram_budget_mb=int(model_manager.vram_budget),
+        loaded_models=loaded,
+        pending_loads=list(model_manager.pending_loads),
+        uptime_seconds=uptime,
+    )
+
+
 @app.post("/vehicle-classify", response_model=VehicleClassifyResponse)
 async def vehicle_classify(request: VehicleClassifyRequest) -> VehicleClassifyResponse:
     """Classify vehicle type and attributes from an image.
 
     Input: Base64 encoded image with optional bounding box
     Output: Vehicle type, color, confidence, commercial status
+
+    Model is loaded on-demand if not already in memory.
     """
-    if vehicle_classifier is None or vehicle_classifier.model is None:
-        raise HTTPException(status_code=503, detail="Vehicle classifier not loaded")
+    if model_manager is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
 
     try:
         start_time = time.perf_counter()
+
+        # Get model on-demand (loads if necessary)
+        classifier = await model_manager.get_model("vehicle_classifier")
 
         # Decode and optionally crop image
         image = decode_and_crop_image(request.image, request.bbox)
 
         # Run classification
-        result = vehicle_classifier.classify(image)
+        result = classifier.classify(image)
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
@@ -1444,18 +2046,23 @@ async def pet_classify(request: PetClassifyRequest) -> PetClassifyResponse:
 
     Input: Base64 encoded image with optional bounding box
     Output: Pet type, breed, confidence
+
+    Model is loaded on-demand if not already in memory.
     """
-    if pet_classifier is None or pet_classifier.model is None:
-        raise HTTPException(status_code=503, detail="Pet classifier not loaded")
+    if model_manager is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
 
     try:
         start_time = time.perf_counter()
+
+        # Get model on-demand (loads if necessary)
+        classifier = await model_manager.get_model("pet_classifier")
 
         # Decode and optionally crop image
         image = decode_and_crop_image(request.image, request.bbox)
 
         # Run classification
-        result = pet_classifier.classify(image)
+        result = classifier.classify(image)
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
@@ -1486,18 +2093,23 @@ async def clothing_classify(request: ClothingClassifyRequest) -> ClothingClassif
 
     Input: Base64 encoded image with optional bounding box
     Output: Clothing type, color, style, confidence, suspicious/service flags
+
+    Model is loaded on-demand if not already in memory.
     """
-    if clothing_classifier is None or clothing_classifier.model is None:
-        raise HTTPException(status_code=503, detail="Clothing classifier not loaded")
+    if model_manager is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
 
     try:
         start_time = time.perf_counter()
+
+        # Get model on-demand (loads if necessary)
+        classifier = await model_manager.get_model("fashion_clip")
 
         # Decode and optionally crop image
         image = decode_and_crop_image(request.image, request.bbox)
 
         # Run classification
-        result = clothing_classifier.classify(image)
+        result = classifier.classify(image)
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
@@ -1534,18 +2146,23 @@ async def depth_estimate(request: DepthEstimateRequest) -> DepthEstimateResponse
 
     Input: Base64 encoded image
     Output: Depth map as base64 PNG, depth statistics
+
+    Model is loaded on-demand if not already in memory.
     """
-    if depth_estimator is None or depth_estimator.model is None:
-        raise HTTPException(status_code=503, detail="Depth estimator not loaded")
+    if model_manager is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
 
     try:
         start_time = time.perf_counter()
+
+        # Get model on-demand (loads if necessary)
+        estimator = await model_manager.get_model("depth_estimator")
 
         # Decode image
         image = decode_and_crop_image(request.image)
 
         # Run depth estimation
-        result = depth_estimator.estimate_depth(image)
+        result = estimator.estimate_depth(image)
 
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
@@ -1578,9 +2195,11 @@ async def object_distance(request: ObjectDistanceRequest) -> ObjectDistanceRespo
 
     Input: Base64 encoded image, bounding box, optional sampling method
     Output: Estimated distance in meters, relative depth, proximity label
+
+    Model is loaded on-demand if not already in memory.
     """
-    if depth_estimator is None or depth_estimator.model is None:
-        raise HTTPException(status_code=503, detail="Depth estimator not loaded")
+    if model_manager is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
 
     # Validate method
     valid_methods = {"center", "mean", "median", "min"}
@@ -1593,11 +2212,14 @@ async def object_distance(request: ObjectDistanceRequest) -> ObjectDistanceRespo
     try:
         start_time = time.perf_counter()
 
+        # Get model on-demand (loads if necessary)
+        estimator = await model_manager.get_model("depth_estimator")
+
         # Decode image
         image = decode_and_crop_image(request.image)
 
         # Run object distance estimation
-        result = depth_estimator.estimate_object_distance(
+        result = estimator.estimate_object_distance(
             image=image,
             bbox=request.bbox,
             method=request.method,
@@ -1625,6 +2247,473 @@ async def object_distance(request: ObjectDistanceRequest) -> ObjectDistanceRespo
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="object-distance", status="error").inc()
         logger.error(f"Object distance estimation failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Distance estimation failed: {e!s}") from e
+
+
+# =============================================================================
+# Unified Enrichment Endpoint
+# =============================================================================
+
+
+async def _run_pose_estimation(cropped_image: Image.Image) -> PoseResult | None:
+    """Run pose estimation on a cropped person image.
+
+    Uses on-demand model loading via the model manager.
+    """
+    if model_manager is None:
+        return None
+
+    try:
+        analyzer = await model_manager.get_model("pose_analyzer")
+        result = analyzer.analyze(cropped_image)
+        return PoseResult(
+            keypoints=result.get("keypoints", []),
+            posture=result.get("posture", "unknown"),
+            alerts=result.get("alerts", []),
+        )
+    except ValueError:
+        # Model not registered (e.g., PoseAnalyzer not available)
+        return None
+    except Exception as e:
+        logger.warning(f"Pose estimation failed: {e}")
+        return None
+
+
+async def _run_clothing_classification(cropped_image: Image.Image) -> ClothingResult | None:
+    """Run clothing classification on a cropped person image.
+
+    Uses on-demand model loading via the model manager.
+    """
+    if model_manager is None:
+        return None
+
+    try:
+        classifier = await model_manager.get_model("fashion_clip")
+        result = classifier.classify(cropped_image)
+        return ClothingResult(
+            clothing_type=result.get("clothing_type", "unknown"),
+            color=result.get("color", "unknown"),
+            style=result.get("style", "unknown"),
+            confidence=result.get("confidence", 0.0),
+            top_category=result.get("top_category", ""),
+            description=result.get("description", ""),
+            is_suspicious=result.get("is_suspicious", False),
+            is_service_uniform=result.get("is_service_uniform", False),
+        )
+    except Exception as e:
+        logger.warning(f"Clothing classification failed: {e}")
+        return None
+
+
+async def _run_vehicle_classification(cropped_image: Image.Image) -> VehicleEnrichmentResult | None:
+    """Run vehicle classification on a cropped vehicle image.
+
+    Uses on-demand model loading via the model manager.
+    """
+    if model_manager is None:
+        return None
+
+    try:
+        classifier = await model_manager.get_model("vehicle_classifier")
+        result = classifier.classify(cropped_image)
+        return VehicleEnrichmentResult(
+            vehicle_type=result.get("vehicle_type", "unknown"),
+            display_name=result.get("display_name", "unknown"),
+            color=None,  # Color detection not yet implemented
+            is_commercial=result.get("is_commercial", False),
+            confidence=result.get("confidence", 0.0),
+        )
+    except Exception as e:
+        logger.warning(f"Vehicle classification failed: {e}")
+        return None
+
+
+async def _run_pet_classification(cropped_image: Image.Image) -> PetEnrichmentResult | None:
+    """Run pet classification on a cropped animal image.
+
+    Uses on-demand model loading via the model manager.
+    """
+    if model_manager is None:
+        return None
+
+    try:
+        classifier = await model_manager.get_model("pet_classifier")
+        result = classifier.classify(cropped_image)
+        return PetEnrichmentResult(
+            pet_type=result.get("pet_type", "unknown"),
+            breed=result.get("breed", "unknown"),
+            confidence=result.get("confidence", 0.0),
+            is_household_pet=result.get("is_household_pet", True),
+        )
+    except Exception as e:
+        logger.warning(f"Pet classification failed: {e}")
+        return None
+
+
+async def _run_depth_estimation(full_image: Image.Image, bbox: list[float]) -> DepthResult | None:
+    """Run depth estimation for an object in the image.
+
+    Uses on-demand model loading via the model manager.
+    """
+    if model_manager is None:
+        return None
+
+    try:
+        estimator = await model_manager.get_model("depth_estimator")
+        result = estimator.estimate_object_distance(full_image, bbox)
+        return DepthResult(
+            estimated_distance_m=result.get("estimated_distance_m", 0.0),
+            relative_depth=result.get("relative_depth", 0.5),
+            proximity_label=result.get("proximity_label", "unknown"),
+        )
+    except Exception as e:
+        logger.warning(f"Depth estimation failed: {e}")
+        return None
+
+
+@app.post("/enrich", response_model=EnrichmentResponse)
+async def enrich_detection(request: EnrichmentRequest) -> EnrichmentResponse:  # noqa: PLR0912
+    """Unified endpoint that runs appropriate models based on detection type.
+
+    This endpoint accepts detection context and returns all relevant enrichments
+    by automatically selecting appropriate models based on detection type.
+
+    Detection types and their models:
+    - person: pose, clothing, depth (threat and demographics are placeholders)
+    - vehicle: vehicle classification, depth
+    - animal: pet classification, depth
+    - object: depth only
+
+    Options:
+    - include_depth: Run depth estimation (default: False for person, True for others)
+    - include_pose: Run pose estimation for person (default: True)
+    - action_recognition: Run action recognition if frames provided (not yet implemented)
+    """
+    start_time = time.perf_counter()
+
+    try:
+        # Decode full image
+        full_image = decode_and_crop_image(request.image)
+
+        # Extract bbox as list
+        bbox_list = [request.bbox.x1, request.bbox.y1, request.bbox.x2, request.bbox.y2]
+
+        # Crop to bounding box
+        cropped_image = decode_and_crop_image(request.image, bbox_list)
+
+        # Initialize response fields
+        results: dict[str, Any] = {}
+        models_used: list[str] = []
+
+        # Determine which models to run based on detection type
+        detection_type = request.detection_type.lower()
+
+        if detection_type == "person":
+            # Run person-relevant models in parallel
+            tasks: list[tuple[str, Any]] = []
+
+            # Pose estimation (default: on)
+            if request.options.get("include_pose", True):
+                tasks.append(("pose", _run_pose_estimation(cropped_image)))
+
+            # Clothing analysis (always run for person)
+            tasks.append(("clothing", _run_clothing_classification(cropped_image)))
+
+            # Depth estimation (optional for person)
+            if request.options.get("include_depth", False):
+                tasks.append(("depth", _run_depth_estimation(full_image, bbox_list)))
+
+            # Run all tasks in parallel
+            if tasks:
+                task_names = [t[0] for t in tasks]
+                task_coros = [t[1] for t in tasks]
+                task_results = await asyncio.gather(*task_coros, return_exceptions=True)
+
+                for name, result in zip(task_names, task_results, strict=True):
+                    if isinstance(result, Exception):
+                        logger.warning(f"Task {name} failed with exception: {result}")
+                    elif result is not None:
+                        results[name] = result
+                        models_used.append(name)
+                        ENRICH_MODELS_USED.labels(model=name).inc()
+
+        elif detection_type == "vehicle":
+            # Run vehicle-relevant models
+            tasks = [
+                ("vehicle", _run_vehicle_classification(cropped_image)),
+                ("depth", _run_depth_estimation(full_image, bbox_list)),
+            ]
+
+            task_names = [t[0] for t in tasks]
+            task_coros = [t[1] for t in tasks]
+            task_results = await asyncio.gather(*task_coros, return_exceptions=True)
+
+            for name, result in zip(task_names, task_results, strict=True):
+                if isinstance(result, Exception):
+                    logger.warning(f"Task {name} failed with exception: {result}")
+                elif result is not None:
+                    results[name] = result
+                    models_used.append(name)
+                    ENRICH_MODELS_USED.labels(model=name).inc()
+
+        elif detection_type == "animal":
+            # Run animal-relevant models
+            tasks = [
+                ("pet", _run_pet_classification(cropped_image)),
+                ("depth", _run_depth_estimation(full_image, bbox_list)),
+            ]
+
+            task_names = [t[0] for t in tasks]
+            task_coros = [t[1] for t in tasks]
+            task_results = await asyncio.gather(*task_coros, return_exceptions=True)
+
+            for name, result in zip(task_names, task_results, strict=True):
+                if isinstance(result, Exception):
+                    logger.warning(f"Task {name} failed with exception: {result}")
+                elif result is not None:
+                    results[name] = result
+                    models_used.append(name)
+                    ENRICH_MODELS_USED.labels(model=name).inc()
+
+        elif detection_type == "object":
+            # For generic objects, only run depth estimation
+            depth_result = await _run_depth_estimation(full_image, bbox_list)
+            if depth_result is not None:
+                results["depth"] = depth_result
+                models_used.append("depth")
+                ENRICH_MODELS_USED.labels(model="depth").inc()
+
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid detection_type: {detection_type}. "
+                f"Must be one of: person, vehicle, animal, object",
+            )
+
+        inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="enrich").observe(inference_time_ms / 1000)
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="enrich", status="success").inc()
+
+        return EnrichmentResponse(
+            pose=results.get("pose"),
+            clothing=results.get("clothing"),
+            demographics=results.get("demographics"),
+            vehicle=results.get("vehicle"),
+            pet=results.get("pet"),
+            threat=results.get("threat"),
+            reid_embedding=results.get("reid_embedding"),
+            action=results.get("action"),
+            depth=results.get("depth"),
+            models_used=models_used,
+            inference_time_ms=round(inference_time_ms, 2),
+        )
+
+    except ValueError as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="enrich", status="error").inc()
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except HTTPException:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="enrich", status="error").inc()
+        raise
+    except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="enrich", status="error").inc()
+        logger.error(f"Unified enrichment failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Enrichment failed: {e!s}") from e
+
+
+# =============================================================================
+# Model Management Endpoints
+# =============================================================================
+
+# Track service start time for uptime calculation
+_service_start_time: float = time.time()
+
+
+@app.get("/models/status", response_model=SystemStatus)
+async def get_models_status() -> SystemStatus:
+    """Get detailed status of the model manager and all models.
+
+    Returns comprehensive status including:
+    - VRAM budget, usage, and availability
+    - List of loaded models with details
+    - Pending model loads
+    - Service uptime
+    """
+    if model_manager is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
+
+    # Get VRAM info
+    vram_total_mb = 0
+    vram_used_mb = 0
+    if torch.cuda.is_available():
+        vram_total_mb = int(torch.cuda.get_device_properties(0).total_memory / (1024**2))
+        vram_used_mb = int(torch.cuda.memory_allocated(0) / (1024**2))
+
+    vram_budget_mb = int(model_manager.vram_budget)
+
+    # Build loaded models list
+    loaded_models: list[DetailedModelStatus] = []
+    for name, info in model_manager.loaded_models.items():
+        loaded_models.append(
+            DetailedModelStatus(
+                name=name,
+                loaded=True,
+                vram_mb=info.vram_mb,
+                priority=info.priority.name,
+                last_used=info.last_used.isoformat(),
+            )
+        )
+
+    # Calculate uptime
+    uptime_seconds = time.time() - _service_start_time
+
+    # Determine overall status
+    status = "healthy" if model_manager is not None else "unhealthy"
+
+    return SystemStatus(
+        status=status,
+        vram_total_mb=vram_total_mb,
+        vram_used_mb=vram_used_mb,
+        vram_available_mb=vram_total_mb - vram_used_mb,
+        vram_budget_mb=vram_budget_mb,
+        loaded_models=loaded_models,
+        pending_loads=list(model_manager.pending_loads),
+        uptime_seconds=round(uptime_seconds, 2),
+    )
+
+
+@app.post("/models/preload", response_model=ModelPreloadResponse)
+async def preload_model(model_name: str) -> ModelPreloadResponse:
+    """Preload a model into VRAM for warming up.
+
+    This endpoint allows manual preloading of models before they are needed
+    for inference, reducing first-request latency.
+
+    Args:
+        model_name: Name of the model to preload (e.g., "vehicle_classifier",
+                   "pet_classifier", "fashion_clip", "depth_estimator", "pose_analyzer")
+
+    Returns:
+        Status of the preload operation
+    """
+    if model_manager is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
+
+    # Validate model name
+    if model_name not in model_manager.model_registry:
+        available_models = list(model_manager.model_registry.keys())
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown model: '{model_name}'. Available models: {available_models}",
+        )
+
+    try:
+        # Check if already loaded
+        if model_manager.is_loaded(model_name):
+            return ModelPreloadResponse(
+                status="already_loaded",
+                model=model_name,
+                message="Model is already loaded in VRAM",
+            )
+
+        # Load the model
+        await model_manager.get_model(model_name)
+
+        return ModelPreloadResponse(
+            status="loaded",
+            model=model_name,
+            message=f"Model '{model_name}' successfully loaded",
+        )
+
+    except RuntimeError as e:
+        # VRAM insufficient
+        raise HTTPException(
+            status_code=507,  # Insufficient Storage
+            detail=f"Failed to preload model: {e!s}",
+        ) from e
+    except Exception as e:
+        logger.error(f"Failed to preload model {model_name}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to preload model: {e!s}",
+        ) from e
+
+
+@app.post("/models/unload", response_model=ModelUnloadResponse)
+async def unload_model(model_name: str) -> ModelUnloadResponse:
+    """Explicitly unload a model from VRAM.
+
+    This endpoint allows manual unloading of models to free VRAM.
+
+    Args:
+        model_name: Name of the model to unload
+
+    Returns:
+        Status of the unload operation
+    """
+    if model_manager is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
+
+    if model_name not in model_manager.model_registry:
+        available_models = list(model_manager.model_registry.keys())
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown model: '{model_name}'. Available models: {available_models}",
+        )
+
+    if not model_manager.is_loaded(model_name):
+        return ModelUnloadResponse(
+            status="not_loaded",
+            model=model_name,
+        )
+
+    await model_manager.unload_model(model_name)
+
+    return ModelUnloadResponse(
+        status="unloaded",
+        model=model_name,
+    )
+
+
+@app.get("/models/registry", response_model=ModelRegistryResponse)
+async def get_model_registry() -> ModelRegistryResponse:
+    """Get list of all registered models and their configurations.
+
+    Returns all models that can be loaded on-demand, including their
+    VRAM requirements and current load status.
+    """
+    if model_manager is None:
+        raise HTTPException(status_code=503, detail="Model manager not initialized")
+
+    models: list[ModelRegistryEntry] = []
+    for name, config in model_manager.model_registry.items():
+        models.append(
+            ModelRegistryEntry(
+                name=name,
+                vram_mb=config.vram_mb,
+                priority=config.priority.name,
+                loaded=model_manager.is_loaded(name),
+            )
+        )
+
+    return ModelRegistryResponse(models=models)
+
+
+@app.get("/readiness", response_model=ReadinessResponse)
+async def readiness_probe() -> ReadinessResponse:
+    """Kubernetes readiness probe endpoint.
+
+    Returns whether the service is ready to accept requests.
+    With on-demand loading, ready means model manager is initialized.
+    """
+    gpu_available = torch.cuda.is_available()
+    manager_initialized = model_manager is not None
+
+    return ReadinessResponse(
+        ready=manager_initialized,
+        gpu_available=gpu_available,
+        model_manager_initialized=manager_initialized,
+    )
 
 
 if __name__ == "__main__":

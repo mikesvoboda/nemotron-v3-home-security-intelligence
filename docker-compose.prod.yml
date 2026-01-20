@@ -191,7 +191,7 @@ services:
               count: 1
               capabilities: [gpu]
 
-  # Combined enrichment service for vehicle, pet, and clothing classification
+  # Combined enrichment service for vehicle, pet, clothing, pose, threat, age, gender, reid, and action classification
   ai-enrichment:
     build:
       context: ./ai/enrichment
@@ -199,15 +199,34 @@ services:
     ports:
       - '8094:8094'
     volumes:
+      # Existing model volumes (now on-demand)
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
+      # New model volumes
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-age-classifier:/models/vit-age-classifier:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-gender-classifier:/models/vit-gender-classifier:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
     environment:
+      # Existing models (now on-demand)
       - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
       - PET_MODEL_PATH=/models/pet-classifier
       - CLOTHING_MODEL_PATH=/models/fashion-clip
       - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
+      # New models
+      - POSE_MODEL_PATH=/models/yolov8n-pose
+      - THREAT_MODEL_PATH=/models/threat-detection-yolov8n
+      - AGE_MODEL_PATH=/models/vit-age-classifier
+      - GENDER_MODEL_PATH=/models/vit-gender-classifier
+      - REID_MODEL_PATH=/models/osnet-x0-25
+      - ACTION_MODEL_PATH=/models/xclip-base-patch32
+      # VRAM management
+      - VRAM_BUDGET_GB=6.8
+      - MODEL_LOAD_TIMEOUT=30
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
       interval: 10s
