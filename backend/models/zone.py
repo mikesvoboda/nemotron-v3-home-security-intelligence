@@ -64,11 +64,15 @@ class Zone(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     zone_type: Mapped[ZoneType] = mapped_column(
-        Enum(ZoneType, name="zone_type_enum"), default=ZoneType.OTHER, nullable=False
+        Enum(ZoneType, name="zone_type_enum", values_callable=lambda obj: [e.value for e in obj]),
+        default=ZoneType.OTHER,
+        nullable=False,
     )
     coordinates: Mapped[list] = mapped_column(JSONB, nullable=False)
     shape: Mapped[ZoneShape] = mapped_column(
-        Enum(ZoneShape, name="zone_shape_enum"), default=ZoneShape.RECTANGLE, nullable=False
+        Enum(ZoneShape, name="zone_shape_enum", values_callable=lambda obj: [e.value for e in obj]),
+        default=ZoneShape.RECTANGLE,
+        nullable=False,
     )
     color: Mapped[str] = mapped_column(String(7), default="#3B82F6", nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
