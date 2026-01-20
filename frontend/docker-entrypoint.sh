@@ -74,12 +74,16 @@ HTTP_LOCATIONS='
     }
 
     # Reverse proxy for Grafana dashboards (enables remote access via /grafana/)
-    # Strips /grafana prefix and forwards to Grafana container
+    # Grafana is configured with GF_SERVER_SERVE_FROM_SUB_PATH=true, so it expects /grafana/ prefix
     # This allows embedding Grafana dashboards in iframes from any host
+    # Uses nginx variable for dynamic DNS re-resolution (survives container IP changes)
     location ^~ /grafana/ {
-        # Rewrite /grafana/... to /... for Grafana
-        rewrite ^/grafana/(.*) /$1 break;
-        proxy_pass '"${GRAFANA_UPSTREAM}"';
+        # Dynamic DNS resolution - re-resolves hostname on each request
+        # This prevents 502 errors when Grafana container is recreated with new IP
+        resolver __DNS_RESOLVER__ valid=10s ipv6=off;
+        set $grafana_upstream '"${GRAFANA_UPSTREAM}"';
+        proxy_pass $grafana_upstream;
+
         proxy_http_version 1.1;
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -297,9 +301,10 @@ server {
     add_header Referrer-Policy \"strict-origin-when-cross-origin\" always;
 
     # Content Security Policy - restrict resource loading
+    # Note: 'unsafe-inline' and 'unsafe-eval' for scripts required by Grafana dashboards
     # Note: 'unsafe-inline' for styles is required by Tailwind/Tremor
     # Note: frame-src 'self' allows Grafana embeds via nginx proxy at /grafana/
-    add_header Content-Security-Policy \"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;\" always;
+    add_header Content-Security-Policy \"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;\" always;
 
     # Permissions Policy - restrict browser features
     add_header Permissions-Policy \"accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()\" always;
@@ -341,9 +346,11 @@ server {
     }
 
     # Reverse proxy for Grafana dashboards (enables remote access via /grafana/)
+    # Grafana is configured with GF_SERVER_SERVE_FROM_SUB_PATH=true, so it expects /grafana/ prefix
+    # Uses nginx variable for dynamic DNS re-resolution (survives container IP changes)
     location ^~ /grafana/ {
-        rewrite ^/grafana/(.*) /\$1 break;
-        proxy_pass ${GRAFANA_UPSTREAM};
+        set \$grafana_upstream ${GRAFANA_UPSTREAM};
+        proxy_pass \$grafana_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;

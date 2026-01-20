@@ -15,6 +15,7 @@ import { BarChart3, RefreshCw, ExternalLink, AlertCircle, AlertTriangle } from '
 import { useEffect, useState, useRef, useCallback } from 'react';
 
 import { fetchConfig } from '../../services/api';
+import { resolveGrafanaUrl } from '../../utils/grafanaUrl';
 import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
 
 /**
@@ -27,14 +28,15 @@ export default function AnalyticsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Fetch Grafana URL from config
+  // Fetch Grafana URL from config and resolve for remote access
   useEffect(() => {
     const loadConfig = async () => {
       try {
         const config = await fetchConfig();
         const configWithGrafana = config as typeof config & { grafana_url?: string };
         if (configWithGrafana.grafana_url) {
-          setGrafanaUrl(configWithGrafana.grafana_url);
+          const resolvedUrl = resolveGrafanaUrl(configWithGrafana.grafana_url);
+          setGrafanaUrl(resolvedUrl);
         }
         setIsLoading(false);
       } catch (err) {

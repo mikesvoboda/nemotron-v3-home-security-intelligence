@@ -524,7 +524,8 @@ async def test_full_pipeline_single_image(
     # Pass camera_id and detection_ids directly (as queue worker does after fix)
     # This tests the fixed handoff where close_batch deletes Redis keys but
     # the queue payload contains all needed data
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
+    # Disable enrichment pipeline to avoid loading YOLO models in CI
+    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
 
     # Mock _call_llm directly (more reliable than mocking httpx.AsyncClient)
     async def mock_call_llm(*args, **kwargs):
@@ -635,7 +636,8 @@ async def test_full_pipeline_multiple_images_same_camera(
     assert batch_summary["detection_count"] == 3
 
     # Analyze batch - pass camera_id and detection_ids directly (as queue worker does after fix)
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
+    # Disable enrichment pipeline to avoid loading YOLO models in CI
+    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
 
     # Mock _call_llm directly (more reliable than mocking httpx.AsyncClient)
     async def mock_call_llm(*args, **kwargs):
@@ -1170,7 +1172,8 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     # Step 5: Simulate AnalysisQueueWorker processing - use queue payload directly
     # This is exactly what the fixed worker does: pass camera_id and detection_ids
     # from the queue item instead of reading from Redis
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
+    # Disable enrichment pipeline to avoid loading YOLO models in CI
+    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
 
     # Mock _call_llm directly (more reliable than mocking httpx.AsyncClient)
     async def mock_call_llm(*args, **kwargs):
