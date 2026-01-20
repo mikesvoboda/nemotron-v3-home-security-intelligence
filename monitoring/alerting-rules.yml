@@ -122,6 +122,47 @@ groups:
           summary: 'HSI GPU utilization unexpectedly low'
           description: 'GPU utilization is below 10% while detections are happening. May indicate processing issues.'
 
+      # Critical: GPU temperature throttling
+      - alert: AIGPUThrottling
+        expr: hsi_gpu_temperature > 83
+        for: 1m
+        labels:
+          severity: critical
+          component: gpu
+        annotations:
+          summary: 'GPU temperature causing thermal throttling'
+          description: 'GPU temperature is {{ $value }}°C, exceeding the 83°C throttling threshold. Performance is degraded.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-throttling'
+
+      # Critical: GPU clock degradation (>20% below baseline)
+      - alert: AIGPUClockDegradation
+        expr: |
+          hsi_gpu_clock_speed_mhz < 1200
+          and
+          hsi_gpu_utilization > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+        annotations:
+          summary: 'GPU clock speed significantly degraded'
+          description: 'GPU clock speed is {{ $value }}MHz while under load (>50% utilization). Expected ~1500MHz. Possible thermal or power throttling.'
+
+      # Critical: GPU power draw anomaly (too low = card not working)
+      - alert: AIGPUPowerAnomaly
+        expr: |
+          hsi_gpu_power_draw_watts < 30
+          and
+          hsi_gpu_utilization > 50
+        for: 2m
+        labels:
+          severity: critical
+          component: gpu
+        annotations:
+          summary: 'GPU power draw abnormally low under load'
+          description: 'GPU drawing only {{ $value }}W despite >50% utilization. Card may be malfunctioning.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-power-anomaly'
+
   # Queue Alerts
   - name: queue_alerts
     rules:
@@ -630,3 +671,244 @@ groups:
           summary: 'All pipeline workers are in failed state'
           description: 'All registered pipeline workers have failed. The AI processing pipeline is completely stopped.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/all-workers-failing'
+
+  # =============================================================================
+  # Circuit Breaker Alerts
+  # =============================================================================
+  # Monitor circuit breaker state to detect service degradation and cascading failures.
+  # Circuit breaker states: 0=closed (healthy), 1=open (failing), 2=half-open (testing)
+  - name: circuit_breaker_alerts
+    rules:
+      # Critical: Circuit breaker is open (service is failing)
+      - alert: HSICircuitBreakerOpen
+        expr: hsi_circuit_breaker_state == 1
+        for: 30s
+        labels:
+          severity: critical
+          component: circuit_breaker
+          service: '{{ $labels.service }}'
+        annotations:
+          summary: 'Circuit breaker OPEN for {{ $labels.service }}'
+          description: 'Circuit breaker for {{ $labels.service }} is in OPEN state, rejecting all calls. The downstream service has exceeded the failure threshold.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/circuit-breaker-open'
+
+      # Warning: Circuit breaker stuck in half-open state
+      - alert: HSICircuitBreakerHalfOpenStuck
+        expr: hsi_circuit_breaker_state == 2
+        for: 5m
+        labels:
+          severity: warning
+          component: circuit_breaker
+          service: '{{ $labels.service }}'
+        annotations:
+          summary: 'Circuit breaker stuck in HALF-OPEN for {{ $labels.service }}'
+          description: 'Circuit breaker for {{ $labels.service }} has been in HALF-OPEN state for >5 minutes. Recovery probes may be failing consistently.'
+
+      # Critical: High circuit breaker trip rate (>3 trips in 15m)
+      - alert: HSICircuitBreakerTripRate
+        expr: |
+          changes(hsi_circuit_breaker_state[15m]) > 6
+        for: 1m
+        labels:
+          severity: critical
+          component: circuit_breaker
+          service: '{{ $labels.service }}'
+        annotations:
+          summary: 'Circuit breaker for {{ $labels.service }} is flapping'
+          description: 'Circuit breaker for {{ $labels.service }} has changed state {{ $value }} times in 15 minutes. Service is unstable.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/circuit-breaker-flapping'
+
+      # Warning: Circuit breaker failure rate increasing
+      - alert: HSICircuitBreakerFailureRate
+        expr: |
+          rate(hsi_circuit_breaker_failures_total[5m])
+          /
+          (rate(hsi_circuit_breaker_calls_total[5m]) + 0.001) > 0.3
+        for: 2m
+        labels:
+          severity: warning
+          component: circuit_breaker
+          service: '{{ $labels.service }}'
+        annotations:
+          summary: 'High failure rate for {{ $labels.service }}'
+          description: 'Circuit breaker for {{ $labels.service }} is seeing >30% failure rate. May trip soon.'
+
+  # =============================================================================
+  # LLM/Inference Alerts
+  # =============================================================================
+  # Monitor LLM throughput, queue depth, and processing health.
+  - name: llm_inference_alerts
+    rules:
+      # Critical: LLM inference throughput is zero
+      - alert: NemotronThroughputZero
+        expr: |
+          rate(hsi_nemotron_tokens_generated_total[5m]) == 0
+          and
+          hsi_nemotron_queue_depth > 0
+        for: 2m
+        labels:
+          severity: critical
+          component: llm
+          service: nemotron
+        annotations:
+          summary: 'Nemotron LLM generating zero tokens with queued work'
+          description: 'Nemotron has items queued ({{ $labels.queue_depth }}) but is not generating any tokens. LLM inference may be stuck.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/llm-throughput-zero'
+
+      # Warning: LLM throughput degraded (>50% drop)
+      - alert: NemotronThroughputDegraded
+        expr: |
+          rate(hsi_nemotron_tokens_generated_total[5m]) < 100
+          and
+          hsi_nemotron_queue_depth > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: llm
+          service: nemotron
+        annotations:
+          summary: 'Nemotron LLM throughput degraded'
+          description: 'Nemotron is generating only {{ $value }} tokens/sec with queue backing up. Expected >500 tokens/sec under load.'
+
+      # Critical: Detection processing stalled
+      - alert: HSIDetectionProcessingStalled
+        expr: |
+          rate(hsi_detections_processed_total[5m]) == 0
+          and
+          hsi_detection_queue_depth > 0
+        for: 3m
+        labels:
+          severity: critical
+          component: detection
+          service: pipeline
+        annotations:
+          summary: 'Detection processing has stalled'
+          description: 'No detections processed in 5 minutes despite {{ $value }} items in queue. Pipeline may be blocked.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/detection-stalled'
+
+      # Warning: Low detection throughput
+      - alert: HSILowDetectionThroughput
+        expr: |
+          rate(hsi_detections_processed_total[10m]) < 0.1
+          and
+          hsi_detection_queue_depth > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: detection
+          service: pipeline
+        annotations:
+          summary: 'Detection throughput below threshold'
+          description: 'Processing <1 detection per 10 seconds while queue has {{ $value }} items. Pipeline may be degraded.'
+
+      # Critical: LLM queue critically backed up
+      - alert: NemotronQueueCritical
+        expr: hsi_nemotron_queue_depth > 50
+        for: 2m
+        labels:
+          severity: critical
+          component: llm
+          service: nemotron
+        annotations:
+          summary: 'Nemotron queue critically backed up'
+          description: 'Nemotron analysis queue has {{ $value }} items, >50 threshold. Real-time analysis severely delayed.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/llm-queue-critical'
+
+      # Warning: Prompt tokens unusually high (possible prompt injection or context overflow)
+      - alert: NemotronPromptOverflow
+        expr: |
+          rate(hsi_nemotron_prompt_tokens_total[5m])
+          /
+          (rate(hsi_nemotron_tokens_generated_total[5m]) + 0.001) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: llm
+          service: nemotron
+        annotations:
+          summary: 'Unusually high prompt-to-generation token ratio'
+          description: 'Prompt tokens are 10x higher than generated tokens. May indicate context overflow or prompt issues.'
+
+  # =============================================================================
+  # Database and Cache Cascade Alerts
+  # =============================================================================
+  # Monitor for database/cache cascade failures that could bring down the system.
+  - name: database_cache_cascade_alerts
+    rules:
+      # Critical: Database AND Redis both unhealthy = cascade failure
+      - alert: HSIDatabaseCacheCascadeFailure
+        expr: |
+          hsi_database_healthy_unhealthy > 0
+          and
+          up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: infrastructure
+          service: data_layer
+        annotations:
+          summary: 'Database AND Cache both failing - cascade failure'
+          description: 'Both PostgreSQL and Redis are unhealthy simultaneously. System cannot function. Immediate intervention required.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/cascade-failure'
+
+      # Warning: Cache hit ratio degraded
+      - alert: HSICacheHitRatioDegraded
+        expr: |
+          (
+            rate(hsi_redis_cache_hits_total[5m])
+            /
+            (rate(hsi_redis_cache_hits_total[5m]) + rate(hsi_redis_cache_misses_total[5m]) + 0.001)
+          ) < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: cache
+          service: redis
+        annotations:
+          summary: 'Cache hit ratio below 50%'
+          description: 'Redis cache hit ratio is {{ $value | humanizePercentage }}. Database load will be elevated.'
+
+      # Critical: Cache hit ratio critically low
+      - alert: HSICacheHitRatioCritical
+        expr: |
+          (
+            rate(hsi_redis_cache_hits_total[5m])
+            /
+            (rate(hsi_redis_cache_hits_total[5m]) + rate(hsi_redis_cache_misses_total[5m]) + 0.001)
+          ) < 0.2
+        for: 5m
+        labels:
+          severity: critical
+          component: cache
+          service: redis
+        annotations:
+          summary: 'Cache hit ratio critically low (<20%)'
+          description: 'Redis cache hit ratio is {{ $value | humanizePercentage }}. Database is being hammered. Risk of cascade failure.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/cache-hit-ratio-critical'
+
+      # Warning: Database query latency spike
+      - alert: HSIDatabaseLatencySpike
+        expr: |
+          histogram_quantile(0.99, rate(hsi_db_query_duration_seconds_bucket[5m])) > 5
+        for: 3m
+        labels:
+          severity: warning
+          component: database
+          service: postgresql
+        annotations:
+          summary: 'Database P99 latency spike (>5s)'
+          description: 'P99 database query latency is {{ $value }}s. Slowest queries are taking too long.'
+
+      # Critical: Database latency extreme
+      - alert: HSIDatabaseLatencyExtreme
+        expr: |
+          histogram_quantile(0.95, rate(hsi_db_query_duration_seconds_bucket[5m])) > 10
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+          service: postgresql
+        annotations:
+          summary: 'Database P95 latency critically high (>10s)'
+          description: 'P95 database query latency is {{ $value }}s. Database is severely degraded.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/database-latency-extreme'
