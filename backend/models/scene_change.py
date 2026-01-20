@@ -70,7 +70,7 @@ class SceneChange(Base):
         DateTime(timezone=True), default=utc_now, nullable=False
     )
     change_type: Mapped[SceneChangeType] = mapped_column(
-        Enum(SceneChangeType, name="scene_change_type_enum"),
+        Enum(SceneChangeType, name="scene_change_type_enum", values_callable=lambda obj: [e.value for e in obj]),
         default=SceneChangeType.UNKNOWN,
         nullable=False,
     )

@@ -19,6 +19,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
+  "id": 3,
   "links": [],
   "liveNow": true,
   "panels": [
@@ -82,7 +83,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -147,7 +150,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -212,7 +217,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -277,7 +284,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -341,7 +350,9 @@
       "options": {
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -409,7 +420,9 @@
         "minVizWidth": 0,
         "orientation": "horizontal",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -537,7 +550,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -619,7 +634,11 @@
       "id": 12,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "min", "max"],
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -700,7 +719,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -806,7 +827,9 @@
       "id": 14,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -891,7 +914,11 @@
       "id": 15,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "min", "max"],
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -976,7 +1003,11 @@
       "id": 16,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "min", "max"],
+          "calcs": [
+            "lastNotNull",
+            "min",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -1028,164 +1059,617 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {"color": "#73BF69", "value": null},
-              {"color": "#FF9830", "value": 1},
-              {"color": "#F2495C", "value": 5}
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 1
+              },
+              {
+                "color": "#F2495C",
+                "value": 5
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 66},
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 0,
+        "y": 66
+      },
       "id": 291,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
         "justifyMode": "center",
         "orientation": "auto",
-        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
         "textMode": "auto"
       },
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "alertmanager_alerts{state=\"active\"}", "legendFormat": "Active", "refId": "A"}],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "alertmanager_alerts{state=\"active\"}",
+          "legendFormat": "Active",
+          "refId": "A"
+        }
+      ],
       "title": "Active Alerts",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Alerts suppressed by silences or inhibition rules",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}, {"color": "#FADE2A", "value": 1}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FADE2A",
+                "value": 1
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 66},
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 8,
+        "y": 66
+      },
       "id": 292,
-      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "alertmanager_alerts{state=\"suppressed\"}", "legendFormat": "Suppressed", "refId": "A"}],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "alertmanager_alerts{state=\"suppressed\"}",
+          "legendFormat": "Suppressed",
+          "refId": "A"
+        }
+      ],
       "title": "Suppressed Alerts",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Alertmanager configuration reload status",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
-          "mappings": [{"options": {"0": {"color": "#F2495C", "index": 1, "text": "Failed"}, "1": {"color": "#73BF69", "index": 0, "text": "OK"}}, "type": "value"}],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#F2495C", "value": null}, {"color": "#73BF69", "value": 1}]},
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "#F2495C",
+                  "index": 1,
+                  "text": "Failed"
+                },
+                "1": {
+                  "color": "#73BF69",
+                  "index": 0,
+                  "text": "OK"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F2495C",
+                "value": null
+              },
+              {
+                "color": "#73BF69",
+                "value": 1
+              }
+            ]
+          },
           "unit": "none"
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 66},
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 66
+      },
       "id": 293,
-      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "alertmanager_config_last_reload_successful", "legendFormat": "Config Status", "refId": "A"}],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "alertmanager_config_last_reload_successful",
+          "legendFormat": "Config Status",
+          "refId": "A"
+        }
+      ],
       "title": "Config Status",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Webhook notification success rate",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "decimals": 1,
           "mappings": [],
           "max": 100,
           "min": 0,
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#F2495C", "value": null}, {"color": "#FF9830", "value": 80}, {"color": "#73BF69", "value": 95}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F2495C",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 80
+              },
+              {
+                "color": "#73BF69",
+                "value": 95
+              }
+            ]
+          },
           "unit": "percent"
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 71},
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 0,
+        "y": 71
+      },
       "id": 294,
-      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "100 * (1 - (rate(alertmanager_notification_requests_failed_total{integration=\"webhook\"}[5m]) / rate(alertmanager_notification_requests_total{integration=\"webhook\"}[5m])))", "legendFormat": "Success %", "refId": "A"}],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "100 * (1 - (rate(alertmanager_notification_requests_failed_total{integration=\"webhook\"}[5m]) / rate(alertmanager_notification_requests_total{integration=\"webhook\"}[5m])))",
+          "legendFormat": "Success %",
+          "refId": "A"
+        }
+      ],
       "title": "Webhook Success Rate",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Total notification failures",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}, {"color": "#FF9830", "value": 10}, {"color": "#F2495C", "value": 50}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 10
+              },
+              {
+                "color": "#F2495C",
+                "value": 50
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 71},
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 8,
+        "y": 71
+      },
       "id": 295,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "sum(alertmanager_notification_requests_failed_total)", "legendFormat": "Total Failures", "refId": "A"}],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "sum(alertmanager_notification_requests_failed_total)",
+          "legendFormat": "Total Failures",
+          "refId": "A"
+        }
+      ],
       "title": "Total Failures",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Number of configured alert receivers",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 71},
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 71
+      },
       "id": 296,
-      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "alertmanager_receivers", "legendFormat": "Receivers", "refId": "A"}],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "alertmanager_receivers",
+          "legendFormat": "Receivers",
+          "refId": "A"
+        }
+      ],
       "title": "Receivers",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Alert rate over time (firing vs resolved)",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 30, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
           "unit": "short"
         },
-        "overrides": [{"matcher": {"id": "byName", "options": "Firing"}, "properties": [{"id": "color", "value": {"fixedColor": "#F2495C", "mode": "fixed"}}]}, {"matcher": {"id": "byName", "options": "Resolved"}, "properties": [{"id": "color", "value": {"fixedColor": "#73BF69", "mode": "fixed"}}]}]
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Firing"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#F2495C",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Resolved"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#73BF69",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 76},
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 76
+      },
       "id": 297,
-      "options": {"legend": {"calcs": ["sum", "mean"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(alertmanager_alerts_received_total{status=\"firing\"}[5m])", "legendFormat": "Firing", "refId": "A"}, {"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(alertmanager_alerts_received_total{status=\"resolved\"}[5m])", "legendFormat": "Resolved", "refId": "B"}],
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "rate(alertmanager_alerts_received_total{status=\"firing\"}[5m])",
+          "legendFormat": "Firing",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "rate(alertmanager_alerts_received_total{status=\"resolved\"}[5m])",
+          "legendFormat": "Resolved",
+          "refId": "B"
+        }
+      ],
       "title": "Alert Rate (Firing vs Resolved)",
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Notification failures by integration type",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 30, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "normal"}, "thresholdsStyle": {"mode": "off"}},
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 76},
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 76
+      },
       "id": 298,
-      "options": {"legend": {"calcs": ["sum", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(alertmanager_notification_requests_failed_total[5m])", "legendFormat": "{{integration}}", "refId": "A"}],
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "rate(alertmanager_notification_requests_failed_total[5m])",
+          "legendFormat": "{{integration}}",
+          "refId": "A"
+        }
+      ],
       "title": "Notification Failures by Integration",
       "type": "timeseries"
     },
@@ -1272,7 +1756,11 @@
       "id": 21,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -1377,7 +1865,11 @@
       "id": 22,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -1534,7 +2026,11 @@
       "id": 25,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "right",
           "showLegend": true
@@ -1660,7 +2156,11 @@
       "id": 31,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -1755,7 +2255,11 @@
       "id": 32,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -1849,7 +2353,11 @@
       "id": 33,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -1943,7 +2451,11 @@
       "id": 34,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -2060,7 +2572,9 @@
       "id": 35,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -2156,7 +2670,11 @@
       "id": 251,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -2269,7 +2787,10 @@
               {
                 "id": "custom.lineStyle",
                 "value": {
-                  "dash": [10, 10],
+                  "dash": [
+                    10,
+                    10
+                  ],
                   "fill": "dash"
                 }
               },
@@ -2293,7 +2814,11 @@
       "id": 252,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -2381,7 +2906,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -2485,7 +3012,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -2549,7 +3078,9 @@
       "options": {
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -2607,7 +3138,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -2690,7 +3223,11 @@
       "id": 257,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -2787,7 +3324,11 @@
       "id": 258,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -2898,7 +3439,10 @@
               {
                 "id": "custom.lineStyle",
                 "value": {
-                  "dash": [10, 10],
+                  "dash": [
+                    10,
+                    10
+                  ],
                   "fill": "dash"
                 }
               },
@@ -2922,7 +3466,11 @@
       "id": 259,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -3000,7 +3548,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -3065,7 +3615,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -3130,7 +3682,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -3187,7 +3741,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -3270,7 +3826,11 @@
       "id": 240,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -3400,7 +3960,11 @@
       "id": 41,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -3505,7 +4069,11 @@
       "id": 42,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -3595,7 +4163,11 @@
       "id": 43,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -3700,7 +4272,11 @@
       "id": 44,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -3790,7 +4366,11 @@
       "id": 45,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -3894,7 +4474,10 @@
       "id": 46,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean"],
+          "calcs": [
+            "lastNotNull",
+            "mean"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -4011,7 +4594,11 @@
       "id": 47,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -4166,7 +4753,11 @@
       "id": 48,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -4301,7 +4892,11 @@
       "id": 271,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -4381,7 +4976,9 @@
       "options": {
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -4472,7 +5069,9 @@
       "options": {
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -4564,7 +5163,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -4709,7 +5310,9 @@
         "footer": {
           "countRows": false,
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
@@ -4839,7 +5442,9 @@
         "footer": {
           "countRows": false,
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true,
@@ -5059,7 +5664,11 @@
       "id": 51,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -5154,7 +5763,11 @@
       "id": 52,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -5240,7 +5853,11 @@
       "id": 53,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -5326,7 +5943,11 @@
       "id": 54,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -5412,7 +6033,11 @@
       "id": 55,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -5498,7 +6123,11 @@
       "id": 56,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -5606,7 +6235,11 @@
       "id": 61,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -5693,7 +6326,11 @@
       "id": 62,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -5840,7 +6477,11 @@
       "id": 63,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -5927,7 +6568,11 @@
       "id": 64,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -6013,7 +6658,11 @@
       "id": 65,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -6100,7 +6749,11 @@
       "id": 66,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -6187,7 +6840,11 @@
       "id": 67,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -6277,7 +6934,11 @@
       "id": 68,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -6399,7 +7060,11 @@
       "id": 71,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -6486,7 +7151,11 @@
       "id": 72,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -6577,7 +7246,11 @@
       "id": 73,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -6664,7 +7337,11 @@
       "id": 74,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -6758,7 +7435,11 @@
       "id": 75,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -6852,7 +7533,11 @@
       "id": 76,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -6938,7 +7623,11 @@
       "id": 77,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -7025,7 +7714,11 @@
       "id": 78,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -7050,61 +7743,238 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Current number of images waiting in the detection queue",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}, {"color": "#FF9830", "value": 50}, {"color": "#F2495C", "value": 100}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 50
+              },
+              {
+                "color": "#F2495C",
+                "value": 100
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 470},
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 470
+      },
       "id": 304,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "hsi_detection_queue_depth", "legendFormat": "Detection Queue", "refId": "A"}],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_detection_queue_depth",
+          "legendFormat": "Detection Queue",
+          "refId": "A"
+        }
+      ],
       "title": "Detection Queue Depth",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Current number of batches waiting in the analysis queue",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}, {"color": "#FF9830", "value": 10}, {"color": "#F2495C", "value": 25}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 10
+              },
+              {
+                "color": "#F2495C",
+                "value": 25
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 470},
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 470
+      },
       "id": 305,
-      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "hsi_analysis_queue_depth", "legendFormat": "Analysis Queue", "refId": "A"}],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_analysis_queue_depth",
+          "legendFormat": "Analysis Queue",
+          "refId": "A"
+        }
+      ],
       "title": "Analysis Queue Depth",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Queue depth trends over time",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 30, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
           "mappings": [],
           "min": 0,
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 470},
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 470
+      },
       "id": 306,
-      "options": {"legend": {"calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "hsi_detection_queue_depth", "legendFormat": "Detection Queue", "refId": "A"}, {"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "hsi_analysis_queue_depth", "legendFormat": "Analysis Queue", "refId": "B"}],
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_detection_queue_depth",
+          "legendFormat": "Detection Queue",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_analysis_queue_depth",
+          "legendFormat": "Analysis Queue",
+          "refId": "B"
+        }
+      ],
       "title": "Queue Depth Trends",
       "type": "timeseries"
     },
@@ -7178,7 +8048,9 @@
         "justifyMode": "center",
         "orientation": "horizontal",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -7262,7 +8134,9 @@
       "id": 180,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -7356,7 +8230,10 @@
       "id": 181,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "max"],
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -7426,7 +8303,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -7493,7 +8372,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -7586,7 +8467,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -7653,7 +8536,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -7738,7 +8623,10 @@
       "id": 125,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -7782,61 +8670,237 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Total worker restarts by worker name",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}, {"color": "#FF9830", "value": 5}, {"color": "#F2495C", "value": 10}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 5
+              },
+              {
+                "color": "#F2495C",
+                "value": 10
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 515},
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 515
+      },
       "id": 307,
-      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "sum(hsi_worker_restarts_total)", "legendFormat": "Total Restarts", "refId": "A"}],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "sum(hsi_worker_restarts_total)",
+          "legendFormat": "Total Restarts",
+          "refId": "A"
+        }
+      ],
       "title": "Total Worker Restarts",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Total worker crashes by worker name",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}, {"color": "#FF9830", "value": 1}, {"color": "#F2495C", "value": 5}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 1
+              },
+              {
+                "color": "#F2495C",
+                "value": 5
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 515},
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 515
+      },
       "id": 308,
-      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "sum(hsi_worker_crashes_total)", "legendFormat": "Total Crashes", "refId": "A"}],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "sum(hsi_worker_crashes_total)",
+          "legendFormat": "Total Crashes",
+          "refId": "A"
+        }
+      ],
       "title": "Total Worker Crashes",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Worker restarts and crashes over time by worker",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 30, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
           "mappings": [],
           "min": 0,
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 515},
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 515
+      },
       "id": 309,
-      "options": {"legend": {"calcs": ["sum", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(hsi_worker_restarts_total[5m])", "legendFormat": "{{worker_name}} restarts", "refId": "A"}, {"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(hsi_worker_crashes_total[5m])", "legendFormat": "{{worker_name}} crashes", "refId": "B"}],
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "rate(hsi_worker_restarts_total[5m])",
+          "legendFormat": "{{worker_name}} restarts",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "rate(hsi_worker_crashes_total[5m])",
+          "legendFormat": "{{worker_name}} crashes",
+          "refId": "B"
+        }
+      ],
       "title": "Worker Restart/Crash Rate",
       "type": "timeseries"
     },
@@ -7915,7 +8979,11 @@
       "id": 81,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -7995,7 +9063,9 @@
         "barWidth": 0.8,
         "groupWidth": 0.7,
         "legend": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -8087,7 +9157,11 @@
       "id": 83,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -8192,7 +9266,11 @@
       "id": 84,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -8297,7 +9375,11 @@
       "id": 85,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -8402,7 +9484,11 @@
       "id": 86,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -8507,7 +9593,11 @@
       "id": 87,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -8594,7 +9684,11 @@
       "id": 88,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -8699,7 +9793,11 @@
       "id": 182,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -8808,7 +9906,11 @@
       "id": 89,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -8894,7 +9996,11 @@
       "id": 90,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -9062,7 +10168,9 @@
         "minVizWidth": 0,
         "orientation": "horizontal",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -9178,7 +10286,10 @@
               {
                 "id": "custom.lineStyle",
                 "value": {
-                  "dash": [10, 10],
+                  "dash": [
+                    10,
+                    10
+                  ],
                   "fill": "dash"
                 }
               }
@@ -9207,7 +10318,10 @@
       "id": 102,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "right",
           "showLegend": true
@@ -9318,7 +10432,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -9385,7 +10501,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -9452,7 +10570,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -9537,7 +10657,10 @@
       "id": 114,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -9572,85 +10695,301 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Estimated monthly cost based on current usage",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}, {"color": "#FF9830", "value": 50}, {"color": "#F2495C", "value": 100}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 50
+              },
+              {
+                "color": "#F2495C",
+                "value": 100
+              }
+            ]
+          },
           "unit": "currencyUSD"
         },
         "overrides": []
       },
-      "gridPos": {"h": 6, "w": 4, "x": 0, "y": 652},
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 0,
+        "y": 652
+      },
       "id": 300,
-      "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "hsi_monthly_cost_usd", "legendFormat": "Monthly Cost", "refId": "A"}],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_monthly_cost_usd",
+          "legendFormat": "Monthly Cost",
+          "refId": "A"
+        }
+      ],
       "title": "Monthly Cost",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Daily budget utilization ratio (0-1)",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "decimals": 1,
           "mappings": [],
           "max": 1,
           "min": 0,
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}, {"color": "#FF9830", "value": 0.8}, {"color": "#F2495C", "value": 1}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 0.8
+              },
+              {
+                "color": "#F2495C",
+                "value": 1
+              }
+            ]
+          },
           "unit": "percentunit"
         },
         "overrides": []
       },
-      "gridPos": {"h": 6, "w": 4, "x": 4, "y": 652},
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 4,
+        "y": 652
+      },
       "id": 301,
-      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "hsi_budget_utilization_ratio{period=\"daily\"}", "legendFormat": "Daily Budget", "refId": "A"}],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_budget_utilization_ratio{period=\"daily\"}",
+          "legendFormat": "Daily Budget",
+          "refId": "A"
+        }
+      ],
       "title": "Daily Budget Used",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Monthly budget utilization ratio (0-1)",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "thresholds"},
+          "color": {
+            "mode": "thresholds"
+          },
           "decimals": 1,
           "mappings": [],
           "max": 1,
           "min": 0,
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}, {"color": "#FF9830", "value": 0.8}, {"color": "#F2495C", "value": 1}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              },
+              {
+                "color": "#FF9830",
+                "value": 0.8
+              },
+              {
+                "color": "#F2495C",
+                "value": 1
+              }
+            ]
+          },
           "unit": "percentunit"
         },
         "overrides": []
       },
-      "gridPos": {"h": 6, "w": 4, "x": 8, "y": 652},
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 8,
+        "y": 652
+      },
       "id": 302,
-      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "hsi_budget_utilization_ratio{period=\"monthly\"}", "legendFormat": "Monthly Budget", "refId": "A"}],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "hsi_budget_utilization_ratio{period=\"monthly\"}",
+          "legendFormat": "Monthly Budget",
+          "refId": "A"
+        }
+      ],
       "title": "Monthly Budget Used",
       "type": "stat"
     },
     {
-      "datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"},
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
       "description": "Total Nemotron token cost in USD",
       "fieldConfig": {
         "defaults": {
-          "color": {"mode": "palette-classic"},
-          "custom": {"axisCenteredZero": false, "axisColorMode": "text", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 30, "gradientMode": "opacity", "hideFrom": {"legend": false, "tooltip": false, "viz": false}, "lineInterpolation": "smooth", "lineWidth": 2, "pointSize": 5, "scaleDistribution": {"type": "linear"}, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}},
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
           "mappings": [],
-          "thresholds": {"mode": "absolute", "steps": [{"color": "#73BF69", "value": null}]},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
           "unit": "currencyUSD"
         },
         "overrides": []
       },
-      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 652},
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 652
+      },
       "id": 303,
-      "options": {"legend": {"calcs": ["sum", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
-      "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(hsi_nemotron_token_cost_usd_total[5m])", "legendFormat": "{{camera_id}}", "refId": "A"}],
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum",
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "rate(hsi_nemotron_token_cost_usd_total[5m])",
+          "legendFormat": "{{camera_id}}",
+          "refId": "A"
+        }
+      ],
       "title": "Token Cost Rate by Camera",
       "type": "timeseries"
     },
@@ -9724,7 +11063,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -9802,7 +11143,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -9880,7 +11223,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -9958,7 +11303,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10037,7 +11384,9 @@
       "options": {
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10123,7 +11472,10 @@
       "id": 142,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -10193,7 +11545,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10259,7 +11613,9 @@
       "options": {
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10340,7 +11696,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10407,7 +11765,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10474,7 +11834,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10541,7 +11903,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10626,7 +11990,9 @@
         "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10699,7 +12065,9 @@
         "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10772,7 +12140,9 @@
         "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10845,7 +12215,9 @@
         "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10917,7 +12289,9 @@
         "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -10989,7 +12363,9 @@
         "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -11083,7 +12459,10 @@
       "id": 207,
       "options": {
         "legend": {
-          "calcs": ["mean", "lastNotNull"],
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
@@ -11204,7 +12583,10 @@
       "id": 208,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
@@ -11316,7 +12698,10 @@
       "id": 209,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
@@ -11419,7 +12804,10 @@
       "id": 210,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
@@ -11522,7 +12910,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -11599,7 +12989,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -11676,7 +13068,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -11772,7 +13166,9 @@
         "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -11856,7 +13252,11 @@
       "id": 235,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "right",
           "showLegend": true
@@ -11950,7 +13350,11 @@
       "id": 236,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -12082,7 +13486,11 @@
       "id": 237,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -12200,7 +13608,11 @@
       "id": 238,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -12315,7 +13727,11 @@
       "id": 239,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -12410,7 +13826,11 @@
       "id": 241,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -12533,7 +13953,11 @@
       "id": 280,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -12619,7 +14043,11 @@
       "id": 281,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -12723,7 +14151,11 @@
       "id": 282,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -12827,7 +14259,11 @@
       "id": 283,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -12922,7 +14358,11 @@
       "id": 284,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull", "mean", "max"],
+          "calcs": [
+            "lastNotNull",
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -13023,7 +14463,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["mean"],
+          "calcs": [
+            "mean"
+          ],
           "fields": "",
           "values": false
         },
@@ -13081,7 +14523,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -13147,7 +14591,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -13220,7 +14666,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["mean"],
+          "calcs": [
+            "mean"
+          ],
           "fields": "",
           "values": false
         },
@@ -13311,7 +14759,10 @@
       "id": 225,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -13398,7 +14849,9 @@
       "id": 226,
       "options": {
         "legend": {
-          "calcs": ["mean"],
+          "calcs": [
+            "mean"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -13485,7 +14938,9 @@
       "id": 227,
       "options": {
         "legend": {
-          "calcs": ["mean"],
+          "calcs": [
+            "mean"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -13572,7 +15027,9 @@
       "id": 228,
       "options": {
         "legend": {
-          "calcs": ["mean"],
+          "calcs": [
+            "mean"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -13600,7 +15057,11 @@
   "refresh": "5s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["home-security", "operations", "monitoring"],
+  "tags": [
+    "home-security",
+    "operations",
+    "monitoring"
+  ],
   "templating": {
     "list": [
       {
@@ -13648,10 +15109,20 @@
     "to": "now"
   },
   "timepicker": {
-    "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h"]
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ]
   },
   "timezone": "browser",
   "title": "Home Security Intelligence - Operations",
   "uid": "hsi-consolidated",
+  "version": 1,
   "weekStart": ""
 }

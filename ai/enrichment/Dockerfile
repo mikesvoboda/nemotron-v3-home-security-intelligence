@@ -32,8 +32,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 RUN groupadd -g 1000 enrichment && \
     useradd -u 1000 -g enrichment -s /bin/bash -m enrichment
 
-# Copy application files
-COPY model.py .
+# Copy application files (all Python modules)
+COPY *.py ./
 
 # Environment variables
 ENV HOST=0.0.0.0
