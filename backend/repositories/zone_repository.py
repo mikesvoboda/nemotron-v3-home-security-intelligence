@@ -16,11 +16,15 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from backend.models import Zone, ZoneType
+from backend.models import CameraZone, CameraZoneType
 from backend.repositories.base import Repository
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+# Aliases for backward compatibility
+Zone = CameraZone
+ZoneType = CameraZoneType
 
 
 class ZoneRepository(Repository[Zone]):

@@ -272,8 +272,8 @@ export type Zone = components['schemas']['ZoneResponse'];
 export type ZoneCreate = components['schemas']['ZoneCreate'];
 export type ZoneUpdate = components['schemas']['ZoneUpdate'];
 export type ZoneListResponse = components['schemas']['ZoneListResponse'];
-export type ZoneShape = components['schemas']['ZoneShape'];
-export type ZoneType = components['schemas']['ZoneType'];
+export type ZoneShape = components['schemas']['CameraZoneShape'];
+export type ZoneType = components['schemas']['CameraZoneType'];
 
 // Model Zoo types
 export type ModelStatusResponse = components['schemas']['ModelStatusResponse'];

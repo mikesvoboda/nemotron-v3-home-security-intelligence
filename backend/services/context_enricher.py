@@ -23,13 +23,17 @@ from backend.core.database import get_session
 from backend.core.logging import get_logger
 from backend.models.baseline import ActivityBaseline, ClassBaseline
 from backend.models.camera import Camera
+from backend.models.camera_zone import CameraZone, CameraZoneType
 from backend.models.detection import Detection
-from backend.models.zone import Zone, ZoneType
 from backend.services.baseline import get_baseline_service
 from backend.services.batch_fetch import batch_fetch_detections
 from backend.services.prompt_sanitizer import sanitize_camera_name, sanitize_zone_name
 from backend.services.prompts import ClassAnomalyResult, format_class_anomaly_context
 from backend.services.zone_service import bbox_center, point_in_zone
+
+# Aliases for backward compatibility
+Zone = CameraZone
+ZoneType = CameraZoneType
 
 logger = get_logger(__name__)
 

@@ -313,9 +313,9 @@ class TestCameraRelationships:
         """Test camera has events relationship defined."""
         assert hasattr(sample_camera, "events")
 
-    def test_camera_has_zones_relationship(self, sample_camera):
-        """Test camera has zones relationship defined."""
-        assert hasattr(sample_camera, "zones")
+    def test_camera_has_camera_zones_relationship(self, sample_camera):
+        """Test camera has camera_zones relationship defined."""
+        assert hasattr(sample_camera, "camera_zones")
 
     def test_camera_has_activity_baselines_relationship(self, sample_camera):
         """Test camera has activity_baselines relationship defined."""

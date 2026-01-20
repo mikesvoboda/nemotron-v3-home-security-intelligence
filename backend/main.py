@@ -35,6 +35,7 @@ from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import (
     admin,
     ai_audit,
+    alertmanager,
     alerts,
     analytics,
     audit,
@@ -47,6 +48,7 @@ from backend.api.routes import (
     events,
     exports,
     feedback,
+    hierarchy,
     household,
     jobs,
     media,
@@ -57,6 +59,7 @@ from backend.api.routes import (
     queues,
     rum,
     services,
+    settings_api,
     summaries,
     system,
     webhooks,
@@ -1051,6 +1054,7 @@ register_exception_handlers(app)
 # Register routers
 app.include_router(admin.router)
 app.include_router(ai_audit.router)
+app.include_router(alertmanager.router)
 app.include_router(alerts.router)
 app.include_router(alerts.alerts_instance_router)
 app.include_router(analytics.router)
@@ -1064,6 +1068,9 @@ app.include_router(entities.router)
 app.include_router(events.router)
 app.include_router(exports.router)
 app.include_router(feedback.router)
+app.include_router(hierarchy.router)
+app.include_router(hierarchy.property_router)
+app.include_router(hierarchy.area_router)
 app.include_router(household.router)
 app.include_router(jobs.router)
 app.include_router(logs_router)
@@ -1075,6 +1082,7 @@ app.include_router(prompt_management.router)
 app.include_router(queues.router)
 app.include_router(rum.router)
 app.include_router(services.router)
+app.include_router(settings_api.router)
 app.include_router(summaries.router)
 app.include_router(system.router)
 app.include_router(webhooks.router)

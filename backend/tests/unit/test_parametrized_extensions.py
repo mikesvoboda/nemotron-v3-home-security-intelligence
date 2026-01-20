@@ -18,10 +18,14 @@ from pydantic import ValidationError
 from backend.api.schemas.camera import CameraCreate
 from backend.api.schemas.zone import ZoneCreate
 from backend.models.camera import normalize_camera_id
+from backend.models.camera_zone import CameraZoneShape, CameraZoneType
 from backend.models.detection import Detection
 from backend.models.enums import CameraStatus, Severity
 from backend.models.event import Event
-from backend.models.zone import ZoneShape, ZoneType
+
+# Aliases for backward compatibility
+ZoneShape = CameraZoneShape
+ZoneType = CameraZoneType
 
 # =============================================================================
 # Camera ID Normalization Parametrized Tests

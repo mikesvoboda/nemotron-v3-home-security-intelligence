@@ -872,6 +872,7 @@ class WebSocketAlertEventType(StrEnum):
     Event types:
     - ALERT_CREATED: New alert triggered from rule evaluation
     - ALERT_UPDATED: Alert modified (e.g., metadata, channels updated)
+    - ALERT_DELETED: Alert permanently deleted from the system
     - ALERT_ACKNOWLEDGED: Alert marked as seen by user
     - ALERT_RESOLVED: Alert resolved (long-running issues cleared)
     - ALERT_DISMISSED: Alert dismissed by user
@@ -879,6 +880,7 @@ class WebSocketAlertEventType(StrEnum):
 
     ALERT_CREATED = auto()
     ALERT_UPDATED = auto()
+    ALERT_DELETED = auto()
     ALERT_ACKNOWLEDGED = auto()
     ALERT_RESOLVED = auto()
     ALERT_DISMISSED = auto()
@@ -1174,6 +1176,66 @@ class WebSocketAlertUpdatedMessage(BaseModel):
                     "dedup_key": "front_door:person:rule1",
                     "created_at": "2026-01-09T12:00:00Z",
                     "updated_at": "2026-01-09T12:00:30Z",
+                },
+            }
+        }
+    )
+
+
+class WebSocketAlertDeletedData(BaseModel):
+    """Data payload for alert deleted messages broadcast to /ws/events clients.
+
+    This schema is used when an alert is permanently deleted. It contains only
+    the alert ID and optional reason, as the full alert data is no longer available.
+
+    Fields:
+        id: UUID of the deleted alert
+        reason: Optional reason for deletion
+    """
+
+    id: str = Field(..., description="Deleted alert UUID")
+    reason: str | None = Field(None, description="Reason for deletion")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "reason": "Duplicate alert",
+            }
+        }
+    )
+
+
+class WebSocketAlertDeletedMessage(BaseModel):
+    """Complete alert deleted message envelope sent to /ws/events clients.
+
+    This is the canonical format for alert deletion messages broadcast via WebSocket.
+    Sent when an alert is permanently deleted from the system.
+    The message wraps deletion data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "alert_deleted",
+            "data": {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "reason": "Duplicate alert"
+            }
+        }
+    """
+
+    type: Literal["alert_deleted"] = Field(
+        default="alert_deleted",
+        description="Message type, always 'alert_deleted' for alert deletion messages",
+    )
+    data: WebSocketAlertDeletedData = Field(..., description="Alert deletion data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "alert_deleted",
+                "data": {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "reason": "Duplicate alert",
                 },
             }
         }

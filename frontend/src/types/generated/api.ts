@@ -1544,7 +1544,7 @@ export interface paths {
          *         db: Database session
          *
          *     Returns:
-         *         Zone object
+         *         CameraZone object
          *
          *     Raises:
          *         HTTPException: 404 if zone not found
@@ -6731,6 +6731,463 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/alertmanager/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receive Alertmanager Webhook
+         * @description Receive webhook notifications from Alertmanager.
+         *
+         *     This endpoint receives alerts from Prometheus Alertmanager and:
+         *     1. Stores each alert in the database for history tracking
+         *     2. Broadcasts each alert via WebSocket for real-time frontend updates
+         *     3. Returns acknowledgment to Alertmanager
+         *
+         *     The alerts are infrastructure alerts (GPU memory, pipeline health, etc.)
+         *     which are stored for history and displayed alongside security alerts.
+         *
+         *     Args:
+         *         payload: Alertmanager webhook payload containing alert details
+         *         db: Database session (injected)
+         *         redis_client: Redis client for WebSocket broadcasting (optional)
+         *
+         *     Returns:
+         *         AlertmanagerWebhookResponse with processing status
+         */
+        post: operations["receive_alertmanager_webhook_api_v1_alertmanager_webhook_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/areas/{area_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Area
+         * @description Get a specific area by ID.
+         *
+         *     Args:
+         *         area_id: ID of the area to retrieve
+         *         session: Database session
+         *
+         *     Returns:
+         *         Area object
+         *
+         *     Raises:
+         *         HTTPException: 404 if area not found
+         */
+        get: operations["get_area_api_v1_areas__area_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Area
+         * @description Delete an area.
+         *
+         *     This will unlink all cameras associated with this area (cameras themselves
+         *     are not deleted, only the association).
+         *
+         *     Args:
+         *         area_id: ID of the area to delete
+         *         session: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if area not found
+         */
+        delete: operations["delete_area_api_v1_areas__area_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Area
+         * @description Update an existing area.
+         *
+         *     Args:
+         *         area_id: ID of the area to update
+         *         updates: Area update data (all fields optional)
+         *         session: Database session
+         *
+         *     Returns:
+         *         Updated Area object
+         *
+         *     Raises:
+         *         HTTPException: 404 if area not found
+         *         HTTPException: 409 if new name conflicts with existing area in same property
+         */
+        patch: operations["update_area_api_v1_areas__area_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/areas/{area_id}/cameras": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Area Cameras
+         * @description List all cameras linked to an area.
+         *
+         *     Args:
+         *         area_id: ID of the area
+         *         session: Database session
+         *
+         *     Returns:
+         *         AreaCamerasResponse with list of cameras and count
+         *
+         *     Raises:
+         *         HTTPException: 404 if area not found
+         */
+        get: operations["list_area_cameras_api_v1_areas__area_id__cameras_get"];
+        put?: never;
+        /**
+         * Link Camera To Area
+         * @description Link a camera to an area.
+         *
+         *     Creates a many-to-many relationship between the area and camera.
+         *     A camera can be linked to multiple areas, and an area can have multiple cameras.
+         *
+         *     Args:
+         *         area_id: ID of the area
+         *         link_request: Contains the camera_id to link
+         *         session: Database session
+         *
+         *     Returns:
+         *         CameraLinkResponse confirming the link
+         *
+         *     Raises:
+         *         HTTPException: 404 if area or camera not found
+         *         HTTPException: 409 if camera is already linked to this area
+         */
+        post: operations["link_camera_to_area_api_v1_areas__area_id__cameras_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/areas/{area_id}/cameras/{camera_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Unlink Camera From Area
+         * @description Unlink a camera from an area.
+         *
+         *     Removes the many-to-many relationship between the area and camera.
+         *     Neither the area nor the camera is deleted.
+         *
+         *     Args:
+         *         area_id: ID of the area
+         *         camera_id: ID of the camera to unlink
+         *         session: Database session
+         *
+         *     Returns:
+         *         CameraLinkResponse confirming the unlink
+         *
+         *     Raises:
+         *         HTTPException: 404 if area or camera not found
+         *         HTTPException: 404 if camera is not linked to this area
+         */
+        delete: operations["unlink_camera_from_area_api_v1_areas__area_id__cameras__camera_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/households": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Households
+         * @description List all households.
+         *
+         *     Returns all households in the system ordered by name.
+         *
+         *     Args:
+         *         session: Database session
+         *
+         *     Returns:
+         *         HouseholdListResponse with list of households and total count
+         */
+        get: operations["list_households_api_v1_households_get"];
+        put?: never;
+        /**
+         * Create Household
+         * @description Create a new household.
+         *
+         *     Args:
+         *         household_data: Household creation data
+         *         session: Database session
+         *
+         *     Returns:
+         *         Created Household object
+         *
+         *     Raises:
+         *         HTTPException: 409 if household with same name already exists
+         */
+        post: operations["create_household_api_v1_households_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/households/{household_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Household
+         * @description Get a specific household by ID.
+         *
+         *     Args:
+         *         household_id: ID of the household to retrieve
+         *         session: Database session
+         *
+         *     Returns:
+         *         Household object
+         *
+         *     Raises:
+         *         HTTPException: 404 if household not found
+         */
+        get: operations["get_household_api_v1_households__household_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Household
+         * @description Delete a household.
+         *
+         *     This will cascade delete all related properties, areas, and unlink
+         *     associated members and vehicles.
+         *
+         *     Args:
+         *         household_id: ID of the household to delete
+         *         session: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if household not found
+         */
+        delete: operations["delete_household_api_v1_households__household_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Household
+         * @description Update an existing household.
+         *
+         *     Args:
+         *         household_id: ID of the household to update
+         *         updates: Household update data (all fields optional)
+         *         session: Database session
+         *
+         *     Returns:
+         *         Updated Household object
+         *
+         *     Raises:
+         *         HTTPException: 404 if household not found
+         *         HTTPException: 409 if new name conflicts with existing household
+         */
+        patch: operations["update_household_api_v1_households__household_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/households/{household_id}/properties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Household Properties
+         * @description List all properties for a household.
+         *
+         *     Args:
+         *         household_id: ID of the household
+         *         session: Database session
+         *
+         *     Returns:
+         *         PropertyListResponse with list of properties and total count
+         *
+         *     Raises:
+         *         HTTPException: 404 if household not found
+         */
+        get: operations["list_household_properties_api_v1_households__household_id__properties_get"];
+        put?: never;
+        /**
+         * Create Property
+         * @description Create a new property under a household.
+         *
+         *     Args:
+         *         household_id: ID of the household that owns this property
+         *         property_data: Property creation data
+         *         session: Database session
+         *
+         *     Returns:
+         *         Created Property object
+         *
+         *     Raises:
+         *         HTTPException: 404 if household not found
+         *         HTTPException: 409 if property with same name already exists for this household
+         */
+        post: operations["create_property_api_v1_households__household_id__properties_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/properties/{property_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Property
+         * @description Get a specific property by ID.
+         *
+         *     Args:
+         *         property_id: ID of the property to retrieve
+         *         session: Database session
+         *
+         *     Returns:
+         *         Property object
+         *
+         *     Raises:
+         *         HTTPException: 404 if property not found
+         */
+        get: operations["get_property_api_v1_properties__property_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Property
+         * @description Delete a property.
+         *
+         *     This will cascade delete all related areas and unlink associated cameras.
+         *
+         *     Args:
+         *         property_id: ID of the property to delete
+         *         session: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if property not found
+         */
+        delete: operations["delete_property_api_v1_properties__property_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Property
+         * @description Update an existing property.
+         *
+         *     Args:
+         *         property_id: ID of the property to update
+         *         updates: Property update data (all fields optional)
+         *         session: Database session
+         *
+         *     Returns:
+         *         Updated Property object
+         *
+         *     Raises:
+         *         HTTPException: 404 if property not found
+         *         HTTPException: 409 if new name conflicts with existing property in same household
+         */
+        patch: operations["update_property_api_v1_properties__property_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/properties/{property_id}/areas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Property Areas
+         * @description List all areas for a property.
+         *
+         *     Args:
+         *         property_id: ID of the property
+         *         session: Database session
+         *
+         *     Returns:
+         *         AreaListResponse with list of areas and total count
+         *
+         *     Raises:
+         *         HTTPException: 404 if property not found
+         */
+        get: operations["list_property_areas_api_v1_properties__property_id__areas_get"];
+        put?: never;
+        /**
+         * Create Area
+         * @description Create a new area under a property.
+         *
+         *     Args:
+         *         property_id: ID of the property that owns this area
+         *         area_data: Area creation data
+         *         session: Database session
+         *
+         *     Returns:
+         *         Created Area object
+         *
+         *     Raises:
+         *         HTTPException: 404 if property not found
+         *         HTTPException: 409 if area with same name already exists for this property
+         */
+        post: operations["create_area_api_v1_properties__property_id__areas_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get current system settings
+         * @description Returns user-configurable settings grouped by category. These settings control detection thresholds, batch processing, severity levels, feature toggles, rate limiting, queue management, and data retention policies.
+         */
+        get: operations["get_user_settings_api_v1_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update runtime settings
+         * @description Update system settings at runtime without server restart. Changes are written to data/runtime.env and take effect immediately. All fields are optional - only provided fields will be updated.
+         */
+        patch: operations["update_settings_api_v1_settings_patch"];
+        trace?: never;
+    };
     "/api/webhooks/alerts": {
         parameters: {
             query?: never;
@@ -7659,6 +8116,103 @@ export interface components {
          */
         AlertmanagerStatus: "firing" | "resolved";
         /**
+         * AlertmanagerWebhook
+         * @description Schema for Alertmanager webhook payload.
+         *
+         *     This is the format Alertmanager sends when configured with a webhook receiver.
+         *     See: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config
+         * @example {
+         *       "alerts": [
+         *         {
+         *           "annotations": {
+         *             "description": "CPU at 85%"
+         *           },
+         *           "endsAt": "0001-01-01T00:00:00Z",
+         *           "fingerprint": "abc123",
+         *           "labels": {
+         *             "alertname": "HighCPU",
+         *             "severity": "warning"
+         *           },
+         *           "startsAt": "2026-01-20T12:00:00Z",
+         *           "status": "firing"
+         *         }
+         *       ],
+         *       "commonAnnotations": {
+         *         "summary": "CPU usage is high"
+         *       },
+         *       "commonLabels": {
+         *         "alertname": "HighCPU",
+         *         "severity": "warning"
+         *       },
+         *       "externalURL": "http://alertmanager:9093",
+         *       "groupKey": "{}:{alertname=\"HighCPU\"}",
+         *       "groupLabels": {
+         *         "alertname": "HighCPU"
+         *       },
+         *       "receiver": "webhook-receiver",
+         *       "status": "firing",
+         *       "truncatedAlerts": 0,
+         *       "version": "4"
+         *     }
+         */
+        AlertmanagerWebhook: {
+            /**
+             * Alerts
+             * @description List of alerts in this group
+             */
+            alerts: components["schemas"]["backend__api__schemas__alertmanager__AlertmanagerAlert"][];
+            /**
+             * Commonannotations
+             * @description Annotations common to all alerts
+             */
+            commonAnnotations?: {
+                [key: string]: string;
+            };
+            /**
+             * Commonlabels
+             * @description Labels common to all alerts
+             */
+            commonLabels?: {
+                [key: string]: string;
+            };
+            /**
+             * Externalurl
+             * @description Alertmanager external URL
+             */
+            externalURL?: string | null;
+            /**
+             * Groupkey
+             * @description Key identifying the alert group
+             */
+            groupKey: string;
+            /**
+             * Grouplabels
+             * @description Labels used for grouping
+             */
+            groupLabels?: {
+                [key: string]: string;
+            };
+            /**
+             * Receiver
+             * @description Name of the receiver that matched
+             */
+            receiver: string;
+            /** @description Overall group status */
+            status: components["schemas"]["PrometheusAlertStatus"];
+            /**
+             * Truncatedalerts
+             * @description Number of truncated alerts
+             * @default 0
+             */
+            truncatedAlerts: number;
+            /**
+             * Version
+             * @description Alertmanager webhook version
+             * @default 4
+             */
+            version: string;
+        };
+        /**
          * AlertmanagerWebhookPayload
          * @description Schema for Alertmanager webhook payload.
          *
@@ -7754,6 +8308,44 @@ export interface components {
              * @default 4
              */
             version: string;
+        };
+        /**
+         * AlertmanagerWebhookResponse
+         * @description Response schema for the alertmanager webhook endpoint.
+         * @example {
+         *       "broadcast": 2,
+         *       "message": "Processed 2 alert(s)",
+         *       "received": 2,
+         *       "status": "ok",
+         *       "stored": 2
+         *     }
+         */
+        AlertmanagerWebhookResponse: {
+            /**
+             * Broadcast
+             * @description Number of alerts broadcast via WebSocket
+             */
+            broadcast: number;
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message: string;
+            /**
+             * Received
+             * @description Number of alerts received
+             */
+            received: number;
+            /**
+             * Status
+             * @description Processing status (ok or error)
+             */
+            status: string;
+            /**
+             * Stored
+             * @description Number of alerts stored in database
+             */
+            stored: number;
         };
         /**
          * AllPromptsResponse
@@ -7936,6 +8528,201 @@ export interface components {
              * @description Number of days covered by this query
              */
             period_days: number;
+        };
+        /**
+         * AreaCameraResponse
+         * @description Schema for camera info in area context (minimal camera info).
+         * @example {
+         *       "id": "front_door",
+         *       "name": "Front Door Camera",
+         *       "status": "online"
+         *     }
+         */
+        AreaCameraResponse: {
+            /**
+             * Id
+             * @description Camera ID
+             */
+            id: string;
+            /**
+             * Name
+             * @description Camera name
+             */
+            name: string;
+            /**
+             * Status
+             * @description Camera status (online, offline, error, unknown)
+             */
+            status: string;
+        };
+        /**
+         * AreaCamerasResponse
+         * @description Schema for listing cameras in an area.
+         * @example {
+         *       "area_id": 1,
+         *       "area_name": "Front Yard",
+         *       "cameras": [
+         *         {
+         *           "id": "front_door",
+         *           "name": "Front Door Camera",
+         *           "status": "online"
+         *         }
+         *       ],
+         *       "count": 1
+         *     }
+         */
+        AreaCamerasResponse: {
+            /**
+             * Area Id
+             * @description ID of the area
+             */
+            area_id: number;
+            /**
+             * Area Name
+             * @description Name of the area
+             */
+            area_name: string;
+            /**
+             * Cameras
+             * @description List of cameras in this area
+             */
+            cameras: components["schemas"]["AreaCameraResponse"][];
+            /**
+             * Count
+             * @description Number of cameras in this area
+             */
+            count: number;
+        };
+        /**
+         * AreaCreate
+         * @description Schema for creating a new area.
+         *
+         *     An area represents a logical zone within a property
+         *     (e.g., front yard, garage, pool area).
+         * @example {
+         *       "color": "#10B981",
+         *       "description": "Main entrance and lawn area",
+         *       "name": "Front Yard"
+         *     }
+         */
+        AreaCreate: {
+            /**
+             * Color
+             * @description Hex color code for UI display
+             * @default #76B900
+             */
+            color: string;
+            /**
+             * Description
+             * @description Optional longer description
+             */
+            description?: string | null;
+            /**
+             * Name
+             * @description Area name (e.g., 'Front Yard')
+             */
+            name: string;
+        };
+        /**
+         * AreaListResponse
+         * @description Schema for listing areas.
+         * @example {
+         *       "items": [
+         *         {
+         *           "color": "#10B981",
+         *           "created_at": "2026-01-20T10:00:00Z",
+         *           "description": "Main entrance",
+         *           "id": 1,
+         *           "name": "Front Yard",
+         *           "property_id": 1
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        AreaListResponse: {
+            /**
+             * Items
+             * @description List of areas
+             */
+            items: components["schemas"]["AreaResponse"][];
+            /**
+             * Total
+             * @description Total number of areas
+             */
+            total: number;
+        };
+        /**
+         * AreaResponse
+         * @description Schema for area response.
+         * @example {
+         *       "color": "#10B981",
+         *       "created_at": "2026-01-20T10:00:00Z",
+         *       "description": "Main entrance and lawn area",
+         *       "id": 1,
+         *       "name": "Front Yard",
+         *       "property_id": 1
+         *     }
+         */
+        AreaResponse: {
+            /**
+             * Color
+             * @description Hex color code for UI
+             */
+            color: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Timestamp when area was created
+             */
+            created_at: string;
+            /**
+             * Description
+             * @description Description
+             */
+            description?: string | null;
+            /**
+             * Id
+             * @description Unique area identifier
+             */
+            id: number;
+            /**
+             * Name
+             * @description Area name
+             */
+            name: string;
+            /**
+             * Property Id
+             * @description ID of the parent property
+             */
+            property_id: number;
+        };
+        /**
+         * AreaUpdate
+         * @description Schema for updating an existing area.
+         *
+         *     All fields are optional; only provided fields will be updated.
+         * @example {
+         *       "color": "#3B82F6",
+         *       "name": "Main Entrance"
+         *     }
+         */
+        AreaUpdate: {
+            /**
+             * Color
+             * @description Hex color code
+             */
+            color?: string | null;
+            /**
+             * Description
+             * @description Description
+             */
+            description?: string | null;
+            /**
+             * Name
+             * @description Area name
+             */
+            name?: string | null;
         };
         /**
          * AuditLogListResponse
@@ -8500,6 +9287,50 @@ export interface components {
             started_at: number;
         };
         /**
+         * BatchSettings
+         * @description Batch processing settings for detection grouping.
+         *
+         *     Controls how detections are batched together before being sent to
+         *     the Nemotron LLM for risk analysis.
+         * @example {
+         *       "idle_timeout_seconds": 30,
+         *       "window_seconds": 90
+         *     }
+         */
+        BatchSettings: {
+            /**
+             * Idle Timeout Seconds
+             * @description Idle timeout in seconds before processing incomplete batch
+             */
+            idle_timeout_seconds: number;
+            /**
+             * Window Seconds
+             * @description Time window in seconds for batch processing detections
+             */
+            window_seconds: number;
+        };
+        /**
+         * BatchSettingsUpdate
+         * @description Batch settings update schema (all fields optional).
+         *
+         *     Used for PATCH /api/v1/settings to partially update batch processing settings.
+         * @example {
+         *       "window_seconds": 120
+         *     }
+         */
+        BatchSettingsUpdate: {
+            /**
+             * Idle Timeout Seconds
+             * @description Idle timeout in seconds before processing incomplete batch (max 300)
+             */
+            idle_timeout_seconds?: number | null;
+            /**
+             * Window Seconds
+             * @description Time window in seconds for batch processing detections (max 600)
+             */
+            window_seconds?: number | null;
+        };
+        /**
          * BulkCancelError
          * @description Error details for a single job in bulk cancellation.
          * @example {
@@ -8769,6 +9600,49 @@ export interface components {
              * @default online
              */
             status: components["schemas"]["CameraStatus"];
+        };
+        /**
+         * CameraLinkRequest
+         * @description Schema for linking a camera to an area.
+         *
+         *     Used to establish the many-to-many relationship between areas and cameras.
+         *     A camera can be linked to multiple areas, and an area can have multiple cameras.
+         * @example {
+         *       "camera_id": "front_door"
+         *     }
+         */
+        CameraLinkRequest: {
+            /**
+             * Camera Id
+             * @description ID of the camera to link to this area
+             */
+            camera_id: string;
+        };
+        /**
+         * CameraLinkResponse
+         * @description Schema for camera link/unlink response.
+         * @example {
+         *       "area_id": 1,
+         *       "camera_id": "front_door",
+         *       "linked": true
+         *     }
+         */
+        CameraLinkResponse: {
+            /**
+             * Area Id
+             * @description ID of the area
+             */
+            area_id: number;
+            /**
+             * Camera Id
+             * @description ID of the camera
+             */
+            camera_id: string;
+            /**
+             * Linked
+             * @description Whether the camera is now linked (True) or unlinked (False)
+             */
+            linked: boolean;
         };
         /**
          * CameraListResponse
@@ -9151,6 +10025,18 @@ export interface components {
             /** @description Camera status */
             status: components["schemas"]["CameraStatus"];
         };
+        /**
+         * CameraZoneShape
+         * @description Shape of the camera zone polygon.
+         * @enum {string}
+         */
+        CameraZoneShape: "rectangle" | "polygon";
+        /**
+         * CameraZoneType
+         * @description Type of camera zone for semantic categorization.
+         * @enum {string}
+         */
+        CameraZoneType: "entry_point" | "driveway" | "sidewalk" | "yard" | "other";
         /**
          * CategorySummary
          * @description Summary of services in a category.
@@ -11130,6 +12016,50 @@ export interface components {
              * @description Path to thumbnail
              */
             thumbnail_path?: string | null;
+        };
+        /**
+         * DetectionSettings
+         * @description Detection-related settings for object detection thresholds.
+         *
+         *     Controls the confidence thresholds used by RT-DETRv2 for object detection
+         *     and fast-path processing for high-priority alerts.
+         * @example {
+         *       "confidence_threshold": 0.5,
+         *       "fast_path_threshold": 0.9
+         *     }
+         */
+        DetectionSettings: {
+            /**
+             * Confidence Threshold
+             * @description Minimum confidence threshold for object detections (0.0-1.0)
+             */
+            confidence_threshold: number;
+            /**
+             * Fast Path Threshold
+             * @description Confidence threshold for fast-path high-priority analysis (0.0-1.0)
+             */
+            fast_path_threshold: number;
+        };
+        /**
+         * DetectionSettingsUpdate
+         * @description Detection settings update schema (all fields optional).
+         *
+         *     Used for PATCH /api/v1/settings to partially update detection settings.
+         * @example {
+         *       "confidence_threshold": 0.6
+         *     }
+         */
+        DetectionSettingsUpdate: {
+            /**
+             * Confidence Threshold
+             * @description Minimum confidence threshold for object detections (0.0-1.0)
+             */
+            confidence_threshold?: number | null;
+            /**
+             * Fast Path Threshold
+             * @description Confidence threshold for fast-path high-priority analysis (0.0-1.0)
+             */
+            fast_path_threshold?: number | null;
         };
         /**
          * DetectionStatsResponse
@@ -13452,6 +14382,93 @@ export interface components {
             detected: boolean;
         };
         /**
+         * FeatureSettings
+         * @description Feature toggle settings for enabling/disabling AI pipeline components.
+         *
+         *     Controls which AI processing features are active in the detection pipeline.
+         * @example {
+         *       "background_eval_enabled": true,
+         *       "clip_generation_enabled": true,
+         *       "image_quality_enabled": true,
+         *       "reid_enabled": true,
+         *       "scene_change_enabled": true,
+         *       "vision_extraction_enabled": true
+         *     }
+         */
+        FeatureSettings: {
+            /**
+             * Background Eval Enabled
+             * @description Enable automatic background AI audit evaluation when GPU is idle
+             */
+            background_eval_enabled: boolean;
+            /**
+             * Clip Generation Enabled
+             * @description Enable automatic clip generation for events
+             */
+            clip_generation_enabled: boolean;
+            /**
+             * Image Quality Enabled
+             * @description Enable BRISQUE image quality assessment (CPU-based)
+             */
+            image_quality_enabled: boolean;
+            /**
+             * Reid Enabled
+             * @description Enable CLIP re-identification for tracking entities across cameras
+             */
+            reid_enabled: boolean;
+            /**
+             * Scene Change Enabled
+             * @description Enable SSIM-based scene change detection
+             */
+            scene_change_enabled: boolean;
+            /**
+             * Vision Extraction Enabled
+             * @description Enable Florence-2 vision extraction for vehicle/person attributes
+             */
+            vision_extraction_enabled: boolean;
+        };
+        /**
+         * FeatureSettingsUpdate
+         * @description Feature settings update schema (all fields optional).
+         *
+         *     Used for PATCH /api/v1/settings to partially update feature toggles.
+         * @example {
+         *       "reid_enabled": false
+         *     }
+         */
+        FeatureSettingsUpdate: {
+            /**
+             * Background Eval Enabled
+             * @description Enable automatic background AI audit evaluation when GPU is idle
+             */
+            background_eval_enabled?: boolean | null;
+            /**
+             * Clip Generation Enabled
+             * @description Enable automatic clip generation for events
+             */
+            clip_generation_enabled?: boolean | null;
+            /**
+             * Image Quality Enabled
+             * @description Enable BRISQUE image quality assessment (CPU-based)
+             */
+            image_quality_enabled?: boolean | null;
+            /**
+             * Reid Enabled
+             * @description Enable CLIP re-identification for tracking entities across cameras
+             */
+            reid_enabled?: boolean | null;
+            /**
+             * Scene Change Enabled
+             * @description Enable SSIM-based scene change detection
+             */
+            scene_change_enabled?: boolean | null;
+            /**
+             * Vision Extraction Enabled
+             * @description Enable Florence-2 vision extraction for vehicle/person attributes
+             */
+            vision_extraction_enabled?: boolean | null;
+        };
+        /**
          * FeedbackStatsResponse
          * @description Schema for aggregate feedback statistics.
          *
@@ -14298,6 +15315,51 @@ export interface components {
             std_dev: number;
         };
         /**
+         * HouseholdCreate
+         * @description Schema for creating a new household.
+         *
+         *     A household is the top-level organizational unit that groups members,
+         *     vehicles, and properties together.
+         * @example {
+         *       "name": "Svoboda Family"
+         *     }
+         */
+        HouseholdCreate: {
+            /**
+             * Name
+             * @description Household name (e.g., 'Svoboda Family')
+             */
+            name: string;
+        };
+        /**
+         * HouseholdListResponse
+         * @description Schema for listing households.
+         *
+         *     Returns a list of households with pagination metadata.
+         * @example {
+         *       "items": [
+         *         {
+         *           "created_at": "2026-01-20T10:00:00Z",
+         *           "id": 1,
+         *           "name": "Svoboda Family"
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        HouseholdListResponse: {
+            /**
+             * Items
+             * @description List of households
+             */
+            items: components["schemas"]["HouseholdResponse"][];
+            /**
+             * Total
+             * @description Total number of households
+             */
+            total: number;
+        };
+        /**
          * HouseholdMemberCreate
          * @description Schema for creating a new household member.
          * @example {
@@ -14421,6 +15483,52 @@ export interface components {
             typical_schedule?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * HouseholdResponse
+         * @description Schema for household response.
+         *
+         *     Includes basic household information. Use nested endpoints or
+         *     query parameters to include related members, vehicles, or properties.
+         * @example {
+         *       "created_at": "2026-01-20T10:00:00Z",
+         *       "id": 1,
+         *       "name": "Svoboda Family"
+         *     }
+         */
+        HouseholdResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description Timestamp when household was created
+             */
+            created_at: string;
+            /**
+             * Id
+             * @description Unique household identifier
+             */
+            id: number;
+            /**
+             * Name
+             * @description Household name
+             */
+            name: string;
+        };
+        /**
+         * HouseholdUpdate
+         * @description Schema for updating an existing household.
+         *
+         *     All fields are optional; only provided fields will be updated.
+         * @example {
+         *       "name": "Svoboda-Smith Family"
+         *     }
+         */
+        HouseholdUpdate: {
+            /**
+             * Name
+             * @description Household name
+             */
+            name?: string | null;
         };
         /**
          * ImageQualityEnrichment
@@ -17923,6 +19031,12 @@ export interface components {
             stopped_at: string;
         };
         /**
+         * PrometheusAlertStatus
+         * @description Prometheus alert status values.
+         * @enum {string}
+         */
+        PrometheusAlertStatus: "firing" | "resolved";
+        /**
          * PromptDiffEntry
          * @description Diff entry for a single model's configuration.
          * @example {
@@ -18446,6 +19560,137 @@ export interface components {
             skipped_models?: string[];
         };
         /**
+         * PropertyCreate
+         * @description Schema for creating a new property.
+         *
+         *     A property represents a physical location within a household
+         *     (e.g., main house, beach house).
+         * @example {
+         *       "address": "123 Main St, City, ST 12345",
+         *       "name": "Main House",
+         *       "timezone": "America/New_York"
+         *     }
+         */
+        PropertyCreate: {
+            /**
+             * Address
+             * @description Optional street address
+             */
+            address?: string | null;
+            /**
+             * Name
+             * @description Property name (e.g., 'Main House')
+             */
+            name: string;
+            /**
+             * Timezone
+             * @description Timezone for the property (IANA format)
+             * @default UTC
+             */
+            timezone: string;
+        };
+        /**
+         * PropertyListResponse
+         * @description Schema for listing properties.
+         * @example {
+         *       "items": [
+         *         {
+         *           "address": "123 Main St",
+         *           "created_at": "2026-01-20T10:00:00Z",
+         *           "household_id": 1,
+         *           "id": 1,
+         *           "name": "Main House",
+         *           "timezone": "America/New_York"
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        PropertyListResponse: {
+            /**
+             * Items
+             * @description List of properties
+             */
+            items: components["schemas"]["PropertyResponse"][];
+            /**
+             * Total
+             * @description Total number of properties
+             */
+            total: number;
+        };
+        /**
+         * PropertyResponse
+         * @description Schema for property response.
+         * @example {
+         *       "address": "123 Main St, City, ST 12345",
+         *       "created_at": "2026-01-20T10:00:00Z",
+         *       "household_id": 1,
+         *       "id": 1,
+         *       "name": "Main House",
+         *       "timezone": "America/New_York"
+         *     }
+         */
+        PropertyResponse: {
+            /**
+             * Address
+             * @description Street address
+             */
+            address?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Timestamp when property was created
+             */
+            created_at: string;
+            /**
+             * Household Id
+             * @description ID of the owning household
+             */
+            household_id: number;
+            /**
+             * Id
+             * @description Unique property identifier
+             */
+            id: number;
+            /**
+             * Name
+             * @description Property name
+             */
+            name: string;
+            /**
+             * Timezone
+             * @description Timezone (IANA format)
+             */
+            timezone: string;
+        };
+        /**
+         * PropertyUpdate
+         * @description Schema for updating an existing property.
+         *
+         *     All fields are optional; only provided fields will be updated.
+         * @example {
+         *       "name": "Main Residence",
+         *       "timezone": "America/Chicago"
+         *     }
+         */
+        PropertyUpdate: {
+            /**
+             * Address
+             * @description Street address
+             */
+            address?: string | null;
+            /**
+             * Name
+             * @description Property name
+             */
+            name?: string | null;
+            /**
+             * Timezone
+             * @description Timezone (IANA format)
+             */
+            timezone?: string | null;
+        };
+        /**
          * QualityScores
          * @description Self-evaluation quality scores (1-5 scale).
          * @example {
@@ -18494,6 +19739,50 @@ export interface components {
          * @enum {string}
          */
         QueueHealthStatus: "healthy" | "warning" | "critical";
+        /**
+         * QueueSettings
+         * @description Queue settings for Redis-based processing queues.
+         *
+         *     Controls queue size limits and backpressure thresholds for the detection
+         *     and analysis processing queues.
+         * @example {
+         *       "backpressure_threshold": 0.8,
+         *       "max_size": 10000
+         *     }
+         */
+        QueueSettings: {
+            /**
+             * Backpressure Threshold
+             * @description Queue fill ratio (0.0-1.0) at which to start backpressure warnings
+             */
+            backpressure_threshold: number;
+            /**
+             * Max Size
+             * @description Maximum size of Redis queues
+             */
+            max_size: number;
+        };
+        /**
+         * QueueSettingsUpdate
+         * @description Queue settings update schema (all fields optional).
+         *
+         *     Used for PATCH /api/v1/settings to partially update queue configuration.
+         * @example {
+         *       "max_size": 15000
+         *     }
+         */
+        QueueSettingsUpdate: {
+            /**
+             * Backpressure Threshold
+             * @description Queue fill ratio (0.0-1.0) at which to start backpressure warnings
+             */
+            backpressure_threshold?: number | null;
+            /**
+             * Max Size
+             * @description Maximum size of Redis queues
+             */
+            max_size?: number | null;
+        };
         /**
          * QueueStatus
          * @description Status of a single job queue.
@@ -18828,6 +20117,60 @@ export interface components {
              * @description Whether ingestion was successful
              */
             success: boolean;
+        };
+        /**
+         * RateLimitingSettings
+         * @description Rate limiting settings for API protection.
+         *
+         *     Controls request rate limits to prevent abuse and ensure fair resource usage.
+         * @example {
+         *       "burst_size": 10,
+         *       "enabled": true,
+         *       "requests_per_minute": 60
+         *     }
+         */
+        RateLimitingSettings: {
+            /**
+             * Burst Size
+             * @description Additional burst allowance for short request spikes
+             */
+            burst_size: number;
+            /**
+             * Enabled
+             * @description Enable rate limiting for API endpoints
+             */
+            enabled: boolean;
+            /**
+             * Requests Per Minute
+             * @description Maximum requests per minute per client IP
+             */
+            requests_per_minute: number;
+        };
+        /**
+         * RateLimitingSettingsUpdate
+         * @description Rate limiting settings update schema (all fields optional).
+         *
+         *     Used for PATCH /api/v1/settings to partially update rate limiting.
+         * @example {
+         *       "requests_per_minute": 120
+         *     }
+         */
+        RateLimitingSettingsUpdate: {
+            /**
+             * Burst Size
+             * @description Additional burst allowance for short request spikes
+             */
+            burst_size?: number | null;
+            /**
+             * Enabled
+             * @description Enable rate limiting for API endpoints
+             */
+            enabled?: boolean | null;
+            /**
+             * Requests Per Minute
+             * @description Maximum requests per minute per client IP
+             */
+            requests_per_minute?: number | null;
         };
         /**
          * ReadinessResponse
@@ -19371,6 +20714,49 @@ export interface components {
             items?: components["schemas"]["RestartHistoryEvent"][];
             /** @description Pagination metadata */
             pagination: components["schemas"]["PaginationMeta"];
+        };
+        /**
+         * RetentionSettings
+         * @description Data retention settings for events and logs.
+         *
+         *     Controls how long events, detections, and logs are retained before cleanup.
+         * @example {
+         *       "days": 30,
+         *       "log_days": 7
+         *     }
+         */
+        RetentionSettings: {
+            /**
+             * Days
+             * @description Number of days to retain events and detections
+             */
+            days: number;
+            /**
+             * Log Days
+             * @description Number of days to retain logs
+             */
+            log_days: number;
+        };
+        /**
+         * RetentionSettingsUpdate
+         * @description Retention settings update schema (all fields optional).
+         *
+         *     Used for PATCH /api/v1/settings to partially update retention policies.
+         * @example {
+         *       "days": 60
+         *     }
+         */
+        RetentionSettingsUpdate: {
+            /**
+             * Days
+             * @description Number of days to retain events and detections (1-365)
+             */
+            days?: number | null;
+            /**
+             * Log Days
+             * @description Number of days to retain logs (1-365)
+             */
+            log_days?: number | null;
         };
         /**
          * RiskDistributionItem
@@ -20265,6 +21651,97 @@ export interface components {
             timestamp: string;
         };
         /**
+         * SettingsResponse
+         * @description Complete settings response with all configurable settings grouped by category.
+         *
+         *     This is the response schema for GET /api/v1/settings, containing all
+         *     user-configurable settings organized into logical groups.
+         * @example {
+         *       "batch": {
+         *         "idle_timeout_seconds": 30,
+         *         "window_seconds": 90
+         *       },
+         *       "detection": {
+         *         "confidence_threshold": 0.5,
+         *         "fast_path_threshold": 0.9
+         *       },
+         *       "features": {
+         *         "background_eval_enabled": true,
+         *         "clip_generation_enabled": true,
+         *         "image_quality_enabled": true,
+         *         "reid_enabled": true,
+         *         "scene_change_enabled": true,
+         *         "vision_extraction_enabled": true
+         *       },
+         *       "queue": {
+         *         "backpressure_threshold": 0.8,
+         *         "max_size": 10000
+         *       },
+         *       "rate_limiting": {
+         *         "burst_size": 10,
+         *         "enabled": true,
+         *         "requests_per_minute": 60
+         *       },
+         *       "retention": {
+         *         "days": 30,
+         *         "log_days": 7
+         *       },
+         *       "severity": {
+         *         "high_max": 84,
+         *         "low_max": 29,
+         *         "medium_max": 59
+         *       }
+         *     }
+         */
+        SettingsResponse: {
+            /** @description Batch processing settings */
+            batch: components["schemas"]["BatchSettings"];
+            /** @description Detection confidence threshold settings */
+            detection: components["schemas"]["DetectionSettings"];
+            /** @description Feature toggle settings */
+            features: components["schemas"]["FeatureSettings"];
+            /** @description Queue settings */
+            queue: components["schemas"]["QueueSettings"];
+            /** @description Rate limiting settings */
+            rate_limiting: components["schemas"]["RateLimitingSettings"];
+            /** @description Data retention settings */
+            retention: components["schemas"]["RetentionSettings"];
+            /** @description Severity threshold settings for risk categorization */
+            severity: components["schemas"]["SeveritySettings"];
+        };
+        /**
+         * SettingsUpdate
+         * @description Schema for updating runtime settings via PATCH.
+         *
+         *     All fields are optional to support partial updates. Only provided
+         *     fields will be updated. Changes are written to data/runtime.env
+         *     and take effect immediately without server restart.
+         * @example {
+         *       "detection": {
+         *         "confidence_threshold": 0.6
+         *       },
+         *       "features": {
+         *         "reid_enabled": false
+         *       }
+         *     }
+         */
+        SettingsUpdate: {
+            /** @description Batch processing settings */
+            batch?: components["schemas"]["BatchSettingsUpdate"] | null;
+            /** @description Detection confidence threshold settings */
+            detection?: components["schemas"]["DetectionSettingsUpdate"] | null;
+            /** @description Feature toggle settings */
+            features?: components["schemas"]["FeatureSettingsUpdate"] | null;
+            /** @description Queue settings */
+            queue?: components["schemas"]["QueueSettingsUpdate"] | null;
+            /** @description Rate limiting settings */
+            rate_limiting?: components["schemas"]["RateLimitingSettingsUpdate"] | null;
+            /** @description Data retention settings */
+            retention?: components["schemas"]["RetentionSettingsUpdate"] | null;
+            /** @description Severity threshold settings for risk categorization */
+            severity?: components["schemas"]["SeveritySettingsUpdate"] | null;
+        };
+        /**
          * SeverityDefinitionResponse
          * @description Definition of a single severity level.
          * @example {
@@ -20379,6 +21856,66 @@ export interface components {
             definitions: components["schemas"]["SeverityDefinitionResponse"][];
             /** @description Current severity threshold configuration */
             thresholds: components["schemas"]["SeverityThresholds"];
+        };
+        /**
+         * SeveritySettings
+         * @description Severity threshold settings for risk score categorization.
+         *
+         *     Defines the maximum risk score values for each severity level.
+         *     Risk scores are 0-100, and severity is determined by:
+         *     - LOW: 0 to low_max
+         *     - MEDIUM: low_max+1 to medium_max
+         *     - HIGH: medium_max+1 to high_max
+         *     - CRITICAL: above high_max
+         * @example {
+         *       "high_max": 84,
+         *       "low_max": 29,
+         *       "medium_max": 59
+         *     }
+         */
+        SeveritySettings: {
+            /**
+             * High Max
+             * @description Maximum risk score for HIGH severity (above = CRITICAL)
+             */
+            high_max: number;
+            /**
+             * Low Max
+             * @description Maximum risk score for LOW severity (0 to this value = LOW)
+             */
+            low_max: number;
+            /**
+             * Medium Max
+             * @description Maximum risk score for MEDIUM severity
+             */
+            medium_max: number;
+        };
+        /**
+         * SeveritySettingsUpdate
+         * @description Severity settings update schema (all fields optional).
+         *
+         *     Used for PATCH /api/v1/settings to partially update severity thresholds.
+         *     Validates that severity thresholds maintain proper ordering (low < medium < high).
+         * @example {
+         *       "low_max": 25
+         *     }
+         */
+        SeveritySettingsUpdate: {
+            /**
+             * High Max
+             * @description Maximum risk score for HIGH severity (above = CRITICAL)
+             */
+            high_max?: number | null;
+            /**
+             * Low Max
+             * @description Maximum risk score for LOW severity (0 to this value = LOW)
+             */
+            low_max?: number | null;
+            /**
+             * Medium Max
+             * @description Maximum risk score for MEDIUM severity
+             */
+            medium_max?: number | null;
         };
         /**
          * SeverityThresholds
@@ -21745,12 +23282,12 @@ export interface components {
              * @description Shape of the zone
              * @default rectangle
              */
-            shape: components["schemas"]["ZoneShape"];
+            shape: components["schemas"]["CameraZoneShape"];
             /**
              * @description Type of zone
              * @default other
              */
-            zone_type: components["schemas"]["ZoneType"];
+            zone_type: components["schemas"]["CameraZoneType"];
         };
         /**
          * ZoneListResponse
@@ -21882,7 +23419,7 @@ export interface components {
              */
             priority: number;
             /** @description Shape of the zone */
-            shape: components["schemas"]["ZoneShape"];
+            shape: components["schemas"]["CameraZoneShape"];
             /**
              * Updated At
              * Format: date-time
@@ -21890,20 +23427,8 @@ export interface components {
              */
             updated_at: string;
             /** @description Type of zone */
-            zone_type: components["schemas"]["ZoneType"];
+            zone_type: components["schemas"]["CameraZoneType"];
         };
-        /**
-         * ZoneShape
-         * @description Shape of the zone polygon.
-         * @enum {string}
-         */
-        ZoneShape: "rectangle" | "polygon";
-        /**
-         * ZoneType
-         * @description Type of zone for semantic categorization.
-         * @enum {string}
-         */
-        ZoneType: "entry_point" | "driveway" | "sidewalk" | "yard" | "other";
         /**
          * ZoneUpdate
          * @description Schema for updating an existing zone.
@@ -21939,9 +23464,71 @@ export interface components {
              */
             priority?: number | null;
             /** @description Shape of the zone */
-            shape?: components["schemas"]["ZoneShape"] | null;
+            shape?: components["schemas"]["CameraZoneShape"] | null;
             /** @description Type of zone */
-            zone_type?: components["schemas"]["ZoneType"] | null;
+            zone_type?: components["schemas"]["CameraZoneType"] | null;
+        };
+        /**
+         * AlertmanagerAlert
+         * @description Schema for a single alert in Alertmanager webhook payload.
+         *
+         *     Represents one alert instance with its labels, annotations, and timing.
+         *     This schema matches the Alertmanager webhook format.
+         * @example {
+         *       "annotations": {
+         *         "description": "CPU usage is above 80% for 5 minutes",
+         *         "summary": "CPU usage is high"
+         *       },
+         *       "endsAt": "0001-01-01T00:00:00Z",
+         *       "fingerprint": "abc123def456",
+         *       "generatorURL": "http://prometheus:9090/graph?...",
+         *       "labels": {
+         *         "alertname": "HighCPU",
+         *         "instance": "localhost:9090",
+         *         "severity": "warning"
+         *       },
+         *       "startsAt": "2026-01-20T12:00:00Z",
+         *       "status": "firing"
+         *     }
+         */
+        backend__api__schemas__alertmanager__AlertmanagerAlert: {
+            /**
+             * Annotations
+             * @description Alert annotations (summary, description)
+             */
+            annotations?: {
+                [key: string]: string;
+            };
+            /**
+             * Endsat
+             * @description When the alert was resolved
+             */
+            endsAt?: string | null;
+            /**
+             * Fingerprint
+             * @description Unique identifier for alert deduplication
+             */
+            fingerprint: string;
+            /**
+             * Generatorurl
+             * @description URL to the Prometheus graph
+             */
+            generatorURL?: string | null;
+            /**
+             * Labels
+             * @description Alert labels (alertname, severity, etc.)
+             */
+            labels?: {
+                [key: string]: string;
+            };
+            /**
+             * Startsat
+             * Format: date-time
+             * @description When the alert started firing
+             */
+            startsAt: string;
+            /** @description Alert status (firing or resolved) */
+            status: components["schemas"]["PrometheusAlertStatus"];
         };
     };
     responses: never;
@@ -30687,6 +32274,670 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["EventRegistryResponse"];
                 };
+            };
+        };
+    };
+    receive_alertmanager_webhook_api_v1_alertmanager_webhook_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlertmanagerWebhook"];
+            };
+        };
+        responses: {
+            /** @description Webhook received and processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertmanagerWebhookResponse"];
+                };
+            };
+            /** @description Invalid payload format */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_area_api_v1_areas__area_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                area_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AreaResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_area_api_v1_areas__area_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                area_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_area_api_v1_areas__area_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                area_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AreaUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AreaResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_area_cameras_api_v1_areas__area_id__cameras_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                area_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AreaCamerasResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    link_camera_to_area_api_v1_areas__area_id__cameras_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                area_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CameraLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraLinkResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_camera_from_area_api_v1_areas__area_id__cameras__camera_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                area_id: number;
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraLinkResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_households_api_v1_households_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdListResponse"];
+                };
+            };
+        };
+    };
+    create_household_api_v1_households_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HouseholdCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_household_api_v1_households__household_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                household_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_household_api_v1_households__household_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                household_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_household_api_v1_households__household_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                household_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HouseholdUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseholdResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_household_properties_api_v1_households__household_id__properties_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                household_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PropertyListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_property_api_v1_households__household_id__properties_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                household_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PropertyCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PropertyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_property_api_v1_properties__property_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                property_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PropertyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_property_api_v1_properties__property_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                property_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_property_api_v1_properties__property_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                property_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PropertyUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PropertyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_property_areas_api_v1_properties__property_id__areas_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                property_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AreaListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_area_api_v1_properties__property_id__areas_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                property_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AreaCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AreaResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_user_settings_api_v1_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+        };
+    };
+    update_settings_api_v1_settings_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Settings updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsResponse"];
+                };
+            };
+            /** @description Validation error (e.g., invalid severity ordering) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to write settings to runtime.env */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -6402,3 +6402,428 @@ export async function fetchWebSocketConnections(): Promise<WebSocketConnectionsR
 export async function fetchSummaries(): Promise<SummariesLatestResponse> {
   return fetchApi<SummariesLatestResponse>('/api/summaries/latest');
 }
+
+// ============================================================================
+// Hierarchy Types (Organizational Structure - NEM-3137)
+// ============================================================================
+
+/**
+ * Household organization unit.
+ * Top-level container for members, vehicles, and properties.
+ */
+export interface Household {
+  /** Unique household identifier */
+  id: number;
+  /** Household name (e.g., "Svoboda Family") */
+  name: string;
+  /** Timestamp when household was created */
+  created_at: string;
+}
+
+/**
+ * Request body for creating a new household.
+ */
+export interface HouseholdCreate {
+  /** Household name (1-100 characters) */
+  name: string;
+}
+
+/**
+ * Request body for updating an existing household.
+ */
+export interface HouseholdUpdate {
+  /** New household name (optional) */
+  name?: string;
+}
+
+/**
+ * Response for listing households.
+ */
+export interface HouseholdListResponse {
+  /** List of households */
+  items: Household[];
+  /** Total number of households */
+  total: number;
+}
+
+/**
+ * Property represents a physical location within a household.
+ */
+export interface Property {
+  /** Unique property identifier */
+  id: number;
+  /** ID of the owning household */
+  household_id: number;
+  /** Property name (e.g., "Main House") */
+  name: string;
+  /** Street address (optional) */
+  address: string | null;
+  /** Timezone in IANA format */
+  timezone: string;
+  /** Timestamp when property was created */
+  created_at: string;
+}
+
+/**
+ * Request body for creating a new property.
+ */
+export interface PropertyCreate {
+  /** Property name (1-100 characters) */
+  name: string;
+  /** Street address (optional) */
+  address?: string;
+  /** Timezone (defaults to "UTC") */
+  timezone?: string;
+}
+
+/**
+ * Request body for updating an existing property.
+ */
+export interface PropertyUpdate {
+  /** New property name (optional) */
+  name?: string;
+  /** New address (optional) */
+  address?: string;
+  /** New timezone (optional) */
+  timezone?: string;
+}
+
+/**
+ * Response for listing properties.
+ */
+export interface PropertyListResponse {
+  /** List of properties */
+  items: Property[];
+  /** Total number of properties */
+  total: number;
+}
+
+/**
+ * Area represents a logical zone within a property.
+ */
+export interface Area {
+  /** Unique area identifier */
+  id: number;
+  /** ID of the parent property */
+  property_id: number;
+  /** Area name (e.g., "Front Yard") */
+  name: string;
+  /** Description (optional) */
+  description: string | null;
+  /** Hex color code for UI display */
+  color: string;
+  /** Timestamp when area was created */
+  created_at: string;
+}
+
+/**
+ * Request body for creating a new area.
+ */
+export interface AreaCreate {
+  /** Area name (1-100 characters) */
+  name: string;
+  /** Description (optional) */
+  description?: string;
+  /** Hex color code (defaults to "#76B900") */
+  color?: string;
+}
+
+/**
+ * Request body for updating an existing area.
+ */
+export interface AreaUpdate {
+  /** New area name (optional) */
+  name?: string;
+  /** New description (optional) */
+  description?: string;
+  /** New color (optional) */
+  color?: string;
+}
+
+/**
+ * Response for listing areas.
+ */
+export interface AreaListResponse {
+  /** List of areas */
+  items: Area[];
+  /** Total number of areas */
+  total: number;
+}
+
+/**
+ * Camera info in area context (minimal camera info).
+ */
+export interface AreaCamera {
+  /** Camera ID */
+  id: string;
+  /** Camera name */
+  name: string;
+  /** Camera status */
+  status: string;
+}
+
+/**
+ * Response for listing cameras in an area.
+ */
+export interface AreaCamerasResponse {
+  /** Area ID */
+  area_id: number;
+  /** Area name */
+  area_name: string;
+  /** List of cameras in this area */
+  cameras: AreaCamera[];
+  /** Number of cameras in this area */
+  count: number;
+}
+
+/**
+ * Request body for linking a camera to an area.
+ */
+export interface CameraLinkRequest {
+  /** Camera ID to link */
+  camera_id: string;
+}
+
+/**
+ * Response for camera link/unlink operations.
+ */
+export interface CameraLinkResponse {
+  /** Area ID */
+  area_id: number;
+  /** Camera ID */
+  camera_id: string;
+  /** Whether the camera is now linked (true) or unlinked (false) */
+  linked: boolean;
+}
+
+// ============================================================================
+// Hierarchy API Endpoints (NEM-3137)
+// ============================================================================
+
+// --- Household CRUD ---
+
+/**
+ * Fetch all households.
+ *
+ * @returns List of households
+ */
+export async function fetchHouseholds(): Promise<Household[]> {
+  const response = await fetchApi<HouseholdListResponse>('/api/v1/households');
+  return response.items;
+}
+
+/**
+ * Fetch a single household by ID.
+ *
+ * @param id - Household ID
+ * @returns Household object
+ */
+export async function fetchHousehold(id: number): Promise<Household> {
+  return fetchApi<Household>(`/api/v1/households/${id}`);
+}
+
+/**
+ * Create a new household.
+ *
+ * @param data - Household creation data
+ * @returns Created household
+ */
+export async function createHousehold(data: HouseholdCreate): Promise<Household> {
+  return fetchApi<Household>('/api/v1/households', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update an existing household.
+ *
+ * @param id - Household ID
+ * @param data - Update data
+ * @returns Updated household
+ */
+export async function updateHousehold(id: number, data: HouseholdUpdate): Promise<Household> {
+  return fetchApi<Household>(`/api/v1/households/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete a household.
+ *
+ * @param id - Household ID
+ */
+export async function deleteHousehold(id: number): Promise<void> {
+  return fetchApi<void>(`/api/v1/households/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// --- Property CRUD ---
+
+/**
+ * Fetch all properties for a household.
+ *
+ * @param householdId - Household ID
+ * @returns List of properties
+ */
+export async function fetchProperties(householdId: number): Promise<Property[]> {
+  const response = await fetchApi<PropertyListResponse>(
+    `/api/v1/households/${householdId}/properties`
+  );
+  return response.items;
+}
+
+/**
+ * Fetch a single property by ID.
+ *
+ * @param id - Property ID
+ * @returns Property object
+ */
+export async function fetchProperty(id: number): Promise<Property> {
+  return fetchApi<Property>(`/api/v1/properties/${id}`);
+}
+
+/**
+ * Create a new property under a household.
+ *
+ * @param householdId - Household ID
+ * @param data - Property creation data
+ * @returns Created property
+ */
+export async function createProperty(householdId: number, data: PropertyCreate): Promise<Property> {
+  return fetchApi<Property>(`/api/v1/households/${householdId}/properties`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update an existing property.
+ *
+ * @param id - Property ID
+ * @param data - Update data
+ * @returns Updated property
+ */
+export async function updateProperty(id: number, data: PropertyUpdate): Promise<Property> {
+  return fetchApi<Property>(`/api/v1/properties/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete a property.
+ *
+ * @param id - Property ID
+ */
+export async function deleteProperty(id: number): Promise<void> {
+  return fetchApi<void>(`/api/v1/properties/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// --- Area CRUD ---
+
+/**
+ * Fetch all areas for a property.
+ *
+ * @param propertyId - Property ID
+ * @returns List of areas
+ */
+export async function fetchAreas(propertyId: number): Promise<Area[]> {
+  const response = await fetchApi<AreaListResponse>(`/api/v1/properties/${propertyId}/areas`);
+  return response.items;
+}
+
+/**
+ * Fetch a single area by ID.
+ *
+ * @param id - Area ID
+ * @returns Area object
+ */
+export async function fetchArea(id: number): Promise<Area> {
+  return fetchApi<Area>(`/api/v1/areas/${id}`);
+}
+
+/**
+ * Create a new area under a property.
+ *
+ * @param propertyId - Property ID
+ * @param data - Area creation data
+ * @returns Created area
+ */
+export async function createArea(propertyId: number, data: AreaCreate): Promise<Area> {
+  return fetchApi<Area>(`/api/v1/properties/${propertyId}/areas`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update an existing area.
+ *
+ * @param id - Area ID
+ * @param data - Update data
+ * @returns Updated area
+ */
+export async function updateArea(id: number, data: AreaUpdate): Promise<Area> {
+  return fetchApi<Area>(`/api/v1/areas/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete an area.
+ *
+ * @param id - Area ID
+ */
+export async function deleteArea(id: number): Promise<void> {
+  return fetchApi<void>(`/api/v1/areas/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// --- Camera Linking ---
+
+/**
+ * Fetch all cameras linked to an area.
+ *
+ * @param areaId - Area ID
+ * @returns Area cameras response with list of cameras
+ */
+export async function fetchAreaCameras(areaId: number): Promise<AreaCamerasResponse> {
+  return fetchApi<AreaCamerasResponse>(`/api/v1/areas/${areaId}/cameras`);
+}
+
+/**
+ * Link a camera to an area.
+ *
+ * @param areaId - Area ID
+ * @param cameraId - Camera ID to link
+ * @returns Link response
+ */
+export async function linkCameraToArea(areaId: number, cameraId: string): Promise<CameraLinkResponse> {
+  return fetchApi<CameraLinkResponse>(`/api/v1/areas/${areaId}/cameras`, {
+    method: 'POST',
+    body: JSON.stringify({ camera_id: cameraId }),
+  });
+}
+
+/**
+ * Unlink a camera from an area.
+ *
+ * @param areaId - Area ID
+ * @param cameraId - Camera ID to unlink
+ * @returns Unlink response
+ */
+export async function unlinkCameraFromArea(
+  areaId: number,
+  cameraId: string
+): Promise<CameraLinkResponse> {
+  return fetchApi<CameraLinkResponse>(`/api/v1/areas/${areaId}/cameras/${cameraId}`, {
+    method: 'DELETE',
+  });
+}

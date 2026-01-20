@@ -15,7 +15,10 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.zone import Zone
+from backend.models.camera_zone import CameraZone
+
+# Alias for backward compatibility
+Zone = CameraZone
 
 if TYPE_CHECKING:
     from backend.models.detection import Detection

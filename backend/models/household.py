@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Enum, Float, ForeignKey, Index, Integer, LargeBinary, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -23,6 +24,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from .camera import Base
+
+if TYPE_CHECKING:
+    from .household_org import Household
 
 
 class MemberRole(str, enum.Enum):
@@ -83,6 +87,11 @@ class HouseholdMember(Base):
     __tablename__ = "household_members"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    household_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("households.id", ondelete="CASCADE"),
+        nullable=True,  # Nullable initially for backward compatibility
+    )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     role: Mapped[MemberRole] = mapped_column(
         Enum(
@@ -102,6 +111,10 @@ class HouseholdMember(Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     # Relationships
+    household: Mapped[Household | None] = relationship(
+        "Household",
+        back_populates="members",
+    )
     embeddings: Mapped[list[PersonEmbedding]] = relationship(
         "PersonEmbedding",
         back_populates="member",
@@ -115,6 +128,8 @@ class HouseholdMember(Base):
         Index("idx_household_members_trusted_level", "trusted_level"),
         # Composite index for role + trust level queries
         Index("idx_household_members_role_trust", "role", "trusted_level"),
+        # Index for querying by household
+        Index("idx_household_members_household_id", "household_id"),
     )
 
     def __repr__(self) -> str:
@@ -208,6 +223,11 @@ class RegisteredVehicle(Base):
     __tablename__ = "registered_vehicles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    household_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("households.id", ondelete="CASCADE"),
+        nullable=True,  # Nullable initially for backward compatibility
+    )
     description: Mapped[str] = mapped_column(String(200), nullable=False)
     license_plate: Mapped[str | None] = mapped_column(String(20), nullable=True)
     vehicle_type: Mapped[VehicleType] = mapped_column(
@@ -229,6 +249,10 @@ class RegisteredVehicle(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     # Relationships
+    household: Mapped[Household | None] = relationship(
+        "Household",
+        back_populates="vehicles",
+    )
     owner: Mapped[HouseholdMember | None] = relationship("HouseholdMember")
 
     __table_args__ = (
@@ -240,6 +264,8 @@ class RegisteredVehicle(Base):
         Index("idx_registered_vehicles_trusted", "trusted"),
         # Index for vehicle type filtering
         Index("idx_registered_vehicles_vehicle_type", "vehicle_type"),
+        # Index for querying by household
+        Index("idx_registered_vehicles_household_id", "household_id"),
     )
 
     def __repr__(self) -> str:

@@ -183,6 +183,12 @@ class WebSocketEventType(StrEnum):
     """Camera scene change detected (potential tampering)."""
 
     # ==========================================================================
+    # Prometheus Alert Events - Infrastructure monitoring (NEM-3122)
+    # ==========================================================================
+    PROMETHEUS_ALERT = "prometheus.alert"
+    """Prometheus/Alertmanager alert received (infrastructure monitoring)."""
+
+    # ==========================================================================
     # Connection Events - WebSocket connection lifecycle
     # ==========================================================================
     CONNECTION_ESTABLISHED = "connection.established"
@@ -504,6 +510,13 @@ EVENT_TYPE_METADATA: dict[WebSocketEventType, dict[str, Any]] = {
         "channel": "events",
         "requires_payload": True,
         "payload_fields": ["id", "camera_id", "change_type", "similarity_score"],
+    },
+    # Prometheus alert events (NEM-3122)
+    WebSocketEventType.PROMETHEUS_ALERT: {
+        "description": "Prometheus/Alertmanager alert received",
+        "channel": "alerts",
+        "requires_payload": True,
+        "payload_fields": ["fingerprint", "status", "alertname", "severity", "starts_at"],
     },
     # Connection events
     WebSocketEventType.CONNECTION_ESTABLISHED: {

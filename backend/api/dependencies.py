@@ -96,11 +96,11 @@ from backend.core.redis import RedisClient, get_redis
 from backend.models.alert import AlertRule
 from backend.models.audit import AuditLog
 from backend.models.camera import Camera
+from backend.models.camera_zone import CameraZone
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
 from backend.models.prompt_version import PromptVersion
-from backend.models.zone import Zone
 from backend.services.cache_service import CacheService
 
 logger = get_logger(__name__)
@@ -573,10 +573,10 @@ async def get_zone_or_404(
     zone_id: str,
     db: AsyncSession,
     camera_id: str | None = None,
-) -> Zone:
-    """Get a zone by ID or raise 404 if not found.
+) -> CameraZone:
+    """Get a camera zone by ID or raise 404 if not found.
 
-    This utility function queries the database for a zone with the given ID
+    This utility function queries the database for a camera zone with the given ID
     and raises an HTTPException with status 404 if not found.
 
     Args:
@@ -585,17 +585,17 @@ async def get_zone_or_404(
         camera_id: Optional camera ID (string) to filter by (if provided, zone must belong to this camera)
 
     Returns:
-        Zone object if found
+        CameraZone object if found
 
     Raises:
         HTTPException: 404 if zone not found or doesn't belong to specified camera
     """
-    # Note: Zone and Camera IDs are strings, not UUIDs
+    # Note: CameraZone and Camera IDs are strings, not UUIDs
 
-    query = select(Zone).where(Zone.id == zone_id)
+    query = select(CameraZone).where(CameraZone.id == zone_id)
 
     if camera_id is not None:
-        query = query.where(Zone.camera_id == camera_id)
+        query = query.where(CameraZone.camera_id == camera_id)
 
     result = await db.execute(query)
     zone = result.scalar_one_or_none()

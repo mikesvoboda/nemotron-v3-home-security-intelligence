@@ -30,14 +30,19 @@ from backend.core.database import get_session, get_session_factory
 from backend.models.alert import Alert, AlertSeverity, AlertStatus
 from backend.models.baseline import ActivityBaseline, ClassBaseline
 from backend.models.camera import Camera
+from backend.models.camera_zone import CameraZone, CameraZoneShape, CameraZoneType
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
-from backend.models.zone import Zone, ZoneShape, ZoneType
 from backend.tests.conftest import unique_id
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+# Aliases for backward compatibility
+Zone = CameraZone
+ZoneShape = CameraZoneShape
+ZoneType = CameraZoneType
 
 pytestmark = pytest.mark.integration
 

@@ -15,12 +15,15 @@ from backend.models.alert import AlertRule
 from backend.models.audit import AuditLog
 from backend.models.baseline import ActivityBaseline, ClassBaseline
 from backend.models.camera import Camera
+from backend.models.camera_zone import CameraZone
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.event_audit import EventAudit
 from backend.models.log import Log
 from backend.models.scene_change import SceneChange
-from backend.models.zone import Zone
+
+# Alias for backward compatibility
+Zone = CameraZone
 
 # Mark as unit tests - no database required
 pytestmark = pytest.mark.unit
@@ -291,34 +294,34 @@ class TestClassBaselineHourConstraint:
         assert "23" in constraint_text
 
 
-class TestZonePriorityConstraint:
-    """Tests for Zone.priority CHECK constraint."""
+class TestCameraZonePriorityConstraint:
+    """Tests for CameraZone.priority CHECK constraint."""
 
-    def test_zone_has_priority_check_constraint(self):
-        """Test that Zone has a CHECK constraint for non-negative priority."""
+    def test_camera_zone_has_priority_check_constraint(self):
+        """Test that CameraZone has a CHECK constraint for non-negative priority."""
         constraint_names = _get_check_constraint_names(Zone)
-        assert "ck_zones_priority_non_negative" in constraint_names
+        assert "ck_camera_zones_priority_non_negative" in constraint_names
 
-    def test_zone_priority_constraint_expression(self):
-        """Test that Zone priority constraint enforces non-negative values."""
-        constraint = _get_check_constraint_by_name(Zone, "ck_zones_priority_non_negative")
+    def test_camera_zone_priority_constraint_expression(self):
+        """Test that CameraZone priority constraint enforces non-negative values."""
+        constraint = _get_check_constraint_by_name(Zone, "ck_camera_zones_priority_non_negative")
         assert constraint is not None
         constraint_text = str(constraint.sqltext)
         assert "priority" in constraint_text
         assert "0" in constraint_text
 
 
-class TestZoneColorConstraint:
-    """Tests for Zone.color CHECK constraint."""
+class TestCameraZoneColorConstraint:
+    """Tests for CameraZone.color CHECK constraint."""
 
-    def test_zone_has_color_check_constraint(self):
-        """Test that Zone has a CHECK constraint for hex color format."""
+    def test_camera_zone_has_color_check_constraint(self):
+        """Test that CameraZone has a CHECK constraint for hex color format."""
         constraint_names = _get_check_constraint_names(Zone)
-        assert "ck_zones_color_hex" in constraint_names
+        assert "ck_camera_zones_color_hex" in constraint_names
 
-    def test_zone_color_constraint_expression(self):
-        """Test that Zone color constraint enforces hex format."""
-        constraint = _get_check_constraint_by_name(Zone, "ck_zones_color_hex")
+    def test_camera_zone_color_constraint_expression(self):
+        """Test that CameraZone color constraint enforces hex format."""
+        constraint = _get_check_constraint_by_name(Zone, "ck_camera_zones_color_hex")
         assert constraint is not None
         constraint_text = str(constraint.sqltext)
         assert "color" in constraint_text
@@ -476,8 +479,8 @@ class TestAllModelsHaveExpectedConstraints:
             ("ActivityBaseline", "ck_activity_baselines_hour_range"),
             ("ActivityBaseline", "ck_activity_baselines_dow_range"),
             ("ClassBaseline", "ck_class_baselines_hour_range"),
-            ("Zone", "ck_zones_priority_non_negative"),
-            ("Zone", "ck_zones_color_hex"),
+            ("Zone", "ck_camera_zones_priority_non_negative"),
+            ("Zone", "ck_camera_zones_color_hex"),
             ("SceneChange", "ck_scene_changes_similarity_range"),
             ("EventAudit", "ck_event_audits_context_score_range"),
             ("EventAudit", "ck_event_audits_reasoning_score_range"),

@@ -1,8 +1,8 @@
 /**
- * Tests for useAlertWebSocket hook (NEM-2552)
+ * Tests for useAlertWebSocket hook (NEM-2552, NEM-3125)
  *
  * This hook subscribes to WebSocket alert events and provides callbacks
- * for handling alert state changes (created, updated, acknowledged, resolved).
+ * for handling alert state changes (created, updated, deleted, acknowledged, resolved).
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, act } from '@testing-library/react';
@@ -14,14 +14,30 @@ import { useAlertWebSocket } from './useAlertWebSocket';
 import * as useWebSocketModule from './useWebSocket';
 import { createQueryClient } from '../services/queryClient';
 
-import type { WebSocketAlertData } from '../types/generated/websocket';
+import type { WebSocketAlertData, WebSocketAlertDeletedData } from '../types/generated/websocket';
 
 // Track the captured onMessage callback
 let capturedOnMessage: ((data: unknown) => void) | undefined;
 
+// Mock toast functions
+const mockToast = {
+  success: vi.fn().mockReturnValue('toast-1'),
+  error: vi.fn().mockReturnValue('toast-2'),
+  warning: vi.fn().mockReturnValue('toast-3'),
+  info: vi.fn().mockReturnValue('toast-4'),
+  loading: vi.fn().mockReturnValue('toast-5'),
+  dismiss: vi.fn(),
+  promise: vi.fn(),
+};
+
 // Mock the useWebSocket hook
 vi.mock('./useWebSocket', () => ({
   useWebSocket: vi.fn(),
+}));
+
+// Mock the useToast hook
+vi.mock('./useToast', () => ({
+  useToast: vi.fn(() => mockToast),
 }));
 
 // Create a wrapper with QueryClient
@@ -53,6 +69,14 @@ describe('useAlertWebSocket', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     capturedOnMessage = undefined;
+
+    // Reset toast mocks
+    mockToast.success.mockClear();
+    mockToast.error.mockClear();
+    mockToast.warning.mockClear();
+    mockToast.info.mockClear();
+    mockToast.loading.mockClear();
+    mockToast.dismiss.mockClear();
 
     mockWebSocketReturn = {
       isConnected: true,
@@ -288,6 +312,125 @@ describe('useAlertWebSocket', () => {
     });
   });
 
+  describe('alert_deleted event handling', () => {
+    // Helper to create mock deleted alert data
+    const createMockDeletedAlertData = (
+      overrides: Partial<WebSocketAlertDeletedData> = {}
+    ): WebSocketAlertDeletedData => ({
+      id: 'alert-123',
+      reason: 'Duplicate alert',
+      ...overrides,
+    });
+
+    it('handles alert_deleted messages and calls callback', () => {
+      const onAlertDeleted = vi.fn();
+      const deletedData = createMockDeletedAlertData();
+
+      renderHook(() => useAlertWebSocket({ onAlertDeleted }), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        capturedOnMessage?.({
+          type: 'alert_deleted',
+          data: deletedData,
+        });
+      });
+
+      expect(onAlertDeleted).toHaveBeenCalledWith(deletedData);
+    });
+
+    it('handles alert_deleted messages without reason', () => {
+      const onAlertDeleted = vi.fn();
+      const deletedData = createMockDeletedAlertData({ reason: null });
+
+      renderHook(() => useAlertWebSocket({ onAlertDeleted }), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        capturedOnMessage?.({
+          type: 'alert_deleted',
+          data: deletedData,
+        });
+      });
+
+      expect(onAlertDeleted).toHaveBeenCalledWith(deletedData);
+    });
+
+    it('invalidates alerts cache on alert_deleted', () => {
+      const queryClient = createQueryClient();
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+      const deletedData = createMockDeletedAlertData();
+
+      renderHook(() => useAlertWebSocket(), {
+        wrapper: createWrapper(queryClient),
+      });
+
+      act(() => {
+        capturedOnMessage?.({
+          type: 'alert_deleted',
+          data: deletedData,
+        });
+      });
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: alertsQueryKeys.all,
+      });
+    });
+
+    it('shows toast notification on alert_deleted', () => {
+      const deletedData = createMockDeletedAlertData();
+
+      renderHook(() => useAlertWebSocket({ showToasts: true }), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        capturedOnMessage?.({
+          type: 'alert_deleted',
+          data: deletedData,
+        });
+      });
+
+      expect(mockToast.info).toHaveBeenCalledWith('Alert dismissed', { duration: 3000 });
+    });
+
+    it('does not show toast when showToasts is false', () => {
+      const deletedData = createMockDeletedAlertData();
+
+      renderHook(() => useAlertWebSocket({ showToasts: false }), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        capturedOnMessage?.({
+          type: 'alert_deleted',
+          data: deletedData,
+        });
+      });
+
+      expect(mockToast.info).not.toHaveBeenCalled();
+    });
+
+    it('shows toast by default (showToasts true)', () => {
+      const deletedData = createMockDeletedAlertData();
+
+      renderHook(() => useAlertWebSocket(), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        capturedOnMessage?.({
+          type: 'alert_deleted',
+          data: deletedData,
+        });
+      });
+
+      expect(mockToast.info).toHaveBeenCalledWith('Alert dismissed', { duration: 3000 });
+    });
+  });
+
   describe('cache invalidation control', () => {
     it('does not invalidate cache when autoInvalidateCache is false', () => {
       const queryClient = createQueryClient();
@@ -329,7 +472,7 @@ describe('useAlertWebSocket', () => {
   });
 
   describe('onAnyAlertEvent callback', () => {
-    it('calls onAnyAlertEvent for all alert event types', () => {
+    it('calls onAnyAlertEvent for alert event types with full alert data', () => {
       const onAnyAlertEvent = vi.fn();
       const alertData = createMockAlertData();
 
@@ -337,7 +480,8 @@ describe('useAlertWebSocket', () => {
         wrapper: createWrapper(),
       });
 
-      // Test all event types
+      // Test all event types that have full alert data (alert_deleted is excluded
+      // because it has a different data shape and uses onAlertDeleted callback instead)
       const eventTypes = ['alert_created', 'alert_updated', 'alert_acknowledged', 'alert_resolved'];
 
       eventTypes.forEach((eventType) => {
@@ -354,6 +498,23 @@ describe('useAlertWebSocket', () => {
       expect(onAnyAlertEvent).toHaveBeenCalledWith('alert_updated', alertData);
       expect(onAnyAlertEvent).toHaveBeenCalledWith('alert_acknowledged', alertData);
       expect(onAnyAlertEvent).toHaveBeenCalledWith('alert_resolved', alertData);
+    });
+
+    it('does not call onAnyAlertEvent for alert_deleted (uses different data shape)', () => {
+      const onAnyAlertEvent = vi.fn();
+
+      renderHook(() => useAlertWebSocket({ onAnyAlertEvent }), {
+        wrapper: createWrapper(),
+      });
+
+      act(() => {
+        capturedOnMessage?.({
+          type: 'alert_deleted',
+          data: { id: 'alert-123', reason: 'Test reason' },
+        });
+      });
+
+      expect(onAnyAlertEvent).not.toHaveBeenCalled();
     });
 
     it('calls onAnyAlertEvent before specific handlers', () => {

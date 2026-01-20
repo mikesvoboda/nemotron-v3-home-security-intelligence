@@ -1078,7 +1078,7 @@ async def test_zones_cascade_deleted_with_camera(client):
     from sqlalchemy import select
 
     from backend.core.database import get_session
-    from backend.models.zone import Zone
+    from backend.models.camera_zone import CameraZone as Zone
 
     # Create a camera with zones
     uid = unique_id()

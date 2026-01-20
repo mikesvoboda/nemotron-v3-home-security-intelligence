@@ -19,8 +19,8 @@ import pytest
 
 from backend.models.baseline import ActivityBaseline, ClassBaseline
 from backend.models.camera import Camera
+from backend.models.camera_zone import CameraZone, CameraZoneType
 from backend.models.detection import Detection
-from backend.models.zone import Zone, ZoneType
 from backend.services.context_enricher import (
     DAY_NAMES,
     ZONE_RISK_WEIGHTS,
@@ -33,6 +33,10 @@ from backend.services.context_enricher import (
     get_context_enricher,
     reset_context_enricher,
 )
+
+# Aliases for backward compatibility
+Zone = CameraZone
+ZoneType = CameraZoneType
 
 # Mark as unit tests - no database required
 pytestmark = pytest.mark.unit
