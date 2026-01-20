@@ -85,11 +85,11 @@ class HouseholdMember(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     role: Mapped[MemberRole] = mapped_column(
-        Enum(MemberRole, name="member_role_enum"),
+        Enum(MemberRole, name="member_role_enum", values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
     )
     trusted_level: Mapped[TrustLevel] = mapped_column(
-        Enum(TrustLevel, name="trust_level_enum"),
+        Enum(TrustLevel, name="trust_level_enum", values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
     )
     typical_schedule: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -207,7 +207,7 @@ class RegisteredVehicle(Base):
     description: Mapped[str] = mapped_column(String(200), nullable=False)
     license_plate: Mapped[str | None] = mapped_column(String(20), nullable=True)
     vehicle_type: Mapped[VehicleType] = mapped_column(
-        Enum(VehicleType, name="vehicle_type_enum"),
+        Enum(VehicleType, name="vehicle_type_enum", values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
     )
     color: Mapped[str | None] = mapped_column(String(50), nullable=True)
