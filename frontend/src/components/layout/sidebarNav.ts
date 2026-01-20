@@ -4,6 +4,7 @@
  */
 
 import {
+  Activity,
   BarChart3,
   Bell,
   Brain,
@@ -67,6 +68,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { id: 'jobs', label: 'Jobs', icon: Briefcase, path: '/jobs' },
       { id: 'operations', label: 'Pipeline', icon: Workflow, path: '/operations' },
+      { id: 'tracing', label: 'Tracing', icon: Activity, path: '/tracing' },
       { id: 'logs', label: 'Logs', icon: ScrollText, path: '/logs' },
     ],
   },
