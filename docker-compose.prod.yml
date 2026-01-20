@@ -710,11 +710,25 @@ services:
   alloy:
     image: docker.io/grafana/alloy:v1.0.0
     container_name: alloy
-    privileged: true
+    # Use specific capabilities instead of privileged mode for eBPF
+    # CAP_SYS_ADMIN: Required for BPF operations
+    # CAP_SYS_PTRACE: Required for process tracing
+    # CAP_PERFMON: Linux 5.8+ perf event access
+    # CAP_BPF: Linux 5.8+ BPF program loading
+    # CAP_DAC_READ_SEARCH: Read files without permission checks
+    # CAP_SYS_RESOURCE: Resource limits for cgroup access
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - PERFMON
+      - BPF
+      - DAC_READ_SEARCH
+      - SYS_RESOURCE
     pid: host
     user: root
     security_opt:
       - label:disable
+      - no-new-privileges:true
     volumes:
       - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
       - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro

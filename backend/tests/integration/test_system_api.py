@@ -485,6 +485,9 @@ async def test_readiness_endpoint_not_ready_when_pipeline_workers_stopped(client
     original_pipeline_manager = system_routes._pipeline_manager
 
     try:
+        # Clear the readiness cache to ensure our mock is used
+        system_routes.clear_system_caches()
+
         # Mock pipeline manager with stopped workers
         mock_manager = MagicMock()
         mock_manager.get_status.return_value = {
@@ -524,6 +527,8 @@ async def test_readiness_endpoint_not_ready_when_pipeline_workers_stopped(client
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager
+        # Clear cache to ensure clean state for other tests
+        system_routes.clear_system_caches()
 
 
 @pytest.mark.asyncio
