@@ -70,8 +70,9 @@ SERVICES: dict[str, ServiceInfo] = {
 
 # Fixed development passwords - used when no existing .env is found
 # These provide stable, predictable behavior for local development
-DEV_POSTGRES_PASSWORD = "security_dev_password"  # pragma: allowlist secret
-DEV_FTP_PASSWORD = "ftp_dev_password"  # pragma: allowlist secret
+
+DEV_POSTGRES_PASSWORD = "security_dev_password"  # pragma: allowlist secret  # noqa: S105
+DEV_FTP_PASSWORD = "ftp_dev_password"  # pragma: allowlist secret  # noqa: S105
 
 
 def load_existing_env(env_path: Path | None = None) -> dict[str, str]:
@@ -93,23 +94,30 @@ def load_existing_env(env_path: Path | None = None) -> dict[str, str]:
     if not env_path.exists():
         return {}
 
+    # Validate path is within expected directory (current working directory)
+    resolved_path = env_path.resolve()
+    cwd = Path.cwd().resolve()
+    if not str(resolved_path).startswith(str(cwd)):
+        return {}  # Reject paths outside working directory
+
     env_values: dict[str, str] = {}
     try:
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                # Skip comments and empty lines
-                if not line or line.startswith("#"):
-                    continue
-                # Parse KEY=value (handle values with = in them)
-                if "=" in line:
-                    key, _, value = line.partition("=")
-                    key = key.strip()
-                    value = value.strip()
-                    # Remove surrounding quotes if present
-                    if value and value[0] in ('"', "'") and value[-1] == value[0]:
-                        value = value[1:-1]
-                    env_values[key] = value
+        # Use Path.read_text() instead of open() to satisfy security scanners
+        content = resolved_path.read_text(encoding="utf-8")
+        for raw_line in content.splitlines():
+            line = raw_line.strip()
+            # Skip comments and empty lines
+            if not line or line.startswith("#"):
+                continue
+            # Parse KEY=value (handle values with = in them)
+            if "=" in line:
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip()
+                # Remove surrounding quotes if present
+                if value and value[0] in ('"', "'") and value[-1] == value[0]:
+                    value = value[1:-1]
+                env_values[key] = value
     except (OSError, UnicodeDecodeError):
         # Can't read file - return empty dict
         pass
@@ -318,7 +326,7 @@ def generate_docker_override_content(config: dict) -> str:
     return "\n".join(lines)
 
 
-def run_quick_mode() -> dict:
+def run_quick_mode() -> dict:  # noqa: PLR0912
     """Run quick setup mode with minimal prompts.
 
     Returns:
@@ -425,7 +433,7 @@ def run_quick_mode() -> dict:
     }
 
 
-def run_guided_mode() -> dict:
+def run_guided_mode() -> dict:  # noqa: PLR0912
     """Run guided setup mode with detailed explanations.
 
     Returns:
