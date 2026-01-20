@@ -166,10 +166,9 @@ def realistic_enrichment_result():
             scene_analysis=SceneAnalysis(
                 caption="A person walking towards a parked car in a residential driveway",
                 environment=EnvironmentContext(
-                    lighting="daytime",
+                    time_of_day="day",
+                    artificial_light=False,
                     weather="clear",
-                    location="outdoor",
-                    time_of_day="afternoon",
                 ),
             ),
             person_attributes={
