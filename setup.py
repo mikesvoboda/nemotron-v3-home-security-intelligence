@@ -70,7 +70,6 @@ SERVICES: dict[str, ServiceInfo] = {
 
 # Fixed development passwords - used when no existing .env is found
 # These provide stable, predictable behavior for local development
-
 DEV_POSTGRES_PASSWORD = "security_dev_password"  # pragma: allowlist secret  # noqa: S105
 DEV_FTP_PASSWORD = "ftp_dev_password"  # pragma: allowlist secret  # noqa: S105
 
