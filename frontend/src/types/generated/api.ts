@@ -8258,7 +8258,7 @@ export interface components {
              * Alerts
              * @description List of alerts in this group
              */
-            alerts: components["schemas"]["backend__api__schemas__webhooks__AlertmanagerAlert"][];
+            alerts: components["schemas"]["WebhookAlert"][];
             /**
              * Commonannotations
              * @description Annotations common to all alerts
@@ -23035,6 +23035,68 @@ export interface components {
          */
         WebVitalName: "LCP" | "FID" | "INP" | "CLS" | "TTFB" | "FCP" | "PAGE_LOAD_TIME";
         /**
+         * WebhookAlert
+         * @description Schema for a single alert in webhook payload.
+         *
+         *     Represents one alert instance with its labels, annotations, and timing.
+         *     This is the legacy webhook schema - prefer AlertmanagerAlert from alertmanager.py.
+         * @example {
+         *       "annotations": {
+         *         "description": "GPU memory usage is above 90% for 5 minutes",
+         *         "summary": "GPU memory usage is high"
+         *       },
+         *       "endsAt": "0001-01-01T00:00:00Z",
+         *       "fingerprint": "abc123def456",
+         *       "generatorURL": "http://prometheus:9090/graph?...",
+         *       "labels": {
+         *         "alertname": "HSIGPUMemoryHigh",
+         *         "component": "gpu",
+         *         "severity": "warning"
+         *       },
+         *       "startsAt": "2026-01-17T12:22:56.068Z",
+         *       "status": "firing"
+         *     }
+         */
+        WebhookAlert: {
+            /**
+             * Annotations
+             * @description Alert annotations (summary, description)
+             */
+            annotations?: {
+                [key: string]: string;
+            };
+            /**
+             * Endsat
+             * @description When the alert was resolved
+             */
+            endsAt?: string | null;
+            /**
+             * Fingerprint
+             * @description Unique identifier for deduplication
+             */
+            fingerprint: string;
+            /**
+             * Generatorurl
+             * @description URL to the Prometheus graph
+             */
+            generatorURL?: string | null;
+            /**
+             * Labels
+             * @description Alert labels (alertname, severity, etc.)
+             */
+            labels?: {
+                [key: string]: string;
+            };
+            /**
+             * Startsat
+             * Format: date-time
+             * @description When the alert started firing
+             */
+            startsAt: string;
+            /** @description Alert status (firing or resolved) */
+            status: components["schemas"]["AlertmanagerStatus"];
+        };
+        /**
          * WebhookResponse
          * @description Schema for webhook processing response.
          * @example {
@@ -23468,67 +23530,6 @@ export interface components {
             shape?: components["schemas"]["CameraZoneShape"] | null;
             /** @description Type of zone */
             zone_type?: components["schemas"]["CameraZoneType"] | null;
-        };
-        /**
-         * AlertmanagerAlert
-         * @description Schema for a single alert in Alertmanager webhook payload.
-         *
-         *     Represents one alert instance with its labels, annotations, and timing.
-         * @example {
-         *       "annotations": {
-         *         "description": "GPU memory usage is above 90% for 5 minutes",
-         *         "summary": "GPU memory usage is high"
-         *       },
-         *       "endsAt": "0001-01-01T00:00:00Z",
-         *       "fingerprint": "abc123def456",
-         *       "generatorURL": "http://prometheus:9090/graph?...",
-         *       "labels": {
-         *         "alertname": "HSIGPUMemoryHigh",
-         *         "component": "gpu",
-         *         "severity": "warning"
-         *       },
-         *       "startsAt": "2026-01-17T12:22:56.068Z",
-         *       "status": "firing"
-         *     }
-         */
-        backend__api__schemas__webhooks__AlertmanagerAlert: {
-            /**
-             * Annotations
-             * @description Alert annotations (summary, description)
-             */
-            annotations?: {
-                [key: string]: string;
-            };
-            /**
-             * Endsat
-             * @description When the alert was resolved
-             */
-            endsAt?: string | null;
-            /**
-             * Fingerprint
-             * @description Unique identifier for deduplication
-             */
-            fingerprint: string;
-            /**
-             * Generatorurl
-             * @description URL to the Prometheus graph
-             */
-            generatorURL?: string | null;
-            /**
-             * Labels
-             * @description Alert labels (alertname, severity, etc.)
-             */
-            labels?: {
-                [key: string]: string;
-            };
-            /**
-             * Startsat
-             * Format: date-time
-             * @description When the alert started firing
-             */
-            startsAt: string;
-            /** @description Alert status (firing or resolved) */
-            status: components["schemas"]["AlertmanagerStatus"];
         };
     };
     responses: never;
