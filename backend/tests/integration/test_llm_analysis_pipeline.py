@@ -164,12 +164,15 @@ def realistic_enrichment_result():
         ],
         vision_extraction=BatchExtractionResult(
             scene_analysis=SceneAnalysis(
-                caption="A person walking towards a parked car in a residential driveway",
-                environment=EnvironmentContext(
-                    time_of_day="day",
-                    artificial_light=False,
-                    weather="clear",
-                ),
+                unusual_objects=[],
+                tools_detected=[],
+                abandoned_items=[],
+                scene_description="A person walking towards a parked car in a residential driveway",
+            ),
+            environment_context=EnvironmentContext(
+                time_of_day="day",
+                artificial_light=False,
+                weather="clear",
             ),
             person_attributes={
                 1: PersonAttributes(
