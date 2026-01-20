@@ -1,0 +1,13 @@
+storage:
+  backend: filesystem
+  filesystem:
+    dir: /data
+
+limits:
+  max_query_length: 24h
+  max_query_lookback: 720h  # 30 days
+
+retention:
+  max_retention_period: 720h  # 30 days
+
+scrape_configs: []  # Alloy handles scraping via eBPF

@@ -41,3 +41,28 @@ loki.write "local" {
     url = "http://loki:3100/loki/api/v1/push"
   }
 }
+
+// ============================================
+// EBPF PROFILING PIPELINE (AI Services)
+// ============================================
+
+// eBPF targets via Podman labels
+discovery.docker "ai_targets" {
+  host = "unix:///run/podman/podman.sock"
+  filter {
+    name   = "label"
+    values = ["pyroscope.profile=true"]
+  }
+}
+
+pyroscope.ebpf "ai_services" {
+  targets    = discovery.docker.ai_targets.targets
+  forward_to = [pyroscope.write.local.receiver]
+}
+
+// Send profiles to Pyroscope
+pyroscope.write "local" {
+  endpoint {
+    url = "http://pyroscope:4040"
+  }
+}

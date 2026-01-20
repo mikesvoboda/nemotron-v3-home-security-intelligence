@@ -207,3 +207,19 @@ datasources:
           url: "${__value.raw}"
           datasourceUid: jaeger
           urlDisplayLabel: "View Trace"
+
+  # Pyroscope datasource for continuous profiling
+  - name: Pyroscope
+    type: grafana-pyroscope-datasource
+    access: proxy
+    url: http://pyroscope:4040
+    isDefault: false
+    editable: false
+    jsonData:
+      tracesToProfiles:
+        datasourceUid: jaeger
+        tags:
+          - key: service.name
+            value: service
+        profileTypeId: "process_cpu:cpu:nanoseconds:cpu:nanoseconds"
+        customQuery: true
