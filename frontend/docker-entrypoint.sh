@@ -301,9 +301,10 @@ server {
     add_header Referrer-Policy \"strict-origin-when-cross-origin\" always;
 
     # Content Security Policy - restrict resource loading
+    # Note: 'unsafe-inline' and 'unsafe-eval' for scripts required by Grafana dashboards
     # Note: 'unsafe-inline' for styles is required by Tailwind/Tremor
     # Note: frame-src 'self' allows Grafana embeds via nginx proxy at /grafana/
-    add_header Content-Security-Policy \"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;\" always;
+    add_header Content-Security-Policy \"default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests;\" always;
 
     # Permissions Policy - restrict browser features
     add_header Permissions-Policy \"accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()\" always;
