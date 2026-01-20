@@ -27,6 +27,8 @@ Usage:
 import asyncio
 import os
 import random
+import re
+import socket
 import sys
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -35,8 +37,64 @@ from pathlib import Path
 # Add backend to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Base path for camera images
-FOSCAM_BASE_PATH = os.environ.get("FOSCAM_BASE_PATH", "/export/foscam")
+
+def _load_env_and_fix_database_url() -> None:
+    """Load .env file and fix DATABASE_URL for local execution.
+
+    When running outside containers, the DATABASE_URL uses container hostnames
+    (e.g., 'postgres:5432') which don't resolve. This function:
+    1. Loads .env from the project root
+    2. Detects if running locally (hostname doesn't resolve)
+    3. Converts container hostname to localhost for local execution
+    """
+    from dotenv import load_dotenv
+
+    # Find project root (parent of scripts/)
+    project_root = Path(__file__).parent.parent
+    env_file = project_root / ".env"
+
+    if env_file.exists():
+        load_dotenv(env_file)
+        print(f"Loaded environment from {env_file}")
+
+    # Check if DATABASE_URL needs transformation for local execution
+    database_url = os.environ.get("DATABASE_URL", "")
+    if not database_url:
+        print("Warning: DATABASE_URL not set in environment")
+        return
+
+    # Extract hostname from DATABASE_URL (format: protocol://user:pass@host:port/db)  # pragma: allowlist secret
+    match = re.search(r"@([^:/@]+):(\d+)/", database_url)
+    if not match:
+        return
+
+    hostname, port = match.groups()
+
+    # Check if hostname resolves (i.e., we're inside container network)
+    try:
+        socket.gethostbyname(hostname)
+        # Hostname resolves, we're in container network - no changes needed
+        print(f"Database hostname '{hostname}' resolves - using container network")
+    except socket.gaierror:
+        # Hostname doesn't resolve - we're running locally
+        # Replace container hostname with localhost
+        new_url = database_url.replace(f"@{hostname}:", "@localhost:")
+        os.environ["DATABASE_URL"] = new_url
+        print(f"Database hostname '{hostname}' doesn't resolve - using localhost:{port}")
+
+
+# Load .env and fix DATABASE_URL before importing backend modules
+_load_env_and_fix_database_url()
+
+# Base path for camera images - check both container path and local path
+_CONTAINER_CAMERA_PATH = "/cameras"
+_LOCAL_CAMERA_PATH = os.environ.get("FOSCAM_BASE_PATH", "/export/foscam")
+
+# Use container path if it exists (running in container), otherwise local path
+if Path(_CONTAINER_CAMERA_PATH).exists():
+    FOSCAM_BASE_PATH = _CONTAINER_CAMERA_PATH
+else:
+    FOSCAM_BASE_PATH = _LOCAL_CAMERA_PATH
 
 from backend.core.database import get_session, init_db  # noqa: E402
 from backend.models.alert import Alert, AlertRule, AlertSeverity, AlertStatus  # noqa: E402
