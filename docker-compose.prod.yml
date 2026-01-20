@@ -640,6 +640,70 @@ services:
           cpus: '0.5'
           memory: 64M
 
+  # Loki for log aggregation (NEM-3093)
+  # Receives logs from Alloy and stores them for querying via Grafana
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: loki
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/config.yml:ro,z
+      - loki_data:/loki
+    command: -config.file=/etc/loki/config.yml
+    ports:
+      - '3100:3100'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3100/ready']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+
+  # Alloy for log collection via eBPF (NEM-3093)
+  # Collects container logs from Podman and forwards to Loki
+  alloy:
+    image: grafana/alloy:v1.0.0
+    container_name: alloy
+    privileged: true
+    pid: host
+    user: root
+    security_opt:
+      - label:disable
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
+      - /run/podman/podman.sock:/run/podman/podman.sock:ro
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /proc:/host/proc:ro
+    environment:
+      - HOST_PROC=/host/proc
+    command:
+      - run
+      - /etc/alloy/config.alloy
+    ports:
+      - '12345:12345'
+    depends_on:
+      - loki
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:12345/ready']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 768M
+
 volumes:
   postgres_data:
     driver: local
@@ -650,6 +714,8 @@ volumes:
   grafana_data:
     driver: local
   alertmanager_data:
+    driver: local
+  loki_data:
     driver: local
 
 networks:

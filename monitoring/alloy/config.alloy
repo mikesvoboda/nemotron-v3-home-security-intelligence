@@ -1,0 +1,43 @@
+// ============================================
+// LOG COLLECTION PIPELINE (Podman)
+// ============================================
+
+// Discover containers via Podman socket
+discovery.docker "containers" {
+  host = "unix:///run/podman/podman.sock"
+}
+
+// Scrape container logs from Podman
+loki.source.docker "default" {
+  host       = "unix:///run/podman/podman.sock"
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.process.parse.receiver]
+}
+
+// Parse and enrich logs
+loki.process "parse" {
+  stage.docker {}
+
+  // Extract log level
+  stage.regex {
+    expression = "(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL)"
+  }
+
+  // Extract camera name from AI pipeline logs
+  stage.regex {
+    expression = "camera[=: ]+(?P<camera>[a-z_]+)"
+  }
+
+  stage.labels {
+    values = { level = "", camera = "" }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+// Send to Loki
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
