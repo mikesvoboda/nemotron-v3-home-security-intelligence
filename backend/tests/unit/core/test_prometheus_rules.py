@@ -346,9 +346,9 @@ class TestPrometheusConfigIncludesRules:
 class TestExpectedAlerts:
     """Test that expected alerts are defined as per NEM-1731."""
 
+    # NOTE: AINemotronTimeout removed - depends on unimplemented hsi_ai_request_duration_seconds metric
     EXPECTED_ALERTS: ClassVar[list[str]] = [
         "AIDetectorUnavailable",
-        "AINemotronTimeout",
         "AIHighErrorRate",
         "AIGPUOverheating",
         "AIGPUMemoryCritical",
@@ -401,14 +401,7 @@ class TestExpectedAlerts:
                     return
         pytest.fail("AIGPUMemoryCritical alert not found")
 
-    def test_ainemotrontimeout_has_for_duration(self, rules_data: dict):
-        """Verify AINemotronTimeout has a 'for' duration defined."""
-        for group in rules_data["groups"]:
-            for rule in group.get("rules", []):
-                if rule.get("alert") == "AINemotronTimeout":
-                    assert "for" in rule, "AINemotronTimeout must have 'for' duration"
-                    return
-        pytest.fail("AINemotronTimeout alert not found")
+    # NOTE: test_ainemotrontimeout_has_for_duration removed - alert disabled (depends on unimplemented metric)
 
     def test_aihigherrorrate_expression_checks_rate(self, rules_data: dict):
         """Verify AIHighErrorRate uses rate() function in expression."""
