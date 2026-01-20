@@ -1037,7 +1037,7 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 4, "x": 0, "y": 66},
+      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 66},
       "id": 291,
       "options": {
         "colorMode": "background",
@@ -1063,7 +1063,7 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 4, "x": 4, "y": 66},
+      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 66},
       "id": 292,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "alertmanager_alerts{state=\"suppressed\"}", "legendFormat": "Suppressed", "refId": "A"}],
@@ -1082,7 +1082,7 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 4, "x": 8, "y": 66},
+      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 66},
       "id": 293,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "alertmanager_config_last_reload_successful", "legendFormat": "Config Status", "refId": "A"}],
@@ -1104,7 +1104,7 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 4, "x": 12, "y": 66},
+      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 71},
       "id": 294,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "100 * (1 - (rate(alertmanager_notification_requests_failed_total{integration=\"webhook\"}[5m]) / rate(alertmanager_notification_requests_total{integration=\"webhook\"}[5m])))", "legendFormat": "Success %", "refId": "A"}],
@@ -1123,7 +1123,7 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 4, "x": 16, "y": 66},
+      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 71},
       "id": 295,
       "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "sum(alertmanager_notification_requests_failed_total)", "legendFormat": "Total Failures", "refId": "A"}],
@@ -1142,7 +1142,7 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 5, "w": 4, "x": 20, "y": 66},
+      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 71},
       "id": 296,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"},
       "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "alertmanager_receivers", "legendFormat": "Receivers", "refId": "A"}],
@@ -1162,7 +1162,7 @@
         },
         "overrides": [{"matcher": {"id": "byName", "options": "Firing"}, "properties": [{"id": "color", "value": {"fixedColor": "#F2495C", "mode": "fixed"}}]}, {"matcher": {"id": "byName", "options": "Resolved"}, "properties": [{"id": "color", "value": {"fixedColor": "#73BF69", "mode": "fixed"}}]}]
       },
-      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 71},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 76},
       "id": 297,
       "options": {"legend": {"calcs": ["sum", "mean"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(alertmanager_alerts_received_total{status=\"firing\"}[5m])", "legendFormat": "Firing", "refId": "A"}, {"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(alertmanager_alerts_received_total{status=\"resolved\"}[5m])", "legendFormat": "Resolved", "refId": "B"}],
@@ -1182,7 +1182,7 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 71},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 76},
       "id": 298,
       "options": {"legend": {"calcs": ["sum", "lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
       "targets": [{"datasource": {"type": "prometheus", "uid": "PBFA97CFB590B2093"}, "expr": "rate(alertmanager_notification_requests_failed_total[5m])", "legendFormat": "{{integration}}", "refId": "A"}],
@@ -1195,7 +1195,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 79
+        "y": 84
       },
       "id": 20,
       "panels": [],
@@ -1267,7 +1267,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 66
+        "y": 85
       },
       "id": 21,
       "options": {
@@ -1372,7 +1372,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 74
+        "y": 85
       },
       "id": 22,
       "options": {
@@ -1529,7 +1529,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 82
+        "y": 93
       },
       "id": 25,
       "options": {
