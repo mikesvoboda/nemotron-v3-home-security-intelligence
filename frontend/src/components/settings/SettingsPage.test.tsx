@@ -45,14 +45,6 @@ vi.mock('./AIModelsTab', () => ({
   default: () => <div data-testid="ai-models-tab">AI Models Tab</div>,
 }));
 
-vi.mock('./AdminSettings', () => ({
-  default: () => <div data-testid="admin-settings">Admin Settings</div>,
-}));
-
-vi.mock('./HouseholdSettings', () => ({
-  default: () => <div data-testid="household-settings">Household Settings</div>,
-}));
-
 // Helper to create a fresh QueryClient for each test
 function createTestQueryClient() {
   return new QueryClient({
@@ -87,7 +79,7 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Configure your security monitoring system')).toBeInTheDocument();
   });
 
-  it('should render all eleven tabs', () => {
+  it('should render all nine tabs', () => {
     renderWithProviders(<SettingsPage />);
 
     expect(screen.getByRole('tab', { name: /cameras/i })).toBeInTheDocument();
@@ -99,8 +91,6 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('tab', { name: /prompts/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /storage/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /ai models/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /admin/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /household/i })).toBeInTheDocument();
   });
 
   it('should show cameras settings by default', () => {
@@ -171,11 +161,11 @@ describe('SettingsPage', () => {
     renderWithProviders(<SettingsPage />);
 
     const camerasTab = screen.getByRole('tab', { name: /cameras/i });
-    const householdTab = screen.getByRole('tab', { name: /household/i });
+    const aiModelsTab = screen.getByRole('tab', { name: /ai models/i });
 
-    // Focus on the last tab (household is now last)
-    householdTab.focus();
-    expect(householdTab).toHaveFocus();
+    // Focus on the last tab (AI MODELS is now last)
+    aiModelsTab.focus();
+    expect(aiModelsTab).toHaveFocus();
 
     // Press arrow right to cycle to first tab
     await user.keyboard('{ArrowRight}');
@@ -234,28 +224,6 @@ describe('SettingsPage', () => {
     await user.click(aiModelsTab);
 
     expect(screen.getByTestId('ai-models-tab')).toBeInTheDocument();
-    expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
-  });
-
-  it('should switch to admin settings when tab is clicked', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<SettingsPage />);
-
-    const adminTab = screen.getByRole('tab', { name: /admin/i });
-    await user.click(adminTab);
-
-    expect(screen.getByTestId('admin-settings')).toBeInTheDocument();
-    expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
-  });
-
-  it('should switch to household settings when tab is clicked', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(<SettingsPage />);
-
-    const householdTab = screen.getByRole('tab', { name: /household/i });
-    await user.click(householdTab);
-
-    expect(screen.getByTestId('household-settings')).toBeInTheDocument();
     expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
   });
 
@@ -318,23 +286,6 @@ describe('SettingsPage', () => {
       expect(aiModelsTab).toHaveAttribute(
         'title',
         'View status and performance of all AI models'
-      );
-    });
-
-    it('should have title attribute with description on admin tab', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const adminTab = screen.getByRole('tab', { name: /admin/i });
-      expect(adminTab).toHaveAttribute('title', 'System administration and maintenance tools');
-    });
-
-    it('should have title attribute with description on household tab', () => {
-      renderWithProviders(<SettingsPage />);
-
-      const householdTab = screen.getByRole('tab', { name: /household/i });
-      expect(householdTab).toHaveAttribute(
-        'title',
-        'Manage household members, vehicles, and properties'
       );
     });
   });

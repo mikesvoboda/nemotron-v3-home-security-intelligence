@@ -8,21 +8,17 @@ import {
   Eye,
   FileText,
   HardDrive,
-  Home,
   Settings as SettingsIcon,
   Shield,
   Sliders,
-  Wrench,
 } from 'lucide-react';
 
 import { FeatureErrorBoundary, SecureContextWarning } from '../common';
-import AdminSettings from './AdminSettings';
 import AIModelsTab from './AIModelsTab';
 import AlertRulesSettings from './AlertRulesSettings';
 import AmbientStatusSettings from './AmbientStatusSettings';
 import CalibrationPanel from './CalibrationPanel';
 import CamerasSettings from './CamerasSettings';
-import HouseholdSettings from './HouseholdSettings';
 import NotificationSettings from './NotificationSettings';
 import ProcessingSettings from './ProcessingSettings';
 import { PromptManagementPage } from './prompts';
@@ -31,7 +27,7 @@ import FileOperationsPanel from '../system/FileOperationsPanel';
 /**
  * SettingsPage component with tabbed interface
  *
- * Contains eleven settings tabs:
+ * Contains nine settings tabs:
  * - CAMERAS: Camera configuration and management
  * - RULES: Alert rules configuration
  * - PROCESSING: Event processing settings
@@ -41,8 +37,6 @@ import FileOperationsPanel from '../system/FileOperationsPanel';
  * - PROMPTS: AI prompt template management and version history
  * - STORAGE: Disk storage usage and file cleanup operations
  * - AI MODELS: Core AI models (RT-DETRv2, Nemotron) and Model Zoo status
- * - ADMIN: Administrative settings, maintenance, and developer tools
- * - HOUSEHOLD: Household organization, members, vehicles, and properties
  *
  * Note: Analytics functionality is available on the dedicated Analytics page (/analytics)
  *
@@ -55,8 +49,6 @@ import FileOperationsPanel from '../system/FileOperationsPanel';
  * @see NEM-2356 - Add CalibrationPanel to Settings page
  * @see NEM-2388 - Add FileOperationsPanel to Settings page
  * @see NEM-3084 - Add AI MODELS tab integrating AIModelsSettings and ModelZooSection
- * @see NEM-3114 - Add AdminSettings to Settings page
- * @see NEM-3134 - Add HouseholdSettings to Settings page
  */
 export default function SettingsPage() {
   /** Tab descriptions shown on hover via tooltips */
@@ -70,8 +62,6 @@ export default function SettingsPage() {
     prompts: 'Customize AI analysis prompts',
     storage: 'Media retention and storage management',
     'ai-models': 'View status and performance of all AI models',
-    admin: 'System administration and maintenance tools',
-    household: 'Manage household members, vehicles, and properties',
   };
 
   const tabs = [
@@ -128,18 +118,6 @@ export default function SettingsPage() {
       name: 'AI MODELS',
       icon: Brain,
       component: AIModelsTab,
-    },
-    {
-      id: 'admin',
-      name: 'ADMIN',
-      icon: Wrench,
-      component: AdminSettings,
-    },
-    {
-      id: 'household',
-      name: 'HOUSEHOLD',
-      icon: Home,
-      component: HouseholdSettings,
     },
   ];
 
