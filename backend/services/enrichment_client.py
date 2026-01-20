@@ -364,6 +364,271 @@ class KeypointData:
         }
 
 
+# =============================================================================
+# New Unified Enrichment Result Types (for /enrich endpoint)
+# =============================================================================
+
+
+@dataclass(slots=True)
+class UnifiedPoseResult:
+    """Pose estimation result from the unified /enrich endpoint.
+
+    Attributes:
+        keypoints: List of keypoint dictionaries with x, y, confidence
+        pose_class: Classified pose (standing, crouching, bending_over, arms_raised, etc.)
+        confidence: Overall pose detection confidence (0-1)
+        is_suspicious: Whether the pose is considered suspicious for security
+    """
+
+    keypoints: list[dict[str, Any]]
+    pose_class: str
+    confidence: float
+    is_suspicious: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "keypoints": self.keypoints,
+            "pose_class": self.pose_class,
+            "confidence": self.confidence,
+            "is_suspicious": self.is_suspicious,
+        }
+
+    def to_context_string(self) -> str:
+        """Generate context string for LLM prompt."""
+        lines = [f"Pose: {self.pose_class} (confidence: {self.confidence:.0%})"]
+        if self.is_suspicious:
+            lines.append("  [ALERT: Suspicious posture detected]")
+        return "\n".join(lines)
+
+
+@dataclass(slots=True)
+class UnifiedClothingResult:
+    """Clothing analysis result from the unified /enrich endpoint.
+
+    Attributes:
+        categories: List of clothing category matches with confidence scores
+        is_suspicious: Whether clothing indicates suspicious attire
+    """
+
+    categories: list[dict[str, Any]]
+    is_suspicious: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "categories": self.categories,
+            "is_suspicious": self.is_suspicious,
+        }
+
+    def to_context_string(self) -> str:
+        """Generate context string for LLM prompt."""
+        if not self.categories:
+            return "Clothing: No classification available"
+        top = self.categories[0] if self.categories else {}
+        lines = [
+            f"Clothing: {top.get('category', 'unknown')} (confidence: {top.get('confidence', 0):.0%})"
+        ]
+        if self.is_suspicious:
+            lines.append("  [ALERT: Potentially suspicious attire]")
+        return "\n".join(lines)
+
+
+@dataclass(slots=True)
+class UnifiedDemographicsResult:
+    """Demographics result from the unified /enrich endpoint.
+
+    Attributes:
+        age_range: Estimated age range (e.g., "25-35", "child", "senior")
+        age_confidence: Confidence in age estimation (0-1)
+        gender: Estimated gender ("male", "female", "unknown")
+        gender_confidence: Confidence in gender estimation (0-1)
+    """
+
+    age_range: str
+    age_confidence: float
+    gender: str
+    gender_confidence: float
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "age_range": self.age_range,
+            "age_confidence": self.age_confidence,
+            "gender": self.gender,
+            "gender_confidence": self.gender_confidence,
+        }
+
+    def to_context_string(self) -> str:
+        """Generate context string for LLM prompt."""
+        return (
+            f"Demographics: {self.gender} ({self.gender_confidence:.0%}), "
+            f"age {self.age_range} ({self.age_confidence:.0%})"
+        )
+
+
+@dataclass(slots=True)
+class UnifiedVehicleResult:
+    """Vehicle analysis result from the unified /enrich endpoint.
+
+    Attributes:
+        make: Vehicle make (e.g., "Toyota", "Ford") or None if unknown
+        model: Vehicle model (e.g., "Camry", "F-150") or None if unknown
+        color: Vehicle color (e.g., "red", "black")
+        type: Vehicle type (e.g., "sedan", "pickup_truck", "suv")
+        confidence: Classification confidence (0-1)
+    """
+
+    make: str | None
+    model: str | None
+    color: str | None
+    type: str
+    confidence: float
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "make": self.make,
+            "model": self.model,
+            "color": self.color,
+            "type": self.type,
+            "confidence": self.confidence,
+        }
+
+    def to_context_string(self) -> str:
+        """Generate context string for LLM prompt."""
+        parts = []
+        if self.color:
+            parts.append(self.color)
+        if self.make:
+            parts.append(self.make)
+        if self.model:
+            parts.append(self.model)
+        parts.append(self.type)
+        return f"Vehicle: {' '.join(parts)} (confidence: {self.confidence:.0%})"
+
+
+@dataclass(slots=True)
+class UnifiedThreatResult:
+    """Threat detection result from the unified /enrich endpoint.
+
+    Attributes:
+        threats: List of detected threats with type, confidence, and bbox
+        has_threat: Whether any threat was detected
+        max_severity: Maximum severity level ("none", "low", "medium", "high", "critical")
+    """
+
+    threats: list[dict[str, Any]]
+    has_threat: bool
+    max_severity: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "threats": self.threats,
+            "has_threat": self.has_threat,
+            "max_severity": self.max_severity,
+        }
+
+    def to_context_string(self) -> str:
+        """Generate context string for LLM prompt."""
+        if not self.has_threat:
+            return "Threat detection: No threats detected"
+        threat_types = [t.get("type", "unknown") for t in self.threats]
+        return f"THREAT DETECTED: {', '.join(threat_types)} (severity: {self.max_severity})"
+
+
+@dataclass(slots=True)
+class UnifiedEnrichmentResult:
+    """Unified result from the /enrich endpoint containing all enrichment types.
+
+    This result contains optional fields for each enrichment type. Only fields
+    that are relevant to the detection type will be populated.
+
+    Attributes:
+        pose: Pose estimation result (for person detections)
+        clothing: Clothing analysis result (for person detections)
+        demographics: Demographics result (when face is visible)
+        vehicle: Vehicle analysis result (for vehicle detections)
+        pet: Pet classification result (for animal detections)
+        threat: Threat detection result (for person detections)
+        reid_embedding: Re-identification embedding vector (for person detections)
+        action: Action recognition result (when frames buffer provided)
+        depth: Depth estimation result (for proximity analysis)
+        models_loaded: List of models that were loaded for this request
+        inference_time_ms: Total inference time in milliseconds
+    """
+
+    pose: UnifiedPoseResult | None = None
+    clothing: UnifiedClothingResult | None = None
+    demographics: UnifiedDemographicsResult | None = None
+    vehicle: UnifiedVehicleResult | None = None
+    pet: dict[str, Any] | None = None
+    threat: UnifiedThreatResult | None = None
+    reid_embedding: list[float] | None = None
+    action: dict[str, Any] | None = None
+    depth: dict[str, Any] | None = None
+    models_loaded: list[str] | None = None
+    inference_time_ms: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        result: dict[str, Any] = {}
+        if self.pose:
+            result["pose"] = self.pose.to_dict()
+        if self.clothing:
+            result["clothing"] = self.clothing.to_dict()
+        if self.demographics:
+            result["demographics"] = self.demographics.to_dict()
+        if self.vehicle:
+            result["vehicle"] = self.vehicle.to_dict()
+        if self.pet:
+            result["pet"] = self.pet
+        if self.threat:
+            result["threat"] = self.threat.to_dict()
+        if self.reid_embedding:
+            result["reid_embedding"] = self.reid_embedding
+        if self.action:
+            result["action"] = self.action
+        if self.depth:
+            result["depth"] = self.depth
+        if self.models_loaded:
+            result["models_loaded"] = self.models_loaded
+        result["inference_time_ms"] = self.inference_time_ms
+        return result
+
+    def to_context_string(self) -> str:
+        """Generate context string for LLM prompt."""
+        lines = []
+        if self.threat and self.threat.has_threat:
+            lines.append(self.threat.to_context_string())
+        if self.pose:
+            lines.append(self.pose.to_context_string())
+        if self.demographics:
+            lines.append(self.demographics.to_context_string())
+        if self.clothing:
+            lines.append(self.clothing.to_context_string())
+        if self.vehicle:
+            lines.append(self.vehicle.to_context_string())
+        if self.action:
+            action_str = self.action.get("top_action", "unknown")
+            conf = self.action.get("confidence", 0)
+            lines.append(f"Action: {action_str} (confidence: {conf:.0%})")
+        return "\n".join(lines) if lines else "No enrichment data available"
+
+    def has_security_alerts(self) -> bool:
+        """Check if any security alerts are present.
+
+        Returns:
+            True if threats detected, suspicious pose, or suspicious clothing
+        """
+        if self.threat and self.threat.has_threat:
+            return True
+        if self.pose and self.pose.is_suspicious:
+            return True
+        return bool(self.clothing and self.clothing.is_suspicious)
+
+
 @dataclass(slots=True)
 class PoseAnalysisResult:
     """Result from ViTPose pose analysis.
@@ -2000,6 +2265,258 @@ class EnrichmentClient:
             f"Enrichment action classification failed after {self._max_retries} retries",
             original_error=last_error,
         )
+
+    # =========================================================================
+    # Unified Enrichment Endpoint Methods (NEM-3040)
+    # =========================================================================
+
+    def _parse_unified_response(self, data: dict[str, Any]) -> UnifiedEnrichmentResult:
+        """Parse response from unified /enrich endpoint into typed result.
+
+        Args:
+            data: Raw JSON response from the enrichment service
+
+        Returns:
+            UnifiedEnrichmentResult with parsed typed fields
+        """
+        result = UnifiedEnrichmentResult(
+            models_loaded=data.get("models_loaded"),
+            inference_time_ms=data.get("inference_time_ms", 0.0),
+        )
+
+        # Parse pose result
+        if data.get("pose"):
+            pose_data = data["pose"]
+            result.pose = UnifiedPoseResult(
+                keypoints=pose_data.get("keypoints", []),
+                pose_class=pose_data.get("pose_class", "unknown"),
+                confidence=pose_data.get("confidence", 0.0),
+                is_suspicious=pose_data.get("is_suspicious", False),
+            )
+
+        # Parse clothing result
+        if data.get("clothing"):
+            clothing_data = data["clothing"]
+            result.clothing = UnifiedClothingResult(
+                categories=clothing_data.get("categories", []),
+                is_suspicious=clothing_data.get("is_suspicious", False),
+            )
+
+        # Parse demographics result
+        if data.get("demographics"):
+            demo_data = data["demographics"]
+            result.demographics = UnifiedDemographicsResult(
+                age_range=demo_data.get("age_range", "unknown"),
+                age_confidence=demo_data.get("age_confidence", 0.0),
+                gender=demo_data.get("gender", "unknown"),
+                gender_confidence=demo_data.get("gender_confidence", 0.0),
+            )
+
+        # Parse vehicle result
+        if data.get("vehicle"):
+            vehicle_data = data["vehicle"]
+            result.vehicle = UnifiedVehicleResult(
+                make=vehicle_data.get("make"),
+                model=vehicle_data.get("model"),
+                color=vehicle_data.get("color"),
+                type=vehicle_data.get("type", "unknown"),
+                confidence=vehicle_data.get("confidence", 0.0),
+            )
+
+        # Parse threat result
+        if data.get("threat"):
+            threat_data = data["threat"]
+            result.threat = UnifiedThreatResult(
+                threats=threat_data.get("threats", []),
+                has_threat=threat_data.get("has_threat", False),
+                max_severity=threat_data.get("max_severity", "none"),
+            )
+
+        # Copy simple fields directly
+        if data.get("reid_embedding"):
+            result.reid_embedding = data["reid_embedding"]
+        if data.get("pet"):
+            result.pet = data["pet"]
+        if data.get("action"):
+            result.action = data["action"]
+        if data.get("depth"):
+            result.depth = data["depth"]
+
+        return result
+
+    async def enrich_detection(
+        self,
+        image: bytes,
+        detection_type: str,
+        bbox: tuple[float, float, float, float],
+        frames: list[bytes] | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> UnifiedEnrichmentResult:
+        """Call unified /enrich endpoint for comprehensive detection enrichment.
+
+        This method calls the new unified enrichment endpoint that automatically
+        loads appropriate models based on detection type and returns all relevant
+        enrichment data in a single request.
+
+        Args:
+            image: Raw image bytes (PNG or JPEG)
+            detection_type: Type of detection ("person", "vehicle", "animal", "object")
+            bbox: Bounding box as (x1, y1, x2, y2)
+            frames: Optional list of frame bytes for action recognition
+            options: Optional dictionary with additional options:
+                - face_visible: bool - Whether a face is visible (enables demographics)
+                - suspicious_score: float - Suspicion score 0-100 (enables action recognition)
+
+        Returns:
+            UnifiedEnrichmentResult with all applicable enrichment data
+
+        Note:
+            On timeout or error, returns an empty UnifiedEnrichmentResult rather than
+            raising an exception, allowing the pipeline to continue with available data.
+        """
+        start_time = time.time()
+        endpoint = "enrich"
+        endpoint_name = "unified_enrich"
+
+        logger.debug(f"Sending unified enrichment request for {detection_type}")
+
+        try:
+            # Build request payload
+            payload: dict[str, Any] = {
+                "image": base64.b64encode(image).decode("utf-8"),
+                "detection_type": detection_type,
+                "bbox": {
+                    "x1": bbox[0],
+                    "y1": bbox[1],
+                    "x2": bbox[2],
+                    "y2": bbox[3],
+                },
+                "frames": [base64.b64encode(f).decode("utf-8") for f in (frames or [])],
+                "options": options or {},
+            }
+
+            # Get explicit timeout for defense-in-depth
+            settings = get_settings()
+            explicit_timeout = settings.enrichment_read_timeout + settings.ai_connect_timeout
+
+            # Track AI request time
+            ai_start_time = time.time()
+
+            # Send request with explicit timeout
+            async with asyncio.timeout(explicit_timeout):
+                response = await self._http_client.post(
+                    f"{self._base_url}/{endpoint}",
+                    json=payload,
+                )
+                response.raise_for_status()
+
+            # Record AI request duration
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("enrichment_unified", ai_duration)
+
+            # Parse response
+            data = response.json()
+
+            # Record success with circuit breaker
+            self._circuit_breaker.record_success()
+
+            return self._parse_unified_response(data)
+
+        except httpx.TimeoutException:
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.warning(
+                f"Enrichment {endpoint_name} request timed out",
+                extra={"duration_ms": duration_ms, "detection_type": detection_type},
+            )
+            return UnifiedEnrichmentResult()
+
+        except TimeoutError:
+            # asyncio.timeout() raises TimeoutError
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.warning(
+                f"Enrichment {endpoint_name} asyncio timeout",
+                extra={"duration_ms": duration_ms, "detection_type": detection_type},
+            )
+            return UnifiedEnrichmentResult()
+
+        except httpx.HTTPStatusError as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(
+                f"Enrichment {endpoint_name} HTTP error: {e.response.status_code}",
+                extra={"duration_ms": duration_ms, "status_code": e.response.status_code},
+            )
+            return UnifiedEnrichmentResult()
+
+        except httpx.ConnectError as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.warning(
+                f"Enrichment {endpoint_name} connection error: {e}",
+                extra={"duration_ms": duration_ms},
+            )
+            return UnifiedEnrichmentResult()
+
+        except Exception as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(
+                f"Enrichment {endpoint_name} unexpected error: {sanitize_error(e)}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            return UnifiedEnrichmentResult()
+
+    async def get_model_status(self) -> dict[str, Any]:
+        """Get current model loading status from the enrichment service.
+
+        Returns:
+            Dictionary with model status information:
+            - loaded_models: List of currently loaded model names
+            - vram_usage_mb: Current VRAM usage in MB
+            - vram_budget_mb: Total VRAM budget in MB
+            - model_specs: Dictionary of registered model specifications
+        """
+        try:
+            response = await self._http_client.get(f"{self._base_url}/models/status")
+            response.raise_for_status()
+            return cast("dict[str, Any]", response.json())
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"Failed to get model status: HTTP {e.response.status_code}")
+            return {"error": f"HTTP {e.response.status_code}", "loaded_models": []}
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            logger.warning(f"Failed to get model status: {e}")
+            return {"error": str(e), "loaded_models": []}
+        except Exception as e:
+            logger.error(f"Unexpected error getting model status: {sanitize_error(e)}")
+            return {"error": str(e), "loaded_models": []}
+
+    async def preload_model(self, model_name: str) -> bool:
+        """Preload a specific model into GPU memory.
+
+        This can be used to warm up models before they are needed,
+        reducing latency for the first detection of a given type.
+
+        Args:
+            model_name: Name of the model to preload (e.g., "pose", "threat", "clothing")
+
+        Returns:
+            True if the model was successfully loaded, False otherwise
+        """
+        try:
+            response = await self._http_client.post(
+                f"{self._base_url}/models/preload",
+                params={"model_name": model_name},
+            )
+            if response.status_code == 200:
+                logger.info(f"Successfully preloaded model: {model_name}")
+                return True
+            else:
+                logger.warning(f"Failed to preload model {model_name}: HTTP {response.status_code}")
+                return False
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            logger.warning(f"Failed to preload model {model_name}: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error preloading model {model_name}: {sanitize_error(e)}")
+            return False
 
 
 # Global client instance

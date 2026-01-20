@@ -411,8 +411,8 @@ class NemotronAnalyzer:
 
     async def _call_llm_with_version(
         self,
-        _context: str,
-        prompt_version: str = "v1_original",
+        context: str,
+        prompt_version: str = "v1_original",  # noqa: ARG002 - reserved for A/B testing
     ) -> dict[str, Any]:
         """Call LLM with a specific prompt version.
 
@@ -420,21 +420,58 @@ class NemotronAnalyzer:
         the appropriate prompt template based on the version.
 
         Args:
-            context: Detection context for analysis
+            context: Detection context for analysis (pre-formatted prompt)
             prompt_version: Prompt version identifier ("v1_original" or "v2_calibrated")
+                           Currently unused but reserved for NEM-3023 A/B testing.
 
         Returns:
             LLM response as dict
+
+        Raises:
+            httpx.HTTPError: If LLM request fails
+            ValueError: If response cannot be parsed
         """
-        # For now, both versions use the same underlying LLM call
-        # The prompt template selection will be implemented based on version
-        # This is a placeholder that uses the existing prompt infrastructure
-        return {
-            "risk_score": 50,
-            "risk_level": "medium",
-            "summary": f"Analysis using {prompt_version}",
-            "reasoning": "Placeholder implementation",
+        # Use the context as the prompt directly
+        # The prompt template selection based on version will be implemented later
+        # For now, just call the LLM with the provided context
+        from backend.core.config import get_settings
+
+        settings = get_settings()
+        max_output_tokens = settings.nemotron_max_output_tokens
+
+        payload = {
+            "prompt": context,
+            "temperature": 0.7,
+            "top_p": 0.95,
+            "max_tokens": max_output_tokens,
+            "stop": ["<|im_end|>", "<|im_start|>"],
         }
+
+        headers = {"Content-Type": "application/json"}
+        headers.update(self._get_auth_headers())
+
+        # Make the HTTP call (this will be mocked in tests)
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            response = await client.post(
+                f"{self._llm_url}/completion",
+                json=payload,
+                headers=headers,
+            )
+            response.raise_for_status()
+            llm_result = response.json()
+
+        # Extract completion text
+        completion_text = llm_result.get("content", "")
+        if not completion_text:
+            raise ValueError("Empty completion from LLM")
+
+        # Parse JSON from completion
+        risk_data = self._parse_llm_response(completion_text)
+
+        # Validate and normalize risk data
+        risk_data = self._validate_risk_data(risk_data)
+
+        return risk_data
 
     async def _log_shadow_result(
         self,

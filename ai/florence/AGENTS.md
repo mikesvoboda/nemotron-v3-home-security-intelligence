@@ -15,12 +15,16 @@ FastAPI-based HTTP server that wraps Florence-2-large model for vision-language 
 ```
 ai/florence/
 ├── AGENTS.md          # This file
+├── __init__.py        # Package marker
 ├── Dockerfile         # Container build (PyTorch + CUDA 12.4)
 ├── model.py           # FastAPI vision-language server
-└── requirements.txt   # Python dependencies
+├── requirements.txt   # Python dependencies
+└── tests/             # Unit tests
+    ├── __init__.py
+    └── test_analyze_scene.py  # Tests for /analyze-scene endpoint
 ```
 
-**Note**: This service does not have unit tests yet. The Florence-2 service is optional and used for detailed scene descriptions when available.
+**Testing:** Run tests with `uv run pytest ai/florence/tests/ -v`
 
 ## Key Files
 
@@ -229,6 +233,45 @@ Generate captions for all regions in an image.
   "inference_time_ms": 210.5
 }
 ```
+
+### POST /analyze-scene
+
+**NEW: Cascade prompt strategy for comprehensive scene analysis.**
+
+Runs multiple Florence-2 tasks in sequence/parallel to extract maximum context:
+
+1. `<MORE_DETAILED_CAPTION>` - Rich scene description
+2. `<DENSE_REGION_CAPTION>` - Per-region captions with bounding boxes (parallel)
+3. `<OCR_WITH_REGION>` - Text extraction with locations (parallel)
+
+Tasks 2 and 3 run in parallel using `asyncio.gather` for optimal performance.
+
+**Request:**
+
+```json
+{ "image": "<base64-encoded-image>" }
+```
+
+**Response:**
+
+```json
+{
+  "caption": "A delivery person in a blue uniform is standing at the front door of a residential home. They are holding a brown cardboard package.",
+  "regions": [
+    { "caption": "delivery person in blue uniform", "bbox": [100, 150, 300, 400] },
+    { "caption": "brown cardboard package", "bbox": [200, 350, 280, 420] }
+  ],
+  "text_regions": [{ "text": "PRIORITY MAIL", "bbox": [210, 360, 270, 360, 270, 380, 210, 380] }],
+  "inference_time_ms": 450.5,
+  "task_times_ms": {
+    "caption": 200.0,
+    "dense_regions": 150.0,
+    "ocr_with_regions": 100.5
+  }
+}
+```
+
+**Use Case:** Primary endpoint for Nemotron prompt context generation. Provides structured output with all scene elements needed for security risk assessment.
 
 ## Prompt Types and Use Cases
 
