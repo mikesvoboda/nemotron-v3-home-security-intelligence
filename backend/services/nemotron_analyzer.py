@@ -2309,6 +2309,8 @@ class NemotronAnalyzer:
                     enriched_context.cross_camera
                 ),
                 scene_analysis=scene_text,
+                # On-demand enrichment (future: will contain threat/pose/demographics)
+                ondemand_enrichment_context="",
             )
         elif has_vision_extraction and has_enriched_context:
             # Use vision-enhanced prompt with Florence-2 attributes, re-id, and scene analysis
