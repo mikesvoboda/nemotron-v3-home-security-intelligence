@@ -66,3 +66,30 @@ pyroscope.write "local" {
     url = "http://pyroscope:4040"
   }
 }
+
+// ============================================
+// OTLP TRACE PIPELINE (Backend Services)
+// ============================================
+
+// Receive OTLP traces from backend services
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  output {
+    traces = [otelcol.exporter.otlp.jaeger.input]
+  }
+}
+
+// Export traces to Jaeger
+otelcol.exporter.otlp "jaeger" {
+  client {
+    endpoint = "jaeger:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
