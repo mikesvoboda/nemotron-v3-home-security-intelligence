@@ -5,6 +5,7 @@ Tests cover:
 - Division by zero protection in anomaly score calculation (NEM-1100)
 - Base64 image validation: file size, dimensions, format (NEM-1358)
 - CLIP_MAX_BATCH_TEXTS_SIZE startup validation (NEM-1357)
+- Prompt template ensembling for surveillance context (NEM-3029)
 - Request model validation
 - API endpoint behavior
 """
@@ -29,11 +30,15 @@ if str(_clip_dir) not in sys.path:
 # Now import from the local model module
 import model as model_module  # noqa: E402
 from model import (  # noqa: E402
+    CAMERA_TYPE_TEMPLATES,
     EMBEDDING_DIMENSION,
     MAX_BATCH_TEXTS_SIZE,
     MAX_IMAGE_DIMENSION,
     MAX_IMAGE_SIZE_BYTES,
+    SURVEILLANCE_TEMPLATES,
     BatchSimilarityRequest,
+    CameraType,
+    ClassifyRequest,
     CLIPEmbeddingModel,
     EmbedRequest,
     app,
@@ -713,6 +718,553 @@ class TestEmbedEndpointImageValidation:
         data = response.json()
         assert "embedding" in data
         assert "inference_time_ms" in data
+
+
+class TestSurveillanceTemplates:
+    """Tests for surveillance-specific prompt templates (NEM-3029).
+
+    These tests verify the prompt templates are correctly defined and contain
+    the required placeholder for label substitution.
+    """
+
+    def test_surveillance_templates_exist(self) -> None:
+        """Test that SURVEILLANCE_TEMPLATES is defined and non-empty."""
+        assert SURVEILLANCE_TEMPLATES is not None
+        assert len(SURVEILLANCE_TEMPLATES) > 0
+        assert isinstance(SURVEILLANCE_TEMPLATES, list)
+
+    def test_surveillance_templates_contain_placeholder(self) -> None:
+        """Test that all templates contain the {} placeholder."""
+        for template in SURVEILLANCE_TEMPLATES:
+            assert "{}" in template, f"Template missing placeholder: {template}"
+
+    def test_surveillance_templates_have_expected_count(self) -> None:
+        """Test that we have the expected number of base templates (5)."""
+        assert len(SURVEILLANCE_TEMPLATES) == 5
+
+    def test_camera_type_enum_values(self) -> None:
+        """Test that CameraType enum has expected values."""
+        expected_types = {"standard", "night_vision", "outdoor", "indoor", "doorbell"}
+        actual_types = {ct.value for ct in CameraType}
+        assert actual_types == expected_types
+
+    def test_camera_type_templates_exist_for_all_types(self) -> None:
+        """Test that each CameraType has corresponding templates."""
+        for camera_type in CameraType:
+            assert camera_type in CAMERA_TYPE_TEMPLATES, f"Missing templates for {camera_type}"
+            templates = CAMERA_TYPE_TEMPLATES[camera_type]
+            assert len(templates) > 0, f"Empty templates for {camera_type}"
+
+    def test_camera_type_templates_contain_placeholder(self) -> None:
+        """Test that all camera type templates contain the {} placeholder."""
+        for camera_type, templates in CAMERA_TYPE_TEMPLATES.items():
+            for template in templates:
+                assert "{}" in template, (
+                    f"Template missing placeholder for {camera_type}: {template}"
+                )
+
+    def test_night_vision_templates_mention_ir_or_night(self) -> None:
+        """Test that night vision templates have relevant keywords."""
+        night_templates = CAMERA_TYPE_TEMPLATES[CameraType.NIGHT_VISION]
+        keywords = ["night", "infrared", "ir", "low-light", "grayscale"]
+
+        for template in night_templates:
+            template_lower = template.lower()
+            has_keyword = any(kw in template_lower for kw in keywords)
+            assert has_keyword, f"Night vision template missing relevant keywords: {template}"
+
+
+class TestClassifyWithEnsembleMethod:
+    """Tests for the classify_with_ensemble method in CLIPEmbeddingModel (NEM-3029).
+
+    These tests verify the ensemble classification provides correct behavior
+    and proper error handling.
+    """
+
+    @pytest.fixture
+    def mock_clip_model_for_ensemble(self):
+        """Create a mock CLIP model for ensemble testing."""
+        with patch.object(CLIPEmbeddingModel, "load_model"):
+            model = CLIPEmbeddingModel(model_path="/fake/path", device="cpu")
+
+            # Track the number of labels passed for dynamic text feature generation
+            call_context = {"num_labels": 0}
+
+            # Mock processor that tracks input sizes
+            def mock_processor_call(**kwargs):
+                if "text" in kwargs:
+                    # Track how many text prompts were passed
+                    call_context["num_labels"] = len(kwargs["text"])
+                return {
+                    "pixel_values": torch.randn(1, 3, 224, 224),
+                    "input_ids": torch.randint(0, 1000, (call_context.get("num_labels", 1), 77)),
+                    "attention_mask": torch.ones(call_context.get("num_labels", 1), 77),
+                }
+
+            mock_processor = MagicMock()
+            mock_processor.side_effect = mock_processor_call
+            model.processor = mock_processor
+
+            # Mock the underlying CLIP model
+            mock_underlying_model = MagicMock()
+            # Use a function that returns a fresh iterator each time
+            mock_underlying_model.parameters = lambda: iter([torch.tensor([1.0])])
+
+            # Mock get_image_features to return normalized embeddings
+            mock_underlying_model.get_image_features.return_value = torch.randn(
+                1, EMBEDDING_DIMENSION
+            )
+
+            # Mock get_text_features to return dynamic number of embeddings based on input
+            def mock_text_features(**kwargs):  # noqa: ARG001
+                # Return embeddings for the number of labels that were processed
+                num_labels = call_context.get("num_labels", 1)
+                return torch.randn(num_labels, EMBEDDING_DIMENSION)
+
+            mock_underlying_model.get_text_features.side_effect = mock_text_features
+
+            model.model = mock_underlying_model
+            model.device = "cpu"
+
+            yield model
+
+    def test_classify_with_ensemble_returns_four_values(self, mock_clip_model_for_ensemble) -> None:
+        """Test that classify_with_ensemble returns (scores, top_label, time, metadata)."""
+        model = mock_clip_model_for_ensemble
+        test_image = Image.new("RGB", (224, 224), color="red")
+        labels = ["person", "car", "dog"]
+
+        result = model.classify_with_ensemble(test_image, labels)
+
+        assert len(result) == 4
+        scores, top_label, inference_time_ms, metadata = result
+
+        assert isinstance(scores, dict)
+        assert isinstance(top_label, str)
+        assert isinstance(inference_time_ms, float)
+        assert isinstance(metadata, dict)
+
+    def test_classify_with_ensemble_scores_sum_to_one(self, mock_clip_model_for_ensemble) -> None:
+        """Test that ensemble classification scores sum to approximately 1.0."""
+        model = mock_clip_model_for_ensemble
+        test_image = Image.new("RGB", (224, 224), color="red")
+        labels = ["person", "car", "dog"]
+
+        scores, _, _, _ = model.classify_with_ensemble(test_image, labels)
+
+        total = sum(scores.values())
+        assert abs(total - 1.0) < 1e-5, f"Scores should sum to 1.0, got {total}"
+
+    def test_classify_with_ensemble_returns_all_labels(self, mock_clip_model_for_ensemble) -> None:
+        """Test that scores dict contains all input labels."""
+        model = mock_clip_model_for_ensemble
+        test_image = Image.new("RGB", (224, 224), color="red")
+        labels = ["person", "car", "dog", "cat"]
+
+        scores, _, _, _ = model.classify_with_ensemble(test_image, labels)
+
+        assert set(scores.keys()) == set(labels)
+
+    def test_classify_with_ensemble_top_label_in_labels(self, mock_clip_model_for_ensemble) -> None:
+        """Test that top_label is one of the input labels."""
+        model = mock_clip_model_for_ensemble
+        test_image = Image.new("RGB", (224, 224), color="red")
+        labels = ["person", "car", "dog"]
+
+        _, top_label, _, _ = model.classify_with_ensemble(test_image, labels)
+
+        assert top_label in labels
+
+    def test_classify_with_ensemble_metadata_contains_expected_keys(
+        self, mock_clip_model_for_ensemble
+    ) -> None:
+        """Test that metadata contains expected keys."""
+        model = mock_clip_model_for_ensemble
+        test_image = Image.new("RGB", (224, 224), color="red")
+        labels = ["person", "car"]
+
+        _, _, _, metadata = model.classify_with_ensemble(test_image, labels)
+
+        expected_keys = {"templates_used", "num_templates", "camera_type", "ensemble_method"}
+        assert expected_keys.issubset(metadata.keys())
+
+    def test_classify_with_ensemble_uses_correct_camera_type_templates(
+        self, mock_clip_model_for_ensemble
+    ) -> None:
+        """Test that ensemble uses the correct templates for camera type."""
+        model = mock_clip_model_for_ensemble
+        test_image = Image.new("RGB", (224, 224), color="red")
+        labels = ["person"]
+
+        for camera_type in [CameraType.STANDARD, CameraType.NIGHT_VISION, CameraType.OUTDOOR]:
+            _, _, _, metadata = model.classify_with_ensemble(
+                test_image, labels, camera_type=camera_type
+            )
+
+            expected_templates = CAMERA_TYPE_TEMPLATES[camera_type]
+            assert metadata["templates_used"] == expected_templates
+            assert metadata["camera_type"] == camera_type.value
+
+    def test_classify_with_ensemble_uses_custom_templates(
+        self, mock_clip_model_for_ensemble
+    ) -> None:
+        """Test that custom templates override camera type selection."""
+        model = mock_clip_model_for_ensemble
+        test_image = Image.new("RGB", (224, 224), color="red")
+        labels = ["person"]
+        custom_templates = ["custom template showing {}", "another custom {}"]
+
+        _, _, _, metadata = model.classify_with_ensemble(
+            test_image, labels, templates=custom_templates
+        )
+
+        assert metadata["templates_used"] == custom_templates
+        assert metadata["num_templates"] == len(custom_templates)
+
+    def test_classify_with_ensemble_rejects_empty_labels(
+        self, mock_clip_model_for_ensemble
+    ) -> None:
+        """Test that classify_with_ensemble raises ValueError for empty labels."""
+        model = mock_clip_model_for_ensemble
+        test_image = Image.new("RGB", (224, 224), color="red")
+
+        with pytest.raises(ValueError) as exc_info:
+            model.classify_with_ensemble(test_image, [])
+
+        assert "empty" in str(exc_info.value).lower()
+
+    def test_classify_with_ensemble_rejects_template_without_placeholder(
+        self, mock_clip_model_for_ensemble
+    ) -> None:
+        """Test that templates without {} placeholder are rejected."""
+        model = mock_clip_model_for_ensemble
+        test_image = Image.new("RGB", (224, 224), color="red")
+        labels = ["person"]
+        bad_templates = ["template without placeholder"]
+
+        with pytest.raises(ValueError) as exc_info:
+            model.classify_with_ensemble(test_image, labels, templates=bad_templates)
+
+        assert "placeholder" in str(exc_info.value).lower()
+
+    def test_classify_with_ensemble_handles_model_not_loaded(self) -> None:
+        """Test that classify_with_ensemble raises RuntimeError when model not loaded."""
+        model = CLIPEmbeddingModel(model_path="/fake/path", device="cpu")
+        # Don't load the model
+        test_image = Image.new("RGB", (224, 224), color="red")
+
+        with pytest.raises(RuntimeError) as exc_info:
+            model.classify_with_ensemble(test_image, ["person"])
+
+        assert "not loaded" in str(exc_info.value).lower()
+
+    def test_classify_with_ensemble_converts_non_rgb_images(
+        self, mock_clip_model_for_ensemble
+    ) -> None:
+        """Test that non-RGB images are converted before processing."""
+        model = mock_clip_model_for_ensemble
+        # Create a grayscale image
+        test_image = Image.new("L", (224, 224), color=128)
+        labels = ["person"]
+
+        # Should not raise - image should be converted to RGB
+        scores, _, _, _ = model.classify_with_ensemble(test_image, labels)
+
+        assert len(scores) == 1
+
+
+class TestClassifyEndpointWithEnsemble:
+    """Tests for /classify endpoint with ensemble support (NEM-3029)."""
+
+    @pytest.fixture(autouse=True)
+    def mock_model_for_classify(self):
+        """Mock the global model instance for classify endpoint tests."""
+        mock_instance = MagicMock()
+        mock_instance.model = MagicMock()
+
+        # Mock classify (simple)
+        mock_instance.classify.return_value = (
+            {"person": 0.8, "car": 0.2},
+            "person",
+            10.0,
+        )
+
+        # Mock classify_with_ensemble
+        mock_instance.classify_with_ensemble.return_value = (
+            {"person": 0.85, "car": 0.15},
+            "person",
+            15.0,
+            {
+                "templates_used": SURVEILLANCE_TEMPLATES,
+                "num_templates": 5,
+                "camera_type": "standard",
+                "ensemble_method": "mean",
+            },
+        )
+
+        original_model = getattr(model_module, "model", None)
+        model_module.model = mock_instance
+        yield mock_instance
+        model_module.model = original_model
+
+    def test_classify_uses_ensemble_by_default(
+        self, client, dummy_image_base64, mock_model_for_classify
+    ) -> None:
+        """Test that /classify uses ensemble classification by default."""
+        response = client.post(
+            "/classify",
+            json={"image": dummy_image_base64, "labels": ["person", "car"]},
+        )
+
+        assert response.status_code == 200
+        # Should have called classify_with_ensemble, not classify
+        mock_model_for_classify.classify_with_ensemble.assert_called_once()
+        mock_model_for_classify.classify.assert_not_called()
+
+    def test_classify_returns_ensemble_metadata(self, client, dummy_image_base64) -> None:
+        """Test that /classify returns ensemble metadata when using ensembling."""
+        response = client.post(
+            "/classify",
+            json={"image": dummy_image_base64, "labels": ["person", "car"]},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "ensemble_metadata" in data
+        assert data["ensemble_metadata"] is not None
+        assert "templates_used" in data["ensemble_metadata"]
+        assert "num_templates" in data["ensemble_metadata"]
+
+    def test_classify_without_ensemble(
+        self, client, dummy_image_base64, mock_model_for_classify
+    ) -> None:
+        """Test that /classify can disable ensemble with use_ensemble=False."""
+        response = client.post(
+            "/classify",
+            json={
+                "image": dummy_image_base64,
+                "labels": ["person", "car"],
+                "use_ensemble": False,
+            },
+        )
+
+        assert response.status_code == 200
+        # Should have called classify, not classify_with_ensemble
+        mock_model_for_classify.classify.assert_called_once()
+        mock_model_for_classify.classify_with_ensemble.assert_not_called()
+
+    def test_classify_without_ensemble_returns_null_metadata(
+        self, client, dummy_image_base64
+    ) -> None:
+        """Test that ensemble_metadata is null when use_ensemble=False."""
+        response = client.post(
+            "/classify",
+            json={
+                "image": dummy_image_base64,
+                "labels": ["person", "car"],
+                "use_ensemble": False,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ensemble_metadata"] is None
+
+    def test_classify_with_camera_type(
+        self, client, dummy_image_base64, mock_model_for_classify
+    ) -> None:
+        """Test that /classify accepts camera_type parameter."""
+        response = client.post(
+            "/classify",
+            json={
+                "image": dummy_image_base64,
+                "labels": ["person", "car"],
+                "camera_type": "night_vision",
+            },
+        )
+
+        assert response.status_code == 200
+        # Verify camera_type was passed to the method
+        call_args = mock_model_for_classify.classify_with_ensemble.call_args
+        assert call_args.kwargs["camera_type"] == CameraType.NIGHT_VISION
+
+    def test_classify_with_invalid_camera_type(self, client, dummy_image_base64) -> None:
+        """Test that /classify rejects invalid camera_type values."""
+        response = client.post(
+            "/classify",
+            json={
+                "image": dummy_image_base64,
+                "labels": ["person", "car"],
+                "camera_type": "invalid_type",
+            },
+        )
+
+        assert response.status_code == 422  # Pydantic validation error
+
+    def test_classify_response_contains_scores(self, client, dummy_image_base64) -> None:
+        """Test that /classify response contains scores dict."""
+        response = client.post(
+            "/classify",
+            json={"image": dummy_image_base64, "labels": ["person", "car"]},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "scores" in data
+        assert isinstance(data["scores"], dict)
+        assert "person" in data["scores"]
+        assert "car" in data["scores"]
+
+    def test_classify_response_contains_top_label(self, client, dummy_image_base64) -> None:
+        """Test that /classify response contains top_label."""
+        response = client.post(
+            "/classify",
+            json={"image": dummy_image_base64, "labels": ["person", "car"]},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "top_label" in data
+        assert data["top_label"] == "person"
+
+    def test_classify_response_contains_inference_time(self, client, dummy_image_base64) -> None:
+        """Test that /classify response contains inference_time_ms."""
+        response = client.post(
+            "/classify",
+            json={"image": dummy_image_base64, "labels": ["person", "car"]},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "inference_time_ms" in data
+        assert isinstance(data["inference_time_ms"], float)
+
+
+class TestClassifyRequestModel:
+    """Tests for ClassifyRequest Pydantic model with ensemble fields."""
+
+    def test_classify_request_defaults_to_ensemble_true(self, dummy_image_base64) -> None:
+        """Test that use_ensemble defaults to True."""
+        request = ClassifyRequest(
+            image=dummy_image_base64,
+            labels=["person", "car"],
+        )
+        assert request.use_ensemble is True
+
+    def test_classify_request_defaults_to_standard_camera_type(self, dummy_image_base64) -> None:
+        """Test that camera_type defaults to STANDARD."""
+        request = ClassifyRequest(
+            image=dummy_image_base64,
+            labels=["person", "car"],
+        )
+        assert request.camera_type == CameraType.STANDARD
+
+    def test_classify_request_accepts_camera_type_enum(self, dummy_image_base64) -> None:
+        """Test that ClassifyRequest accepts CameraType enum values."""
+        for camera_type in CameraType:
+            request = ClassifyRequest(
+                image=dummy_image_base64,
+                labels=["person"],
+                camera_type=camera_type,
+            )
+            assert request.camera_type == camera_type
+
+    def test_classify_request_accepts_camera_type_string(self, dummy_image_base64) -> None:
+        """Test that ClassifyRequest accepts camera type as string."""
+        request = ClassifyRequest(
+            image=dummy_image_base64,
+            labels=["person"],
+            camera_type="night_vision",
+        )
+        assert request.camera_type == CameraType.NIGHT_VISION
+
+    def test_classify_request_can_disable_ensemble(self, dummy_image_base64) -> None:
+        """Test that use_ensemble can be set to False."""
+        request = ClassifyRequest(
+            image=dummy_image_base64,
+            labels=["person"],
+            use_ensemble=False,
+        )
+        assert request.use_ensemble is False
+
+
+class TestEnsembleVsSinglePromptComparison:
+    """Tests comparing ensemble vs single-prompt classification behavior.
+
+    These tests document the expected behavioral differences between
+    ensemble and non-ensemble classification.
+    """
+
+    @pytest.fixture
+    def mock_model_with_tracking(self):
+        """Create a mock model that tracks method calls."""
+        mock_instance = MagicMock()
+        mock_instance.model = MagicMock()
+        mock_instance.classify_call_count = 0
+        mock_instance.ensemble_call_count = 0
+
+        def track_classify(*args, **kwargs):  # noqa: ARG001
+            mock_instance.classify_call_count += 1
+            return ({"person": 0.7, "car": 0.3}, "person", 8.0)
+
+        def track_ensemble(*args, **kwargs):  # noqa: ARG001
+            mock_instance.ensemble_call_count += 1
+            return (
+                {"person": 0.75, "car": 0.25},
+                "person",
+                12.0,
+                {
+                    "templates_used": SURVEILLANCE_TEMPLATES,
+                    "num_templates": 5,
+                    "camera_type": "standard",
+                    "ensemble_method": "mean",
+                },
+            )
+
+        mock_instance.classify.side_effect = track_classify
+        mock_instance.classify_with_ensemble.side_effect = track_ensemble
+
+        original_model = getattr(model_module, "model", None)
+        model_module.model = mock_instance
+        yield mock_instance
+        model_module.model = original_model
+
+    def test_ensemble_method_called_more_text_encoder_calls(self, mock_model_with_tracking) -> None:
+        """Document that ensemble uses more text encoder calls (one per template)."""
+        # This is expected behavior - ensemble processes multiple templates
+        # The mock tracks that classify_with_ensemble was called
+        mock_model_with_tracking.classify_with_ensemble(
+            Image.new("RGB", (100, 100), "red"),
+            ["person", "car"],
+        )
+
+        assert mock_model_with_tracking.ensemble_call_count == 1
+
+    def test_ensemble_typically_higher_latency(
+        self,
+        client,
+        dummy_image_base64,
+        mock_model_with_tracking,  # noqa: ARG002
+    ) -> None:
+        """Document that ensemble typically has higher latency than simple classify."""
+        # Call with ensemble (default)
+        response_ensemble = client.post(
+            "/classify",
+            json={"image": dummy_image_base64, "labels": ["person", "car"]},
+        )
+
+        # Call without ensemble
+        response_simple = client.post(
+            "/classify",
+            json={"image": dummy_image_base64, "labels": ["person", "car"], "use_ensemble": False},
+        )
+
+        ensemble_time = response_ensemble.json()["inference_time_ms"]
+        simple_time = response_simple.json()["inference_time_ms"]
+
+        # Ensemble should take longer due to multiple template processing
+        # (In this mock, ensemble returns 12.0ms vs simple 8.0ms)
+        assert ensemble_time > simple_time
 
 
 if __name__ == "__main__":

@@ -6,6 +6,13 @@ from .baseline import ActivityBaseline, ClassBaseline
 from .camera import Base, Camera
 from .camera_calibration import CameraCalibration
 from .detection import Detection
+from .enrichment import (
+    ActionResult,
+    DemographicsResult,
+    PoseResult,
+    ReIDEmbedding,
+    ThreatDetection,
+)
 from .entity import Entity
 from .enums import CameraStatus, EntityType, Severity, TrustStatus
 from .event import Event
@@ -43,6 +50,7 @@ from .user_calibration import UserCalibration
 from .zone import Zone, ZoneShape, ZoneType
 
 __all__ = [
+    "ActionResult",
     "ActivityBaseline",
     "Alert",
     "AlertRule",
@@ -58,6 +66,7 @@ __all__ = [
     "CameraStatus",
     "ClassBaseline",
     "DayOfWeek",
+    "DemographicsResult",
     "Detection",
     "Entity",
     "EntityType",
@@ -85,8 +94,10 @@ __all__ = [
     "NotificationPreferences",
     "NotificationSound",
     "PersonEmbedding",
+    "PoseResult",
     "PromptConfig",
     "QuietHoursPeriod",
+    "ReIDEmbedding",
     "RegisteredVehicle",
     "RiskLevel",
     "SceneChange",
@@ -94,6 +105,7 @@ __all__ = [
     "Severity",
     "Summary",
     "SummaryType",
+    "ThreatDetection",
     "TrustLevel",
     "TrustStatus",
     "UserCalibration",

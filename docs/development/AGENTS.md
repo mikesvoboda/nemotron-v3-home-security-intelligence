@@ -20,6 +20,7 @@ development/
   hooks.md               # Git hooks configuration
   linear-integration.md  # Linear MCP tools and workflow states
   migration-rollback.md  # Database migration rollback procedures
+  model-testing.md       # AI model testing and validation guide
   patterns.md            # Code patterns and conventions
   setup.md               # Development environment setup
   ssl-https.md           # SSL/HTTPS configuration for development
@@ -136,6 +137,22 @@ development/
 - Querying workflow states via GraphQL API
 
 **When to use:** Working with Linear issues, updating issue status, creating new issues.
+
+### model-testing.md
+
+**Purpose:** Testing strategies for AI model integrations in the enrichment service.
+
+**Topics Covered:**
+
+- Unit testing patterns for model loading, inference, and unloading
+- VRAM management and eviction testing
+- Integration testing for enrichment endpoints
+- Test fixtures and mocking strategies
+- Benchmarking model performance
+- GPU testing patterns
+- Troubleshooting common test failures
+
+**When to use:** Writing tests for AI models, testing model manager behavior, benchmarking inference performance.
 
 ### testing-workflow.md
 
