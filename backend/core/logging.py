@@ -19,6 +19,7 @@ __all__ = [
     "CustomJsonFormatter",
     "DatabaseHandler",
     "SQLiteHandler",  # Backwards compatibility alias
+    "TraceContextFormatter",
     # Functions
     "enable_deferred_db_logging",
     "get_app_version",
@@ -420,6 +421,37 @@ FILE_FORMAT = (
     "%(asctime)s | %(levelname)-8s | %(name)s | "
     "trace_id=%(trace_id)s span_id=%(span_id)s | %(message)s"
 )
+
+
+class TraceContextFormatter(logging.Formatter):
+    """Formatter that ensures trace_id and span_id are always present.
+
+    This formatter defensively sets default values for trace_id and span_id
+    on log records before formatting. This prevents KeyError exceptions when
+    log records bypass the ContextFilter (e.g., during early startup, from
+    third-party libraries, or when loggers don't propagate to root).
+
+    The ContextFilter should normally set these values, but this formatter
+    provides a safety net to prevent logging failures.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        """Format the log record, ensuring trace context fields exist.
+
+        Args:
+            record: The log record to format
+
+        Returns:
+            The formatted log string
+        """
+        # Ensure trace_id and span_id have default values before formatting
+        # This prevents KeyError when ContextFilter hasn't run on this record
+        if not hasattr(record, "trace_id"):
+            record.trace_id = ""  # type: ignore[attr-defined]
+        if not hasattr(record, "span_id"):
+            record.span_id = ""  # type: ignore[attr-defined]
+
+        return super().format(record)
 
 
 def get_request_id() -> str | None:
@@ -831,10 +863,10 @@ def setup_logging() -> None:
     context_filter = ContextFilter()
     root_logger.addFilter(context_filter)
 
-    # Console handler
+    # Console handler - use TraceContextFormatter to ensure trace fields exist
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
-    console_formatter = logging.Formatter(CONSOLE_FORMAT)
+    console_formatter = TraceContextFormatter(CONSOLE_FORMAT)
     console_handler.setFormatter(console_formatter)
     root_logger.addHandler(console_handler)
 
@@ -850,7 +882,7 @@ def setup_logging() -> None:
             encoding="utf-8",
         )
         file_handler.setLevel(log_level)
-        file_formatter = logging.Formatter(FILE_FORMAT)
+        file_formatter = TraceContextFormatter(FILE_FORMAT)
         file_handler.setFormatter(file_formatter)
         root_logger.addHandler(file_handler)
     except (OSError, PermissionError) as e:
