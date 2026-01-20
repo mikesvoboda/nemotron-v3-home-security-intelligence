@@ -7,6 +7,7 @@ Port: 8092 (configurable via PORT env var)
 Expected VRAM: ~1.2GB
 """
 
+import asyncio
 import base64
 import binascii
 import io
@@ -80,6 +81,39 @@ SUPPORTED_PROMPTS = {
 
 # VQA prompt prefix - VQA prompts have format: <VQA>question text
 VQA_PROMPT_PREFIX = "<VQA>"
+
+# Open vocabulary detection prompt
+OPEN_VOCABULARY_DETECTION_PROMPT = "<OPEN_VOCABULARY_DETECTION>"
+
+# Security-relevant objects for open vocabulary detection
+# These objects are commonly relevant in home security contexts
+SECURITY_OBJECTS = [
+    "person",
+    "face",
+    "mask",
+    "hoodie",
+    "backpack",
+    "package",
+    "weapon",
+    "knife",
+    "gun",
+    "crowbar",
+    "tool",
+    "vehicle",
+    "car",
+    "truck",
+    "van",
+    "motorcycle",
+    "bicycle",
+    "dog",
+    "cat",
+    "uniform",
+    "badge",
+    "clipboard",
+]
+
+# Pre-formatted security objects prompt for Florence-2
+SECURITY_OBJECTS_PROMPT = "Detect: " + ", ".join(SECURITY_OBJECTS)
 
 
 class ExtractRequest(BaseModel):
@@ -157,6 +191,54 @@ class DenseCaptionResponse(BaseModel):
 
     regions: list[CaptionedRegion] = Field(..., description="List of captioned regions")
     inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
+class SecurityObjectDetection(BaseModel):
+    """A detected security-relevant object with bounding box and confidence."""
+
+    label: str = Field(..., description="Object label from security vocabulary")
+    bbox: list[float] = Field(..., description="Bounding box as [x1, y1, x2, y2]")
+    confidence: float = Field(
+        default=1.0, ge=0.0, le=1.0, description="Detection confidence score (0-1)"
+    )
+
+
+class SecurityObjectsResponse(BaseModel):
+    """Response format for security objects detection endpoint."""
+
+    detections: list[SecurityObjectDetection] = Field(
+        ..., description="List of detected security-relevant objects"
+    )
+    objects_queried: list[str] = Field(
+        ..., description="List of security objects that were searched for"
+    )
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
+class SceneAnalysisRequest(BaseModel):
+    """Request format for comprehensive scene analysis endpoint."""
+
+    image: str = Field(..., description="Base64 encoded image")
+
+
+class SceneAnalysisResponse(BaseModel):
+    """Response format for comprehensive scene analysis.
+
+    Structured output suitable for Nemotron prompt consumption.
+    Contains detailed caption, region descriptions, and OCR results.
+    """
+
+    caption: str = Field(..., description="Detailed scene description from MORE_DETAILED_CAPTION")
+    regions: list[CaptionedRegion] = Field(
+        default_factory=list, description="Dense region captions with bounding boxes"
+    )
+    text_regions: list[OCRRegion] = Field(
+        default_factory=list, description="OCR text with bounding box regions"
+    )
+    inference_time_ms: float = Field(..., description="Total inference time in milliseconds")
+    task_times_ms: dict[str, float] = Field(
+        default_factory=dict, description="Individual task inference times"
+    )
 
 
 class HealthResponse(BaseModel):
@@ -781,6 +863,178 @@ async def dense_caption(request: ImageRequest) -> DenseCaptionResponse:
     except Exception as e:
         logger.error(f"Dense captioning failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Dense captioning failed: {e!s}") from e
+
+
+@app.post("/analyze-scene", response_model=SceneAnalysisResponse)
+async def analyze_scene(request: SceneAnalysisRequest) -> SceneAnalysisResponse:
+    """Comprehensive scene analysis using cascaded Florence-2 prompts.
+
+    Runs multiple Florence-2 tasks to extract maximum scene context:
+    1. MORE_DETAILED_CAPTION - Rich scene description
+    2. DENSE_REGION_CAPTION - Per-region captions with bounding boxes
+    3. OCR_WITH_REGION - Text extraction with locations
+
+    Tasks 2 and 3 (DENSE_REGION_CAPTION and OCR_WITH_REGION) run in parallel
+    since they are independent and don't depend on each other's results.
+
+    The structured output is designed for Nemotron prompt consumption,
+    providing comprehensive scene understanding for risk assessment.
+
+    Returns:
+        SceneAnalysisResponse with caption, regions, text_regions, and timing info
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        # Decode image once for all tasks
+        image = _decode_image(request.image)
+        start_time = time.perf_counter()
+        task_times: dict[str, float] = {}
+
+        # Step 1: Get detailed caption (must complete first as it's the primary output)
+        caption_result, caption_time = model.extract(image, "<MORE_DETAILED_CAPTION>")
+        task_times["caption"] = caption_time
+
+        # Step 2 & 3: Run DENSE_REGION_CAPTION and OCR_WITH_REGION in parallel
+        # These tasks are independent and can execute concurrently
+        async def run_dense_regions() -> tuple[list[CaptionedRegion], float]:
+            """Run dense region captioning in thread pool."""
+            raw_result, time_ms = await asyncio.to_thread(
+                model.extract_raw, image, "<DENSE_REGION_CAPTION>"
+            )
+            regions: list[CaptionedRegion] = []
+            if isinstance(raw_result, dict):
+                bboxes = raw_result.get("bboxes", [])
+                labels = raw_result.get("labels", [])
+                for i, label in enumerate(labels):
+                    bbox = bboxes[i] if i < len(bboxes) else []
+                    regions.append(CaptionedRegion(caption=label, bbox=bbox))
+            return regions, time_ms
+
+        async def run_ocr_with_regions() -> tuple[list[OCRRegion], float]:
+            """Run OCR with regions in thread pool."""
+            raw_result, time_ms = await asyncio.to_thread(
+                model.extract_raw, image, "<OCR_WITH_REGION>"
+            )
+            text_regions: list[OCRRegion] = []
+            if isinstance(raw_result, dict):
+                quad_boxes = raw_result.get("quad_boxes", [])
+                labels = raw_result.get("labels", [])
+                for i, label in enumerate(labels):
+                    bbox = quad_boxes[i] if i < len(quad_boxes) else []
+                    # Flatten the quad box if it's nested
+                    if bbox and isinstance(bbox[0], list):
+                        bbox = [coord for point in bbox for coord in point]
+                    text_regions.append(OCRRegion(text=label, bbox=bbox))
+            return text_regions, time_ms
+
+        # Execute parallel tasks
+        (regions, regions_time), (text_regions, ocr_time) = await asyncio.gather(
+            run_dense_regions(),
+            run_ocr_with_regions(),
+        )
+
+        task_times["dense_regions"] = regions_time
+        task_times["ocr_with_regions"] = ocr_time
+
+        # Calculate total time
+        total_time_ms = (time.perf_counter() - start_time) * 1000
+
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="analyze_scene").observe(total_time_ms / 1000)
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="analyze_scene", status="success").inc()
+
+        return SceneAnalysisResponse(
+            caption=caption_result,
+            regions=regions,
+            text_regions=text_regions,
+            inference_time_ms=total_time_ms,
+            task_times_ms=task_times,
+        )
+
+    except HTTPException:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="analyze_scene", status="error").inc()
+        raise
+    except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="analyze_scene", status="error").inc()
+        logger.error(f"Scene analysis failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Scene analysis failed: {e!s}") from e
+
+
+@app.post("/detect_security_objects", response_model=SecurityObjectsResponse)
+async def detect_security_objects(request: ImageRequest) -> SecurityObjectsResponse:
+    """Detect security-relevant objects using open vocabulary detection.
+
+    Uses Florence-2's <OPEN_VOCABULARY_DETECTION> task with a predefined
+    vocabulary of security-relevant objects (person, face, mask, weapon,
+    vehicle, package, etc.).
+
+    This endpoint is optimized for home security monitoring scenarios
+    where detecting specific object categories is more important than
+    general object detection.
+
+    Returns:
+        SecurityObjectsResponse with list of detected objects, bounding boxes,
+        and confidence scores.
+    """
+    if model is None or model.model is None:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect_security_objects", status="error").inc()
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        image = _decode_image(request.image)
+
+        # Run open vocabulary detection with security objects prompt
+        # Florence-2 expects: <OPEN_VOCABULARY_DETECTION>object1, object2, ...
+        prompt = f"{OPEN_VOCABULARY_DETECTION_PROMPT}{SECURITY_OBJECTS_PROMPT}"
+
+        start_time = time.perf_counter()
+        raw_result, inference_time_ms = model.extract_raw(image, prompt)
+        latency_seconds = time.perf_counter() - start_time
+
+        # Parse the result - Florence-2 returns {'bboxes': [...], 'bboxes_labels': [...]}
+        # for open vocabulary detection
+        detections: list[SecurityObjectDetection] = []
+
+        if isinstance(raw_result, dict):
+            # Open vocabulary detection may use different keys
+            bboxes = raw_result.get("bboxes") or raw_result.get("boxes") or []
+            labels = raw_result.get("bboxes_labels") or raw_result.get("labels") or []
+
+            for i, label in enumerate(labels):
+                bbox = bboxes[i] if i < len(bboxes) else []
+                # Florence-2 open vocabulary detection doesn't return scores,
+                # so we default to 1.0 for detected objects
+                detections.append(
+                    SecurityObjectDetection(
+                        label=label,
+                        bbox=bbox,
+                        confidence=1.0,
+                    )
+                )
+
+        # Record metrics
+        INFERENCE_LATENCY_SECONDS.labels(endpoint="detect_security_objects").observe(
+            latency_seconds
+        )
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect_security_objects", status="success").inc()
+
+        return SecurityObjectsResponse(
+            detections=detections,
+            objects_queried=SECURITY_OBJECTS.copy(),
+            inference_time_ms=inference_time_ms,
+        )
+
+    except HTTPException:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect_security_objects", status="error").inc()
+        raise
+    except Exception as e:
+        INFERENCE_REQUESTS_TOTAL.labels(endpoint="detect_security_objects", status="error").inc()
+        logger.error(f"Security objects detection failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Security objects detection failed: {e!s}"
+        ) from e
 
 
 if __name__ == "__main__":

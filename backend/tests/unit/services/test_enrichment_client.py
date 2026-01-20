@@ -33,6 +33,12 @@ from backend.services.enrichment_client import (
     ObjectDistanceResult,
     PetClassificationResult,
     PoseAnalysisResult,
+    UnifiedClothingResult,
+    UnifiedDemographicsResult,
+    UnifiedEnrichmentResult,
+    UnifiedPoseResult,
+    UnifiedThreatResult,
+    UnifiedVehicleResult,
     VehicleClassificationResult,
     get_enrichment_client,
     reset_enrichment_client,
@@ -2182,3 +2188,794 @@ class TestEnrichmentClientLifecycle:
         # Verify both HTTP clients were closed
         client._http_client.aclose.assert_called_once()
         client._health_http_client.aclose.assert_called_once()
+
+
+# =============================================================================
+# Unified Enrichment Result Dataclass Tests (NEM-3040)
+# =============================================================================
+
+
+class TestUnifiedPoseResult:
+    """Tests for UnifiedPoseResult dataclass."""
+
+    @pytest.fixture
+    def pose_result(self) -> UnifiedPoseResult:
+        """Create a sample unified pose result."""
+        from backend.services.enrichment_client import UnifiedPoseResult
+
+        return UnifiedPoseResult(
+            keypoints=[{"x": 0.5, "y": 0.3, "confidence": 0.95, "name": "nose"}],
+            pose_class="standing",
+            confidence=0.92,
+            is_suspicious=False,
+        )
+
+    def test_to_dict(self, pose_result: UnifiedPoseResult) -> None:
+        """Test to_dict serialization."""
+        result = pose_result.to_dict()
+        assert result["pose_class"] == "standing"
+        assert result["confidence"] == 0.92
+        assert result["is_suspicious"] is False
+        assert len(result["keypoints"]) == 1
+
+    def test_to_context_string(self, pose_result: UnifiedPoseResult) -> None:
+        """Test context string generation."""
+        context = pose_result.to_context_string()
+        assert "standing" in context
+        assert "92%" in context
+
+    def test_to_context_string_suspicious(self) -> None:
+        """Test context string with suspicious pose."""
+        from backend.services.enrichment_client import UnifiedPoseResult
+
+        result = UnifiedPoseResult(
+            keypoints=[],
+            pose_class="crouching",
+            confidence=0.85,
+            is_suspicious=True,
+        )
+        context = result.to_context_string()
+        assert "crouching" in context
+        assert "ALERT" in context
+
+
+class TestUnifiedClothingResult:
+    """Tests for UnifiedClothingResult dataclass."""
+
+    @pytest.fixture
+    def clothing_result(self) -> UnifiedClothingResult:
+        """Create a sample unified clothing result."""
+        from backend.services.enrichment_client import UnifiedClothingResult
+
+        return UnifiedClothingResult(
+            categories=[
+                {"category": "casual", "confidence": 0.85},
+                {"category": "delivery", "confidence": 0.10},
+            ],
+            is_suspicious=False,
+        )
+
+    def test_to_dict(self, clothing_result: UnifiedClothingResult) -> None:
+        """Test to_dict serialization."""
+        result = clothing_result.to_dict()
+        assert len(result["categories"]) == 2
+        assert result["is_suspicious"] is False
+
+    def test_to_context_string(self, clothing_result: UnifiedClothingResult) -> None:
+        """Test context string generation."""
+        context = clothing_result.to_context_string()
+        assert "casual" in context
+        assert "85%" in context
+
+    def test_to_context_string_suspicious(self) -> None:
+        """Test context string with suspicious clothing."""
+        from backend.services.enrichment_client import UnifiedClothingResult
+
+        result = UnifiedClothingResult(
+            categories=[{"category": "hoodie_dark", "confidence": 0.90}],
+            is_suspicious=True,
+        )
+        context = result.to_context_string()
+        assert "ALERT" in context
+
+
+class TestUnifiedDemographicsResult:
+    """Tests for UnifiedDemographicsResult dataclass."""
+
+    @pytest.fixture
+    def demographics_result(self) -> UnifiedDemographicsResult:
+        """Create a sample unified demographics result."""
+        from backend.services.enrichment_client import UnifiedDemographicsResult
+
+        return UnifiedDemographicsResult(
+            age_range="25-35",
+            age_confidence=0.78,
+            gender="male",
+            gender_confidence=0.92,
+        )
+
+    def test_to_dict(self, demographics_result: UnifiedDemographicsResult) -> None:
+        """Test to_dict serialization."""
+        result = demographics_result.to_dict()
+        assert result["age_range"] == "25-35"
+        assert result["age_confidence"] == 0.78
+        assert result["gender"] == "male"
+        assert result["gender_confidence"] == 0.92
+
+    def test_to_context_string(self, demographics_result: UnifiedDemographicsResult) -> None:
+        """Test context string generation."""
+        context = demographics_result.to_context_string()
+        assert "male" in context
+        assert "92%" in context
+        assert "25-35" in context
+
+
+class TestUnifiedVehicleResult:
+    """Tests for UnifiedVehicleResult dataclass."""
+
+    @pytest.fixture
+    def vehicle_result(self) -> UnifiedVehicleResult:
+        """Create a sample unified vehicle result."""
+        from backend.services.enrichment_client import UnifiedVehicleResult
+
+        return UnifiedVehicleResult(
+            make="Toyota",
+            model="Camry",
+            color="silver",
+            type="sedan",
+            confidence=0.88,
+        )
+
+    def test_to_dict(self, vehicle_result: UnifiedVehicleResult) -> None:
+        """Test to_dict serialization."""
+        result = vehicle_result.to_dict()
+        assert result["make"] == "Toyota"
+        assert result["model"] == "Camry"
+        assert result["color"] == "silver"
+        assert result["type"] == "sedan"
+        assert result["confidence"] == 0.88
+
+    def test_to_context_string(self, vehicle_result: UnifiedVehicleResult) -> None:
+        """Test context string generation."""
+        context = vehicle_result.to_context_string()
+        assert "Toyota" in context
+        assert "Camry" in context
+        assert "silver" in context
+        assert "sedan" in context
+
+    def test_to_context_string_partial_info(self) -> None:
+        """Test context string with missing make/model."""
+        from backend.services.enrichment_client import UnifiedVehicleResult
+
+        result = UnifiedVehicleResult(
+            make=None,
+            model=None,
+            color="red",
+            type="pickup_truck",
+            confidence=0.75,
+        )
+        context = result.to_context_string()
+        assert "red" in context
+        assert "pickup_truck" in context
+
+
+class TestUnifiedThreatResult:
+    """Tests for UnifiedThreatResult dataclass."""
+
+    @pytest.fixture
+    def threat_result(self) -> UnifiedThreatResult:
+        """Create a sample unified threat result."""
+        from backend.services.enrichment_client import UnifiedThreatResult
+
+        return UnifiedThreatResult(
+            threats=[{"type": "knife", "confidence": 0.85, "bbox": [10, 20, 50, 80]}],
+            has_threat=True,
+            max_severity="high",
+        )
+
+    def test_to_dict(self, threat_result: UnifiedThreatResult) -> None:
+        """Test to_dict serialization."""
+        result = threat_result.to_dict()
+        assert len(result["threats"]) == 1
+        assert result["has_threat"] is True
+        assert result["max_severity"] == "high"
+
+    def test_to_context_string_with_threat(self, threat_result: UnifiedThreatResult) -> None:
+        """Test context string with detected threat."""
+        context = threat_result.to_context_string()
+        assert "THREAT DETECTED" in context
+        assert "knife" in context
+        assert "high" in context
+
+    def test_to_context_string_no_threat(self) -> None:
+        """Test context string without threats."""
+        from backend.services.enrichment_client import UnifiedThreatResult
+
+        result = UnifiedThreatResult(
+            threats=[],
+            has_threat=False,
+            max_severity="none",
+        )
+        context = result.to_context_string()
+        assert "No threats detected" in context
+
+
+class TestUnifiedEnrichmentResult:
+    """Tests for UnifiedEnrichmentResult dataclass."""
+
+    @pytest.fixture
+    def full_enrichment_result(self) -> UnifiedEnrichmentResult:
+        """Create a full unified enrichment result with all fields."""
+        from backend.services.enrichment_client import (
+            UnifiedClothingResult,
+            UnifiedDemographicsResult,
+            UnifiedEnrichmentResult,
+            UnifiedPoseResult,
+            UnifiedThreatResult,
+        )
+
+        return UnifiedEnrichmentResult(
+            pose=UnifiedPoseResult(
+                keypoints=[{"x": 0.5, "y": 0.3, "confidence": 0.95, "name": "nose"}],
+                pose_class="standing",
+                confidence=0.92,
+                is_suspicious=False,
+            ),
+            clothing=UnifiedClothingResult(
+                categories=[{"category": "casual", "confidence": 0.85}],
+                is_suspicious=False,
+            ),
+            demographics=UnifiedDemographicsResult(
+                age_range="25-35",
+                age_confidence=0.78,
+                gender="male",
+                gender_confidence=0.92,
+            ),
+            threat=UnifiedThreatResult(
+                threats=[],
+                has_threat=False,
+                max_severity="none",
+            ),
+            reid_embedding=[0.1, 0.2, 0.3, 0.4, 0.5],
+            models_loaded=["pose", "clothing", "demographics", "reid"],
+            inference_time_ms=125.5,
+        )
+
+    def test_to_dict(self, full_enrichment_result: UnifiedEnrichmentResult) -> None:
+        """Test to_dict serialization."""
+        result = full_enrichment_result.to_dict()
+        assert "pose" in result
+        assert "clothing" in result
+        assert "demographics" in result
+        assert "threat" in result
+        assert "reid_embedding" in result
+        assert result["models_loaded"] == ["pose", "clothing", "demographics", "reid"]
+        assert result["inference_time_ms"] == 125.5
+
+    def test_to_context_string(self, full_enrichment_result: UnifiedEnrichmentResult) -> None:
+        """Test context string generation."""
+        context = full_enrichment_result.to_context_string()
+        assert "standing" in context
+        assert "casual" in context
+        assert "male" in context
+
+    def test_has_security_alerts_no_alerts(
+        self, full_enrichment_result: UnifiedEnrichmentResult
+    ) -> None:
+        """Test has_security_alerts with no alerts."""
+        assert full_enrichment_result.has_security_alerts() is False
+
+    def test_has_security_alerts_with_threat(self) -> None:
+        """Test has_security_alerts with threat."""
+        from backend.services.enrichment_client import (
+            UnifiedEnrichmentResult,
+            UnifiedThreatResult,
+        )
+
+        result = UnifiedEnrichmentResult(
+            threat=UnifiedThreatResult(
+                threats=[{"type": "gun", "confidence": 0.95}],
+                has_threat=True,
+                max_severity="critical",
+            ),
+        )
+        assert result.has_security_alerts() is True
+
+    def test_has_security_alerts_with_suspicious_pose(self) -> None:
+        """Test has_security_alerts with suspicious pose."""
+        from backend.services.enrichment_client import (
+            UnifiedEnrichmentResult,
+            UnifiedPoseResult,
+        )
+
+        result = UnifiedEnrichmentResult(
+            pose=UnifiedPoseResult(
+                keypoints=[],
+                pose_class="crouching",
+                confidence=0.85,
+                is_suspicious=True,
+            ),
+        )
+        assert result.has_security_alerts() is True
+
+    def test_has_security_alerts_with_suspicious_clothing(self) -> None:
+        """Test has_security_alerts with suspicious clothing."""
+        from backend.services.enrichment_client import (
+            UnifiedClothingResult,
+            UnifiedEnrichmentResult,
+        )
+
+        result = UnifiedEnrichmentResult(
+            clothing=UnifiedClothingResult(
+                categories=[{"category": "ski_mask", "confidence": 0.90}],
+                is_suspicious=True,
+            ),
+        )
+        assert result.has_security_alerts() is True
+
+    def test_empty_result(self) -> None:
+        """Test empty UnifiedEnrichmentResult."""
+        from backend.services.enrichment_client import UnifiedEnrichmentResult
+
+        result = UnifiedEnrichmentResult()
+        assert result.pose is None
+        assert result.clothing is None
+        assert result.has_security_alerts() is False
+        assert result.to_context_string() == "No enrichment data available"
+
+
+# =============================================================================
+# Unified Enrichment Endpoint Tests (NEM-3040)
+# =============================================================================
+
+
+class TestEnrichmentClientEnrichDetection:
+    """Tests for enrich_detection method calling unified /enrich endpoint."""
+
+    @pytest.fixture
+    def sample_image_bytes(self) -> bytes:
+        """Create sample image bytes for testing."""
+        img = Image.new("RGB", (100, 100), color="blue")
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    @pytest.mark.asyncio
+    async def test_enrich_detection_person_success(
+        self, client: EnrichmentClient, sample_image_bytes: bytes
+    ) -> None:
+        """Test successful person enrichment."""
+        mock_response = create_mock_response(
+            json_data={
+                "pose": {
+                    "keypoints": [{"x": 0.5, "y": 0.3, "confidence": 0.95, "name": "nose"}],
+                    "pose_class": "standing",
+                    "confidence": 0.92,
+                    "is_suspicious": False,
+                },
+                "clothing": {
+                    "categories": [{"category": "casual", "confidence": 0.85}],
+                    "is_suspicious": False,
+                },
+                "threat": {
+                    "threats": [],
+                    "has_threat": False,
+                    "max_severity": "none",
+                },
+                "reid_embedding": [0.1, 0.2, 0.3],
+                "models_loaded": ["pose", "clothing", "threat", "reid"],
+                "inference_time_ms": 150.5,
+            },
+            status_code=200,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        result = await client.enrich_detection(
+            image=sample_image_bytes,
+            detection_type="person",
+            bbox=(10.0, 20.0, 90.0, 180.0),
+        )
+
+        assert result.pose is not None
+        assert result.pose.pose_class == "standing"
+        assert result.clothing is not None
+        assert result.clothing.is_suspicious is False
+        assert result.threat is not None
+        assert result.threat.has_threat is False
+        assert result.reid_embedding == [0.1, 0.2, 0.3]
+        assert result.models_loaded == ["pose", "clothing", "threat", "reid"]
+        assert result.inference_time_ms == 150.5
+
+    @pytest.mark.asyncio
+    async def test_enrich_detection_vehicle_success(
+        self, client: EnrichmentClient, sample_image_bytes: bytes
+    ) -> None:
+        """Test successful vehicle enrichment."""
+        mock_response = create_mock_response(
+            json_data={
+                "vehicle": {
+                    "make": "Ford",
+                    "model": "F-150",
+                    "color": "black",
+                    "type": "pickup_truck",
+                    "confidence": 0.91,
+                },
+                "depth": {
+                    "relative_depth": 0.35,
+                    "estimated_distance_m": 8.5,
+                },
+                "models_loaded": ["vehicle", "depth"],
+                "inference_time_ms": 85.2,
+            },
+            status_code=200,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        result = await client.enrich_detection(
+            image=sample_image_bytes,
+            detection_type="vehicle",
+            bbox=(50.0, 100.0, 300.0, 250.0),
+        )
+
+        assert result.vehicle is not None
+        assert result.vehicle.make == "Ford"
+        assert result.vehicle.model == "F-150"
+        assert result.vehicle.type == "pickup_truck"
+        assert result.depth is not None
+
+    @pytest.mark.asyncio
+    async def test_enrich_detection_with_frames(
+        self, client: EnrichmentClient, sample_image_bytes: bytes
+    ) -> None:
+        """Test enrichment with video frames for action recognition."""
+        mock_response = create_mock_response(
+            json_data={
+                "pose": {
+                    "keypoints": [],
+                    "pose_class": "running",
+                    "confidence": 0.88,
+                    "is_suspicious": True,
+                },
+                "action": {
+                    "top_action": "person running",
+                    "confidence": 0.92,
+                    "all_scores": {"person running": 0.92, "person walking": 0.05},
+                },
+                "models_loaded": ["pose", "action"],
+                "inference_time_ms": 320.0,
+            },
+            status_code=200,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        # Create sample frames
+        frames = [sample_image_bytes for _ in range(8)]
+
+        result = await client.enrich_detection(
+            image=sample_image_bytes,
+            detection_type="person",
+            bbox=(10.0, 20.0, 90.0, 180.0),
+            frames=frames,
+            options={"suspicious_score": 75.0},
+        )
+
+        assert result.action is not None
+        assert result.action["top_action"] == "person running"
+
+    @pytest.mark.asyncio
+    async def test_enrich_detection_with_demographics(
+        self, client: EnrichmentClient, sample_image_bytes: bytes
+    ) -> None:
+        """Test enrichment with demographics when face is visible."""
+        mock_response = create_mock_response(
+            json_data={
+                "pose": {
+                    "keypoints": [],
+                    "pose_class": "standing",
+                    "confidence": 0.90,
+                    "is_suspicious": False,
+                },
+                "demographics": {
+                    "age_range": "30-40",
+                    "age_confidence": 0.75,
+                    "gender": "female",
+                    "gender_confidence": 0.88,
+                },
+                "models_loaded": ["pose", "demographics"],
+                "inference_time_ms": 180.0,
+            },
+            status_code=200,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        result = await client.enrich_detection(
+            image=sample_image_bytes,
+            detection_type="person",
+            bbox=(10.0, 20.0, 90.0, 180.0),
+            options={"face_visible": True},
+        )
+
+        assert result.demographics is not None
+        assert result.demographics.age_range == "30-40"
+        assert result.demographics.gender == "female"
+
+    @pytest.mark.asyncio
+    async def test_enrich_detection_timeout_returns_empty_result(
+        self, client: EnrichmentClient, sample_image_bytes: bytes
+    ) -> None:
+        """Test that timeout returns empty result instead of raising."""
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.TimeoutException("Request timed out")
+        )
+
+        result = await client.enrich_detection(
+            image=sample_image_bytes,
+            detection_type="person",
+            bbox=(10.0, 20.0, 90.0, 180.0),
+        )
+
+        # Should return empty result, not raise
+        assert result.pose is None
+        assert result.clothing is None
+        assert result.threat is None
+        assert result.has_security_alerts() is False
+
+    @pytest.mark.asyncio
+    async def test_enrich_detection_connection_error_returns_empty_result(
+        self, client: EnrichmentClient, sample_image_bytes: bytes
+    ) -> None:
+        """Test that connection error returns empty result."""
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+
+        result = await client.enrich_detection(
+            image=sample_image_bytes,
+            detection_type="person",
+            bbox=(10.0, 20.0, 90.0, 180.0),
+        )
+
+        assert result.pose is None
+        assert result.inference_time_ms == 0.0
+
+    @pytest.mark.asyncio
+    async def test_enrich_detection_http_error_returns_empty_result(
+        self, client: EnrichmentClient, sample_image_bytes: bytes
+    ) -> None:
+        """Test that HTTP error returns empty result."""
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Server error", request=MagicMock(), response=mock_response
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        result = await client.enrich_detection(
+            image=sample_image_bytes,
+            detection_type="person",
+            bbox=(10.0, 20.0, 90.0, 180.0),
+        )
+
+        assert result.pose is None
+
+    @pytest.mark.asyncio
+    async def test_enrich_detection_request_payload_format(
+        self, client: EnrichmentClient, sample_image_bytes: bytes
+    ) -> None:
+        """Test that request payload is correctly formatted."""
+        mock_response = create_mock_response(
+            json_data={"models_loaded": [], "inference_time_ms": 50.0},
+            status_code=200,
+        )
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        await client.enrich_detection(
+            image=sample_image_bytes,
+            detection_type="person",
+            bbox=(10.0, 20.0, 90.0, 180.0),
+            options={"face_visible": True, "suspicious_score": 25.0},
+        )
+
+        # Check call args
+        call_args = client._http_client.post.call_args
+        assert "http://test-enrichment:8094/enrich" in call_args.args[0]
+
+        payload = call_args.kwargs["json"]
+        assert "image" in payload
+        assert payload["detection_type"] == "person"
+        assert payload["bbox"] == {"x1": 10.0, "y1": 20.0, "x2": 90.0, "y2": 180.0}
+        assert payload["options"]["face_visible"] is True
+        assert payload["options"]["suspicious_score"] == 25.0
+
+
+class TestEnrichmentClientModelStatus:
+    """Tests for get_model_status method."""
+
+    @pytest.mark.asyncio
+    async def test_get_model_status_success(self, client: EnrichmentClient) -> None:
+        """Test successful model status retrieval."""
+        mock_response = create_mock_response(
+            json_data={
+                "loaded_models": ["pose", "clothing", "threat"],
+                "vram_usage_mb": 1500,
+                "vram_budget_mb": 6800,
+                "model_specs": {
+                    "pose": {"vram_mb": 300, "priority": "high"},
+                    "clothing": {"vram_mb": 800, "priority": "high"},
+                    "threat": {"vram_mb": 400, "priority": "critical"},
+                },
+            },
+            status_code=200,
+        )
+        client._http_client.get = AsyncMock(return_value=mock_response)
+
+        result = await client.get_model_status()
+
+        assert result["loaded_models"] == ["pose", "clothing", "threat"]
+        assert result["vram_usage_mb"] == 1500
+        assert result["vram_budget_mb"] == 6800
+
+    @pytest.mark.asyncio
+    async def test_get_model_status_connection_error(self, client: EnrichmentClient) -> None:
+        """Test model status with connection error."""
+        client._http_client.get = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+
+        result = await client.get_model_status()
+
+        assert "error" in result
+        assert result["loaded_models"] == []
+
+    @pytest.mark.asyncio
+    async def test_get_model_status_timeout(self, client: EnrichmentClient) -> None:
+        """Test model status with timeout."""
+        client._http_client.get = AsyncMock(side_effect=httpx.TimeoutException("Request timed out"))
+
+        result = await client.get_model_status()
+
+        assert "error" in result
+        assert result["loaded_models"] == []
+
+
+class TestEnrichmentClientPreloadModel:
+    """Tests for preload_model method."""
+
+    @pytest.mark.asyncio
+    async def test_preload_model_success(self, client: EnrichmentClient) -> None:
+        """Test successful model preloading."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        result = await client.preload_model("pose")
+
+        assert result is True
+        client._http_client.post.assert_called_once()
+        call_args = client._http_client.post.call_args
+        assert "models/preload" in call_args.args[0]
+        assert call_args.kwargs["params"]["model_name"] == "pose"
+
+    @pytest.mark.asyncio
+    async def test_preload_model_not_found(self, client: EnrichmentClient) -> None:
+        """Test preloading unknown model."""
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        client._http_client.post = AsyncMock(return_value=mock_response)
+
+        result = await client.preload_model("unknown_model")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_preload_model_connection_error(self, client: EnrichmentClient) -> None:
+        """Test model preloading with connection error."""
+        client._http_client.post = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+
+        result = await client.preload_model("pose")
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_preload_model_timeout(self, client: EnrichmentClient) -> None:
+        """Test model preloading with timeout."""
+        client._http_client.post = AsyncMock(
+            side_effect=httpx.TimeoutException("Request timed out")
+        )
+
+        result = await client.preload_model("threat")
+
+        assert result is False
+
+
+class TestEnrichmentClientParseUnifiedResponse:
+    """Tests for _parse_unified_response method."""
+
+    def test_parse_full_response(self, client: EnrichmentClient) -> None:
+        """Test parsing a full response with all fields."""
+        data = {
+            "pose": {
+                "keypoints": [{"x": 0.5, "y": 0.3, "confidence": 0.95, "name": "nose"}],
+                "pose_class": "standing",
+                "confidence": 0.92,
+                "is_suspicious": False,
+            },
+            "clothing": {
+                "categories": [{"category": "casual", "confidence": 0.85}],
+                "is_suspicious": False,
+            },
+            "demographics": {
+                "age_range": "25-35",
+                "age_confidence": 0.78,
+                "gender": "male",
+                "gender_confidence": 0.92,
+            },
+            "vehicle": {
+                "make": "Toyota",
+                "model": "Camry",
+                "color": "silver",
+                "type": "sedan",
+                "confidence": 0.88,
+            },
+            "threat": {
+                "threats": [{"type": "knife", "confidence": 0.85}],
+                "has_threat": True,
+                "max_severity": "high",
+            },
+            "reid_embedding": [0.1, 0.2, 0.3, 0.4, 0.5],
+            "pet": {"type": "dog", "breed": "labrador", "confidence": 0.95},
+            "action": {"top_action": "walking", "confidence": 0.88},
+            "depth": {"relative_depth": 0.4, "estimated_distance_m": 5.0},
+            "models_loaded": ["pose", "clothing", "threat"],
+            "inference_time_ms": 250.5,
+        }
+
+        result = client._parse_unified_response(data)
+
+        assert result.pose is not None
+        assert result.pose.pose_class == "standing"
+        assert result.clothing is not None
+        assert result.demographics is not None
+        assert result.demographics.gender == "male"
+        assert result.vehicle is not None
+        assert result.vehicle.make == "Toyota"
+        assert result.threat is not None
+        assert result.threat.has_threat is True
+        assert result.reid_embedding == [0.1, 0.2, 0.3, 0.4, 0.5]
+        assert result.pet == {"type": "dog", "breed": "labrador", "confidence": 0.95}
+        assert result.action == {"top_action": "walking", "confidence": 0.88}
+        assert result.depth == {"relative_depth": 0.4, "estimated_distance_m": 5.0}
+        assert result.models_loaded == ["pose", "clothing", "threat"]
+        assert result.inference_time_ms == 250.5
+
+    def test_parse_empty_response(self, client: EnrichmentClient) -> None:
+        """Test parsing an empty response."""
+        data = {"models_loaded": [], "inference_time_ms": 0.0}
+
+        result = client._parse_unified_response(data)
+
+        assert result.pose is None
+        assert result.clothing is None
+        assert result.demographics is None
+        assert result.vehicle is None
+        assert result.threat is None
+        assert result.reid_embedding is None
+        assert result.models_loaded == []
+        assert result.inference_time_ms == 0.0
+
+    def test_parse_partial_response(self, client: EnrichmentClient) -> None:
+        """Test parsing a partial response with only some fields."""
+        data = {
+            "pose": {
+                "keypoints": [],
+                "pose_class": "crouching",
+                "confidence": 0.85,
+                "is_suspicious": True,
+            },
+            "models_loaded": ["pose"],
+            "inference_time_ms": 75.0,
+        }
+
+        result = client._parse_unified_response(data)
+
+        assert result.pose is not None
+        assert result.pose.pose_class == "crouching"
+        assert result.pose.is_suspicious is True
+        assert result.clothing is None
+        assert result.vehicle is None
