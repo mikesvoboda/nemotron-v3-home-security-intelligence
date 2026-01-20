@@ -234,7 +234,7 @@ name = "colorama"
 version = "0.4.6"
 source = { registry = "https://download.pytorch.org/whl/cpu" }
 wheels = [
-    { url = "https://download.pytorch.org/whl/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6" },
+    { url = "https://d21usjoq99fcb9.cloudfront.net/whl/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6" },
 ]
 
 [[package]]
@@ -732,6 +732,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pympler" },
+    { name = "pyroscope-io" },
     { name = "python-dotenv" },
     { name = "python-json-logger" },
     { name = "python-multipart" },
@@ -890,6 +891,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10.0" },
     { name = "pydantic-settings", specifier = ">=2.6.0" },
     { name = "pympler", specifier = ">=1.1" },
+    { name = "pyroscope-io", specifier = ">=0.8.7" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
     { name = "pytest-benchmark", marker = "extra == 'dev'", specifier = ">=4.0.0" },
@@ -1115,7 +1117,7 @@ dependencies = [
     { name = "markupsafe" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/jinja2-3.1.6-py3-none-any.whl" },
+    { url = "https://d21usjoq99fcb9.cloudfront.net/whl/jinja2-3.1.6-py3-none-any.whl" },
 ]
 
 [[package]]
@@ -2126,6 +2128,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/33/c1/1d9de9aeaa1b89b0186e5fe23294ff6517fce1bc69149185577cd31016b2/pyparsing-3.3.1.tar.gz", hash = "sha256:47fad0f17ac1e2cad3de3b458570fbc9b03560aa029ed5e16ee5554da9a2251c", size = 1550512, upload-time = "2025-12-23T03:14:04.391Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/40/2614036cdd416452f5bf98ec037f38a1afb17f327cb8e6b652d4729e0af8/pyparsing-3.3.1-py3-none-any.whl", hash = "sha256:023b5e7e5520ad96642e2c6db4cb683d3970bd640cdf7115049a6e9c3682df82", size = 121793, upload-time = "2025-12-23T03:14:02.103Z" },
+]
+
+[[package]]
+name = "pyroscope-io"
+version = "0.8.15"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cffi" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0c/5e/11eb9e2330dc7fccff98cb67a5f173d539f6729a550e794f9a93f6015769/pyroscope_io-0.8.15-py2.py3-none-macosx_11_0_arm64.whl", hash = "sha256:dee0dcc5605301354a68a6d0c3bb54293b47232b571e20babad0cf7288d7a0ba", size = 2493765, upload-time = "2026-01-14T03:42:32.1Z" },
+    { url = "https://files.pythonhosted.org/packages/62/8b/7dfc4055e8f711e69377b995d945934a94a95fd0cecff2d00384170f6e57/pyroscope_io-0.8.15-py2.py3-none-macosx_11_0_x86_64.whl", hash = "sha256:7bdb47640357309e9555e461b8cd8c7510a9f4202c483820f16f62192ab6d3e2", size = 2653697, upload-time = "2026-01-14T03:42:34.141Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/1c/0f26c28c05022d91bf36a536c9cf9f23282801497e6ea9ddfeb34984a942/pyroscope_io-0.8.15-py2.py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:6626292e2a961aafdccaa133e8842ee29a3da7903393aeed4d7f0f0100ff52a8", size = 2681866, upload-time = "2026-01-14T03:42:36.492Z" },
+    { url = "https://files.pythonhosted.org/packages/8c/0a/4947101d5501321f8a7b60ae79513312012c3d4c3f188eedcc5ff93873f4/pyroscope_io-0.8.15-py2.py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:bd21ca6a4234c16146b7b088be3c41a71b0fc6a0ff8abf267a5c3913cd440fb6", size = 2808216, upload-time = "2026-01-14T03:42:37.8Z" },
 ]
 
 [[package]]

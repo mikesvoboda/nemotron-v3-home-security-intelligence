@@ -73,7 +73,7 @@ from backend.core.config_validation import log_config_summary, validate_config
 from backend.core.docker_client import DockerClient
 from backend.core.logging import enable_deferred_db_logging, redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
-from backend.core.telemetry import setup_telemetry, shutdown_telemetry
+from backend.core.telemetry import init_profiling, setup_telemetry, shutdown_telemetry
 from backend.jobs.summary_job import (
     SummaryJobScheduler,
     get_summary_job_scheduler,
@@ -483,6 +483,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     # Install signal handlers for graceful shutdown (SIGTERM/SIGINT)
     # This must be done early, after the event loop is running
     install_signal_handlers()
+
+    # Initialize Pyroscope continuous profiling (NEM-3103)
+    # Must be done early to capture profiling data from the entire startup
+    init_profiling()
 
     # Startup
     settings = get_settings()

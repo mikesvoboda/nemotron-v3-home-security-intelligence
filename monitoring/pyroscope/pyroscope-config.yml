@@ -1,0 +1,12 @@
+# Pyroscope 1.4.0 configuration
+# Uses minimal config - most settings are configured via CLI flags
+
+# Storage configuration
+storage:
+  backend: filesystem
+  filesystem:
+    dir: /data
+
+# Server configuration
+server:
+  http_listen_port: 4040

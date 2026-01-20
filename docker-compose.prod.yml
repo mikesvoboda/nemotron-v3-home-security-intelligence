@@ -72,6 +72,9 @@ services:
           memory: 1G
 
   ai-detector:
+    labels:
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-detector'
     build:
       context: ./ai/rtdetr
       dockerfile: Dockerfile
@@ -108,6 +111,9 @@ services:
               capabilities: [gpu]
 
   ai-llm:
+    labels:
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-llm'
     build:
       context: ./ai/nemotron
       dockerfile: Dockerfile
@@ -137,6 +143,9 @@ services:
 
   # Florence-2 vision-language model for dense captioning and visual understanding
   ai-florence:
+    labels:
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-florence'
     build:
       context: ./ai/florence
       dockerfile: Dockerfile
@@ -165,6 +174,9 @@ services:
 
   # CLIP ViT-L model for entity re-identification embeddings
   ai-clip:
+    labels:
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-clip'
     build:
       context: ./ai/clip
       dockerfile: Dockerfile
@@ -193,6 +205,9 @@ services:
 
   # Combined enrichment service for vehicle, pet, clothing, pose, threat, age, gender, reid, and action classification
   ai-enrichment:
+    labels:
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-enrichment'
     build:
       context: ./ai/enrichment
       dockerfile: Dockerfile
@@ -280,7 +295,7 @@ services:
       # Enabled by default since monitoring stack is included
       - OTEL_ENABLED=${OTEL_ENABLED:-true}
       - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-nemotron-backend}
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4317}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://alloy:4317}
       - OTEL_TRACE_SAMPLE_RATE=${OTEL_TRACE_SAMPLE_RATE:-1.0}
       # Container orchestrator: connect to Podman API via TCP for self-healing
       # Requires: podman system service --time=0 tcp:0.0.0.0:2375 &
@@ -640,6 +655,114 @@ services:
           cpus: '0.5'
           memory: 64M
 
+  # Loki for log aggregation (NEM-3093)
+  # Receives logs from Alloy and stores them for querying via Grafana
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: loki
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/config.yml:ro,z
+      - loki_data:/loki
+    command: -config.file=/etc/loki/config.yml
+    ports:
+      - '3100:3100'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3100/ready']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+
+  # Pyroscope for continuous profiling (NEM-3097)
+  # Collects CPU and memory profiles from application services
+  pyroscope:
+    image: docker.io/grafana/pyroscope:1.4.0
+    container_name: pyroscope
+    volumes:
+      - ./monitoring/pyroscope/pyroscope-config.yml:/etc/pyroscope/config.yml:ro,z
+      - pyroscope_data:/data
+    command: -config.file=/etc/pyroscope/config.yml
+    ports:
+      - '4040:4040'
+    networks:
+      - security-net
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:4040/ready']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+
+  # Alloy for log collection via eBPF (NEM-3093)
+  # Collects container logs from Podman and forwards to Loki
+  alloy:
+    image: docker.io/grafana/alloy:v1.0.0
+    container_name: alloy
+    # Use specific capabilities instead of privileged mode for eBPF
+    # CAP_SYS_ADMIN: Required for BPF operations
+    # CAP_SYS_PTRACE: Required for process tracing
+    # CAP_PERFMON: Linux 5.8+ perf event access
+    # CAP_BPF: Linux 5.8+ BPF program loading
+    # CAP_DAC_READ_SEARCH: Read files without permission checks
+    # CAP_SYS_RESOURCE: Resource limits for cgroup access
+    cap_add:
+      - SYS_ADMIN
+      - SYS_PTRACE
+      - PERFMON
+      - BPF
+      - DAC_READ_SEARCH
+      - SYS_RESOURCE
+    pid: host
+    user: root
+    security_opt:
+      - label:disable
+      - no-new-privileges:true
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro,z
+      - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /proc:/host/proc:ro
+    environment:
+      - HOST_PROC=/host/proc
+    command:
+      - run
+      - --stability.level=public-preview
+      - /etc/alloy/config.alloy
+    ports:
+      - '12345:12345' # Alloy UI
+      - '4317' # OTLP gRPC (internal only)
+      - '4318' # OTLP HTTP (internal only)
+    depends_on:
+      - loki
+      - pyroscope
+    healthcheck:
+      # Alloy doesn't have wget/curl - use process check instead
+      test: ['CMD', 'pgrep', '-f', 'alloy']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 768M
+
 volumes:
   postgres_data:
     driver: local
@@ -650,6 +773,10 @@ volumes:
   grafana_data:
     driver: local
   alertmanager_data:
+    driver: local
+  loki_data:
+    driver: local
+  pyroscope_data:
     driver: local
 
 networks:

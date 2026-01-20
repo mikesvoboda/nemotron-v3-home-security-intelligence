@@ -169,6 +169,98 @@ docs/decisions/        # Architectural decision records
 6. Close task by setting status to "Done" in Linear
 7. End session: `git push`
 
+## Linear Task Management
+
+**CRITICAL:** The Linear MCP tools require workflow state UUIDs, not status names like "Done".
+
+### Workflow State UUIDs (NEM Team)
+
+| Status          | UUID                                   |
+| --------------- | -------------------------------------- |
+| **Backlog**     | `88b50a4e-75a1-4f34-a3b0-598bfd118aac` |
+| **Todo**        | `50ef9730-7d5e-43d6-b5e0-d7cac07af58f` |
+| **In Progress** | `b88c8ae2-2545-4c1b-b83a-bf2dde2c03e7` |
+| **In Review**   | `ec90a3c4-c160-44fc-aa7e-82bdca77aa46` |
+| **Done**        | `38267c1e-4458-4875-aa66-4b56381786e9` |
+| **Canceled**    | `232ef160-e291-4cc6-a3d9-7b4da584a2b2` |
+
+### Updating Task Status
+
+```python
+# WRONG - will fail with "stateId must be a UUID"
+mcp__linear__update_issue(issueId="<uuid>", status="Done")
+
+# CORRECT - use the workflow state UUID
+mcp__linear__update_issue(
+    issueId="<issue-uuid>",
+    status="38267c1e-4458-4875-aa66-4b56381786e9"  # Done UUID
+)
+```
+
+### Creating Epics with Subtasks
+
+1. **Create the epic first:**
+```python
+epic = mcp__linear__create_issue(
+    title="Epic: Feature Name",
+    teamId="998946a2-aa75-491b-a39d-189660131392",
+    description="## Overview\n\nEpic description...",
+    priority=2
+)
+# Note the epic's issue ID from the response
+```
+
+2. **Create subtasks and link to epic:**
+```python
+# The Linear MCP doesn't support parentId directly
+# Create subtasks mentioning the epic in description
+mcp__linear__create_issue(
+    title="Phase 1.1: Subtask Name",
+    teamId="998946a2-aa75-491b-a39d-189660131392",
+    description="Parent: NEM-XXX (Epic)\n\n## Task\n\nDescription..."
+)
+```
+
+**Note:** To properly link subtasks to epics, use the Linear UI or GraphQL API. The MCP tool creates standalone issues.
+
+### Batch Closing Tasks
+
+When completing an epic with multiple subtasks, close all tasks efficiently:
+
+```python
+# Get the Done UUID
+DONE_UUID = "38267c1e-4458-4875-aa66-4b56381786e9"
+
+# Close multiple tasks (can be parallelized)
+mcp__linear__update_issue(issueId="<task-1-uuid>", status=DONE_UUID)
+mcp__linear__update_issue(issueId="<task-2-uuid>", status=DONE_UUID)
+# ... close all subtasks
+mcp__linear__update_issue(issueId="<epic-uuid>", status=DONE_UUID)  # Close epic last
+```
+
+### Finding Task UUIDs
+
+```python
+# Search for tasks by keyword
+results = mcp__linear__search_issues(query="feature name", first=50)
+# Each result includes 'id' (the UUID) and 'url'
+
+# Get specific issue details
+issue = mcp__linear__get_issue(issueId="NEM-123")
+```
+
+### Common Patterns
+
+| Action | Tool Call |
+| ------ | --------- |
+| Start work | `update_issue(issueId, status="b88c8ae2-...")` (In Progress) |
+| Request review | `update_issue(issueId, status="ec90a3c4-...")` (In Review) |
+| Complete task | `update_issue(issueId, status="38267c1e-...")` (Done) |
+| Search issues | `search_issues(query="keyword")` |
+| List team issues | `list_issues(teamId="998946a2-...")` |
+
+For complete documentation, see **[Linear Integration Guide](docs/development/linear-integration.md)**.
+
 ## One-Task-One-PR Policy
 
 Each Linear issue should result in exactly one PR:

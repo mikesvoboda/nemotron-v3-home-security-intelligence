@@ -411,9 +411,15 @@ def redact_sensitive_value(field_name: str, value: Any) -> Any:
     return "[REDACTED]"
 
 
-# Standard log format for console/file
-CONSOLE_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
-FILE_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+# Standard log format for console/file with trace context for Loki correlation
+CONSOLE_FORMAT = (
+    "%(asctime)s | %(levelname)-8s | %(name)s | "
+    "trace_id=%(trace_id)s span_id=%(span_id)s | %(message)s"
+)
+FILE_FORMAT = (
+    "%(asctime)s | %(levelname)-8s | %(name)s | "
+    "trace_id=%(trace_id)s span_id=%(span_id)s | %(message)s"
+)
 
 
 def get_request_id() -> str | None:
@@ -506,14 +512,14 @@ class ContextFilter(logging.Filter):
         # Only set trace_id if not explicitly provided via extra=
         if not hasattr(record, "trace_id"):
             trace_ctx = get_current_trace_context()
-            record.trace_id = trace_ctx["trace_id"]  # type: ignore[attr-defined]
+            record.trace_id = trace_ctx.get("trace_id") or ""  # type: ignore[attr-defined]
             # span_id only set if trace_id was set from context
             if not hasattr(record, "span_id"):
-                record.span_id = trace_ctx["span_id"]  # type: ignore[attr-defined]
+                record.span_id = trace_ctx.get("span_id") or ""  # type: ignore[attr-defined]
         elif not hasattr(record, "span_id"):
             # trace_id was explicit, but span_id might not be
             trace_ctx = get_current_trace_context()
-            record.span_id = trace_ctx["span_id"]  # type: ignore[attr-defined]
+            record.span_id = trace_ctx.get("span_id") or ""  # type: ignore[attr-defined]
 
         # Add connection_id from async_context module (NEM-1640)
         # Imported lazily to avoid circular imports during startup

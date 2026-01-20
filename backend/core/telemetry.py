@@ -627,3 +627,60 @@ def trace_function(
         return sync_wrapper  # type: ignore[return-value]
 
     return decorator
+
+
+# =============================================================================
+# Pyroscope Continuous Profiling (NEM-3103)
+# =============================================================================
+
+
+def init_profiling() -> None:
+    """Initialize Pyroscope continuous profiling for backend service.
+
+    This function configures Pyroscope for continuous profiling of the backend
+    service. It enables CPU and GIL profiling to identify performance bottlenecks
+    in both synchronous and asynchronous code paths.
+
+    Configuration is via environment variables:
+    - PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
+    - PYROSCOPE_SERVER: Pyroscope server address (default: http://pyroscope:4040)
+    - ENVIRONMENT: Environment tag for profiles (default: production)
+
+    The function gracefully handles:
+    - Missing pyroscope-io package (ImportError)
+    - Configuration errors (logs warning, doesn't fail startup)
+
+    Example:
+        >>> from backend.core.telemetry import init_profiling
+        >>> init_profiling()  # Called during app startup
+    """
+    import os
+
+    # Skip if Pyroscope is disabled
+    if os.getenv("PYROSCOPE_ENABLED", "true").lower() != "true":
+        logger.info("Pyroscope profiling disabled (PYROSCOPE_ENABLED != true)")
+        return
+
+    try:
+        import pyroscope
+
+        pyroscope_server = os.getenv("PYROSCOPE_SERVER", "http://pyroscope:4040")
+
+        pyroscope.configure(
+            application_name="hsi-backend",
+            server_address=pyroscope_server,
+            tags={
+                "service": "backend",
+                "env": os.getenv("ENVIRONMENT", "production"),
+            },
+            oncpu=True,
+            gil=True,
+            enable_logging=True,
+        )
+        logger.info(f"Pyroscope profiling initialized: server={pyroscope_server}")
+    except ImportError:
+        # pyroscope-io not installed, skip profiling
+        logger.debug("Pyroscope profiling skipped: pyroscope-io not installed")
+    except Exception as e:
+        # Log but don't fail if profiling setup fails
+        logger.warning(f"Failed to initialize Pyroscope profiling: {e}")
