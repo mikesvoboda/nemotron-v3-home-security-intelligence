@@ -524,17 +524,19 @@ async def test_full_pipeline_single_image(
     # Pass camera_id and detection_ids directly (as queue worker does after fix)
     # This tests the fixed handoff where close_batch deletes Redis keys but
     # the queue payload contains all needed data
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
-    mock_llm_response = create_mock_llm_response()
+    # Disable enrichment pipeline to avoid loading YOLO models in CI
+    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
 
-    with patch("backend.services.nemotron_analyzer.httpx.AsyncClient") as mock_client:
-        mock_response = create_mock_httpx_response(mock_llm_response)
+    # Mock _call_llm directly (more reliable than mocking httpx.AsyncClient)
+    async def mock_call_llm(*args, **kwargs):
+        return {
+            "risk_score": 75,
+            "risk_level": "high",
+            "summary": "Person detected",
+            "reasoning": "Test reasoning for detected objects",
+        }
 
-        mock_instance = AsyncMock()
-        mock_instance.post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
-
+    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm):
         event = await analyzer.analyze_batch(
             batch_id=batch_id,
             camera_id=camera_id,
@@ -634,21 +636,19 @@ async def test_full_pipeline_multiple_images_same_camera(
     assert batch_summary["detection_count"] == 3
 
     # Analyze batch - pass camera_id and detection_ids directly (as queue worker does after fix)
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
-    mock_llm_response = create_mock_llm_response(
-        risk_score=65,
-        risk_level="medium",
-        summary="Multiple objects detected: car",
-    )
+    # Disable enrichment pipeline to avoid loading YOLO models in CI
+    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
 
-    with patch("backend.services.nemotron_analyzer.httpx.AsyncClient") as mock_client:
-        mock_response = create_mock_httpx_response(mock_llm_response)
+    # Mock _call_llm directly (more reliable than mocking httpx.AsyncClient)
+    async def mock_call_llm(*args, **kwargs):
+        return {
+            "risk_score": 65,
+            "risk_level": "medium",
+            "summary": "Multiple objects detected: car",
+            "reasoning": "Test reasoning for detected objects",
+        }
 
-        mock_instance = AsyncMock()
-        mock_instance.post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
-
+    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm):
         event = await analyzer.analyze_batch(
             batch_id=batch_id,
             camera_id=camera_id,
@@ -1172,21 +1172,19 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     # Step 5: Simulate AnalysisQueueWorker processing - use queue payload directly
     # This is exactly what the fixed worker does: pass camera_id and detection_ids
     # from the queue item instead of reading from Redis
-    analyzer = NemotronAnalyzer(redis_client=mock_redis)
-    mock_llm_response = create_mock_llm_response(
-        risk_score=55,
-        risk_level="medium",
-        summary="Car detected - handoff test",
-    )
+    # Disable enrichment pipeline to avoid loading YOLO models in CI
+    analyzer = NemotronAnalyzer(redis_client=mock_redis, use_enrichment_pipeline=False)
 
-    with patch("backend.services.nemotron_analyzer.httpx.AsyncClient") as mock_client:
-        mock_response = create_mock_httpx_response(mock_llm_response)
+    # Mock _call_llm directly (more reliable than mocking httpx.AsyncClient)
+    async def mock_call_llm(*args, **kwargs):
+        return {
+            "risk_score": 55,
+            "risk_level": "medium",
+            "summary": "Car detected - handoff test",
+            "reasoning": "Test reasoning for detected objects",
+        }
 
-        mock_instance = AsyncMock()
-        mock_instance.post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
-
+    with patch.object(analyzer, "_call_llm", side_effect=mock_call_llm):
         # Call analyze_batch with queue payload data (not from Redis)
         event = await analyzer.analyze_batch(
             batch_id=queue_item["batch_id"],

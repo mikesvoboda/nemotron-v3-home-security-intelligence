@@ -9,6 +9,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Model configurations
+# Maps local directory name -> download configuration
 MODELS = {
     "fashion-clip": {"repo": "patrickjohncyh/fashion-clip", "type": "huggingface"},
     "depth-anything-v2-small": {
@@ -19,6 +20,18 @@ MODELS = {
     "vit-age-classifier": {"repo": "nateraw/vit-age-classifier", "type": "huggingface"},
     "yolov8n-pose": {"repo": "yolov8n-pose.pt", "type": "ultralytics"},
     "osnet-x0-25": {"repo": "osnet_x0_25", "type": "torchreid"},
+    # Threat detection model for weapon/dangerous object detection
+    # Reference: https://huggingface.co/Subh775/Threat-Detection-YOLOv8n
+    "threat-detection-yolov8n": {
+        "repo": "Subh775/Threat-Detection-YOLOv8n",
+        "type": "huggingface",
+    },
+    # Gender classifier (reserved for future demographics enhancement)
+    # Reference: https://huggingface.co/rizvandwiki/gender-classification
+    "vit-gender-classifier": {
+        "repo": "rizvandwiki/gender-classification",
+        "type": "huggingface",
+    },
 }
 
 
