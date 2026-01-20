@@ -1,8 +1,8 @@
-import { Grid2x2, List } from 'lucide-react';
+import { Calendar, Grid2x2, List } from 'lucide-react';
 import { useCallback } from 'react';
 
 /** View mode options for the timeline display */
-export type ViewMode = 'grid' | 'list';
+export type ViewMode = 'grid' | 'list' | 'grouped';
 
 export interface ViewToggleProps {
   /** Current active view mode */
@@ -71,6 +71,15 @@ export default function ViewToggle({
         aria-pressed={viewMode === 'list'}
       >
         <List className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleClick('grouped')}
+        className={`${baseButtonClass} ${viewMode === 'grouped' ? activeClass : inactiveClass}`}
+        aria-label="Switch to grouped view"
+        aria-pressed={viewMode === 'grouped'}
+      >
+        <Calendar className="h-4 w-4" />
       </button>
     </div>
   );

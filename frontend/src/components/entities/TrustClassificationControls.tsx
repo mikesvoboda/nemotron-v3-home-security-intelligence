@@ -10,13 +10,10 @@ import {
 } from 'lucide-react';
 import { memo, useState } from 'react';
 
-/**
- * Trust status values for entity classification.
- * - trusted: Entity is a known trusted individual (e.g., family member, neighbor)
- * - untrusted: Entity is flagged as suspicious or unwanted
- * - unknown: Entity has not been classified (default)
- */
-export type TrustStatus = 'trusted' | 'untrusted' | 'unknown';
+import type { TrustStatus } from '../../services/api';
+
+// Re-export TrustStatus for consumers who import from this module
+export type { TrustStatus };
 
 export interface TrustClassificationControlsProps {
   /** Current trust status of the entity */
@@ -64,7 +61,7 @@ const trustStatusConfig: Record<
     badgeClasses: 'bg-red-500/10 text-red-400 border-red-500/30',
     buttonClasses: 'bg-red-600/20 text-red-400 hover:bg-red-600/30 border-red-500/30',
   },
-  unknown: {
+  unclassified: {
     label: 'Unknown',
     description: 'This entity has not been classified',
     icon: ShieldQuestion,
@@ -225,7 +222,7 @@ const TrustClassificationControls = memo(function TrustClassificationControls({
                 'font-semibold',
                 pendingStatus === 'trusted' && 'text-green-400',
                 pendingStatus === 'untrusted' && 'text-red-400',
-                pendingStatus === 'unknown' && 'text-gray-400'
+                pendingStatus === 'unclassified' && 'text-gray-400'
               )}
             >
               {trustStatusConfig[pendingStatus].label}
@@ -240,7 +237,7 @@ const TrustClassificationControls = memo(function TrustClassificationControls({
               'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors',
               pendingStatus === 'trusted' && 'bg-green-600 text-white hover:bg-green-700',
               pendingStatus === 'untrusted' && 'bg-red-600 text-white hover:bg-red-700',
-              pendingStatus === 'unknown' && 'bg-gray-600 text-white hover:bg-gray-700',
+              pendingStatus === 'unclassified' && 'bg-gray-600 text-white hover:bg-gray-700',
               isUpdating && 'cursor-not-allowed opacity-50'
             )}
             aria-label="Confirm status change"
@@ -266,7 +263,7 @@ const TrustClassificationControls = memo(function TrustClassificationControls({
       {/* Action Buttons (when not in confirmation mode and not read-only) */}
       {!readOnly && !pendingStatus && (
         <div className="flex flex-wrap gap-2" data-testid="trust-action-buttons">
-          {(['trusted', 'untrusted', 'unknown'] as TrustStatus[]).map((status) => {
+          {(['trusted', 'untrusted', 'unclassified'] as TrustStatus[]).map((status) => {
             const statusConfig = trustStatusConfig[status];
             const StatusIcon = statusConfig.icon;
             const isCurrentStatus = status === currentStatus;

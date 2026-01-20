@@ -33,8 +33,6 @@ Contains reusable UI components shared across multiple features. These are low-l
 | `FeatureErrorBoundary.test.tsx`   | Test suite for FeatureErrorBoundary                                  | Active     |
 | `InfiniteScrollStatus.tsx`        | Status indicator for infinite scroll loading                         | Active     |
 | `InfiniteScrollStatus.test.tsx`   | Test suite for InfiniteScrollStatus                                  | Active     |
-| `InstallBanner.tsx`               | PWA installation prompt banner                                       | Active     |
-| `InstallBanner.test.tsx`          | Test suite for InstallBanner                                         | Active     |
 | `Lightbox.tsx`                    | Full-size image viewer with navigation                               | Active     |
 | `Lightbox.test.tsx`               | Test suite for Lightbox                                              | Active     |
 | `LoadingSpinner.tsx`              | Simple loading spinner for Suspense fallbacks                        | Active     |

@@ -12,11 +12,16 @@
  */
 
 import { BarChart3, RefreshCw, ExternalLink, AlertCircle, AlertTriangle } from 'lucide-react';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
+import CameraUptimeCard from './CameraUptimeCard';
+import PipelineLatencyPanel from './PipelineLatencyPanel';
 import { fetchConfig } from '../../services/api';
 import { resolveGrafanaUrl } from '../../utils/grafanaUrl';
 import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
+
+/** View mode for analytics display */
+type ViewMode = 'grafana' | 'native';
 
 /**
  * AnalyticsPage - Grafana iframe embed for analytics metrics
@@ -26,6 +31,7 @@ export default function AnalyticsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('grafana');
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Fetch Grafana URL from config and resolve for remote access
@@ -75,6 +81,17 @@ export default function AnalyticsPage() {
   // Grafana dashboard URL with kiosk mode, dark theme, and auto-refresh
   const dashboardUrl = `${grafanaUrl}/d/hsi-analytics?orgId=1&kiosk=1&theme=dark&refresh=30s`;
 
+  // Calculate date range for CameraUptimeCard (last 7 days)
+  const dateRange = useMemo(() => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 7);
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    };
+  }, []);
+
   // Loading state
   if (isLoading) {
     return (
@@ -103,28 +120,58 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* External Grafana Link */}
-          <a
-            href={`${grafanaUrl}/d/hsi-analytics?orgId=1`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
-            data-testid="grafana-external-link"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Open in Grafana
-          </a>
+          {/* View Mode Toggle */}
+          <div className="flex overflow-hidden rounded-lg border border-gray-700" data-testid="view-mode-toggle">
+            <button
+              onClick={() => setViewMode('grafana')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'grafana'
+                  ? 'bg-[#76B900] text-black'
+                  : 'bg-gray-800 text-white hover:bg-gray-700'
+              }`}
+              data-testid="view-mode-grafana"
+            >
+              Grafana
+            </button>
+            <button
+              onClick={() => setViewMode('native')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'native'
+                  ? 'bg-[#76B900] text-black'
+                  : 'bg-gray-800 text-white hover:bg-gray-700'
+              }`}
+              data-testid="view-mode-native"
+            >
+              Native
+            </button>
+          </div>
 
-          {/* Refresh Button */}
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
-            data-testid="analytics-refresh-button"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          {/* External Grafana Link - only show in Grafana view */}
+          {viewMode === 'grafana' && (
+            <a
+              href={`${grafanaUrl}/d/hsi-analytics?orgId=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+              data-testid="grafana-external-link"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Open in Grafana
+            </a>
+          )}
+
+          {/* Refresh Button - only show in Grafana view */}
+          {viewMode === 'grafana' && (
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
+              data-testid="analytics-refresh-button"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          )}
         </div>
       </div>
 
@@ -139,15 +186,25 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Grafana iframe */}
-      <iframe
-        ref={iframeRef}
-        src={dashboardUrl}
-        className="h-[calc(100vh-73px)] w-full border-0"
-        title="Analytics Dashboard"
-        data-testid="grafana-iframe"
-        onError={handleIframeError}
-      />
+      {/* Grafana iframe - only show in Grafana view */}
+      {viewMode === 'grafana' && (
+        <iframe
+          ref={iframeRef}
+          src={dashboardUrl}
+          className="h-[calc(100vh-73px)] w-full border-0"
+          title="Analytics Dashboard"
+          data-testid="grafana-iframe"
+          onError={handleIframeError}
+        />
+      )}
+
+      {/* Native analytics components */}
+      {viewMode === 'native' && (
+        <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-2" data-testid="native-analytics-view">
+          <CameraUptimeCard dateRange={dateRange} />
+          <PipelineLatencyPanel refreshInterval={30000} />
+        </div>
+      )}
     </div>
   );
 }

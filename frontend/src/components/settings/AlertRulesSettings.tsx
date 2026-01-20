@@ -4,7 +4,6 @@ import {
   AlertCircle,
   AlertTriangle,
   Bell,
-  Calendar,
   Check,
   Clock,
   Edit2,
@@ -32,7 +31,6 @@ import {
   type AlertRuleUpdate,
   type AlertSeverity,
   type Camera,
-  type DayOfWeek,
   type RuleTestResponse,
   type SeverityMetadataResponse,
 } from '../../services/api';
@@ -43,18 +41,8 @@ import {
   validateRiskThreshold,
   VALIDATION_LIMITS,
 } from '../../utils/validation';
+import ScheduleSelector from '../common/ScheduleSelector';
 import SeverityConfigPanel from '../system/SeverityConfigPanel';
-
-// Days of the week for schedule selector
-const DAYS_OF_WEEK: readonly { value: DayOfWeek; label: string }[] = [
-  { value: 'monday', label: 'Mon' },
-  { value: 'tuesday', label: 'Tue' },
-  { value: 'wednesday', label: 'Wed' },
-  { value: 'thursday', label: 'Thu' },
-  { value: 'friday', label: 'Fri' },
-  { value: 'saturday', label: 'Sat' },
-  { value: 'sunday', label: 'Sun' },
-];
 
 // Object types for filtering
 const OBJECT_TYPES = ['person', 'vehicle', 'animal', 'package', 'face'];
@@ -79,11 +67,7 @@ interface AlertRuleFormData {
   object_types: string[];
   camera_ids: string[];
   min_confidence: number | null;
-  schedule_enabled: boolean;
-  schedule_days: DayOfWeek[];
-  schedule_start_time: string;
-  schedule_end_time: string;
-  schedule_timezone: string;
+  schedule: AlertRuleSchedule | null;
   cooldown_seconds: number;
   channels: string[];
 }
@@ -227,11 +211,7 @@ export default function AlertRulesSettings() {
       object_types: [],
       camera_ids: [],
       min_confidence: null,
-      schedule_enabled: false,
-      schedule_days: [],
-      schedule_start_time: '22:00',
-      schedule_end_time: '06:00',
-      schedule_timezone: 'UTC',
+      schedule: null,
       cooldown_seconds: 300,
       channels: [],
     };
@@ -291,8 +271,8 @@ export default function AlertRulesSettings() {
       errors.min_confidence = confidenceResult.error;
     }
 
-    if (data.schedule_enabled) {
-      if (!data.schedule_start_time || !data.schedule_end_time) {
+    if (data.schedule) {
+      if (!data.schedule.start_time || !data.schedule.end_time) {
         errors.schedule = 'Start and end times are required when schedule is enabled';
       }
     }
@@ -324,11 +304,7 @@ export default function AlertRulesSettings() {
       object_types: rule.object_types || [],
       camera_ids: rule.camera_ids || [],
       min_confidence: rule.min_confidence ?? null,
-      schedule_enabled: !!rule.schedule,
-      schedule_days: rule.schedule?.days || [],
-      schedule_start_time: rule.schedule?.start_time || '22:00',
-      schedule_end_time: rule.schedule?.end_time || '06:00',
-      schedule_timezone: rule.schedule?.timezone || 'UTC',
+      schedule: rule.schedule || null,
       cooldown_seconds: rule.cooldown_seconds,
       channels: rule.channels || [],
     });
@@ -388,17 +364,6 @@ export default function AlertRulesSettings() {
     setFormErrors({});
 
     try {
-      // Build schedule if enabled
-      let schedule: AlertRuleSchedule | null = null;
-      if (formData.schedule_enabled) {
-        schedule = {
-          days: formData.schedule_days.length > 0 ? formData.schedule_days : null,
-          start_time: formData.schedule_start_time || null,
-          end_time: formData.schedule_end_time || null,
-          timezone: formData.schedule_timezone,
-        };
-      }
-
       if (editingRule) {
         // Update existing rule
         const updateData: AlertRuleUpdate = {
@@ -410,7 +375,7 @@ export default function AlertRulesSettings() {
           object_types: formData.object_types.length > 0 ? formData.object_types : null,
           camera_ids: formData.camera_ids.length > 0 ? formData.camera_ids : null,
           min_confidence: formData.min_confidence,
-          schedule: schedule,
+          schedule: formData.schedule,
           cooldown_seconds: formData.cooldown_seconds,
           channels: formData.channels.length > 0 ? formData.channels : null,
         };
@@ -426,7 +391,7 @@ export default function AlertRulesSettings() {
           object_types: formData.object_types.length > 0 ? formData.object_types : null,
           camera_ids: formData.camera_ids.length > 0 ? formData.camera_ids : null,
           min_confidence: formData.min_confidence,
-          schedule: schedule,
+          schedule: formData.schedule,
           cooldown_seconds: formData.cooldown_seconds,
           channels: formData.channels,
           dedup_key_template: '{camera_id}:{rule_id}',
@@ -1020,137 +985,14 @@ export default function AlertRulesSettings() {
                       </div>
 
                       {/* Schedule Section */}
-                      <div className="space-y-4 border-t border-gray-800 pt-6">
-                        <div className="flex items-center justify-between">
-                          <h3 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-                            <Calendar className="h-4 w-4 text-primary" />
-                            Schedule
-                          </h3>
-                          <Switch
-                            checked={formData.schedule_enabled}
-                            onChange={(checked) =>
-                              setFormData({ ...formData, schedule_enabled: checked })
-                            }
-                            aria-label={`Schedule: ${formData.schedule_enabled ? 'enabled' : 'disabled'}`}
-                            className={clsx(
-                              'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-panel',
-                              formData.schedule_enabled ? 'bg-primary' : 'bg-gray-600'
-                            )}
-                          >
-                            <span
-                              className={clsx(
-                                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                                formData.schedule_enabled ? 'translate-x-6' : 'translate-x-1'
-                              )}
-                            />
-                          </Switch>
-                        </div>
-
-                        {formData.schedule_enabled && (
-                          <div className="space-y-4">
-                            {/* Days */}
-                            <div>
-                              <span className="block text-sm font-medium text-text-primary">
-                                Days
-                              </span>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {DAYS_OF_WEEK.map((day) => (
-                                  <button
-                                    key={day.value}
-                                    type="button"
-                                    onClick={() => {
-                                      const newDays = formData.schedule_days.includes(day.value)
-                                        ? formData.schedule_days.filter((d) => d !== day.value)
-                                        : [...formData.schedule_days, day.value];
-                                      setFormData({ ...formData, schedule_days: newDays });
-                                    }}
-                                    className={clsx(
-                                      'rounded px-3 py-1.5 text-sm font-medium transition-colors',
-                                      formData.schedule_days.includes(day.value)
-                                        ? 'bg-primary text-gray-900'
-                                        : 'bg-gray-700 text-text-secondary hover:bg-gray-600'
-                                    )}
-                                  >
-                                    {day.label}
-                                  </button>
-                                ))}
-                              </div>
-                              <p className="mt-1 text-xs text-text-secondary">
-                                Leave empty for all days
-                              </p>
-                            </div>
-
-                            {/* Time Range */}
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label
-                                  htmlFor="start_time"
-                                  className="block text-sm font-medium text-text-primary"
-                                >
-                                  Start Time
-                                </label>
-                                <input
-                                  type="time"
-                                  id="start_time"
-                                  value={formData.schedule_start_time}
-                                  onChange={(e) =>
-                                    setFormData({
-                                      ...formData,
-                                      schedule_start_time: e.target.value,
-                                    })
-                                  }
-                                  className="mt-1 block w-full rounded-lg border border-gray-800 bg-card px-3 py-2 text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                                />
-                              </div>
-                              <div>
-                                <label
-                                  htmlFor="end_time"
-                                  className="block text-sm font-medium text-text-primary"
-                                >
-                                  End Time
-                                </label>
-                                <input
-                                  type="time"
-                                  id="end_time"
-                                  value={formData.schedule_end_time}
-                                  onChange={(e) =>
-                                    setFormData({ ...formData, schedule_end_time: e.target.value })
-                                  }
-                                  className="mt-1 block w-full rounded-lg border border-gray-800 bg-card px-3 py-2 text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                                />
-                              </div>
-                            </div>
-                            {formErrors.schedule && (
-                              <p className="text-sm text-red-500">{formErrors.schedule}</p>
-                            )}
-
-                            {/* Timezone */}
-                            <div>
-                              <label
-                                htmlFor="timezone"
-                                className="block text-sm font-medium text-text-primary"
-                              >
-                                Timezone
-                              </label>
-                              <select
-                                id="timezone"
-                                value={formData.schedule_timezone}
-                                onChange={(e) =>
-                                  setFormData({ ...formData, schedule_timezone: e.target.value })
-                                }
-                                className="mt-1 block w-full rounded-lg border border-gray-800 bg-card px-3 py-2 text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                              >
-                                <option value="UTC">UTC</option>
-                                <option value="America/New_York">America/New_York</option>
-                                <option value="America/Chicago">America/Chicago</option>
-                                <option value="America/Denver">America/Denver</option>
-                                <option value="America/Los_Angeles">America/Los_Angeles</option>
-                                <option value="Europe/London">Europe/London</option>
-                                <option value="Europe/Paris">Europe/Paris</option>
-                                <option value="Asia/Tokyo">Asia/Tokyo</option>
-                              </select>
-                            </div>
-                          </div>
+                      <div className="border-t border-gray-800 pt-6">
+                        <ScheduleSelector
+                          value={formData.schedule}
+                          onChange={(schedule) => setFormData({ ...formData, schedule })}
+                          disabled={submitting}
+                        />
+                        {formErrors.schedule && (
+                          <p className="mt-2 text-sm text-red-500">{formErrors.schedule}</p>
                         )}
                       </div>
 

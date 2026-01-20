@@ -14,8 +14,6 @@ Contains the core application layout components that provide consistent structur
 | `Layout.test.tsx`             | Test suite for Layout                          |
 | `MobileBottomNav.tsx`         | Bottom navigation bar for mobile devices       |
 | `MobileBottomNav.test.tsx`    | Test suite for MobileBottomNav                 |
-| `MobileChartContainer.tsx`    | Responsive chart container for mobile views    |
-| `MobileChartContainer.test.tsx`| Test suite for MobileChartContainer           |
 | `Sidebar.tsx`                 | Left navigation menu with route links          |
 | `Sidebar.test.tsx`            | Test suite for Sidebar                         |
 

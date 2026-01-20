@@ -15,6 +15,7 @@
  */
 export type WidgetId =
   | 'stats-row'
+  | 'ai-summary-row'
   | 'camera-grid'
   | 'activity-feed'
   | 'gpu-stats'
@@ -65,6 +66,13 @@ export const DEFAULT_WIDGETS: WidgetConfig[] = [
     name: 'Stats Row',
     description:
       'Key metrics including active cameras, events today, risk level, and system status',
+    visible: true,
+  },
+  {
+    id: 'ai-summary-row',
+    name: 'AI Performance Summary',
+    description:
+      'AI model health indicators for RT-DETRv2, Nemotron, queue depths, throughput, and errors',
     visible: true,
   },
   {

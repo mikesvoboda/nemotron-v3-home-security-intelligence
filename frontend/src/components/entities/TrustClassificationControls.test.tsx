@@ -11,7 +11,7 @@ describe('TrustClassificationControls', () => {
   const mockOnError = vi.fn();
 
   const defaultProps: TrustClassificationControlsProps = {
-    currentStatus: 'unknown',
+    currentStatus: 'unclassified',
     entityId: 'entity-123',
     onStatusChange: mockOnStatusChange,
     onError: mockOnError,
@@ -38,8 +38,8 @@ describe('TrustClassificationControls', () => {
       expect(badge).toHaveClass('text-red-400', 'bg-red-500/10');
     });
 
-    it('renders unknown status with gray styling', () => {
-      render(<TrustClassificationControls {...defaultProps} currentStatus="unknown" />);
+    it('renders unclassified status with gray styling', () => {
+      render(<TrustClassificationControls {...defaultProps} currentStatus="unclassified" />);
 
       const badge = screen.getByTestId('trust-status-badge');
       expect(badge).toHaveTextContent('Unknown');
@@ -65,7 +65,7 @@ describe('TrustClassificationControls', () => {
 
       expect(screen.getByTestId('trust-button-trusted')).toBeInTheDocument();
       expect(screen.getByTestId('trust-button-untrusted')).toBeInTheDocument();
-      expect(screen.getByTestId('trust-button-unknown')).toBeInTheDocument();
+      expect(screen.getByTestId('trust-button-unclassified')).toBeInTheDocument();
     });
 
     it('highlights current status button with NVIDIA green', () => {
@@ -110,7 +110,7 @@ describe('TrustClassificationControls', () => {
   describe('Confirmation Dialog', () => {
     it('shows confirmation dialog when clicking a different status button', async () => {
       const user = userEvent.setup();
-      render(<TrustClassificationControls {...defaultProps} currentStatus="unknown" />);
+      render(<TrustClassificationControls {...defaultProps} currentStatus="unclassified" />);
 
       await user.click(screen.getByTestId('trust-button-trusted'));
 
@@ -130,7 +130,7 @@ describe('TrustClassificationControls', () => {
 
     it('hides action buttons when confirmation is shown', async () => {
       const user = userEvent.setup();
-      render(<TrustClassificationControls {...defaultProps} currentStatus="unknown" />);
+      render(<TrustClassificationControls {...defaultProps} currentStatus="unclassified" />);
 
       await user.click(screen.getByTestId('trust-button-trusted'));
 
@@ -140,7 +140,7 @@ describe('TrustClassificationControls', () => {
     it('calls onStatusChange when confirm is clicked', async () => {
       const user = userEvent.setup();
       mockOnStatusChange.mockResolvedValueOnce(undefined);
-      render(<TrustClassificationControls {...defaultProps} currentStatus="unknown" />);
+      render(<TrustClassificationControls {...defaultProps} currentStatus="unclassified" />);
 
       await user.click(screen.getByTestId('trust-button-trusted'));
       await user.click(screen.getByTestId('trust-confirm-button'));
@@ -153,7 +153,7 @@ describe('TrustClassificationControls', () => {
     it('closes confirmation dialog on successful status change', async () => {
       const user = userEvent.setup();
       mockOnStatusChange.mockResolvedValueOnce(undefined);
-      render(<TrustClassificationControls {...defaultProps} currentStatus="unknown" />);
+      render(<TrustClassificationControls {...defaultProps} currentStatus="unclassified" />);
 
       await user.click(screen.getByTestId('trust-button-trusted'));
       await user.click(screen.getByTestId('trust-confirm-button'));
@@ -165,7 +165,7 @@ describe('TrustClassificationControls', () => {
 
     it('closes confirmation dialog when cancel is clicked', async () => {
       const user = userEvent.setup();
-      render(<TrustClassificationControls {...defaultProps} currentStatus="unknown" />);
+      render(<TrustClassificationControls {...defaultProps} currentStatus="unclassified" />);
 
       await user.click(screen.getByTestId('trust-button-trusted'));
       expect(screen.getByTestId('trust-confirmation-dialog')).toBeInTheDocument();
@@ -177,7 +177,7 @@ describe('TrustClassificationControls', () => {
 
     it('shows action buttons again after canceling', async () => {
       const user = userEvent.setup();
-      render(<TrustClassificationControls {...defaultProps} currentStatus="unknown" />);
+      render(<TrustClassificationControls {...defaultProps} currentStatus="unclassified" />);
 
       await user.click(screen.getByTestId('trust-button-trusted'));
       await user.click(screen.getByTestId('trust-cancel-button'));
@@ -364,12 +364,12 @@ describe('TrustClassificationControls', () => {
 
   describe('Status Change Scenarios', () => {
     it.each([
-      ['unknown', 'trusted'],
-      ['unknown', 'untrusted'],
+      ['unclassified', 'trusted'],
+      ['unclassified', 'untrusted'],
       ['trusted', 'untrusted'],
-      ['trusted', 'unknown'],
+      ['trusted', 'unclassified'],
       ['untrusted', 'trusted'],
-      ['untrusted', 'unknown'],
+      ['untrusted', 'unclassified'],
     ] as [TrustStatus, TrustStatus][])(
       'changes from %s to %s correctly',
       async (fromStatus, toStatus) => {
@@ -404,7 +404,7 @@ describe('TrustClassificationControls', () => {
   });
 
   describe('Snapshots', () => {
-    it.each(['trusted', 'untrusted', 'unknown'] as TrustStatus[])(
+    it.each(['trusted', 'untrusted', 'unclassified'] as TrustStatus[])(
       'renders %s status correctly',
       (status) => {
         const { container } = render(

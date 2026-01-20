@@ -9,8 +9,8 @@ import {
   resetDashboardConfig,
   setWidgetVisibility,
 } from '../../stores/dashboardConfig';
-import AnimatedModal from '../common/AnimatedModal';
 import IconButton from '../common/IconButton';
+import ResponsiveModal from '../common/ResponsiveModal';
 
 import type { DashboardConfig, WidgetConfig, WidgetId } from '../../stores/dashboardConfig';
 
@@ -93,11 +93,13 @@ export default function DashboardConfigModal({
   }, [config, onClose]);
 
   return (
-    <AnimatedModal
+    <ResponsiveModal
       isOpen={isOpen}
       onClose={handleCancel}
       variant="scale"
       size="lg"
+      mobileHeight="full"
+      title="Customize Dashboard"
       aria-labelledby="config-modal-title"
       aria-describedby="config-modal-description"
       className="overflow-hidden"
@@ -171,7 +173,7 @@ export default function DashboardConfigModal({
           </button>
         </div>
       </div>
-    </AnimatedModal>
+    </ResponsiveModal>
   );
 }
 

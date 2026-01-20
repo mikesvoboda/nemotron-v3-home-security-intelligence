@@ -16,6 +16,23 @@ vi.mock('../../services/api', () => ({
   fetchConfig: vi.fn(() => Promise.resolve({ grafana_url: '/grafana' })),
 }));
 
+// Mock native analytics components to avoid their dependencies
+vi.mock('./CameraUptimeCard', () => ({
+  default: ({ dateRange }: { dateRange: { startDate: string; endDate: string } }) => (
+    <div data-testid="camera-uptime-card" data-start={dateRange.startDate} data-end={dateRange.endDate}>
+      Camera Uptime Mock
+    </div>
+  ),
+}));
+
+vi.mock('./PipelineLatencyPanel', () => ({
+  default: ({ refreshInterval }: { refreshInterval?: number }) => (
+    <div data-testid="pipeline-latency-panel" data-refresh={refreshInterval}>
+      Pipeline Latency Mock
+    </div>
+  ),
+}));
+
 const renderWithRouter = () => {
   return render(
     <MemoryRouter>
@@ -464,6 +481,130 @@ describe('AnalyticsPage', () => {
       await waitFor(() => {
         const iframe = screen.getByTestId('grafana-iframe');
         expect(iframe).toHaveClass('border-0');
+      });
+    });
+  });
+
+  describe('view mode toggle', () => {
+    it('renders view mode toggle buttons', async () => {
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-mode-toggle')).toBeInTheDocument();
+        expect(screen.getByTestId('view-mode-grafana')).toBeInTheDocument();
+        expect(screen.getByTestId('view-mode-native')).toBeInTheDocument();
+      });
+    });
+
+    it('defaults to Grafana view', async () => {
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('grafana-iframe')).toBeInTheDocument();
+        expect(screen.queryByTestId('native-analytics-view')).not.toBeInTheDocument();
+      });
+    });
+
+    it('switches to native view when Native button is clicked', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('view-mode-native')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('view-mode-native'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('native-analytics-view')).toBeInTheDocument();
+        expect(screen.queryByTestId('grafana-iframe')).not.toBeInTheDocument();
+      });
+    });
+
+    it('switches back to Grafana view when Grafana button is clicked', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      // Switch to native first
+      await user.click(screen.getByTestId('view-mode-native'));
+      await waitFor(() => {
+        expect(screen.getByTestId('native-analytics-view')).toBeInTheDocument();
+      });
+
+      // Switch back to Grafana
+      await user.click(screen.getByTestId('view-mode-grafana'));
+      await waitFor(() => {
+        expect(screen.getByTestId('grafana-iframe')).toBeInTheDocument();
+        expect(screen.queryByTestId('native-analytics-view')).not.toBeInTheDocument();
+      });
+    });
+
+    it('hides Grafana external link in native view', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      // Verify external link is visible in Grafana view
+      await waitFor(() => {
+        expect(screen.getByTestId('grafana-external-link')).toBeInTheDocument();
+      });
+
+      // Switch to native view
+      await user.click(screen.getByTestId('view-mode-native'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('grafana-external-link')).not.toBeInTheDocument();
+      });
+    });
+
+    it('hides refresh button in native view', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      // Verify refresh button is visible in Grafana view
+      await waitFor(() => {
+        expect(screen.getByTestId('analytics-refresh-button')).toBeInTheDocument();
+      });
+
+      // Switch to native view
+      await user.click(screen.getByTestId('view-mode-native'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('analytics-refresh-button')).not.toBeInTheDocument();
+      });
+    });
+
+    it('has correct styling for active view mode button', async () => {
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      await waitFor(() => {
+        const grafanaButton = screen.getByTestId('view-mode-grafana');
+        const nativeButton = screen.getByTestId('view-mode-native');
+
+        // Grafana button should have active style (bg-[#76B900])
+        expect(grafanaButton).toHaveClass('bg-[#76B900]');
+        // Native button should have inactive style (bg-gray-800)
+        expect(nativeButton).toHaveClass('bg-gray-800');
       });
     });
   });

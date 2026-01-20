@@ -36,25 +36,24 @@ describe('SummaryCards Integration Tests', () => {
         <SummaryCards hourly={null} daily={null} isLoading={true} />
       );
 
-      // Initially shows loading skeletons
-      expect(screen.getByTestId('summary-card-hourly-loading')).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-daily-loading')).toBeInTheDocument();
-      expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+      // Initially shows loading skeletons (now uses SummaryCardSkeleton)
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
       // Simulate data loaded
       rerender(<SummaryCards hourly={mockSummaryHighSeverity} daily={null} isLoading={false} />);
 
       // Loading skeletons should be gone
       await waitFor(() => {
-        expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('summary-card-skeleton-hourly')).not.toBeInTheDocument();
       });
 
       // Hourly card should show with data
       expect(screen.getByTestId('summary-card-hourly')).toBeInTheDocument();
       expect(screen.getByText('Hourly Summary')).toBeInTheDocument();
 
-      // Daily card should show empty state (not loading)
-      expect(screen.getByTestId('summary-card-daily-empty')).toBeInTheDocument();
+      // Daily card should show empty state (now uses SummaryCardEmpty)
+      expect(screen.getByTestId('summary-card-empty-daily')).toBeInTheDocument();
     });
 
     it('transitions from loading to success state with both summaries', async () => {
@@ -62,7 +61,8 @@ describe('SummaryCards Integration Tests', () => {
         <SummaryCards hourly={null} daily={null} isLoading={true} />
       );
 
-      expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
       // Simulate both summaries loaded
       rerender(
@@ -74,7 +74,7 @@ describe('SummaryCards Integration Tests', () => {
       );
 
       await waitFor(() => {
-        expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('summary-card-skeleton-hourly')).not.toBeInTheDocument();
       });
 
       // Both cards should show with data
@@ -88,7 +88,8 @@ describe('SummaryCards Integration Tests', () => {
       );
 
       const loadingStart = Date.now();
-      expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
       // Immediate data load (fast network)
       rerender(
@@ -100,7 +101,7 @@ describe('SummaryCards Integration Tests', () => {
       );
 
       await waitFor(() => {
-        expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('summary-card-skeleton-hourly')).not.toBeInTheDocument();
       });
 
       const loadingEnd = Date.now();
@@ -111,25 +112,25 @@ describe('SummaryCards Integration Tests', () => {
 
   describe('Loading → Error → Retry → Success Flow', () => {
     it('transitions from loading to error state', async () => {
-      // Note: SummaryCards component doesn't have built-in error state UI
-      // This would typically be handled by the parent component (Dashboard)
+      // Note: SummaryCards now supports error state via error/onRetry props
       // We'll test the state transition behavior
       const { rerender } = render(
         <SummaryCards hourly={null} daily={null} isLoading={true} />
       );
 
-      expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
       // Simulate error: loading stops but no data
       rerender(<SummaryCards hourly={null} daily={null} isLoading={false} />);
 
       await waitFor(() => {
-        expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('summary-card-skeleton-hourly')).not.toBeInTheDocument();
       });
 
       // Should show empty states when loading completes with no data
-      expect(screen.getByTestId('summary-card-hourly-empty')).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-daily-empty')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-empty-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-empty-daily')).toBeInTheDocument();
     });
 
     it('recovers from error state on retry with success', async () => {
@@ -137,15 +138,16 @@ describe('SummaryCards Integration Tests', () => {
         <SummaryCards hourly={null} daily={null} isLoading={false} />
       );
 
-      // Initially in error/empty state
-      expect(screen.getByTestId('summary-card-hourly-empty')).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-daily-empty')).toBeInTheDocument();
+      // Initially in empty state
+      expect(screen.getByTestId('summary-card-empty-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-empty-daily')).toBeInTheDocument();
 
       // Simulate retry (loading again)
       rerender(<SummaryCards hourly={null} daily={null} isLoading={true} />);
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+        expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+        expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
       });
 
       // Simulate success after retry
@@ -158,13 +160,13 @@ describe('SummaryCards Integration Tests', () => {
       );
 
       await waitFor(() => {
-        expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('summary-card-skeleton-hourly')).not.toBeInTheDocument();
       });
 
       // Should now show data
       expect(screen.getByTestId('summary-card-hourly')).toBeInTheDocument();
       expect(screen.getByTestId('summary-card-daily')).toBeInTheDocument();
-      expect(screen.queryByText(/No summary available/)).not.toBeInTheDocument();
+      expect(screen.queryByText('No activity to summarize')).not.toBeInTheDocument();
     });
 
     it('handles multiple retry attempts', async () => {
@@ -175,23 +177,23 @@ describe('SummaryCards Integration Tests', () => {
       // Attempt 1: Retry fails
       rerender(<SummaryCards hourly={null} daily={null} isLoading={true} />);
       await waitFor(() => {
-        expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+        expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
       });
 
       rerender(<SummaryCards hourly={null} daily={null} isLoading={false} />);
       await waitFor(() => {
-        expect(screen.getByTestId('summary-card-hourly-empty')).toBeInTheDocument();
+        expect(screen.getByTestId('summary-card-empty-hourly')).toBeInTheDocument();
       });
 
       // Attempt 2: Retry fails again
       rerender(<SummaryCards hourly={null} daily={null} isLoading={true} />);
       await waitFor(() => {
-        expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+        expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
       });
 
       rerender(<SummaryCards hourly={null} daily={null} isLoading={false} />);
       await waitFor(() => {
-        expect(screen.getByTestId('summary-card-hourly-empty')).toBeInTheDocument();
+        expect(screen.getByTestId('summary-card-empty-hourly')).toBeInTheDocument();
       });
 
       // Attempt 3: Retry succeeds
@@ -281,7 +283,8 @@ describe('SummaryCards Integration Tests', () => {
       );
 
       // Loading state
-      expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
       // WebSocket update arrives while still loading (edge case)
       rerender(
@@ -293,7 +296,8 @@ describe('SummaryCards Integration Tests', () => {
       );
 
       // Should still show loading (isLoading takes precedence)
-      expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
       // Loading completes
       rerender(
@@ -305,7 +309,7 @@ describe('SummaryCards Integration Tests', () => {
       );
 
       await waitFor(() => {
-        expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('summary-card-skeleton-hourly')).not.toBeInTheDocument();
         expect(screen.getByTestId('summary-card-hourly')).toBeInTheDocument();
       });
     });
@@ -452,7 +456,8 @@ describe('SummaryCards Integration Tests', () => {
       );
 
       // 1. Loading state
-      expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
       // 2. Initial data loaded
       rerender(
@@ -465,7 +470,7 @@ describe('SummaryCards Integration Tests', () => {
       );
 
       await waitFor(() => {
-        expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('summary-card-skeleton-hourly')).not.toBeInTheDocument();
       });
 
       // 3. WebSocket update with high severity

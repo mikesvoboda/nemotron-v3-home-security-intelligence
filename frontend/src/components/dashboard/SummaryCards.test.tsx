@@ -116,27 +116,32 @@ describe('SummaryCard', () => {
       render(<SummaryCard type="hourly" summary={null} isLoading />);
 
       expect(screen.getByText('Hourly Summary')).toBeInTheDocument();
-      expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-hourly-loading')).toBeInTheDocument();
+      // Now uses SummaryCardSkeleton component with different test IDs
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-content-hourly')).toBeInTheDocument();
     });
 
     it('renders loading skeleton for daily', () => {
       render(<SummaryCard type="daily" summary={null} isLoading />);
 
       expect(screen.getByText('Daily Summary')).toBeInTheDocument();
-      expect(screen.getByTestId('loading-skeleton')).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-daily-loading')).toBeInTheDocument();
+      // Now uses SummaryCardSkeleton component with different test IDs
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-content-daily')).toBeInTheDocument();
     });
 
-    it('has animate-pulse class on skeleton', () => {
+    it('has shimmer animation on skeleton elements', () => {
       render(<SummaryCard type="hourly" summary={null} isLoading />);
-      const skeleton = screen.getByTestId('loading-skeleton');
-      expect(skeleton).toHaveClass('animate-pulse');
+      // SummaryCardSkeleton uses shimmer overlay animation
+      const skeleton = screen.getByTestId('summary-card-skeleton-hourly');
+      expect(skeleton).toBeInTheDocument();
+      expect(skeleton).toHaveAttribute('role', 'status');
     });
 
-    it('shows time window in loading state', () => {
+    it('has accessible loading label', () => {
       render(<SummaryCard type="hourly" summary={null} isLoading />);
-      expect(screen.getByText('Last 60 minutes')).toBeInTheDocument();
+      const skeleton = screen.getByTestId('summary-card-skeleton-hourly');
+      expect(skeleton).toHaveAttribute('aria-label', 'Loading hourly summary');
     });
   });
 
@@ -145,26 +150,28 @@ describe('SummaryCard', () => {
       render(<SummaryCard type="hourly" summary={null} />);
 
       expect(screen.getByText('Hourly Summary')).toBeInTheDocument();
-      expect(screen.getByText(/No summary available/)).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-hourly-empty')).toBeInTheDocument();
+      // Now uses SummaryCardEmpty component with "No activity to summarize" message
+      expect(screen.getByText('No activity to summarize')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-empty-hourly')).toBeInTheDocument();
     });
 
     it('renders empty state when no summary for daily', () => {
       render(<SummaryCard type="daily" summary={null} />);
 
       expect(screen.getByText('Daily Summary')).toBeInTheDocument();
-      expect(screen.getByText(/No summary available/)).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-daily-empty')).toBeInTheDocument();
+      // Now uses SummaryCardEmpty component with "No activity to summarize" message
+      expect(screen.getByText('No activity to summarize')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-empty-daily')).toBeInTheDocument();
     });
 
-    it('shows generation frequency message', () => {
+    it('shows contextual timeframe message for hourly', () => {
       render(<SummaryCard type="hourly" summary={null} />);
-      expect(screen.getByText(/Summaries are generated every 5 minutes/)).toBeInTheDocument();
+      expect(screen.getByText(/No high-priority events detected the past hour/)).toBeInTheDocument();
     });
 
-    it('shows "No data" text in empty state header', () => {
-      render(<SummaryCard type="hourly" summary={null} />);
-      expect(screen.getByText('No data')).toBeInTheDocument();
+    it('shows contextual timeframe message for daily', () => {
+      render(<SummaryCard type="daily" summary={null} />);
+      expect(screen.getByText(/No high-priority events detected today/)).toBeInTheDocument();
     });
   });
 
@@ -186,16 +193,18 @@ describe('SummaryCard', () => {
       expect(card).toHaveAttribute('data-severity', 'clear');
     });
 
-    it('applies gray accent bar when loading', () => {
+    it('applies gray border when loading', () => {
       render(<SummaryCard type="hourly" summary={null} isLoading />);
-      const accentBar = screen.getByTestId('accent-bar');
-      expect(accentBar).toHaveStyle({ backgroundColor: 'rgb(209, 213, 219)' }); // gray-300
+      // SummaryCardSkeleton uses border-left-color style
+      const card = screen.getByTestId('summary-card-skeleton-hourly');
+      expect(card).toHaveStyle({ borderLeftColor: 'rgb(209, 213, 219)' }); // gray-300
     });
 
-    it('applies gray accent bar when empty', () => {
+    it('applies gray border when empty', () => {
       render(<SummaryCard type="hourly" summary={null} />);
-      const accentBar = screen.getByTestId('accent-bar');
-      expect(accentBar).toHaveStyle({ backgroundColor: 'rgb(107, 114, 128)' }); // gray-500
+      // SummaryCardEmpty uses border-left-color style
+      const card = screen.getByTestId('summary-card-empty-hourly');
+      expect(card).toHaveStyle({ borderLeftColor: 'rgb(107, 114, 128)' }); // gray-500
     });
 
     it('uses dark theme background', () => {
@@ -338,9 +347,9 @@ describe('SummaryCards', () => {
     it('passes isLoading to both cards', () => {
       render(<SummaryCards hourly={null} daily={null} isLoading />);
 
-      // Both should show loading skeletons
-      const skeletons = screen.getAllByTestId('loading-skeleton');
-      expect(skeletons).toHaveLength(2);
+      // Both should show loading skeletons (now uses SummaryCardSkeleton)
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
     });
 
     it('renders correct content for each card', () => {
@@ -353,24 +362,25 @@ describe('SummaryCards', () => {
   });
 
   describe('mixed states', () => {
-    it('handles hourly with data and daily loading', () => {
+    it('handles hourly with data and daily empty', () => {
       const { rerender } = render(
         <SummaryCards hourly={mockHourlySummary} daily={null} isLoading={false} />
       );
 
       expect(screen.getByTestId('summary-card-hourly')).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-daily-empty')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-empty-daily')).toBeInTheDocument();
 
-      // When loading is true, both show loading
+      // When loading is true, both show loading skeletons
       rerender(<SummaryCards hourly={mockHourlySummary} daily={null} isLoading={true} />);
-      expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
     });
 
     it('handles both summaries null without loading', () => {
       render(<SummaryCards hourly={null} daily={null} />);
 
-      expect(screen.getByTestId('summary-card-hourly-empty')).toBeInTheDocument();
-      expect(screen.getByTestId('summary-card-daily-empty')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-empty-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-empty-daily')).toBeInTheDocument();
     });
   });
 
@@ -418,11 +428,13 @@ describe('SummaryCards', () => {
     it('handles transition from loading to data', () => {
       const { rerender } = render(<SummaryCards hourly={null} daily={null} isLoading={true} />);
 
-      expect(screen.getAllByTestId('loading-skeleton')).toHaveLength(2);
+      expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
       rerender(<SummaryCards hourly={mockHourlySummary} daily={mockDailySummary} isLoading={false} />);
 
-      expect(screen.queryByTestId('loading-skeleton')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('summary-card-skeleton-hourly')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('summary-card-skeleton-daily')).not.toBeInTheDocument();
       expect(screen.getByTestId('summary-card-hourly')).toBeInTheDocument();
       expect(screen.getByTestId('summary-card-daily')).toBeInTheDocument();
     });

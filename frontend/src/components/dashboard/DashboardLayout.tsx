@@ -12,6 +12,7 @@ import {
 import type { ActivityEvent } from './ActivityFeed';
 import type { CameraStatus } from './CameraGrid';
 import type { StatsRowProps } from './StatsRow';
+import type { AIPerformanceSummaryRowProps } from '../ai-performance/AIPerformanceSummaryRow';
 
 // ============================================================================
 // Types
@@ -24,6 +25,8 @@ import type { StatsRowProps } from './StatsRow';
 export interface WidgetProps {
   /** Props for StatsRow widget */
   statsRow?: StatsRowProps;
+  /** Props for AIPerformanceSummaryRow widget */
+  aiSummaryRow?: AIPerformanceSummaryRowProps;
   /** Props for CameraGrid widget */
   cameraGrid?: {
     cameras: CameraStatus[];
@@ -66,6 +69,8 @@ export interface DashboardLayoutProps {
   widgetProps: WidgetProps;
   /** Render function for StatsRow */
   renderStatsRow: (props: StatsRowProps) => React.ReactNode;
+  /** Render function for AIPerformanceSummaryRow (optional) */
+  renderAISummaryRow?: (props: AIPerformanceSummaryRowProps) => React.ReactNode;
   /** Render function for CameraGrid */
   renderCameraGrid: (props: WidgetProps['cameraGrid']) => React.ReactNode;
   /** Render function for ActivityFeed */
@@ -113,6 +118,7 @@ export interface DashboardLayoutProps {
 export default function DashboardLayout({
   widgetProps,
   renderStatsRow,
+  renderAISummaryRow,
   renderCameraGrid,
   renderActivityFeed,
   renderGpuStats,
@@ -155,6 +161,16 @@ export default function DashboardLayout({
             return (
               <div key={widgetId} className="mb-6 md:mb-8" data-testid="widget-stats-row">
                 {renderStatsRow(widgetProps.statsRow)}
+              </div>
+            );
+          }
+          return null;
+
+        case 'ai-summary-row':
+          if (renderAISummaryRow && widgetProps.aiSummaryRow) {
+            return (
+              <div key={widgetId} className="mb-6 md:mb-8" data-testid="widget-ai-summary-row">
+                {renderAISummaryRow(widgetProps.aiSummaryRow)}
               </div>
             );
           }
@@ -219,6 +235,7 @@ export default function DashboardLayout({
     [
       widgetProps,
       renderStatsRow,
+      renderAISummaryRow,
       renderCameraGrid,
       renderActivityFeed,
       renderGpuStats,
