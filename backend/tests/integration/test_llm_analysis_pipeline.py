@@ -311,12 +311,10 @@ class TestAnalyzeBatchWithEnrichment:
             patch("httpx.AsyncClient.post") as mock_post,
             patch.object(
                 analyzer,
-                "_run_enrichment_pipeline",
+                "_get_enrichment_result_from_data",
                 return_value=MagicMock(
-                    success=True,
-                    result=realistic_enrichment_result,
-                    partial_failure=False,
-                    errors=[],
+                    has_data=True,
+                    data=realistic_enrichment_result,
                 ),
             ),
         ):
@@ -369,12 +367,10 @@ class TestAnalyzeBatchWithEnrichment:
             patch("httpx.AsyncClient.post") as mock_post,
             patch.object(
                 analyzer,
-                "_run_enrichment_pipeline",
+                "_get_enrichment_result_from_data",
                 return_value=MagicMock(
-                    success=True,
-                    result=realistic_enrichment_result,
-                    partial_failure=False,
-                    errors=[],
+                    has_data=True,
+                    data=realistic_enrichment_result,
                 ),
             ),
         ):
@@ -451,12 +447,10 @@ class TestAnalyzeBatchWithEnrichment:
             patch("httpx.AsyncClient.post") as mock_post,
             patch.object(
                 analyzer,
-                "_run_enrichment_pipeline",
+                "_get_enrichment_result_from_data",
                 return_value=MagicMock(
-                    success=True,
-                    result=partial_enrichment,
-                    partial_failure=True,
-                    errors=["Clothing model timeout"],
+                    has_data=True,
+                    data=partial_enrichment,
                 ),
             ),
         ):
@@ -501,12 +495,10 @@ class TestAnalyzeDetectionFastPathWithEnrichment:
             patch("httpx.AsyncClient.post") as mock_post,
             patch.object(
                 analyzer,
-                "_run_enrichment_pipeline",
+                "_get_enrichment_result_from_data",
                 return_value=MagicMock(
-                    success=True,
-                    result=realistic_enrichment_result,
-                    partial_failure=False,
-                    errors=[],
+                    has_data=True,
+                    data=realistic_enrichment_result,
                 ),
             ),
         ):
@@ -542,12 +534,10 @@ class TestAnalyzeDetectionFastPathWithEnrichment:
             patch("httpx.AsyncClient.post") as mock_post,
             patch.object(
                 analyzer,
-                "_run_enrichment_pipeline",
+                "_get_enrichment_result_from_data",
                 return_value=MagicMock(
-                    success=True,
-                    result=realistic_enrichment_result,
-                    partial_failure=False,
-                    errors=[],
+                    has_data=True,
+                    data=realistic_enrichment_result,
                 ),
             ),
         ):
@@ -622,12 +612,10 @@ class TestPromptFormattingWithEnrichment:
             patch("httpx.AsyncClient.post", side_effect=capture_prompt) as mock_post,
             patch.object(
                 analyzer,
-                "_run_enrichment_pipeline",
+                "_get_enrichment_result_from_data",
                 return_value=MagicMock(
-                    success=True,
-                    result=realistic_enrichment_result,
-                    partial_failure=False,
-                    errors=[],
+                    has_data=True,
+                    data=realistic_enrichment_result,
                 ),
             ),
         ):
@@ -671,7 +659,7 @@ class TestPromptFormattingWithEnrichment:
             patch("httpx.AsyncClient.post") as mock_post,
             patch.object(
                 analyzer,
-                "_run_enrichment_pipeline",
+                "_get_enrichment_result_from_data",
                 return_value=None,  # No enrichment
             ),
         ):
@@ -718,12 +706,10 @@ class TestErrorHandlingWithEnrichment:
             ),
             patch.object(
                 analyzer,
-                "_run_enrichment_pipeline",
+                "_get_enrichment_result_from_data",
                 return_value=MagicMock(
-                    success=True,
-                    result=realistic_enrichment_result,
-                    partial_failure=False,
-                    errors=[],
+                    has_data=True,
+                    data=realistic_enrichment_result,
                 ),
             ),
         ):
@@ -754,12 +740,10 @@ class TestErrorHandlingWithEnrichment:
             ),
             patch.object(
                 analyzer,
-                "_run_enrichment_pipeline",
+                "_get_enrichment_result_from_data",
                 return_value=MagicMock(
-                    success=True,
-                    result=realistic_enrichment_result,
-                    partial_failure=False,
-                    errors=[],
+                    has_data=True,
+                    data=realistic_enrichment_result,
                 ),
             ),
         ):
@@ -814,15 +798,13 @@ class TestEnrichmentPipelineIntegration:
             enrichment_called = True
             captured_inputs = args
             return MagicMock(
-                success=True,
-                result=realistic_enrichment_result,
-                partial_failure=False,
-                errors=[],
+                has_data=True,
+                data=realistic_enrichment_result,
             )
 
         with (
             patch("httpx.AsyncClient.post") as mock_post,
-            patch.object(analyzer, "_run_enrichment_pipeline", side_effect=mock_enrichment),
+            patch.object(analyzer, "_get_enrichment_result_from_data", side_effect=mock_enrichment),
         ):
             mock_post.return_value = mock_response
             await analyzer.analyze_batch(batch_id)
@@ -866,12 +848,10 @@ class TestEnrichmentPipelineIntegration:
             patch("httpx.AsyncClient.post") as mock_post,
             patch.object(
                 analyzer,
-                "_run_enrichment_pipeline",
+                "_get_enrichment_result_from_data",
                 return_value=MagicMock(
-                    success=True,
-                    result=enrichment_with_errors,
-                    partial_failure=True,
-                    errors=["Florence-2 timeout"],
+                    has_data=True,
+                    data=enrichment_with_errors,
                 ),
             ),
         ):
