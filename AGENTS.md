@@ -41,15 +41,13 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 ### Documentation
 
-| File                                  | Purpose                                                |
-| ------------------------------------- | ------------------------------------------------------ |
-| `README.md`                           | Project overview and quick start guide                 |
-| `LICENSE`                             | Mozilla Public License 2.0                             |
-| `CHANGELOG.md`                        | Release history and notable changes                    |
-| `llms.txt`                            | LLM-readable project documentation index               |
-| `CI_FAILURE_INVESTIGATION.md`         | CI failure analysis and debugging documentation        |
-| `E2E_COVERAGE_GAPS_IMPLEMENTATION.md` | E2E test coverage gap analysis and implementation plan |
-| `requirements-audit.txt`              | Python dependency audit results and security review    |
+| File                     | Purpose                                             |
+| ------------------------ | --------------------------------------------------- |
+| `README.md`              | Project overview and quick start guide              |
+| `LICENSE`                | Mozilla Public License 2.0                          |
+| `CHANGELOG.md`           | Release history and notable changes                 |
+| `llms.txt`               | LLM-readable project documentation index            |
+| `requirements-audit.txt` | Python dependency audit results and security review |
 
 > **Note:** Detailed Docker deployment documentation is in `docs/operator/deployment/`.
 
@@ -109,7 +107,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ├── data/                 # Runtime data directory (logs, thumbnails, gitignored)
 ├── docs/                 # Documentation
 │   ├── admin-guide/      # Administrator documentation
-│   ├── api-reference/    # Complete REST API documentation
+│   ├── api/              # API documentation and deprecation policy
 │   ├── architecture/     # Technical architecture documentation
 │   ├── benchmarks/       # Performance benchmarks (model-zoo)
 │   ├── decisions/        # Architecture Decision Records (ADRs)
@@ -281,7 +279,7 @@ cd frontend && npm test
 | Test Utilities     | `frontend/src/test-utils/`                       |
 | API Mocks          | `frontend/src/mocks/`                            |
 | Design docs        | `docs/plans/`                                    |
-| API Reference      | `docs/api-reference/`                            |
+| API Reference      | `docs/api/`                                      |
 | Getting Started    | `docs/getting-started/`                          |
 | Scripts            | `scripts/`                                       |
 
