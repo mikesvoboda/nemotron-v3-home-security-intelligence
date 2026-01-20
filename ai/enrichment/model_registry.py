@@ -427,7 +427,7 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
     # Action Recognizer - X-CLIP (~1.5GB)
     # Trigger conditions: Person detected >3 seconds, multiple frames available,
     # unusual pose detected (trigger from pose estimator)
-    action_path = os.environ.get("ACTION_MODEL_PATH", "microsoft/xclip-base-patch32")
+    action_path = os.environ.get("ACTION_MODEL_PATH", "/models/xclip-base-patch32")
     registry["action_recognizer"] = ModelConfig(
         name="action_recognizer",
         vram_mb=1500,
@@ -439,7 +439,7 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
     # Person Re-Identification - OSNet-x0.25 (~100MB)
     # Trigger conditions: Person detected, need to track across cameras/time
     # Use case: Identify if same person has been seen before
-    reid_path = os.environ.get("REID_MODEL_PATH", "/models/osnet-reid/osnet_x0_25.pth")
+    reid_path = os.environ.get("REID_MODEL_PATH", "/models/osnet-x0-25/osnet_x0_25.pth")
     registry["person_reid"] = ModelConfig(
         name="person_reid",
         vram_mb=100,
@@ -452,7 +452,9 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
     # Trigger conditions: Always checked for person detections (CRITICAL priority)
     # Use case: Detect weapons (knives, guns, rifles) in security footage
     # Reference: HuggingFace Subh775/Threat-Detection-YOLOv8n
-    threat_path = os.environ.get("THREAT_MODEL_PATH", "/models/threat-detection/best.pt")
+    threat_path = os.environ.get(
+        "THREAT_MODEL_PATH", "/models/threat-detection-yolov8n/weights/best.pt"
+    )
     registry["threat_detector"] = ModelConfig(
         name="threat_detector",
         vram_mb=400,

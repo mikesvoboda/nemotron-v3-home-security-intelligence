@@ -217,12 +217,12 @@ services:
       - PET_MODEL_PATH=/models/pet-classifier
       - CLOTHING_MODEL_PATH=/models/fashion-clip
       - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
-      # New models
-      - POSE_MODEL_PATH=/models/yolov8n-pose
-      - THREAT_MODEL_PATH=/models/threat-detection-yolov8n
+      # New models (paths include specific model files where needed)
+      - POSE_MODEL_PATH=/models/yolov8n-pose/yolov8n-pose.pt
+      - THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
       - AGE_MODEL_PATH=/models/vit-age-classifier
       - GENDER_MODEL_PATH=/models/vit-gender-classifier
-      - REID_MODEL_PATH=/models/osnet-x0-25
+      - REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
       - ACTION_MODEL_PATH=/models/xclip-base-patch32
       # VRAM management
       - VRAM_BUDGET_GB=6.8
