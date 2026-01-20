@@ -20,7 +20,12 @@ from backend.api.routes.zones import router
 from backend.api.schemas.zone import ZoneCreate, ZoneListResponse, ZoneResponse, ZoneUpdate
 from backend.core.database import get_db
 from backend.models.camera import Camera
-from backend.models.zone import Zone, ZoneShape, ZoneType
+from backend.models.camera_zone import CameraZone, CameraZoneShape, CameraZoneType
+
+# Aliases for backward compatibility
+Zone = CameraZone
+ZoneShape = CameraZoneShape
+ZoneType = CameraZoneType
 
 # =============================================================================
 # Fixtures

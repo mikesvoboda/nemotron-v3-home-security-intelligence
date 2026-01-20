@@ -154,3 +154,10 @@ export type {
 
 // Navigation tracking component
 export { NavigationTracker, default as NavigationTrackerDefault } from './NavigationTracker';
+
+// Prometheus alert components (NEM-3123)
+export { default as AlertBadge } from './AlertBadge';
+export type { AlertBadgeProps } from './AlertBadge';
+
+export { default as AlertDrawer } from './AlertDrawer';
+export type { AlertDrawerProps } from './AlertDrawer';

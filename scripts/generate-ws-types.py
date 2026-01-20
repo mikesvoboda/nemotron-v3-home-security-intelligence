@@ -41,6 +41,8 @@ from backend.api.schemas.websocket import (  # noqa: E402
     WebSocketAlertAcknowledgedMessage,
     WebSocketAlertCreatedMessage,
     WebSocketAlertData,
+    WebSocketAlertDeletedData,
+    WebSocketAlertDeletedMessage,
     WebSocketAlertDismissedMessage,
     WebSocketAlertEventType,
     WebSocketAlertResolvedMessage,
@@ -462,15 +464,23 @@ export function isErrorMessage(value: unknown): value is WebSocketErrorResponse 
 
 /**
  * Type guard for WebSocketAlertMessage (any alert event type).
+ * Note: alert_deleted has a different data shape (only id and reason), so use isAlertDeletedMessage for that.
  */
 export function isAlertMessage(value: unknown): value is WebSocketAlertMessage {
   if (!hasTypeProperty(value)) return false;
-  const alertTypes = ['alert_created', 'alert_updated', 'alert_acknowledged', 'alert_dismissed', 'alert_resolved'];
+  const alertTypes = ['alert_created', 'alert_updated', 'alert_deleted', 'alert_acknowledged', 'alert_dismissed', 'alert_resolved'];
   if (!alertTypes.includes(value.type as string)) return false;
 
   const msg = value as { type: string; data?: unknown };
   if (!msg.data || typeof msg.data !== 'object') return false;
 
+  // For deleted alerts, we only need 'id' in data
+  if (value.type === 'alert_deleted') {
+    const data = msg.data as Record<string, unknown>;
+    return 'id' in data;
+  }
+
+  // For all other alert types, require full alert data
   const data = msg.data as Record<string, unknown>;
   return 'id' in data && 'event_id' in data && 'severity' in data && 'status' in data;
 }
@@ -489,6 +499,21 @@ export function isAlertCreatedMessage(value: unknown): value is WebSocketAlertCr
 export function isAlertUpdatedMessage(value: unknown): value is WebSocketAlertUpdatedMessage {
   if (!hasTypeProperty(value)) return false;
   return value.type === 'alert_updated' && isAlertMessage(value);
+}
+
+/**
+ * Type guard for WebSocketAlertDeletedMessage.
+ * Note: deleted alerts have a different data shape (only id and optional reason).
+ */
+export function isAlertDeletedMessage(value: unknown): value is WebSocketAlertDeletedMessage {
+  if (!hasTypeProperty(value)) return false;
+  if (value.type !== 'alert_deleted') return false;
+
+  const msg = value as { type: string; data?: unknown };
+  if (!msg.data || typeof msg.data !== 'object') return false;
+
+  const data = msg.data as Record<string, unknown>;
+  return 'id' in data;
 }
 
 /**
@@ -534,6 +559,7 @@ def generate_discriminated_union() -> str:
 export type WebSocketAlertMessage =
   | WebSocketAlertCreatedMessage
   | WebSocketAlertUpdatedMessage
+  | WebSocketAlertDeletedMessage
   | WebSocketAlertAcknowledgedMessage
   | WebSocketAlertDismissedMessage
   | WebSocketAlertResolvedMessage;
@@ -666,6 +692,8 @@ def generate_typescript_file() -> str:
     parts.append("")
     parts.append(generate_interface(WebSocketAlertData))
     parts.append("")
+    parts.append(generate_interface(WebSocketAlertDeletedData))
+    parts.append("")
 
     # Add message interfaces
     parts.append("// ============================================================================")
@@ -691,6 +719,8 @@ def generate_typescript_file() -> str:
     parts.append(generate_interface(WebSocketAlertCreatedMessage))
     parts.append("")
     parts.append(generate_interface(WebSocketAlertUpdatedMessage))
+    parts.append("")
+    parts.append(generate_interface(WebSocketAlertDeletedMessage))
     parts.append("")
     parts.append(generate_interface(WebSocketAlertAcknowledgedMessage))
     parts.append("")

@@ -229,13 +229,13 @@ class TestCameraZonesEagerLoading:
     """Tests for camera zones eager loading pattern."""
 
     def test_camera_zones_relationship_defined(self):
-        """Verify Camera model has zones relationship for eager loading."""
-        # The Camera model should have zones relationship that can be eagerly loaded
-        assert hasattr(Camera, "zones")
+        """Verify Camera model has camera_zones relationship for eager loading."""
+        # The Camera model should have camera_zones relationship that can be eagerly loaded
+        assert hasattr(Camera, "camera_zones")
         # Check it's a relationship (will be an InstrumentedAttribute for relationships)
 
         mapper = Camera.__mapper__
-        assert "zones" in mapper.relationships
+        assert "camera_zones" in mapper.relationships
 
 
 class TestEventCameraEagerLoading:

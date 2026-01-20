@@ -272,6 +272,14 @@ export type {
   UseSceneChangeAlertsReturn,
 } from './useSceneChangeAlerts';
 
+export { useSceneChangeEvents } from './useSceneChangeEvents';
+export type {
+  SceneChangeEventData,
+  CameraActivityState,
+  UseSceneChangeEventsOptions,
+  UseSceneChangeEventsReturn,
+} from './useSceneChangeEvents';
+
 export { useCameraStatusWebSocket } from './useCameraStatusWebSocket';
 export type {
   CameraStatusState,
@@ -508,3 +516,67 @@ export {
   default as withFeatureErrorBoundaryDefault,
 } from './useFeatureErrorBoundary';
 export type { WithFeatureErrorBoundaryOptions } from './useFeatureErrorBoundary';
+
+// Settings API hooks (NEM-3121)
+export {
+  useSettingsQuery,
+  useUpdateSettings,
+  useSettingsApi,
+  settingsQueryKeys,
+  fetchSettings,
+  updateSettings,
+  default as useSettingsApiDefault,
+} from './useSettingsApi';
+export type {
+  DetectionSettings as ApiDetectionSettings,
+  BatchSettings as ApiBatchSettings,
+  SeveritySettings as ApiSeveritySettings,
+  FeatureSettings as ApiFeatureSettings,
+  RateLimitingSettings as ApiRateLimitingSettings,
+  QueueSettings as ApiQueueSettings,
+  RetentionSettings as ApiRetentionSettings,
+  SettingsResponse as ApiSettingsResponse,
+  DetectionSettingsUpdate,
+  BatchSettingsUpdate,
+  SeveritySettingsUpdate,
+  FeatureSettingsUpdate,
+  RateLimitingSettingsUpdate,
+  QueueSettingsUpdate,
+  RetentionSettingsUpdate,
+  SettingsUpdate,
+  UseSettingsOptions as UseSettingsApiOptions,
+  UseSettingsReturn as UseSettingsApiReturn,
+  UseUpdateSettingsReturn,
+} from './useSettingsApi';
+
+// Property and Area management hooks (NEM-3135)
+export {
+  usePropertiesQuery,
+  useAreasQuery,
+  useAreaCamerasQuery,
+  usePropertyMutations,
+  useAreaMutations,
+  propertyQueryKeys,
+  areaQueryKeys,
+} from './usePropertyQueries';
+export type {
+  PropertyResponse,
+  PropertyCreate,
+  PropertyUpdate,
+  PropertyListResponse,
+  AreaResponse,
+  AreaCreate,
+  AreaUpdate,
+  AreaListResponse,
+  AreaCameraResponse,
+  AreaCamerasResponse,
+  CameraLinkResponse,
+  UsePropertiesQueryOptions,
+  UsePropertiesQueryReturn,
+  UseAreasQueryOptions,
+  UseAreasQueryReturn,
+  UseAreaCamerasQueryOptions,
+  UseAreaCamerasQueryReturn,
+  UsePropertyMutationsReturn,
+  UseAreaMutationsReturn,
+} from './usePropertyQueries';

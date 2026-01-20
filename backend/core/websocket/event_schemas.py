@@ -512,6 +512,47 @@ class SceneChangeDetectedPayload(BasePayload):
 
 
 # =============================================================================
+# Prometheus Alert Event Payloads (NEM-3122)
+# =============================================================================
+
+
+class PrometheusAlertStatusEnum(StrEnum):
+    """Prometheus alert status values."""
+
+    FIRING = "firing"
+    RESOLVED = "resolved"
+
+
+class PrometheusAlertPayload(BasePayload):
+    """Payload for prometheus.alert events.
+
+    Represents a Prometheus/Alertmanager alert received via webhook.
+    These are infrastructure monitoring alerts (GPU, memory, pipeline health, etc.)
+    separate from AI-generated security alerts.
+    """
+
+    fingerprint: str = Field(..., description="Unique alert fingerprint for deduplication")
+    status: PrometheusAlertStatusEnum = Field(..., description="Alert status (firing or resolved)")
+    alertname: str = Field(..., description="Name of the alert")
+    severity: str = Field("info", description="Alert severity level")
+    labels: dict[str, str] = Field(default_factory=dict, description="Alert labels")
+    annotations: dict[str, str] = Field(default_factory=dict, description="Alert annotations")
+    starts_at: str = Field(..., description="ISO 8601 timestamp when alert started")
+    ends_at: str | None = Field(None, description="ISO 8601 timestamp when alert resolved")
+    received_at: str = Field(..., description="ISO 8601 timestamp when backend received alert")
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def validate_status(cls, v: str | PrometheusAlertStatusEnum) -> PrometheusAlertStatusEnum:
+        """Convert string to PrometheusAlertStatusEnum enum."""
+        if isinstance(v, PrometheusAlertStatusEnum):
+            return v
+        if isinstance(v, str):
+            return PrometheusAlertStatusEnum(v.lower())
+        raise ValueError(f"Invalid prometheus alert status: {v}")
+
+
+# =============================================================================
 # Worker Event Payloads (NEM-2461)
 # =============================================================================
 
@@ -751,6 +792,8 @@ EVENT_PAYLOAD_SCHEMAS: dict[WebSocketEventType, type[BasePayload]] = {
     WebSocketEventType.DETECTION_BATCH: DetectionBatchPayload,
     # Scene change events
     WebSocketEventType.SCENE_CHANGE_DETECTED: SceneChangeDetectedPayload,
+    # Prometheus alert events (NEM-3122)
+    WebSocketEventType.PROMETHEUS_ALERT: PrometheusAlertPayload,
     # Connection events
     WebSocketEventType.CONNECTION_ESTABLISHED: ConnectionEstablishedPayload,
     WebSocketEventType.CONNECTION_ERROR: ConnectionErrorPayload,

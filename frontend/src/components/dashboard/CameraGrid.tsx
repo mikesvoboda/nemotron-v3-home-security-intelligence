@@ -1,6 +1,7 @@
 import { clsx } from 'clsx';
 import {
   AlertCircle,
+  AlertTriangle,
   Camera,
   Circle,
   Clock,
@@ -9,7 +10,7 @@ import {
   VideoOff,
   WifiOff,
 } from 'lucide-react';
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useCameraStatusWebSocket } from '../../hooks/useCameraStatusWebSocket';
 
@@ -45,6 +46,11 @@ export interface CameraGridProps {
    * Callback when a camera status changes via WebSocket (NEM-2295).
    */
   onCameraStatusChange?: (event: CameraStatusEventPayload) => void;
+  /**
+   * Set of camera IDs that have recent scene change activity (NEM-3126).
+   * Cameras in this set will show a pulsing activity indicator.
+   */
+  sceneChangeActivityIds?: Set<string> | string[];
 }
 
 /**
@@ -191,6 +197,11 @@ interface CameraCardProps {
    * Used to show a visual indicator for real-time updates.
    */
   recentlyChanged?: boolean;
+  /**
+   * Whether this camera has recent scene change activity (NEM-3126).
+   * Shows a pulsing indicator when true.
+   */
+  hasSceneChangeActivity?: boolean;
 }
 
 /**
@@ -201,6 +212,7 @@ const CameraCard = memo(function CameraCard({
   isSelected,
   onClick,
   recentlyChanged = false,
+  hasSceneChangeActivity = false,
 }: CameraCardProps) {
   const StatusIcon = getStatusIcon(camera.status);
   // Only attempt to load thumbnail for online or recording cameras
@@ -291,6 +303,17 @@ const CameraCard = memo(function CameraCard({
           <Circle className={clsx('h-2 w-2 fill-current', getStatusColor(camera.status))} />
           <span className="text-xs font-medium text-white">{getStatusLabel(camera.status)}</span>
         </div>
+
+        {/* Scene change activity indicator - top-left corner (NEM-3126) */}
+        {hasSceneChangeActivity && (
+          <div
+            className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-1 backdrop-blur-sm"
+            data-testid={`scene-change-indicator-${camera.id}`}
+          >
+            <AlertTriangle className="h-3 w-3 animate-pulse text-white" aria-hidden="true" />
+            <span className="text-xs font-medium text-white">Scene Change</span>
+          </div>
+        )}
       </div>
 
       {/* Camera name */}
@@ -336,9 +359,17 @@ export default function CameraGrid({
   className,
   enableWebSocketUpdates = false,
   onCameraStatusChange,
+  sceneChangeActivityIds,
 }: CameraGridProps) {
   // Track which cameras have recently changed status (NEM-2295)
   const [recentlyChangedCameras, setRecentlyChangedCameras] = useState<Set<string>>(new Set());
+
+  // Normalize sceneChangeActivityIds to a Set for efficient lookup (NEM-3126)
+  const sceneChangeActivitySet = useMemo(() => {
+    if (!sceneChangeActivityIds) return new Set<string>();
+    if (sceneChangeActivityIds instanceof Set) return sceneChangeActivityIds;
+    return new Set(sceneChangeActivityIds);
+  }, [sceneChangeActivityIds]);
 
   // Track status overrides from WebSocket updates
   const [statusOverrides, setStatusOverrides] = useState<Record<string, CameraStatusValue>>({});
@@ -451,6 +482,7 @@ export default function CameraGrid({
           isSelected={camera.id === selectedCameraId}
           onClick={onCameraClick ? () => onCameraClick(camera.id) : undefined}
           recentlyChanged={recentlyChangedCameras.has(camera.id)}
+          hasSceneChangeActivity={sceneChangeActivitySet.has(camera.id)}
         />
       ))}
     </div>

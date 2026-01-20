@@ -34,10 +34,15 @@ from backend.api.schemas.zone import (
     _validate_polygon_geometry,
 )
 from backend.models.camera import Camera, normalize_camera_id
+from backend.models.camera_zone import CameraZone, CameraZoneShape, CameraZoneType
 from backend.models.detection import Detection
 from backend.models.enums import CameraStatus
 from backend.models.event import Event
-from backend.models.zone import Zone, ZoneShape, ZoneType
+
+# Aliases for backward compatibility
+Zone = CameraZone
+ZoneShape = CameraZoneShape
+ZoneType = CameraZoneType
 
 # Mark as unit tests - no database required
 pytestmark = pytest.mark.unit

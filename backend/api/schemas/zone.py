@@ -5,7 +5,11 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.api.schemas.pagination import PaginationMeta
-from backend.models.zone import ZoneShape, ZoneType
+from backend.models.camera_zone import CameraZoneShape, CameraZoneType
+
+# Aliases for backward compatibility in schemas (schemas use original names)
+ZoneShape = CameraZoneShape
+ZoneType = CameraZoneType
 
 # Expose validation functions for testing
 __all__ = [

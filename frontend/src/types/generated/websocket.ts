@@ -10,7 +10,7 @@
  * Source schemas:
  *   backend/api/schemas/websocket.py
  *
- * Generated at: 2026-01-17T05:25:06Z
+ * Generated at: 2026-01-20T16:37:29Z
  *
  * Note: WebSocket messages are not covered by OpenAPI, so we generate these
  * types separately to ensure frontend/backend type synchronization.
@@ -52,11 +52,12 @@ export type WebSocketServiceStatus = 'healthy' | 'unhealthy' | 'running' | 'stop
  * Event types:
  * - ALERT_CREATED: New alert triggered from rule evaluation
  * - ALERT_UPDATED: Alert modified (e.g., metadata, channels updated)
+ * - ALERT_DELETED: Alert permanently deleted from the system
  * - ALERT_ACKNOWLEDGED: Alert marked as seen by user
  * - ALERT_RESOLVED: Alert resolved (long-running issues cleared)
  * - ALERT_DISMISSED: Alert dismissed by user
  */
-export type WebSocketAlertEventType = 'alert_created' | 'alert_updated' | 'alert_acknowledged' | 'alert_resolved' | 'alert_dismissed';
+export type WebSocketAlertEventType = 'alert_created' | 'alert_updated' | 'alert_deleted' | 'alert_acknowledged' | 'alert_resolved' | 'alert_dismissed';
 
 /**
  * Alert severity levels for WebSocket messages.
@@ -205,6 +206,23 @@ export interface WebSocketAlertData {
   created_at: string;
   /** ISO 8601 timestamp when the alert was last updated */
   updated_at: string;
+}
+
+/**
+ * Data payload for alert deleted messages broadcast to /ws/events clients.
+ *
+ * This schema is used when an alert is permanently deleted. It contains only
+ * the alert ID and optional reason, as the full alert data is no longer available.
+ *
+ * Fields:
+ *     id: UUID of the deleted alert
+ *     reason: Optional reason for deletion
+ */
+export interface WebSocketAlertDeletedData {
+  /** Deleted alert UUID */
+  id: string;
+  /** Reason for deletion */
+  reason?: string | null;
 }
 
 // ============================================================================
@@ -404,6 +422,29 @@ export interface WebSocketAlertUpdatedMessage {
 }
 
 /**
+ * Complete alert deleted message envelope sent to /ws/events clients.
+ *
+ * This is the canonical format for alert deletion messages broadcast via WebSocket.
+ * Sent when an alert is permanently deleted from the system.
+ * The message wraps deletion data in a standard envelope with a type field.
+ *
+ * Format:
+ *     {
+ *         "type": "alert_deleted",
+ *         "data": {
+ *             "id": "550e8400-e29b-41d4-a716-446655440000",
+ *             "reason": "Duplicate alert"
+ *         }
+ *     }
+ */
+export interface WebSocketAlertDeletedMessage {
+  /** Message type, always 'alert_deleted' for alert deletion messages */
+  type: 'alert_deleted';
+  /** Alert deletion data payload */
+  data: WebSocketAlertDeletedData;
+}
+
+/**
  * Complete alert acknowledged message envelope sent to /ws/events clients.
  *
  * This is the canonical format for alert acknowledgment messages broadcast via WebSocket.
@@ -513,6 +554,7 @@ export interface WebSocketMessage {
 export type WebSocketAlertMessage =
   | WebSocketAlertCreatedMessage
   | WebSocketAlertUpdatedMessage
+  | WebSocketAlertDeletedMessage
   | WebSocketAlertAcknowledgedMessage
   | WebSocketAlertDismissedMessage
   | WebSocketAlertResolvedMessage;
@@ -689,15 +731,23 @@ export function isErrorMessage(value: unknown): value is WebSocketErrorResponse 
 
 /**
  * Type guard for WebSocketAlertMessage (any alert event type).
+ * Note: alert_deleted has a different data shape (only id and reason), so use isAlertDeletedMessage for that.
  */
 export function isAlertMessage(value: unknown): value is WebSocketAlertMessage {
   if (!hasTypeProperty(value)) return false;
-  const alertTypes = ['alert_created', 'alert_updated', 'alert_acknowledged', 'alert_dismissed', 'alert_resolved'];
+  const alertTypes = ['alert_created', 'alert_updated', 'alert_deleted', 'alert_acknowledged', 'alert_dismissed', 'alert_resolved'];
   if (!alertTypes.includes(value.type as string)) return false;
 
   const msg = value as { type: string; data?: unknown };
   if (!msg.data || typeof msg.data !== 'object') return false;
 
+  // For deleted alerts, we only need 'id' in data
+  if (value.type === 'alert_deleted') {
+    const data = msg.data as Record<string, unknown>;
+    return 'id' in data;
+  }
+
+  // For all other alert types, require full alert data
   const data = msg.data as Record<string, unknown>;
   return 'id' in data && 'event_id' in data && 'severity' in data && 'status' in data;
 }
@@ -716,6 +766,21 @@ export function isAlertCreatedMessage(value: unknown): value is WebSocketAlertCr
 export function isAlertUpdatedMessage(value: unknown): value is WebSocketAlertUpdatedMessage {
   if (!hasTypeProperty(value)) return false;
   return value.type === 'alert_updated' && isAlertMessage(value);
+}
+
+/**
+ * Type guard for WebSocketAlertDeletedMessage.
+ * Note: deleted alerts have a different data shape (only id and optional reason).
+ */
+export function isAlertDeletedMessage(value: unknown): value is WebSocketAlertDeletedMessage {
+  if (!hasTypeProperty(value)) return false;
+  if (value.type !== 'alert_deleted') return false;
+
+  const msg = value as { type: string; data?: unknown };
+  if (!msg.data || typeof msg.data !== 'object') return false;
+
+  const data = msg.data as Record<string, unknown>;
+  return 'id' in data;
 }
 
 /**

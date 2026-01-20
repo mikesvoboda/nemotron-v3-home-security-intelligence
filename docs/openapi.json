@@ -1334,6 +1334,122 @@
         "title": "AlertmanagerStatus",
         "type": "string"
       },
+      "AlertmanagerWebhook": {
+        "description": "Schema for Alertmanager webhook payload.\n\nThis is the format Alertmanager sends when configured with a webhook receiver.\nSee: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config",
+        "example": {
+          "alerts": [
+            {
+              "annotations": {
+                "description": "CPU at 85%"
+              },
+              "endsAt": "0001-01-01T00:00:00Z",
+              "fingerprint": "abc123",
+              "labels": {
+                "alertname": "HighCPU",
+                "severity": "warning"
+              },
+              "startsAt": "2026-01-20T12:00:00Z",
+              "status": "firing"
+            }
+          ],
+          "commonAnnotations": {
+            "summary": "CPU usage is high"
+          },
+          "commonLabels": {
+            "alertname": "HighCPU",
+            "severity": "warning"
+          },
+          "externalURL": "http://alertmanager:9093",
+          "groupKey": "{}:{alertname=\"HighCPU\"}",
+          "groupLabels": {
+            "alertname": "HighCPU"
+          },
+          "receiver": "webhook-receiver",
+          "status": "firing",
+          "truncatedAlerts": 0,
+          "version": "4"
+        },
+        "properties": {
+          "alerts": {
+            "description": "List of alerts in this group",
+            "items": {
+              "$ref": "#/components/schemas/backend__api__schemas__alertmanager__AlertmanagerAlert"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "commonAnnotations": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Annotations common to all alerts",
+            "title": "Commonannotations",
+            "type": "object"
+          },
+          "commonLabels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Labels common to all alerts",
+            "title": "Commonlabels",
+            "type": "object"
+          },
+          "externalURL": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Alertmanager external URL",
+            "title": "Externalurl"
+          },
+          "groupKey": {
+            "description": "Key identifying the alert group",
+            "title": "Groupkey",
+            "type": "string"
+          },
+          "groupLabels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Labels used for grouping",
+            "title": "Grouplabels",
+            "type": "object"
+          },
+          "receiver": {
+            "description": "Name of the receiver that matched",
+            "title": "Receiver",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PrometheusAlertStatus",
+            "description": "Overall group status"
+          },
+          "truncatedAlerts": {
+            "default": 0,
+            "description": "Number of truncated alerts",
+            "title": "Truncatedalerts",
+            "type": "integer"
+          },
+          "version": {
+            "default": "4",
+            "description": "Alertmanager webhook version",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "groupKey",
+          "status",
+          "receiver",
+          "alerts"
+        ],
+        "title": "AlertmanagerWebhook",
+        "type": "object"
+      },
       "AlertmanagerWebhookPayload": {
         "description": "Schema for Alertmanager webhook payload.\n\nThis is the format Alertmanager sends when configured with a webhook receiver.\nSee: https://prometheus.io/docs/alerting/latest/configuration/#webhook_config",
         "example": {
@@ -1448,6 +1564,52 @@
           "alerts"
         ],
         "title": "AlertmanagerWebhookPayload",
+        "type": "object"
+      },
+      "AlertmanagerWebhookResponse": {
+        "description": "Response schema for the alertmanager webhook endpoint.",
+        "example": {
+          "broadcast": 2,
+          "message": "Processed 2 alert(s)",
+          "received": 2,
+          "status": "ok",
+          "stored": 2
+        },
+        "properties": {
+          "broadcast": {
+            "description": "Number of alerts broadcast via WebSocket",
+            "title": "Broadcast",
+            "type": "integer"
+          },
+          "message": {
+            "description": "Human-readable status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "received": {
+            "description": "Number of alerts received",
+            "title": "Received",
+            "type": "integer"
+          },
+          "status": {
+            "description": "Processing status (ok or error)",
+            "title": "Status",
+            "type": "string"
+          },
+          "stored": {
+            "description": "Number of alerts stored in database",
+            "title": "Stored",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "status",
+          "received",
+          "stored",
+          "broadcast",
+          "message"
+        ],
+        "title": "AlertmanagerWebhookResponse",
         "type": "object"
       },
       "AllPromptsResponse": {
@@ -1688,6 +1850,278 @@
           "period_days"
         ],
         "title": "AnomalyListResponse",
+        "type": "object"
+      },
+      "AreaCameraResponse": {
+        "description": "Schema for camera info in area context (minimal camera info).",
+        "example": {
+          "id": "front_door",
+          "name": "Front Door Camera",
+          "status": "online"
+        },
+        "properties": {
+          "id": {
+            "description": "Camera ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Camera name",
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "description": "Camera status (online, offline, error, unknown)",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "title": "AreaCameraResponse",
+        "type": "object"
+      },
+      "AreaCamerasResponse": {
+        "description": "Schema for listing cameras in an area.",
+        "example": {
+          "area_id": 1,
+          "area_name": "Front Yard",
+          "cameras": [
+            {
+              "id": "front_door",
+              "name": "Front Door Camera",
+              "status": "online"
+            }
+          ],
+          "count": 1
+        },
+        "properties": {
+          "area_id": {
+            "description": "ID of the area",
+            "title": "Area Id",
+            "type": "integer"
+          },
+          "area_name": {
+            "description": "Name of the area",
+            "title": "Area Name",
+            "type": "string"
+          },
+          "cameras": {
+            "description": "List of cameras in this area",
+            "items": {
+              "$ref": "#/components/schemas/AreaCameraResponse"
+            },
+            "title": "Cameras",
+            "type": "array"
+          },
+          "count": {
+            "description": "Number of cameras in this area",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "area_id",
+          "area_name",
+          "cameras",
+          "count"
+        ],
+        "title": "AreaCamerasResponse",
+        "type": "object"
+      },
+      "AreaCreate": {
+        "description": "Schema for creating a new area.\n\nAn area represents a logical zone within a property\n(e.g., front yard, garage, pool area).",
+        "example": {
+          "color": "#10B981",
+          "description": "Main entrance and lawn area",
+          "name": "Front Yard"
+        },
+        "properties": {
+          "color": {
+            "default": "#76B900",
+            "description": "Hex color code for UI display",
+            "maxLength": 7,
+            "title": "Color",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional longer description",
+            "title": "Description"
+          },
+          "name": {
+            "description": "Area name (e.g., 'Front Yard')",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AreaCreate",
+        "type": "object"
+      },
+      "AreaListResponse": {
+        "description": "Schema for listing areas.",
+        "example": {
+          "items": [
+            {
+              "color": "#10B981",
+              "created_at": "2026-01-20T10:00:00Z",
+              "description": "Main entrance",
+              "id": 1,
+              "name": "Front Yard",
+              "property_id": 1
+            }
+          ],
+          "total": 1
+        },
+        "properties": {
+          "items": {
+            "description": "List of areas",
+            "items": {
+              "$ref": "#/components/schemas/AreaResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of areas",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AreaListResponse",
+        "type": "object"
+      },
+      "AreaResponse": {
+        "description": "Schema for area response.",
+        "example": {
+          "color": "#10B981",
+          "created_at": "2026-01-20T10:00:00Z",
+          "description": "Main entrance and lawn area",
+          "id": 1,
+          "name": "Front Yard",
+          "property_id": 1
+        },
+        "properties": {
+          "color": {
+            "description": "Hex color code for UI",
+            "title": "Color",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "Timestamp when area was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Description",
+            "title": "Description"
+          },
+          "id": {
+            "description": "Unique area identifier",
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Area name",
+            "title": "Name",
+            "type": "string"
+          },
+          "property_id": {
+            "description": "ID of the parent property",
+            "title": "Property Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "property_id",
+          "name",
+          "color",
+          "created_at"
+        ],
+        "title": "AreaResponse",
+        "type": "object"
+      },
+      "AreaUpdate": {
+        "description": "Schema for updating an existing area.\n\nAll fields are optional; only provided fields will be updated.",
+        "example": {
+          "color": "#3B82F6",
+          "name": "Main Entrance"
+        },
+        "properties": {
+          "color": {
+            "anyOf": [
+              {
+                "maxLength": 7,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Hex color code",
+            "title": "Color"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Description",
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Area name",
+            "title": "Name"
+          }
+        },
+        "title": "AreaUpdate",
         "type": "object"
       },
       "AuditLogListResponse": {
@@ -2487,6 +2921,71 @@
         "title": "BatchInfoResponse",
         "type": "object"
       },
+      "BatchSettings": {
+        "description": "Batch processing settings for detection grouping.\n\nControls how detections are batched together before being sent to\nthe Nemotron LLM for risk analysis.",
+        "example": {
+          "idle_timeout_seconds": 30,
+          "window_seconds": 90
+        },
+        "properties": {
+          "idle_timeout_seconds": {
+            "description": "Idle timeout in seconds before processing incomplete batch",
+            "exclusiveMinimum": 0.0,
+            "title": "Idle Timeout Seconds",
+            "type": "integer"
+          },
+          "window_seconds": {
+            "description": "Time window in seconds for batch processing detections",
+            "exclusiveMinimum": 0.0,
+            "title": "Window Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "window_seconds",
+          "idle_timeout_seconds"
+        ],
+        "title": "BatchSettings",
+        "type": "object"
+      },
+      "BatchSettingsUpdate": {
+        "description": "Batch settings update schema (all fields optional).\n\nUsed for PATCH /api/v1/settings to partially update batch processing settings.",
+        "example": {
+          "window_seconds": 120
+        },
+        "properties": {
+          "idle_timeout_seconds": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 300.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Idle timeout in seconds before processing incomplete batch (max 300)",
+            "title": "Idle Timeout Seconds"
+          },
+          "window_seconds": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 600.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Time window in seconds for batch processing detections (max 600)",
+            "title": "Window Seconds"
+          }
+        },
+        "title": "BatchSettingsUpdate",
+        "type": "object"
+      },
       "BulkCancelError": {
         "description": "Error details for a single job in bulk cancellation.",
         "example": {
@@ -2822,6 +3321,58 @@
           "folder_path"
         ],
         "title": "CameraCreate",
+        "type": "object"
+      },
+      "CameraLinkRequest": {
+        "description": "Schema for linking a camera to an area.\n\nUsed to establish the many-to-many relationship between areas and cameras.\nA camera can be linked to multiple areas, and an area can have multiple cameras.",
+        "example": {
+          "camera_id": "front_door"
+        },
+        "properties": {
+          "camera_id": {
+            "description": "ID of the camera to link to this area",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Camera Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "camera_id"
+        ],
+        "title": "CameraLinkRequest",
+        "type": "object"
+      },
+      "CameraLinkResponse": {
+        "description": "Schema for camera link/unlink response.",
+        "example": {
+          "area_id": 1,
+          "camera_id": "front_door",
+          "linked": true
+        },
+        "properties": {
+          "area_id": {
+            "description": "ID of the area",
+            "title": "Area Id",
+            "type": "integer"
+          },
+          "camera_id": {
+            "description": "ID of the camera",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "linked": {
+            "description": "Whether the camera is now linked (True) or unlinked (False)",
+            "title": "Linked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "area_id",
+          "camera_id",
+          "linked"
+        ],
+        "title": "CameraLinkResponse",
         "type": "object"
       },
       "CameraListResponse": {
@@ -3345,6 +3896,27 @@
         ],
         "title": "CameraValidationInfo",
         "type": "object"
+      },
+      "CameraZoneShape": {
+        "description": "Shape of the camera zone polygon.",
+        "enum": [
+          "rectangle",
+          "polygon"
+        ],
+        "title": "CameraZoneShape",
+        "type": "string"
+      },
+      "CameraZoneType": {
+        "description": "Type of camera zone for semantic categorization.",
+        "enum": [
+          "entry_point",
+          "driveway",
+          "sidewalk",
+          "yard",
+          "other"
+        ],
+        "title": "CameraZoneType",
+        "type": "string"
       },
       "CategorySummary": {
         "description": "Summary of services in a category.\n\nProvides a quick overview of service health within a category\nfor dashboard displays.",
@@ -6187,6 +6759,73 @@
           "file_path"
         ],
         "title": "DetectionSearchResult",
+        "type": "object"
+      },
+      "DetectionSettings": {
+        "description": "Detection-related settings for object detection thresholds.\n\nControls the confidence thresholds used by RT-DETRv2 for object detection\nand fast-path processing for high-priority alerts.",
+        "example": {
+          "confidence_threshold": 0.5,
+          "fast_path_threshold": 0.9
+        },
+        "properties": {
+          "confidence_threshold": {
+            "description": "Minimum confidence threshold for object detections (0.0-1.0)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence Threshold",
+            "type": "number"
+          },
+          "fast_path_threshold": {
+            "description": "Confidence threshold for fast-path high-priority analysis (0.0-1.0)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Fast Path Threshold",
+            "type": "number"
+          }
+        },
+        "required": [
+          "confidence_threshold",
+          "fast_path_threshold"
+        ],
+        "title": "DetectionSettings",
+        "type": "object"
+      },
+      "DetectionSettingsUpdate": {
+        "description": "Detection settings update schema (all fields optional).\n\nUsed for PATCH /api/v1/settings to partially update detection settings.",
+        "example": {
+          "confidence_threshold": 0.6
+        },
+        "properties": {
+          "confidence_threshold": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Minimum confidence threshold for object detections (0.0-1.0)",
+            "title": "Confidence Threshold"
+          },
+          "fast_path_threshold": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Confidence threshold for fast-path high-priority analysis (0.0-1.0)",
+            "title": "Fast Path Threshold"
+          }
+        },
+        "title": "DetectionSettingsUpdate",
         "type": "object"
       },
       "DetectionStatsResponse": {
@@ -9552,6 +10191,141 @@
         "title": "FaceEnrichment",
         "type": "object"
       },
+      "FeatureSettings": {
+        "description": "Feature toggle settings for enabling/disabling AI pipeline components.\n\nControls which AI processing features are active in the detection pipeline.",
+        "example": {
+          "background_eval_enabled": true,
+          "clip_generation_enabled": true,
+          "image_quality_enabled": true,
+          "reid_enabled": true,
+          "scene_change_enabled": true,
+          "vision_extraction_enabled": true
+        },
+        "properties": {
+          "background_eval_enabled": {
+            "description": "Enable automatic background AI audit evaluation when GPU is idle",
+            "title": "Background Eval Enabled",
+            "type": "boolean"
+          },
+          "clip_generation_enabled": {
+            "description": "Enable automatic clip generation for events",
+            "title": "Clip Generation Enabled",
+            "type": "boolean"
+          },
+          "image_quality_enabled": {
+            "description": "Enable BRISQUE image quality assessment (CPU-based)",
+            "title": "Image Quality Enabled",
+            "type": "boolean"
+          },
+          "reid_enabled": {
+            "description": "Enable CLIP re-identification for tracking entities across cameras",
+            "title": "Reid Enabled",
+            "type": "boolean"
+          },
+          "scene_change_enabled": {
+            "description": "Enable SSIM-based scene change detection",
+            "title": "Scene Change Enabled",
+            "type": "boolean"
+          },
+          "vision_extraction_enabled": {
+            "description": "Enable Florence-2 vision extraction for vehicle/person attributes",
+            "title": "Vision Extraction Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "vision_extraction_enabled",
+          "reid_enabled",
+          "scene_change_enabled",
+          "clip_generation_enabled",
+          "image_quality_enabled",
+          "background_eval_enabled"
+        ],
+        "title": "FeatureSettings",
+        "type": "object"
+      },
+      "FeatureSettingsUpdate": {
+        "description": "Feature settings update schema (all fields optional).\n\nUsed for PATCH /api/v1/settings to partially update feature toggles.",
+        "example": {
+          "reid_enabled": false
+        },
+        "properties": {
+          "background_eval_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable automatic background AI audit evaluation when GPU is idle",
+            "title": "Background Eval Enabled"
+          },
+          "clip_generation_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable automatic clip generation for events",
+            "title": "Clip Generation Enabled"
+          },
+          "image_quality_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable BRISQUE image quality assessment (CPU-based)",
+            "title": "Image Quality Enabled"
+          },
+          "reid_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable CLIP re-identification for tracking entities across cameras",
+            "title": "Reid Enabled"
+          },
+          "scene_change_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable SSIM-based scene change detection",
+            "title": "Scene Change Enabled"
+          },
+          "vision_extraction_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable Florence-2 vision extraction for vehicle/person attributes",
+            "title": "Vision Extraction Enabled"
+          }
+        },
+        "title": "FeatureSettingsUpdate",
+        "type": "object"
+      },
       "FeedbackStatsResponse": {
         "description": "Schema for aggregate feedback statistics.\n\nReturns counts of feedback by type and by camera to help\ncalibrate the AI model's risk assessment.",
         "example": {
@@ -10986,6 +11760,61 @@
         "title": "HourlyPattern",
         "type": "object"
       },
+      "HouseholdCreate": {
+        "description": "Schema for creating a new household.\n\nA household is the top-level organizational unit that groups members,\nvehicles, and properties together.",
+        "example": {
+          "name": "Svoboda Family"
+        },
+        "properties": {
+          "name": {
+            "description": "Household name (e.g., 'Svoboda Family')",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "HouseholdCreate",
+        "type": "object"
+      },
+      "HouseholdListResponse": {
+        "description": "Schema for listing households.\n\nReturns a list of households with pagination metadata.",
+        "example": {
+          "items": [
+            {
+              "created_at": "2026-01-20T10:00:00Z",
+              "id": 1,
+              "name": "Svoboda Family"
+            }
+          ],
+          "total": 1
+        },
+        "properties": {
+          "items": {
+            "description": "List of households",
+            "items": {
+              "$ref": "#/components/schemas/HouseholdResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of households",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "HouseholdListResponse",
+        "type": "object"
+      },
       "HouseholdMemberCreate": {
         "description": "Schema for creating a new household member.",
         "example": {
@@ -11203,6 +12032,63 @@
           }
         },
         "title": "HouseholdMemberUpdate",
+        "type": "object"
+      },
+      "HouseholdResponse": {
+        "description": "Schema for household response.\n\nIncludes basic household information. Use nested endpoints or\nquery parameters to include related members, vehicles, or properties.",
+        "example": {
+          "created_at": "2026-01-20T10:00:00Z",
+          "id": 1,
+          "name": "Svoboda Family"
+        },
+        "properties": {
+          "created_at": {
+            "description": "Timestamp when household was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique household identifier",
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Household name",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at"
+        ],
+        "title": "HouseholdResponse",
+        "type": "object"
+      },
+      "HouseholdUpdate": {
+        "description": "Schema for updating an existing household.\n\nAll fields are optional; only provided fields will be updated.",
+        "example": {
+          "name": "Svoboda-Smith Family"
+        },
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Household name",
+            "title": "Name"
+          }
+        },
+        "title": "HouseholdUpdate",
         "type": "object"
       },
       "ImageQualityEnrichment": {
@@ -16266,6 +17152,15 @@
         "title": "ProfileStopResponse",
         "type": "object"
       },
+      "PrometheusAlertStatus": {
+        "description": "Prometheus alert status values.",
+        "enum": [
+          "firing",
+          "resolved"
+        ],
+        "title": "PrometheusAlertStatus",
+        "type": "string"
+      },
       "PromptDiffEntry": {
         "description": "Diff entry for a single model's configuration.",
         "example": {
@@ -17025,6 +17920,197 @@
         "title": "PromptsImportResponse",
         "type": "object"
       },
+      "PropertyCreate": {
+        "description": "Schema for creating a new property.\n\nA property represents a physical location within a household\n(e.g., main house, beach house).",
+        "example": {
+          "address": "123 Main St, City, ST 12345",
+          "name": "Main House",
+          "timezone": "America/New_York"
+        },
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional street address",
+            "title": "Address"
+          },
+          "name": {
+            "description": "Property name (e.g., 'Main House')",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "timezone": {
+            "default": "UTC",
+            "description": "Timezone for the property (IANA format)",
+            "maxLength": 50,
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PropertyCreate",
+        "type": "object"
+      },
+      "PropertyListResponse": {
+        "description": "Schema for listing properties.",
+        "example": {
+          "items": [
+            {
+              "address": "123 Main St",
+              "created_at": "2026-01-20T10:00:00Z",
+              "household_id": 1,
+              "id": 1,
+              "name": "Main House",
+              "timezone": "America/New_York"
+            }
+          ],
+          "total": 1
+        },
+        "properties": {
+          "items": {
+            "description": "List of properties",
+            "items": {
+              "$ref": "#/components/schemas/PropertyResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of properties",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "PropertyListResponse",
+        "type": "object"
+      },
+      "PropertyResponse": {
+        "description": "Schema for property response.",
+        "example": {
+          "address": "123 Main St, City, ST 12345",
+          "created_at": "2026-01-20T10:00:00Z",
+          "household_id": 1,
+          "id": 1,
+          "name": "Main House",
+          "timezone": "America/New_York"
+        },
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Street address",
+            "title": "Address"
+          },
+          "created_at": {
+            "description": "Timestamp when property was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "household_id": {
+            "description": "ID of the owning household",
+            "title": "Household Id",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Unique property identifier",
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Property name",
+            "title": "Name",
+            "type": "string"
+          },
+          "timezone": {
+            "description": "Timezone (IANA format)",
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "household_id",
+          "name",
+          "timezone",
+          "created_at"
+        ],
+        "title": "PropertyResponse",
+        "type": "object"
+      },
+      "PropertyUpdate": {
+        "description": "Schema for updating an existing property.\n\nAll fields are optional; only provided fields will be updated.",
+        "example": {
+          "name": "Main Residence",
+          "timezone": "America/Chicago"
+        },
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Street address",
+            "title": "Address"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Property name",
+            "title": "Name"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timezone (IANA format)",
+            "title": "Timezone"
+          }
+        },
+        "title": "PropertyUpdate",
+        "type": "object"
+      },
       "QualityScores": {
         "description": "Self-evaluation quality scores (1-5 scale).",
         "example": {
@@ -17140,6 +18226,72 @@
         ],
         "title": "QueueHealthStatus",
         "type": "string"
+      },
+      "QueueSettings": {
+        "description": "Queue settings for Redis-based processing queues.\n\nControls queue size limits and backpressure thresholds for the detection\nand analysis processing queues.",
+        "example": {
+          "backpressure_threshold": 0.8,
+          "max_size": 10000
+        },
+        "properties": {
+          "backpressure_threshold": {
+            "description": "Queue fill ratio (0.0-1.0) at which to start backpressure warnings",
+            "maximum": 1.0,
+            "minimum": 0.5,
+            "title": "Backpressure Threshold",
+            "type": "number"
+          },
+          "max_size": {
+            "description": "Maximum size of Redis queues",
+            "minimum": 100.0,
+            "title": "Max Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "max_size",
+          "backpressure_threshold"
+        ],
+        "title": "QueueSettings",
+        "type": "object"
+      },
+      "QueueSettingsUpdate": {
+        "description": "Queue settings update schema (all fields optional).\n\nUsed for PATCH /api/v1/settings to partially update queue configuration.",
+        "example": {
+          "max_size": 15000
+        },
+        "properties": {
+          "backpressure_threshold": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.5,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Queue fill ratio (0.0-1.0) at which to start backpressure warnings",
+            "title": "Backpressure Threshold"
+          },
+          "max_size": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 100.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Maximum size of Redis queues",
+            "title": "Max Size"
+          }
+        },
+        "title": "QueueSettingsUpdate",
+        "type": "object"
       },
       "QueueStatus": {
         "description": "Status of a single job queue.",
@@ -17571,6 +18723,90 @@
           "message"
         ],
         "title": "RUMIngestResponse",
+        "type": "object"
+      },
+      "RateLimitingSettings": {
+        "description": "Rate limiting settings for API protection.\n\nControls request rate limits to prevent abuse and ensure fair resource usage.",
+        "example": {
+          "burst_size": 10,
+          "enabled": true,
+          "requests_per_minute": 60
+        },
+        "properties": {
+          "burst_size": {
+            "description": "Additional burst allowance for short request spikes",
+            "minimum": 1.0,
+            "title": "Burst Size",
+            "type": "integer"
+          },
+          "enabled": {
+            "description": "Enable rate limiting for API endpoints",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "requests_per_minute": {
+            "description": "Maximum requests per minute per client IP",
+            "minimum": 1.0,
+            "title": "Requests Per Minute",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled",
+          "requests_per_minute",
+          "burst_size"
+        ],
+        "title": "RateLimitingSettings",
+        "type": "object"
+      },
+      "RateLimitingSettingsUpdate": {
+        "description": "Rate limiting settings update schema (all fields optional).\n\nUsed for PATCH /api/v1/settings to partially update rate limiting.",
+        "example": {
+          "requests_per_minute": 120
+        },
+        "properties": {
+          "burst_size": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional burst allowance for short request spikes",
+            "title": "Burst Size"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable rate limiting for API endpoints",
+            "title": "Enabled"
+          },
+          "requests_per_minute": {
+            "anyOf": [
+              {
+                "maximum": 10000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Maximum requests per minute per client IP",
+            "title": "Requests Per Minute"
+          }
+        },
+        "title": "RateLimitingSettingsUpdate",
         "type": "object"
       },
       "ReadinessResponse": {
@@ -18353,6 +19589,71 @@
           "pagination"
         ],
         "title": "RestartHistoryResponse",
+        "type": "object"
+      },
+      "RetentionSettings": {
+        "description": "Data retention settings for events and logs.\n\nControls how long events, detections, and logs are retained before cleanup.",
+        "example": {
+          "days": 30,
+          "log_days": 7
+        },
+        "properties": {
+          "days": {
+            "description": "Number of days to retain events and detections",
+            "exclusiveMinimum": 0.0,
+            "title": "Days",
+            "type": "integer"
+          },
+          "log_days": {
+            "description": "Number of days to retain logs",
+            "exclusiveMinimum": 0.0,
+            "title": "Log Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "days",
+          "log_days"
+        ],
+        "title": "RetentionSettings",
+        "type": "object"
+      },
+      "RetentionSettingsUpdate": {
+        "description": "Retention settings update schema (all fields optional).\n\nUsed for PATCH /api/v1/settings to partially update retention policies.",
+        "example": {
+          "days": 60
+        },
+        "properties": {
+          "days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of days to retain events and detections (1-365)",
+            "title": "Days"
+          },
+          "log_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of days to retain logs (1-365)",
+            "title": "Log Days"
+          }
+        },
+        "title": "RetentionSettingsUpdate",
         "type": "object"
       },
       "RiskDistributionItem": {
@@ -19567,6 +20868,178 @@
         "title": "ServicesResponse",
         "type": "object"
       },
+      "SettingsResponse": {
+        "description": "Complete settings response with all configurable settings grouped by category.\n\nThis is the response schema for GET /api/v1/settings, containing all\nuser-configurable settings organized into logical groups.",
+        "example": {
+          "batch": {
+            "idle_timeout_seconds": 30,
+            "window_seconds": 90
+          },
+          "detection": {
+            "confidence_threshold": 0.5,
+            "fast_path_threshold": 0.9
+          },
+          "features": {
+            "background_eval_enabled": true,
+            "clip_generation_enabled": true,
+            "image_quality_enabled": true,
+            "reid_enabled": true,
+            "scene_change_enabled": true,
+            "vision_extraction_enabled": true
+          },
+          "queue": {
+            "backpressure_threshold": 0.8,
+            "max_size": 10000
+          },
+          "rate_limiting": {
+            "burst_size": 10,
+            "enabled": true,
+            "requests_per_minute": 60
+          },
+          "retention": {
+            "days": 30,
+            "log_days": 7
+          },
+          "severity": {
+            "high_max": 84,
+            "low_max": 29,
+            "medium_max": 59
+          }
+        },
+        "properties": {
+          "batch": {
+            "$ref": "#/components/schemas/BatchSettings",
+            "description": "Batch processing settings"
+          },
+          "detection": {
+            "$ref": "#/components/schemas/DetectionSettings",
+            "description": "Detection confidence threshold settings"
+          },
+          "features": {
+            "$ref": "#/components/schemas/FeatureSettings",
+            "description": "Feature toggle settings"
+          },
+          "queue": {
+            "$ref": "#/components/schemas/QueueSettings",
+            "description": "Queue settings"
+          },
+          "rate_limiting": {
+            "$ref": "#/components/schemas/RateLimitingSettings",
+            "description": "Rate limiting settings"
+          },
+          "retention": {
+            "$ref": "#/components/schemas/RetentionSettings",
+            "description": "Data retention settings"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/SeveritySettings",
+            "description": "Severity threshold settings for risk categorization"
+          }
+        },
+        "required": [
+          "detection",
+          "batch",
+          "severity",
+          "features",
+          "rate_limiting",
+          "queue",
+          "retention"
+        ],
+        "title": "SettingsResponse",
+        "type": "object"
+      },
+      "SettingsUpdate": {
+        "description": "Schema for updating runtime settings via PATCH.\n\nAll fields are optional to support partial updates. Only provided\nfields will be updated. Changes are written to data/runtime.env\nand take effect immediately without server restart.",
+        "example": {
+          "detection": {
+            "confidence_threshold": 0.6
+          },
+          "features": {
+            "reid_enabled": false
+          }
+        },
+        "properties": {
+          "batch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BatchSettingsUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Batch processing settings"
+          },
+          "detection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DetectionSettingsUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Detection confidence threshold settings"
+          },
+          "features": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeatureSettingsUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Feature toggle settings"
+          },
+          "queue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QueueSettingsUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Queue settings"
+          },
+          "rate_limiting": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RateLimitingSettingsUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Rate limiting settings"
+          },
+          "retention": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RetentionSettingsUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Data retention settings"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeveritySettingsUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Severity threshold settings for risk categorization"
+          }
+        },
+        "title": "SettingsUpdate",
+        "type": "object"
+      },
       "SeverityDefinitionResponse": {
         "description": "Definition of a single severity level.",
         "example": {
@@ -19710,6 +21183,96 @@
           "thresholds"
         ],
         "title": "SeverityMetadataResponse",
+        "type": "object"
+      },
+      "SeveritySettings": {
+        "description": "Severity threshold settings for risk score categorization.\n\nDefines the maximum risk score values for each severity level.\nRisk scores are 0-100, and severity is determined by:\n- LOW: 0 to low_max\n- MEDIUM: low_max+1 to medium_max\n- HIGH: medium_max+1 to high_max\n- CRITICAL: above high_max",
+        "example": {
+          "high_max": 84,
+          "low_max": 29,
+          "medium_max": 59
+        },
+        "properties": {
+          "high_max": {
+            "description": "Maximum risk score for HIGH severity (above = CRITICAL)",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "High Max",
+            "type": "integer"
+          },
+          "low_max": {
+            "description": "Maximum risk score for LOW severity (0 to this value = LOW)",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Low Max",
+            "type": "integer"
+          },
+          "medium_max": {
+            "description": "Maximum risk score for MEDIUM severity",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Medium Max",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "low_max",
+          "medium_max",
+          "high_max"
+        ],
+        "title": "SeveritySettings",
+        "type": "object"
+      },
+      "SeveritySettingsUpdate": {
+        "description": "Severity settings update schema (all fields optional).\n\nUsed for PATCH /api/v1/settings to partially update severity thresholds.\nValidates that severity thresholds maintain proper ordering (low < medium < high).",
+        "example": {
+          "low_max": 25
+        },
+        "properties": {
+          "high_max": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Maximum risk score for HIGH severity (above = CRITICAL)",
+            "title": "High Max"
+          },
+          "low_max": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Maximum risk score for LOW severity (0 to this value = LOW)",
+            "title": "Low Max"
+          },
+          "medium_max": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Maximum risk score for MEDIUM severity",
+            "title": "Medium Max"
+          }
+        },
+        "title": "SeveritySettingsUpdate",
         "type": "object"
       },
       "SeverityThresholds": {
@@ -21633,12 +23196,12 @@
             "type": "integer"
           },
           "shape": {
-            "$ref": "#/components/schemas/ZoneShape",
+            "$ref": "#/components/schemas/CameraZoneShape",
             "default": "rectangle",
             "description": "Shape of the zone"
           },
           "zone_type": {
-            "$ref": "#/components/schemas/ZoneType",
+            "$ref": "#/components/schemas/CameraZoneType",
             "default": "other",
             "description": "Type of zone"
           }
@@ -21794,7 +23357,7 @@
             "type": "integer"
           },
           "shape": {
-            "$ref": "#/components/schemas/ZoneShape",
+            "$ref": "#/components/schemas/CameraZoneShape",
             "description": "Shape of the zone"
           },
           "updated_at": {
@@ -21804,7 +23367,7 @@
             "type": "string"
           },
           "zone_type": {
-            "$ref": "#/components/schemas/ZoneType",
+            "$ref": "#/components/schemas/CameraZoneType",
             "description": "Type of zone"
           }
         },
@@ -21823,27 +23386,6 @@
         ],
         "title": "ZoneResponse",
         "type": "object"
-      },
-      "ZoneShape": {
-        "description": "Shape of the zone polygon.",
-        "enum": [
-          "rectangle",
-          "polygon"
-        ],
-        "title": "ZoneShape",
-        "type": "string"
-      },
-      "ZoneType": {
-        "description": "Type of zone for semantic categorization.",
-        "enum": [
-          "entry_point",
-          "driveway",
-          "sidewalk",
-          "yard",
-          "other"
-        ],
-        "title": "ZoneType",
-        "type": "string"
       },
       "ZoneUpdate": {
         "description": "Schema for updating an existing zone.",
@@ -21927,7 +23469,7 @@
           "shape": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ZoneShape"
+                "$ref": "#/components/schemas/CameraZoneShape"
               },
               {
                 "type": "null"
@@ -21938,7 +23480,7 @@
           "zone_type": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ZoneType"
+                "$ref": "#/components/schemas/CameraZoneType"
               },
               {
                 "type": "null"
@@ -21948,6 +23490,90 @@
           }
         },
         "title": "ZoneUpdate",
+        "type": "object"
+      },
+      "backend__api__schemas__alertmanager__AlertmanagerAlert": {
+        "description": "Schema for a single alert in Alertmanager webhook payload.\n\nRepresents one alert instance with its labels, annotations, and timing.\nThis schema matches the Alertmanager webhook format.",
+        "example": {
+          "annotations": {
+            "description": "CPU usage is above 80% for 5 minutes",
+            "summary": "CPU usage is high"
+          },
+          "endsAt": "0001-01-01T00:00:00Z",
+          "fingerprint": "abc123def456",
+          "generatorURL": "http://prometheus:9090/graph?...",
+          "labels": {
+            "alertname": "HighCPU",
+            "instance": "localhost:9090",
+            "severity": "warning"
+          },
+          "startsAt": "2026-01-20T12:00:00Z",
+          "status": "firing"
+        },
+        "properties": {
+          "annotations": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Alert annotations (summary, description)",
+            "title": "Annotations",
+            "type": "object"
+          },
+          "endsAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the alert was resolved",
+            "title": "Endsat"
+          },
+          "fingerprint": {
+            "description": "Unique identifier for alert deduplication",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "generatorURL": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL to the Prometheus graph",
+            "title": "Generatorurl"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Alert labels (alertname, severity, etc.)",
+            "title": "Labels",
+            "type": "object"
+          },
+          "startsAt": {
+            "description": "When the alert started firing",
+            "format": "date-time",
+            "title": "Startsat",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PrometheusAlertStatus",
+            "description": "Alert status (firing or resolved)"
+          }
+        },
+        "required": [
+          "fingerprint",
+          "status",
+          "startsAt"
+        ],
+        "title": "AlertmanagerAlert",
         "type": "object"
       }
     }
@@ -24515,7 +26141,7 @@
         ]
       },
       "get": {
-        "description": "Get a specific zone by ID.\n\nArgs:\n    camera_id: ID of the camera\n    zone_id: ID of the zone\n    db: Database session\n\nReturns:\n    Zone object\n\nRaises:\n    HTTPException: 404 if zone not found",
+        "description": "Get a specific zone by ID.\n\nArgs:\n    camera_id: ID of the camera\n    zone_id: ID of the zone\n    db: Database session\n\nReturns:\n    CameraZone object\n\nRaises:\n    HTTPException: 404 if zone not found",
         "operationId": "get_zone_api_cameras__camera_id__zones__zone_id__get",
         "parameters": [
           {
@@ -33871,6 +35497,882 @@
         "summary": "List Websocket Event Types",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/api/v1/alertmanager/webhook": {
+      "post": {
+        "description": "Receive webhook notifications from Alertmanager.\n\nThis endpoint receives alerts from Prometheus Alertmanager and:\n1. Stores each alert in the database for history tracking\n2. Broadcasts each alert via WebSocket for real-time frontend updates\n3. Returns acknowledgment to Alertmanager\n\nThe alerts are infrastructure alerts (GPU memory, pipeline health, etc.)\nwhich are stored for history and displayed alongside security alerts.\n\nArgs:\n    payload: Alertmanager webhook payload containing alert details\n    db: Database session (injected)\n    redis_client: Redis client for WebSocket broadcasting (optional)\n\nReturns:\n    AlertmanagerWebhookResponse with processing status",
+        "operationId": "receive_alertmanager_webhook_api_v1_alertmanager_webhook_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertmanagerWebhook"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertmanagerWebhookResponse"
+                }
+              }
+            },
+            "description": "Webhook received and processed"
+          },
+          "422": {
+            "description": "Invalid payload format"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Receive Alertmanager Webhook",
+        "tags": [
+          "alertmanager"
+        ]
+      }
+    },
+    "/api/v1/areas/{area_id}": {
+      "delete": {
+        "description": "Delete an area.\n\nThis will unlink all cameras associated with this area (cameras themselves\nare not deleted, only the association).\n\nArgs:\n    area_id: ID of the area to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if area not found",
+        "operationId": "delete_area_api_v1_areas__area_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "area_id",
+            "required": true,
+            "schema": {
+              "title": "Area Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Area",
+        "tags": [
+          "areas"
+        ]
+      },
+      "get": {
+        "description": "Get a specific area by ID.\n\nArgs:\n    area_id: ID of the area to retrieve\n    session: Database session\n\nReturns:\n    Area object\n\nRaises:\n    HTTPException: 404 if area not found",
+        "operationId": "get_area_api_v1_areas__area_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "area_id",
+            "required": true,
+            "schema": {
+              "title": "Area Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AreaResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Area",
+        "tags": [
+          "areas"
+        ]
+      },
+      "patch": {
+        "description": "Update an existing area.\n\nArgs:\n    area_id: ID of the area to update\n    updates: Area update data (all fields optional)\n    session: Database session\n\nReturns:\n    Updated Area object\n\nRaises:\n    HTTPException: 404 if area not found\n    HTTPException: 409 if new name conflicts with existing area in same property",
+        "operationId": "update_area_api_v1_areas__area_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "area_id",
+            "required": true,
+            "schema": {
+              "title": "Area Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AreaUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AreaResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Area",
+        "tags": [
+          "areas"
+        ]
+      }
+    },
+    "/api/v1/areas/{area_id}/cameras": {
+      "get": {
+        "description": "List all cameras linked to an area.\n\nArgs:\n    area_id: ID of the area\n    session: Database session\n\nReturns:\n    AreaCamerasResponse with list of cameras and count\n\nRaises:\n    HTTPException: 404 if area not found",
+        "operationId": "list_area_cameras_api_v1_areas__area_id__cameras_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "area_id",
+            "required": true,
+            "schema": {
+              "title": "Area Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AreaCamerasResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Area Cameras",
+        "tags": [
+          "areas"
+        ]
+      },
+      "post": {
+        "description": "Link a camera to an area.\n\nCreates a many-to-many relationship between the area and camera.\nA camera can be linked to multiple areas, and an area can have multiple cameras.\n\nArgs:\n    area_id: ID of the area\n    link_request: Contains the camera_id to link\n    session: Database session\n\nReturns:\n    CameraLinkResponse confirming the link\n\nRaises:\n    HTTPException: 404 if area or camera not found\n    HTTPException: 409 if camera is already linked to this area",
+        "operationId": "link_camera_to_area_api_v1_areas__area_id__cameras_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "area_id",
+            "required": true,
+            "schema": {
+              "title": "Area Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CameraLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraLinkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link Camera To Area",
+        "tags": [
+          "areas"
+        ]
+      }
+    },
+    "/api/v1/areas/{area_id}/cameras/{camera_id}": {
+      "delete": {
+        "description": "Unlink a camera from an area.\n\nRemoves the many-to-many relationship between the area and camera.\nNeither the area nor the camera is deleted.\n\nArgs:\n    area_id: ID of the area\n    camera_id: ID of the camera to unlink\n    session: Database session\n\nReturns:\n    CameraLinkResponse confirming the unlink\n\nRaises:\n    HTTPException: 404 if area or camera not found\n    HTTPException: 404 if camera is not linked to this area",
+        "operationId": "unlink_camera_from_area_api_v1_areas__area_id__cameras__camera_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "area_id",
+            "required": true,
+            "schema": {
+              "title": "Area Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraLinkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unlink Camera From Area",
+        "tags": [
+          "areas"
+        ]
+      }
+    },
+    "/api/v1/households": {
+      "get": {
+        "description": "List all households.\n\nReturns all households in the system ordered by name.\n\nArgs:\n    session: Database session\n\nReturns:\n    HouseholdListResponse with list of households and total count",
+        "operationId": "list_households_api_v1_households_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Households",
+        "tags": [
+          "households"
+        ]
+      },
+      "post": {
+        "description": "Create a new household.\n\nArgs:\n    household_data: Household creation data\n    session: Database session\n\nReturns:\n    Created Household object\n\nRaises:\n    HTTPException: 409 if household with same name already exists",
+        "operationId": "create_household_api_v1_households_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Household",
+        "tags": [
+          "households"
+        ]
+      }
+    },
+    "/api/v1/households/{household_id}": {
+      "delete": {
+        "description": "Delete a household.\n\nThis will cascade delete all related properties, areas, and unlink\nassociated members and vehicles.\n\nArgs:\n    household_id: ID of the household to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if household not found",
+        "operationId": "delete_household_api_v1_households__household_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "household_id",
+            "required": true,
+            "schema": {
+              "title": "Household Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Household",
+        "tags": [
+          "households"
+        ]
+      },
+      "get": {
+        "description": "Get a specific household by ID.\n\nArgs:\n    household_id: ID of the household to retrieve\n    session: Database session\n\nReturns:\n    Household object\n\nRaises:\n    HTTPException: 404 if household not found",
+        "operationId": "get_household_api_v1_households__household_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "household_id",
+            "required": true,
+            "schema": {
+              "title": "Household Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Household",
+        "tags": [
+          "households"
+        ]
+      },
+      "patch": {
+        "description": "Update an existing household.\n\nArgs:\n    household_id: ID of the household to update\n    updates: Household update data (all fields optional)\n    session: Database session\n\nReturns:\n    Updated Household object\n\nRaises:\n    HTTPException: 404 if household not found\n    HTTPException: 409 if new name conflicts with existing household",
+        "operationId": "update_household_api_v1_households__household_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "household_id",
+            "required": true,
+            "schema": {
+              "title": "Household Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HouseholdUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseholdResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Household",
+        "tags": [
+          "households"
+        ]
+      }
+    },
+    "/api/v1/households/{household_id}/properties": {
+      "get": {
+        "description": "List all properties for a household.\n\nArgs:\n    household_id: ID of the household\n    session: Database session\n\nReturns:\n    PropertyListResponse with list of properties and total count\n\nRaises:\n    HTTPException: 404 if household not found",
+        "operationId": "list_household_properties_api_v1_households__household_id__properties_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "household_id",
+            "required": true,
+            "schema": {
+              "title": "Household Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Household Properties",
+        "tags": [
+          "households"
+        ]
+      },
+      "post": {
+        "description": "Create a new property under a household.\n\nArgs:\n    household_id: ID of the household that owns this property\n    property_data: Property creation data\n    session: Database session\n\nReturns:\n    Created Property object\n\nRaises:\n    HTTPException: 404 if household not found\n    HTTPException: 409 if property with same name already exists for this household",
+        "operationId": "create_property_api_v1_households__household_id__properties_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "household_id",
+            "required": true,
+            "schema": {
+              "title": "Household Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PropertyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Property",
+        "tags": [
+          "households"
+        ]
+      }
+    },
+    "/api/v1/properties/{property_id}": {
+      "delete": {
+        "description": "Delete a property.\n\nThis will cascade delete all related areas and unlink associated cameras.\n\nArgs:\n    property_id: ID of the property to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if property not found",
+        "operationId": "delete_property_api_v1_properties__property_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "property_id",
+            "required": true,
+            "schema": {
+              "title": "Property Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Property",
+        "tags": [
+          "properties"
+        ]
+      },
+      "get": {
+        "description": "Get a specific property by ID.\n\nArgs:\n    property_id: ID of the property to retrieve\n    session: Database session\n\nReturns:\n    Property object\n\nRaises:\n    HTTPException: 404 if property not found",
+        "operationId": "get_property_api_v1_properties__property_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "property_id",
+            "required": true,
+            "schema": {
+              "title": "Property Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Property",
+        "tags": [
+          "properties"
+        ]
+      },
+      "patch": {
+        "description": "Update an existing property.\n\nArgs:\n    property_id: ID of the property to update\n    updates: Property update data (all fields optional)\n    session: Database session\n\nReturns:\n    Updated Property object\n\nRaises:\n    HTTPException: 404 if property not found\n    HTTPException: 409 if new name conflicts with existing property in same household",
+        "operationId": "update_property_api_v1_properties__property_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "property_id",
+            "required": true,
+            "schema": {
+              "title": "Property Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PropertyUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PropertyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Property",
+        "tags": [
+          "properties"
+        ]
+      }
+    },
+    "/api/v1/properties/{property_id}/areas": {
+      "get": {
+        "description": "List all areas for a property.\n\nArgs:\n    property_id: ID of the property\n    session: Database session\n\nReturns:\n    AreaListResponse with list of areas and total count\n\nRaises:\n    HTTPException: 404 if property not found",
+        "operationId": "list_property_areas_api_v1_properties__property_id__areas_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "property_id",
+            "required": true,
+            "schema": {
+              "title": "Property Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AreaListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Property Areas",
+        "tags": [
+          "properties"
+        ]
+      },
+      "post": {
+        "description": "Create a new area under a property.\n\nArgs:\n    property_id: ID of the property that owns this area\n    area_data: Area creation data\n    session: Database session\n\nReturns:\n    Created Area object\n\nRaises:\n    HTTPException: 404 if property not found\n    HTTPException: 409 if area with same name already exists for this property",
+        "operationId": "create_area_api_v1_properties__property_id__areas_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "property_id",
+            "required": true,
+            "schema": {
+              "title": "Property Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AreaCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AreaResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Area",
+        "tags": [
+          "properties"
+        ]
+      }
+    },
+    "/api/v1/settings": {
+      "get": {
+        "description": "Returns user-configurable settings grouped by category. These settings control detection thresholds, batch processing, severity levels, feature toggles, rate limiting, queue management, and data retention policies.",
+        "operationId": "get_user_settings_api_v1_settings_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get current system settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "description": "Update system settings at runtime without server restart. Changes are written to data/runtime.env and take effect immediately. All fields are optional - only provided fields will be updated.",
+        "operationId": "update_settings_api_v1_settings_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsResponse"
+                }
+              }
+            },
+            "description": "Settings updated successfully"
+          },
+          "422": {
+            "description": "Validation error (e.g., invalid severity ordering)"
+          },
+          "500": {
+            "description": "Failed to write settings to runtime.env"
+          }
+        },
+        "summary": "Update runtime settings",
+        "tags": [
+          "settings"
         ]
       }
     },

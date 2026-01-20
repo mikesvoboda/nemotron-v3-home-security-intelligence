@@ -2,11 +2,12 @@
  * useAlertWebSocket - WebSocket hook for real-time alert state changes
  *
  * This hook subscribes to WebSocket alert events and provides callbacks
- * for handling alert state changes (created, updated, acknowledged, resolved).
+ * for handling alert state changes (created, updated, deleted, acknowledged, resolved).
  *
  * Events handled:
  * - alert_created: New alert triggered from rule evaluation
  * - alert_updated: Alert modified (metadata, channels updated)
+ * - alert_deleted: Alert permanently deleted from the system
  * - alert_acknowledged: Alert marked as seen by user
  * - alert_resolved: Alert resolved/dismissed
  *
@@ -17,13 +18,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useCallback, useRef } from 'react';
 
 import { alertsQueryKeys } from './useAlertsQuery';
+import { useToast } from './useToast';
 import { useWebSocket, type WebSocketOptions } from './useWebSocket';
 import { logger } from '../services/logger';
 import {
   type WebSocketAlertData,
+  type WebSocketAlertDeletedData,
   isAlertMessage,
   isAlertCreatedMessage,
   isAlertUpdatedMessage,
+  isAlertDeletedMessage,
   isAlertAcknowledgedMessage,
   isAlertResolvedMessage,
 } from '../types/generated/websocket';
@@ -33,9 +37,14 @@ import {
 // ============================================================================
 
 /**
- * Alert event handler callback type
+ * Alert event handler callback type for most alert events
  */
 export type AlertEventHandler = (alert: WebSocketAlertData) => void;
+
+/**
+ * Alert deleted event handler callback type (uses different data shape)
+ */
+export type AlertDeletedEventHandler = (data: WebSocketAlertDeletedData) => void;
 
 /**
  * Options for configuring the useAlertWebSocket hook
@@ -54,6 +63,12 @@ export interface UseAlertWebSocketOptions {
   autoInvalidateCache?: boolean;
 
   /**
+   * Whether to show toast notifications for alert deletion events
+   * @default true
+   */
+  showToasts?: boolean;
+
+  /**
    * Called when a new alert is created
    */
   onAlertCreated?: AlertEventHandler;
@@ -62,6 +77,11 @@ export interface UseAlertWebSocketOptions {
    * Called when an alert is updated
    */
   onAlertUpdated?: AlertEventHandler;
+
+  /**
+   * Called when an alert is deleted
+   */
+  onAlertDeleted?: AlertDeletedEventHandler;
 
   /**
    * Called when an alert is acknowledged
@@ -134,6 +154,10 @@ const DEFAULT_WS_URL =
  *     console.log('New alert:', alert.id);
  *     showNotification('New alert received');
  *   },
+ *   onAlertDeleted: (data) => {
+ *     console.log('Alert deleted:', data.id, data.reason);
+ *     showToast('Alert dismissed');
+ *   },
  *   onAlertAcknowledged: (alert) => {
  *     console.log('Alert acknowledged:', alert.id);
  *   },
@@ -144,8 +168,10 @@ export function useAlertWebSocket(options: UseAlertWebSocketOptions = {}): UseAl
   const {
     url: urlOption = DEFAULT_WS_URL,
     autoInvalidateCache = true,
+    showToasts = true,
     onAlertCreated,
     onAlertUpdated,
+    onAlertDeleted,
     onAlertAcknowledged,
     onAlertResolved,
     onAnyAlertEvent,
@@ -154,6 +180,7 @@ export function useAlertWebSocket(options: UseAlertWebSocketOptions = {}): UseAl
   const url: string = urlOption;
 
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   // Track last alert state
   const lastAlertRef = useRef<WebSocketAlertData | null>(null);
@@ -162,17 +189,21 @@ export function useAlertWebSocket(options: UseAlertWebSocketOptions = {}): UseAl
   // Store callbacks in refs to avoid stale closures
   const onAlertCreatedRef = useRef(onAlertCreated);
   const onAlertUpdatedRef = useRef(onAlertUpdated);
+  const onAlertDeletedRef = useRef(onAlertDeleted);
   const onAlertAcknowledgedRef = useRef(onAlertAcknowledged);
   const onAlertResolvedRef = useRef(onAlertResolved);
   const onAnyAlertEventRef = useRef(onAnyAlertEvent);
+  const showToastsRef = useRef(showToasts);
 
   // Update refs when callbacks change
   useEffect(() => {
     onAlertCreatedRef.current = onAlertCreated;
     onAlertUpdatedRef.current = onAlertUpdated;
+    onAlertDeletedRef.current = onAlertDeleted;
     onAlertAcknowledgedRef.current = onAlertAcknowledged;
     onAlertResolvedRef.current = onAlertResolved;
     onAnyAlertEventRef.current = onAnyAlertEvent;
+    showToastsRef.current = showToasts;
   });
 
   // Invalidate alerts query cache to trigger refetch
@@ -189,8 +220,41 @@ export function useAlertWebSocket(options: UseAlertWebSocketOptions = {}): UseAl
       }
 
       const alertMessage = data;
-      const alertData = alertMessage.data;
       const eventType = alertMessage.type;
+
+      // Handle deleted alerts specially (different data shape)
+      if (isAlertDeletedMessage(data)) {
+        const deletedData = data.data;
+
+        // Update event type ref (don't update lastAlertRef since deleted alerts have different shape)
+        lastEventTypeRef.current = eventType;
+
+        // Log the event
+        logger.debug('Alert deleted WebSocket event received', {
+          component: 'useAlertWebSocket',
+          eventType,
+          alertId: deletedData.id,
+          reason: deletedData.reason,
+        });
+
+        // Show toast notification
+        if (showToastsRef.current) {
+          toast.info('Alert dismissed', { duration: 3000 });
+        }
+
+        // Call the deleted handler
+        onAlertDeletedRef.current?.(deletedData);
+
+        // Invalidate cache to trigger refetch (removes deleted alert from list)
+        if (autoInvalidateCache) {
+          invalidateAlertsCache();
+        }
+
+        return;
+      }
+
+      // For all other alert types, use the full alert data
+      const alertData = alertMessage.data as WebSocketAlertData;
 
       // Update refs
       lastAlertRef.current = alertData;
@@ -224,7 +288,7 @@ export function useAlertWebSocket(options: UseAlertWebSocketOptions = {}): UseAl
         invalidateAlertsCache();
       }
     },
-    [autoInvalidateCache, invalidateAlertsCache]
+    [autoInvalidateCache, invalidateAlertsCache, toast]
   );
 
   // Configure WebSocket options

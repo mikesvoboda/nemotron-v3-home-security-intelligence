@@ -19,8 +19,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from backend.models.camera_zone import CameraZone, CameraZoneShape, CameraZoneType
 from backend.models.detection import Detection
-from backend.models.zone import Zone, ZoneShape, ZoneType
 from backend.services.zone_service import (
     ApproachVector,
     _distance,
@@ -38,6 +38,11 @@ from backend.services.zone_service import (
     point_in_zone,
     zones_to_context,
 )
+
+# Aliases for backward compatibility
+Zone = CameraZone
+ZoneShape = CameraZoneShape
+ZoneType = CameraZoneType
 
 # =============================================================================
 # Fixtures
