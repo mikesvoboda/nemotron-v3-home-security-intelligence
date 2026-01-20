@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 
 import DashboardPage from './DashboardPage';
+import * as useAIMetricsHook from '../../hooks/useAIMetrics';
 import * as useEventStreamHook from '../../hooks/useEventStream';
 import * as useSummariesHook from '../../hooks/useSummaries';
 import * as useSystemStatusHook from '../../hooks/useSystemStatus';
@@ -32,6 +33,9 @@ vi.mock('../../hooks/useSummaries', () => ({
 }));
 vi.mock('../../hooks/useSystemStatus', () => ({
   useSystemStatus: vi.fn(),
+}));
+vi.mock('../../hooks/useAIMetrics', () => ({
+  useAIMetrics: vi.fn(),
 }));
 
 // Mock child components
@@ -230,6 +234,45 @@ vi.mock('./SummaryCards', () => ({
   ),
 }));
 
+vi.mock('../ai-performance/AIPerformanceSummaryRow', () => ({
+  default: ({
+    rtdetr,
+    nemotron,
+    detectionQueueDepth,
+    analysisQueueDepth,
+    totalDetections,
+    totalEvents,
+    totalErrors,
+  }: {
+    rtdetr: { name: string; status: string };
+    nemotron: { name: string; status: string };
+    detectionLatency?: unknown;
+    analysisLatency?: unknown;
+    detectionQueueDepth: number;
+    analysisQueueDepth: number;
+    totalDetections: number;
+    totalEvents: number;
+    totalErrors: number;
+    throughputPerMinute?: number;
+    sectionRefs?: unknown;
+    onIndicatorClick?: unknown;
+    className?: string;
+  }) => (
+    <div
+      data-testid="ai-summary-row"
+      data-rtdetr-status={rtdetr.status}
+      data-nemotron-status={nemotron.status}
+      data-detection-queue={detectionQueueDepth}
+      data-analysis-queue={analysisQueueDepth}
+      data-total-detections={totalDetections}
+      data-total-events={totalEvents}
+      data-total-errors={totalErrors}
+    >
+      AI Performance Summary Row
+    </div>
+  ),
+}));
+
 describe('DashboardPage', () => {
   const mockCameras = [
     {
@@ -367,6 +410,28 @@ describe('DashboardPage', () => {
       isLoading: false,
       error: null,
       refetch: vi.fn(),
+    });
+
+    (useAIMetricsHook.useAIMetrics as Mock).mockReturnValue({
+      data: {
+        rtdetr: { name: 'RT-DETRv2', status: 'healthy' },
+        nemotron: { name: 'Nemotron', status: 'healthy' },
+        detectionLatency: { avg_ms: 25, p50_ms: 20, p95_ms: 45, p99_ms: 60, sample_count: 100 },
+        analysisLatency: { avg_ms: 3500, p50_ms: 3000, p95_ms: 5500, p99_ms: 7000, sample_count: 50 },
+        pipelineLatency: null,
+        totalDetections: 150,
+        totalEvents: 45,
+        detectionQueueDepth: 2,
+        analysisQueueDepth: 1,
+        pipelineErrors: {},
+        queueOverflows: {},
+        dlqItems: {},
+        detectionsByClass: { person: 100, vehicle: 40, animal: 10 },
+        lastUpdated: '2025-01-01T12:00:00Z',
+      },
+      isLoading: false,
+      error: null,
+      refresh: vi.fn(),
     });
   });
 

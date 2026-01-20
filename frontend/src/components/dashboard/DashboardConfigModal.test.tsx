@@ -226,28 +226,28 @@ describe('DashboardConfigModal', () => {
     it('moves widget up when move up button is clicked', async () => {
       const { user } = renderWithProviders(<DashboardConfigModal {...defaultProps} />);
 
-      // Move camera-grid up (it's at index 1)
-      const moveUpButton = screen.getByTestId('widget-move-up-camera-grid');
+      // Move ai-summary-row up (it's at index 1, will swap with stats-row at index 0)
+      const moveUpButton = screen.getByTestId('widget-move-up-ai-summary-row');
       await user.click(moveUpButton);
 
       await user.click(screen.getByTestId('save-button'));
 
       const savedConfig = mockOnConfigChange.mock.calls[0][0] as DashboardConfig;
-      expect(savedConfig.widgets[0].id).toBe('camera-grid');
+      expect(savedConfig.widgets[0].id).toBe('ai-summary-row');
       expect(savedConfig.widgets[1].id).toBe('stats-row');
     });
 
     it('moves widget down when move down button is clicked', async () => {
       const { user } = renderWithProviders(<DashboardConfigModal {...defaultProps} />);
 
-      // Move stats-row down (it's at index 0)
+      // Move stats-row down (it's at index 0, will swap with ai-summary-row at index 1)
       const moveDownButton = screen.getByTestId('widget-move-down-stats-row');
       await user.click(moveDownButton);
 
       await user.click(screen.getByTestId('save-button'));
 
       const savedConfig = mockOnConfigChange.mock.calls[0][0] as DashboardConfig;
-      expect(savedConfig.widgets[0].id).toBe('camera-grid');
+      expect(savedConfig.widgets[0].id).toBe('ai-summary-row');
       expect(savedConfig.widgets[1].id).toBe('stats-row');
     });
 
@@ -428,8 +428,8 @@ describe('DashboardConfigModal', () => {
     it('can reorder and toggle visibility in same session', async () => {
       const { user } = renderWithProviders(<DashboardConfigModal {...defaultProps} />);
 
-      // Move camera-grid up
-      await user.click(screen.getByTestId('widget-move-up-camera-grid'));
+      // Move ai-summary-row up (it's at index 1, will swap with stats-row at index 0)
+      await user.click(screen.getByTestId('widget-move-up-ai-summary-row'));
 
       // Toggle stats-row visibility
       await user.click(screen.getByTestId('widget-toggle-stats-row'));
@@ -442,8 +442,8 @@ describe('DashboardConfigModal', () => {
 
       const savedConfig = mockOnConfigChange.mock.calls[0][0] as DashboardConfig;
 
-      // Verify order change
-      expect(savedConfig.widgets[0].id).toBe('camera-grid');
+      // Verify order change (ai-summary-row now at index 0, stats-row at index 1)
+      expect(savedConfig.widgets[0].id).toBe('ai-summary-row');
       expect(savedConfig.widgets[1].id).toBe('stats-row');
 
       // Verify visibility change

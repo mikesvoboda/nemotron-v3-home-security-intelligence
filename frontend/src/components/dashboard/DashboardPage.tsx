@@ -2,6 +2,15 @@ import { AlertTriangle } from 'lucide-react';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
+import CameraGrid, { type CameraStatus } from './CameraGrid';
+import DashboardLayout from './DashboardLayout';
+import GpuStats from './GpuStats';
+import PipelineQueues from './PipelineQueues';
+import PipelineTelemetry from './PipelineTelemetry';
+import StatsRow from './StatsRow';
+import { SummaryCards } from './SummaryCards';
+import { useAIMetrics } from '../../hooks/useAIMetrics';
 import { useDateRangeState } from '../../hooks/useDateRangeState';
 import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
 import { useRecentEventsQuery } from '../../hooks/useRecentEventsQuery';
@@ -15,6 +24,7 @@ import {
   type Camera,
   type EventStatsResponse,
 } from '../../services/api';
+import AIPerformanceSummaryRow from '../ai-performance/AIPerformanceSummaryRow';
 import {
   CameraCardSkeleton,
   FeatureErrorBoundary,
@@ -22,14 +32,6 @@ import {
   StatsCardSkeleton,
   Skeleton,
 } from '../common';
-import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
-import CameraGrid, { type CameraStatus } from './CameraGrid';
-import DashboardLayout from './DashboardLayout';
-import GpuStats from './GpuStats';
-import PipelineQueues from './PipelineQueues';
-import PipelineTelemetry from './PipelineTelemetry';
-import StatsRow from './StatsRow';
-import { SummaryCards } from './SummaryCards';
 
 /**
  * Throttle interval for WebSocket data updates (in milliseconds).
@@ -89,7 +91,19 @@ export default function DashboardPage() {
   const { status: systemStatus, isConnected: systemConnected } = useSystemStatus();
 
   // Fetch summaries for dashboard cards (hourly and daily summaries)
-  const { hourly: hourlySummary, daily: dailySummary, isLoading: summariesLoading } = useSummaries();
+  const {
+    hourly: hourlySummary,
+    daily: dailySummary,
+    isLoading: summariesLoading,
+    error: summariesError,
+    refetch: refetchSummaries,
+  } = useSummaries();
+
+  // Fetch AI metrics for the AI Performance Summary Row
+  const { data: aiMetrics } = useAIMetrics({
+    pollingInterval: 5000, // Refresh every 5 seconds
+    enablePolling: true,
+  });
 
   // Throttle WebSocket data to reduce StatsRow re-renders
   // This batches rapid updates within WEBSOCKET_THROTTLE_INTERVAL (500ms)
@@ -350,6 +364,17 @@ export default function DashboardPage() {
             systemStatus: systemHealth,
             riskHistory: riskHistory.length > 0 ? riskHistory : undefined,
           },
+          aiSummaryRow: {
+            rtdetr: aiMetrics.rtdetr,
+            nemotron: aiMetrics.nemotron,
+            detectionLatency: aiMetrics.detectionLatency,
+            analysisLatency: aiMetrics.analysisLatency,
+            detectionQueueDepth: aiMetrics.detectionQueueDepth,
+            analysisQueueDepth: aiMetrics.analysisQueueDepth,
+            totalDetections: aiMetrics.totalDetections,
+            totalEvents: aiMetrics.totalEvents,
+            totalErrors: Object.values(aiMetrics.pipelineErrors).reduce((sum, count) => sum + count, 0),
+          },
           cameraGrid: {
             cameras: cameraStatuses,
             onCameraClick: handleCameraClick,
@@ -388,6 +413,7 @@ export default function DashboardPage() {
             <StatsRow {...props} />
           </>
         )}
+        renderAISummaryRow={(props) => <AIPerformanceSummaryRow {...props} />}
         renderCameraGrid={(props) =>
           props ? <CameraGrid cameras={props.cameras} onCameraClick={props.onCameraClick} /> : null
         }
@@ -400,6 +426,8 @@ export default function DashboardPage() {
                   hourly={hourlySummary}
                   daily={dailySummary}
                   isLoading={summariesLoading}
+                  error={summariesError}
+                  onRetry={() => void refetchSummaries()}
                 />
               </div>
               <ActivityFeed

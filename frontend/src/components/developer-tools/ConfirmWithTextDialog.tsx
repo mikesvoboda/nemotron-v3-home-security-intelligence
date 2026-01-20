@@ -25,7 +25,7 @@ import { clsx } from 'clsx';
 import { AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
-import AnimatedModal from '../common/AnimatedModal';
+import ResponsiveModal from '../common/ResponsiveModal';
 
 export type ConfirmDialogVariant = 'danger' | 'warning';
 
@@ -121,11 +121,13 @@ export default function ConfirmWithTextDialog({
   const loadingText = loadingButtonText ?? defaultLoadingText;
 
   return (
-    <AnimatedModal
+    <ResponsiveModal
       isOpen={isOpen}
       onClose={onCancel}
       size="sm"
       variant="scale"
+      mobileHeight="auto"
+      title={title}
       closeOnBackdropClick={!isLoading}
       closeOnEscape={!isLoading}
       aria-labelledby="confirm-dialog-title"
@@ -202,6 +204,6 @@ export default function ConfirmWithTextDialog({
           </Button>
         </div>
       </div>
-    </AnimatedModal>
+    </ResponsiveModal>
   );
 }

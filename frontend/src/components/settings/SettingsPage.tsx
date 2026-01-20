@@ -3,6 +3,7 @@ import { clsx } from 'clsx';
 import {
   AlertTriangle,
   Bell,
+  Brain,
   Camera,
   Eye,
   FileText,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { FeatureErrorBoundary, SecureContextWarning } from '../common';
+import AIModelsTab from './AIModelsTab';
 import AlertRulesSettings from './AlertRulesSettings';
 import AmbientStatusSettings from './AmbientStatusSettings';
 import CalibrationPanel from './CalibrationPanel';
@@ -25,7 +27,7 @@ import FileOperationsPanel from '../system/FileOperationsPanel';
 /**
  * SettingsPage component with tabbed interface
  *
- * Contains eight settings tabs:
+ * Contains nine settings tabs:
  * - CAMERAS: Camera configuration and management
  * - RULES: Alert rules configuration
  * - PROCESSING: Event processing settings
@@ -34,9 +36,9 @@ import FileOperationsPanel from '../system/FileOperationsPanel';
  * - CALIBRATION: AI risk sensitivity and feedback calibration
  * - PROMPTS: AI prompt template management and version history
  * - STORAGE: Disk storage usage and file cleanup operations
+ * - AI MODELS: Core AI models (RT-DETRv2, Nemotron) and Model Zoo status
  *
  * Note: Analytics functionality is available on the dedicated Analytics page (/analytics)
- * Note: AI model information is available on the dedicated AI Performance page (/ai)
  *
  * Features:
  * - Tab navigation with keyboard support (Headless UI)
@@ -46,6 +48,7 @@ import FileOperationsPanel from '../system/FileOperationsPanel';
  *
  * @see NEM-2356 - Add CalibrationPanel to Settings page
  * @see NEM-2388 - Add FileOperationsPanel to Settings page
+ * @see NEM-3084 - Add AI MODELS tab integrating AIModelsSettings and ModelZooSection
  */
 export default function SettingsPage() {
   /** Tab descriptions shown on hover via tooltips */
@@ -58,6 +61,7 @@ export default function SettingsPage() {
     calibration: 'Camera calibration and zone configuration',
     prompts: 'Customize AI analysis prompts',
     storage: 'Media retention and storage management',
+    'ai-models': 'View status and performance of all AI models',
   };
 
   const tabs = [
@@ -108,6 +112,12 @@ export default function SettingsPage() {
       name: 'STORAGE',
       icon: HardDrive,
       component: FileOperationsPanel,
+    },
+    {
+      id: 'ai-models',
+      name: 'AI MODELS',
+      icon: Brain,
+      component: AIModelsTab,
     },
   ];
 

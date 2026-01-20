@@ -2,6 +2,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { clsx } from 'clsx';
 import {
   AlertCircle,
+  AlertTriangle,
   Camera as CameraIcon,
   Edit2,
   MapPin,
@@ -21,6 +22,7 @@ import {
   type CameraStatusValue,
 } from '../../schemas/camera';
 import { formatRelativeTime, isTimestampStale } from '../../utils/time';
+import SceneChangePanel from '../analytics/SceneChangePanel';
 import IconButton from '../common/IconButton';
 import { ZoneEditor } from '../zones';
 
@@ -66,6 +68,9 @@ export default function CamerasSettings() {
 
   // Zone editor state
   const [zoneEditorCamera, setZoneEditorCamera] = useState<Camera | null>(null);
+
+  // Scene change panel state
+  const [sceneChangeCamera, setSceneChangeCamera] = useState<Camera | null>(null);
 
   // Local error state for mutations (to display after modal closes)
   const [mutationError, setMutationError] = useState<string | null>(null);
@@ -377,6 +382,15 @@ export default function CamerasSettings() {
                     <td className="whitespace-nowrap px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <IconButton
+                          icon={<AlertTriangle />}
+                          aria-label={`View scene changes for ${camera.name}`}
+                          onClick={() => setSceneChangeCamera(camera)}
+                          variant="ghost"
+                          size="md"
+                          tooltip="Scene change detection"
+                          data-testid={`scene-change-${camera.id}`}
+                        />
+                        <IconButton
                           icon={<MapPin />}
                           aria-label={`Configure zones for ${camera.name}`}
                           onClick={() => setZoneEditorCamera(camera)}
@@ -651,6 +665,59 @@ export default function CamerasSettings() {
           onClose={() => setZoneEditorCamera(null)}
         />
       )}
+
+      {/* Scene Change Panel Modal */}
+      <Transition appear show={Boolean(sceneChangeCamera)} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setSceneChangeCamera(null)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-lg border border-gray-800 bg-panel p-6 shadow-dark-xl transition-all">
+                  <div className="mb-4 flex items-center justify-between">
+                    <Dialog.Title className="text-xl font-bold text-text-primary">
+                      Scene Change Detection
+                    </Dialog.Title>
+                    <button
+                      onClick={() => setSceneChangeCamera(null)}
+                      className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-800 hover:text-text-primary focus:outline-none"
+                      aria-label="Close modal"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {sceneChangeCamera && (
+                    <SceneChangePanel
+                      cameraId={sceneChangeCamera.id}
+                      cameraName={sceneChangeCamera.name}
+                    />
+                  )}
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
     </div>
   );
 }

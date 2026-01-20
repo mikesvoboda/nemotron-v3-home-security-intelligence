@@ -70,6 +70,9 @@ export type { AnimatedListProps } from './AnimatedList';
 export { default as AnimatedModal } from './AnimatedModal';
 export type { AnimatedModalProps, ModalSize } from './AnimatedModal';
 
+export { default as ResponsiveModal } from './ResponsiveModal';
+export type { ResponsiveModalProps } from './ResponsiveModal';
+
 // Animation variants and utilities
 export {
   pageTransitionVariants,

@@ -41,6 +41,10 @@ vi.mock('../system/FileOperationsPanel', () => ({
   default: () => <div data-testid="file-operations-panel">File Operations Panel</div>,
 }));
 
+vi.mock('./AIModelsTab', () => ({
+  default: () => <div data-testid="ai-models-tab">AI Models Tab</div>,
+}));
+
 // Helper to create a fresh QueryClient for each test
 function createTestQueryClient() {
   return new QueryClient({
@@ -75,7 +79,7 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Configure your security monitoring system')).toBeInTheDocument();
   });
 
-  it('should render all eight tabs', () => {
+  it('should render all nine tabs', () => {
     renderWithProviders(<SettingsPage />);
 
     expect(screen.getByRole('tab', { name: /cameras/i })).toBeInTheDocument();
@@ -86,6 +90,7 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('tab', { name: /calibration/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /prompts/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /storage/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /ai models/i })).toBeInTheDocument();
   });
 
   it('should show cameras settings by default', () => {
@@ -156,11 +161,11 @@ describe('SettingsPage', () => {
     renderWithProviders(<SettingsPage />);
 
     const camerasTab = screen.getByRole('tab', { name: /cameras/i });
-    const storageTab = screen.getByRole('tab', { name: /storage/i });
+    const aiModelsTab = screen.getByRole('tab', { name: /ai models/i });
 
-    // Focus on the last tab (storage is now last)
-    storageTab.focus();
-    expect(storageTab).toHaveFocus();
+    // Focus on the last tab (AI MODELS is now last)
+    aiModelsTab.focus();
+    expect(aiModelsTab).toHaveFocus();
 
     // Press arrow right to cycle to first tab
     await user.keyboard('{ArrowRight}');
@@ -208,6 +213,17 @@ describe('SettingsPage', () => {
     await user.click(storageTab);
 
     expect(screen.getByTestId('file-operations-panel')).toBeInTheDocument();
+    expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
+  });
+
+  it('should switch to AI models tab when tab is clicked', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsPage />);
+
+    const aiModelsTab = screen.getByRole('tab', { name: /ai models/i });
+    await user.click(aiModelsTab);
+
+    expect(screen.getByTestId('ai-models-tab')).toBeInTheDocument();
     expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
   });
 
@@ -261,6 +277,16 @@ describe('SettingsPage', () => {
 
       const storageTab = screen.getByRole('tab', { name: /storage/i });
       expect(storageTab).toHaveAttribute('title', 'Media retention and storage management');
+    });
+
+    it('should have title attribute with description on ai-models tab', () => {
+      renderWithProviders(<SettingsPage />);
+
+      const aiModelsTab = screen.getByRole('tab', { name: /ai models/i });
+      expect(aiModelsTab).toHaveAttribute(
+        'title',
+        'View status and performance of all AI models'
+      );
     });
   });
 
