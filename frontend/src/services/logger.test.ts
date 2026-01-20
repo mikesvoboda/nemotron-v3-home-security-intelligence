@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
+import { setLastRequestId, clearRequestIds } from './interceptors';
 import { logger, Logger, type ComponentLogger, type LoggerConfig } from './logger';
 
 describe('Logger singleton', () => {
@@ -65,12 +66,60 @@ describe('Logger singleton', () => {
   });
 
   describe('API error logging', () => {
+    beforeEach(() => {
+      clearRequestIds();
+    });
+
     it('logs API errors with endpoint details', () => {
       logger.apiError('/api/users', 404, 'Not found');
       expect(consoleSpy.error).toHaveBeenCalledWith('[ERROR] api: API error: /api/users', {
         endpoint: '/api/users',
         status: 404,
         message: 'Not found',
+        backend_request_id: null,
+      });
+    });
+
+    it('includes backend_request_id when available', () => {
+      setLastRequestId('req-backend-123');
+
+      logger.apiError('/api/data', 500, 'Internal Server Error');
+      expect(consoleSpy.error).toHaveBeenCalledWith('[ERROR] api: API error: /api/data', {
+        endpoint: '/api/data',
+        status: 500,
+        message: 'Internal Server Error',
+        backend_request_id: 'req-backend-123',
+      });
+    });
+
+    it('uses the most recent request ID', () => {
+      setLastRequestId('req-first');
+      setLastRequestId('req-second');
+
+      logger.apiError('/api/test', 503, 'Service Unavailable');
+      expect(consoleSpy.error).toHaveBeenCalledWith('[ERROR] api: API error: /api/test', {
+        endpoint: '/api/test',
+        status: 503,
+        message: 'Service Unavailable',
+        backend_request_id: 'req-second',
+      });
+    });
+
+    it('allows passing extra context data', () => {
+      setLastRequestId('req-with-extra');
+
+      logger.apiError('/api/submit', 422, 'Validation failed', {
+        field: 'email',
+        validation: 'invalid_format',
+      });
+
+      expect(consoleSpy.error).toHaveBeenCalledWith('[ERROR] api: API error: /api/submit', {
+        field: 'email',
+        validation: 'invalid_format',
+        endpoint: '/api/submit',
+        status: 422,
+        message: 'Validation failed',
+        backend_request_id: 'req-with-extra',
       });
     });
   });
@@ -205,6 +254,155 @@ describe('ComponentLogger type', () => {
     // Just verify the type is exported and usable
     const componentLogger: ComponentLogger = logger.forComponent('Test');
     expect(componentLogger).toBeDefined();
+  });
+});
+
+describe('User interaction tracking', () => {
+  let consoleSpy: {
+    log: ReturnType<typeof vi.spyOn>;
+  };
+
+  beforeEach(() => {
+    consoleSpy = {
+      log: vi.spyOn(console, 'log').mockImplementation(() => {}),
+    };
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('interaction method', () => {
+    it('logs click interactions with element name', () => {
+      logger.interaction('click', 'AlertForm.save_button');
+      expect(consoleSpy.log).toHaveBeenCalledWith(
+        '[INFO] user_event: user_interaction',
+        expect.objectContaining({
+          action: 'click',
+          element: 'AlertForm.save_button',
+        })
+      );
+    });
+
+    it('logs change interactions with field name', () => {
+      logger.interaction('change', 'SettingsForm.theme_select', { value: 'dark' });
+      expect(consoleSpy.log).toHaveBeenCalledWith(
+        '[INFO] user_event: user_interaction',
+        expect.objectContaining({
+          action: 'change',
+          element: 'SettingsForm.theme_select',
+          value: 'dark',
+        })
+      );
+    });
+
+    it('logs toggle interactions with enabled state', () => {
+      logger.interaction('toggle', 'AlertForm.enabled', { enabled: true });
+      expect(consoleSpy.log).toHaveBeenCalledWith(
+        '[INFO] user_event: user_interaction',
+        expect.objectContaining({
+          action: 'toggle',
+          element: 'AlertForm.enabled',
+          enabled: true,
+        })
+      );
+    });
+
+    it('logs modal open interactions', () => {
+      logger.interaction('open', 'modal.create_alert');
+      expect(consoleSpy.log).toHaveBeenCalledWith(
+        '[INFO] user_event: user_interaction',
+        expect.objectContaining({
+          action: 'open',
+          element: 'modal.create_alert',
+        })
+      );
+    });
+
+    it('logs modal close interactions', () => {
+      logger.interaction('close', 'modal.create_alert');
+      expect(consoleSpy.log).toHaveBeenCalledWith(
+        '[INFO] user_event: user_interaction',
+        expect.objectContaining({
+          action: 'close',
+          element: 'modal.create_alert',
+        })
+      );
+    });
+  });
+
+  describe('formSubmit method', () => {
+    it('logs successful form submissions', () => {
+      logger.formSubmit('AlertForm', true, { severity: 'high' });
+      expect(consoleSpy.log).toHaveBeenCalledWith(
+        '[INFO] user_event: form_submit',
+        expect.objectContaining({
+          form: 'AlertForm',
+          success: true,
+          severity: 'high',
+        })
+      );
+    });
+
+    it('logs failed form submissions with error context', () => {
+      logger.formSubmit('AlertForm', false, { validation_errors: ['name', 'risk_threshold'] });
+      expect(consoleSpy.log).toHaveBeenCalledWith(
+        '[INFO] user_event: form_submit',
+        expect.objectContaining({
+          form: 'AlertForm',
+          success: false,
+          validation_errors: ['name', 'risk_threshold'],
+        })
+      );
+    });
+
+    it('logs form submissions without extra data', () => {
+      logger.formSubmit('SettingsForm', true);
+      expect(consoleSpy.log).toHaveBeenCalledWith(
+        '[INFO] user_event: form_submit',
+        expect.objectContaining({
+          form: 'SettingsForm',
+          success: true,
+        })
+      );
+    });
+  });
+
+  describe('navigate method', () => {
+    it('logs navigation between routes', () => {
+      logger.navigate('/dashboard', '/alerts');
+      expect(consoleSpy.log).toHaveBeenCalledWith(
+        '[INFO] user_event: navigation',
+        expect.objectContaining({
+          from: '/dashboard',
+          to: '/alerts',
+        })
+      );
+    });
+
+    it('logs navigation with search params', () => {
+      logger.navigate('/events', '/events', { search: '?filter=high-risk' });
+      expect(consoleSpy.log).toHaveBeenCalledWith(
+        '[INFO] user_event: navigation',
+        expect.objectContaining({
+          from: '/events',
+          to: '/events',
+          search: '?filter=high-risk',
+        })
+      );
+    });
+
+    it('logs navigation with hash', () => {
+      logger.navigate('/docs', '/docs', { hash: '#installation' });
+      expect(consoleSpy.log).toHaveBeenCalledWith(
+        '[INFO] user_event: navigation',
+        expect.objectContaining({
+          from: '/docs',
+          to: '/docs',
+          hash: '#installation',
+        })
+      );
+    });
   });
 });
 

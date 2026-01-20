@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.core.config import get_settings
 from backend.core.database import get_db
 from backend.core.logging import get_logger
-from backend.models.audit import AuditAction
+from backend.models.audit import AuditAction, AuditStatus
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
@@ -284,6 +284,7 @@ def require_admin_access() -> None:
 )
 async def seed_cameras(
     request: SeedCamerasRequest,
+    http_request: Request,
     db: AsyncSession = Depends(get_db),
     _admin: None = Depends(require_admin_access),
 ) -> SeedCamerasResponse:
@@ -294,6 +295,7 @@ async def seed_cameras(
 
     Args:
         request: Seed configuration (count, clear_existing, create_folders)
+        http_request: FastAPI request for audit logging
         db: Database session
         _admin: Admin access validation (via dependency)
 
@@ -357,6 +359,54 @@ async def seed_cameras(
             }
         )
 
+    # Log to audit trail
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.DATA_SEEDED,
+            resource_type="admin",
+            actor="admin",
+            details={
+                "operation": "seed_cameras",
+                "cameras_created": created,
+                "cameras_cleared": cleared,
+                "clear_existing": request.clear_existing,
+                "create_folders": request.create_folders,
+                "requested_count": request.count,
+            },
+            request=http_request,
+            status=AuditStatus.SUCCESS,
+        )
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.DATA_SEEDED.value,
+                "resource_id": None,
+                "resource_type": "admin",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    # Structured logging for admin operation
+    logger.info(
+        "Admin operation: seed_cameras",
+        extra={
+            "admin_operation": True,
+            "operation": "seed_cameras",
+            "parameters": {
+                "count": request.count,
+                "clear_existing": request.clear_existing,
+                "create_folders": request.create_folders,
+            },
+            "result": {
+                "cameras_created": created,
+                "cameras_cleared": cleared,
+            },
+        },
+    )
+
     await db.commit()
 
     return SeedCamerasResponse(
@@ -381,6 +431,7 @@ async def seed_cameras(
 )
 async def seed_events(
     request: SeedEventsRequest,
+    http_request: Request,
     db: AsyncSession = Depends(get_db),
     _admin: None = Depends(require_admin_access),
 ) -> SeedEventsResponse:
@@ -392,6 +443,7 @@ async def seed_events(
 
     Args:
         request: Seed configuration (count, clear_existing)
+        http_request: FastAPI request for audit logging
         db: Database session
         _admin: Admin access validation (via dependency)
 
@@ -520,6 +572,56 @@ async def seed_events(
 
         events_created += 1
 
+    # Log to audit trail
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.DATA_SEEDED,
+            resource_type="admin",
+            actor="admin",
+            details={
+                "operation": "seed_events",
+                "events_created": events_created,
+                "detections_created": detections_created,
+                "events_cleared": events_cleared,
+                "detections_cleared": detections_cleared,
+                "clear_existing": request.clear_existing,
+                "requested_count": request.count,
+            },
+            request=http_request,
+            status=AuditStatus.SUCCESS,
+        )
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.DATA_SEEDED.value,
+                "resource_id": None,
+                "resource_type": "admin",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    # Structured logging for admin operation
+    logger.info(
+        "Admin operation: seed_events",
+        extra={
+            "admin_operation": True,
+            "operation": "seed_events",
+            "parameters": {
+                "count": request.count,
+                "clear_existing": request.clear_existing,
+            },
+            "result": {
+                "events_created": events_created,
+                "detections_created": detections_created,
+                "events_cleared": events_cleared,
+                "detections_cleared": detections_cleared,
+            },
+        },
+    )
+
     await db.commit()
 
     return SeedEventsResponse(
@@ -595,11 +697,13 @@ async def clear_seeded_data(
             resource_type="admin",
             actor="admin",
             details={
+                "operation": "clear_seeded_data",
                 "cameras_cleared": cameras_cleared,
                 "events_cleared": events_cleared,
                 "detections_cleared": detections_cleared,
             },
             request=request,
+            status=AuditStatus.SUCCESS,
         )
     except Exception as e:
         logger.warning(
@@ -612,6 +716,21 @@ async def clear_seeded_data(
                 "error_message": str(e),
             },
         )
+
+    # Structured logging for destructive admin operation (WARNING level)
+    logger.warning(
+        "Admin operation: clear_seeded_data (DESTRUCTIVE)",
+        extra={
+            "admin_operation": True,
+            "operation": "clear_seeded_data",
+            "destructive": True,
+            "result": {
+                "cameras_cleared": cameras_cleared,
+                "events_cleared": events_cleared,
+                "detections_cleared": detections_cleared,
+            },
+        },
+    )
 
     await db.commit()
 
@@ -681,29 +800,59 @@ async def cleanup_orphans(
     try:
         await get_db_audit_service().log_action(
             db=db,
-            action=AuditAction.DATA_CLEARED,
+            action=AuditAction.CLEANUP_EXECUTED,
             resource_type="orphan_cleanup",
             actor="admin",
             details={
+                "operation": "cleanup_orphans",
                 "dry_run": request.dry_run,
+                "min_age_hours": request.min_age_hours,
+                "max_delete_gb": request.max_delete_gb,
                 "scanned_files": report.scanned_files,
                 "orphaned_files": report.orphaned_files,
                 "deleted_files": report.deleted_files,
                 "deleted_bytes": report.deleted_bytes,
             },
             request=http_request,
+            status=AuditStatus.SUCCESS,
         )
     except Exception as e:
         logger.warning(
             "Audit log write failed",
             extra={
-                "action": AuditAction.DATA_CLEARED.value,
+                "action": AuditAction.CLEANUP_EXECUTED.value,
                 "resource_id": None,
                 "resource_type": "orphan_cleanup",
                 "error_type": type(e).__name__,
                 "error_message": str(e),
             },
         )
+
+    # Structured logging for admin operation
+    # Use WARNING level if actual deletions occurred (destructive operation)
+    log_func = logger.warning if report.deleted_files > 0 else logger.info
+    log_func(
+        f"Admin operation: cleanup_orphans {'(DESTRUCTIVE)' if report.deleted_files > 0 else '(dry run)'}",
+        extra={
+            "admin_operation": True,
+            "operation": "cleanup_orphans",
+            "destructive": report.deleted_files > 0,
+            "parameters": {
+                "dry_run": request.dry_run,
+                "min_age_hours": request.min_age_hours,
+                "max_delete_gb": request.max_delete_gb,
+            },
+            "result": {
+                "scanned_files": report.scanned_files,
+                "orphaned_files": report.orphaned_files,
+                "deleted_files": report.deleted_files,
+                "deleted_bytes": report.deleted_bytes,
+                "skipped_young": report.skipped_young,
+                "skipped_size_limit": report.skipped_size_limit,
+                "failed_count": len(report.failed_deletions),
+            },
+        },
+    )
 
     return OrphanCleanupResponse(
         scanned_files=report.scanned_files,
@@ -732,6 +881,8 @@ async def cleanup_orphans(
 )
 async def seed_pipeline_latency(
     request: SeedPipelineLatencyRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
     _admin: None = Depends(require_admin_access),
 ) -> SeedPipelineLatencyResponse:
     """Seed the pipeline latency tracker with mock historical data.
@@ -751,6 +902,8 @@ async def seed_pipeline_latency(
 
     Args:
         request: Configuration for sample generation
+        http_request: FastAPI request for audit logging
+        db: Database session for audit logging
         _admin: Admin access validation (via dependency)
 
     Returns:
@@ -801,6 +954,52 @@ async def seed_pipeline_latency(
             f"Seeded {request.num_samples} latency samples for stage {stage}",
             extra={"stage": stage, "num_samples": request.num_samples},
         )
+
+    # Log to audit trail
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.DATA_SEEDED,
+            resource_type="admin",
+            actor="admin",
+            details={
+                "operation": "seed_pipeline_latency",
+                "samples_per_stage": request.num_samples,
+                "stages_seeded": stages_seeded,
+                "time_span_hours": request.time_span_hours,
+            },
+            request=http_request,
+            status=AuditStatus.SUCCESS,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.DATA_SEEDED.value,
+                "resource_id": None,
+                "resource_type": "admin",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    # Structured logging for admin operation
+    logger.info(
+        "Admin operation: seed_pipeline_latency",
+        extra={
+            "admin_operation": True,
+            "operation": "seed_pipeline_latency",
+            "parameters": {
+                "num_samples": request.num_samples,
+                "time_span_hours": request.time_span_hours,
+            },
+            "result": {
+                "samples_per_stage": request.num_samples,
+                "stages_seeded": stages_seeded,
+            },
+        },
+    )
 
     return SeedPipelineLatencyResponse(
         samples_per_stage=request.num_samples,

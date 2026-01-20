@@ -11,6 +11,7 @@ import {
 } from '../../hooks';
 import { updateEvent } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
+import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
 import RiskBadge from '../common/RiskBadge';
 import SafeErrorMessage from '../common/SafeErrorMessage';
 import { AlertCardSkeleton } from '../common/skeletons';
@@ -577,3 +578,32 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
     </div>
   );
 }
+
+/**
+ * AlertsPage with FeatureErrorBoundary wrapper.
+ *
+ * Wraps the AlertsContent component in a FeatureErrorBoundary to prevent
+ * errors in the Alerts page from crashing the entire application.
+ * Other parts of the dashboard will continue to work if this page errors.
+ */
+function AlertsPageWithErrorBoundary(props: AlertsPageProps) {
+  return (
+    <FeatureErrorBoundary
+      feature="Alerts"
+      fallback={
+        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-red-500/30 bg-red-900/20 p-8 text-center">
+          <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
+          <h3 className="mb-2 text-lg font-semibold text-red-400">Alerts Unavailable</h3>
+          <p className="max-w-md text-sm text-gray-400">
+            Unable to load alerts. Please refresh the page or try again later.
+            Other parts of the application should still work.
+          </p>
+        </div>
+      }
+    >
+      <AlertsPage {...props} />
+    </FeatureErrorBoundary>
+  );
+}
+
+export { AlertsPageWithErrorBoundary };

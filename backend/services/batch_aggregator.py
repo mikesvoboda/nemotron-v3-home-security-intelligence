@@ -11,6 +11,12 @@ Batching Logic:
         * 30 seconds with no new detections (idle timeout)
     - On batch close: push to analysis_queue with batch_id, camera_id, detection_ids
 
+Batch ID Tracing:
+    Each batch is assigned a unique batch_id at creation time using generate_batch_id().
+    This ID is propagated through the entire pipeline (detection grouping -> Nemotron
+    analysis -> event creation) and included in all logs via log_context() for
+    end-to-end traceability of batch processing operations.
+
 Redis Keys (all keys have 1-hour TTL for orphan cleanup):
     - batch:{camera_id}:current - Current batch ID for camera
     - batch:{batch_id}:camera_id - Camera ID for batch
@@ -43,7 +49,7 @@ from typing import Any
 
 from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE
-from backend.core.logging import get_logger, sanitize_log_value
+from backend.core.logging import get_logger, log_context, sanitize_log_value
 from backend.core.metrics import record_batch_max_reached
 from backend.core.redis import QueueOverflowPolicy, RedisClient
 
@@ -52,6 +58,24 @@ logger = get_logger(__name__)
 # TTL for batch closing flag (5 minutes) - prevents orphaned lock flags if process crashes
 # NEM-2507: This ensures closing flags auto-expire if the batch close operation doesn't complete
 BATCH_CLOSING_FLAG_TTL_SECONDS = 300
+
+
+def generate_batch_id() -> str:
+    """Generate a short, unique batch identifier.
+
+    Returns a batch ID in the format 'batch-XXXXXXXX' where X is a hex character.
+    This provides 4 billion unique IDs while keeping logs human-readable.
+
+    Returns:
+        Unique batch identifier string (e.g., 'batch-a1b2c3d4')
+
+    Example:
+        >>> batch_id = generate_batch_id()
+        >>> batch_id
+        'batch-1a2b3c4d'
+    """
+    return f"batch-{uuid.uuid4().hex[:8]}"
+
 
 # Global GPU monitor reference for memory pressure checks
 _gpu_monitor: Any = None
@@ -467,11 +491,11 @@ class BatchAggregator:
                     batch_id = None
 
             if not batch_id:
-                # Create new batch
-                batch_id = uuid.uuid4().hex
+                # Create new batch with human-readable ID
+                batch_id = generate_batch_id()
                 logger.info(
-                    "Creating new batch for camera",
-                    extra={"camera_id": camera_id, "batch_id": batch_id},
+                    "Batch created",
+                    extra={"batch_id": batch_id, "camera_id": camera_id, "detection_count": 1},
                 )
 
                 # Set batch metadata with TTL for orphan cleanup
@@ -682,7 +706,8 @@ class BatchAggregator:
         """Force close a batch and push to analysis queue.
 
         Retrieves batch metadata, pushes to analysis queue if detections exist,
-        and cleans up Redis keys.
+        and cleans up Redis keys. Uses log_context to ensure all logs within
+        this operation include the batch_id for traceability.
 
         This method acquires locks to prevent race conditions:
         - Batch close lock: prevents concurrent close_batch calls for the same batch
@@ -708,167 +733,155 @@ class BatchAggregator:
             if not camera_id:
                 raise ValueError(f"Batch {batch_id} not found")
 
-            # Acquire camera lock to prevent add_detection from modifying the batch
-            camera_lock = await self._get_camera_lock(camera_id)
-            async with camera_lock:
-                # NEM-2507: Set closing flag with TTL to prevent orphaned locks on crash
-                # The flag will auto-expire after 5 minutes if the process crashes
-                await self._redis._client.set(  # type: ignore[union-attr]
-                    f"batch:{batch_id}:closing",
-                    "1",
-                    ex=BATCH_CLOSING_FLAG_TTL_SECONDS,
-                )
-
-                # Re-check batch exists after acquiring lock (may have been closed already)
-                camera_id_check = await self._redis.get(f"batch:{batch_id}:camera_id")
-                if not camera_id_check:
-                    # Batch was already closed by another coroutine
-                    logger.debug(
-                        f"Batch {batch_id} already closed, skipping",
-                        extra={"batch_id": batch_id},
-                    )
-                    return {
-                        "batch_id": batch_id,
-                        "camera_id": camera_id,
-                        "detection_count": 0,
-                        "detections": [],
-                        "started_at": time.time(),
-                        "closed_at": time.time(),
-                        "already_closed": True,
-                    }
-
-                # Get batch data in parallel using TaskGroup (NEM-1656)
-                # All data fetches must succeed for batch close to be valid.
-                # TaskGroup provides structured concurrency with automatic cancellation.
-                detections: list[int] = []
-                started_at_str: str | None = None
-                pipeline_start_time: str | None = None
-
-                async def fetch_detections() -> None:
-                    nonlocal detections
-                    detections = await self._atomic_list_get_all(f"batch:{batch_id}:detections")
-
-                async def fetch_started_at() -> None:
-                    nonlocal started_at_str
-                    assert self._redis is not None  # Verified at function start
-                    started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
-
-                async def fetch_pipeline_time() -> None:
-                    nonlocal pipeline_start_time
-                    assert self._redis is not None  # Verified at function start
-                    pipeline_start_time = await self._redis.get(
-                        f"batch:{batch_id}:pipeline_start_time"
+            # Use log_context to include batch_id in all subsequent logs
+            with log_context(batch_id=batch_id, camera_id=camera_id):
+                # Acquire camera lock to prevent add_detection from modifying the batch
+                camera_lock = await self._get_camera_lock(camera_id)
+                async with camera_lock:
+                    # NEM-2507: Set closing flag with TTL to prevent orphaned locks on crash
+                    # The flag will auto-expire after 5 minutes if the process crashes
+                    await self._redis._client.set(  # type: ignore[union-attr]
+                        f"batch:{batch_id}:closing",
+                        "1",
+                        ex=BATCH_CLOSING_FLAG_TTL_SECONDS,
                     )
 
-                try:
-                    async with asyncio.TaskGroup() as tg:
-                        tg.create_task(fetch_detections())
-                        tg.create_task(fetch_started_at())
-                        tg.create_task(fetch_pipeline_time())
-                except* Exception as eg:
-                    # Log all errors from the ExceptionGroup
-                    for i, exc in enumerate(eg.exceptions):
-                        logger.error(
-                            f"Failed to fetch batch data (operation {i})",
-                            extra={
-                                "batch_id": batch_id,
-                                "camera_id": camera_id,
-                                "error": str(exc),
-                            },
-                        )
-                    # Re-raise the first exception to maintain compatibility
-                    raise eg.exceptions[0] from eg
-                started_at = float(started_at_str) if started_at_str else time.time()
-
-                # Create summary
-                summary: dict[str, Any] = {
-                    "batch_id": batch_id,
-                    "camera_id": camera_id,
-                    "detection_count": len(detections),
-                    "detections": detections,
-                    "started_at": started_at,
-                    "closed_at": time.time(),
-                }
-
-                # Push to analysis queue if there are detections
-                if detections:
-                    queue_item: dict[str, Any] = {
-                        "batch_id": batch_id,
-                        "camera_id": camera_id,
-                        "detection_ids": detections,
-                        "timestamp": time.time(),
-                    }
-
-                    # Include pipeline_start_time for total pipeline latency tracking
-                    if pipeline_start_time:
-                        queue_item["pipeline_start_time"] = pipeline_start_time
-
-                    # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
-                    # If the queue is full, items are moved to a dead-letter queue
-                    # Uses retry with exponential backoff for Redis connection failures
-                    result = await self._redis.add_to_queue_safe(
-                        self._analysis_queue,
-                        queue_item,
-                        overflow_policy=QueueOverflowPolicy.DLQ,
-                    )
-
-                    if not result.success:
-                        logger.error(
-                            "Failed to push batch to analysis queue",
-                            extra={
-                                "camera_id": camera_id,
-                                "batch_id": batch_id,
-                                "detection_count": len(detections),
-                                "queue_name": self._analysis_queue,
-                                "queue_length": result.queue_length,
-                                "error": result.error,
-                            },
-                        )
-                        raise RuntimeError(f"Queue operation failed: {result.error}")
-
-                    if result.had_backpressure:
-                        logger.warning(
-                            "Queue backpressure detected while pushing batch",
-                            extra={
-                                "camera_id": camera_id,
-                                "batch_id": batch_id,
-                                "detection_count": len(detections),
-                                "queue_name": self._analysis_queue,
-                                "queue_length": result.queue_length,
-                                "moved_to_dlq": result.moved_to_dlq_count,
-                                "warning": result.warning,
-                            },
-                        )
-
-                    logger.info(
-                        "Pushed batch to analysis queue",
-                        extra={
-                            "camera_id": camera_id,
+                    # Re-check batch exists after acquiring lock (may have been closed already)
+                    camera_id_check = await self._redis.get(f"batch:{batch_id}:camera_id")
+                    if not camera_id_check:
+                        # Batch was already closed by another coroutine
+                        logger.debug("Batch already closed, skipping")
+                        return {
                             "batch_id": batch_id,
-                            "detection_count": len(detections),
-                        },
-                    )
-                else:
-                    logger.debug(
-                        f"Batch {batch_id} has no detections, skipping analysis queue",
-                        extra={"camera_id": camera_id, "batch_id": batch_id},
+                            "camera_id": camera_id,
+                            "detection_count": 0,
+                            "detections": [],
+                            "started_at": time.time(),
+                            "closed_at": time.time(),
+                            "already_closed": True,
+                        }
+
+                    # Get batch data in parallel using TaskGroup (NEM-1656)
+                    # All data fetches must succeed for batch close to be valid.
+                    # TaskGroup provides structured concurrency with automatic cancellation.
+                    detections: list[int] = []
+                    started_at_str: str | None = None
+                    pipeline_start_time: str | None = None
+
+                    async def fetch_detections() -> None:
+                        nonlocal detections
+                        detections = await self._atomic_list_get_all(f"batch:{batch_id}:detections")
+
+                    async def fetch_started_at() -> None:
+                        nonlocal started_at_str
+                        assert self._redis is not None  # Verified at function start
+                        started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
+
+                    async def fetch_pipeline_time() -> None:
+                        nonlocal pipeline_start_time
+                        assert self._redis is not None  # Verified at function start
+                        pipeline_start_time = await self._redis.get(
+                            f"batch:{batch_id}:pipeline_start_time"
+                        )
+
+                    try:
+                        async with asyncio.TaskGroup() as tg:
+                            tg.create_task(fetch_detections())
+                            tg.create_task(fetch_started_at())
+                            tg.create_task(fetch_pipeline_time())
+                    except* Exception as eg:
+                        # Log all errors from the ExceptionGroup
+                        for i, exc in enumerate(eg.exceptions):
+                            logger.error(
+                                f"Failed to fetch batch data (operation {i})",
+                                extra={"error": str(exc)},
+                            )
+                        # Re-raise the first exception to maintain compatibility
+                        raise eg.exceptions[0] from eg
+                    started_at = float(started_at_str) if started_at_str else time.time()
+
+                    # Create summary
+                    closed_at = time.time()
+                    summary: dict[str, Any] = {
+                        "batch_id": batch_id,
+                        "camera_id": camera_id,
+                        "detection_count": len(detections),
+                        "detections": detections,
+                        "started_at": started_at,
+                        "closed_at": closed_at,
+                    }
+
+                    # Push to analysis queue if there are detections
+                    if detections:
+                        queue_item: dict[str, Any] = {
+                            "batch_id": batch_id,
+                            "camera_id": camera_id,
+                            "detection_ids": detections,
+                            "timestamp": time.time(),
+                        }
+
+                        # Include pipeline_start_time for total pipeline latency tracking
+                        if pipeline_start_time:
+                            queue_item["pipeline_start_time"] = pipeline_start_time
+
+                        # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
+                        # If the queue is full, items are moved to a dead-letter queue
+                        # Uses retry with exponential backoff for Redis connection failures
+                        result = await self._redis.add_to_queue_safe(
+                            self._analysis_queue,
+                            queue_item,
+                            overflow_policy=QueueOverflowPolicy.DLQ,
+                        )
+
+                        if not result.success:
+                            logger.error(
+                                "Failed to push batch to analysis queue",
+                                extra={
+                                    "detection_count": len(detections),
+                                    "queue_name": self._analysis_queue,
+                                    "queue_length": result.queue_length,
+                                    "error": result.error,
+                                },
+                            )
+                            raise RuntimeError(f"Queue operation failed: {result.error}")
+
+                        if result.had_backpressure:
+                            logger.warning(
+                                "Queue backpressure detected while pushing batch",
+                                extra={
+                                    "detection_count": len(detections),
+                                    "queue_name": self._analysis_queue,
+                                    "queue_length": result.queue_length,
+                                    "moved_to_dlq": result.moved_to_dlq_count,
+                                    "warning": result.warning,
+                                },
+                            )
+
+                        # Calculate batch duration for lifecycle logging
+                        batch_duration_ms = (closed_at - started_at) * 1000
+                        logger.info(
+                            "Batch closed",
+                            extra={
+                                "detection_count": len(detections),
+                                "duration_ms": batch_duration_ms,
+                                "close_reason": "timeout",
+                            },
+                        )
+                    else:
+                        logger.debug("Batch has no detections, skipping analysis queue")
+
+                    # Clean up Redis keys including closure marker (NEM-2013)
+                    await self._redis.delete(
+                        f"batch:{camera_id}:current",
+                        f"batch:{batch_id}:camera_id",
+                        f"batch:{batch_id}:detections",
+                        f"batch:{batch_id}:started_at",
+                        f"batch:{batch_id}:last_activity",
+                        f"batch:{batch_id}:pipeline_start_time",
+                        f"batch:{batch_id}:closing",
                     )
 
-                # Clean up Redis keys including closure marker (NEM-2013)
-                await self._redis.delete(
-                    f"batch:{camera_id}:current",
-                    f"batch:{batch_id}:camera_id",
-                    f"batch:{batch_id}:detections",
-                    f"batch:{batch_id}:started_at",
-                    f"batch:{batch_id}:last_activity",
-                    f"batch:{batch_id}:pipeline_start_time",
-                    f"batch:{batch_id}:closing",
-                )
-
-                logger.debug(
-                    f"Cleaned up Redis keys for batch {batch_id}",
-                    extra={"camera_id": camera_id, "batch_id": batch_id},
-                )
+                    logger.debug("Cleaned up Redis keys for batch")
 
                 # NEM-2506: Broadcast detection.batch event via WebSocket
                 await self._broadcast_detection_batch(
@@ -887,7 +900,8 @@ class BatchAggregator:
 
         This is a specialized version of close_batch that is called from within
         add_detection when a batch reaches batch_max_detections. It handles the
-        batch closing with reason "max_size" for proper tracking.
+        batch closing with reason "max_size" for proper tracking. Uses log_context
+        to ensure all logs include the batch_id for traceability.
 
         NEM-1726: Prevents memory exhaustion by splitting large batches.
 
@@ -909,112 +923,107 @@ class BatchAggregator:
             )
             return None
 
-        # NEM-2507: Set closing flag with TTL to prevent orphaned locks on crash
-        # The flag will auto-expire after 5 minutes if the process crashes
-        await self._redis._client.set(  # type: ignore[union-attr]
-            f"batch:{batch_id}:closing",
-            "1",
-            ex=BATCH_CLOSING_FLAG_TTL_SECONDS,
-        )
-
-        # Get detection IDs from the batch
-        detections_key = f"batch:{batch_id}:detections"
-        raw_detections: list[bytes] = await self._redis._client.lrange(  # type: ignore[misc,union-attr]
-            detections_key, 0, -1
-        )
-
-        # Parse detection IDs from Redis (handles both bytes and strings)
-        detections = []
-        for item in raw_detections:
-            if isinstance(item, bytes):
-                detections.append(int(item.decode("utf-8")))
-            else:
-                detections.append(int(item))
-
-        # Get timestamps from batch metadata
-        started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
-        pipeline_start_time = await self._redis.get(f"batch:{batch_id}:pipeline_start_time")
-
-        started_at: float = float(started_at_str) if started_at_str else time.time()
-        ended_at: float = time.time()
-
-        # Build batch summary
-        summary = {
-            "batch_id": batch_id,
-            "camera_id": camera_id,
-            "detection_ids": detections,
-            "started_at": started_at,
-            "ended_at": ended_at,
-            "reason": "max_size",  # NEM-1726: Distinct reason for tracking
-        }
-
-        # Include pipeline_start_time if available (for latency tracking)
-        if pipeline_start_time:
-            summary["pipeline_start_time"] = pipeline_start_time
-
-        # Only push to analysis queue if there are detections
-        if detections:
-            result = await self._redis.add_to_queue_safe(
-                self._analysis_queue,
-                summary,
-                overflow_policy=QueueOverflowPolicy.DLQ,
+        # Use log_context to include batch_id in all subsequent logs
+        with log_context(batch_id=batch_id, camera_id=camera_id):
+            # NEM-2507: Set closing flag with TTL to prevent orphaned locks on crash
+            # The flag will auto-expire after 5 minutes if the process crashes
+            await self._redis._client.set(  # type: ignore[union-attr]
+                f"batch:{batch_id}:closing",
+                "1",
+                ex=BATCH_CLOSING_FLAG_TTL_SECONDS,
             )
-            if result.warning:
-                logger.warning(
-                    "Queue overflow handling triggered for batch",
+
+            # Get detection IDs from the batch
+            detections_key = f"batch:{batch_id}:detections"
+            raw_detections: list[bytes] = await self._redis._client.lrange(  # type: ignore[misc,union-attr]
+                detections_key, 0, -1
+            )
+
+            # Parse detection IDs from Redis (handles both bytes and strings)
+            detections = []
+            for item in raw_detections:
+                if isinstance(item, bytes):
+                    detections.append(int(item.decode("utf-8")))
+                else:
+                    detections.append(int(item))
+
+            # Get timestamps from batch metadata
+            started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
+            pipeline_start_time = await self._redis.get(f"batch:{batch_id}:pipeline_start_time")
+
+            started_at: float = float(started_at_str) if started_at_str else time.time()
+            ended_at: float = time.time()
+
+            # Build batch summary
+            summary = {
+                "batch_id": batch_id,
+                "camera_id": camera_id,
+                "detection_ids": detections,
+                "started_at": started_at,
+                "ended_at": ended_at,
+                "reason": "max_size",  # NEM-1726: Distinct reason for tracking
+            }
+
+            # Include pipeline_start_time if available (for latency tracking)
+            if pipeline_start_time:
+                summary["pipeline_start_time"] = pipeline_start_time
+
+            # Only push to analysis queue if there are detections
+            if detections:
+                result = await self._redis.add_to_queue_safe(
+                    self._analysis_queue,
+                    summary,
+                    overflow_policy=QueueOverflowPolicy.DLQ,
+                )
+                if result.warning:
+                    logger.warning(
+                        "Queue overflow handling triggered for batch",
+                        extra={
+                            "detection_count": len(detections),
+                            "queue_name": self._analysis_queue,
+                            "queue_length": result.queue_length,
+                            "moved_to_dlq": result.moved_to_dlq_count,
+                            "warning": result.warning,
+                        },
+                    )
+
+                # Calculate batch duration for lifecycle logging
+                batch_duration_ms = (ended_at - started_at) * 1000
+                logger.info(
+                    "Batch closed",
                     extra={
-                        "camera_id": camera_id,
-                        "batch_id": batch_id,
                         "detection_count": len(detections),
-                        "queue_name": self._analysis_queue,
-                        "queue_length": result.queue_length,
-                        "moved_to_dlq": result.moved_to_dlq_count,
-                        "warning": result.warning,
+                        "duration_ms": batch_duration_ms,
+                        "close_reason": "max_size",
                     },
                 )
+            else:
+                logger.debug("Batch has no detections, skipping analysis queue")
 
-            logger.info(
-                "Pushed batch to analysis queue",
-                extra={
-                    "camera_id": camera_id,
-                    "batch_id": batch_id,
-                    "detection_count": len(detections),
-                    "reason": "max_size",
-                },
-            )
-        else:
-            logger.debug(
-                f"Batch {batch_id} has no detections, skipping analysis queue",
-                extra={"camera_id": camera_id, "batch_id": batch_id},
+            # Clean up Redis keys including closure marker (NEM-2013)
+            await self._redis.delete(
+                f"batch:{camera_id}:current",
+                f"batch:{batch_id}:camera_id",
+                f"batch:{batch_id}:detections",
+                f"batch:{batch_id}:started_at",
+                f"batch:{batch_id}:last_activity",
+                f"batch:{batch_id}:pipeline_start_time",
+                f"batch:{batch_id}:closing",
             )
 
-        # Clean up Redis keys including closure marker (NEM-2013)
-        await self._redis.delete(
-            f"batch:{camera_id}:current",
-            f"batch:{batch_id}:camera_id",
-            f"batch:{batch_id}:detections",
-            f"batch:{batch_id}:started_at",
-            f"batch:{batch_id}:last_activity",
-            f"batch:{batch_id}:pipeline_start_time",
-            f"batch:{batch_id}:closing",
-        )
+            logger.debug("Cleaned up Redis keys for batch")
 
-        logger.debug(
-            f"Cleaned up Redis keys for batch {batch_id}",
-            extra={"camera_id": camera_id, "batch_id": batch_id},
-        )
+            # NEM-2506: Broadcast detection.batch event via WebSocket
+            await self._broadcast_detection_batch(
+                batch_id=batch_id,
+                camera_id=camera_id,
+                detection_ids=detections,
+                started_at=started_at,
+                closed_at=ended_at,
+                close_reason="max_size",
+            )
 
-        # NEM-2506: Broadcast detection.batch event via WebSocket
-        await self._broadcast_detection_batch(
-            batch_id=batch_id,
-            camera_id=camera_id,
-            detection_ids=detections,
-            started_at=started_at,
-            closed_at=ended_at,
-            close_reason="max_size",
-        )
-
-        return summary
+            return summary
 
     def _should_use_fast_path(self, confidence: float | None, object_type: str | None) -> bool:
         """Check if detection meets fast path criteria.

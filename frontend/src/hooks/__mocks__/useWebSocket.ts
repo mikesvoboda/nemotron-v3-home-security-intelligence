@@ -41,6 +41,8 @@ export interface MockWebSocketOptions {
   reconnectCount?: number;
   /** Timestamp of the last heartbeat received. Default: null */
   lastHeartbeat?: Date | null;
+  /** Unique connection ID for tracking and logging. Default: 'mock-ws-001' */
+  connectionId?: string;
 }
 
 /**
@@ -98,6 +100,7 @@ export function createMockWebSocket(options: MockWebSocketOptions = {}): MockWeb
     hasExhaustedRetries = false,
     reconnectCount = 0,
     lastHeartbeat = null,
+    connectionId = 'mock-ws-001',
   } = options;
 
   return {
@@ -109,6 +112,7 @@ export function createMockWebSocket(options: MockWebSocketOptions = {}): MockWeb
     hasExhaustedRetries,
     reconnectCount,
     lastHeartbeat,
+    connectionId,
   };
 }
 

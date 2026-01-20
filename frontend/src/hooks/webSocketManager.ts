@@ -4,12 +4,38 @@
  * Provides connection deduplication with reference counting for WebSocket connections.
  * Multiple components subscribing to the same WebSocket URL will share a single
  * underlying connection. The connection is only closed when all subscribers disconnect.
+ *
+ * Features:
+ * - Connection deduplication with reference counting
+ * - Automatic reconnection with exponential backoff
+ * - Heartbeat/ping-pong support
+ * - Comprehensive logging with message IDs and connection IDs
  */
 
 import { TypedWebSocketEmitter } from './typedEventEmitter';
 import { logger } from '../services/logger';
 
 import type { WebSocketEventHandler, WebSocketEventKey } from '../types/websocket-events';
+
+// ============================================================================
+// Message ID Generation
+// ============================================================================
+
+/**
+ * Generate a unique message ID for tracking WebSocket messages.
+ * Format: msg-{timestamp_base36}-{random_5chars}
+ */
+export function generateMessageId(): string {
+  return `msg-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`;
+}
+
+/**
+ * Generate a unique connection ID for tracking WebSocket connections.
+ * Format: ws-{timestamp_base36}-{random_5chars}
+ */
+export function generateConnectionId(): string {
+  return `ws-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`;
+}
 
 export type MessageHandler = (data: unknown) => void;
 export type OpenHandler = () => void;
@@ -50,6 +76,10 @@ export interface ManagedConnection {
   reconnectTimeout: ReturnType<typeof setTimeout> | null;
   connectionTimeout: ReturnType<typeof setTimeout> | null;
   lastHeartbeat: Date | null;
+  /** Unique connection ID for logging and tracking */
+  connectionId: string;
+  /** Timestamp of the last pong received (for heartbeat timeout detection) */
+  lastPongTime: number | null;
 }
 
 /**
@@ -153,6 +183,8 @@ class WebSocketManager {
         reconnectTimeout: null,
         connectionTimeout: null,
         lastHeartbeat: null,
+        connectionId: '',
+        lastPongTime: null,
       };
       this.connections.set(url, connection);
       this.configs.set(url, config);
@@ -195,12 +227,27 @@ class WebSocketManager {
       logger.warn('WebSocket is not connected. Message not sent', {
         component: 'WebSocketManager',
         url,
-        data,
+        connection_id: connection?.connectionId || 'none',
       });
       return false;
     }
 
+    const messageId = generateMessageId();
     const message = typeof data === 'string' ? data : JSON.stringify(data);
+
+    // Extract message type for logging (don't log full payload for privacy)
+    const messageType =
+      typeof data === 'object' && data !== null && 'type' in data
+        ? (data as { type: unknown }).type
+        : 'unknown';
+
+    logger.debug('WebSocket message sent', {
+      component: 'WebSocketManager',
+      message_id: messageId,
+      connection_id: connection.connectionId,
+      type: messageType,
+    });
+
     connection.ws.send(message);
     return true;
   }
@@ -210,6 +257,8 @@ class WebSocketManager {
     reconnectCount: number;
     hasExhaustedRetries: boolean;
     lastHeartbeat: Date | null;
+    connectionId: string;
+    lastPongTime: number | null;
   } {
     const connection = this.connections.get(url);
     const config = this.configs.get(url);
@@ -220,6 +269,8 @@ class WebSocketManager {
         reconnectCount: 0,
         hasExhaustedRetries: false,
         lastHeartbeat: null,
+        connectionId: '',
+        lastPongTime: null,
       };
     }
 
@@ -228,6 +279,8 @@ class WebSocketManager {
       reconnectCount: connection.reconnectAttempts,
       hasExhaustedRetries: connection.reconnectAttempts >= (config?.maxReconnectAttempts ?? 5),
       lastHeartbeat: connection.lastHeartbeat,
+      connectionId: connection.connectionId,
+      lastPongTime: connection.lastPongTime,
     };
   }
 
@@ -260,7 +313,26 @@ class WebSocketManager {
       return;
     }
 
+    // Generate a new connection ID for this connection attempt
+    connection.connectionId = generateConnectionId();
     connection.isConnecting = true;
+    connection.lastPongTime = null;
+
+    // Log reconnection attempt if this is a retry
+    if (connection.reconnectAttempts > 0) {
+      const delay = calculateBackoffDelay(
+        connection.reconnectAttempts - 1,
+        config.reconnectInterval
+      );
+      logger.warn('WebSocket reconnecting', {
+        component: 'WebSocketManager',
+        connection_id: connection.connectionId,
+        url,
+        attempt: connection.reconnectAttempts,
+        max_attempts: config.maxReconnectAttempts,
+        delay_ms: delay,
+      });
+    }
 
     try {
       const ws = new WebSocket(url);
@@ -271,6 +343,7 @@ class WebSocketManager {
           if (ws.readyState === WebSocket.CONNECTING) {
             logger.warn('WebSocket connection timeout, retrying', {
               component: 'WebSocketManager',
+              connection_id: connection.connectionId,
               url,
               timeoutMs: config.connectionTimeout,
             });
@@ -286,20 +359,38 @@ class WebSocketManager {
         }
 
         connection.isConnecting = false;
+        const previousAttempts = connection.reconnectAttempts;
         connection.reconnectAttempts = 0;
+        connection.lastPongTime = Date.now();
+
+        logger.info('WebSocket connected', {
+          component: 'WebSocketManager',
+          connection_id: connection.connectionId,
+          url,
+          reconnect_attempt: previousAttempts,
+        });
 
         connection.subscribers.forEach((subscriber) => {
           subscriber.onOpen?.();
         });
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event: CloseEvent) => {
         if (connection.connectionTimeout) {
           clearTimeout(connection.connectionTimeout);
           connection.connectionTimeout = null;
         }
 
         connection.isConnecting = false;
+
+        logger.info('WebSocket disconnected', {
+          component: 'WebSocketManager',
+          connection_id: connection.connectionId,
+          url,
+          code: event.code,
+          reason: event.reason || 'No reason provided',
+          was_clean: event.wasClean,
+        });
 
         // Check if we should reconnect and update attempt count BEFORE notifying subscribers
         // This ensures subscribers get the correct reconnect count
@@ -333,6 +424,13 @@ class WebSocketManager {
           config.reconnect &&
           connection.reconnectAttempts >= config.maxReconnectAttempts
         ) {
+          logger.error('WebSocket max retries exhausted', {
+            component: 'WebSocketManager',
+            connection_id: connection.connectionId,
+            url,
+            total_attempts: connection.reconnectAttempts,
+          });
+
           connection.subscribers.forEach((subscriber) => {
             subscriber.onMaxRetriesExhausted?.();
           });
@@ -340,6 +438,13 @@ class WebSocketManager {
       };
 
       ws.onerror = (error: Event) => {
+        logger.error('WebSocket error', {
+          component: 'WebSocketManager',
+          connection_id: connection.connectionId,
+          url,
+          error_type: error.type,
+        });
+
         connection.subscribers.forEach((subscriber) => {
           subscriber.onError?.(error);
         });
@@ -349,12 +454,40 @@ class WebSocketManager {
         try {
           const data = JSON.parse(event.data as string) as unknown;
 
+          // Extract message_id and type for logging
+          const messageId =
+            typeof data === 'object' && data !== null && 'message_id' in data
+              ? (data as { message_id: unknown }).message_id
+              : undefined;
+          const messageType =
+            typeof data === 'object' && data !== null && 'type' in data
+              ? (data as { type: unknown }).type
+              : 'unknown';
+          const timestamp =
+            typeof data === 'object' && data !== null && 'timestamp' in data
+              ? (data as { timestamp: number }).timestamp
+              : undefined;
+
+          // Calculate latency if timestamp is provided
+          const latencyMs = timestamp ? Date.now() - timestamp : undefined;
+
           if (isHeartbeatMessage(data)) {
             connection.lastHeartbeat = new Date();
+            connection.lastPongTime = Date.now();
+
+            logger.debug('WebSocket heartbeat received', {
+              component: 'WebSocketManager',
+              connection_id: connection.connectionId,
+            });
 
             if (config.autoRespondToHeartbeat && ws.readyState === WebSocket.OPEN) {
               const pongMessage: PongMessage = { type: 'pong' };
               ws.send(JSON.stringify(pongMessage));
+
+              logger.debug('WebSocket heartbeat sent (pong)', {
+                component: 'WebSocketManager',
+                connection_id: connection.connectionId,
+              });
             }
 
             connection.subscribers.forEach((subscriber) => {
@@ -364,10 +497,23 @@ class WebSocketManager {
             return;
           }
 
+          logger.debug('WebSocket message received', {
+            component: 'WebSocketManager',
+            connection_id: connection.connectionId,
+            message_id: messageId || 'unknown',
+            type: messageType,
+            latency_ms: latencyMs,
+          });
+
           connection.subscribers.forEach((subscriber) => {
             subscriber.onMessage?.(data);
           });
         } catch {
+          logger.debug('WebSocket message received (non-JSON)', {
+            component: 'WebSocketManager',
+            connection_id: connection.connectionId,
+          });
+
           connection.subscribers.forEach((subscriber) => {
             subscriber.onMessage?.(event.data as unknown);
           });
@@ -376,6 +522,7 @@ class WebSocketManager {
     } catch (error) {
       logger.error('WebSocket connection error', {
         component: 'WebSocketManager',
+        connection_id: connection.connectionId,
         url,
         error,
       });
@@ -474,6 +621,8 @@ export interface TypedSubscription {
     reconnectCount: number;
     hasExhaustedRetries: boolean;
     lastHeartbeat: Date | null;
+    connectionId: string;
+    lastPongTime: number | null;
   };
 }
 

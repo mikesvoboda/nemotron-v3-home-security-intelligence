@@ -467,6 +467,47 @@ def get_trace_context() -> dict[str, str | None]:
 
 
 # =============================================================================
+# W3C Trace Context Propagation (NEM-XXXX)
+# =============================================================================
+
+
+def get_trace_headers() -> dict[str, str]:
+    """Get W3C Trace Context headers for propagation to downstream services.
+
+    This function extracts the current trace context and returns HTTP headers
+    that can be included in outgoing requests to propagate the trace across
+    service boundaries. Uses the W3C Trace Context standard (traceparent and
+    tracestate headers).
+
+    When OpenTelemetry is enabled, this uses the standard W3CTraceContextPropagator.
+    When disabled, returns an empty dict (no-op).
+
+    Returns:
+        Dictionary with traceparent and tracestate headers if trace is active,
+        empty dict otherwise.
+
+    Example:
+        >>> from backend.core.telemetry import get_trace_headers
+        >>> headers = {"Content-Type": "application/json"}
+        >>> headers.update(get_trace_headers())
+        >>> # headers now contains traceparent and tracestate if tracing is active
+    """
+    try:
+        from opentelemetry.propagate import inject
+
+        headers: dict[str, str] = {}
+        inject(headers)
+        return headers
+    except ImportError:
+        # OpenTelemetry not installed, return empty headers
+        return {}
+    except Exception as e:
+        # Log at debug level to avoid noise
+        logger.debug("Failed to get trace headers: %s", e)
+        return {}
+
+
+# =============================================================================
 # trace_span Context Manager (NEM-1503)
 # =============================================================================
 
@@ -501,14 +542,16 @@ def trace_span(
         ...     result = perform_risky_operation()  # Exceptions auto-recorded
     """
     tracer = get_tracer("trace_span")
-    span = tracer.start_as_current_span(name)
 
-    # Set initial attributes
-    for key, value in attributes.items():
-        span.set_attribute(key, value)
+    # When using OTel, start_as_current_span returns a context manager.
+    # We need to enter the context first to get the actual span.
+    span_context = tracer.start_as_current_span(name)
 
     try:
-        with span:
+        with span_context as span:
+            # Set initial attributes after entering context
+            for key, value in attributes.items():
+                span.set_attribute(key, value)
             yield span
     except Exception as e:
         if record_exception_on_error:

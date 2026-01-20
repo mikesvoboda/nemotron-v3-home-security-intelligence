@@ -7,8 +7,42 @@ import pytest
 from redis.asyncio import Redis
 
 from backend.core.redis import QueueAddResult, QueueOverflowPolicy, RedisClient
-from backend.services.batch_aggregator import BatchAggregator
+from backend.services.batch_aggregator import BatchAggregator, generate_batch_id
 from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+# ===========================================================================
+# Test: generate_batch_id() function
+# ===========================================================================
+
+
+class TestGenerateBatchId:
+    """Tests for the generate_batch_id function."""
+
+    def test_generate_batch_id_format(self):
+        """Test that generate_batch_id returns correct format 'batch-XXXXXXXX'."""
+        batch_id = generate_batch_id()
+        assert batch_id.startswith("batch-"), f"Expected 'batch-' prefix, got: {batch_id}"
+        # Should be 'batch-' (6 chars) + 8 hex chars = 14 total
+        assert len(batch_id) == 14, f"Expected 14 characters, got {len(batch_id)}: {batch_id}"
+        # The suffix should be hexadecimal
+        suffix = batch_id[6:]
+        assert all(c in "0123456789abcdef" for c in suffix), f"Expected hex suffix, got: {suffix}"
+
+    def test_generate_batch_id_uniqueness(self):
+        """Test that generate_batch_id produces unique IDs."""
+        batch_ids = [generate_batch_id() for _ in range(100)]
+        unique_ids = set(batch_ids)
+        assert len(unique_ids) == 100, f"Expected 100 unique IDs, got {len(unique_ids)}"
+
+    def test_generate_batch_id_is_human_readable(self):
+        """Test that batch_id is human-readable for log searching."""
+        batch_id = generate_batch_id()
+        # Should be short enough for manual inspection
+        assert len(batch_id) <= 16, "batch_id should be <=16 chars for readability"
+        # Should be easy to grep in logs
+        assert " " not in batch_id, "batch_id should not contain spaces"
+        assert "\n" not in batch_id, "batch_id should not contain newlines"
+
 
 # Fixtures
 
@@ -108,6 +142,7 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
     """Test that adding a detection to a camera with no active batch creates a new batch.
 
     NEM-2014: Batch metadata is now created atomically via Redis pipeline with transaction=True.
+    Uses generate_batch_id() for human-readable batch IDs with format 'batch-XXXXXXXX'.
     """
     camera_id = "front_door"
     detection_id = 1  # Use integer detection ID (matches database model)
@@ -137,14 +172,14 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
 
     mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
 
-    # Mock UUID generation
-    with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-        mock_uuid.return_value.hex = "batch_123"
+    # Mock generate_batch_id to return a predictable value
+    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        mock_gen.return_value = "batch-abc12345"
 
         batch_id = await batch_aggregator.add_detection(camera_id, detection_id, file_path)
 
-    # Verify batch ID was returned
-    assert batch_id == "batch_123"
+    # Verify batch ID was returned with new format
+    assert batch_id == "batch-abc12345"
 
     # NEM-2014: Should have used pipeline with transaction=True
     mock_redis_instance._client.pipeline.assert_called_with(transaction=True)
@@ -152,7 +187,7 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
     # Check that batch metadata was set in pipeline
     pipeline_keys = [op[1] for op in pipeline_ops if op[0] == "set"]
     assert f"batch:{camera_id}:current" in pipeline_keys
-    assert "batch:batch_123:started_at" in pipeline_keys
+    assert "batch:batch-abc12345:started_at" in pipeline_keys
 
     # Verify RPUSH was called for atomic detection list append
     mock_redis_instance._client.rpush.assert_called()
@@ -193,9 +228,9 @@ async def test_create_batch_id_uses_camera_batch_key(batch_aggregator, mock_redi
 
     mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
 
-    # Mock UUID generation
-    with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-        mock_uuid.return_value.hex = "test_batch_456"
+    # Mock generate_batch_id to return a predictable value
+    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        mock_gen.return_value = "batch-test4567"
 
         await batch_aggregator.add_detection(camera_id, detection_id, file_path)
 
@@ -211,7 +246,7 @@ async def test_create_batch_id_uses_camera_batch_key(batch_aggregator, mock_redi
     # Also verify the batch_key value points to the generated batch_id
     batch_key_ops = [op for op in pipeline_ops if op[0] == "set" and op[1] == expected_batch_key]
     assert len(batch_key_ops) == 1, "Expected exactly one SET operation for batch_key"
-    assert batch_key_ops[0][2] == "test_batch_456", (
+    assert batch_key_ops[0][2] == "batch-test4567", (
         "batch_key should point to the generated batch_id"
     )
 
@@ -520,14 +555,14 @@ async def test_add_detection_concurrent_cameras(batch_aggregator, mock_redis_ins
     mock_redis_instance.get.return_value = None
     mock_redis_instance._client.rpush.return_value = 1
 
-    with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
+    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
         # Generate unique batch IDs
         batch_ids = ["batch_001", "batch_002"]
-        mock_uuid.return_value.hex = batch_ids[0]
+        mock_gen.return_value = batch_ids[0]
 
         batch_id1 = await batch_aggregator.add_detection(camera1, 1, "/path/1.jpg")
 
-        mock_uuid.return_value.hex = batch_ids[1]
+        mock_gen.return_value = batch_ids[1]
         batch_id2 = await batch_aggregator.add_detection(camera2, 2, "/path/2.jpg")
 
     # Should create separate batches
@@ -911,8 +946,8 @@ async def test_add_detection_skips_fast_path_low_confidence(batch_aggregator, mo
     batch_aggregator._fast_path_threshold = 0.90
     batch_aggregator._fast_path_types = ["person"]
 
-    with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-        mock_uuid.return_value.hex = "batch_normal"
+    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        mock_gen.return_value = "batch_normal"
 
         batch_id = await batch_aggregator.add_detection(
             camera_id=camera_id,
@@ -990,8 +1025,8 @@ async def test_add_detection_without_confidence_skips_fast_path(
     mock_redis_instance.get.return_value = None
     mock_redis_instance._client.rpush.return_value = 1
 
-    with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-        mock_uuid.return_value.hex = "batch_no_confidence"
+    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        mock_gen.return_value = "batch_no_confidence"
 
         batch_id = await batch_aggregator.add_detection(
             camera_id=camera_id,
@@ -1345,8 +1380,8 @@ async def test_add_detection_stores_pipeline_start_time(batch_aggregator, mock_r
 
     mock_redis_instance._client.pipeline = MagicMock(return_value=MockPipeline())
 
-    with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-        mock_uuid.return_value.hex = "batch_with_time"
+    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        mock_gen.return_value = "batch_with_time"
 
         batch_id = await batch_aggregator.add_detection(
             camera_id=camera_id,
@@ -1380,8 +1415,8 @@ async def test_add_detection_without_pipeline_start_time(batch_aggregator, mock_
     mock_redis_instance.get.return_value = None
     mock_redis_instance._client.rpush.return_value = 1
 
-    with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-        mock_uuid.return_value.hex = "batch_no_time"
+    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        mock_gen.return_value = "batch_no_time"
 
         batch_id = await batch_aggregator.add_detection(
             camera_id=camera_id,
@@ -1533,8 +1568,8 @@ async def test_add_detection_handles_partial_redis_failure(batch_aggregator, moc
     mock_redis_instance.set = failing_set
     mock_redis_instance._client.rpush.return_value = 1
 
-    with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-        mock_uuid.return_value.hex = "batch_partial_fail"
+    with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+        mock_gen.return_value = "batch_partial_fail"
 
         # This should handle the partial failure gracefully
         # With return_exceptions=True, exceptions are returned in results
@@ -2298,8 +2333,8 @@ class TestBatchAggregatorProperties:
         mock_redis_instance.get.return_value = None
         mock_redis_instance._client.rpush.return_value = 1
 
-        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-            mock_uuid.return_value.hex = "test_batch"
+        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+            mock_gen.return_value = "test_batch"
 
             batch_id = await aggregator.add_detection(
                 camera_id="front_door",
@@ -2948,8 +2983,8 @@ async def test_add_detection_closes_batch_when_max_reached(mock_redis_instance):
         mock_redis_instance._client.rpush.return_value = 1
         mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
 
-        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-            mock_uuid.return_value.hex = "batch_new"
+        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+            mock_gen.return_value = "batch_new"
 
             # Add detection which should trigger batch split
             batch_id = await aggregator.add_detection(
@@ -3035,8 +3070,8 @@ async def test_batch_split_logs_info_message(mock_redis_instance, caplog):
         mock_redis_instance._client.rpush.return_value = 1
         mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
 
-        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-            mock_uuid.return_value.hex = "batch_new"
+        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+            mock_gen.return_value = "batch_new"
 
             with caplog.at_level(logging.INFO):
                 await aggregator.add_detection(
@@ -3081,8 +3116,8 @@ async def test_batch_split_records_metric(mock_redis_instance):
         mock_redis_instance._client.rpush.return_value = 1
         mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
 
-        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-            mock_uuid.return_value.hex = "batch_new"
+        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+            mock_gen.return_value = "batch_new"
 
             with patch("backend.services.batch_aggregator.record_batch_max_reached") as mock_metric:
                 await aggregator.add_detection(
@@ -3125,8 +3160,8 @@ async def test_batch_split_preserves_detection_order(mock_redis_instance):
         # Old batch has detections 1-5
         mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
 
-        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-            mock_uuid.return_value.hex = "batch_new"
+        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+            mock_gen.return_value = "batch_new"
 
             await aggregator.add_detection(
                 camera_id=camera_id,
@@ -3193,8 +3228,8 @@ async def test_new_batch_after_split_accepts_detections(mock_redis_instance):
         mock_redis_instance._client.rpush.return_value = 1
         mock_redis_instance._client.lrange.return_value = ["1", "2", "3", "4", "5"]
 
-        with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-            mock_uuid.return_value.hex = new_batch_id
+        with patch("backend.services.batch_aggregator.generate_batch_id") as mock_gen:
+            mock_gen.return_value = new_batch_id
 
             batch_id = await aggregator.add_detection(
                 camera_id=camera_id,

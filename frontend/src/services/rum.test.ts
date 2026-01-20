@@ -493,9 +493,18 @@ describe('initRUM', () => {
 });
 
 describe('WebVitalMetric type', () => {
-  it('supports all Core Web Vital names', () => {
-    const names: WebVitalName[] = ['LCP', 'FID', 'INP', 'CLS', 'TTFB', 'FCP', 'PAGE_LOAD_TIME'];
-    expect(names.length).toBe(7);
+  it('supports all Core Web Vital names including SLOW_RENDER', () => {
+    const names: WebVitalName[] = [
+      'LCP',
+      'FID',
+      'INP',
+      'CLS',
+      'TTFB',
+      'FCP',
+      'PAGE_LOAD_TIME',
+      'SLOW_RENDER',
+    ];
+    expect(names.length).toBe(8);
   });
 
   it('supports all rating values', () => {
@@ -577,5 +586,109 @@ describe('RUMConfig type export', () => {
       maxQueueSize: 100,
     };
     expect(config).toBeDefined();
+  });
+});
+
+describe('SLOW_RENDER metric', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true, metrics_count: 1 }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // Suppress console output during tests
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('queues SLOW_RENDER metric', () => {
+    const rum = new RUM({ enabled: true, batchSize: 100 });
+    rum.reportMetric({
+      name: 'SLOW_RENDER',
+      value: 50,
+      rating: 'poor',
+      delta: 50,
+      id: 'sr-123',
+    } as WebVitalMetric);
+    expect(rum.getQueueSize()).toBe(1);
+    rum.destroy();
+  });
+
+  it('includes extra metadata for SLOW_RENDER metric', async () => {
+    const rum = new RUM({ enabled: true, batchSize: 1 });
+
+    rum.reportMetric({
+      name: 'SLOW_RENDER',
+      value: 40,
+      rating: 'needs-improvement',
+      delta: 40,
+      id: 'sr-456',
+      extra: {
+        component: 'EventsTable',
+        max: 75,
+        count: 5,
+      },
+    } as WebVitalMetric);
+
+    // Wait for async flush
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(fetchMock).toHaveBeenCalled();
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(options.body as string) as {
+      metrics: Array<{
+        name: string;
+        extra?: { component?: string; max?: number; count?: number };
+      }>;
+    };
+    expect(body.metrics[0].name).toBe('SLOW_RENDER');
+    expect(body.metrics[0].extra?.component).toBe('EventsTable');
+    expect(body.metrics[0].extra?.max).toBe(75);
+    expect(body.metrics[0].extra?.count).toBe(5);
+
+    rum.destroy();
+  });
+
+  it('SLOW_RENDER rating thresholds work correctly', () => {
+    const rum = new RUM({ enabled: true, batchSize: 100 });
+
+    // Good: <= 16ms
+    rum.reportMetric({
+      name: 'SLOW_RENDER',
+      value: 15,
+      rating: 'good',
+      delta: 15,
+      id: 'sr-good',
+    } as WebVitalMetric);
+
+    // Needs improvement: 16-50ms
+    rum.reportMetric({
+      name: 'SLOW_RENDER',
+      value: 30,
+      rating: 'needs-improvement',
+      delta: 30,
+      id: 'sr-ni',
+    } as WebVitalMetric);
+
+    // Poor: > 50ms
+    rum.reportMetric({
+      name: 'SLOW_RENDER',
+      value: 75,
+      rating: 'poor',
+      delta: 75,
+      id: 'sr-poor',
+    } as WebVitalMetric);
+
+    expect(rum.getQueueSize()).toBe(3);
+    rum.destroy();
   });
 });

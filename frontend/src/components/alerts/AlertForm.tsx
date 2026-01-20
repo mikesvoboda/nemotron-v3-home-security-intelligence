@@ -19,6 +19,7 @@ import { clsx } from 'clsx';
 import { AlertCircle, Bell, Calendar, Shield, X, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { useInteractionTracking } from '../../hooks/useInteractionTracking';
 import {
   validateAlertRuleName,
   validateRiskThreshold,
@@ -181,6 +182,7 @@ export default function AlertForm({
     ...initialData,
   });
   const [errors, setErrors] = useState<FormErrors>({});
+  const { trackClick, trackSubmit, trackToggle } = useInteractionTracking('AlertForm');
 
   // Update form when initial data changes
   useEffect(() => {
@@ -225,10 +227,22 @@ export default function AlertForm({
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (validateForm()) {
+      // Track successful form validation (actual success depends on API call)
+      trackSubmit(true, {
+        severity: formData.severity,
+        has_schedule: formData.schedule_enabled,
+        object_types_count: formData.object_types.length,
+        channels_count: formData.channels.length,
+      });
       void onSubmit({
         ...formData,
         name: formData.name.trim(),
         description: formData.description.trim(),
+      });
+    } else {
+      // Track form validation failure
+      trackSubmit(false, {
+        validation_errors: Object.keys(errors),
       });
     }
   };
@@ -329,7 +343,11 @@ export default function AlertForm({
                 type="button"
                 role="switch"
                 aria-checked={formData.enabled}
-                onClick={() => handleInputChange('enabled', !formData.enabled)}
+                onClick={() => {
+                  const newValue = !formData.enabled;
+                  trackToggle('enabled', newValue);
+                  handleInputChange('enabled', newValue);
+                }}
                 className={clsx(
                   'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
                   formData.enabled ? 'bg-primary' : 'bg-gray-600'
@@ -514,7 +532,11 @@ export default function AlertForm({
             type="button"
             role="switch"
             aria-checked={formData.schedule_enabled}
-            onClick={() => handleInputChange('schedule_enabled', !formData.schedule_enabled)}
+            onClick={() => {
+              const newValue = !formData.schedule_enabled;
+              trackToggle('schedule_enabled', newValue);
+              handleInputChange('schedule_enabled', newValue);
+            }}
             className={clsx(
               'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
               formData.schedule_enabled ? 'bg-primary' : 'bg-gray-600'
@@ -681,7 +703,10 @@ export default function AlertForm({
       <div className="flex justify-end gap-3 border-t border-gray-800 pt-6">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => {
+            trackClick('cancel_button');
+            onCancel();
+          }}
           disabled={isSubmitting}
           className="rounded-lg border border-gray-700 px-4 py-2 font-medium text-text-primary transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-700 disabled:opacity-50"
         >

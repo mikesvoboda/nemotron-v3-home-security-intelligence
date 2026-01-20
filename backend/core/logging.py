@@ -21,7 +21,10 @@ __all__ = [
     "SQLiteHandler",  # Backwards compatibility alias
     # Functions
     "enable_deferred_db_logging",
+    "get_app_version",
+    "get_container_id",
     "get_current_trace_context",
+    "get_hostname",
     "get_log_context",
     "get_logger",
     "get_request_id",
@@ -38,8 +41,11 @@ __all__ = [
 ]
 
 import logging
+import os
 import re
+import socket
 import sys
+import tomllib
 from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -53,6 +59,86 @@ from urllib.parse import urlparse, urlunparse
 from pythonjsonlogger.json import JsonFormatter
 
 from backend.core.config import get_settings
+
+# =============================================================================
+# Instance Identification (cached at module load for horizontal scaling)
+# =============================================================================
+# These values are static during runtime and are cached to avoid repeated lookups.
+# They enable log correlation across multiple instances in horizontal scaling scenarios.
+
+
+def get_hostname() -> str:
+    """Get hostname, preferring K8s pod name if available.
+
+    In Kubernetes, the HOSTNAME environment variable is set to the pod name,
+    which is more useful for debugging than the generic container hostname.
+
+    Returns:
+        The hostname string (pod name in K8s, or system hostname otherwise).
+    """
+    return os.environ.get("HOSTNAME", socket.gethostname())
+
+
+def get_container_id() -> str | None:
+    """Get container ID from cgroup if running in a container.
+
+    Extracts the container ID from /proc/self/cgroup for Docker/containerd
+    environments. Returns the first 12 characters of the container ID,
+    which is sufficient for identification and matches `docker ps` output.
+
+    Returns:
+        The first 12 characters of the container ID, or None if not in a container
+        or if the cgroup file cannot be read.
+    """
+    try:
+        with open("/proc/self/cgroup") as f:
+            for line in f:
+                if "docker" in line or "containerd" in line or "podman" in line:
+                    # Extract container ID from cgroup path
+                    # Format varies: /docker/<id>, /kubepods/.../docker/<id>, etc.
+                    parts = line.strip().split("/")
+                    for part in reversed(parts):
+                        # Container IDs are 64 hex chars, take first 12
+                        if len(part) >= 12 and all(c in "0123456789abcdef" for c in part[:12]):
+                            return part[:12]
+    except FileNotFoundError:
+        # Not running in a Linux container
+        pass
+    except (OSError, PermissionError):
+        # Cannot read cgroup file
+        pass
+    return None
+
+
+def get_app_version() -> str:
+    """Read version from pyproject.toml.
+
+    Reads the project version from pyproject.toml at startup. This avoids
+    hardcoding version strings in multiple places.
+
+    Returns:
+        The version string from pyproject.toml, or "unknown" if reading fails.
+    """
+    try:
+        # Navigate from backend/core/logging.py to pyproject.toml at repo root
+        # Path is deterministic and cannot be influenced by user input
+        pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+        resolved_path = pyproject_path.resolve()
+        with open(resolved_path, "rb") as f:  # nosemgrep: path-traversal-open
+            data = tomllib.load(f)
+            version: str = data.get("project", {}).get("version", "unknown")
+            return version
+    except FileNotFoundError:
+        return "unknown"
+    except (OSError, tomllib.TOMLDecodeError):
+        return "unknown"
+
+
+# Cache instance identification values at module load time
+# These don't change during runtime and caching avoids repeated lookups
+_CACHED_HOSTNAME: str = get_hostname()
+_CACHED_CONTAINER_ID: str | None = get_container_id()
+_CACHED_APP_VERSION: str = get_app_version()
 
 # Patterns for sensitive data sanitization
 _PATH_PATTERN = re.compile(r"(/[^\s:]+)+")
@@ -349,13 +435,35 @@ class ContextFilter(logging.Filter):
     - trace_id: From OpenTelemetry span context (NEM-1638)
     - span_id: From OpenTelemetry span context (NEM-1638)
     - connection_id: From WebSocket connection context (NEM-1640)
+    - task_id: From async task context (for correlating async operations)
+    - job_id: From scheduled job context (for correlating job execution)
     - log_context fields: From the log_context context manager (NEM-1645)
+    - hostname: Instance hostname for horizontal scaling identification
+    - container_id: Container ID (first 12 chars) if running in container
+    - app_version: Application version from pyproject.toml
+    - environment: Deployment environment (production/staging/development)
 
     The log_context fields are merged with any explicit extra= fields passed
     to the log call, with explicit extra values taking precedence.
     """
 
-    def filter(self, record: logging.LogRecord) -> bool:
+    def __init__(self, name: str = "") -> None:
+        """Initialize the filter with cached environment value.
+
+        Args:
+            name: Optional filter name (passed to parent class).
+        """
+        super().__init__(name)
+        # Cache environment at filter creation to avoid repeated settings lookups
+        # This is called once during logging setup, not on every log record
+        try:
+            settings = get_settings()
+            self._environment = settings.environment
+        except Exception:
+            # Settings not available during early startup
+            self._environment = "unknown"
+
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: PLR0912
         """Add contextual fields to the log record for observability.
 
         This method enriches every log record with:
@@ -363,7 +471,9 @@ class ContextFilter(logging.Filter):
         2. correlation_id from correlation context (for cross-service tracing)
         3. trace_id and span_id from OpenTelemetry (for log-to-trace correlation)
         4. connection_id from WebSocket context (for WebSocket connection tracing)
-        5. All fields from the current log_context (for structured error context)
+        5. task_id from async task context (for correlating async operations)
+        6. job_id from scheduled job context (for correlating job execution)
+        7. All fields from the current log_context (for structured error context)
 
         Log context fields are set as attributes on the record, making them
         available to formatters and handlers. Explicit extra= values passed to
@@ -417,6 +527,28 @@ class ContextFilter(logging.Filter):
                 # Module not yet available during startup
                 record.connection_id = None  # type: ignore[attr-defined]
 
+        # Add task_id from async_context module (for async task correlation)
+        # Only set if not explicitly provided via extra=
+        if not hasattr(record, "task_id"):
+            try:
+                from backend.core.async_context import get_task_id
+
+                record.task_id = get_task_id()  # type: ignore[attr-defined]
+            except ImportError:
+                # Module not yet available during startup
+                record.task_id = None  # type: ignore[attr-defined]
+
+        # Add job_id from async_context module (for scheduled job correlation)
+        # Only set if not explicitly provided via extra=
+        if not hasattr(record, "job_id"):
+            try:
+                from backend.core.async_context import get_job_id
+
+                record.job_id = get_job_id()  # type: ignore[attr-defined]
+            except ImportError:
+                # Module not yet available during startup
+                record.job_id = None  # type: ignore[attr-defined]
+
         # Add log_context fields (NEM-1645)
         # These are set via the log_context context manager
         context = get_log_context()
@@ -424,6 +556,17 @@ class ContextFilter(logging.Filter):
             # Only set if not already present (explicit extra= takes precedence)
             if not hasattr(record, key):
                 setattr(record, key, value)
+
+        # Add instance identification fields for horizontal scaling
+        # These are cached at module load time and don't change during runtime
+        if not hasattr(record, "hostname"):
+            record.hostname = _CACHED_HOSTNAME  # type: ignore[attr-defined]
+        if not hasattr(record, "container_id"):
+            record.container_id = _CACHED_CONTAINER_ID  # type: ignore[attr-defined]
+        if not hasattr(record, "app_version"):
+            record.app_version = _CACHED_APP_VERSION  # type: ignore[attr-defined]
+        if not hasattr(record, "environment"):
+            record.environment = self._environment  # type: ignore[attr-defined]
 
         return True
 
@@ -435,7 +578,7 @@ class CustomJsonFormatter(JsonFormatter):
     log aggregation and log-to-trace correlation in observability platforms.
     """
 
-    def add_fields(
+    def add_fields(  # noqa: PLR0912
         self,
         log_record: dict[str, Any],
         record: logging.LogRecord,
@@ -447,6 +590,10 @@ class CustomJsonFormatter(JsonFormatter):
         - timestamp: ISO 8601 formatted timestamp with timezone
         - level: Log level name (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         - component: Logger name (typically module path)
+        - hostname: Instance hostname for horizontal scaling identification
+        - container_id: Container ID (first 12 chars) if running in container
+        - app_version: Application version from pyproject.toml
+        - environment: Deployment environment (production/staging/development)
         - request_id: Request correlation ID (if present)
         - correlation_id: Cross-service correlation ID (if present) (NEM-1638)
         - trace_id: OpenTelemetry trace ID for log-to-trace correlation (NEM-1638)
@@ -459,6 +606,17 @@ class CustomJsonFormatter(JsonFormatter):
         log_record["timestamp"] = datetime.now(UTC).isoformat()
         log_record["level"] = record.levelname
         log_record["component"] = record.name
+
+        # Add instance identification fields for horizontal scaling
+        # These are always present (added by ContextFilter from cached values)
+        if hasattr(record, "hostname") and record.hostname:
+            log_record["hostname"] = record.hostname
+        if hasattr(record, "container_id") and record.container_id:
+            log_record["container_id"] = record.container_id
+        if hasattr(record, "app_version") and record.app_version:
+            log_record["app_version"] = record.app_version
+        if hasattr(record, "environment") and record.environment:
+            log_record["environment"] = record.environment
 
         # Add request_id if present (for request correlation)
         if hasattr(record, "request_id") and record.request_id:
@@ -475,6 +633,14 @@ class CustomJsonFormatter(JsonFormatter):
         if hasattr(record, "span_id") and record.span_id:
             log_record["span_id"] = record.span_id
 
+        # Add task_id if present (for async task correlation)
+        if hasattr(record, "task_id") and record.task_id:
+            log_record["task_id"] = record.task_id
+
+        # Add job_id if present (for scheduled job correlation)
+        if hasattr(record, "job_id") and record.job_id:
+            log_record["job_id"] = record.job_id
+
         # Add structured context fields commonly used in this application
         # These support filtering and aggregation in log management systems
         context_fields = [
@@ -484,6 +650,7 @@ class CustomJsonFormatter(JsonFormatter):
             "duration_ms",
             "connection_id",
             "detection_count",
+            "task_name",
         ]
         for field in context_fields:
             if hasattr(record, field):
@@ -703,6 +870,17 @@ def setup_logging() -> None:
     root_logger.info(
         f"Logging configured: level={settings.log_level}, "
         f"file={settings.log_file_path}, db_enabled={settings.log_db_enabled}"
+    )
+
+    # Log application startup with instance identification for horizontal scaling
+    root_logger.info(
+        "Application starting",
+        extra={
+            "hostname": _CACHED_HOSTNAME,
+            "container_id": _CACHED_CONTAINER_ID,
+            "app_version": _CACHED_APP_VERSION,
+            "environment": settings.environment,
+        },
     )
 
 
