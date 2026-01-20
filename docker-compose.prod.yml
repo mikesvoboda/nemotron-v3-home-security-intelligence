@@ -348,10 +348,10 @@ services:
       sh -c '
       if [ -n "$$REDIS_PASSWORD" ]; then
         echo "Starting Redis with password authentication"
-        redis-server --appendonly yes --appendfsync everysec --requirepass "$$REDIS_PASSWORD"
+        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru --requirepass "$$REDIS_PASSWORD"
       else
         echo "Starting Redis without authentication (development mode)"
-        redis-server --appendonly yes --appendfsync everysec
+        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru
       fi
       '
     environment:
