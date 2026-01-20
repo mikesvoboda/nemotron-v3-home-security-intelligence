@@ -90,8 +90,12 @@ describe('AIPerformancePage', () => {
   describe('loading state', () => {
     it('shows loading skeleton when config is loading', async () => {
       // Create a promise that won't resolve immediately
-      let resolveConfig: (value: ReturnType<typeof api.fetchConfig> extends Promise<infer T> ? T : never) => void;
-      const configPromise = new Promise<ReturnType<typeof api.fetchConfig> extends Promise<infer T> ? T : never>((resolve) => {
+      let resolveConfig: (
+        value: ReturnType<typeof api.fetchConfig> extends Promise<infer T> ? T : never
+      ) => void;
+      const configPromise = new Promise<
+        ReturnType<typeof api.fetchConfig> extends Promise<infer T> ? T : never
+      >((resolve) => {
         resolveConfig = resolve;
       });
       vi.mocked(api.fetchConfig).mockReturnValue(configPromise);
@@ -110,7 +114,7 @@ describe('AIPerformancePage', () => {
           batch_window_seconds: 90,
           batch_idle_timeout_seconds: 30,
           detection_confidence_threshold: 0.5,
-          grafana_url: 'http://localhost:3002',
+          grafana_url: '/grafana',
           debug: false,
         });
         await vi.runAllTimersAsync();
@@ -122,8 +126,12 @@ describe('AIPerformancePage', () => {
     });
 
     it('loading skeleton contains animated pulse elements', async () => {
-      let resolveConfig: (value: ReturnType<typeof api.fetchConfig> extends Promise<infer T> ? T : never) => void;
-      const configPromise = new Promise<ReturnType<typeof api.fetchConfig> extends Promise<infer T> ? T : never>((resolve) => {
+      let resolveConfig: (
+        value: ReturnType<typeof api.fetchConfig> extends Promise<infer T> ? T : never
+      ) => void;
+      const configPromise = new Promise<
+        ReturnType<typeof api.fetchConfig> extends Promise<infer T> ? T : never
+      >((resolve) => {
         resolveConfig = resolve;
       });
       vi.mocked(api.fetchConfig).mockReturnValue(configPromise);
@@ -143,7 +151,7 @@ describe('AIPerformancePage', () => {
           batch_window_seconds: 90,
           batch_idle_timeout_seconds: 30,
           detection_confidence_threshold: 0.5,
-          grafana_url: 'http://localhost:3002',
+          grafana_url: '/grafana',
           debug: false,
         });
         await vi.runAllTimersAsync();
@@ -207,7 +215,10 @@ describe('AIPerformancePage', () => {
 
       await waitFor(() => {
         const iframe = screen.getByTestId('grafana-iframe');
-        expect(iframe).toHaveAttribute('src', 'http://grafana.example.com/d/hsi-consolidated?orgId=1&kiosk=1&theme=dark&refresh=30s');
+        expect(iframe).toHaveAttribute(
+          'src',
+          'http://grafana.example.com/d/hsi-consolidated?orgId=1&kiosk=1&theme=dark&refresh=30s'
+        );
       });
     });
 
@@ -222,7 +233,10 @@ describe('AIPerformancePage', () => {
 
       await waitFor(() => {
         const iframe = screen.getByTestId('grafana-iframe');
-        expect(iframe).toHaveAttribute('src', '/grafana/d/hsi-consolidated?orgId=1&kiosk=1&theme=dark&refresh=30s');
+        expect(iframe).toHaveAttribute(
+          'src',
+          '/grafana/d/hsi-consolidated?orgId=1&kiosk=1&theme=dark&refresh=30s'
+        );
       });
 
       consoleSpy.mockRestore();
