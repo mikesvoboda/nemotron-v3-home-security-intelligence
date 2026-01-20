@@ -1062,7 +1062,7 @@ class TestEdgeCases:
         # Detection IDs must be integers (database model requirement)
         mock_redis_client.get.return_value = None
         with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
-            mock_uuid.return_value.hex = "batch_001"
+            mock_uuid.return_value.hex = "a1b2c3d4e5f6"  # pragma: allowlist secret
             batch_id1 = await batch_aggregator.add_detection(
                 camera_id=camera_id,
                 detection_id=1,  # Use integer detection ID
@@ -1072,8 +1072,8 @@ class TestEdgeCases:
         # Second add - same detection ID (duplicate)
         async def mock_get(key):
             if key == f"batch:{camera_id}:current":
-                return "batch_001"
-            elif key == "batch:batch_001:detections":
+                return "batch-a1b2c3d4"  # Match the format from generate_batch_id()
+            elif key == "batch:batch-a1b2c3d4:detections":
                 return json.dumps([1])  # Already has detection ID 1
             return None
 

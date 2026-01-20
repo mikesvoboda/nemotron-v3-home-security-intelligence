@@ -63,6 +63,7 @@ describe('useAlertWebSocket', () => {
       hasExhaustedRetries: false,
       reconnectCount: 0,
       lastHeartbeat: null,
+      connectionId: 'mock-ws-001',
     };
 
     (useWebSocketModule.useWebSocket as Mock).mockImplementation(

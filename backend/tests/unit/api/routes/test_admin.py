@@ -111,6 +111,7 @@ class TestSeedCamerasEndpoint:
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
+        mock_http_request = MagicMock()
 
         request = SeedCamerasRequest(count=3, clear_existing=False, create_folders=False)
 
@@ -122,6 +123,7 @@ class TestSeedCamerasEndpoint:
         with (
             patch("backend.api.routes.admin.get_settings") as mock_settings,
             patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             mock_samples.return_value = [
@@ -150,8 +152,11 @@ class TestSeedCamerasEndpoint:
                     "status": "online",
                 },
             ]
+            mock_audit.return_value.log_action = AsyncMock()
 
-            result = await seed_cameras(request=request, db=mock_db, _admin=None)
+            result = await seed_cameras(
+                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+            )
 
         assert result.created == 3
         assert result.cleared == 0
@@ -166,6 +171,7 @@ class TestSeedCamerasEndpoint:
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
+        mock_http_request = MagicMock()
 
         request = SeedCamerasRequest(count=2, clear_existing=True, create_folders=False)
 
@@ -193,6 +199,7 @@ class TestSeedCamerasEndpoint:
         with (
             patch("backend.api.routes.admin.get_settings") as mock_settings,
             patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             mock_samples.return_value = [
@@ -209,8 +216,11 @@ class TestSeedCamerasEndpoint:
                     "status": "online",
                 },
             ]
+            mock_audit.return_value.log_action = AsyncMock()
 
-            result = await seed_cameras(request=request, db=mock_db, _admin=None)
+            result = await seed_cameras(
+                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+            )
 
         assert result.created == 2
         assert result.cleared == 2
@@ -225,6 +235,7 @@ class TestSeedCamerasEndpoint:
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
+        mock_http_request = MagicMock()
 
         request = SeedCamerasRequest(count=3, clear_existing=False, create_folders=False)
 
@@ -236,6 +247,7 @@ class TestSeedCamerasEndpoint:
         with (
             patch("backend.api.routes.admin.get_settings") as mock_settings,
             patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             mock_samples.return_value = [
@@ -258,8 +270,11 @@ class TestSeedCamerasEndpoint:
                     "status": "online",
                 },
             ]
+            mock_audit.return_value.log_action = AsyncMock()
 
-            result = await seed_cameras(request=request, db=mock_db, _admin=None)
+            result = await seed_cameras(
+                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+            )
 
         # Only cam1 and cam3 should be created (cam2 already exists)
         assert result.created == 2
@@ -273,6 +288,7 @@ class TestSeedCamerasEndpoint:
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
+        mock_http_request = MagicMock()
 
         request = SeedCamerasRequest(count=1, clear_existing=False, create_folders=True)
 
@@ -285,6 +301,7 @@ class TestSeedCamerasEndpoint:
             patch("backend.api.routes.admin.get_settings") as mock_settings,
             patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
             patch("backend.api.routes.admin.Path") as mock_path,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             mock_samples.return_value = [
@@ -298,8 +315,11 @@ class TestSeedCamerasEndpoint:
 
             mock_folder = MagicMock()
             mock_path.return_value = mock_folder
+            mock_audit.return_value.log_action = AsyncMock()
 
-            result = await seed_cameras(request=request, db=mock_db, _admin=None)
+            result = await seed_cameras(
+                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+            )
 
         assert result.created == 1
         # Verify mkdir was called
@@ -313,6 +333,7 @@ class TestSeedCamerasEndpoint:
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
+        mock_http_request = MagicMock()
 
         request = SeedCamerasRequest(count=1, clear_existing=False, create_folders=True)
 
@@ -325,6 +346,7 @@ class TestSeedCamerasEndpoint:
             patch("backend.api.routes.admin.get_settings") as mock_settings,
             patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
             patch("backend.api.routes.admin.Path") as mock_path,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             mock_samples.return_value = [
@@ -339,9 +361,12 @@ class TestSeedCamerasEndpoint:
             mock_folder = MagicMock()
             mock_folder.mkdir.side_effect = OSError("Permission denied")
             mock_path.return_value = mock_folder
+            mock_audit.return_value.log_action = AsyncMock()
 
             # Should not raise, just continue
-            result = await seed_cameras(request=request, db=mock_db, _admin=None)
+            result = await seed_cameras(
+                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+            )
 
         assert result.created == 1
 
@@ -353,6 +378,7 @@ class TestSeedCamerasEndpoint:
         mock_db = AsyncMock()
         mock_db.add = MagicMock()
         mock_db.commit = AsyncMock()
+        mock_http_request = MagicMock()
 
         # Request 6 cameras (max)
         request = SeedCamerasRequest(count=6, clear_existing=False, create_folders=False)
@@ -365,6 +391,7 @@ class TestSeedCamerasEndpoint:
         with (
             patch("backend.api.routes.admin.get_settings") as mock_settings,
             patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
         ):
             mock_settings.return_value.foscam_base_path = "/export/foscam"
             # Provide 6 sample cameras
@@ -377,8 +404,11 @@ class TestSeedCamerasEndpoint:
                 }
                 for i in range(1, 7)
             ]
+            mock_audit.return_value.log_action = AsyncMock()
 
-            result = await seed_cameras(request=request, db=mock_db, _admin=None)
+            result = await seed_cameras(
+                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+            )
 
         assert result.created == 6
         assert len(result.cameras) == 6
@@ -393,6 +423,7 @@ class TestSeedEventsEndpoint:
         from backend.api.routes.admin import seed_events
 
         mock_db = create_mock_db_with_id_assignment()
+        mock_http_request = MagicMock()
 
         request = SeedEventsRequest(count=5, clear_existing=False)
 
@@ -405,14 +436,20 @@ class TestSeedEventsEndpoint:
         mock_camera_result.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_camera_result
 
-        with patch("backend.api.routes.admin.random") as mock_random:
+        with (
+            patch("backend.api.routes.admin.random") as mock_random,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+        ):
             # Control randomness for consistent testing
             mock_random.choice.return_value = mock_camera
             mock_random.random.return_value = 0.25  # Low risk
             mock_random.randint.side_effect = lambda a, _b: a  # Return min value
             mock_random.uniform.side_effect = lambda a, b: (a + b) / 2  # Return middle value
+            mock_audit.return_value.log_action = AsyncMock()
 
-            result = await seed_events(request=request, db=mock_db, _admin=None)
+            result = await seed_events(
+                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+            )
 
         assert result.events_created == 5
         assert result.detections_created > 0  # At least 1 detection per event
@@ -427,6 +464,7 @@ class TestSeedEventsEndpoint:
         from backend.api.routes.admin import seed_events
 
         mock_db = AsyncMock()
+        mock_http_request = MagicMock()
 
         request = SeedEventsRequest(count=5, clear_existing=False)
 
@@ -436,7 +474,9 @@ class TestSeedEventsEndpoint:
         mock_db.execute.return_value = mock_camera_result
 
         with pytest.raises(HTTPException) as exc_info:
-            await seed_events(request=request, db=mock_db, _admin=None)
+            await seed_events(
+                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+            )
 
         assert exc_info.value.status_code == 400
         assert "No cameras found" in exc_info.value.detail
@@ -448,6 +488,7 @@ class TestSeedEventsEndpoint:
         from backend.api.routes.admin import seed_events
 
         mock_db = create_mock_db_with_id_assignment()
+        mock_http_request = MagicMock()
 
         request = SeedEventsRequest(count=2, clear_existing=True)
 
@@ -495,13 +536,19 @@ class TestSeedEventsEndpoint:
             mock_junction_insert,  # Event 2 detection junction
         ]
 
-        with patch("backend.api.routes.admin.random") as mock_random:
+        with (
+            patch("backend.api.routes.admin.random") as mock_random,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+        ):
             mock_random.choice.return_value = mock_camera
             mock_random.random.return_value = 0.25
             mock_random.randint.side_effect = lambda a, _b: a
             mock_random.uniform.side_effect = lambda a, b: (a + b) / 2
+            mock_audit.return_value.log_action = AsyncMock()
 
-            result = await seed_events(request=request, db=mock_db, _admin=None)
+            result = await seed_events(
+                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+            )
 
         assert result.events_cleared == 2
         assert result.detections_cleared == 2
@@ -513,6 +560,7 @@ class TestSeedEventsEndpoint:
         from backend.api.routes.admin import seed_events
 
         mock_db = create_mock_db_with_id_assignment()
+        mock_http_request = MagicMock()
 
         request = SeedEventsRequest(count=10, clear_existing=False)
 
@@ -545,7 +593,10 @@ class TestSeedEventsEndpoint:
         mock_db.add.side_effect = mock_add
         mock_db.flush = AsyncMock(side_effect=mock_flush)
 
-        with patch("backend.api.routes.admin.random") as mock_random:
+        with (
+            patch("backend.api.routes.admin.random") as mock_random,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+        ):
             mock_random.choice.return_value = mock_camera
             # Simulate risk distribution - create more than needed for random calls
             risk_rolls = [
@@ -563,8 +614,11 @@ class TestSeedEventsEndpoint:
             mock_random.random.side_effect = risk_rolls
             mock_random.randint.return_value = 1  # Always return 1 detection per event
             mock_random.uniform.return_value = 0.8
+            mock_audit.return_value.log_action = AsyncMock()
 
-            result = await seed_events(request=request, db=mock_db, _admin=None)
+            result = await seed_events(
+                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+            )
 
         assert result.events_created == 10
         # Verify risk levels are generated (not testing exact distribution due to randomness)
@@ -576,6 +630,7 @@ class TestSeedEventsEndpoint:
         from backend.api.routes.admin import seed_events
 
         mock_db = create_mock_db_with_id_assignment()
+        mock_http_request = MagicMock()
 
         request = SeedEventsRequest(count=3, clear_existing=False)
 
@@ -620,13 +675,19 @@ class TestSeedEventsEndpoint:
             # Subsequent calls are for detection data
             return a  # Return minimum value
 
-        with patch("backend.api.routes.admin.random") as mock_random:
+        with (
+            patch("backend.api.routes.admin.random") as mock_random,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+        ):
             mock_random.choice.return_value = mock_camera
             mock_random.random.return_value = 0.25
             mock_random.randint.side_effect = mock_randint
             mock_random.uniform.return_value = 0.8
+            mock_audit.return_value.log_action = AsyncMock()
 
-            result = await seed_events(request=request, db=mock_db, _admin=None)
+            result = await seed_events(
+                request=request, http_request=mock_http_request, db=mock_db, _admin=None
+            )
 
         assert result.events_created == 3
         assert result.detections_created == 9  # 3 events * 3 detections each
@@ -962,7 +1023,7 @@ class TestOrphanCleanupEndpoint:
         # Verify audit log was called
         mock_audit_service.log_action.assert_called_once()
         call_args = mock_audit_service.log_action.call_args
-        assert call_args.kwargs["action"] == AuditAction.DATA_CLEARED
+        assert call_args.kwargs["action"] == AuditAction.CLEANUP_EXECUTED
         assert call_args.kwargs["resource_type"] == "orphan_cleanup"
         assert call_args.kwargs["actor"] == "admin"
         assert "dry_run" in call_args.kwargs["details"]
@@ -1054,3 +1115,244 @@ class TestGetSampleCameras:
             assert camera["name"]
             assert camera["folder_path"]
             assert camera["status"] in ["online", "offline"]
+
+
+class TestAdminAuditLogging:
+    """Tests for audit logging in admin endpoints.
+
+    Verifies that all admin operations are properly logged to the audit trail.
+    """
+
+    @pytest.mark.asyncio
+    async def test_seed_cameras_logs_to_audit(self) -> None:
+        """Verify seed_cameras logs action to audit log."""
+        from backend.api.routes.admin import seed_cameras
+        from backend.models.audit import AuditAction, AuditStatus
+
+        mock_db = AsyncMock()
+        mock_db.add = MagicMock()
+        mock_db.commit = AsyncMock()
+        mock_request = MagicMock()
+
+        request = SeedCamerasRequest(count=2, clear_existing=False, create_folders=False)
+
+        # Mock existing camera IDs query (none exist)
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_db.execute.return_value = mock_result
+
+        with (
+            patch("backend.api.routes.admin.get_settings") as mock_settings,
+            patch("backend.api.routes.admin._get_sample_cameras") as mock_samples,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+        ):
+            mock_settings.return_value.foscam_base_path = "/export/foscam"
+            mock_samples.return_value = [
+                {
+                    "id": "cam1",
+                    "name": "Camera 1",
+                    "folder_path": "/export/foscam/cam1",
+                    "status": "online",
+                },
+                {
+                    "id": "cam2",
+                    "name": "Camera 2",
+                    "folder_path": "/export/foscam/cam2",
+                    "status": "online",
+                },
+            ]
+
+            mock_audit_service = AsyncMock()
+            mock_audit.return_value = mock_audit_service
+
+            result = await seed_cameras(
+                request=request, http_request=mock_request, db=mock_db, _admin=None
+            )
+
+        # Verify audit log was called
+        mock_audit_service.log_action.assert_called_once()
+        call_args = mock_audit_service.log_action.call_args
+        assert call_args.kwargs["action"] == AuditAction.DATA_SEEDED
+        assert call_args.kwargs["resource_type"] == "admin"
+        assert call_args.kwargs["actor"] == "admin"
+        assert call_args.kwargs["status"] == AuditStatus.SUCCESS
+        assert call_args.kwargs["details"]["operation"] == "seed_cameras"
+        assert call_args.kwargs["details"]["cameras_created"] == 2
+
+    @pytest.mark.asyncio
+    async def test_seed_events_logs_to_audit(self) -> None:
+        """Verify seed_events logs action to audit log."""
+        from backend.api.routes.admin import seed_events
+        from backend.models.audit import AuditAction, AuditStatus
+        from backend.models.camera import Camera
+
+        mock_db = create_mock_db_with_id_assignment()
+        mock_request = MagicMock()
+
+        request = SeedEventsRequest(count=2, clear_existing=False)
+
+        # Mock camera query
+        mock_camera = MagicMock(spec=Camera)
+        mock_camera.id = "test_camera"
+        mock_camera.folder_path = "/export/foscam/test_camera"
+
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalars.return_value.all.return_value = [mock_camera]
+        mock_db.execute.return_value = mock_camera_result
+
+        with (
+            patch("backend.api.routes.admin.random") as mock_random,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+        ):
+            mock_random.choice.return_value = mock_camera
+            mock_random.random.return_value = 0.25  # Low risk
+            mock_random.randint.side_effect = lambda a, _b: a
+            mock_random.uniform.side_effect = lambda a, b: (a + b) / 2
+
+            mock_audit_service = AsyncMock()
+            mock_audit.return_value = mock_audit_service
+
+            result = await seed_events(
+                request=request, http_request=mock_request, db=mock_db, _admin=None
+            )
+
+        # Verify audit log was called
+        mock_audit_service.log_action.assert_called_once()
+        call_args = mock_audit_service.log_action.call_args
+        assert call_args.kwargs["action"] == AuditAction.DATA_SEEDED
+        assert call_args.kwargs["resource_type"] == "admin"
+        assert call_args.kwargs["actor"] == "admin"
+        assert call_args.kwargs["status"] == AuditStatus.SUCCESS
+        assert call_args.kwargs["details"]["operation"] == "seed_events"
+        assert call_args.kwargs["details"]["events_created"] == 2
+
+    @pytest.mark.asyncio
+    async def test_seed_pipeline_latency_logs_to_audit(self) -> None:
+        """Verify seed_pipeline_latency logs action to audit log."""
+        from backend.api.routes.admin import SeedPipelineLatencyRequest, seed_pipeline_latency
+        from backend.models.audit import AuditAction, AuditStatus
+
+        mock_db = AsyncMock()
+        mock_db.commit = AsyncMock()
+        mock_request = MagicMock()
+
+        request = SeedPipelineLatencyRequest(num_samples=10, time_span_hours=1)
+
+        with (
+            patch("backend.core.metrics.get_pipeline_latency_tracker") as mock_tracker_getter,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+        ):
+            mock_tracker = MagicMock()
+            mock_tracker._samples = {
+                "watch_to_detect": [],
+                "detect_to_batch": [],
+                "batch_to_analyze": [],
+                "total_pipeline": [],
+            }
+            mock_tracker_getter.return_value = mock_tracker
+
+            mock_audit_service = AsyncMock()
+            mock_audit.return_value = mock_audit_service
+
+            result = await seed_pipeline_latency(
+                request=request, http_request=mock_request, db=mock_db, _admin=None
+            )
+
+        # Verify audit log was called
+        mock_audit_service.log_action.assert_called_once()
+        call_args = mock_audit_service.log_action.call_args
+        assert call_args.kwargs["action"] == AuditAction.DATA_SEEDED
+        assert call_args.kwargs["resource_type"] == "admin"
+        assert call_args.kwargs["actor"] == "admin"
+        assert call_args.kwargs["status"] == AuditStatus.SUCCESS
+        assert call_args.kwargs["details"]["operation"] == "seed_pipeline_latency"
+        assert call_args.kwargs["details"]["samples_per_stage"] == 10
+
+    @pytest.mark.asyncio
+    async def test_orphan_cleanup_logs_correct_action(self) -> None:
+        """Verify orphan cleanup logs CLEANUP_EXECUTED action (not DATA_CLEARED)."""
+        from backend.api.routes.admin import cleanup_orphans
+        from backend.models.audit import AuditAction, AuditStatus
+
+        mock_db = AsyncMock()
+        mock_request = MagicMock()
+
+        request = OrphanCleanupRequest(dry_run=True)
+
+        with (
+            patch("backend.jobs.orphan_cleanup_job.OrphanCleanupJob") as mock_job_class,
+            patch("backend.services.job_tracker.get_job_tracker") as mock_tracker,
+            patch("backend.api.routes.admin.get_db_audit_service") as mock_audit,
+        ):
+            mock_job = AsyncMock()
+            mock_report = MagicMock()
+            mock_report.scanned_files = 50
+            mock_report.orphaned_files = 5
+            mock_report.deleted_files = 0
+            mock_report.deleted_bytes = 0
+            mock_report.failed_deletions = []
+            mock_report.duration_seconds = 1.0
+            mock_report.dry_run = True
+            mock_report.skipped_young = 2
+            mock_report.skipped_size_limit = 0
+            mock_report._format_bytes.return_value = "0 B"
+
+            mock_job.run.return_value = mock_report
+            mock_job_class.return_value = mock_job
+
+            mock_audit_service = AsyncMock()
+            mock_audit.return_value = mock_audit_service
+
+            result = await cleanup_orphans(
+                request=request, http_request=mock_request, db=mock_db, _admin=None
+            )
+
+        # Verify audit log was called with CLEANUP_EXECUTED action
+        mock_audit_service.log_action.assert_called_once()
+        call_args = mock_audit_service.log_action.call_args
+        assert call_args.kwargs["action"] == AuditAction.CLEANUP_EXECUTED
+        assert call_args.kwargs["resource_type"] == "orphan_cleanup"
+        assert call_args.kwargs["actor"] == "admin"
+        assert call_args.kwargs["status"] == AuditStatus.SUCCESS
+        assert call_args.kwargs["details"]["operation"] == "cleanup_orphans"
+        assert "dry_run" in call_args.kwargs["details"]
+
+    @pytest.mark.asyncio
+    async def test_clear_data_logs_operation_name(self) -> None:
+        """Verify clear_seeded_data includes operation name in audit details."""
+        from backend.api.routes.admin import clear_seeded_data
+        from backend.models.audit import AuditAction, AuditStatus
+
+        mock_db = AsyncMock()
+        mock_db.commit = AsyncMock()
+        mock_request = MagicMock()
+
+        body = ClearDataRequest(confirm="DELETE_ALL_DATA")
+
+        # Mock empty data
+        mock_empty_result = MagicMock()
+        mock_empty_result.scalars.return_value.all.return_value = []
+
+        mock_db.execute.side_effect = [
+            mock_empty_result,
+            mock_empty_result,
+            mock_empty_result,
+            None,
+            None,
+            None,
+        ]
+
+        with patch("backend.api.routes.admin.get_db_audit_service") as mock_audit:
+            mock_audit_service = AsyncMock()
+            mock_audit.return_value = mock_audit_service
+
+            result = await clear_seeded_data(
+                body=body, request=mock_request, db=mock_db, _admin=None
+            )
+
+        # Verify audit log includes operation name
+        mock_audit_service.log_action.assert_called_once()
+        call_args = mock_audit_service.log_action.call_args
+        assert call_args.kwargs["action"] == AuditAction.DATA_CLEARED
+        assert call_args.kwargs["status"] == AuditStatus.SUCCESS
+        assert call_args.kwargs["details"]["operation"] == "clear_seeded_data"

@@ -41,6 +41,7 @@ from backend.api.schemas.queue import (
     validate_analysis_payload,
     validate_detection_payload,
 )
+from backend.core.async_context import create_tracked_task
 from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.database import get_session
@@ -293,7 +294,11 @@ class DetectionQueueWorker:
         logger.info("Starting DetectionQueueWorker", extra={"queue": self._queue_name})
         self._running = True
         self._stats.state = WorkerState.STARTING
-        self._task = asyncio.create_task(self._run_loop())
+        self._task = create_tracked_task(
+            self._run_loop(),
+            name="DetectionQueueWorker",
+            task_prefix="detect-worker",
+        )
         self._stats.state = WorkerState.RUNNING
 
     async def stop(self) -> None:
@@ -735,7 +740,11 @@ class AnalysisQueueWorker:
         logger.info("Starting AnalysisQueueWorker", extra={"queue": self._queue_name})
         self._running = True
         self._stats.state = WorkerState.STARTING
-        self._task = asyncio.create_task(self._run_loop())
+        self._task = create_tracked_task(
+            self._run_loop(),
+            name="AnalysisQueueWorker",
+            task_prefix="analyze-worker",
+        )
         self._stats.state = WorkerState.RUNNING
 
     async def stop(self) -> None:
@@ -980,7 +989,11 @@ class BatchTimeoutWorker:
         )
         self._running = True
         self._stats.state = WorkerState.STARTING
-        self._task = asyncio.create_task(self._run_loop())
+        self._task = create_tracked_task(
+            self._run_loop(),
+            name="BatchTimeoutWorker",
+            task_prefix="batch-timeout",
+        )
         self._stats.state = WorkerState.RUNNING
 
     async def stop(self) -> None:
@@ -1126,7 +1139,11 @@ class QueueMetricsWorker:
             extra={"update_interval": self._update_interval},
         )
         self._running = True
-        self._task = asyncio.create_task(self._run_loop())
+        self._task = create_tracked_task(
+            self._run_loop(),
+            name="QueueMetricsWorker",
+            task_prefix="metrics-worker",
+        )
 
     async def stop(self) -> None:
         """Stop the queue metrics worker gracefully."""

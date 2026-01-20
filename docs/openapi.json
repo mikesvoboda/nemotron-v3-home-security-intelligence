@@ -22028,7 +22028,7 @@
     },
     "/api/admin/seed/cameras": {
       "post": {
-        "description": "Seed test cameras into the database.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    request: Seed configuration (count, clear_existing, create_folders)\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded cameras",
+        "description": "Seed test cameras into the database.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    request: Seed configuration (count, clear_existing, create_folders)\n    http_request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded cameras",
         "operationId": "seed_cameras_api_admin_seed_cameras_post",
         "requestBody": {
           "content": {
@@ -22126,7 +22126,7 @@
     },
     "/api/admin/seed/events": {
       "post": {
-        "description": "Seed mock events and detections into the database.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\nRequires cameras to exist first.\n\nArgs:\n    request: Seed configuration (count, clear_existing)\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded events and detections",
+        "description": "Seed mock events and detections into the database.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\nRequires cameras to exist first.\n\nArgs:\n    request: Seed configuration (count, clear_existing)\n    http_request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded events and detections",
         "operationId": "seed_events_api_admin_seed_events_post",
         "requestBody": {
           "content": {
@@ -22173,7 +22173,7 @@
     },
     "/api/admin/seed/pipeline-latency": {
       "post": {
-        "description": "Seed the pipeline latency tracker with mock historical data.\n\nThis populates the in-memory PipelineLatencyTracker with realistic\nlatency samples for UI testing and development. Data is distributed\nacross the specified time span with realistic variance.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nTypical latency ranges (ms):\n- watch_to_detect: 50-200ms (file processing + RT-DETR inference)\n- detect_to_batch: 10-50ms (detection aggregation)\n- batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)\n- total_pipeline: 5100-15300ms (end-to-end)\n\nArgs:\n    request: Configuration for sample generation\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded latency data",
+        "description": "Seed the pipeline latency tracker with mock historical data.\n\nThis populates the in-memory PipelineLatencyTracker with realistic\nlatency samples for UI testing and development. Data is distributed\nacross the specified time span with realistic variance.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nTypical latency ranges (ms):\n- watch_to_detect: 50-200ms (file processing + RT-DETR inference)\n- detect_to_batch: 10-50ms (detection aggregation)\n- batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)\n- total_pipeline: 5100-15300ms (end-to-end)\n\nArgs:\n    request: Configuration for sample generation\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded latency data",
         "operationId": "seed_pipeline_latency_api_admin_seed_pipeline_latency_post",
         "requestBody": {
           "content": {

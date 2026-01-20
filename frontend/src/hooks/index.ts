@@ -501,3 +501,10 @@ export type {
   PullToRefreshOptions,
   PullToRefreshReturn,
 } from './usePullToRefresh';
+
+// Feature error boundary HOC for granular error isolation
+export {
+  withFeatureErrorBoundary,
+  default as withFeatureErrorBoundaryDefault,
+} from './useFeatureErrorBoundary';
+export type { WithFeatureErrorBoundaryOptions } from './useFeatureErrorBoundary';

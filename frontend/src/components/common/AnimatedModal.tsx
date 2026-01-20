@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 import {
@@ -9,6 +9,7 @@ import {
   reducedMotionTransition,
   type ModalTransitionVariant,
 } from './animations';
+import { logger } from '../../services/logger';
 
 import type { ReactNode } from 'react';
 
@@ -37,6 +38,8 @@ export interface AnimatedModalProps {
   'aria-labelledby'?: string;
   /** ARIA describedby for accessibility */
   'aria-describedby'?: string;
+  /** Modal name for interaction tracking (optional) */
+  modalName?: string;
 }
 
 const sizeClasses: Record<ModalSize, string> = {
@@ -75,8 +78,26 @@ export default function AnimatedModal({
   backdropClassName = '',
   'aria-labelledby': ariaLabelledby,
   'aria-describedby': ariaDescribedby,
+  modalName,
 }: AnimatedModalProps) {
   const prefersReducedMotion = useReducedMotion();
+  const prevIsOpenRef = useRef(isOpen);
+
+  // Track modal open/close events
+  useEffect(() => {
+    // Only track if modalName is provided
+    if (!modalName) return;
+
+    // Track state changes, not initial render
+    if (prevIsOpenRef.current !== isOpen) {
+      if (isOpen) {
+        logger.interaction('open', `modal.${modalName}`);
+      } else {
+        logger.interaction('close', `modal.${modalName}`);
+      }
+      prevIsOpenRef.current = isOpen;
+    }
+  }, [isOpen, modalName]);
 
   const variants = modalTransitionVariants[variant];
   const transition = prefersReducedMotion ? reducedMotionTransition : defaultTransition;

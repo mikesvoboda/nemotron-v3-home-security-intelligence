@@ -15,6 +15,7 @@ describe('useSystemStatus', () => {
     hasExhaustedRetries: false,
     reconnectCount: 0,
     lastHeartbeat: null,
+    connectionId: 'mock-ws-001',
   };
 
   let onMessageCallback: ((data: unknown) => void) | undefined;
@@ -569,6 +570,7 @@ describe('useSystemStatus', () => {
       hasExhaustedRetries: false,
       reconnectCount: 0,
       lastHeartbeat: null,
+      connectionId: 'mock-ws-001',
     };
 
     vi.spyOn(useWebSocketModule, 'useWebSocket').mockImplementation((options) => {

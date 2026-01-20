@@ -7,6 +7,7 @@
  * - Response logging (incoming responses with duration)
  * - Global error handling (show notifications for 5xx errors)
  * - Retry logic for transient failures
+ * - Backend request ID correlation for log tracing
  *
  * @example
  * ```typescript
@@ -21,6 +22,81 @@
  * const response = await customFetch('/api/data');
  * ```
  */
+
+// ============================================================================
+// Request ID Context Store
+// Stores backend request IDs for correlation with frontend logs
+// ============================================================================
+
+/** Last request ID received from the backend */
+let lastRequestId: string | null = null;
+
+/** Last correlation ID received from the backend */
+let lastCorrelationId: string | null = null;
+
+/** Map of URL patterns to their most recent request IDs */
+const requestIdMap = new Map<string, string>();
+
+/**
+ * Sets the last received request ID from a backend response.
+ * @param id - The X-Request-ID header value
+ */
+export function setLastRequestId(id: string): void {
+  lastRequestId = id;
+}
+
+/**
+ * Gets the last received request ID.
+ * @returns The last request ID or null if none received
+ */
+export function getLastRequestId(): string | null {
+  return lastRequestId;
+}
+
+/**
+ * Sets the last received correlation ID from a backend response.
+ * @param id - The X-Correlation-ID header value
+ */
+export function setLastCorrelationId(id: string): void {
+  lastCorrelationId = id;
+}
+
+/**
+ * Gets the last received correlation ID.
+ * @returns The last correlation ID or null if none received
+ */
+export function getLastCorrelationId(): string | null {
+  return lastCorrelationId;
+}
+
+/**
+ * Associates a request ID with a specific URL for later retrieval.
+ * Useful when tracking request IDs for specific API calls.
+ * @param url - The URL that made the request
+ * @param requestId - The X-Request-ID from the response
+ */
+export function setRequestIdForUrl(url: string, requestId: string): void {
+  requestIdMap.set(url, requestId);
+}
+
+/**
+ * Gets the request ID associated with a specific URL.
+ * @param url - The URL to look up
+ * @returns The associated request ID or null if not found
+ */
+export function getRequestIdForUrl(url: string): string | null {
+  return requestIdMap.get(url) ?? null;
+}
+
+/**
+ * Clears all stored request IDs.
+ * Useful for testing or when resetting state.
+ */
+export function clearRequestIds(): void {
+  lastRequestId = null;
+  lastCorrelationId = null;
+  requestIdMap.clear();
+}
 
 /**
  * Request interceptor function type.
@@ -89,6 +165,7 @@ export const defaultRequestInterceptor: RequestInterceptor = (url, options) => {
 /**
  * Default response interceptor that logs responses with timing.
  * Handles different log levels based on status code.
+ * Also captures X-Request-ID and X-Correlation-ID headers for log correlation.
  */
 export const defaultResponseInterceptor: ResponseInterceptor = (response, url, options) => {
   const duration = options?._requestStartTime ? Date.now() - options._requestStartTime : null;
@@ -97,12 +174,28 @@ export const defaultResponseInterceptor: ResponseInterceptor = (response, url, o
   const method = options?.method || 'GET';
   const status = response.status;
 
+  // Capture backend request ID and correlation ID for log correlation
+  const requestId = response.headers.get('X-Request-ID');
+  const correlationId = response.headers.get('X-Correlation-ID');
+
+  if (requestId) {
+    setLastRequestId(requestId);
+    setRequestIdForUrl(url, requestId);
+  }
+
+  if (correlationId) {
+    setLastCorrelationId(correlationId);
+  }
+
+  // Include request ID in log output for easier debugging
+  const requestIdStr = requestId ? ` [Request-ID: ${requestId}]` : '';
+
   if (status >= 500) {
     // Server errors - log as error
-    console.error(`[API] ${method} ${url} - ${status}${durationStr}`);
+    console.error(`[API] ${method} ${url} - ${status}${durationStr}${requestIdStr}`);
   } else if (status >= 400) {
     // Client errors - log as warning
-    console.warn(`[API] ${method} ${url} - ${status}${durationStr}`);
+    console.warn(`[API] ${method} ${url} - ${status}${durationStr}${requestIdStr}`);
   } else {
     // Success - log normally
     // eslint-disable-next-line no-console

@@ -1,6 +1,7 @@
 import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
 import {
+  AlertTriangle,
   Bell,
   Camera,
   Eye,
@@ -11,7 +12,7 @@ import {
   Sliders,
 } from 'lucide-react';
 
-import { SecureContextWarning } from '../common';
+import { FeatureErrorBoundary, SecureContextWarning } from '../common';
 import AlertRulesSettings from './AlertRulesSettings';
 import AmbientStatusSettings from './AmbientStatusSettings';
 import CalibrationPanel from './CalibrationPanel';
@@ -172,3 +173,32 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+/**
+ * SettingsPage with FeatureErrorBoundary wrapper.
+ *
+ * Wraps the SettingsPage component in a FeatureErrorBoundary to prevent
+ * errors in the Settings page from crashing the entire application.
+ * The navigation should remain functional even if settings fails to load.
+ */
+function SettingsPageWithErrorBoundary() {
+  return (
+    <FeatureErrorBoundary
+      feature="Settings"
+      fallback={
+        <div className="flex min-h-screen flex-col items-center justify-center bg-[#121212] p-8">
+          <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
+          <h3 className="mb-2 text-lg font-semibold text-red-400">Settings Unavailable</h3>
+          <p className="max-w-md text-center text-sm text-gray-400">
+            Unable to load settings. Please refresh the page or try again later.
+            You can still navigate to other sections using the sidebar.
+          </p>
+        </div>
+      }
+    >
+      <SettingsPage />
+    </FeatureErrorBoundary>
+  );
+}
+
+export { SettingsPageWithErrorBoundary };

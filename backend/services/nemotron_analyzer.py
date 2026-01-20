@@ -52,7 +52,7 @@ from backend.core.config import get_settings
 from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_session
 from backend.core.exceptions import AnalyzerUnavailableError
-from backend.core.logging import get_logger, sanitize_error
+from backend.core.logging import get_logger, log_context, sanitize_error
 from backend.core.metrics import (
     observe_ai_request_duration,
     observe_risk_score,
@@ -1228,16 +1228,19 @@ class NemotronAnalyzer:
         return tracking_result
 
     def _get_auth_headers(self) -> dict[str, str]:
-        """Get authentication and correlation headers for API requests.
+        """Get authentication, correlation, and trace context headers for API requests.
 
         NEM-1729: Includes correlation headers for distributed tracing.
+        NEM-XXXX: Includes W3C Trace Context headers (traceparent, tracestate)
+                  for OpenTelemetry distributed tracing across service boundaries.
         Security: Returns X-API-Key header if API key is configured.
 
         Returns:
-            Dictionary of headers to include in requests (auth + correlation)
+            Dictionary of headers to include in requests (auth + correlation + trace context)
         """
         headers: dict[str, str] = {}
-        # Add correlation headers for distributed tracing (NEM-1729)
+        # Add correlation and W3C trace context headers for distributed tracing (NEM-1729, NEM-XXXX)
+        # get_correlation_headers() now includes traceparent/tracestate for OpenTelemetry
         headers.update(get_correlation_headers())
         # Add API key if configured
         if self._api_key:
@@ -1310,14 +1313,12 @@ class NemotronAnalyzer:
 
         analysis_start = time.time()
 
-        logger.info(
-            "Analyzing batch for camera",
-            extra={
-                "camera_id": camera_id,
-                "batch_id": batch_id,
-                "detection_count": len(detection_ids),
-            },
-        )
+        # Use log_context to include batch_id in all subsequent logs during analysis
+        # This ensures every log message within analyze_batch includes batch tracing
+        with log_context(
+            batch_id=batch_id, camera_id=camera_id, detection_count=len(detection_ids)
+        ):
+            logger.info("Batch analysis started")
 
         # Convert detection_ids to integers (may come as strings from queue payload)
         try:
@@ -1632,17 +1633,18 @@ class NemotronAnalyzer:
         record_event_created()
         record_event_by_camera(camera_id, camera_name)
 
-        logger.info(
-            "Created event for batch",
-            extra={
-                "camera_id": camera_id,
-                "event_id": event.id,
-                "batch_id": batch_id,
-                "risk_score": event.risk_score,
-                "risk_level": event.risk_level,
-                "duration_ms": total_duration_ms,
-            },
-        )
+        # Log batch analysis completion with consistent batch_id context
+        with log_context(batch_id=batch_id, camera_id=camera_id):
+            logger.info(
+                "Batch analysis completed",
+                extra={
+                    "event_id": event.id,
+                    "risk_score": event.risk_score,
+                    "risk_level": event.risk_level,
+                    "duration_ms": total_duration_ms,
+                    "detection_count": len(int_detection_ids),
+                },
+            )
 
         # Broadcast via WebSocket if available (optional)
         try:
@@ -1724,10 +1726,9 @@ class NemotronAnalyzer:
 
         analysis_start = time.time()
 
-        logger.info(
-            "Fast path analysis for detection on camera",
-            extra={"camera_id": camera_id, "detection_id": detection_id_int},
-        )
+        # Use log_context to include batch_id in all subsequent logs during fast path analysis
+        with log_context(batch_id=batch_id, camera_id=camera_id, detection_id=detection_id_int):
+            logger.info("Batch analysis started")
 
         # =========================================================================
         # SESSION 1 (READ): Fetch camera and detection data
@@ -1974,17 +1975,19 @@ class NemotronAnalyzer:
         record_event_created()
         record_event_by_camera(camera_id, camera_name)
 
-        logger.info(
-            "Created fast path event for detection",
-            extra={
-                "camera_id": camera_id,
-                "event_id": event.id,
-                "detection_id": detection_id_int,
-                "risk_score": event.risk_score,
-                "risk_level": event.risk_level,
-                "duration_ms": total_duration_ms,
-            },
-        )
+        # Log batch analysis completion with consistent batch_id context
+        with log_context(batch_id=batch_id, camera_id=camera_id):
+            logger.info(
+                "Batch analysis completed",
+                extra={
+                    "event_id": event.id,
+                    "risk_score": event.risk_score,
+                    "risk_level": event.risk_level,
+                    "duration_ms": total_duration_ms,
+                    "detection_count": 1,
+                    "is_fast_path": True,
+                },
+            )
 
         # Broadcast via WebSocket if available (optional)
         try:
