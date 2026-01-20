@@ -35,7 +35,8 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | **search/**         | Full-text search components                      | SearchBar, SearchResultCard, SearchResultsPanel                                                                                                                                                                                     |
 | **settings/**       | Configuration pages                              | SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings, DlqMonitor, NotificationSettings, StorageDashboard                                                                                                             |
 | **status/**         | AI service health status components              | AIServiceStatus                                                                                                                                                                                                                      |
-| **system/**         | System monitoring page                           | SystemMonitoringPage, SystemSummaryRow, PipelineFlowVisualization, InfrastructureStatusGrid, WorkerStatusPanel, AiModelsPanel, ContainersPanel, DatabasesPanel, HostSystemPanel, ModelZooPanel, PipelineMetricsPanel, CircuitBreakerPanel, SeverityConfigPanel, PerformanceAlerts, TimeRangeSelector |
+| **system/**         | System monitoring page                           | SystemMonitoringPage, SystemSummaryRow, PipelineFlowVisualization, InfrastructureStatusGrid, WorkerStatusPanel, AiModelsPanel, ContainersPanel, DatabasesPanel, HostSystemPanel, ModelZooPool, PipelineMetricsPanel, CircuitBreakerPanel, SeverityConfigPanel, PerformanceAlerts, TimeRangeSelector |
+| **tracing/**        | Distributed tracing visualization page           | TracingPage                                                                                                                                                                                                                         |
 | **video/**          | Video playback components                        | VideoPlayer                                                                                                                                                                                                                         |
 | **zones/**          | Zone management components                       | ZoneCanvas, ZoneEditor, ZoneForm, ZoneList                                                                                                                                                                                          |
 
@@ -373,6 +374,7 @@ Each subdirectory contains its own `AGENTS.md` with detailed component documenta
 - `settings/AGENTS.md` - Configuration pages and settings
 - `status/AGENTS.md` - AI service health status and degradation display
 - `system/AGENTS.md` - System monitoring components with redesigned page
+- `tracing/AGENTS.md` - Distributed tracing and trace visualization
 - `video/AGENTS.md` - Video playback components
 - `zones/AGENTS.md` - Zone management and configuration
 

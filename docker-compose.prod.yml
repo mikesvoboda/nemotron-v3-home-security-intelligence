@@ -517,6 +517,8 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:-admin}
       # Allow embedding Grafana dashboards in iframes (required for AI Performance page)
       - GF_SECURITY_ALLOW_EMBEDDING=true
+      # Enable Grafana Explore for distributed tracing (required for Tracing page)
+      - GF_EXPLORE_ENABLED=true
       - GF_USERS_ALLOW_SIGN_UP=false
       # Subpath configuration for nginx proxy at /grafana/
       # This enables Grafana to be accessed via https://<host>:8444/grafana/

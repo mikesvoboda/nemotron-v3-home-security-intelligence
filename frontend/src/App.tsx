@@ -68,6 +68,11 @@ const OperationsPage = lazy(() =>
   import('./components/system').then((module) => ({ default: module.SystemMonitoringPage }))
 );
 
+// Tracing
+const TracingPage = lazy(() =>
+  import('./components/tracing').then((module) => ({ default: module.TracingPage }))
+);
+
 // Settings
 const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
 
@@ -105,6 +110,7 @@ export default function App() {
                             <Route path="/ai" element={<AIPerformancePage />} />
                             <Route path="/ai-audit" element={<AIAuditPage />} />
                             <Route path="/operations" element={<OperationsPage />} />
+                            <Route path="/tracing" element={<TracingPage />} />
                             <Route path="/settings" element={<SettingsPage />} />
                             <Route path="/trash" element={<TrashPage />} />
                           </Routes>
