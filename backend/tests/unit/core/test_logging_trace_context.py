@@ -356,6 +356,83 @@ class TestLogAggregationFields:
         assert parsed.get("detection_count") == 5
 
 
+class TestTraceContextFormatter:
+    """Test TraceContextFormatter handles missing trace fields gracefully."""
+
+    def test_formatter_sets_default_trace_id_when_missing(self):
+        """Test that formatter sets empty trace_id when not present on record."""
+        from backend.core.logging import CONSOLE_FORMAT, TraceContextFormatter
+
+        formatter = TraceContextFormatter(CONSOLE_FORMAT)
+        record = logging.LogRecord(
+            name="test.component",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="test message",
+            args=(),
+            exc_info=None,
+        )
+        # Explicitly don't set trace_id or span_id
+
+        # This should NOT raise KeyError
+        formatted = formatter.format(record)
+
+        # Should contain empty trace_id and span_id
+        assert "trace_id=" in formatted
+        assert "span_id=" in formatted
+        # Record should now have the attributes
+        assert hasattr(record, "trace_id")
+        assert hasattr(record, "span_id")
+        assert record.trace_id == ""
+        assert record.span_id == ""
+
+    def test_formatter_preserves_existing_trace_id(self):
+        """Test that formatter preserves trace_id when already set."""
+        from backend.core.logging import CONSOLE_FORMAT, TraceContextFormatter
+
+        formatter = TraceContextFormatter(CONSOLE_FORMAT)
+        record = logging.LogRecord(
+            name="test.component",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="test message",
+            args=(),
+            exc_info=None,
+        )
+        record.trace_id = "existing-trace-id"
+        record.span_id = "existing-span-id"
+
+        formatted = formatter.format(record)
+
+        assert "trace_id=existing-trace-id" in formatted
+        assert "span_id=existing-span-id" in formatted
+
+    def test_formatter_handles_partial_trace_context(self):
+        """Test that formatter handles when only trace_id is set but not span_id."""
+        from backend.core.logging import CONSOLE_FORMAT, TraceContextFormatter
+
+        formatter = TraceContextFormatter(CONSOLE_FORMAT)
+        record = logging.LogRecord(
+            name="test.component",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="test message",
+            args=(),
+            exc_info=None,
+        )
+        record.trace_id = "only-trace-id"
+        # Don't set span_id
+
+        formatted = formatter.format(record)
+
+        assert "trace_id=only-trace-id" in formatted
+        assert "span_id=" in formatted
+        assert record.span_id == ""
+
+
 class TestCorrelationIdIntegration:
     """Test integration between correlation_id and trace context."""
 
