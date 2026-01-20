@@ -1242,21 +1242,21 @@
         "type": "string"
       },
       "AlertmanagerAlert": {
-        "description": "Schema for a single alert in Alertmanager webhook payload.\n\nRepresents one alert instance with its labels, annotations, and timing.",
+        "description": "Schema for a single alert in Alertmanager webhook payload.\n\nRepresents one alert instance with its labels, annotations, and timing.\nThis schema matches the Alertmanager webhook format.",
         "example": {
           "annotations": {
-            "description": "GPU memory usage is above 90% for 5 minutes",
-            "summary": "GPU memory usage is high"
+            "description": "CPU usage is above 80% for 5 minutes",
+            "summary": "CPU usage is high"
           },
           "endsAt": "0001-01-01T00:00:00Z",
           "fingerprint": "abc123def456",
           "generatorURL": "http://prometheus:9090/graph?...",
           "labels": {
-            "alertname": "HSIGPUMemoryHigh",
-            "component": "gpu",
+            "alertname": "HighCPU",
+            "instance": "localhost:9090",
             "severity": "warning"
           },
-          "startsAt": "2026-01-17T12:22:56.068Z",
+          "startsAt": "2026-01-20T12:00:00Z",
           "status": "firing"
         },
         "properties": {
@@ -1282,7 +1282,7 @@
             "title": "Endsat"
           },
           "fingerprint": {
-            "description": "Unique identifier for deduplication",
+            "description": "Unique identifier for alert deduplication",
             "title": "Fingerprint",
             "type": "string"
           },
@@ -1313,14 +1313,14 @@
             "type": "string"
           },
           "status": {
-            "$ref": "#/components/schemas/AlertmanagerStatus",
+            "$ref": "#/components/schemas/PrometheusAlertStatus",
             "description": "Alert status (firing or resolved)"
           }
         },
         "required": [
+          "fingerprint",
           "status",
-          "startsAt",
-          "fingerprint"
+          "startsAt"
         ],
         "title": "AlertmanagerAlert",
         "type": "object"
@@ -1373,7 +1373,7 @@
           "alerts": {
             "description": "List of alerts in this group",
             "items": {
-              "$ref": "#/components/schemas/backend__api__schemas__alertmanager__AlertmanagerAlert"
+              "$ref": "#/components/schemas/AlertmanagerAlert"
             },
             "title": "Alerts",
             "type": "array"
@@ -1489,7 +1489,7 @@
           "alerts": {
             "description": "List of alerts in this group",
             "items": {
-              "$ref": "#/components/schemas/AlertmanagerAlert"
+              "$ref": "#/components/schemas/backend__api__schemas__webhooks__AlertmanagerAlert"
             },
             "title": "Alerts",
             "type": "array"
@@ -23492,22 +23492,22 @@
         "title": "ZoneUpdate",
         "type": "object"
       },
-      "backend__api__schemas__alertmanager__AlertmanagerAlert": {
-        "description": "Schema for a single alert in Alertmanager webhook payload.\n\nRepresents one alert instance with its labels, annotations, and timing.\nThis schema matches the Alertmanager webhook format.",
+      "backend__api__schemas__webhooks__AlertmanagerAlert": {
+        "description": "Schema for a single alert in Alertmanager webhook payload.\n\nRepresents one alert instance with its labels, annotations, and timing.",
         "example": {
           "annotations": {
-            "description": "CPU usage is above 80% for 5 minutes",
-            "summary": "CPU usage is high"
+            "description": "GPU memory usage is above 90% for 5 minutes",
+            "summary": "GPU memory usage is high"
           },
           "endsAt": "0001-01-01T00:00:00Z",
           "fingerprint": "abc123def456",
           "generatorURL": "http://prometheus:9090/graph?...",
           "labels": {
-            "alertname": "HighCPU",
-            "instance": "localhost:9090",
+            "alertname": "HSIGPUMemoryHigh",
+            "component": "gpu",
             "severity": "warning"
           },
-          "startsAt": "2026-01-20T12:00:00Z",
+          "startsAt": "2026-01-17T12:22:56.068Z",
           "status": "firing"
         },
         "properties": {
@@ -23533,7 +23533,7 @@
             "title": "Endsat"
           },
           "fingerprint": {
-            "description": "Unique identifier for alert deduplication",
+            "description": "Unique identifier for deduplication",
             "title": "Fingerprint",
             "type": "string"
           },
@@ -23564,14 +23564,14 @@
             "type": "string"
           },
           "status": {
-            "$ref": "#/components/schemas/PrometheusAlertStatus",
+            "$ref": "#/components/schemas/AlertmanagerStatus",
             "description": "Alert status (firing or resolved)"
           }
         },
         "required": [
-          "fingerprint",
           "status",
-          "startsAt"
+          "startsAt",
+          "fingerprint"
         ],
         "title": "AlertmanagerAlert",
         "type": "object"
