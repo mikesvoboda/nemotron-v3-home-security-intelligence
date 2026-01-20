@@ -8,6 +8,7 @@ This directory contains all project documentation organized into role-based hubs
 
 | Directory          | Purpose                                   | Entry Point                         |
 | ------------------ | ----------------------------------------- | ----------------------------------- |
+| `ai/`              | AI model zoo and pipeline architecture    | [AGENTS.md](ai/AGENTS.md)           |
 | `getting-started/` | Installation and first-run setup          | [README](getting-started/README.md) |
 | `developer/`       | Architecture, API, patterns, contributing | [README](developer/README.md)       |
 | `operator/`        | Deployment, monitoring, administration    | [README](operator/README.md)        |
@@ -21,6 +22,10 @@ docs/
 ├── README.md                    # Human navigation hub
 ├── AGENTS.md                    # This file - AI navigation
 ├── ROADMAP.md                   # Post-MVP features and direction
+│
+├── ai/                          # AI model zoo documentation
+│   ├── AGENTS.md                # AI docs navigation
+│   └── model-zoo.md             # Model zoo architecture
 │
 ├── getting-started/             # Installation and setup
 │   ├── README.md                # Hub: Prerequisites → Install → First run
@@ -85,6 +90,7 @@ docs/
 ### For Understanding the System
 
 - **Architecture overview**: `architecture/overview.md`
+- **AI model zoo**: `ai/model-zoo.md`
 - **AI pipeline**: `architecture/ai-pipeline.md`
 - **Data model**: `architecture/data-model.md`
 - **Real-time events**: `architecture/real-time.md`
@@ -117,6 +123,7 @@ Each major directory has its own AGENTS.md:
 | Path                        | Purpose                        |
 | --------------------------- | ------------------------------ |
 | `docs/AGENTS.md`            | This file - documentation root |
+| `ai/AGENTS.md`              | AI model zoo documentation     |
 | `getting-started/AGENTS.md` | Installation navigation        |
 | `developer/AGENTS.md`       | Developer documentation        |
 | `operator/AGENTS.md`        | Operator documentation         |

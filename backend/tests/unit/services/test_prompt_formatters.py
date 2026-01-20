@@ -897,3 +897,532 @@ class TestFormattersErrorHandling:
         except (TypeError, AttributeError):
             # These errors are acceptable for None in list
             pass
+
+
+# =============================================================================
+# Tests for On-Demand Enrichment Functions (NEM-3041)
+# =============================================================================
+
+
+@dataclass
+class MockPoseResult:
+    """Mock PoseResult for testing."""
+
+    pose_class: str
+    pose_confidence: float
+
+
+@dataclass
+class MockThreatResult:
+    """Mock ThreatResult for testing."""
+
+    has_threat: bool
+    threats: list[dict]
+
+
+@dataclass
+class MockDemographicsResult:
+    """Mock DemographicsResult for testing."""
+
+    age_range: str
+    gender: str
+    confidence: float
+
+
+@dataclass
+class MockActionResult:
+    """Mock ActionResult for testing."""
+
+    action: str
+    confidence: float
+    is_suspicious: bool
+
+
+@dataclass
+class MockVehicleAttributes:
+    """Mock VehicleAttributes for testing."""
+
+    color: str | None
+    make: str | None
+    model: str | None
+    vehicle_type: str
+    confidence: float
+
+
+@dataclass
+class MockOnDemandEnrichment:
+    """Mock OnDemandEnrichment for testing."""
+
+    pose: MockPoseResult | dict | None = None
+    clothing: MockClothingClassification | dict | None = None
+    demographics: MockDemographicsResult | dict | None = None
+    action: MockActionResult | dict | None = None
+    reid_embedding: list[float] | None = None
+    threat: MockThreatResult | dict | None = None
+    vehicle: MockVehicleAttributes | dict | None = None
+
+
+class TestBuildPersonAnalysisSection:
+    """Tests for build_person_analysis_section function."""
+
+    def test_no_data_returns_default_message(self) -> None:
+        """Test returns default message when no person data available."""
+        from backend.services.prompts import build_person_analysis_section
+
+        enrichment = MockOnDemandEnrichment()
+        result = build_person_analysis_section(enrichment)
+        assert result == "No person analysis available."
+
+    def test_pose_only(self) -> None:
+        """Test formatting with only pose data."""
+        from backend.services.prompts import build_person_analysis_section
+
+        enrichment = MockOnDemandEnrichment(
+            pose=MockPoseResult(pose_class="standing", pose_confidence=0.92)
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Pose & Posture" in result
+        assert "standing" in result
+        assert "92" in result
+        assert "Suspicious posture: No" in result
+
+    def test_suspicious_pose(self) -> None:
+        """Test formatting for suspicious crouching pose."""
+        from backend.services.prompts import build_person_analysis_section
+
+        enrichment = MockOnDemandEnrichment(
+            pose=MockPoseResult(pose_class="crouching", pose_confidence=0.85)
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "crouching" in result
+        assert "Suspicious posture: YES" in result
+
+    def test_demographics_only(self) -> None:
+        """Test formatting with only demographics data."""
+        from backend.services.prompts import build_person_analysis_section
+
+        enrichment = MockOnDemandEnrichment(
+            demographics=MockDemographicsResult(
+                age_range="25-35",
+                gender="male",
+                confidence=0.88,
+            )
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Demographics" in result
+        assert "25-35" in result
+        assert "male" in result
+
+    def test_action_recognition(self) -> None:
+        """Test formatting with action recognition data."""
+        from backend.services.prompts import build_person_analysis_section
+
+        enrichment = MockOnDemandEnrichment(
+            action=MockActionResult(
+                action="loitering",
+                confidence=0.78,
+                is_suspicious=True,
+            )
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Behavior" in result
+        assert "loitering" in result
+        assert "78" in result
+        assert "Suspicious behavior: YES" in result
+
+    def test_reid_embedding(self) -> None:
+        """Test formatting with re-identification embedding."""
+        from backend.services.prompts import build_person_analysis_section
+
+        enrichment = MockOnDemandEnrichment(reid_embedding=[0.1, 0.2, 0.3, 0.4, 0.5])
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Identity" in result
+        assert "Re-ID embedding extracted" in result
+
+    def test_full_person_analysis(self) -> None:
+        """Test formatting with all person analysis data."""
+        from backend.services.prompts import build_person_analysis_section
+
+        enrichment = MockOnDemandEnrichment(
+            pose=MockPoseResult(pose_class="standing", pose_confidence=0.9),
+            demographics=MockDemographicsResult(
+                age_range="30-40",
+                gender="female",
+                confidence=0.85,
+            ),
+            action=MockActionResult(
+                action="walking",
+                confidence=0.95,
+                is_suspicious=False,
+            ),
+            reid_embedding=[0.1] * 512,
+        )
+        result = build_person_analysis_section(enrichment)
+
+        assert "### Pose & Posture" in result
+        assert "### Demographics" in result
+        assert "### Behavior" in result
+        assert "### Identity" in result
+
+    def test_pose_as_dict(self) -> None:
+        """Test formatting with pose data as dictionary."""
+        from backend.services.prompts import build_person_analysis_section
+
+        enrichment = MockOnDemandEnrichment(pose={"pose_class": "running", "pose_confidence": 0.82})
+        result = build_person_analysis_section(enrichment)
+
+        assert "running" in result
+        assert "82" in result
+
+
+class TestBuildThreatSection:
+    """Tests for build_threat_section function."""
+
+    def test_no_threat_returns_default(self) -> None:
+        """Test returns default message when no threat data."""
+        from backend.services.prompts import build_threat_section
+
+        enrichment = MockOnDemandEnrichment()
+        result = build_threat_section(enrichment)
+        assert result == "No threats detected."
+
+    def test_no_threats_detected(self) -> None:
+        """Test formatting when threat check found no threats."""
+        from backend.services.prompts import build_threat_section
+
+        enrichment = MockOnDemandEnrichment(threat=MockThreatResult(has_threat=False, threats=[]))
+        result = build_threat_section(enrichment)
+        assert result == "No threats detected."
+
+    def test_single_threat_detected(self) -> None:
+        """Test formatting with single threat detected."""
+        from backend.services.prompts import build_threat_section
+
+        enrichment = MockOnDemandEnrichment(
+            threat=MockThreatResult(
+                has_threat=True,
+                threats=[{"threat_type": "knife", "severity": "high", "confidence": 0.85}],
+            )
+        )
+        result = build_threat_section(enrichment)
+
+        assert "**THREATS DETECTED:**" in result
+        assert "KNIFE" in result
+        assert "high" in result
+        assert "85%" in result
+
+    def test_multiple_threats_detected(self) -> None:
+        """Test formatting with multiple threats detected."""
+        from backend.services.prompts import build_threat_section
+
+        enrichment = MockOnDemandEnrichment(
+            threat=MockThreatResult(
+                has_threat=True,
+                threats=[
+                    {"threat_type": "gun", "severity": "critical", "confidence": 0.92},
+                    {"threat_type": "knife", "severity": "high", "confidence": 0.78},
+                ],
+            )
+        )
+        result = build_threat_section(enrichment)
+
+        assert "GUN" in result
+        assert "KNIFE" in result
+        assert "critical" in result
+        assert "92%" in result
+
+    def test_threat_as_dict(self) -> None:
+        """Test formatting with threat data as dictionary."""
+        from backend.services.prompts import build_threat_section
+
+        enrichment = MockOnDemandEnrichment(
+            threat={
+                "has_threat": True,
+                "threats": [{"type": "weapon", "severity": "high", "confidence": 0.75}],
+            }
+        )
+        result = build_threat_section(enrichment)
+
+        assert "**THREATS DETECTED:**" in result
+        assert "WEAPON" in result
+
+
+class TestBuildVehicleSection:
+    """Tests for build_vehicle_section function."""
+
+    def test_no_vehicle_returns_default(self) -> None:
+        """Test returns default message when no vehicle data."""
+        from backend.services.prompts import build_vehicle_section
+
+        enrichment = MockOnDemandEnrichment()
+        result = build_vehicle_section(enrichment)
+        assert result == "No vehicle detected."
+
+    def test_basic_vehicle(self) -> None:
+        """Test formatting with basic vehicle data."""
+        from backend.services.prompts import build_vehicle_section
+
+        enrichment = MockOnDemandEnrichment(
+            vehicle=MockVehicleAttributes(
+                color=None,
+                make=None,
+                model=None,
+                vehicle_type="sedan",
+                confidence=0.85,
+            )
+        )
+        result = build_vehicle_section(enrichment)
+
+        assert "Vehicle:" in result
+        assert "sedan" in result
+        assert "85%" in result
+
+    def test_full_vehicle_attributes(self) -> None:
+        """Test formatting with all vehicle attributes."""
+        from backend.services.prompts import build_vehicle_section
+
+        enrichment = MockOnDemandEnrichment(
+            vehicle=MockVehicleAttributes(
+                color="silver",
+                make="Toyota",
+                model="Camry",
+                vehicle_type="sedan",
+                confidence=0.92,
+            )
+        )
+        result = build_vehicle_section(enrichment)
+
+        assert "silver" in result
+        assert "Toyota" in result
+        assert "Camry" in result
+        assert "sedan" in result
+        assert "92%" in result
+
+    def test_vehicle_as_dict(self) -> None:
+        """Test formatting with vehicle data as dictionary."""
+        from backend.services.prompts import build_vehicle_section
+
+        enrichment = MockOnDemandEnrichment(
+            vehicle={
+                "color": "blue",
+                "make": "Honda",
+                "model": None,
+                "vehicle_type": "SUV",
+                "confidence": 0.88,
+            }
+        )
+        result = build_vehicle_section(enrichment)
+
+        assert "blue" in result
+        assert "Honda" in result
+        assert "SUV" in result
+
+
+class TestFormatOndemandEnrichmentContext:
+    """Tests for format_ondemand_enrichment_context function."""
+
+    def test_empty_enrichment_returns_empty(self) -> None:
+        """Test returns empty string when no enrichment data."""
+        from backend.services.prompts import format_ondemand_enrichment_context
+
+        enrichment = MockOnDemandEnrichment()
+        result = format_ondemand_enrichment_context(enrichment)
+        assert result == ""
+
+    def test_threat_appears_first(self) -> None:
+        """Test that threat section appears before person analysis."""
+        from backend.services.prompts import format_ondemand_enrichment_context
+
+        enrichment = MockOnDemandEnrichment(
+            pose=MockPoseResult(pose_class="standing", pose_confidence=0.9),
+            threat=MockThreatResult(
+                has_threat=True,
+                threats=[{"threat_type": "knife", "severity": "high", "confidence": 0.85}],
+            ),
+        )
+        result = format_ondemand_enrichment_context(enrichment)
+
+        # Threat should appear before pose
+        threat_pos = result.find("THREAT DETECTION")
+        person_pos = result.find("Person Analysis")
+        assert threat_pos < person_pos
+
+    def test_includes_all_sections(self) -> None:
+        """Test formatting includes all enrichment sections."""
+        from backend.services.prompts import format_ondemand_enrichment_context
+
+        enrichment = MockOnDemandEnrichment(
+            pose=MockPoseResult(pose_class="standing", pose_confidence=0.9),
+            demographics=MockDemographicsResult(age_range="30-40", gender="male", confidence=0.85),
+            threat=MockThreatResult(
+                has_threat=True,
+                threats=[{"threat_type": "weapon", "severity": "high", "confidence": 0.8}],
+            ),
+            vehicle=MockVehicleAttributes(
+                color="black",
+                make="Ford",
+                model="F-150",
+                vehicle_type="truck",
+                confidence=0.9,
+            ),
+        )
+        result = format_ondemand_enrichment_context(enrichment)
+
+        assert "### THREAT DETECTION" in result
+        assert "## Person Analysis" in result
+        assert "### Vehicle Analysis" in result
+
+    def test_excludes_no_threats_section(self) -> None:
+        """Test that 'No threats detected' section is not included."""
+        from backend.services.prompts import format_ondemand_enrichment_context
+
+        enrichment = MockOnDemandEnrichment(
+            threat=MockThreatResult(has_threat=False, threats=[]),
+            pose=MockPoseResult(pose_class="standing", pose_confidence=0.9),
+        )
+        result = format_ondemand_enrichment_context(enrichment)
+
+        assert "No threats detected" not in result
+        assert "THREAT DETECTION" not in result
+
+
+class TestFormatEnhancedClothingContext:
+    """Tests for format_enhanced_clothing_context function."""
+
+    def test_empty_result_returns_empty(self) -> None:
+        """Test returns empty string when no clothing data."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        result = format_enhanced_clothing_context(None)
+        assert result == ""
+
+        result = format_enhanced_clothing_context({})
+        assert result == ""
+
+    def test_suspicious_attire(self) -> None:
+        """Test formatting for suspicious attire detection."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        result = format_enhanced_clothing_context(
+            {
+                "suspicious": {
+                    "confidence": 0.85,
+                    "top_match": "person wearing black hoodie with hood up",
+                }
+            }
+        )
+
+        assert "**ALERT**" in result
+        assert "black hoodie" in result
+        assert "85%" in result
+
+    def test_delivery_uniform(self) -> None:
+        """Test formatting for delivery uniform detection."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        result = format_enhanced_clothing_context(
+            {
+                "delivery": {
+                    "confidence": 0.8,
+                    "top_match": "Amazon delivery driver in blue vest",
+                }
+            }
+        )
+
+        assert "Service worker identified" in result
+        assert "Amazon" in result
+
+    def test_carrying_items(self) -> None:
+        """Test formatting for carrying items detection."""
+        from backend.services.prompts import format_enhanced_clothing_context
+
+        result = format_enhanced_clothing_context(
+            {
+                "carrying": {
+                    "confidence": 0.75,
+                    "top_match": "person carrying a large box",
+                }
+            }
+        )
+
+        assert "Carrying:" in result
+        assert "large box" in result
+
+
+class TestFormatFlorenceSceneContext:
+    """Tests for format_florence_scene_context function."""
+
+    def test_empty_result_returns_empty(self) -> None:
+        """Test returns empty string when no scene data."""
+        from backend.services.prompts import format_florence_scene_context
+
+        result = format_florence_scene_context(None)
+        assert result == ""
+
+        result = format_florence_scene_context({})
+        assert result == ""
+
+    def test_scene_description(self) -> None:
+        """Test formatting with scene description."""
+        from backend.services.prompts import format_florence_scene_context
+
+        result = format_florence_scene_context(
+            {"scene": "A person walking towards a residential front door in daylight."}
+        )
+
+        assert "Scene Analysis (Florence-2)" in result
+        assert "Scene Description" in result
+        assert "person walking" in result
+
+    def test_security_objects(self) -> None:
+        """Test formatting with security-relevant objects."""
+        from backend.services.prompts import format_florence_scene_context
+
+        result = format_florence_scene_context(
+            {"security_objects": {"labels": ["person", "backpack", "crowbar"]}}
+        )
+
+        assert "Objects Detected" in result
+        assert "person" in result
+        assert "backpack" in result
+        assert "**HIGH RISK OBJECTS**" in result
+        assert "crowbar" in result
+
+    def test_text_regions(self) -> None:
+        """Test formatting with detected text."""
+        from backend.services.prompts import format_florence_scene_context
+
+        result = format_florence_scene_context(
+            {"text_regions": {"labels": ["ABC 1234", "No Parking"]}}
+        )
+
+        assert "Visible Text" in result
+        assert "ABC 1234" in result
+
+
+class TestModelZooEnhancedPromptNewFields:
+    """Tests for new fields in MODEL_ZOO_ENHANCED prompt template."""
+
+    def test_template_has_ondemand_enrichment_field(self) -> None:
+        """Test that template contains the new ondemand_enrichment_context field."""
+        assert "{ondemand_enrichment_context}" in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+
+    def test_template_has_threat_detection_guide(self) -> None:
+        """Test that template contains threat detection risk interpretation."""
+        assert "### Threat Detection (Weapons)" in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+        assert "weapon detection" in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT.lower()
+
+    def test_template_has_action_recognition_guide(self) -> None:
+        """Test that template contains action recognition risk interpretation."""
+        assert "### Action Recognition" in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+        assert "Sneaking" in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+
+    def test_template_has_demographics_guide(self) -> None:
+        """Test that template contains demographics context guidance."""
+        assert "### Demographics Context" in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+        assert "Do NOT use demographics to escalate" in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT

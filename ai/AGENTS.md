@@ -8,7 +8,7 @@ Contains AI inference services for home security monitoring. This directory hous
 2. **Nemotron** - LLM risk reasoning and analysis
 3. **CLIP** - Entity re-identification via embeddings
 4. **Florence-2** - Vision-language attribute extraction
-5. **Enrichment** - Combined classification service (vehicle, pet, clothing, depth, pose)
+5. **Enrichment** - Combined classification service with on-demand model loading (Model Zoo)
 
 All services run as FastAPI HTTP servers with GPU passthrough via Docker/Podman.
 
@@ -43,12 +43,21 @@ ai/
 │   ├── Dockerfile         # Container build
 │   ├── model.py           # FastAPI server for attribute extraction
 │   └── requirements.txt   # Python dependencies
-├── enrichment/            # Combined enrichment service
+├── enrichment/            # Combined enrichment service (Model Zoo)
 │   ├── AGENTS.md          # Enrichment documentation
 │   ├── Dockerfile         # Container build
-│   ├── model.py           # FastAPI server with multiple classifiers
-│   ├── vitpose.py         # ViTPose+ pose estimation module
-│   └── requirements.txt   # Python dependencies
+│   ├── model.py           # FastAPI server with /enrich endpoint
+│   ├── model_manager.py   # On-demand VRAM-aware model loading
+│   ├── model_registry.py  # Model configuration and registration
+│   ├── vitpose.py         # ViTPose+ pose estimation (legacy)
+│   ├── requirements.txt   # Python dependencies
+│   ├── models/            # Model implementations
+│   │   ├── pose_estimator.py   # YOLOv8n-pose wrapper
+│   │   ├── threat_detector.py  # Weapon detection
+│   │   ├── demographics.py     # Age/gender estimation
+│   │   ├── person_reid.py      # OSNet re-ID embeddings
+│   │   └── action_recognizer.py # X-CLIP video actions
+│   └── tests/             # Unit tests
 ├── download_models.sh     # Download AI models
 ├── start_detector.sh      # Start RT-DETRv2 (port 8090)
 ├── start_llm.sh           # Start Nemotron 4B (port 8091)
@@ -57,13 +66,49 @@ ai/
 
 ## Service Overview
 
-| Service    | Port | Model               | HuggingFace                                                                                       | Purpose                             |
-| ---------- | ---- | ------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| RT-DETRv2  | 8090 | RT-DETRv2           | [PekingU/rtdetr_r50vd_coco_o365](https://huggingface.co/PekingU/rtdetr_r50vd_coco_o365)           | Object detection                    |
-| Nemotron   | 8091 | Nemotron-3-Nano-30B | [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) | Risk reasoning                      |
-| Florence-2 | 8092 | Florence-2-Large    | [microsoft/Florence-2-large](https://huggingface.co/microsoft/Florence-2-large)                   | Dense captioning                    |
-| CLIP       | 8093 | CLIP ViT-L          | [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)             | Entity embeddings                   |
-| Enrichment | 8094 | Multiple            | See [enrichment/AGENTS.md](enrichment/AGENTS.md)                                                  | Vehicle, pet, clothing, depth, pose |
+| Service    | Port | Model                | HuggingFace                                                                                       | Purpose                        |
+| ---------- | ---- | -------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------ |
+| RT-DETRv2  | 8090 | RT-DETRv2            | [PekingU/rtdetr_r50vd_coco_o365](https://huggingface.co/PekingU/rtdetr_r50vd_coco_o365)           | Object detection               |
+| Nemotron   | 8091 | Nemotron-3-Nano-30B  | [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) | Risk reasoning                 |
+| Florence-2 | 8092 | Florence-2-Large     | [microsoft/Florence-2-large](https://huggingface.co/microsoft/Florence-2-large)                   | Dense captioning               |
+| CLIP       | 8093 | CLIP ViT-L           | [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)             | Entity embeddings              |
+| Enrichment | 8094 | Model Zoo (9 models) | See [enrichment/AGENTS.md](enrichment/AGENTS.md)                                                  | On-demand detection enrichment |
+
+## Model Zoo Overview
+
+The Enrichment service implements an on-demand **Model Zoo** architecture for VRAM-efficient multi-model inference. Instead of loading all models at startup, models are loaded when needed and evicted via LRU when VRAM budget is exceeded.
+
+### Available Models (9 total)
+
+| Model              | VRAM   | Priority | Purpose                          | Trigger                           |
+| ------------------ | ------ | -------- | -------------------------------- | --------------------------------- |
+| Threat Detector    | 400 MB | CRITICAL | Weapon detection (gun, knife)    | Always checked for security       |
+| Pose Estimator     | 300 MB | HIGH     | Body posture (17 COCO keypoints) | Person detected                   |
+| Demographics       | 500 MB | HIGH     | Age/gender estimation            | Person with face detected         |
+| FashionCLIP        | 800 MB | HIGH     | Clothing attributes              | Person detected                   |
+| Vehicle Classifier | 1.5 GB | MEDIUM   | Vehicle type (11 classes)        | Vehicle detected                  |
+| Pet Classifier     | 200 MB | MEDIUM   | Cat/dog classification           | Cat/dog detected                  |
+| Person ReID        | 100 MB | MEDIUM   | OSNet re-ID embeddings (512-dim) | Person detected for tracking      |
+| Depth Anything V2  | 150 MB | LOW      | Monocular depth estimation       | Any detection                     |
+| Action Recognizer  | 1.5 GB | LOW      | X-CLIP video action recognition  | Suspicious pose + multiple frames |
+
+### Model Priority System
+
+Models are evicted in priority order when VRAM budget is exceeded:
+
+- **CRITICAL** (evicted last): Threat detection - never evict if possible
+- **HIGH**: Pose, demographics, clothing - important for security context
+- **MEDIUM**: Vehicle, pet, re-ID - useful classification
+- **LOW** (evicted first): Depth, action - expensive, load sparingly
+
+### VRAM Budget
+
+- Default budget: **6.8 GB** (configurable via `VRAM_BUDGET_GB`)
+- Models load on-demand when `/enrich` endpoint is called
+- LRU eviction with priority ordering when budget exceeded
+- Automatic CUDA cache clearing on model unload
+
+For detailed documentation, see [enrichment/AGENTS.md](enrichment/AGENTS.md).
 
 ## Quick Start
 
@@ -100,20 +145,26 @@ Shell scripts for native execution (useful for debugging):
 Camera Images
       │
       ▼
-┌─────────────┐      ┌─────────────┐
-│  RT-DETRv2  │─────▶│  Enrichment │
-│   (8090)    │      │   (8094)    │
-└─────────────┘      └─────────────┘
-      │                    │
-      │   Detections       │  Classified Detections
-      ▼                    ▼
-┌─────────────────────────────────┐
-│         Nemotron (8091)         │
-│     Risk Analysis & Scoring     │
-└─────────────────────────────────┘
-                │
-                ▼
-          Risk Events
+┌─────────────┐      ┌───────────────────────────────────┐
+│  RT-DETRv2  │─────▶│          Enrichment (8094)        │
+│   (8090)    │      │    On-Demand Model Loading        │
+└─────────────┘      │  ┌─────────────────────────────┐  │
+      │              │  │ Threat │ Pose  │ Clothing  │  │
+      │              │  │ ReID   │ Demo. │ Vehicle   │  │
+      │              │  │ Action │ Pet   │ Depth     │  │
+      │              │  └─────────────────────────────┘  │
+      │              └───────────────────────────────────┘
+      │   Detections                    │
+      │                    Enriched Detections
+      ▼                                 ▼
+┌─────────────────────────────────────────────────────┐
+│                   Nemotron (8091)                   │
+│              Risk Analysis & Scoring                │
+│        (Threat, Pose, Demographics Context)         │
+└─────────────────────────────────────────────────────┘
+                        │
+                        ▼
+                   Risk Events
 ```
 
 ### Optional Services
@@ -125,11 +176,14 @@ Camera Images
 
 The backend communicates with AI services via HTTP clients:
 
-| Backend Service                         | AI Service | Purpose                     |
-| --------------------------------------- | ---------- | --------------------------- |
-| `backend/services/detector_client.py`   | RT-DETRv2  | Send images, get detections |
-| `backend/services/nemotron_analyzer.py` | Nemotron   | Analyze batches, get risk   |
-| `backend/services/enrichment_client.py` | Enrichment | Classify detections         |
+| Backend Service                         | AI Service | Purpose                           |
+| --------------------------------------- | ---------- | --------------------------------- |
+| `backend/services/detector_client.py`   | RT-DETRv2  | Send images, get detections       |
+| `backend/services/nemotron_analyzer.py` | Nemotron   | Analyze batches, get risk         |
+| `backend/services/enrichment_client.py` | Enrichment | Unified enrichment for detections |
+| `backend/services/reid_matcher.py`      | Enrichment | Person re-ID matching             |
+| `backend/services/florence_client.py`   | Florence-2 | Vision-language extraction        |
+| `backend/services/clip_client.py`       | CLIP       | Embedding generation              |
 
 ## Environment Variables
 
@@ -154,15 +208,20 @@ The backend communicates with AI services via HTTP clients:
 | `CTX_SIZE`   | `131072`                                      | Context window size |
 | `PARALLEL`   | `1`                                           | Parallel requests   |
 
-### Enrichment
+### Enrichment (Model Zoo)
 
-| Variable              | Default                                  | Description             |
-| --------------------- | ---------------------------------------- | ----------------------- |
-| `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification` | Vehicle classifier path |
-| `PET_MODEL_PATH`      | `/models/pet-classifier`                 | Pet classifier path     |
-| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionCLIP model path  |
-| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-small`        | Depth estimator path    |
-| `VITPOSE_MODEL_PATH`  | `/models/vitpose-plus-small`             | ViTPose+ model path     |
+| Variable              | Default                                  | Description                      |
+| --------------------- | ---------------------------------------- | -------------------------------- |
+| `VRAM_BUDGET_GB`      | `6.8`                                    | VRAM budget for on-demand models |
+| `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification` | Vehicle classifier path          |
+| `PET_MODEL_PATH`      | `/models/pet-classifier`                 | Pet classifier path              |
+| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionCLIP model path           |
+| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-small`        | Depth estimator path             |
+| `POSE_MODEL_PATH`     | `/models/yolov8n-pose/yolov8n-pose.pt`   | YOLOv8n-pose model path          |
+| `THREAT_MODEL_PATH`   | `/models/threat-detection`               | Threat detection model path      |
+| `AGE_MODEL_PATH`      | `/models/vit-age-classifier`             | Age classifier path              |
+| `REID_MODEL_PATH`     | `/models/osnet-reid`                     | OSNet ReID model path            |
+| `ACTION_MODEL_PATH`   | `microsoft/xclip-base-patch32`           | X-CLIP model path                |
 
 ## Security-Relevant Classes
 
@@ -181,11 +240,26 @@ SECURITY_CLASSES = {"person", "car", "truck", "dog", "cat", "bird", "bicycle", "
 | 60-84       | High     | Suspicious activity         |
 | 85-100      | Critical | Potential security threat   |
 
+### Enrichment Context for Nemotron
+
+The enrichment service provides structured context to Nemotron for better risk assessment:
+
+- **Threat Detection**: `[CRITICAL] GUN DETECTED: confidence=95%`
+- **Pose Analysis**: `Posture: crouching (potentially hiding)`
+- **Demographics**: `Person appears to be male, age 21-35`
+- **Clothing**: `Alert: dark hoodie detected`
+- **Vehicle**: `Vehicle type: pickup truck (commercial)`
+- **Re-ID**: `Same person seen on front_door camera 5 minutes ago`
+- **Action**: `Action: loitering (suspicious)`
+
 ## Hardware Requirements
 
 - **GPU**: NVIDIA with CUDA support (tested on RTX A5500 24GB)
 - **Container Runtime**: Docker or Podman with NVIDIA Container Toolkit
 - **Total VRAM**: ~22 GB for all services running simultaneously
+  - RT-DETRv2: ~650 MB
+  - Nemotron: ~21.7 GB
+  - Enrichment (Model Zoo): ~6.8 GB budget
 
 ## Startup Scripts
 
@@ -223,5 +297,8 @@ Advanced startup for 30B model with auto-recovery:
 3. **LLM server**: `nemotron/AGENTS.md`
 4. **CLIP server**: `clip/AGENTS.md` and `clip/model.py`
 5. **Florence server**: `florence/AGENTS.md` and `florence/model.py`
-6. **Enrichment server**: `enrichment/AGENTS.md` and `enrichment/model.py`
+6. **Enrichment server (Model Zoo)**: `enrichment/AGENTS.md`
+   - Model manager: `enrichment/model_manager.py`
+   - Model registry: `enrichment/model_registry.py`
+   - Model implementations: `enrichment/models/`
 7. **Backend integration**: `backend/services/` directory

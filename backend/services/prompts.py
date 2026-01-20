@@ -525,6 +525,9 @@ Deviation score: {deviation_score}
 ## Scene Analysis
 {scene_analysis}
 
+## On-Demand Analysis Results
+{ondemand_enrichment_context}
+
 ## Risk Interpretation Guide
 
 ### Violence Detection
@@ -558,6 +561,25 @@ Deviation score: {deviation_score}
 - Loitering > 30 seconds = increased concern
 - Running away from camera = flight response, investigate
 - Checking car doors = potential vehicle crime
+
+### Threat Detection (Weapons)
+- ANY weapon detection = CRITICAL priority, immediate alert
+- Gun detected (confidence > 50%) = escalate to highest priority
+- Knife detected near persons = HIGH risk
+- Multiple weapons = compound threat, CRITICAL
+
+### Action Recognition
+- Sneaking/creeping = HIGH RISK behavior
+- Breaking window/picking lock = IMMEDIATE threat, CRITICAL
+- Climbing over fence = unauthorized entry attempt, HIGH
+- Looking through window = suspicious, MEDIUM
+- Normal walking = LOW risk baseline
+
+### Demographics Context
+- Age and gender are contextual factors only
+- Do NOT use demographics to escalate or de-escalate risk
+- Demographics help describe individuals for identification, not risk assessment
+- Treat all individuals equally regardless of demographic factors
 
 ### Image Quality
 - Sudden quality drop = possible camera obstruction/tampering
@@ -1977,3 +1999,512 @@ def build_enrichment_sections(enrichment_result: EnrichmentResultLike) -> str:
         sections.append(pet_section)
 
     return "\n\n".join(sections) if sections else ""
+
+
+# ==============================================================================
+# On-Demand Model Enrichment Context (NEM-3041)
+# ==============================================================================
+# These functions format new enrichment types from the model zoo for the
+# Nemotron prompt: pose estimation, threat detection, demographics,
+# re-identification embeddings, and action recognition.
+
+
+@dataclass
+class ThreatInfo:
+    """Information about a detected threat.
+
+    Attributes:
+        threat_type: Type of threat (e.g., "gun", "knife", "weapon")
+        severity: Severity level ("low", "medium", "high", "critical")
+        confidence: Confidence score (0-1)
+    """
+
+    threat_type: str
+    severity: str
+    confidence: float
+
+
+class ThreatResultLike(Protocol):
+    """Protocol for threat detection result-like objects.
+
+    This protocol allows the formatting functions to work with both
+    the actual ThreatDetectionResult class and mock objects in tests.
+    """
+
+    has_threat: bool
+    threats: list[dict[str, Any]]
+
+
+class DemographicsResultLike(Protocol):
+    """Protocol for demographics result-like objects."""
+
+    age_range: str
+    gender: str
+    confidence: float
+
+
+class ActionResultLike(Protocol):
+    """Protocol for action recognition result-like objects."""
+
+    action: str
+    confidence: float
+    is_suspicious: bool
+
+
+class VehicleAttributesLike(Protocol):
+    """Protocol for vehicle attributes from enrichment."""
+
+    color: str | None
+    make: str | None
+    model: str | None
+    vehicle_type: str
+    confidence: float
+
+
+class OnDemandEnrichmentLike(Protocol):
+    """Protocol for on-demand enrichment result-like objects.
+
+    This protocol defines the interface for enrichment results that include
+    the new model zoo enrichments: pose, threat, demographics, action, reid.
+    """
+
+    pose: Any | None
+    clothing: Any | None
+    demographics: DemographicsResultLike | None
+    action: dict[str, Any] | None
+    reid_embedding: list[float] | None
+    threat: ThreatResultLike | None
+    vehicle: VehicleAttributesLike | None
+
+
+def build_person_analysis_section(enrichment: OnDemandEnrichmentLike) -> str:  # noqa: PLR0912
+    """Build person analysis section for prompt.
+
+    Combines pose, clothing, demographics, action recognition, and re-ID
+    data into a structured section for Nemotron analysis.
+
+    Args:
+        enrichment: OnDemandEnrichmentLike object containing person enrichment data
+
+    Returns:
+        Formatted string for prompt inclusion, or "No person analysis available."
+        if no data exists.
+
+    Example:
+        >>> result = build_person_analysis_section(enrichment_with_pose)
+        >>> "### Pose & Posture" in result
+        True
+    """
+    sections: list[str] = []
+
+    # Pose & Posture
+    if enrichment.pose is not None:
+        pose = enrichment.pose
+        # Handle both PoseResult objects and dict representations
+        if hasattr(pose, "pose_class"):
+            pose_class = pose.pose_class
+            pose_confidence = pose.pose_confidence
+            pose_suspicious = pose_class.lower() in ("crouching", "crawling", "lying")
+        else:
+            pose_class = pose.get("pose_class", pose.get("classification", "unknown"))
+            pose_confidence = pose.get("pose_confidence", pose.get("confidence", 0.0))
+            pose_suspicious = pose_class.lower() in ("crouching", "crawling", "lying")
+
+        pose_text = f"""### Pose & Posture
+- Detected pose: {pose_class}
+- Confidence: {pose_confidence:.1%}
+- Suspicious posture: {"YES" if pose_suspicious else "No"}"""
+        sections.append(pose_text)
+
+    # Appearance/Clothing
+    if enrichment.clothing is not None:
+        clothing = enrichment.clothing
+        # Handle both ClothingClassification objects and dict representations
+        if hasattr(clothing, "categories"):
+            categories = (
+                clothing.categories[:3] if hasattr(clothing.categories, "__getitem__") else []
+            )
+            categories_str = ", ".join(
+                [f"{c.get('category', c)} ({c.get('confidence', 0):.0%})" for c in categories]
+            )
+            clothing_suspicious = getattr(clothing, "is_suspicious", False)
+        elif hasattr(clothing, "raw_description"):
+            categories_str = clothing.raw_description
+            clothing_suspicious = getattr(clothing, "is_suspicious", False)
+        elif isinstance(clothing, dict):
+            categories = clothing.get("categories", [])[:3]
+            if categories and isinstance(categories[0], dict):
+                categories_str = ", ".join(
+                    [
+                        f"{c.get('category', str(c))} ({c.get('confidence', 0):.0%})"
+                        for c in categories
+                    ]
+                )
+            else:
+                categories_str = ", ".join(str(c) for c in categories) if categories else "unknown"
+            clothing_suspicious = clothing.get("is_suspicious", False)
+        else:
+            categories_str = str(clothing)
+            clothing_suspicious = False
+
+        clothing_text = f"""### Appearance
+- Clothing: {categories_str}
+- Suspicious attire: {"YES" if clothing_suspicious else "No"}"""
+        sections.append(clothing_text)
+
+    # Demographics
+    if enrichment.demographics is not None:
+        demo = enrichment.demographics
+        # Handle both DemographicsResult objects and dict representations
+        age_range: str
+        gender: str
+        if hasattr(demo, "age_range"):
+            age_range = demo.age_range
+            gender = demo.gender
+        elif isinstance(demo, dict):
+            age_range = str(demo.get("age_range") or demo.get("age_group") or "unknown")
+            gender = str(demo.get("gender") or "unknown")
+        else:
+            age_range = "unknown"
+            gender = "unknown"
+
+        demo_text = f"""### Demographics
+- Estimated age: {age_range}
+- Gender: {gender}"""
+        sections.append(demo_text)
+
+    # Action Recognition
+    if enrichment.action is not None:
+        action = enrichment.action
+        # Handle both ActionResult objects and dict representations
+        action_name: str
+        confidence: float
+        is_suspicious: bool
+        if hasattr(action, "action") and hasattr(action, "confidence"):
+            action_name = str(action.action)
+            confidence = float(action.confidence)
+            is_suspicious = bool(getattr(action, "is_suspicious", False))
+        elif isinstance(action, dict):
+            action_name = str(action.get("action") or action.get("top_action") or "unknown")
+            confidence = float(action.get("confidence") or 0.0)
+            is_suspicious = bool(action.get("is_suspicious", False))
+        else:
+            action_name = str(action)
+            confidence = 0.0
+            is_suspicious = False
+
+        action_text = f"""### Behavior
+- Detected action: {action_name}
+- Confidence: {confidence:.1%}
+- Suspicious behavior: {"YES" if is_suspicious else "No"}"""
+        sections.append(action_text)
+
+    # Re-ID
+    if enrichment.reid_embedding is not None:
+        reid_text = """### Identity
+- Re-ID embedding extracted for tracking"""
+        sections.append(reid_text)
+
+    if not sections:
+        return "No person analysis available."
+
+    return "\n\n".join(sections)
+
+
+def build_threat_section(enrichment: OnDemandEnrichmentLike) -> str:
+    """Build threat detection section for prompt.
+
+    Formats weapon/threat detection results with severity and confidence.
+
+    Args:
+        enrichment: OnDemandEnrichmentLike object containing threat detection data
+
+    Returns:
+        Formatted string for prompt inclusion, or "No threats detected."
+        if no threats are present.
+
+    Example:
+        >>> result = build_threat_section(enrichment_with_weapon)
+        >>> "THREATS DETECTED" in result
+        True
+    """
+    if enrichment.threat is None:
+        return "No threats detected."
+
+    threat = enrichment.threat
+
+    # Handle ThreatResultLike protocol
+    has_threat: bool
+    threats: list[dict[str, Any]]
+    if hasattr(threat, "has_threat"):
+        has_threat = bool(threat.has_threat)
+        threats = threat.threats if hasattr(threat, "threats") else []
+    elif isinstance(threat, dict):
+        has_threat = bool(threat.get("has_threat") or threat.get("threats_detected", False))
+        threats = threat.get("threats", [])
+    else:
+        return "No threats detected."
+
+    if not has_threat:
+        return "No threats detected."
+
+    threat_lines = ["**THREATS DETECTED:**"]
+    for t in threats:
+        threat_type: str
+        severity: str
+        t_confidence: float
+        if isinstance(t, dict):
+            threat_type = str(t.get("threat_type") or t.get("type") or "unknown")
+            severity = str(t.get("severity") or "high")
+            t_confidence = float(t.get("confidence") or 0.0)
+        else:
+            threat_type = str(getattr(t, "threat_type", "unknown"))
+            severity = str(getattr(t, "severity", "high"))
+            t_confidence = float(getattr(t, "confidence", 0.0))
+
+        threat_lines.append(
+            f"- {threat_type.upper()} (severity: {severity}, confidence: {t_confidence:.0%})"
+        )
+
+    return "\n".join(threat_lines)
+
+
+def build_vehicle_section(enrichment: OnDemandEnrichmentLike) -> str:
+    """Build vehicle analysis section for prompt.
+
+    Formats vehicle classification data including color, make, model, and type.
+
+    Args:
+        enrichment: OnDemandEnrichmentLike object containing vehicle classification data
+
+    Returns:
+        Formatted string for prompt inclusion, or "No vehicle detected."
+        if no vehicle data exists.
+
+    Example:
+        >>> result = build_vehicle_section(enrichment_with_vehicle)
+        >>> "Vehicle:" in result
+        True
+    """
+    if enrichment.vehicle is None:
+        return "No vehicle detected."
+
+    v = enrichment.vehicle
+
+    # Handle VehicleAttributesLike protocol
+    color: str | None
+    make: str | None
+    model: str | None
+    vehicle_type: str
+    v_confidence: float
+    if hasattr(v, "vehicle_type"):
+        color = getattr(v, "color", None)
+        make = getattr(v, "make", None)
+        model = getattr(v, "model", None)
+        vehicle_type = str(v.vehicle_type)
+        v_confidence = float(getattr(v, "confidence", 0.0))
+    elif isinstance(v, dict):
+        color = v.get("color")
+        make = v.get("make")
+        model = v.get("model")
+        vehicle_type = str(v.get("vehicle_type") or v.get("type") or "vehicle")
+        v_confidence = float(v.get("confidence") or 0.0)
+    else:
+        return "No vehicle detected."
+
+    parts: list[str] = []
+    if color:
+        parts.append(color)
+    if make:
+        parts.append(make)
+    if model:
+        parts.append(model)
+    parts.append(vehicle_type)
+
+    return f"Vehicle: {' '.join(parts)} (confidence: {v_confidence:.0%})"
+
+
+def format_ondemand_enrichment_context(enrichment: OnDemandEnrichmentLike) -> str:
+    """Format on-demand model enrichment for Nemotron.
+
+    Creates a comprehensive context string combining all on-demand model
+    results: threat detection, pose analysis, demographics, action recognition,
+    re-identification, and vehicle analysis.
+
+    This is the main entry point for formatting new model zoo enrichments
+    into the Nemotron prompt.
+
+    Args:
+        enrichment: OnDemandEnrichmentLike object containing all enrichment data
+
+    Returns:
+        Formatted string with all enrichment sections, or empty string if
+        no meaningful data exists.
+
+    Example:
+        >>> result = format_ondemand_enrichment_context(full_enrichment)
+        >>> "### Pose & Posture" in result
+        True
+    """
+    sections: list[str] = []
+
+    # Threat detection (CRITICAL - always first if present)
+    threat_section = build_threat_section(enrichment)
+    if threat_section != "No threats detected.":
+        # Add prominent header for threats
+        sections.append(f"### THREAT DETECTION\n{threat_section}")
+
+    # Person analysis (pose, clothing, demographics, action, reid)
+    person_section = build_person_analysis_section(enrichment)
+    if person_section != "No person analysis available.":
+        sections.append(f"## Person Analysis\n{person_section}")
+
+    # Vehicle analysis
+    vehicle_section = build_vehicle_section(enrichment)
+    if vehicle_section != "No vehicle detected.":
+        sections.append(f"### Vehicle Analysis\n{vehicle_section}")
+
+    return "\n\n".join(sections) if sections else ""
+
+
+def format_enhanced_clothing_context(clothing_result: dict[str, Any] | None) -> str:
+    """Format enhanced clothing analysis for Nemotron.
+
+    Provides detailed clothing context including suspicious attire detection,
+    service uniform identification, and carried items.
+
+    Args:
+        clothing_result: Dictionary containing enhanced clothing analysis results
+            with keys like "suspicious", "delivery", "utility", "carrying", "casual"
+
+    Returns:
+        Formatted string for prompt inclusion, or empty string if no data.
+
+    Example:
+        >>> result = format_enhanced_clothing_context({"suspicious": {"confidence": 0.8, ...}})
+        >>> "ALERT" in result
+        True
+    """
+    if not clothing_result:
+        return ""
+
+    lines = ["### Person Appearance Analysis"]
+
+    # Primary classification - suspicious attire
+    if clothing_result.get("suspicious"):
+        susp = clothing_result["suspicious"]
+        confidence = (
+            susp.get("confidence", 0.0)
+            if isinstance(susp, dict)
+            else getattr(susp, "confidence", 0.0)
+        )
+        top_match = (
+            susp.get("top_match", "suspicious attire") if isinstance(susp, dict) else str(susp)
+        )
+        if confidence > 0.6:
+            lines.append(f"- **ALERT**: {top_match} (confidence: {confidence:.0%})")
+
+    # Service uniform detection
+    if clothing_result.get("delivery"):
+        deliv = clothing_result["delivery"]
+        confidence = (
+            deliv.get("confidence", 0.0)
+            if isinstance(deliv, dict)
+            else getattr(deliv, "confidence", 0.0)
+        )
+        top_match = (
+            deliv.get("top_match", "delivery uniform") if isinstance(deliv, dict) else str(deliv)
+        )
+        if confidence > 0.5:
+            lines.append(f"- Service worker identified: {top_match} ({confidence:.0%})")
+
+    # Utility workers
+    if clothing_result.get("utility"):
+        util = clothing_result["utility"]
+        confidence = (
+            util.get("confidence", 0.0)
+            if isinstance(util, dict)
+            else getattr(util, "confidence", 0.0)
+        )
+        top_match = util.get("top_match", "utility worker") if isinstance(util, dict) else str(util)
+        if confidence > 0.5:
+            lines.append(f"- Utility worker identified: {top_match} ({confidence:.0%})")
+
+    # Carrying items - critical for risk assessment
+    if clothing_result.get("carrying"):
+        carry = clothing_result["carrying"]
+        confidence = (
+            carry.get("confidence", 0.0)
+            if isinstance(carry, dict)
+            else getattr(carry, "confidence", 0.0)
+        )
+        top_match = (
+            carry.get("top_match", "carrying item") if isinstance(carry, dict) else str(carry)
+        )
+        lines.append(f"- Carrying: {top_match} ({confidence:.0%})")
+
+    # General attire
+    if clothing_result.get("casual"):
+        casual = clothing_result["casual"]
+        top_match = (
+            casual.get("top_match", "casual attire") if isinstance(casual, dict) else str(casual)
+        )
+        lines.append(f"- General attire: {top_match}")
+
+    if len(lines) == 1:  # Only header, no content
+        return ""
+
+    return "\n".join(lines)
+
+
+def format_florence_scene_context(florence_result: dict[str, Any] | None) -> str:
+    """Format Florence-2 enhanced extraction for Nemotron.
+
+    Provides detailed scene context from Florence-2 including scene description,
+    security-relevant objects, and detected text.
+
+    Args:
+        florence_result: Dictionary containing Florence-2 extraction results
+            with keys like "scene", "security_objects", "text_regions"
+
+    Returns:
+        Formatted string for prompt inclusion, or empty string if no data.
+
+    Example:
+        >>> result = format_florence_scene_context({"scene": "A person walking...", ...})
+        >>> "Scene Analysis" in result
+        True
+    """
+    if not florence_result:
+        return ""
+
+    lines = ["### Scene Analysis (Florence-2)"]
+
+    # Detailed scene description
+    if florence_result.get("scene"):
+        lines.append(f"\n**Scene Description:**\n{florence_result['scene']}")
+
+    # Security-relevant objects detected
+    if florence_result.get("security_objects"):
+        objects = florence_result["security_objects"]
+        labels = objects.get("labels", []) if isinstance(objects, dict) else []
+        if labels:
+            lines.append(f"\n**Objects Detected:** {', '.join(labels)}")
+
+            # Flag high-risk objects
+            high_risk = {"weapon", "knife", "crowbar", "tool", "gun"}
+            detected_risks = [o for o in labels if any(r in o.lower() for r in high_risk)]
+            if detected_risks:
+                lines.append(f"- **HIGH RISK OBJECTS**: {', '.join(detected_risks)}")
+
+    # Text/plates found
+    if florence_result.get("text_regions"):
+        texts = florence_result["text_regions"]
+        labels = texts.get("labels", []) if isinstance(texts, dict) else []
+        if labels:
+            lines.append(f"\n**Visible Text:** {', '.join(labels)}")
+
+    if len(lines) == 1:  # Only header, no content
+        return ""
+
+    return "\n".join(lines)

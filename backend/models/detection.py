@@ -20,6 +20,13 @@ from .camera import Base
 
 if TYPE_CHECKING:
     from .camera import Camera
+    from .enrichment import (
+        ActionResult,
+        DemographicsResult,
+        PoseResult,
+        ReIDEmbedding,
+        ThreatDetection,
+    )
     from .event_detection import EventDetection
 
 
@@ -76,6 +83,27 @@ class Detection(Base):
     # This provides access to EventDetection records for this detection
     event_records: Mapped[list[EventDetection]] = relationship(
         "EventDetection", back_populates="detection", cascade="all, delete-orphan"
+    )
+
+    # Enrichment result relationships (on-demand AI model outputs)
+    # See: docs/plans/2026-01-19-model-zoo-prompt-improvements-design.md
+    pose_result: Mapped[PoseResult | None] = relationship(
+        "PoseResult", back_populates="detection", uselist=False, cascade="all, delete-orphan"
+    )
+    threat_detections: Mapped[list[ThreatDetection]] = relationship(
+        "ThreatDetection", back_populates="detection", cascade="all, delete-orphan"
+    )
+    demographics_result: Mapped[DemographicsResult | None] = relationship(
+        "DemographicsResult",
+        back_populates="detection",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    reid_embedding: Mapped[ReIDEmbedding | None] = relationship(
+        "ReIDEmbedding", back_populates="detection", uselist=False, cascade="all, delete-orphan"
+    )
+    action_result: Mapped[ActionResult | None] = relationship(
+        "ActionResult", back_populates="detection", uselist=False, cascade="all, delete-orphan"
     )
 
     # Indexes for common queries

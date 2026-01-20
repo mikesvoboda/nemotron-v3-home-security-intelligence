@@ -58,16 +58,41 @@ The brain of this system is [NVIDIA's Nemotron-3-Nano](https://huggingface.co/nv
 
 ---
 
-## AI Models
+## AI Model Zoo
 
-| Model                   | Purpose                  | Size   | HuggingFace                                                                                                   |
-| ----------------------- | ------------------------ | ------ | ------------------------------------------------------------------------------------------------------------- |
-| **Nemotron-3-Nano-30B** | Risk reasoning (LLM)     | 23 GB  | [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF)             |
-| **RT-DETRv2**           | Object detection         | 165 MB | [PekingU/rtdetr_r50vd_coco_o365](https://huggingface.co/PekingU/rtdetr_r50vd_coco_o365)                       |
-| Florence-2-Large        | Dense captioning         | 3.0 GB | [microsoft/Florence-2-large](https://huggingface.co/microsoft/Florence-2-large)                               |
-| CLIP ViT-L              | Entity re-identification | 6.4 GB | [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)                         |
-| FashionCLIP             | Clothing analysis        | 3.5 GB | [patrickjohncyh/fashion-clip](https://huggingface.co/patrickjohncyh/fashion-clip)                             |
-| Depth Anything V2       | Depth estimation         | 95 MB  | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf) |
+The system uses multiple AI models for comprehensive security analysis. Models are managed with VRAM-efficient on-demand loading.
+
+### Core Models
+
+| Model                   | Purpose              | Size  | HuggingFace                                                                                       |
+| ----------------------- | -------------------- | ----- | ------------------------------------------------------------------------------------------------- |
+| **Nemotron-3-Nano-30B** | Risk reasoning (LLM) | 23 GB | [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) |
+
+### Always-Loaded Models (~2.65GB VRAM)
+
+These models are always loaded for real-time analysis:
+
+| Model            | Purpose                       | VRAM   | Port |
+| ---------------- | ----------------------------- | ------ | ---- |
+| RT-DETRv2        | Primary object detection      | ~650MB | 8091 |
+| Florence-2-large | Scene understanding, captions | ~1.2GB | 8092 |
+| CLIP ViT-L/14    | Anomaly detection baseline    | ~800MB | 8093 |
+
+### On-Demand Models (~6.8GB budget)
+
+These models are loaded when needed and evicted using LRU when VRAM is constrained:
+
+| Model                    | Purpose                | VRAM   | Priority |
+| ------------------------ | ---------------------- | ------ | -------- |
+| Threat-Detection-YOLOv8n | Weapon detection       | ~400MB | CRITICAL |
+| YOLOv8n-pose             | Pose estimation        | ~300MB | HIGH     |
+| Age-Gender               | Demographics           | ~500MB | HIGH     |
+| OSNet-x0.25              | Person re-ID           | ~100MB | MEDIUM   |
+| FashionCLIP              | Clothing analysis      | ~800MB | MEDIUM   |
+| Vehicle Classifier       | Vehicle identification | ~1.5GB | MEDIUM   |
+| Pet Classifier           | Pet detection          | ~200MB | MEDIUM   |
+| Depth Anything v2        | Spatial reasoning      | ~150MB | LOW      |
+| X-CLIP                   | Action recognition     | ~1.5GB | LOW      |
 
 <details>
 <summary><strong>Full Model Zoo (~19GB additional)</strong></summary>
@@ -89,6 +114,52 @@ The brain of this system is [NVIDIA's Nemotron-3-Nano](https://huggingface.co/nv
 | OSNet Re-ID            | 2.9 MB | Person re-identification    |
 
 </details>
+
+### Model Priority System
+
+Models are assigned priorities that control eviction order:
+
+- **CRITICAL**: Never evicted if possible (threat detection)
+- **HIGH**: Evicted only when necessary (pose, demographics)
+- **MEDIUM**: Standard eviction (clothing, vehicle, pet, re-ID)
+- **LOW**: Evicted first (depth, action recognition)
+
+### Downloading Models
+
+```bash
+# Download all models (~15GB total)
+./scripts/download_models.sh
+
+# Or using Python
+python scripts/download_models.py
+
+# Set custom models directory
+MODELS_DIR=/path/to/models ./scripts/download_models.sh
+```
+
+### VRAM Requirements
+
+| Configuration | VRAM Needed | Notes                            |
+| ------------- | ----------- | -------------------------------- |
+| Minimum       | 8GB         | Always-loaded models only        |
+| Recommended   | 16GB        | Good on-demand headroom          |
+| Optimal       | 24GB        | All models can load concurrently |
+
+The on-demand model manager automatically loads/unloads models based on VRAM availability using LRU eviction with priority-based ordering.
+
+### Model Status API
+
+Check which models are currently loaded:
+
+```bash
+curl http://localhost:8094/models/status
+```
+
+Preload a specific model:
+
+```bash
+curl -X POST http://localhost:8094/models/preload?model_name=threat_detector
+```
 
 ---
 

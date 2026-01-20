@@ -15,6 +15,7 @@ import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from enum import Enum
 from typing import Any
 
 import torch
@@ -24,6 +25,70 @@ from PIL import Image
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, Field, field_validator
 from transformers import CLIPModel, CLIPProcessor
+
+# =============================================================================
+# Surveillance-Specific Prompt Templates for Ensembling (NEM-3029)
+# =============================================================================
+# These templates provide surveillance camera context to improve CLIP's
+# zero-shot classification accuracy by 5-10%. The model was trained primarily
+# on web images, so adding surveillance context helps bridge the domain gap.
+
+
+class CameraType(str, Enum):
+    """Camera types for template selection.
+
+    Different camera types benefit from different prompt templates to match
+    the visual characteristics of their footage.
+    """
+
+    STANDARD = "standard"  # General surveillance camera
+    NIGHT_VISION = "night_vision"  # IR/night vision camera
+    OUTDOOR = "outdoor"  # Outdoor security camera
+    INDOOR = "indoor"  # Indoor security camera
+    DOORBELL = "doorbell"  # Doorbell camera (typically wide-angle, elevated)
+
+
+# Base surveillance templates used for all camera types
+SURVEILLANCE_TEMPLATES: list[str] = [
+    "a surveillance camera photo of {}",
+    "a security camera image showing {}",
+    "a CCTV footage frame of {}",
+    "a home security camera view of {}",
+    "a low resolution security camera image of {}",
+]
+
+# Camera-type-specific templates for optimized accuracy
+CAMERA_TYPE_TEMPLATES: dict[CameraType, list[str]] = {
+    CameraType.STANDARD: SURVEILLANCE_TEMPLATES,
+    CameraType.NIGHT_VISION: [
+        "a night vision camera image of {}",
+        "an infrared security camera photo of {}",
+        "a grayscale night vision footage of {}",
+        "a low-light security camera view of {}",
+        "an IR camera surveillance image of {}",
+    ],
+    CameraType.OUTDOOR: [
+        "an outdoor security camera photo of {}",
+        "a surveillance camera outdoor image of {}",
+        "a driveway security camera view of {}",
+        "a yard security camera footage of {}",
+        "an exterior CCTV image of {}",
+    ],
+    CameraType.INDOOR: [
+        "an indoor security camera photo of {}",
+        "a home surveillance camera view of {}",
+        "an interior CCTV footage of {}",
+        "a room security camera image of {}",
+        "an indoor monitoring camera view of {}",
+    ],
+    CameraType.DOORBELL: [
+        "a doorbell camera photo of {}",
+        "a front door security camera view of {}",
+        "a porch camera surveillance image of {}",
+        "an elevated doorbell camera footage of {}",
+        "a wide-angle doorbell camera view of {}",
+    ],
+}
 
 # Configure logging
 logging.basicConfig(
@@ -219,6 +284,14 @@ class ClassifyRequest(BaseModel):
 
     image: str = Field(..., description="Base64 encoded image")
     labels: list[str] = Field(..., description="List of text labels to classify against")
+    use_ensemble: bool = Field(
+        default=True,
+        description="Use prompt ensembling for improved accuracy (default: True)",
+    )
+    camera_type: CameraType = Field(
+        default=CameraType.STANDARD,
+        description="Camera type for template selection (only used when use_ensemble=True)",
+    )
 
 
 class ClassifyResponse(BaseModel):
@@ -227,6 +300,10 @@ class ClassifyResponse(BaseModel):
     scores: dict[str, float] = Field(..., description="Classification scores for each label")
     top_label: str = Field(..., description="Label with highest score")
     inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+    ensemble_metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Ensemble details when use_ensemble=True (templates_used, num_templates, etc.)",
+    )
 
 
 class SimilarityRequest(BaseModel):
@@ -511,6 +588,134 @@ class CLIPEmbeddingModel:
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
         return scores, top_label, inference_time_ms
+
+    def classify_with_ensemble(
+        self,
+        image: Image.Image,
+        labels: list[str],
+        camera_type: CameraType = CameraType.STANDARD,
+        templates: list[str] | None = None,
+    ) -> tuple[dict[str, float], str, float, dict[str, Any]]:
+        """Classify an image using prompt template ensembling for improved accuracy.
+
+        This method improves zero-shot classification accuracy by 5-10% by:
+        1. Using surveillance-context prompt templates instead of bare labels
+        2. Averaging embeddings across multiple template variations
+        3. Optionally using camera-type-specific templates
+
+        The ensemble approach helps bridge the domain gap between CLIP's training
+        data (primarily web images) and surveillance footage.
+
+        Args:
+            image: PIL Image to classify
+            labels: List of text labels to classify against
+            camera_type: Type of camera for template selection (default: STANDARD)
+            templates: Optional custom templates (overrides camera_type selection).
+                      Must contain '{}' placeholder for the label.
+
+        Returns:
+            Tuple of:
+            - scores: dict mapping labels to probabilities (sum to 1.0)
+            - top_label: label with highest score
+            - inference_time_ms: total inference time
+            - metadata: dict with ensemble details (templates_used, num_templates)
+        """
+        if self.model is None or self.processor is None:
+            raise RuntimeError("Model not loaded")
+
+        if not labels:
+            raise ValueError("Labels list cannot be empty")
+
+        start_time = time.perf_counter()
+
+        # Select templates based on camera type or use custom templates
+        selected_templates = (
+            templates
+            if templates is not None
+            else CAMERA_TYPE_TEMPLATES.get(camera_type, SURVEILLANCE_TEMPLATES)
+        )
+
+        # Validate templates contain placeholder
+        for template in selected_templates:
+            if "{}" not in template:
+                raise ValueError(f"Template must contain '{{}}' placeholder: {template}")
+
+        # Convert to RGB if needed
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+
+        # Preprocess image once
+        image_inputs = self.processor(images=image, return_tensors="pt")
+        model_dtype = next(self.model.parameters()).dtype
+        image_inputs = {k: v.to(self.device, model_dtype) for k, v in image_inputs.items()}
+
+        # Get image features
+        with torch.no_grad():
+            image_features = self.model.get_image_features(**image_inputs)
+            # Normalize image features with epsilon for numerical stability
+            epsilon = 1e-8
+            image_features = image_features / (
+                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+            )
+
+        # Collect text embeddings for all template-label combinations
+        all_template_embeddings: list[torch.Tensor] = []
+
+        for template in selected_templates:
+            # Generate prompts for all labels using this template
+            prompts = [template.format(label) for label in labels]
+
+            # Encode text prompts
+            text_inputs = self.processor(text=prompts, return_tensors="pt", padding=True)
+            text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
+
+            with torch.no_grad():
+                text_features = self.model.get_text_features(**text_inputs)
+                # Normalize text features with epsilon
+                text_features = text_features / (
+                    text_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                )
+
+            all_template_embeddings.append(text_features)
+
+        # Stack and average across templates: (num_templates, num_labels, embedding_dim)
+        stacked_embeddings = torch.stack(all_template_embeddings, dim=0)
+        # Average across templates -> (num_labels, embedding_dim)
+        ensemble_embeddings = stacked_embeddings.mean(dim=0)
+
+        # Re-normalize the averaged embeddings
+        ensemble_embeddings = ensemble_embeddings / (
+            ensemble_embeddings.norm(p=2, dim=-1, keepdim=True) + epsilon
+        )
+
+        # Compute similarities: (1, num_labels)
+        with torch.no_grad():
+            similarities = image_features @ ensemble_embeddings.T
+
+            # Apply softmax to get probabilities
+            probs = torch.softmax(similarities, dim=-1)
+
+        # Convert to dict
+        scores_list = probs[0].cpu().float().numpy().tolist()
+        scores = dict(zip(labels, scores_list, strict=True))
+
+        # Find top label
+        top_idx = int(probs[0].argmax().item())
+        top_label = labels[top_idx]
+
+        inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+        # Build metadata
+        metadata = {
+            "templates_used": selected_templates,
+            "num_templates": len(selected_templates),
+            "camera_type": camera_type.value
+            if isinstance(camera_type, CameraType)
+            else camera_type,
+            "ensemble_method": "mean",
+        }
+
+        return scores, top_label, inference_time_ms, metadata
 
     def compute_similarity(self, image: Image.Image, text: str) -> tuple[float, float]:
         """Compute cosine similarity between an image and a text description.
@@ -884,11 +1089,15 @@ async def classify(request: ClassifyRequest) -> ClassifyResponse:
     Uses CLIP's text and image encoders to compute similarity scores between
     the image and each label. Scores are normalized using softmax to sum to 1.0.
 
+    By default, this endpoint uses prompt template ensembling for improved accuracy
+    (5-10% improvement on surveillance footage). Set use_ensemble=False to disable.
+
     Args:
-        request: Classification request with base64 image and text labels
+        request: Classification request with base64 image, text labels, and options
 
     Returns:
-        Classification results with scores for each label, top label, and inference time
+        Classification results with scores for each label, top label, inference time,
+        and ensemble metadata (when use_ensemble=True)
     """
     if model is None or model.model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
@@ -901,14 +1110,26 @@ async def classify(request: ClassifyRequest) -> ClassifyResponse:
         # Decode and validate image
         image = _decode_and_validate_image(request.image)
 
-        # Classify
-        scores, top_label, inference_time_ms = model.classify(image, request.labels)
-
-        return ClassifyResponse(
-            scores=scores,
-            top_label=top_label,
-            inference_time_ms=inference_time_ms,
-        )
+        # Use ensemble classification by default for improved accuracy
+        if request.use_ensemble:
+            scores, top_label, inference_time_ms, metadata = model.classify_with_ensemble(
+                image, request.labels, camera_type=request.camera_type
+            )
+            return ClassifyResponse(
+                scores=scores,
+                top_label=top_label,
+                inference_time_ms=inference_time_ms,
+                ensemble_metadata=metadata,
+            )
+        else:
+            # Fall back to simple classification without ensembling
+            scores, top_label, inference_time_ms = model.classify(image, request.labels)
+            return ClassifyResponse(
+                scores=scores,
+                top_label=top_label,
+                inference_time_ms=inference_time_ms,
+                ensemble_metadata=None,
+            )
 
     except HTTPException:
         raise

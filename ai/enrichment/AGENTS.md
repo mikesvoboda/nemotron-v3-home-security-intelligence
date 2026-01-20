@@ -1,4 +1,4 @@
-# Combined Enrichment Service
+# AI Enrichment Service
 
 ![Context Enrichment Pipeline](../../docs/images/architecture/enrichment-pipeline.png)
 
@@ -6,60 +6,76 @@ _Fan-out enrichment pipeline showing parallel model inference for detection cont
 
 ## Purpose
 
-HTTP server hosting multiple classification models for enriching RT-DETRv2 detections with additional attributes. Consolidates vehicle, pet, clothing, depth, and pose analysis into a single containerized service to reduce VRAM fragmentation and simplify deployment.
+Combined enrichment service providing on-demand model loading for comprehensive detection analysis. Consolidates vehicle, pet, clothing, depth, pose, threat detection, demographics, re-identification, and action recognition into a single containerized service with VRAM-aware model management.
+
+## Architecture
+
+- **On-Demand Loading**: Models loaded when needed, evicted via LRU when VRAM budget is exceeded
+- **VRAM Budget**: Configurable via `VRAM_BUDGET_GB` environment variable (default: 6.8GB)
+- **Priority System**: CRITICAL > HIGH > MEDIUM > LOW (lower priority models evicted first)
+- **Thread-Safe**: All model loading/unloading protected by asyncio locks
 
 ## Port and Resources
 
 - **Port**: 8094 (configurable via `PORT`)
-- **Expected VRAM**: ~2.65 GB total (per model.py docstring)
+- **Total VRAM Budget**: ~6.8 GB (configurable)
 
-| Model                  | VRAM    | Purpose                         |
-| ---------------------- | ------- | ------------------------------- |
-| Vehicle Classification | ~1.5 GB | Vehicle type (car, truck, etc.) |
-| Pet Classifier         | ~200 MB | Cat/dog classification          |
-| FashionCLIP            | ~800 MB | Clothing attributes             |
-| Depth Anything V2      | ~150 MB | Distance estimation             |
-| ViTPose+ Small         | ~100 MB | Human pose estimation           |
-
-**Note**: ViTPose+ Small is loaded on-demand via `vitpose.py` module.
-
-## Model Links
-
-| Model                      | HuggingFace URL                                                                                                                                 | Description                          |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| FashionCLIP                | [patrickjohncyh/fashion-clip](https://huggingface.co/patrickjohncyh/fashion-clip)                                                               | Zero-shot clothing classification    |
-| Vehicle Segment Classifier | [lxyuan/vit-base-patch16-224-vehicle-segment-classification](https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification) | Vehicle type classification (ViT)    |
-| Pet Classifier (ResNet-18) | [microsoft/resnet-18](https://huggingface.co/microsoft/resnet-18)                                                                               | Cat/dog classification               |
-| Depth Anything V2 Small    | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf)                                   | Monocular depth estimation           |
-| ViTPose+ Small             | [usyd-community/vitpose-plus-small](https://huggingface.co/usyd-community/vitpose-plus-small)                                                   | Human pose estimation (17 keypoints) |
+| Model                  | VRAM    | Priority | Purpose                         |
+| ---------------------- | ------- | -------- | ------------------------------- |
+| Threat Detector        | ~400 MB | CRITICAL | Weapon detection (gun, knife)   |
+| Pose Estimator         | ~300 MB | HIGH     | Body posture analysis           |
+| Demographics           | ~500 MB | HIGH     | Age/gender estimation           |
+| FashionCLIP            | ~800 MB | HIGH     | Clothing attributes             |
+| Vehicle Classification | ~1.5 GB | MEDIUM   | Vehicle type (car, truck, etc.) |
+| Pet Classifier         | ~200 MB | MEDIUM   | Cat/dog classification          |
+| Person ReID            | ~100 MB | MEDIUM   | OSNet re-ID embeddings          |
+| Depth Anything V2      | ~150 MB | LOW      | Distance estimation             |
+| Action Recognizer      | ~1.5 GB | LOW      | X-CLIP video action recognition |
 
 ## Directory Contents
 
 ```
 ai/enrichment/
-├── AGENTS.md          # This file
-├── Dockerfile         # Container build (PyTorch + CUDA 12.4)
-├── model.py           # FastAPI server with all classifiers
-├── vitpose.py         # ViTPose+ pose analyzer module
-└── requirements.txt   # Python dependencies
+├── AGENTS.md              # This file
+├── Dockerfile             # Container build (PyTorch + CUDA 12.4)
+├── __init__.py            # Package init
+├── model.py               # Main FastAPI server with /enrich endpoint
+├── model_manager.py       # On-demand VRAM-aware model loading
+├── model_registry.py      # Model configuration and registration
+├── vitpose.py             # ViTPose+ pose analyzer module (legacy)
+├── requirements.txt       # Python dependencies
+├── models/                # Model implementations
+│   ├── __init__.py        # Model exports
+│   ├── pose_estimator.py  # YOLOv8n-pose wrapper
+│   ├── threat_detector.py # Weapon detection
+│   ├── demographics.py    # Age/gender estimation
+│   ├── person_reid.py     # OSNet re-ID embeddings
+│   └── action_recognizer.py # X-CLIP action recognition
+├── tests/                 # Unit tests
+│   ├── conftest.py        # Test fixtures
+│   ├── test_model_manager.py     # Model manager unit tests
+│   ├── test_pose_estimator.py    # Pose estimation tests
+│   ├── test_demographics.py      # Demographics tests
+│   └── test_action_recognizer.py # Action recognition tests
+└── test_model.py          # Integration tests
 ```
-
-**Note**: This service does not have unit tests yet. Integration tests are handled at the backend level via `backend/tests/integration/services/test_enrichment_client.py`.
 
 ## Key Files
 
-### `model.py` (Main Server)
+### Core Service
 
-FastAPI server hosting all classification models.
+#### `model.py` (Main Server)
+
+FastAPI server hosting all classification models with unified `/enrich` endpoint.
 
 **Classifier Classes:**
 
-| Class                | Model                                  | HuggingFace                                                                                                                                     | Purpose                           |
-| -------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| `VehicleClassifier`  | ViT-base-patch16-224 (vehicle segment) | [lxyuan/vit-base-patch16-224-vehicle-segment-classification](https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification) | Vehicle type classification       |
-| `PetClassifier`      | ResNet-18                              | [microsoft/resnet-18](https://huggingface.co/microsoft/resnet-18)                                                                               | Cat/dog classification            |
-| `ClothingClassifier` | FashionCLIP                            | [patrickjohncyh/fashion-clip](https://huggingface.co/patrickjohncyh/fashion-clip)                                                               | Zero-shot clothing classification |
-| `DepthEstimator`     | Depth Anything V2 Small                | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf)                                   | Monocular depth estimation        |
+| Class                | Model                   | VRAM    | Purpose                           |
+| -------------------- | ----------------------- | ------- | --------------------------------- |
+| `VehicleClassifier`  | ViT-base-patch16-224    | ~1.5 GB | Vehicle type classification       |
+| `PetClassifier`      | ResNet-18               | ~200 MB | Cat/dog classification            |
+| `ClothingClassifier` | FashionCLIP             | ~800 MB | Zero-shot clothing classification |
+| `DepthEstimator`     | Depth Anything V2 Small | ~150 MB | Monocular depth estimation        |
 
 **Vehicle Classes:**
 
@@ -71,19 +87,6 @@ VEHICLE_SEGMENT_CLASSES = [
 ]
 ```
 
-**Clothing Prompts (Security-Focused):**
-
-```python
-SECURITY_CLOTHING_PROMPTS = [
-    "person wearing dark hoodie",
-    "person wearing face mask",
-    "person wearing ski mask or balaclava",
-    "delivery uniform", "Amazon delivery vest", "FedEx uniform",
-    "UPS uniform", "USPS postal worker uniform",
-    "casual clothing", "business attire or suit", ...
-]
-```
-
 **Security Features:**
 
 - Image magic bytes validation (prevents non-image uploads)
@@ -91,92 +94,165 @@ SECURITY_CLOTHING_PROMPTS = [
 - Size limits enforced (10MB max)
 - Base64 decoding with error handling
 
-### `vitpose.py` (Pose Analyzer)
+#### `model_manager.py` (On-Demand Model Manager)
 
-ViTPose+ Small human pose estimation module.
+VRAM-aware model manager implementing LRU eviction with priority ordering.
 
-- **Model**: ViTPose+ Small
-- **HuggingFace**: [usyd-community/vitpose-plus-small](https://huggingface.co/usyd-community/vitpose-plus-small)
-- **Purpose**: Human pose estimation with 17 COCO keypoints
-- **API Endpoint**: `/pose-analyze`
-- **VRAM**: ~100 MB (loaded on-demand)
+**Key Features:**
 
-**Class: `PoseAnalyzer`**
+- Configurable VRAM budget (default: 6.8GB)
+- Priority-based eviction (CRITICAL models evicted last)
+- Async-safe with asyncio locks
+- Automatic CUDA cache clearing on unload
 
-```python
-def load_model(self) -> None:
-    """Load ViTPose+ via VitPoseForPoseEstimation.from_pretrained()"""
-
-def analyze(self, image: Image.Image, min_confidence: float = 0.3) -> dict:
-    """Returns keypoints, posture classification, and security alerts"""
-```
-
-**COCO Keypoints (17):**
+**Public API:**
 
 ```python
-COCO_KEYPOINT_NAMES = [
-    "nose", "left_eye", "right_eye", "left_ear", "right_ear",
-    "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
-    "left_wrist", "right_wrist", "left_hip", "right_hip",
-    "left_knee", "right_knee", "left_ankle", "right_ankle"
-]
+manager = OnDemandModelManager(vram_budget_gb=6.8)
+manager.register_model(ModelConfig(
+    name="vehicle",
+    vram_mb=1500,
+    priority=ModelPriority.MEDIUM,
+    loader_fn=lambda: VehicleClassifier(...).load_model(),
+    unloader_fn=lambda m: _unload_model(m),
+))
+
+# Get model (loads if necessary, evicts LRU if needed)
+model = await manager.get_model("vehicle")
+
+# Check status
+status = manager.get_status()
 ```
+
+#### `model_registry.py` (Model Registration)
+
+Defines model configurations and the `create_model_registry()` factory function.
+
+**Available Models (9 total):**
+
+| Model Name         | VRAM   | Priority | Trigger Conditions                |
+| ------------------ | ------ | -------- | --------------------------------- |
+| fashion_clip       | 800 MB | HIGH     | Person detected                   |
+| vehicle_classifier | 1.5 GB | MEDIUM   | Vehicle detected                  |
+| pet_classifier     | 200 MB | MEDIUM   | Cat/dog detected                  |
+| depth_estimator    | 150 MB | LOW      | Any detection                     |
+| pose_estimator     | 300 MB | HIGH     | Person detected                   |
+| threat_detector    | 400 MB | CRITICAL | Always checked for security       |
+| demographics       | 500 MB | HIGH     | Person with face detected         |
+| person_reid        | 100 MB | MEDIUM   | Person detected for tracking      |
+| action_recognizer  | 1.5 GB | LOW      | Suspicious pose + multiple frames |
+
+### Model Implementations
+
+#### `models/pose_estimator.py` (YOLOv8n-pose)
+
+Human pose estimation with 17 COCO keypoints.
+
+**Features:**
+
+- Detects 17 COCO keypoints (nose, eyes, ears, shoulders, elbows, wrists, hips, knees, ankles)
+- Classifies body posture (standing, crouching, running, reaching_up, etc.)
+- Flags suspicious poses for security analysis
 
 **Posture Classifications:**
 
-- `standing`, `walking`, `running`, `sitting`, `crouching`, `lying_down`, `unknown`
+- `standing`, `walking`, `running`, `sitting`, `crouching`, `lying_down`, `reaching_up`, `unknown`
 
-**Security Alerts:**
+**Suspicious Poses:**
 
 - `crouching` - Potential hiding/break-in behavior
-- `lying_down` - Possible medical emergency
-- `hands_raised` - Potential surrender/robbery scenario
-- `fighting_stance` - Aggressive posture
+- `crawling` - Unusual movement
+- `hiding` - Concealment attempt
+- `reaching_up` - Potential climbing/entry
 
-### `Dockerfile`
+#### `models/threat_detector.py` (Weapon Detection)
 
-Container build configuration:
+CRITICAL priority weapon detection for security applications.
 
-- **Base image**: `pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime`
-- **Non-root user**: `enrichment` for security
-- **Health check**: 180s start period (loading all models)
-- **HuggingFace cache**: `/cache/huggingface`
+**Threat Classes:**
 
-### `requirements.txt`
+| Class   | Severity |
+| ------- | -------- |
+| gun     | CRITICAL |
+| rifle   | CRITICAL |
+| pistol  | CRITICAL |
+| knife   | HIGH     |
+| bat     | MEDIUM   |
+| crowbar | MEDIUM   |
 
+**Output Format:**
+
+```python
+ThreatResult(
+    threats=[ThreatDetection(threat_type="knife", confidence=0.85, bbox=[...], severity="high")],
+    has_threat=True,
+    max_severity="high",
+    inference_time_ms=45.2
+)
 ```
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
-python-multipart>=0.0.6
-transformers>=4.35.0
-open_clip_torch>=2.24.0    # FashionCLIP
-pillow>=10.0.0
-numpy>=1.24.0
-pydantic>=2.4.0
-nvidia-ml-py>=12.560.30    # GPU monitoring
-safetensors>=0.4.0
+
+#### `models/demographics.py` (Age/Gender Estimation)
+
+ViT-based age and gender classification from face crops.
+
+**Age Ranges:**
+
+```python
+AGE_RANGES = ["0-10", "11-20", "21-35", "36-50", "51-65", "65+"]
 ```
 
-**Note**: torch and torchvision come from the base Docker image (pytorch/pytorch:2.4.0-cuda12.4).
+**Privacy Note:** Demographics are used for identification context only and should not be stored long-term.
+
+#### `models/person_reid.py` (OSNet Re-ID)
+
+Person re-identification embeddings for tracking across cameras.
+
+**Features:**
+
+- 512-dimensional normalized embeddings
+- Cosine similarity computation
+- Configurable matching threshold (default: 0.7)
+- Embedding hash for quick lookup
+
+**Input Dimensions:** 256x128 (OSNet standard)
+
+#### `models/action_recognizer.py` (X-CLIP)
+
+Video-based action recognition using Microsoft's X-CLIP model.
+
+**Trigger Conditions:**
+
+- Person detected for >3 seconds
+- Multiple frames available in buffer
+- Unusual pose detected (from pose estimator)
+
+**Security Actions:**
+
+```python
+SUSPICIOUS_ACTIONS = {
+    "fighting", "climbing", "breaking window",
+    "picking lock", "hiding", "loitering",
+    "looking around suspiciously"
+}
+```
+
+### `vitpose.py` (Legacy Pose Analyzer)
+
+Original ViTPose+ Small implementation. Kept for backwards compatibility with `/pose-analyze` endpoint.
 
 ## API Endpoints
 
 ### GET /health
 
-Returns health status of all models.
+Returns health status of all models and VRAM usage.
 
 ```json
 {
   "status": "healthy",
   "models": [
-    {
-      "name": "vehicle-segment-classification",
-      "loaded": true,
-      "vram_mb": 1500
-    },
-    { "name": "pet-classifier", "loaded": true, "vram_mb": 200 },
-    { "name": "fashion-clip", "loaded": true, "vram_mb": 800 },
-    { "name": "depth-anything-v2-small", "loaded": true, "vram_mb": 150 }
+    {"name": "vehicle-segment-classification", "loaded": true, "vram_mb": 1500},
+    {"name": "pet-classifier", "loaded": true, "vram_mb": 200},
+    ...
   ],
   "total_vram_used_gb": 6.0,
   "device": "cuda:0",
@@ -184,16 +260,53 @@ Returns health status of all models.
 }
 ```
 
-### POST /vehicle-classify
+### GET /models/status
 
-Classify vehicle type from cropped image.
+Returns current model loading status from the OnDemandModelManager.
+
+```json
+{
+  "vram_budget_mb": 6963.2,
+  "vram_used_mb": 2500,
+  "vram_available_mb": 4463.2,
+  "vram_utilization_percent": 35.9,
+  "loaded_models": [
+    {"name": "vehicle_classifier", "vram_mb": 1500, "priority": "MEDIUM", "last_used": "..."}
+  ],
+  "registered_models": [...],
+  "pending_loads": []
+}
+```
+
+### POST /models/preload
+
+Manually preload a model into VRAM.
+
+```json
+{ "model_name": "pose_estimator" }
+```
+
+### POST /models/unload
+
+Manually unload a model from VRAM.
+
+```json
+{ "model_name": "action_recognizer" }
+```
+
+### POST /enrich
+
+Unified enrichment endpoint for detections. Automatically loads required models.
 
 **Request:**
 
 ```json
 {
   "image": "<base64>",
-  "bbox": [x1, y1, x2, y2]  // optional crop
+  "detection_type": "person",
+  "bbox": [100, 150, 300, 400],
+  "is_suspicious": false,
+  "frames": ["<base64>", "<base64>", ...]  // Optional, for action recognition
 }
 ```
 
@@ -201,157 +314,75 @@ Classify vehicle type from cropped image.
 
 ```json
 {
-  "vehicle_type": "pickup_truck",
-  "display_name": "pickup truck",
-  "confidence": 0.92,
-  "is_commercial": false,
-  "all_scores": { "pickup_truck": 0.92, "car": 0.05, "work_van": 0.02 },
-  "inference_time_ms": 45.2
+  "pose": {"keypoints": [...], "posture": "standing", "is_suspicious": false},
+  "clothing": {"type": "casual", "is_suspicious": false},
+  "demographics": {"age_range": "21-35", "gender": "male"},
+  "threat": {"has_threat": false, "max_severity": "none"},
+  "depth": {"estimated_distance_m": 3.5},
+  "reid": {"embedding": [...], "embedding_hash": "abc123..."},
+  "action": {"action": "walking normally", "is_suspicious": false},
+  "inference_time_ms": 245.6
 }
 ```
+
+### POST /vehicle-classify
+
+Classify vehicle type from cropped image.
 
 ### POST /pet-classify
 
 Classify pet type (cat/dog).
 
-**Request:**
-
-```json
-{
-  "image": "<base64>",
-  "bbox": [x1, y1, x2, y2]  // optional crop
-}
-```
-
-**Response:**
-
-```json
-{
-  "pet_type": "dog",
-  "breed": "unknown",
-  "confidence": 0.98,
-  "is_household_pet": true,
-  "inference_time_ms": 22.1
-}
-```
-
 ### POST /clothing-classify
 
 Classify clothing using FashionCLIP zero-shot classification.
-
-**Request:**
-
-```json
-{
-  "image": "<base64>",
-  "bbox": [x1, y1, x2, y2]  // optional crop
-}
-```
-
-**Response:**
-
-```json
-{
-  "clothing_type": "hoodie",
-  "color": "dark",
-  "style": "suspicious",
-  "confidence": 0.85,
-  "top_category": "person wearing dark hoodie",
-  "description": "Alert: dark hoodie",
-  "is_suspicious": true,
-  "is_service_uniform": false,
-  "inference_time_ms": 68.4
-}
-```
 
 ### POST /depth-estimate
 
 Estimate depth map for entire image.
 
-**Request:**
-
-```json
-{ "image": "<base64>" }
-```
-
-**Response:**
-
-```json
-{
-  "depth_map_base64": "<base64-png>",
-  "min_depth": 0.0,
-  "max_depth": 1.0,
-  "mean_depth": 0.45,
-  "inference_time_ms": 85.3
-}
-```
-
 ### POST /object-distance
 
 Estimate distance to object at bounding box.
 
-**Request:**
-
-```json
-{
-  "image": "<base64>",
-  "bbox": [100, 150, 300, 400],
-  "method": "center" // or "mean", "median", "min"
-}
-```
-
-**Response:**
-
-```json
-{
-  "estimated_distance_m": 3.5,
-  "relative_depth": 0.35,
-  "proximity_label": "close",
-  "inference_time_ms": 90.2
-}
-```
-
 ### POST /pose-analyze
 
-Analyze human pose keypoints.
-
-**Request:**
-
-```json
-{
-  "image": "<base64>",
-  "bbox": [x1, y1, x2, y2],  // optional crop
-  "min_confidence": 0.3
-}
-```
-
-**Response:**
-
-```json
-{
-  "keypoints": [
-    {"name": "nose", "x": 0.5, "y": 0.1, "confidence": 0.95},
-    {"name": "left_shoulder", "x": 0.4, "y": 0.25, "confidence": 0.92},
-    ...
-  ],
-  "posture": "standing",
-  "alerts": [],
-  "inference_time_ms": 35.6
-}
-```
+Analyze human pose keypoints (legacy ViTPose+ endpoint).
 
 ## Environment Variables
 
-| Variable              | Default                                  | Description             |
-| --------------------- | ---------------------------------------- | ----------------------- |
-| `HOST`                | `0.0.0.0`                                | Bind address            |
-| `PORT`                | `8094`                                   | Listen port             |
-| `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification` | Vehicle classifier path |
-| `PET_MODEL_PATH`      | `/models/pet-classifier`                 | Pet classifier path     |
-| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionCLIP model path  |
-| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-small`        | Depth estimator path    |
-| `VITPOSE_MODEL_PATH`  | `/models/vitpose-plus-small`             | ViTPose+ model path     |
-| `HF_HOME`             | `/cache/huggingface`                     | HuggingFace cache dir   |
+| Variable              | Default                                  | Description                      |
+| --------------------- | ---------------------------------------- | -------------------------------- |
+| `HOST`                | `0.0.0.0`                                | Bind address                     |
+| `PORT`                | `8094`                                   | Listen port                      |
+| `VRAM_BUDGET_GB`      | `6.8`                                    | VRAM budget for on-demand models |
+| `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification` | Vehicle classifier path          |
+| `PET_MODEL_PATH`      | `/models/pet-classifier`                 | Pet classifier path              |
+| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionCLIP model path           |
+| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-small`        | Depth estimator path             |
+| `POSE_MODEL_PATH`     | `/models/yolov8n-pose/yolov8n-pose.pt`   | YOLOv8n-pose model path          |
+| `THREAT_MODEL_PATH`   | `/models/threat-detection`               | Threat detection model path      |
+| `AGE_MODEL_PATH`      | `/models/vit-age-classifier`             | Age classifier path              |
+| `GENDER_MODEL_PATH`   | `/models/vit-gender-classifier`          | Gender classifier path           |
+| `REID_MODEL_PATH`     | `/models/osnet-reid`                     | OSNet ReID model path            |
+| `ACTION_MODEL_PATH`   | `microsoft/xclip-base-patch32`           | X-CLIP model path                |
+| `VITPOSE_MODEL_PATH`  | `/models/vitpose-plus-small`             | ViTPose+ model path (legacy)     |
+| `HF_HOME`             | `/cache/huggingface`                     | HuggingFace cache dir            |
+
+## Model Links
+
+| Model                      | HuggingFace URL                                                                                                                                 | Description                          |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| FashionCLIP                | [patrickjohncyh/fashion-clip](https://huggingface.co/patrickjohncyh/fashion-clip)                                                               | Zero-shot clothing classification    |
+| Vehicle Segment Classifier | [lxyuan/vit-base-patch16-224-vehicle-segment-classification](https://huggingface.co/lxyuan/vit-base-patch16-224-vehicle-segment-classification) | Vehicle type classification (ViT)    |
+| Pet Classifier (ResNet-18) | [microsoft/resnet-18](https://huggingface.co/microsoft/resnet-18)                                                                               | Cat/dog classification               |
+| Depth Anything V2 Small    | [depth-anything/Depth-Anything-V2-Small-hf](https://huggingface.co/depth-anything/Depth-Anything-V2-Small-hf)                                   | Monocular depth estimation           |
+| ViTPose+ Small             | [usyd-community/vitpose-plus-small](https://huggingface.co/usyd-community/vitpose-plus-small)                                                   | Human pose estimation (17 keypoints) |
+| YOLOv8n-pose               | [ultralytics/yolov8n-pose](https://docs.ultralytics.com/tasks/pose/)                                                                            | Human pose estimation (17 keypoints) |
+| Threat Detection           | [Subh775/Threat-Detection-YOLOv8n](https://huggingface.co/Subh775/Threat-Detection-YOLOv8n)                                                     | Weapon detection                     |
+| Age Classifier             | [nateraw/vit-age-classifier](https://huggingface.co/nateraw/vit-age-classifier)                                                                 | Age range estimation                 |
+| OSNet                      | [torchreid/osnet_x0_25](https://github.com/KaiyangZhou/deep-person-reid)                                                                        | Person re-identification             |
+| X-CLIP                     | [microsoft/xclip-base-patch32](https://huggingface.co/microsoft/xclip-base-patch32)                                                             | Video action recognition             |
 
 ## Backend Integration
 
@@ -381,6 +412,14 @@ if clothing.is_suspicious:
 pose = await client.analyze_pose(person_image)
 if pose.alerts:
     print(f"Pose alerts: {pose.alerts}")
+
+# Unified enrichment
+enrichment = await client.enrich(
+    image=person_image,
+    detection_type="person",
+    bbox=(x1, y1, x2, y2),
+    is_suspicious=True,
+)
 ```
 
 Or via `EnrichmentPipeline`:
@@ -409,26 +448,35 @@ cd ai/enrichment && python model.py
 ## Testing
 
 ```bash
+# Run unit tests
+cd ai/enrichment && pytest tests/ -v
+
 # Health check
 curl http://localhost:8094/health
+
+# Model status
+curl http://localhost:8094/models/status
 
 # Vehicle classification (with base64 image)
 curl -X POST http://localhost:8094/vehicle-classify \
   -H "Content-Type: application/json" \
   -d '{"image": "'$(base64 -w0 vehicle.jpg)'"}'
 
-# Clothing classification
-curl -X POST http://localhost:8094/clothing-classify \
+# Unified enrichment
+curl -X POST http://localhost:8094/enrich \
   -H "Content-Type: application/json" \
-  -d '{"image": "'$(base64 -w0 person.jpg)'"}'
+  -d '{"image": "'$(base64 -w0 person.jpg)'", "detection_type": "person"}'
 ```
-
-**Note**: Unit tests are not yet implemented. Integration tests exist in `backend/tests/integration/services/test_enrichment_client.py`.
 
 ## Entry Points
 
-1. **Main server**: `model.py` - All classifiers and endpoints
-2. **Pose analyzer**: `vitpose.py` - ViTPose+ module
-3. **Dockerfile**: Container build configuration
-4. **Backend client**: `backend/services/enrichment_client.py`
-5. **Backend pipeline**: `backend/services/enrichment_pipeline.py`
+1. **Main service**: `model.py:app` - FastAPI application
+2. **Model loading**: `model_manager.py:OnDemandModelManager` - VRAM-aware model management
+3. **Registration**: `model_registry.py:create_model_registry()` - Model configuration factory
+4. **Pose estimation**: `models/pose_estimator.py:PoseEstimator` - YOLOv8n-pose wrapper
+5. **Threat detection**: `models/threat_detector.py:ThreatDetector` - Weapon detection
+6. **Demographics**: `models/demographics.py:DemographicsEstimator` - Age/gender estimation
+7. **Re-ID**: `models/person_reid.py:PersonReID` - OSNet embedding extraction
+8. **Action recognition**: `models/action_recognizer.py:ActionRecognizer` - X-CLIP video analysis
+9. **Backend client**: `backend/services/enrichment_client.py` - HTTP client
+10. **Backend pipeline**: `backend/services/enrichment_pipeline.py` - Orchestration

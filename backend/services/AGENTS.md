@@ -87,6 +87,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | `scene_baseline.py`        | Scene-level baseline tracking                    | No (import directly)       |
 | `scene_change_detector.py` | SSIM-based scene change detection                | Yes                        |
 | `reid_service.py`          | Entity re-identification across cameras          | Yes                        |
+| `reid_matcher.py`          | Person re-ID matching across detections          | No (import directly)       |
 | `bbox_validation.py`       | Bounding box validation utilities                | No (import directly)       |
 
 ### Model Zoo Services
@@ -609,6 +610,74 @@ get_total_vram_if_loaded(names)  # Calculate VRAM usage
 - `async health_check()` - Check service health
 - `get_clip_client()` - Get global singleton
 
+### enrichment_client.py
+
+**Purpose:** HTTP client for the ai-enrichment service providing unified detection enrichment.
+
+**Service:** Runs at `http://ai-enrichment:8094` as dedicated container.
+
+**Endpoints:**
+
+| Endpoint             | Purpose                               |
+| -------------------- | ------------------------------------- |
+| `/vehicle-classify`  | Vehicle type and color classification |
+| `/pet-classify`      | Cat/dog classification                |
+| `/clothing-classify` | FashionCLIP clothing attributes       |
+| `/depth-estimate`    | Depth Anything V2 depth estimation    |
+| `/object-distance`   | Object distance from depth map        |
+| `/pose-analyze`      | ViTPose+ human pose keypoints         |
+| `/action-classify`   | X-CLIP temporal action recognition    |
+| `/enrich`            | Unified enrichment endpoint           |
+
+**Result Dataclasses:**
+
+- `VehicleClassificationResult` - Vehicle type, display name, confidence, is_commercial
+- `PetClassificationResult` - Pet type, breed, confidence, is_household_pet
+- `ClothingClassificationResult` - Clothing type, color, style, is_suspicious
+- `DepthEstimationResult` - Depth map, min/max/mean depth
+- `ObjectDistanceResult` - Estimated distance, proximity label
+- `PoseAnalysisResult` - Keypoints, posture, alerts
+- `ActionClassificationResult` - Action, confidence, is_suspicious
+
+**Features:**
+
+- Circuit breaker integration for resilience
+- Automatic retry with exponential backoff
+- Timeout configuration (10s connect, 60s read)
+- Bbox validation and clamping
+- Prometheus metrics for request duration
+
+**Public API:**
+
+```python
+from backend.services.enrichment_client import get_enrichment_client
+
+client = get_enrichment_client()
+
+# Health check
+health = await client.check_health()
+
+# Individual classifications
+vehicle = await client.classify_vehicle(image, bbox=(x1, y1, x2, y2))
+pet = await client.classify_pet(image)
+clothing = await client.classify_clothing(image)
+pose = await client.analyze_pose(image)
+
+# Unified enrichment
+enrichment = await client.enrich(
+    image=person_image,
+    detection_type="person",
+    bbox=(x1, y1, x2, y2),
+    is_suspicious=True,
+)
+```
+
+**Error Handling:**
+
+- `EnrichmentUnavailableError` - Service unavailable (connection/timeout/5xx)
+- HTTP 4xx errors - Logged and returns None (no retry)
+- Invalid JSON - Logged and returns None
+
 ### reid_service.py
 
 **Purpose:** Entity re-identification across cameras using CLIP embeddings.
@@ -653,6 +722,64 @@ TTL: 24 hours (86400 seconds)
 - `format_reid_context(matches_by_entity, entity_type)` - Format all matches
 - `format_full_reid_context(person_matches, vehicle_matches)` - Complete context
 - `format_reid_summary(person_matches, vehicle_matches)` - Brief summary
+
+### reid_matcher.py
+
+**Purpose:** Person re-identification matching service for tracking individuals across detections and time.
+
+**Related to:** NEM-3043 - Implement Re-ID Matching Service
+
+**Features:**
+
+- Cosine similarity matching for person embeddings
+- Configurable similarity threshold (default: 0.7)
+- Time-window based search (default: 24 hours)
+- Embedding hash for quick lookup
+- Uses embeddings from Detection model's `enrichment_data.reid_embedding`
+
+**Key Classes:**
+
+- `ReIDMatch` - Match result with detection_id, similarity, timestamp, camera_id
+- `ReIDMatcher` - Main service class for matching embeddings
+
+**Public API:**
+
+```python
+from backend.services.reid_matcher import ReIDMatcher
+
+async with get_session() as session:
+    matcher = ReIDMatcher(session, similarity_threshold=0.7)
+
+    # Find matches for an embedding
+    matches = await matcher.find_matches(
+        embedding=[0.1, 0.2, ...],  # 512-dim from OSNet
+        time_window_hours=24,
+        max_results=10,
+        exclude_detection_id=current_detection_id,
+    )
+
+    # Check if this is a known person
+    is_known, best_match = await matcher.is_known_person(
+        embedding=[0.1, 0.2, ...],
+        time_window_hours=24,
+    )
+```
+
+**Embedding Source:**
+
+Embeddings are stored in the Detection model:
+
+```python
+Detection.enrichment_data = {
+    "reid_embedding": [0.1, 0.2, ...],  # 512-dim from OSNet-x0.25
+    "reid_hash": "abc123...",           # First 16 chars of SHA-256
+    ...
+}
+```
+
+**Integration with Enrichment Service:**
+
+The enrichment service (`ai-enrichment:8094`) generates OSNet embeddings via the `/enrich` endpoint when `detection_type="person"`. These embeddings are stored by the backend and can be queried by ReIDMatcher.
 
 ### scene_change_detector.py
 
