@@ -14,9 +14,146 @@ Security:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, Protocol
 
 from backend.services.prompt_sanitizer import sanitize_object_type
+
+# ==============================================================================
+# Calibrated System Prompt (NEM-3019)
+# ==============================================================================
+# This system prompt provides calibration guidance to prevent over-alerting.
+# It establishes expected event distributions and scoring principles.
+
+CALIBRATED_SYSTEM_PROMPT = """You are a home security analyst for a residential property.
+
+CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
+delivery workers, and pets represent normal household activity. Your job is to
+identify genuine anomalies, not flag everyday life.
+
+CALIBRATION: In a typical day, expect:
+- 80% of events to be LOW risk (0-29): Normal activity
+- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
+- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
+- 1% to be CRITICAL (85-100): Immediate threats only
+
+If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+
+Output ONLY valid JSON. No preamble, no explanation."""
+
+# ==============================================================================
+# Scoring Reference Table (NEM-3019)
+# ==============================================================================
+# This inline table provides concrete scoring examples to anchor the LLM's
+# risk assessment with specific scenarios and appropriate scores.
+
+SCORING_REFERENCE_TABLE = """## SCORING REFERENCE
+| Scenario | Score | Reasoning |
+|----------|-------|-----------|
+| Resident arriving home | 5-15 | Expected activity |
+| Delivery driver at door | 15-25 | Normal service visit |
+| Unknown person on sidewalk | 20-35 | Public area, passive |
+| Unknown person lingering | 45-60 | Warrants attention |
+| Person testing door handles | 70-85 | Clear suspicious intent |
+| Active break-in or violence | 85-100 | Immediate threat |"""
+
+# ==============================================================================
+# Household Context Template (NEM-3019)
+# ==============================================================================
+# This template provides household-specific context at the TOP of user prompts.
+
+HOUSEHOLD_CONTEXT_TEMPLATE = """## HOUSEHOLD CONTEXT
+{household_context}"""
+
+
+# Protocol for Entity-like objects (to avoid circular imports)
+class EntityLike(Protocol):
+    """Protocol defining the interface for Entity-like objects.
+
+    This allows the format_enhanced_reid_context function to work with
+    the Entity model without requiring a direct import, enabling testing
+    with mock objects.
+    """
+
+    detection_count: int
+    first_seen_at: datetime
+    last_seen_at: datetime
+    trust_status: str
+
+
+# ==============================================================================
+# Clothing Validation (NEM-3010)
+# ==============================================================================
+# Mutually exclusive clothing groups to resolve impossible garment combinations.
+# When multiple items from the same group are detected, keep only the highest
+# confidence item.
+
+MUTUALLY_EXCLUSIVE_CLOTHING_GROUPS: list[frozenset[str]] = [
+    # Lower body - a person can only wear one of these at a time
+    frozenset({"pants", "skirt", "dress", "shorts", "jeans", "leggings"}),
+]
+
+
+def validate_clothing_items(
+    items: list[str],
+    confidences: dict[str, float],
+) -> list[str]:
+    """Apply mutual exclusion rules to clothing items.
+
+    Resolves impossible garment combinations (e.g., pants + skirt + dress)
+    by keeping only the highest confidence item from each mutually exclusive
+    group. Non-exclusive items (shoes, accessories, etc.) are preserved.
+
+    Args:
+        items: List of detected clothing item names
+        confidences: Dict mapping item name to confidence score (0-1 or 0-100).
+                     Items not in the dict default to confidence 0.
+
+    Returns:
+        List of validated clothing items with conflicts resolved.
+        The highest confidence item is kept from each mutually exclusive group.
+
+    Example:
+        >>> items = ["pants", "skirt", "dress", "shoes"]
+        >>> confidences = {"pants": 0.8, "skirt": 0.6, "dress": 0.5, "shoes": 0.9}
+        >>> validate_clothing_items(items, confidences)
+        ['pants', 'shoes']  # pants wins (0.8) over skirt (0.6) and dress (0.5)
+    """
+    if not items:
+        return []
+
+    # Build set of all exclusive items for quick lookup
+    all_exclusive: set[str] = set()
+    for group in MUTUALLY_EXCLUSIVE_CLOTHING_GROUPS:
+        all_exclusive.update(group)
+
+    validated: list[str] = []
+    processed_groups: set[int] = set()
+
+    # Process each mutually exclusive group
+    for group_idx, group in enumerate(MUTUALLY_EXCLUSIVE_CLOTHING_GROUPS):
+        # Find items from this group that were detected
+        matches = [item for item in items if item in group]
+
+        if len(matches) > 1:
+            # Conflict: keep only the highest confidence item
+            best_item = max(matches, key=lambda x: confidences.get(x, 0.0))
+            validated.append(best_item)
+            processed_groups.add(group_idx)
+        elif len(matches) == 1:
+            # Single item from group - keep it
+            validated.append(matches[0])
+            processed_groups.add(group_idx)
+
+    # Add all non-exclusive items (shoes, belt, bag, hat, etc.)
+    for item in items:
+        if item not in all_exclusive and item not in validated:
+            validated.append(item)
+
+    return validated
+
 
 if TYPE_CHECKING:
     from backend.services.depth_anything_loader import DepthAnalysisResult
@@ -33,41 +170,87 @@ if TYPE_CHECKING:
 
 # Basic prompt template (legacy, used as fallback)
 RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security risk analyzer.
-IMPORTANT: Output ONLY a valid JSON object. No preamble, no explanation, no markdown - just raw JSON starting with {{ and ending with }}.<|im_end|>
-<|im_start|>user
-Analyze these detections and output a JSON risk assessment.
+You are a home security analyst for a residential property.
 
+CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
+delivery workers, and pets represent normal household activity. Your job is to
+identify genuine anomalies, not flag everyday life.
+
+CALIBRATION: In a typical day, expect:
+- 80% of events to be LOW risk (0-29): Normal activity
+- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
+- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
+- 1% to be CRITICAL (85-100): Immediate threats only
+
+If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+
+Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
+<|im_start|>user
+## SCORING REFERENCE
+| Scenario | Score | Reasoning |
+|----------|-------|-----------|
+| Resident arriving home | 5-15 | Expected activity |
+| Delivery driver at door | 15-25 | Normal service visit |
+| Unknown person on sidewalk | 20-35 | Public area, passive |
+| Unknown person lingering | 45-60 | Warrants attention |
+| Person testing door handles | 70-85 | Clear suspicious intent |
+| Active break-in or violence | 85-100 | Immediate threat |
+
+## EVENT CONTEXT
 Camera: {camera_name}
 Time: {start_time} to {end_time}
-Detections:
+
+## DETECTIONS
 {detections_list}
 
-Consider in your analysis:
-- Time of day context (late night activity is more concerning)
-- Object combinations (person + vehicle vs person alone)
-- Detection confidence levels
-- Number and frequency of detections
-- Potential benign explanations (delivery, neighbor, wildlife)
+## YOUR TASK
+1. Start from the scoring reference above
+2. Adjust based on specific threat indicators present
+3. Provide clear reasoning for your score
+4. Remember: most events should score LOW
 
 Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
 
-Output JSON with detailed reasoning that explains your risk assessment:
+Output JSON:
 {{"risk_score": N, "risk_level": "level", "summary": "1-2 sentence summary", "reasoning": "detailed multi-sentence explanation of factors considered and why this risk level was assigned"}}<|im_end|>
 <|im_start|>assistant
 """
 
 # Enhanced prompt template with context enrichment
 ENRICHED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security risk analyzer.
-IMPORTANT: Output ONLY a valid JSON object. No preamble, no explanation, no markdown - just raw JSON starting with {{ and ending with }}.<|im_end|>
-<|im_start|>user
-Analyze these detections and output a JSON risk assessment.
+You are a home security analyst for a residential property.
 
-## Camera Context
+CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
+delivery workers, and pets represent normal household activity. Your job is to
+identify genuine anomalies, not flag everyday life.
+
+CALIBRATION: In a typical day, expect:
+- 80% of events to be LOW risk (0-29): Normal activity
+- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
+- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
+- 1% to be CRITICAL (85-100): Immediate threats only
+
+If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+
+Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
+<|im_start|>user
+## SCORING REFERENCE
+| Scenario | Score | Reasoning |
+|----------|-------|-----------|
+| Resident arriving home | 5-15 | Expected activity |
+| Delivery driver at door | 15-25 | Normal service visit |
+| Unknown person on sidewalk | 20-35 | Public area, passive |
+| Unknown person lingering | 45-60 | Warrants attention |
+| Person testing door handles | 70-85 | Clear suspicious intent |
+| Active break-in or violence | 85-100 | Immediate threat |
+
+## EVENT CONTEXT
 Camera: {camera_name}
 Time: {start_time} to {end_time}
 Day: {day_of_week}
+
+## DETECTIONS
+{detections_list}
 
 ## Zone Analysis
 {zone_analysis}
@@ -81,20 +264,19 @@ Deviation score: {deviation_score} (0=normal, 1=highly unusual)
 ## Cross-Camera Activity
 {cross_camera_summary}
 
-## Detections
-{detections_list}
-
 ## Risk Interpretation Guide
 - entry_point detections: Higher concern, especially unknown persons
 - Baseline deviation > 0.5: Unusual activity pattern
 - Cross-camera correlation: May indicate coordinated movement
 - Time of day: Late night activity more concerning
 
-## Risk Levels
-- low (0-29): Normal activity, no action needed
-- medium (30-59): Notable activity, worth reviewing
-- high (60-84): Suspicious activity, recommend alert
-- critical (85-100): Immediate threat, urgent action
+## YOUR TASK
+1. Start from the scoring reference above
+2. Adjust based on specific threat indicators present
+3. Provide clear reasoning for your score
+4. Remember: most events should score LOW
+
+Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
 
 Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "text", "recommended_action": "text"}}<|im_end|>
 <|im_start|>assistant
@@ -103,15 +285,42 @@ Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "rea
 # Full enriched prompt with vision enrichment (plates, faces, OCR)
 # Used when both context enrichment and enrichment pipeline are available
 FULL_ENRICHED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security risk analyzer.
-IMPORTANT: Output ONLY a valid JSON object. No preamble, no explanation, no markdown - just raw JSON starting with {{ and ending with }}.<|im_end|>
-<|im_start|>user
-Analyze these detections and output a JSON risk assessment.
+You are a home security analyst for a residential property.
 
-## Camera Context
+CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
+delivery workers, and pets represent normal household activity. Your job is to
+identify genuine anomalies, not flag everyday life.
+
+CALIBRATION: In a typical day, expect:
+- 80% of events to be LOW risk (0-29): Normal activity
+- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
+- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
+- 1% to be CRITICAL (85-100): Immediate threats only
+
+If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+
+Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
+<|im_start|>user
+## SCORING REFERENCE
+| Scenario | Score | Reasoning |
+|----------|-------|-----------|
+| Resident arriving home | 5-15 | Expected activity |
+| Delivery driver at door | 15-25 | Normal service visit |
+| Unknown person on sidewalk | 20-35 | Public area, passive |
+| Unknown person lingering | 45-60 | Warrants attention |
+| Person testing door handles | 70-85 | Clear suspicious intent |
+| Active break-in or violence | 85-100 | Immediate threat |
+
+## EVENT CONTEXT
 Camera: {camera_name}
 Time: {start_time} to {end_time}
 Day: {day_of_week}
+
+## DETECTIONS
+{detections_list}
+
+## Vision Enrichment
+{enrichment_context}
 
 ## Zone Analysis
 {zone_analysis}
@@ -124,12 +333,6 @@ Deviation score: {deviation_score} (0=normal, 1=highly unusual)
 
 ## Cross-Camera Activity
 {cross_camera_summary}
-
-## Vision Enrichment
-{enrichment_context}
-
-## Detections
-{detections_list}
 
 ## Risk Interpretation Guide
 - entry_point detections: Higher concern, especially unknown persons
@@ -139,11 +342,13 @@ Deviation score: {deviation_score} (0=normal, 1=highly unusual)
 - License plates: Known vs unknown vehicles, partial plates may indicate evasion
 - Faces detected: Presence of faces helps identify individuals for review
 
-## Risk Levels
-- low (0-29): Normal activity, no action needed
-- medium (30-59): Notable activity, worth reviewing
-- high (60-84): Suspicious activity, recommend alert
-- critical (85-100): Immediate threat, urgent action
+## YOUR TASK
+1. Start from the scoring reference above
+2. Adjust based on specific threat indicators present
+3. Provide clear reasoning for your score
+4. Remember: most events should score LOW
+
+Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
 
 Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "text", "recommended_action": "text"}}<|im_end|>
 <|im_start|>assistant
@@ -152,18 +357,41 @@ Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "rea
 # Vision-enhanced prompt with Florence-2 attributes, re-identification, and scene analysis
 # Used when full vision extraction pipeline is available
 VISION_ENHANCED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security risk analyzer.
-IMPORTANT: Output ONLY a valid JSON object. No preamble, no explanation, no markdown - just raw JSON starting with {{ and ending with }}.<|im_end|>
-<|im_start|>user
-Analyze this security event and provide a risk assessment.
+You are a home security analyst for a residential property.
 
-## Camera & Time
+CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
+delivery workers, and pets represent normal household activity. Your job is to
+identify genuine anomalies, not flag everyday life.
+
+CALIBRATION: In a typical day, expect:
+- 80% of events to be LOW risk (0-29): Normal activity
+- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
+- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
+- 1% to be CRITICAL (85-100): Immediate threats only
+
+If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+
+Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
+<|im_start|>user
+## SCORING REFERENCE
+| Scenario | Score | Reasoning |
+|----------|-------|-----------|
+| Resident arriving home | 5-15 | Expected activity |
+| Delivery driver at door | 15-25 | Normal service visit |
+| Unknown person on sidewalk | 20-35 | Public area, passive |
+| Unknown person lingering | 45-60 | Warrants attention |
+| Person testing door handles | 70-85 | Clear suspicious intent |
+| Active break-in or violence | 85-100 | Immediate threat |
+
+## EVENT CONTEXT
 Camera: {camera_name}
 Time: {timestamp}
 Day: {day_of_week}
 Lighting: {time_of_day}
 
-## Detections with Attributes
+{camera_health_context}
+
+## DETECTIONS WITH ATTRIBUTES
 {detections_with_attributes}
 
 ## Re-Identification
@@ -191,11 +419,13 @@ Deviation score: {deviation_score}
 - Time context: Late night + artificial light = concerning
 - Behavioral cues: Crouching, loitering, repeated passes
 
-## Risk Levels
-- low (0-29): Normal activity
-- medium (30-59): Notable, worth reviewing
-- high (60-84): Suspicious, recommend alert
-- critical (85-100): Immediate threat
+## YOUR TASK
+1. Start from the scoring reference above
+2. Adjust based on specific threat indicators present
+3. Provide clear reasoning for your score
+4. Remember: most events should score LOW
+
+Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
 
 Output JSON:
 {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "detailed explanation", "entities": [{{"type": "person|vehicle", "description": "text", "threat_level": "low|medium|high"}}], "recommended_action": "text"}}<|im_end|>
@@ -218,12 +448,33 @@ Output JSON:
 # - Image Quality (BRISQUE)
 
 MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are an advanced home security risk analyzer with access to comprehensive AI-enriched detection data.
-IMPORTANT: Output ONLY a valid JSON object. No preamble, no explanation, no markdown code blocks - just the raw JSON starting with {{ and ending with }}.<|im_end|>
-<|im_start|>user
-Analyze this security event with full AI enrichment and provide a detailed risk assessment.
+You are a home security analyst for a residential property with access to comprehensive AI-enriched detection data.
 
-## Camera & Time Context
+CRITICAL PRINCIPLE: Most detections are NOT threats. Residents, family members,
+delivery workers, and pets represent normal household activity. Your job is to
+identify genuine anomalies, not flag everyday life.
+
+CALIBRATION: In a typical day, expect:
+- 80% of events to be LOW risk (0-29): Normal activity
+- 15% to be MEDIUM risk (30-59): Worth noting but not alarming
+- 4% to be HIGH risk (60-84): Genuinely suspicious, warrants review
+- 1% to be CRITICAL (85-100): Immediate threats only
+
+If you're scoring >20% of events as HIGH or CRITICAL, you are miscalibrated.
+
+Output ONLY valid JSON. No preamble, no explanation.<|im_end|>
+<|im_start|>user
+## SCORING REFERENCE
+| Scenario | Score | Reasoning |
+|----------|-------|-----------|
+| Resident arriving home | 5-15 | Expected activity |
+| Delivery driver at door | 15-25 | Normal service visit |
+| Unknown person on sidewalk | 20-35 | Public area, passive |
+| Unknown person lingering | 45-60 | Warrants attention |
+| Person testing door handles | 70-85 | Clear suspicious intent |
+| Active break-in or violence | 85-100 | Immediate threat |
+
+## EVENT CONTEXT
 Camera: {camera_name}
 Time: {timestamp}
 Day: {day_of_week}
@@ -233,7 +484,9 @@ Lighting: {time_of_day}
 {weather_context}
 {image_quality_context}
 
-## Detections with Full Enrichment
+{camera_health_context}
+
+## DETECTIONS WITH FULL ENRICHMENT
 {detections_with_all_attributes}
 
 ## Violence Analysis
@@ -311,6 +564,12 @@ Deviation score: {deviation_score}
 - Motion blur + person = fast movement (running)
 - Consistent low quality = camera maintenance needed
 
+### Camera Tampering (SSIM-based scene change detection)
+- view_blocked + unknown person = ADD +30 to risk score (intentional obstruction)
+- view_tampered + any intrusion indicator = ESCALATE TO CRITICAL
+- angle_changed = detection baselines may not apply, note in reasoning
+- Any unacknowledged scene change = detection confidence is degraded
+
 ### Time Context
 - Late night (11pm-5am) + artificial light = concerning
 - Business hours + service uniform = normal activity
@@ -321,6 +580,12 @@ Deviation score: {deviation_score}
 - medium (30-59): Notable activity, worth reviewing
 - high (60-84): Suspicious activity, recommend alert
 - critical (85-100): Immediate threat, urgent action required
+
+## YOUR TASK
+1. Start from the scoring reference above
+2. Adjust based on specific threat indicators present
+3. Provide clear reasoning for your score
+4. Remember: most events should score LOW
 
 Output JSON with comprehensive analysis:
 {{"risk_score": N, "risk_level": "level", "summary": "1-2 sentence summary", "reasoning": "detailed multi-paragraph explanation of all factors considered", "entities": [{{"type": "person|vehicle|pet", "description": "detailed description with attributes", "threat_level": "low|medium|high"}}], "flags": [{{"type": "violence|suspicious_attire|vehicle_damage|unusual_behavior|quality_issue", "description": "text", "severity": "warning|alert|critical"}}], "recommended_action": "specific action to take", "confidence_factors": {{"detection_quality": "good|fair|poor", "weather_impact": "none|minor|significant", "enrichment_coverage": "full|partial|minimal"}}}}<|im_end|>
@@ -431,7 +696,14 @@ def format_clothing_analysis_context(
         if clothing_segmentation and det_id in clothing_segmentation:
             seg = clothing_segmentation[det_id]
             if seg.clothing_items:
-                person_lines.append(f"  Clothing items: {', '.join(seg.clothing_items)}")
+                # Apply mutual exclusion validation (NEM-3010)
+                # Use coverage_percentages as confidence scores
+                raw_items = list(seg.clothing_items)
+                confidences = getattr(seg, "coverage_percentages", {}) or {}
+                validated_items = validate_clothing_items(raw_items, confidences)
+                # Sort for deterministic output
+                items_str = ", ".join(sorted(validated_items))
+                person_lines.append(f"  Clothing items: {items_str}")
             if seg.has_face_covered:
                 person_lines.append("  **ALERT**: Face covering detected (hat/sunglasses/scarf)")
             if seg.has_bag:
@@ -476,6 +748,125 @@ def format_pose_analysis_context(
         lines.append(f"  Person {det_id}: {pose_class} ({confidence:.0%}){risk_note}")
 
     return "\n".join(lines)
+
+
+# ==============================================================================
+# Pose/Scene Conflict Resolution (NEM-3011)
+# ==============================================================================
+
+# Conflict resolution rules: (pose, scene_keyword) -> winner
+# "pose" means prefer pose detection, "scene" means prefer scene analysis
+POSE_SCENE_CONFLICTS: dict[tuple[str, str], str] = {
+    ("running", "sitting"): "scene",
+    ("running", "standing"): "conditional",  # depends on motion blur
+    ("crouching", "walking"): "pose",
+}
+
+
+def resolve_pose_scene_conflict(
+    pose: str,
+    pose_confidence: float,  # noqa: ARG001 - reserved for future use
+    scene_description: str,
+    has_motion_blur: bool,
+) -> dict[str, Any]:
+    """Resolve conflicts between pose detection and scene analysis.
+
+    When pose detection ("running") conflicts with scene analysis ("sitting"),
+    this function determines which interpretation to trust based on predefined
+    rules and contextual signals like motion blur.
+
+    Args:
+        pose: The detected pose (e.g., "running", "crouching", "standing")
+        pose_confidence: Confidence score from pose detection (0-1)
+        scene_description: Natural language description of the scene
+        has_motion_blur: Whether motion blur was detected in the image
+
+    Returns:
+        Dictionary with:
+            - resolved_pose: The pose to use (original pose or "unknown")
+            - conflict_detected: Whether a conflict was found
+            - resolution: Explanation of the resolution (if conflict detected)
+
+    Example:
+        >>> resolve_pose_scene_conflict("running", 0.85, "person sitting", False)
+        {'resolved_pose': 'unknown', 'conflict_detected': True,
+         'resolution': 'Preferred scene interpretation'}
+    """
+    if not scene_description:
+        return {"resolved_pose": pose, "conflict_detected": False}
+
+    scene_lower = scene_description.lower()
+
+    for (pose_val, scene_val), resolution_rule in POSE_SCENE_CONFLICTS.items():
+        if pose.lower() == pose_val and scene_val in scene_lower:
+            # Handle conditional rules
+            if resolution_rule == "conditional":
+                # For running vs standing, motion blur suggests fast movement
+                resolved_winner = "pose" if has_motion_blur else "scene"
+            else:
+                resolved_winner = resolution_rule
+
+            if resolved_winner == "pose":
+                return {
+                    "resolved_pose": pose,
+                    "conflict_detected": True,
+                    "resolution": "Preferred pose interpretation",
+                }
+            else:  # resolved_winner == "scene"
+                return {
+                    "resolved_pose": "unknown",
+                    "conflict_detected": True,
+                    "resolution": "Preferred scene interpretation",
+                }
+
+    return {"resolved_pose": pose, "conflict_detected": False}
+
+
+def format_pose_scene_conflict_warning(
+    pose: str,
+    scene_description: str,
+    conflict_result: dict[str, Any],
+) -> str | None:
+    """Generate a warning message for pose/scene conflicts.
+
+    When a conflict is detected between pose detection and scene analysis,
+    this function generates a warning to inject into the prompt to inform
+    the LLM about the conflicting signals.
+
+    Args:
+        pose: The original detected pose
+        scene_description: The scene description from scene analysis
+        conflict_result: Result from resolve_pose_scene_conflict()
+
+    Returns:
+        Warning string to inject into prompt, or None/empty string if no conflict
+
+    Example:
+        >>> warning = format_pose_scene_conflict_warning(
+        ...     "running", "sitting on bench",
+        ...     {"conflict_detected": True, "resolved_pose": "unknown", ...})
+        >>> "SIGNAL CONFLICT" in warning
+        True
+    """
+    if not conflict_result.get("conflict_detected"):
+        return None
+
+    # Extract the conflicting scene keyword from the description
+    scene_keywords = ["sitting", "standing", "walking", "running", "lying"]
+    scene_pose = "unknown"
+    scene_lower = scene_description.lower()
+    for keyword in scene_keywords:
+        if keyword in scene_lower:
+            scene_pose = keyword
+            break
+
+    warning = (
+        f'**SIGNAL CONFLICT**: Pose model detected "{pose}" '
+        f'but scene shows "{scene_pose}".\n'
+        f"Confidence is LOW for behavioral analysis. Weight other evidence."
+    )
+
+    return warning
 
 
 def format_action_recognition_context(
@@ -725,6 +1116,66 @@ def format_image_quality_context(
     return "\n".join(lines)
 
 
+def format_camera_health_context(
+    camera_id: str,  # noqa: ARG001 - Reserved for future camera-specific context
+    recent_scene_changes: list[Any] | None,
+) -> str:
+    """Format camera health/tampering alerts for prompt.
+
+    This function formats scene tampering detection data (SceneChange model) for
+    inclusion in Nemotron prompts. Scene changes indicate potential camera tampering,
+    blocked views, or angle changes that affect detection confidence.
+
+    Risk Impact Rules (NEM-3012):
+        - view_blocked during intrusion = +30 points to risk score
+        - view_tampered + unknown person = escalate to CRITICAL
+
+    Args:
+        camera_id: Camera identifier (reserved for future camera-specific context)
+        recent_scene_changes: List of SceneChange objects (or any object with
+            similarity_score, change_type, and acknowledged attributes).
+            Only the first unacknowledged scene change is used.
+
+    Returns:
+        Formatted string for prompt inclusion. Returns empty string if no
+        unacknowledged scene changes exist.
+    """
+    # Handle None or empty list gracefully
+    if not recent_scene_changes:
+        return ""
+
+    # Find the first unacknowledged scene change
+    recent = None
+    for sc in recent_scene_changes:
+        if not getattr(sc, "acknowledged", True):
+            recent = sc
+            break
+
+    if not recent:
+        return ""
+
+    lines = ["## CAMERA HEALTH ALERT"]
+
+    change_type = getattr(recent, "change_type", "unknown")
+    similarity_score = getattr(recent, "similarity_score", 0.0)
+
+    if change_type == "view_blocked":
+        lines.append(f"Camera view may be BLOCKED (similarity: {similarity_score:.0%})")
+        lines.append("Detection confidence is DEGRADED")
+    elif change_type == "angle_changed":
+        lines.append(f"Camera angle has CHANGED (similarity: {similarity_score:.0%})")
+        lines.append("Baseline patterns may not apply")
+    elif change_type == "view_tampered":
+        lines.append(f"Possible TAMPERING detected (similarity: {similarity_score:.0%})")
+        lines.append("CRITICAL: Verify camera integrity")
+    else:
+        # Unknown or other change types
+        lines.append(f"Scene change detected (similarity: {similarity_score:.0%})")
+        lines.append("Detection accuracy may be affected")
+
+    return "\n".join(lines)
+
+
 def _collect_detection_ids_from_enrichment(
     enrichment_result: EnrichmentResult | None,
     vision_extraction: BatchExtractionResult | None,
@@ -884,7 +1335,13 @@ def format_detections_with_all_enrichment(  # noqa: PLR0912
             if det_id in enrichment_result.clothing_segmentation:
                 seg = enrichment_result.clothing_segmentation[det_id]
                 if seg.clothing_items:
-                    lines.append(f"Clothing items: {', '.join(seg.clothing_items)}")
+                    # Apply mutual exclusion validation (NEM-3010)
+                    raw_items = list(seg.clothing_items)
+                    confidences = getattr(seg, "coverage_percentages", {}) or {}
+                    validated_items = validate_clothing_items(raw_items, confidences)
+                    # Sort for deterministic output
+                    items_str = ", ".join(sorted(validated_items))
+                    lines.append(f"Clothing items: {items_str}")
                 if seg.has_face_covered:
                     lines.append("Face covering: DETECTED **ALERT**")
                 if seg.has_bag:
@@ -962,6 +1419,117 @@ Event {index}:
 """
 
 
+class ClassBaselineProtocol(Protocol):
+    """Protocol for ClassBaseline-like objects.
+
+    This protocol allows the format_class_anomaly_context function to work
+    with both the actual ClassBaseline model and mock objects in tests.
+    """
+
+    frequency: float
+    sample_count: int
+
+
+@dataclass
+class ClassAnomalyResult:
+    """Result from per-class anomaly detection.
+
+    Attributes:
+        class_name: The detection class (e.g., "person", "vehicle")
+        message: Human-readable anomaly description
+        severity: "high" for security-relevant classes, "medium" for others
+        risk_modifier: Suggested risk score adjustment (typically +15)
+    """
+
+    class_name: str
+    message: str
+    severity: str
+    risk_modifier: int = 15
+
+
+def format_class_anomaly_context(
+    camera_id: str,
+    current_hour: int,
+    detections: dict[str, int],
+    baselines: Mapping[str, ClassBaselineProtocol],
+) -> tuple[str, list[ClassAnomalyResult]]:
+    """Format per-class anomaly detection for prompt context.
+
+    Analyzes current detection counts against historical baselines to identify
+    anomalous activity patterns. Flags rare classes when detected and unusual
+    volumes when counts exceed 3x normal.
+
+    Args:
+        camera_id: Camera identifier for baseline lookup
+        current_hour: Current hour (0-23) for baseline lookup
+        detections: Dict mapping class name to detection count
+        baselines: Dict mapping "{camera_id}:{hour}:{class}" to ClassBaseline
+
+    Returns:
+        Tuple of (formatted_string, list[ClassAnomalyResult]):
+        - formatted_string: Formatted context for prompt inclusion, or empty
+          string if no anomalies
+        - anomalies: List of ClassAnomalyResult objects for risk adjustment
+
+    Example:
+        >>> detections = {"person": 3, "dog": 1}
+        >>> baselines = {"cam1:2:person": ClassBaseline(frequency=1.0, sample_count=20)}
+        >>> context, anomalies = format_class_anomaly_context("cam1", 2, detections, baselines)
+        >>> print(context)
+        ## CLASS-SPECIFIC ANOMALIES
+        [MEDIUM] person UNUSUAL volume (3 vs expected 1.0)
+        [HIGH] dog RARE at this hour (expected: 0.0/hr, actual: 1)
+    """
+    # Security-relevant classes get high severity
+    high_severity_classes = frozenset({"person", "vehicle", "car", "truck", "motorcycle"})
+
+    anomalies: list[ClassAnomalyResult] = []
+
+    for cls, count in detections.items():
+        baseline_key = f"{camera_id}:{current_hour}:{cls}"
+        baseline = baselines.get(baseline_key)
+
+        # Skip if insufficient data (< 10 samples)
+        if baseline is None or baseline.sample_count < 10:
+            continue
+
+        expected = baseline.frequency
+
+        # Case 1: Rare class (expected < 0.1/hr) detected
+        if expected < 0.1:
+            if count >= 1:
+                severity = "high" if cls in high_severity_classes else "medium"
+                anomalies.append(
+                    ClassAnomalyResult(
+                        class_name=cls,
+                        message=f"{cls} RARE at this hour (expected: {expected:.1f}/hr, actual: {count})",
+                        severity=severity,
+                        risk_modifier=15,
+                    )
+                )
+        # Case 2: Unusual volume (3x normal)
+        elif count > expected * 3:
+            anomalies.append(
+                ClassAnomalyResult(
+                    class_name=cls,
+                    message=f"{cls} UNUSUAL volume ({count} vs expected {expected:.1f})",
+                    severity="medium",
+                    risk_modifier=15,
+                )
+            )
+
+    if not anomalies:
+        return "", []
+
+    lines = ["## CLASS-SPECIFIC ANOMALIES"]
+    for a in anomalies:
+        # Use text markers instead of emojis for compatibility
+        icon = "[HIGH]" if a.severity == "high" else "[MEDIUM]"
+        lines.append(f"{icon} {a.message}")
+
+    return "\n".join(lines), anomalies
+
+
 def build_summary_prompt(
     window_start: str,
     window_end: str,
@@ -1018,3 +1586,394 @@ def build_summary_prompt(
     )
 
     return SUMMARY_SYSTEM_PROMPT, user_prompt
+
+
+# ==============================================================================
+# Enhanced Re-Identification Context (NEM-3013)
+# ==============================================================================
+
+
+def format_enhanced_reid_context(
+    person_id: int,
+    entity: EntityLike | None,
+    matches: list[Any],  # noqa: ARG001 - Reserved for future use
+) -> str:
+    """Format re-identification context with proper risk weighting.
+
+    This function generates prompt context that clearly communicates the
+    entity's familiarity level and the corresponding risk modifier to the LLM.
+    This helps prevent over-scoring familiar/trusted individuals.
+
+    Risk Modifier Table (NEM-3013):
+    - Trusted frequent visitor (20+ over 7+ days): -40 points
+    - Frequent visitor (20+ over 7+ days, not trusted): -20 points
+    - Returning visitor (5+ detections): -10 points
+    - Recent visitor (< 5 detections): No modifier
+    - First time seen (no entity): Base risk 50
+
+    Args:
+        person_id: The detection/person identifier
+        entity: Entity object with detection history, or None for first-time
+        matches: List of ReIDMatch objects (not used for risk calculation,
+                but may be used for additional context in future)
+
+    Returns:
+        Formatted string for prompt inclusion with familiarity level
+        and risk modifier clearly stated.
+    """
+    lines = [f"## Person {person_id} Re-Identification"]
+
+    if not entity:
+        lines.append(f"Person {person_id}: FIRST TIME SEEN (unknown)")
+        lines.append("-> Base risk: 50")
+        return "\n".join(lines)
+
+    # Calculate days known
+    now = datetime.now(UTC)
+    days_known = (now - entity.first_seen_at).days
+    detection_count = entity.detection_count
+    trust_status = entity.trust_status
+
+    # Determine familiarity level and risk modifier
+    if detection_count >= 20 and days_known >= 7:
+        # Frequent visitor - check trust status for modifier
+        lines.append(f"FREQUENT VISITOR: Seen {detection_count}x over {days_known} days")
+        lines.append(f"Trust status: {trust_status}")
+        if trust_status == "trusted":
+            lines.append("-> RISK MODIFIER: -40 points (established trusted entity)")
+        else:
+            lines.append("-> RISK MODIFIER: -20 points (familiar but unverified)")
+    elif detection_count >= 5:
+        # Returning visitor
+        lines.append(f"RETURNING VISITOR: Seen {detection_count}x")
+        lines.append("-> RISK MODIFIER: -10 points (repeat visitor)")
+    else:
+        # Recent visitor with insufficient history
+        lines.append(f"RECENT VISITOR: Seen {detection_count}x (first: {days_known}d ago)")
+        lines.append("-> No risk modifier (insufficient history)")
+
+    return "\n".join(lines)
+
+
+# ==============================================================================
+# Household Context Formatting (NEM-3024)
+# ==============================================================================
+
+
+class HouseholdMatchLike(Protocol):
+    """Protocol for HouseholdMatch-like objects used by format_household_context.
+
+    This protocol allows the function to work with both the actual HouseholdMatch
+    dataclass and mock objects in tests.
+    """
+
+    member_id: int | None
+    member_name: str | None
+    vehicle_id: int | None
+    vehicle_description: str | None
+    similarity: float
+    match_type: str
+
+
+def format_household_context(
+    person_matches: Sequence[HouseholdMatchLike],
+    vehicle_matches: Sequence[HouseholdMatchLike],
+    current_time: datetime,  # noqa: ARG001 - Reserved for future time-based logic
+) -> str:
+    """Format household matching results for prompt injection.
+
+    This function generates prompt context that clearly communicates which
+    persons and vehicles are recognized as household members/vehicles.
+    Known individuals and vehicles receive reduced base risk scores.
+
+    Risk Calculation Rules (NEM-3024):
+    - High confidence person match (>90% similarity): Base risk 5
+    - Lower confidence person match (85-90%): Base risk 15
+    - Vehicle match (any): Base risk 10 (min with person risk)
+    - No matches: Base risk 50 (unknown individual/vehicle)
+
+    Args:
+        person_matches: List of HouseholdMatch objects for matched persons
+        vehicle_matches: List of HouseholdMatch objects for matched vehicles
+        current_time: Current timestamp (reserved for future time-based logic)
+
+    Returns:
+        Formatted string for prompt inclusion with risk modifiers clearly stated.
+
+    Example output:
+        ## RISK MODIFIERS (Apply These First)
+        +------------------------------------------------------------+
+        | KNOWN PERSON: John Doe (95% match)
+        | REGISTERED VEHICLE: Silver Toyota Camry
+        +------------------------------------------------------------+
+        -> Calculated base risk: 5
+    """
+    lines = ["## RISK MODIFIERS (Apply These First)"]
+    lines.append("+" + "-" * 60 + "+")
+
+    base_risk = 50  # Default for unknown
+
+    # Format person matches
+    if person_matches:
+        for match in person_matches:
+            similarity_pct = int(match.similarity * 100)
+            lines.append(f"| KNOWN PERSON: {match.member_name} ({similarity_pct}% match)")
+            # High confidence (>90%) = very low risk, otherwise low risk
+            base_risk = 5 if match.similarity > 0.9 else 15
+    else:
+        lines.append("| KNOWN PERSON MATCH: None (unknown individual)")
+
+    # Format vehicle matches
+    if vehicle_matches:
+        for match in vehicle_matches:
+            lines.append(f"| REGISTERED VEHICLE: {match.vehicle_description}")
+            # Vehicle match sets base risk to min of current and 10
+            base_risk = min(base_risk, 10)
+
+    lines.append("+" + "-" * 60 + "+")
+    lines.append(f"-> Calculated base risk: {base_risk}")
+
+    return "\n".join(lines)
+
+
+# ==============================================================================
+# Conditional Section Building (NEM-3020)
+# ==============================================================================
+# These functions build prompt sections conditionally, only including sections
+# that have actual meaningful data. Empty or unhelpful sections like
+# "Violence analysis: Not performed" are NOT included.
+
+
+class EnrichmentResultLike(Protocol):
+    """Protocol for EnrichmentResult-like objects used by build_enrichment_sections.
+
+    This protocol allows the function to work with both the actual EnrichmentResult
+    class and mock objects in tests.
+    """
+
+    violence_detection: Any | None
+    clothing_classifications: dict[str, Any]
+    clothing_segmentation: dict[str, Any] | None
+    pose_results: dict[str, Any]
+    vehicle_damage: dict[str, Any]
+    pet_classifications: dict[str, Any]
+
+
+def _format_violence_section(violence_result: Any) -> str | None:
+    """Format violence section ONLY if violence is detected.
+
+    Returns None if violence is not detected (avoids unhelpful "No violence detected").
+
+    Args:
+        violence_result: ViolenceDetectionResult or mock with is_violent attribute
+
+    Returns:
+        Formatted violence alert string, or None if no violence detected
+    """
+    if violence_result is None:
+        return None
+
+    if not getattr(violence_result, "is_violent", False):
+        return None
+
+    # Violence detected - format the alert
+    confidence = getattr(violence_result, "confidence", 0.0)
+    violent_score = getattr(violence_result, "violent_score", 0.0)
+    non_violent_score = getattr(violence_result, "non_violent_score", 0.0)
+
+    return (
+        f"**VIOLENCE DETECTED** (confidence: {confidence:.0%})\n"
+        f"  Violent score: {violent_score:.0%}\n"
+        f"  Non-violent score: {non_violent_score:.0%}\n"
+        f"  ACTION REQUIRED: Immediate review recommended"
+    )
+
+
+def _format_clothing_section(
+    clothing_classifications: dict[str, Any],
+    clothing_segmentation: dict[str, Any] | None = None,
+) -> str | None:
+    """Format clothing section ONLY if there's meaningful data.
+
+    Returns None if no clothing classifications exist.
+
+    Args:
+        clothing_classifications: Dict of clothing classifications
+        clothing_segmentation: Optional dict of segmentation results
+
+    Returns:
+        Formatted clothing analysis string, or None if no data
+    """
+    if not clothing_classifications:
+        return None
+
+    # Use the existing format function, which handles all the formatting logic
+    result = format_clothing_analysis_context(clothing_classifications, clothing_segmentation)
+
+    # Check if the result is just the "no data" placeholder
+    if result == "Clothing analysis: No person detections analyzed":
+        return None
+    if result == "Clothing analysis: No results":
+        return None
+
+    return result
+
+
+def _format_pose_section(pose_results: dict[str, Any]) -> str | None:
+    """Format pose section ONLY if high confidence poses exist (> 0.7).
+
+    Returns None if no poses or all poses are low confidence.
+
+    Args:
+        pose_results: Dict mapping detection_id to PoseResult-like objects
+
+    Returns:
+        Formatted pose analysis string, or None if no high-confidence poses
+    """
+    if not pose_results:
+        return None
+
+    # Filter to only high-confidence poses
+    high_conf_poses: dict[str, dict[str, Any]] = {}
+    for det_id, pose in pose_results.items():
+        # Handle both PoseResult objects and dict representations
+        if hasattr(pose, "pose_confidence"):
+            confidence = pose.pose_confidence
+            pose_class = pose.pose_class
+        else:
+            confidence = pose.get("confidence", 0.0) if isinstance(pose, dict) else 0.0
+            pose_class = (
+                pose.get("classification", str(pose)) if isinstance(pose, dict) else str(pose)
+            )
+
+        if confidence > 0.7:
+            high_conf_poses[det_id] = {"classification": pose_class, "confidence": confidence}
+
+    if not high_conf_poses:
+        return None
+
+    # Use existing format function with filtered poses
+    return format_pose_analysis_context(high_conf_poses)
+
+
+def _format_vehicle_damage_section(
+    vehicle_damage: dict[str, Any],
+    time_of_day: str | None = None,
+) -> str | None:
+    """Format vehicle damage section ONLY if damage is detected.
+
+    Returns None if no vehicles have damage.
+
+    Args:
+        vehicle_damage: Dict mapping detection_id to VehicleDamageResult-like objects
+        time_of_day: Optional time context for risk assessment
+
+    Returns:
+        Formatted vehicle damage string, or None if no damage
+    """
+    if not vehicle_damage:
+        return None
+
+    # Filter to only vehicles with actual damage
+    damaged = {k: v for k, v in vehicle_damage.items() if getattr(v, "has_damage", False)}
+
+    if not damaged:
+        return None
+
+    # Use existing format function with only damaged vehicles
+    return format_vehicle_damage_context(damaged, time_of_day)
+
+
+def _format_pet_section(pet_classifications: dict[str, Any]) -> str | None:
+    """Format pet section ONLY if high-confidence pets are detected (> 85%).
+
+    High-confidence pets help reduce false positives by informing the LLM
+    that the detection may be a household pet rather than a threat.
+
+    Args:
+        pet_classifications: Dict mapping detection_id to PetClassificationResult-like objects
+
+    Returns:
+        Formatted pet detection string, or None if no high-confidence pets
+    """
+    if not pet_classifications:
+        return None
+
+    # Filter to only high-confidence pets (> 85%)
+    high_conf_pets = {
+        k: v for k, v in pet_classifications.items() if getattr(v, "confidence", 0.0) > 0.85
+    }
+
+    if not high_conf_pets:
+        return None
+
+    # Use existing format function with only high-confidence pets
+    return format_pet_classification_context(high_conf_pets)
+
+
+def build_enrichment_sections(enrichment_result: EnrichmentResultLike) -> str:
+    """Build enrichment sections, ONLY including those with actual data.
+
+    This function conditionally includes prompt sections based on whether
+    meaningful data exists. Empty or unhelpful sections like "Violence analysis:
+    Not performed" are NOT included, reducing prompt noise.
+
+    Section Inclusion Rules:
+    - Violence: Only if is_violent=True
+    - Clothing: Only if classifications exist
+    - Pose: Only if confidence > 0.7
+    - Vehicle damage: Only if has_damage=True
+    - Pets: Only if confidence > 85% (helps reduce FPs)
+
+    DON'T include:
+    - "Violence analysis: Not performed"
+    - "Vehicle classification: No vehicles analyzed"
+    - Empty pose/action sections
+    - Low confidence data
+
+    Args:
+        enrichment_result: EnrichmentResult or mock object with the required attributes
+
+    Returns:
+        Formatted string with sections separated by double newlines,
+        or empty string if no meaningful data exists.
+
+    Example:
+        >>> result = build_enrichment_sections(enrichment_with_violence)
+        >>> "VIOLENCE DETECTED" in result
+        True
+        >>> result = build_enrichment_sections(empty_enrichment)
+        >>> result == ""
+        True
+    """
+    sections: list[str] = []
+
+    # Violence - only if detected
+    violence_section = _format_violence_section(enrichment_result.violence_detection)
+    if violence_section:
+        sections.append(violence_section)
+
+    # Clothing - only if meaningful results
+    clothing_section = _format_clothing_section(
+        enrichment_result.clothing_classifications,
+        getattr(enrichment_result, "clothing_segmentation", None),
+    )
+    if clothing_section:
+        sections.append(clothing_section)
+
+    # Pose - only if high confidence
+    pose_section = _format_pose_section(enrichment_result.pose_results)
+    if pose_section:
+        sections.append(pose_section)
+
+    # Vehicle damage - only if detected
+    vehicle_damage_section = _format_vehicle_damage_section(enrichment_result.vehicle_damage)
+    if vehicle_damage_section:
+        sections.append(vehicle_damage_section)
+
+    # Pet detection - always include if high confidence pet found (helps reduce FPs)
+    pet_section = _format_pet_section(enrichment_result.pet_classifications)
+    if pet_section:
+        sections.append(pet_section)
+
+    return "\n\n".join(sections) if sections else ""

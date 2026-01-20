@@ -7,6 +7,7 @@ from .calibration import router as calibration_router
 from .entities import router as entities_router
 from .exports import router as exports_router
 from .feedback import router as feedback_router
+from .household import router as household_router
 from .jobs import router as jobs_router
 from .logs import router as logs_router
 from .notification_preferences import router as notification_preferences_router
@@ -23,6 +24,7 @@ __all__ = [
     "entities_router",
     "exports_router",
     "feedback_router",
+    "household_router",
     "jobs_router",
     "logs_router",
     "notification_preferences_router",

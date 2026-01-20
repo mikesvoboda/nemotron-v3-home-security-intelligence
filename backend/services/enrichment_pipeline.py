@@ -41,7 +41,10 @@ from dataclasses import dataclass, field
 from datetime import UTC
 from enum import Enum
 from pathlib import Path
-from typing import Any
+
+# Frame buffer is lazily imported to avoid circular imports
+# Import type for annotation only
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from PIL import Image
@@ -137,6 +140,9 @@ from backend.services.xclip_loader import (
     get_action_risk_weight,
     is_suspicious_action,
 )
+
+if TYPE_CHECKING:
+    from backend.services.frame_buffer import FrameBuffer
 
 logger = get_logger(__name__)
 
@@ -1485,6 +1491,7 @@ class EnrichmentPipeline:
         depth_estimation_enabled: bool = True,
         pose_estimation_enabled: bool = True,
         action_recognition_enabled: bool = True,
+        frame_buffer: FrameBuffer | None = None,
         redis_client: Any | None = None,
         use_enrichment_service: bool = False,
         enrichment_client: EnrichmentClient | None = None,
@@ -1514,6 +1521,9 @@ class EnrichmentPipeline:
             depth_estimation_enabled: Enable Depth Anything V2 depth estimation for spatial context
             pose_estimation_enabled: Enable ViTPose pose estimation for person detections
             action_recognition_enabled: Enable X-CLIP action recognition from frame sequences
+            frame_buffer: FrameBuffer for accumulating frames for X-CLIP temporal action recognition.
+                         If provided, frames are buffered per camera and X-CLIP runs on frame sequences
+                         (8 frames) for better action recognition. If None, falls back to single-frame.
             redis_client: Redis client for re-id storage (optional)
             use_enrichment_service: Use HTTP service at ai-enrichment:8094 instead of local models
                                     for vehicle, pet, and clothing classification
@@ -1551,6 +1561,9 @@ class EnrichmentPipeline:
         self.action_recognition_enabled = action_recognition_enabled
         self._previous_quality_results: dict[str, ImageQualityResult] = {}
         self.redis_client = redis_client
+
+        # Frame buffer for X-CLIP temporal action recognition
+        self._frame_buffer = frame_buffer
 
         # Enrichment service settings
         self.use_enrichment_service = use_enrichment_service
@@ -1971,6 +1984,61 @@ class EnrichmentPipeline:
                 exc_info=True,
             )
             raise
+
+    async def _get_action_frames(
+        self,
+        camera_id: str | None,
+        current_frame: Image.Image,
+        num_frames: int = 8,
+    ) -> list[Image.Image]:
+        """Get frames for X-CLIP action recognition.
+
+        Retrieves a sequence of frames for temporal action recognition. If a
+        FrameBuffer is configured and has enough frames for the camera, returns
+        evenly sampled frames from the buffer converted to PIL Images.
+        Otherwise, falls back to using just the current frame.
+
+        X-CLIP works best with 8 frames spanning the action sequence.
+
+        Args:
+            camera_id: Camera identifier for looking up buffered frames
+            current_frame: The current PIL Image (fallback if no buffer)
+            num_frames: Number of frames to retrieve (default 8)
+
+        Returns:
+            List of PIL Images for action recognition (may be single-frame fallback)
+        """
+        import io
+
+        # Try to get frames from buffer if available
+        if self._frame_buffer is not None and camera_id is not None:
+            frame_bytes_list = self._frame_buffer.get_sequence(camera_id, num_frames)
+            if frame_bytes_list is not None:
+                # Convert bytes to PIL Images
+                pil_frames: list[Image.Image] = []
+                for frame_bytes in frame_bytes_list:
+                    try:
+                        raw_img = Image.open(io.BytesIO(frame_bytes))
+                        # Convert to RGB if needed (X-CLIP expects RGB)
+                        # Always convert to ensure consistent Image type (not ImageFile)
+                        img: Image.Image = raw_img.convert("RGB")
+                        pil_frames.append(img)
+                    except Exception as e:
+                        logger.debug(f"Failed to decode buffered frame: {e}")
+                        continue
+
+                if len(pil_frames) >= num_frames:
+                    logger.debug(
+                        f"Using {len(pil_frames)} buffered frames for X-CLIP (camera: {camera_id})"
+                    )
+                    return pil_frames
+
+        # Fallback to single current frame
+        logger.debug(
+            "Using single-frame fallback for X-CLIP "
+            f"(camera: {camera_id}, buffer: {self._frame_buffer is not None})"
+        )
+        return [current_frame]
 
     async def _recognize_actions(
         self,
@@ -2512,12 +2580,15 @@ class EnrichmentPipeline:
                     self._handle_enrichment_error("pose_estimation", e, result)
 
         # Run action recognition on frame sequence (X-CLIP)
-        # Note: This requires multiple frames for best results; single frame is a fallback
+        # X-CLIP performs best with 8 frames for temporal action recognition
         if self.action_recognition_enabled and pil_image:
             persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
             if persons:
                 try:
-                    result.action_results = await self._recognize_actions([pil_image])
+                    # Get frames from buffer if available, otherwise fall back to single frame
+                    frames = await self._get_action_frames(camera_id, pil_image)
+                    if frames:
+                        result.action_results = await self._recognize_actions(frames)
                 except (
                     httpx.ConnectError,
                     httpx.TimeoutException,

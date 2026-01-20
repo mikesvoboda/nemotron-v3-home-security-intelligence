@@ -1941,11 +1941,20 @@ async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_clie
         )
     }
 
+    # Mock auto-tuner to return empty context (NEM-3015)
+    mock_auto_tuner = MagicMock()
+    mock_auto_tuner.get_tuning_context = AsyncMock(return_value="")
+
     with (
         patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
         patch("httpx.AsyncClient.post") as mock_post,
         patch.object(analyzer, "_get_enriched_context", return_value=None),
+        patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
         patch.object(analyzer, "_broadcast_event", return_value=None),
+        patch(
+            "backend.services.nemotron_analyzer.get_prompt_auto_tuner",
+            return_value=mock_auto_tuner,
+        ),
     ):
         # Mock database session
         mock_session = AsyncMock()
@@ -2073,11 +2082,20 @@ async def test_analyze_batch_handles_enrichment_failure_gracefully(
         )
     }
 
+    # Mock auto-tuner to return empty context (NEM-3015)
+    mock_auto_tuner = MagicMock()
+    mock_auto_tuner.get_tuning_context = AsyncMock(return_value="")
+
     with (
         patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
         patch("httpx.AsyncClient.post") as mock_post,
         patch.object(analyzer, "_get_enriched_context", return_value=None),
+        patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
         patch.object(analyzer, "_broadcast_event", return_value=None),
+        patch(
+            "backend.services.nemotron_analyzer.get_prompt_auto_tuner",
+            return_value=mock_auto_tuner,
+        ),
     ):
         mock_session = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
@@ -2194,11 +2212,20 @@ async def test_analyze_batch_skips_enrichment_when_disabled(mock_redis_client, m
         )
     }
 
+    # Mock auto-tuner to return empty context (NEM-3015)
+    mock_auto_tuner = MagicMock()
+    mock_auto_tuner.get_tuning_context = AsyncMock(return_value="")
+
     with (
         patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
         patch("httpx.AsyncClient.post") as mock_post,
         patch.object(analyzer, "_get_enriched_context", return_value=None),
+        patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
         patch.object(analyzer, "_broadcast_event", return_value=None),
+        patch(
+            "backend.services.nemotron_analyzer.get_prompt_auto_tuner",
+            return_value=mock_auto_tuner,
+        ),
     ):
         mock_session = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
@@ -2399,10 +2426,20 @@ async def test_analyze_batch_passes_enrichment_to_call_llm(
     # because it now uses split sessions to avoid idle-in-transaction timeouts
     analyzer._get_enrichment_result_from_data = AsyncMock(return_value=mock_enrichment_tracking)
 
+    # Mock auto-tuner to return empty context (NEM-3015)
+    mock_auto_tuner = MagicMock()
+    mock_auto_tuner.get_tuning_context = AsyncMock(return_value="")
+
     with (
         patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
         patch.object(analyzer, "_get_enriched_context", return_value=None),
+        patch.object(analyzer, "_get_recent_scene_changes", return_value=[]),  # NEM-3012
+        patch.object(analyzer, "_get_household_context", return_value=""),  # NEM-3024
         patch.object(analyzer, "_broadcast_event", return_value=None),
+        patch(
+            "backend.services.nemotron_analyzer.get_prompt_auto_tuner",
+            return_value=mock_auto_tuner,
+        ),
     ):
         mock_session = AsyncMock()
         mock_session.__aenter__ = AsyncMock(return_value=mock_session)
@@ -4167,3 +4204,173 @@ async def test_analyze_batch_streaming_delegates_to_streaming_module(analyzer, m
         assert len(updates) == 2
         assert updates[0]["type"] == "progress"
         assert updates[1]["type"] == "complete"
+
+
+# =============================================================================
+# Test: Household Matching Integration (NEM-3024)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_call_llm_with_household_context(analyzer):
+    """Test _call_llm includes household context when provided."""
+    mock_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 10,
+                "risk_level": "low",
+                "summary": "Known household member detected",
+                "reasoning": "Person matched to John Doe with 95% confidence",
+            }
+        ),
+        "usage": {"prompt_tokens": 200, "completion_tokens": 100},
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_response
+        mock_post.return_value = mock_resp
+
+        result = await analyzer._call_llm(
+            camera_name="Front Door",
+            start_time="2025-12-23T14:30:00",
+            end_time="2025-12-23T14:31:00",
+            detections_list="1. 14:30:00 - person (confidence: 0.95)",
+            household_context="## RISK MODIFIERS\n| KNOWN PERSON: John Doe (95% match)\n| Base risk: 5",
+        )
+
+        assert result["risk_score"] == 10
+        assert result["risk_level"] == "low"
+
+        # Verify the household context was included in the prompt
+        call_args = mock_post.call_args
+        request_json = call_args[1]["json"]
+        prompt = request_json["prompt"]
+        assert "RISK MODIFIERS" in prompt
+        assert "John Doe" in prompt
+
+
+@pytest.mark.asyncio
+async def test_call_llm_without_household_context(analyzer):
+    """Test _call_llm works without household context (backwards compatibility)."""
+    mock_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 50,
+                "risk_level": "medium",
+                "summary": "Unknown person detected",
+                "reasoning": "Person not matched to any household member",
+            }
+        ),
+        "usage": {"prompt_tokens": 150, "completion_tokens": 80},
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_response
+        mock_post.return_value = mock_resp
+
+        # Call without household_context parameter
+        result = await analyzer._call_llm(
+            camera_name="Front Door",
+            start_time="2025-12-23T14:30:00",
+            end_time="2025-12-23T14:31:00",
+            detections_list="1. 14:30:00 - person (confidence: 0.95)",
+        )
+
+        assert result["risk_score"] == 50
+
+
+@pytest.mark.asyncio
+async def test_call_llm_household_context_injected_in_prompt(analyzer):
+    """Test that household context is injected into the prompt correctly."""
+    mock_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 5,
+                "risk_level": "low",
+                "summary": "Resident returning home",
+                "reasoning": "High confidence match to household member",
+            }
+        ),
+        "usage": {"prompt_tokens": 250, "completion_tokens": 100},
+    }
+
+    household_context = """## RISK MODIFIERS (Apply These First)
++------------------------------------------------------------+
+| KNOWN PERSON: Jane Smith (92% match)
+| REGISTERED VEHICLE: Blue Honda Accord
++------------------------------------------------------------+
+-> Calculated base risk: 5"""
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_response
+        mock_post.return_value = mock_resp
+
+        await analyzer._call_llm(
+            camera_name="Driveway",
+            start_time="2025-12-23T18:30:00",
+            end_time="2025-12-23T18:31:00",
+            detections_list="1. 18:30:00 - person (confidence: 0.95)\n2. 18:30:05 - car (confidence: 0.92)",
+            household_context=household_context,
+        )
+
+        # Verify the prompt includes household context
+        call_args = mock_post.call_args
+        request_json = call_args[1]["json"]
+        prompt = request_json["prompt"]
+
+        # Household context should be in the prompt
+        assert "Jane Smith" in prompt
+        assert "Blue Honda Accord" in prompt
+        assert "Calculated base risk: 5" in prompt
+
+
+@pytest.mark.asyncio
+async def test_call_llm_vehicle_only_household_context(analyzer):
+    """Test _call_llm handles vehicle-only household match."""
+    mock_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 15,
+                "risk_level": "low",
+                "summary": "Registered vehicle detected",
+                "reasoning": "Vehicle matched to registered household vehicle",
+            }
+        ),
+        "usage": {"prompt_tokens": 180, "completion_tokens": 90},
+    }
+
+    household_context = """## RISK MODIFIERS (Apply These First)
++------------------------------------------------------------+
+| KNOWN PERSON MATCH: None (unknown individual)
+| REGISTERED VEHICLE: White Tesla Model 3
++------------------------------------------------------------+
+-> Calculated base risk: 10"""
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock(spec=httpx.Response)
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_response
+        mock_post.return_value = mock_resp
+
+        result = await analyzer._call_llm(
+            camera_name="Garage",
+            start_time="2025-12-23T08:00:00",
+            end_time="2025-12-23T08:01:00",
+            detections_list="1. 08:00:00 - car (confidence: 0.98)",
+            household_context=household_context,
+        )
+
+        assert result["risk_score"] == 15
+        assert result["risk_level"] == "low"
+
+        # Verify the vehicle info was in the prompt
+        call_args = mock_post.call_args
+        request_json = call_args[1]["json"]
+        prompt = request_json["prompt"]
+        assert "White Tesla Model 3" in prompt

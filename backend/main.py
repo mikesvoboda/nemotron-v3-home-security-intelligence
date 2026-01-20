@@ -47,6 +47,7 @@ from backend.api.routes import (
     events,
     exports,
     feedback,
+    household,
     jobs,
     media,
     metrics,
@@ -1063,6 +1064,7 @@ app.include_router(entities.router)
 app.include_router(events.router)
 app.include_router(exports.router)
 app.include_router(feedback.router)
+app.include_router(household.router)
 app.include_router(jobs.router)
 app.include_router(logs_router)
 app.include_router(media.router)

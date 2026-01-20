@@ -1029,6 +1029,46 @@ class BaselineService:
             async with get_session() as sess:
                 return await _do_get(sess)
 
+    async def get_class_baselines_by_camera_hour(
+        self,
+        camera_id: str,
+        hour: int,
+        *,
+        session: AsyncSession | None = None,
+    ) -> dict[str, ClassBaseline]:
+        """Get class baselines for a camera at a specific hour.
+
+        Returns baselines as a dictionary keyed by "{camera_id}:{hour}:{class}"
+        for easy lookup in the format_class_anomaly_context function.
+
+        Args:
+            camera_id: ID of the camera.
+            hour: Hour of day (0-23).
+            session: Optional database session.
+
+        Returns:
+            Dictionary mapping "{camera_id}:{hour}:{detection_class}" to ClassBaseline.
+        """
+
+        async def _do_get(sess: AsyncSession) -> dict[str, ClassBaseline]:
+            class_stmt = select(ClassBaseline).where(
+                ClassBaseline.camera_id == camera_id,
+                ClassBaseline.hour == hour,
+            )
+            result = await sess.execute(class_stmt)
+            baselines = result.scalars().all()
+
+            return {
+                f"{baseline.camera_id}:{baseline.hour}:{baseline.detection_class}": baseline
+                for baseline in baselines
+            }
+
+        if session is not None:
+            return await _do_get(session)
+        else:
+            async with get_session() as sess:
+                return await _do_get(sess)
+
     def update_config(
         self,
         *,
