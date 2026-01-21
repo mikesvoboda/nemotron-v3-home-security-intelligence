@@ -65,6 +65,22 @@ Every directory contains an `AGENTS.md` file for AI assistant navigation. Start 
 | **Real-time System**    | [architecture/real-time.md](architecture/real-time.md)     | WebSocket and event streaming                |
 | **Decision Records**    | [decisions/README.md](decisions/README.md)                 | Architectural Decision Records (ADRs)        |
 
+### AI Pipeline Quality Assurance
+
+Synthetic data generation and prompt evaluation using NVIDIA NeMo Data Designer improves Nemotron prompt quality through systematic testing.
+
+| Resource                      | Location                                                                             | Description                        |
+| ----------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------- |
+| **NeMo Data Designer**        | [development/nemo-data-designer.md](development/nemo-data-designer.md)               | Setup, configuration, and workflow |
+| **Prompt Evaluation Results** | [development/prompt-evaluation-results.md](development/prompt-evaluation-results.md) | Pre/post metrics tracking          |
+
+**Key benefits:**
+
+- **Ground truth validation** - Risk scores evaluated against expected ranges for each scenario type
+- **Prompt template ranking** - Quantitative comparison across 5 templates
+- **Context utilization testing** - Verify enrichment data appears in reasoning
+- **Edge case coverage** - Systematic testing of ambiguous security scenarios
+
 ### Development Workflow
 
 | Resource               | Location                                                               | Description                          |
