@@ -1,9 +1,7 @@
 """Detection model for object detection results."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
@@ -16,18 +14,15 @@ from backend.api.schemas.enrichment_data import (
     validate_enrichment_data as _validate_enrichment_data,
 )
 
-from .camera import Base
-
-if TYPE_CHECKING:
-    from .camera import Camera
-    from .enrichment import (
-        ActionResult,
-        DemographicsResult,
-        PoseResult,
-        ReIDEmbedding,
-        ThreatDetection,
-    )
-    from .event_detection import EventDetection
+from .camera import Base, Camera
+from .enrichment import (
+    ActionResult,
+    DemographicsResult,
+    PoseResult,
+    ReIDEmbedding,
+    ThreatDetection,
+)
+from .event_detection import EventDetection
 
 
 class Detection(Base):

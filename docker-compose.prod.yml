@@ -285,6 +285,9 @@ services:
       - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
     environment:
+      # Free-threaded Python: Disable GIL for true parallelism (Python 3.14t)
+      # This must be set before Python starts to take effect
+      - PYTHON_GIL=0
       # Environment setting: defaults to 'development' for local deploys
       # Override with ENVIRONMENT=production for actual production deployments
       - ENVIRONMENT=${ENVIRONMENT:-development}

@@ -9,12 +9,9 @@ These preferences are used by the notification filter service to determine
 whether a notification should be sent for a given event.
 """
 
-from __future__ import annotations
-
 from datetime import time
 from enum import StrEnum, auto
-from typing import TYPE_CHECKING
-from uuid import uuid4
+from uuid import uuid7
 
 from sqlalchemy import (
     Boolean,
@@ -28,10 +25,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .camera import Base
-
-if TYPE_CHECKING:
-    from .camera import Camera
+from .camera import Base, Camera
 
 
 class RiskLevel(StrEnum):
@@ -144,7 +138,7 @@ class CameraNotificationSetting(Base):
         """Initialize with defaults."""
         super().__init__(**kwargs)
         if not hasattr(self, "id") or self.id is None:
-            self.id = str(uuid4())
+            self.id = str(uuid7())
         if not hasattr(self, "enabled") or self.enabled is None:
             self.enabled = True
         if not hasattr(self, "risk_threshold") or self.risk_threshold is None:
@@ -188,7 +182,7 @@ class QuietHoursPeriod(Base):
         """Initialize with defaults."""
         super().__init__(**kwargs)
         if not hasattr(self, "id") or self.id is None:
-            self.id = str(uuid4())
+            self.id = str(uuid7())
         if not hasattr(self, "days") or self.days is None:
             self.days = [day.value for day in DayOfWeek]
 

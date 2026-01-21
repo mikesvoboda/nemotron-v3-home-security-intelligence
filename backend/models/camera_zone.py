@@ -9,11 +9,8 @@ Note: This model was renamed from Zone to CameraZone in Phase 5.3 of NEM-3113
 to distinguish detection polygons from logical Areas in the organizational hierarchy.
 """
 
-from __future__ import annotations
-
 import enum
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
@@ -21,10 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.time_utils import utc_now
 
-from .camera import Base
-
-if TYPE_CHECKING:
-    from .camera import Camera
+from .camera import Base, Camera
 
 
 class CameraZoneType(str, enum.Enum):

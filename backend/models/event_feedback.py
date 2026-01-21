@@ -1,7 +1,5 @@
 """EventFeedback model for user feedback on security events."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING

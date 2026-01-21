@@ -43,7 +43,7 @@ import functools
 import random
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Any, Literal
 
 from prometheus_client import Counter
 
@@ -53,10 +53,6 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
 logger = get_logger(__name__)
-
-# Type variables for generic decorators
-P = ParamSpec("P")
-T = TypeVar("T")
 
 # =============================================================================
 # Prometheus Metrics
@@ -158,7 +154,7 @@ def calculate_delay(attempt: int, config: RetryConfig) -> float:
 # =============================================================================
 
 
-def retry_async(
+def retry_async[**P, T](
     max_retries: int = 3,
     base_delay: float = 1.0,
     max_delay: float = 60.0,
@@ -274,7 +270,7 @@ def retry_async(
 # =============================================================================
 
 
-def retry_sync(
+def retry_sync[**P, T](
     max_retries: int = 3,
     base_delay: float = 1.0,
     max_delay: float = 60.0,

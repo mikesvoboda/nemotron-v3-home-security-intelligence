@@ -18,11 +18,9 @@ Usage:
     poll for status updates or receive them via WebSocket.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from enum import StrEnum, auto
-from uuid import uuid4
+from uuid import uuid7
 
 from sqlalchemy import (
     CheckConstraint,
@@ -78,7 +76,7 @@ class ExportJob(Base):
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),
         primary_key=True,
-        default=lambda: str(uuid4()),
+        default=lambda: str(uuid7()),
     )
 
     # Job status

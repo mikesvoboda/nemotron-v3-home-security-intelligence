@@ -25,6 +25,7 @@ import re
 import shlex
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import override
 
 import httpx
 
@@ -172,6 +173,7 @@ class ShellServiceManager(ServiceManager):
         """
         self._subprocess_timeout = subprocess_timeout
 
+    @override
     async def check_health(self, config: ServiceConfig) -> bool:
         """Check service health via HTTP GET or Redis ping.
 
@@ -294,6 +296,7 @@ class ShellServiceManager(ServiceManager):
             )
             return False
 
+    @override
     async def restart(self, config: ServiceConfig) -> bool:
         """Restart service via shell command.
 
@@ -428,6 +431,7 @@ class DockerServiceManager(ServiceManager):
         # Delegate health checks to shell manager since they're the same
         self._shell_manager = ShellServiceManager(subprocess_timeout)
 
+    @override
     async def check_health(self, config: ServiceConfig) -> bool:
         """Check service health via HTTP GET or Redis ping.
 
@@ -478,6 +482,7 @@ class DockerServiceManager(ServiceManager):
             return config.name
         return None
 
+    @override
     async def restart(self, config: ServiceConfig) -> bool:
         """Restart service via docker restart command.
 

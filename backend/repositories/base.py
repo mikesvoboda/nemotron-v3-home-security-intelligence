@@ -18,7 +18,7 @@ Example:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -30,10 +30,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from backend.models.camera import Base
-
-# Type variable for the model class
-# Bound to Base to ensure only SQLAlchemy models can be used
-T = TypeVar("T", bound="Base")
 
 # Maximum allowed limit for paginated queries to prevent memory exhaustion
 # Requests exceeding this limit will be silently capped to MAX_LIMIT
@@ -69,7 +65,7 @@ def get_max_limit() -> int:
         return MAX_LIMIT
 
 
-class Repository(Generic[T]):  # noqa: UP046
+class Repository[T: "Base"]:
     """Generic repository base class providing common CRUD operations.
 
     This class provides type-safe, async database operations for SQLAlchemy models.

@@ -21,8 +21,6 @@ for the full architectural decision record.
 Related to NEM-1880 (Re-identification feature), NEM-2210 (Entity model), NEM-2431, NEM-2670.
 """
 
-from __future__ import annotations
-
 import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -66,7 +64,7 @@ class Entity(Base):
 
     __tablename__ = "entities"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid7)
     entity_type: Mapped[str] = mapped_column(
         String(20), nullable=False, default=EntityType.PERSON.value
     )

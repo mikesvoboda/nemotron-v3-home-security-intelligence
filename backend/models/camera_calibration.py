@@ -15,20 +15,14 @@ Key concepts:
 Implements NEM-3022: Implement camera calibration model and feedback-driven risk adjustment.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from .camera import Base
-
-if TYPE_CHECKING:
-    from .camera import Camera
+from .camera import Base, Camera
 
 
 class CameraCalibration(Base):

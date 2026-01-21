@@ -1,7 +1,5 @@
 """Event model for security event tracking."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -9,12 +7,11 @@ from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, In
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .camera import Base
+from .camera import Base, Camera
 from .enums import Severity
 
 if TYPE_CHECKING:
     from .alert import Alert
-    from .camera import Camera
     from .detection import Detection
     from .event_audit import EventAudit
     from .event_detection import EventDetection

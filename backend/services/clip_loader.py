@@ -10,7 +10,7 @@ using cosine similarity to match entities across different camera views.
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, override
 
 from backend.core.logging import get_logger
 from backend.services.model_loader_base import ModelLoaderBase
@@ -107,15 +107,18 @@ class CLIPLoader(ModelLoaderBase[dict[str, Any]]):
         self._model: dict[str, Any] | None = None
 
     @property
+    @override
     def model_name(self) -> str:
         """Get the unique identifier for this model."""
         return "clip-vit-l"
 
     @property
+    @override
     def vram_mb(self) -> int:
         """Get the estimated VRAM usage in megabytes."""
         return 800  # CLIP ViT-L uses ~800MB
 
+    @override
     async def load(self, device: str = "cuda") -> dict[str, Any]:
         """Load the CLIP model.
 
@@ -151,6 +154,7 @@ class CLIPLoader(ModelLoaderBase[dict[str, Any]]):
 
         return self._model
 
+    @override
     async def unload(self) -> None:
         """Unload the CLIP model and free GPU memory."""
         if self._model is not None:

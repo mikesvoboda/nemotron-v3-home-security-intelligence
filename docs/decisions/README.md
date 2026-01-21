@@ -10,6 +10,7 @@ Architecture Decision Records (ADRs) capture the context, options evaluated, and
 
 | Decision                                                                            | Date       | Status      | Summary                                                               |
 | ----------------------------------------------------------------------------------- | ---------- | ----------- | --------------------------------------------------------------------- |
+| [Python 3.14 Adoption](python-314-adoption.md)                                      | 2026-01-21 | Decided     | Adopt Python 3.14 with free-threading for parallel performance gains  |
 | [Documentation Reorganization](2026-01-12-docs-reorganization-design.md)            | 2026-01-12 | Approved    | Hub-and-spoke documentation architecture with role-based entry points |
 | [Grafana Integration](grafana-integration.md)                                       | 2025-12-27 | Decided     | Use native Tremor charts with link to standalone Grafana              |
 | [Entity-Detection Referential Integrity](entity-detection-referential-integrity.md) | -          | Placeholder | Database constraints between entities and detections                  |

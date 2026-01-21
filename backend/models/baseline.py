@@ -15,10 +15,7 @@ Models:
     - ClassBaseline: Tracks frequency of specific object classes per camera
 """
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
@@ -32,10 +29,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from .camera import Base
-
-if TYPE_CHECKING:
-    from .camera import Camera
+from .camera import Base, Camera
 
 
 class ActivityBaseline(Base):
