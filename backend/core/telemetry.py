@@ -763,11 +763,11 @@ def init_profiling() -> None:
         pyroscope_server = os.getenv("PYROSCOPE_SERVER", "http://pyroscope:4040")
 
         pyroscope.configure(
-            application_name="hsi-backend",
+            application_name="nemotron-backend",
             server_address=pyroscope_server,
             tags={
                 "service": "backend",
-                "env": os.getenv("ENVIRONMENT", "production"),
+                "environment": os.getenv("ENVIRONMENT", "development"),
             },
             oncpu=True,
             gil=True,
