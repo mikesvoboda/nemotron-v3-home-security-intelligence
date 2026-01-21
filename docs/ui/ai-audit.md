@@ -1,5 +1,7 @@
 # AI Audit
 
+![AI Audit Screenshot](../images/screenshots/ai-audit.png)
+
 The AI Audit page provides transparency into how the AI models make decisions, allowing you to understand, evaluate, and improve the AI-powered security analysis.
 
 ## Overview
@@ -29,6 +31,8 @@ This page is essential for maintaining and improving AI accuracy over time. By a
 The AI Audit page uses a tabbed interface with four main sections. Note: The page title displays as "AI Audit Dashboard" and Model contribution rates are shown alongside quality metrics on the Dashboard tab.
 
 ### Dashboard Tab
+
+![Dashboard Tab](../images/screenshots/ai-audit-dashboard.png)
 
 The default view showing aggregate quality metrics and recommendations.
 
@@ -119,6 +123,8 @@ Each recommendation item shows:
 Recommendations are sorted by priority (high first), then by frequency within each category.
 
 ### Prompt Playground Tab
+
+![Prompt Playground Tab](../images/screenshots/ai-audit-prompt-playground.png)
 
 An interactive slide-out panel (80% viewport width) for editing, testing, and refining AI model prompts. Opens when you click "Open Prompt Playground". Press Escape to close.
 
@@ -216,6 +222,8 @@ Footer buttons:
 
 ### Batch Audit Tab
 
+![Batch Audit Tab](../images/screenshots/ai-audit-batch.png)
+
 Trigger batch evaluation of events to generate quality metrics and recommendations.
 
 #### When to Use Batch Audit
@@ -265,6 +273,8 @@ The audit service runs 4 evaluation passes on each event:
 | **Prompt Improvement** | Identifies missing context, unused data, model gaps, format suggestions, and confusing sections |
 
 ### Version History Tab
+
+![Version History Tab](../images/screenshots/ai-audit-version-history.png)
 
 View and restore previous prompt configurations.
 
