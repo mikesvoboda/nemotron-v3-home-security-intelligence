@@ -60,14 +60,12 @@ jobs:
 
       - name: Extract Python version from Dockerfile
         id: python-version
-        env:
-          INPUT_VERSION: ${{ github.event.inputs.python_version }}
         run: |
-          if [ -n "$INPUT_VERSION" ]; then
-            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+          if [ -n "${{ github.event.inputs.python_version }}" ]; then
+            echo "version=${{ github.event.inputs.python_version }}" >> $GITHUB_OUTPUT
           else
             version=$(grep 'ENV PYTHON_VERSION' docker/python-freethreaded/Dockerfile | awk '{print $3}')
-            echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> $GITHUB_OUTPUT
           fi
 
       - name: Generate image metadata
