@@ -453,13 +453,15 @@ Critical services required for application operation:
 
 GPU-accelerated AI inference services:
 
-| Service       | Display Name | Port | Grace Period | VRAM    |
-| ------------- | ------------ | ---- | ------------ | ------- |
-| ai-detector   | RT-DETRv2    | 8090 | 60s          | ~4GB    |
-| ai-llm        | Nemotron     | 8091 | 120s         | ~3-15GB |
-| ai-florence   | Florence-2   | 8092 | 60s          | ~2GB    |
-| ai-clip       | CLIP         | 8093 | 60s          | ~2GB    |
-| ai-enrichment | Enrichment   | 8094 | 180s         | ~4GB    |
+| Service       | Display Name | Port | Grace Period | VRAM                                |
+| ------------- | ------------ | ---- | ------------ | ----------------------------------- |
+| ai-detector   | RT-DETRv2    | 8090 | 60s          | ~4GB                                |
+| ai-llm        | Nemotron     | 8091 | 120s         | ~3GB (Mini 4B) / ~14.7GB (30B prod) |
+| ai-florence   | Florence-2   | 8092 | 60s          | ~2GB                                |
+| ai-clip       | CLIP         | 8093 | 60s          | ~2GB                                |
+| ai-enrichment | Enrichment   | 8094 | 180s         | ~4GB                                |
+
+> **Note:** Nemotron VRAM depends on model selection: Nemotron Mini 4B (~3GB, 4K context) is used for development, while Nemotron-3-Nano-30B-A3B (~14.7GB, 128K context) is recommended for production.
 
 ### Monitoring Services
 
