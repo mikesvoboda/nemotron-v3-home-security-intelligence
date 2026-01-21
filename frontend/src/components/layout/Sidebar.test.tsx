@@ -145,7 +145,7 @@ describe('Sidebar', () => {
   it('renders all 15 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(15);
+    expect(links).toHaveLength(16);
   });
 
   it('jobs link has correct href', () => {
@@ -387,7 +387,7 @@ describe('Sidebar', () => {
     });
 
     it('exports navItems as flattened list of all items', () => {
-      expect(navItems).toHaveLength(15);
+      expect(navItems).toHaveLength(16);
       expect(navItems.some((item) => item.id === 'dashboard')).toBe(true);
       expect(navItems.some((item) => item.id === 'settings')).toBe(true);
       expect(navItems.some((item) => item.id === 'data')).toBe(true);
