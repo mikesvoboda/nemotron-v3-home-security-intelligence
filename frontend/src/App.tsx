@@ -45,8 +45,8 @@ const AlertsPage = lazy(() => import('./components/alerts/AlertsPage'));
 // Entity tracking
 const EntitiesPage = lazy(() => import('./components/entities/EntitiesPage'));
 
-// Logs viewer
-const LogsDashboard = lazy(() => import('./components/logs/LogsDashboard'));
+// Logs viewer (Grafana-embedded dashboard)
+const LogsPage = lazy(() => import('./components/logs/LogsPage'));
 
 // Audit log
 const AuditLogPage = lazy(() =>
@@ -105,7 +105,7 @@ export default function App() {
                             <Route path="/jobs" element={<JobsPage />} />
                             <Route path="/alerts" element={<AlertsPage />} />
                             <Route path="/entities" element={<EntitiesPage />} />
-                            <Route path="/logs" element={<LogsDashboard />} />
+                            <Route path="/logs" element={<LogsPage />} />
                             <Route path="/audit" element={<AuditLogPage />} />
                             <Route path="/ai" element={<AIPerformancePage />} />
                             <Route path="/ai-audit" element={<AIAuditPage />} />
