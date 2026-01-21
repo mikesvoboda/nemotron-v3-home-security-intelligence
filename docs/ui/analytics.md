@@ -46,11 +46,11 @@ The page embeds the HSI Analytics dashboard from Grafana, which provides:
 
 ### Header Controls
 
-| Button | Function |
-|--------|----------|
-| **Grafana / Native Toggle** | Switch between embedded Grafana dashboard and native React components |
-| **Open in Grafana** | Opens the full Grafana dashboard in a new tab for advanced features (Grafana view only) |
-| **Refresh** | Reloads the embedded dashboard (Grafana view only) |
+| Button                      | Function                                                                                |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| **Grafana / Native Toggle** | Switch between embedded Grafana dashboard and native React components                   |
+| **Open in Grafana**         | Opens the full Grafana dashboard in a new tab for advanced features (Grafana view only) |
+| **Refresh**                 | Reloads the embedded dashboard (Grafana view only)                                      |
 
 ### View Modes
 
@@ -69,9 +69,9 @@ The primary view embeds the HSI Analytics Grafana dashboard (`hsi-analytics`) in
 
 A fallback view showing select React-based analytics components:
 
-| Component | Description |
-|-----------|-------------|
-| **Camera Uptime Card** | 7-day uptime statistics for all cameras |
+| Component                  | Description                              |
+| -------------------------- | ---------------------------------------- |
+| **Camera Uptime Card**     | 7-day uptime statistics for all cameras  |
 | **Pipeline Latency Panel** | Real-time AI pipeline processing metrics |
 
 Use native view when Grafana is unavailable or for quick access to specific metrics.
@@ -80,13 +80,13 @@ Use native view when Grafana is unavailable or for quick access to specific metr
 
 The embedded Grafana dashboard includes panels for:
 
-| Panel | Description |
-|-------|-------------|
-| **Detection Trend** | Time series of daily detection counts |
-| **Risk Distribution** | Breakdown of events by risk level (Low/Medium/High/Critical) |
-| **Camera Activity** | Event counts and activity per camera |
-| **Object Distribution** | Detection counts by object type |
-| **Risk History** | Stacked area chart of risk levels over time |
+| Panel                   | Description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| **Detection Trend**     | Time series of daily detection counts                        |
+| **Risk Distribution**   | Breakdown of events by risk level (Low/Medium/High/Critical) |
+| **Camera Activity**     | Event counts and activity per camera                         |
+| **Object Distribution** | Detection counts by object type                              |
+| **Risk History**        | Stacked area chart of risk levels over time                  |
 
 ## Understanding Analytics Data
 
@@ -94,23 +94,23 @@ The embedded Grafana dashboard includes panels for:
 
 The detection trend visualization shows how many detections occur over time:
 
-| Pattern | Meaning |
-|---------|---------|
-| **Activity spikes** | Unusual increase in detections (potential event) |
-| **Quiet periods** | Low activity (normal or potential camera issues) |
-| **Day/night cycles** | Expected pattern for outdoor cameras |
-| **Consistent baseline** | Normal operation |
+| Pattern                 | Meaning                                          |
+| ----------------------- | ------------------------------------------------ |
+| **Activity spikes**     | Unusual increase in detections (potential event) |
+| **Quiet periods**       | Low activity (normal or potential camera issues) |
+| **Day/night cycles**    | Expected pattern for outdoor cameras             |
+| **Consistent baseline** | Normal operation                                 |
 
 ### Risk Analysis
 
 Events are categorized by risk level based on AI analysis:
 
-| Risk Level | Score Range | Color | Meaning |
-|------------|-------------|-------|---------|
-| Low | 0-30 | Green | Routine activity |
-| Medium | 31-60 | Yellow | Notable but expected |
-| High | 61-80 | Orange | Requires attention |
-| Critical | 81-100 | Red | Immediate review needed |
+| Risk Level | Score Range | Color  | Meaning                 |
+| ---------- | ----------- | ------ | ----------------------- |
+| Low        | 0-30        | Green  | Routine activity        |
+| Medium     | 31-60       | Yellow | Notable but expected    |
+| High       | 61-80       | Orange | Requires attention      |
+| Critical   | 81-100      | Red    | Immediate review needed |
 
 ### Camera Performance
 
@@ -222,28 +222,31 @@ flowchart LR
 ### Related Code
 
 **Frontend:**
+
 - Analytics Page: `frontend/src/components/analytics/AnalyticsPage.tsx`
 - Camera Uptime Card: `frontend/src/components/analytics/CameraUptimeCard.tsx`
 - Pipeline Latency Panel: `frontend/src/components/analytics/PipelineLatencyPanel.tsx`
 - Grafana URL Utility: `frontend/src/utils/grafanaUrl.ts`
 
 **Backend:**
+
 - Analytics Routes: `backend/api/routes/analytics.py`
 - System Routes: `backend/api/routes/system.py` (pipeline latency)
 
 **Infrastructure:**
+
 - Grafana Dashboard: `monitoring/grafana/dashboards/analytics.json`
 - Grafana Container: `docker-compose.prod.yml` (grafana service)
 
 ### API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/analytics/detection-trends` | GET | Daily detection counts |
-| `/api/analytics/risk-history` | GET | Daily risk level breakdown |
-| `/api/analytics/camera-uptime` | GET | Camera uptime percentages |
-| `/api/analytics/object-distribution` | GET | Detection counts by object type |
-| `/api/system/pipeline-latency` | GET | Pipeline stage latencies |
+| Endpoint                             | Method | Description                     |
+| ------------------------------------ | ------ | ------------------------------- |
+| `/api/analytics/detection-trends`    | GET    | Daily detection counts          |
+| `/api/analytics/risk-history`        | GET    | Daily risk level breakdown      |
+| `/api/analytics/camera-uptime`       | GET    | Camera uptime percentages       |
+| `/api/analytics/object-distribution` | GET    | Detection counts by object type |
+| `/api/system/pipeline-latency`       | GET    | Pipeline stage latencies        |
 
 ### Data Flow
 
@@ -259,19 +262,19 @@ flowchart LR
 
 ### When to Use Analytics
 
-| Scenario | What to Look For |
-|----------|------------------|
-| Daily monitoring | Detection trends, high-risk events |
-| Camera issues | Low activity, missing detections |
-| Security review | Risk distribution, activity patterns |
-| Performance check | Pipeline latency (native view) |
+| Scenario          | What to Look For                     |
+| ----------------- | ------------------------------------ |
+| Daily monitoring  | Detection trends, high-risk events   |
+| Camera issues     | Low activity, missing detections     |
+| Security review   | Risk distribution, activity patterns |
+| Performance check | Pipeline latency (native view)       |
 
 ### Common Actions
 
-| I want to... | Do this... |
-|--------------|------------|
-| See overall trends | Use Grafana view (default) |
-| Check pipeline health | Switch to Native view |
-| Get more dashboard controls | Click "Open in Grafana" |
-| Force data refresh | Click "Refresh" button |
-| Compare time periods | Use Grafana time range picker |
+| I want to...                | Do this...                    |
+| --------------------------- | ----------------------------- |
+| See overall trends          | Use Grafana view (default)    |
+| Check pipeline health       | Switch to Native view         |
+| Get more dashboard controls | Click "Open in Grafana"       |
+| Force data refresh          | Click "Refresh" button        |
+| Compare time periods        | Use Grafana time range picker |

@@ -53,11 +53,11 @@ The page embeds the HSI Distributed Tracing dashboard from Grafana, which provid
 
 ### Header Controls
 
-| Button | Function |
-|--------|----------|
+| Button              | Function                                                            |
+| ------------------- | ------------------------------------------------------------------- |
 | **Open in Grafana** | Opens the full Grafana dashboard in a new tab for advanced features |
-| **Open Jaeger** | Opens the native Jaeger UI at `localhost:16686` |
-| **Refresh** | Reloads the embedded dashboard |
+| **Open Jaeger**     | Opens the native Jaeger UI at `localhost:16686`                     |
+| **Refresh**         | Reloads the embedded dashboard                                      |
 
 ### Understanding Traces
 
@@ -81,45 +81,45 @@ Trace: "Process Detection"
 
 The timeline view shows spans as horizontal bars:
 
-| Element | Meaning |
-|---------|---------|
-| **Bar width** | Duration of the span |
+| Element          | Meaning                                       |
+| ---------------- | --------------------------------------------- |
+| **Bar width**    | Duration of the span                          |
 | **Bar position** | When the span started relative to trace start |
-| **Bar color** | Service that executed the span |
-| **Nesting** | Parent-child relationships between spans |
+| **Bar color**    | Service that executed the span                |
+| **Nesting**      | Parent-child relationships between spans      |
 
 **Timeline Patterns:**
 
-| Pattern | Meaning |
-|---------|---------|
-| Sequential bars | Operations happening one after another |
-| Overlapping bars | Concurrent/parallel operations |
-| Long gaps | Time waiting (network, queue, etc.) |
-| One very long bar | Bottleneck in that operation |
+| Pattern           | Meaning                                |
+| ----------------- | -------------------------------------- |
+| Sequential bars   | Operations happening one after another |
+| Overlapping bars  | Concurrent/parallel operations         |
+| Long gaps         | Time waiting (network, queue, etc.)    |
+| One very long bar | Bottleneck in that operation           |
 
 ### Span Details
 
 Click a span to see detailed information:
 
-| Field | Description |
-|-------|-------------|
-| **Service** | Which service executed this span |
-| **Operation** | The operation name (e.g., `detect`, `analyze`) |
-| **Duration** | How long the span took |
-| **Start Time** | Absolute timestamp |
-| **Tags** | Key-value metadata (e.g., `camera.name`, `model.name`) |
-| **Logs** | Events that occurred during the span |
+| Field          | Description                                            |
+| -------------- | ------------------------------------------------------ |
+| **Service**    | Which service executed this span                       |
+| **Operation**  | The operation name (e.g., `detect`, `analyze`)         |
+| **Duration**   | How long the span took                                 |
+| **Start Time** | Absolute timestamp                                     |
+| **Tags**       | Key-value metadata (e.g., `camera.name`, `model.name`) |
+| **Logs**       | Events that occurred during the span                   |
 
 ### Service Identification
 
 Traces are tagged with service names:
 
-| Service | Description | Typical Operations |
-|---------|-------------|-------------------|
-| **hsi-backend** | FastAPI backend | API requests, batch processing |
-| **hsi-rtdetr** | RT-DETRv2 detector | Object detection, image processing |
-| **hsi-nemotron** | Nemotron LLM | Risk analysis, prompt processing |
-| **hsi-frontend** | React frontend | User interactions (if instrumented) |
+| Service          | Description        | Typical Operations                  |
+| ---------------- | ------------------ | ----------------------------------- |
+| **hsi-backend**  | FastAPI backend    | API requests, batch processing      |
+| **hsi-rtdetr**   | RT-DETRv2 detector | Object detection, image processing  |
+| **hsi-nemotron** | Nemotron LLM       | Risk analysis, prompt processing    |
+| **hsi-frontend** | React frontend     | User interactions (if instrumented) |
 
 ## Understanding the AI Pipeline
 
@@ -163,13 +163,13 @@ sequenceDiagram
 
 Typical latency distribution for a single detection:
 
-| Stage | Typical Duration | Notes |
-|-------|------------------|-------|
-| Image Upload | 10-50ms | Network dependent |
-| Object Detection | 100-200ms | GPU dependent |
-| Batch Aggregation | 0-90s | Waits for batch window |
-| LLM Analysis | 500-2000ms | Model dependent |
-| Database Save | 5-20ms | Disk I/O |
+| Stage             | Typical Duration | Notes                  |
+| ----------------- | ---------------- | ---------------------- |
+| Image Upload      | 10-50ms          | Network dependent      |
+| Object Detection  | 100-200ms        | GPU dependent          |
+| Batch Aggregation | 0-90s            | Waits for batch window |
+| LLM Analysis      | 500-2000ms       | Model dependent        |
+| Database Save     | 5-20ms           | Disk I/O               |
 
 ## Finding Issues
 
@@ -184,12 +184,12 @@ To find slow requests:
 
 **Common Bottlenecks:**
 
-| Long Span | Likely Cause | Solution |
-|-----------|--------------|----------|
-| `llm_inference` | LLM processing | Normal for complex analyses |
-| `detect_objects` | GPU saturation | Check GPU utilization |
-| `db_query` | Database performance | Add indexes, optimize queries |
-| `http_request` | Network latency | Check connectivity |
+| Long Span        | Likely Cause         | Solution                      |
+| ---------------- | -------------------- | ----------------------------- |
+| `llm_inference`  | LLM processing       | Normal for complex analyses   |
+| `detect_objects` | GPU saturation       | Check GPU utilization         |
+| `db_query`       | Database performance | Add indexes, optimize queries |
+| `http_request`   | Network latency      | Check connectivity            |
 
 ### Error Traces
 
@@ -201,12 +201,12 @@ Traces with errors are typically highlighted in red or orange:
 
 **Common Error Patterns:**
 
-| Error | Location | Common Cause |
-|-------|----------|--------------|
-| `timeout` | rtdetr spans | GPU overloaded |
-| `connection_refused` | backend spans | Service down |
-| `out_of_memory` | nemotron spans | Model too large for GPU |
-| `validation_error` | API spans | Invalid request data |
+| Error                | Location       | Common Cause            |
+| -------------------- | -------------- | ----------------------- |
+| `timeout`            | rtdetr spans   | GPU overloaded          |
+| `connection_refused` | backend spans  | Service down            |
+| `out_of_memory`      | nemotron spans | Model too large for GPU |
+| `validation_error`   | API spans      | Invalid request data    |
 
 ### Missing Spans
 
@@ -270,10 +270,10 @@ Jaeger must be configured as a data source in Grafana:
 
 Trace sampling is configured per-service:
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Sample Rate | 1.0 | Percentage of traces to keep (1.0 = 100%) |
-| Rate Limiting | None | Max traces per second |
+| Setting       | Default | Description                               |
+| ------------- | ------- | ----------------------------------------- |
+| Sample Rate   | 1.0     | Percentage of traces to keep (1.0 = 100%) |
+| Rate Limiting | None    | Max traces per second                     |
 
 For production, consider reducing sampling to 10-20% to reduce storage.
 
@@ -281,10 +281,10 @@ For production, consider reducing sampling to 10-20% to reduce storage.
 
 Trace data retention is configured in Jaeger:
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Retention Period | 7 days | How long traces are kept |
-| Max Traces | Unlimited | Maximum traces to store |
+| Setting          | Default   | Description              |
+| ---------------- | --------- | ------------------------ |
+| Retention Period | 7 days    | How long traces are kept |
+| Max Traces       | Unlimited | Maximum traces to store  |
 
 ## Troubleshooting
 
@@ -354,13 +354,16 @@ flowchart LR
 ### Related Code
 
 **Frontend:**
+
 - Tracing Page: `frontend/src/components/tracing/TracingPage.tsx`
 - Grafana URL Utility: `frontend/src/utils/grafanaUrl.ts`
 
 **Backend:**
+
 - Tracing Configuration: `backend/core/telemetry.py`
 
 **Infrastructure:**
+
 - Jaeger Container: `docker-compose.prod.yml` (jaeger service)
 - Grafana Dashboard: `monitoring/grafana/dashboards/tracing.json`
 - Alloy Configuration: `monitoring/alloy/config.alloy`
@@ -397,20 +400,20 @@ tracestate: vendor=value
 
 ### When to Use Tracing
 
-| Scenario | What to Look For |
-|----------|------------------|
-| Slow API response | Long spans in the trace |
-| Failed request | Error tags and span logs |
+| Scenario            | What to Look For            |
+| ------------------- | --------------------------- |
+| Slow API response   | Long spans in the trace     |
+| Failed request      | Error tags and span logs    |
 | Intermittent issues | Compare fast vs slow traces |
-| Service debugging | Spans from specific service |
+| Service debugging   | Spans from specific service |
 
 ### Common Actions
 
-| I want to... | Do this... |
-|--------------|------------|
-| Find slow requests | Sort by duration, click longest |
-| Find errors | Filter by `error=true` |
-| See request flow | Expand trace to see all spans |
-| Debug a specific event | Search by time range of event |
-| Compare performance | Select two traces, use compare view |
-| Get more details | Open in Jaeger for full UI |
+| I want to...           | Do this...                          |
+| ---------------------- | ----------------------------------- |
+| Find slow requests     | Sort by duration, click longest     |
+| Find errors            | Filter by `error=true`              |
+| See request flow       | Expand trace to see all spans       |
+| Debug a specific event | Search by time range of event       |
+| Compare performance    | Select two traces, use compare view |
+| Get more details       | Open in Jaeger for full UI          |

@@ -56,23 +56,23 @@ The centralized logging system collects logs from:
 
 ### Header Controls
 
-| Button | Function |
-|--------|----------|
+| Button              | Function                                                                    |
+| ------------------- | --------------------------------------------------------------------------- |
 | **Open in Grafana** | Opens the full HSI System Logs dashboard in a new tab for advanced features |
-| **Open in Explore** | Opens Grafana Explore with Loki datasource for ad-hoc LogQL queries |
-| **Refresh** | Reloads the embedded dashboard |
+| **Open in Explore** | Opens Grafana Explore with Loki datasource for ad-hoc LogQL queries         |
+| **Refresh**         | Reloads the embedded dashboard                                              |
 
 ### Log Levels
 
 Logs are categorized by severity level:
 
-| Level | Color | Use Case |
-|-------|-------|----------|
-| **DEBUG** | Gray | Verbose development information |
-| **INFO** | Blue | Normal operations, successful actions |
-| **WARNING** | Yellow | Potential issues that don't block operations |
-| **ERROR** | Red | Failed operations requiring attention |
-| **CRITICAL** | Red (bold) | Severe failures, system instability |
+| Level        | Color      | Use Case                                     |
+| ------------ | ---------- | -------------------------------------------- |
+| **DEBUG**    | Gray       | Verbose development information              |
+| **INFO**     | Blue       | Normal operations, successful actions        |
+| **WARNING**  | Yellow     | Potential issues that don't block operations |
+| **ERROR**    | Red        | Failed operations requiring attention        |
+| **CRITICAL** | Red (bold) | Severe failures, system instability          |
 
 ### Using LogQL
 
@@ -98,12 +98,12 @@ Loki uses LogQL, a query language similar to PromQL. Common query patterns:
 
 **Common LogQL Operators:**
 
-| Operator | Description | Example |
-|----------|-------------|---------|
-| `\|=` | Contains string | `\|= "error"` |
-| `\|~` | Matches regex | `\|~ "timeout\|failed"` |
-| `!=` | Does not contain | `!= "health"` |
-| `!~` | Does not match regex | `!~ "debug"` |
+| Operator | Description          | Example                 |
+| -------- | -------------------- | ----------------------- |
+| `\|=`    | Contains string      | `\|= "error"`           |
+| `\|~`    | Matches regex        | `\|~ "timeout\|failed"` |
+| `!=`     | Does not contain     | `!= "health"`           |
+| `!~`     | Does not match regex | `!~ "debug"`            |
 
 ## Common Use Cases
 
@@ -167,20 +167,20 @@ Loki must be configured as a data source in Grafana:
 
 The embedded dashboard is configured with:
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Refresh Interval | 30 seconds | How often the dashboard auto-updates |
-| Kiosk Mode | Enabled | Hides Grafana navigation for clean embed |
-| Theme | Dark | Matches the HSI application theme |
+| Setting          | Default    | Description                              |
+| ---------------- | ---------- | ---------------------------------------- |
+| Refresh Interval | 30 seconds | How often the dashboard auto-updates     |
+| Kiosk Mode       | Enabled    | Hides Grafana navigation for clean embed |
+| Theme            | Dark       | Matches the HSI application theme        |
 
 ### Retention
 
 Log data retention is configured in Loki:
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Retention Period | 30 days | How long logs are kept |
-| Compaction | Enabled | Automatic storage optimization |
+| Setting          | Default | Description                    |
+| ---------------- | ------- | ------------------------------ |
+| Retention Period | 30 days | How long logs are kept         |
+| Compaction       | Enabled | Automatic storage optimization |
 
 ## Troubleshooting
 
@@ -263,13 +263,16 @@ flowchart LR
 ### Related Code
 
 **Frontend:**
+
 - Logs Page: `frontend/src/components/logs/LogsPage.tsx`
 - Grafana URL Utility: `frontend/src/utils/grafanaUrl.ts`
 
 **Backend:**
+
 - Configuration: `backend/core/config.py`
 
 **Infrastructure:**
+
 - Loki Container: `docker-compose.prod.yml` (loki service)
 - Grafana Dashboard: `monitoring/grafana/dashboards/logs.json`
 - Alloy Configuration: `monitoring/alloy/config.alloy`
@@ -278,14 +281,15 @@ flowchart LR
 
 The embedded dashboard URL includes these parameters:
 
-| Parameter | Value | Purpose |
-|-----------|-------|---------|
-| `orgId` | 1 | Grafana organization ID |
-| `kiosk` | 1 | Hide Grafana navigation |
-| `theme` | dark | Match HSI dark theme |
-| `refresh` | 30s | Auto-refresh interval |
+| Parameter | Value | Purpose                 |
+| --------- | ----- | ----------------------- |
+| `orgId`   | 1     | Grafana organization ID |
+| `kiosk`   | 1     | Hide Grafana navigation |
+| `theme`   | dark  | Match HSI dark theme    |
+| `refresh` | 30s   | Auto-refresh interval   |
 
 Full URL pattern:
+
 ```
 {grafana_url}/d/hsi-logs/hsi-system-logs?orgId=1&kiosk=1&theme=dark&refresh=30s
 ```
@@ -322,19 +326,19 @@ Investigate security events through their logs:
 
 ### When to Use Logs
 
-| Scenario | Query Approach |
-|----------|----------------|
-| Debugging errors | Filter by level=ERROR |
-| Service health | Filter by job/service |
-| Specific event | Search by event ID or correlation ID |
+| Scenario                 | Query Approach                       |
+| ------------------------ | ------------------------------------ |
+| Debugging errors         | Filter by level=ERROR                |
+| Service health           | Filter by job/service                |
+| Specific event           | Search by event ID or correlation ID |
 | Time-based investigation | Set time range, scan chronologically |
 
 ### Common Actions
 
-| I want to... | Do this... |
-|--------------|------------|
-| See all errors | `{namespace="hsi"} \| json \| level="ERROR"` |
-| Filter by service | Use job dropdown in dashboard |
-| Advanced queries | Click "Open in Explore" |
-| Full Grafana features | Click "Open in Grafana" |
-| Refresh view | Click the Refresh button |
+| I want to...          | Do this...                                   |
+| --------------------- | -------------------------------------------- |
+| See all errors        | `{namespace="hsi"} \| json \| level="ERROR"` |
+| Filter by service     | Use job dropdown in dashboard                |
+| Advanced queries      | Click "Open in Explore"                      |
+| Full Grafana features | Click "Open in Grafana"                      |
+| Refresh view          | Click the Refresh button                     |

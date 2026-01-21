@@ -825,12 +825,14 @@ Use this checklist to track screenshot capture progress:
 The following screenshots require manual creation or special conditions:
 
 1. **Composite/Infographic images** (require design software):
+
    - `placeholder-risk-gauge-states.png` - Four risk gauge states side by side
    - `placeholder-risk-level-guide.png` - Horizontal risk scale visualization
    - `placeholder-alert-cards-comparison.png` - Four alert cards comparison
    - `placeholder-understanding-risk-scale.png` - Thermometer-style risk scale
 
 2. **Annotated images** (require annotation software):
+
    - `placeholder-dashboard-tutorial-annotated.png` - Dashboard with numbered callouts
 
 3. **Special UI state images** (require specific interactions):

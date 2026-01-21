@@ -46,12 +46,12 @@ The page embeds the HSI Profiling dashboard from Grafana, which provides:
 
 ### Header Controls
 
-| Button | Function |
-|--------|----------|
+| Button              | Function                                                            |
+| ------------------- | ------------------------------------------------------------------- |
 | **Open in Grafana** | Opens the full Grafana dashboard in a new tab for advanced features |
-| **Explore** | Opens Grafana Explore with Pyroscope datasource for ad-hoc queries |
-| **Open Pyroscope** | Opens the native Pyroscope UI at `localhost:4040` |
-| **Refresh** | Reloads the embedded dashboard |
+| **Explore**         | Opens Grafana Explore with Pyroscope datasource for ad-hoc queries  |
+| **Open Pyroscope**  | Opens the native Pyroscope UI at `localhost:4040`                   |
+| **Refresh**         | Reloads the embedded dashboard                                      |
 
 ### Flame Graph
 
@@ -64,32 +64,32 @@ The flame graph is the primary visualization for understanding where time or mem
 
 **Reading the Flame Graph:**
 
-| Pattern | Meaning |
-|---------|---------|
-| **Wide bar at top** | High-level function consuming significant resources |
-| **Wide bar at bottom** | Leaf function (actual work) consuming resources |
-| **Narrow tower** | Deep call stack but minimal resource usage |
-| **Flat top** | Most time spent in this specific function |
+| Pattern                | Meaning                                             |
+| ---------------------- | --------------------------------------------------- |
+| **Wide bar at top**    | High-level function consuming significant resources |
+| **Wide bar at bottom** | Leaf function (actual work) consuming resources     |
+| **Narrow tower**       | Deep call stack but minimal resource usage          |
+| **Flat top**           | Most time spent in this specific function           |
 
 ### Profile Types
 
-| Type | Description | Use Case |
-|------|-------------|----------|
-| **CPU** | Shows where processing time is spent | Finding slow code paths |
-| **Memory** | Shows where memory is allocated | Finding memory leaks |
-| **Goroutines** | Shows goroutine distribution (Go services) | Finding concurrency issues |
-| **Mutex** | Shows lock contention (Go services) | Finding synchronization bottlenecks |
+| Type           | Description                                | Use Case                            |
+| -------------- | ------------------------------------------ | ----------------------------------- |
+| **CPU**        | Shows where processing time is spent       | Finding slow code paths             |
+| **Memory**     | Shows where memory is allocated            | Finding memory leaks                |
+| **Goroutines** | Shows goroutine distribution (Go services) | Finding concurrency issues          |
+| **Mutex**      | Shows lock contention (Go services)        | Finding synchronization bottlenecks |
 
 ### Service Selection
 
 The dashboard can profile these services:
 
-| Service | Description |
-|---------|-------------|
-| **hsi-backend** | Main FastAPI backend service |
-| **hsi-rtdetr** | RT-DETRv2 object detection service |
-| **hsi-nemotron** | Nemotron LLM inference service |
-| **alloy** | Grafana Alloy telemetry collector |
+| Service          | Description                        |
+| ---------------- | ---------------------------------- |
+| **hsi-backend**  | Main FastAPI backend service       |
+| **hsi-rtdetr**   | RT-DETRv2 object detection service |
+| **hsi-nemotron** | Nemotron LLM inference service     |
+| **alloy**        | Grafana Alloy telemetry collector  |
 
 ## Understanding Profiling Data
 
@@ -103,12 +103,12 @@ CPU profiles show where processing time is spent. Look for:
 
 **Common CPU Hotspots in AI Pipelines:**
 
-| Area | Expected | Potential Issue |
-|------|----------|-----------------|
-| Model inference | High CPU | Normal operation |
-| JSON serialization | Low-Medium | Consider caching or binary formats |
-| Database queries | Low | Add query optimization/caching |
-| Image processing | Medium-High | Consider GPU acceleration |
+| Area               | Expected    | Potential Issue                    |
+| ------------------ | ----------- | ---------------------------------- |
+| Model inference    | High CPU    | Normal operation                   |
+| JSON serialization | Low-Medium  | Consider caching or binary formats |
+| Database queries   | Low         | Add query optimization/caching     |
+| Image processing   | Medium-High | Consider GPU acceleration          |
 
 ### Memory Profiling
 
@@ -120,12 +120,12 @@ Memory profiles show allocation patterns. Look for:
 
 **Common Memory Patterns:**
 
-| Pattern | Meaning | Action |
-|---------|---------|--------|
-| Steady flat line | Normal operation | None needed |
-| Gradual increase | Potential leak | Investigate retained references |
-| Sawtooth pattern | Normal GC behavior | None needed |
-| Sudden spikes | Burst allocations | Consider rate limiting |
+| Pattern          | Meaning            | Action                          |
+| ---------------- | ------------------ | ------------------------------- |
+| Steady flat line | Normal operation   | None needed                     |
+| Gradual increase | Potential leak     | Investigate retained references |
+| Sawtooth pattern | Normal GC behavior | None needed                     |
+| Sudden spikes    | Burst allocations  | Consider rate limiting          |
 
 ## Correlation with Tracing
 
@@ -164,10 +164,10 @@ Pyroscope must be configured as a data source in Grafana:
 
 Profiling data retention is configured in Pyroscope:
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Retention Period | 15 days | How long profile data is kept |
-| Resolution | 10 seconds | Profile sampling interval |
+| Setting          | Default    | Description                   |
+| ---------------- | ---------- | ----------------------------- |
+| Retention Period | 15 days    | How long profile data is kept |
+| Resolution       | 10 seconds | Profile sampling interval     |
 
 ## Troubleshooting
 
@@ -238,13 +238,16 @@ flowchart LR
 ### Related Code
 
 **Frontend:**
+
 - Pyroscope Page: `frontend/src/components/pyroscope/PyroscopePage.tsx`
 - Grafana URL Utility: `frontend/src/utils/grafanaUrl.ts`
 
 **Backend:**
+
 - Profiling Configuration: `backend/core/config.py`
 
 **Infrastructure:**
+
 - Pyroscope Container: `docker-compose.prod.yml` (pyroscope service)
 - Grafana Dashboard: `monitoring/grafana/dashboards/hsi-profiling.json`
 - Alloy Configuration: `monitoring/alloy/config.alloy`
@@ -263,19 +266,19 @@ flowchart LR
 
 ### When to Use Profiling
 
-| Scenario | Profile Type | What to Look For |
-|----------|--------------|------------------|
-| Slow API responses | CPU | Wide bars in request handlers |
-| Memory growing over time | Memory | Allocations that don't get freed |
-| High CPU usage | CPU | Unexpected hotspots |
-| OOM errors | Memory | Large allocation spikes |
+| Scenario                 | Profile Type | What to Look For                 |
+| ------------------------ | ------------ | -------------------------------- |
+| Slow API responses       | CPU          | Wide bars in request handlers    |
+| Memory growing over time | Memory       | Allocations that don't get freed |
+| High CPU usage           | CPU          | Unexpected hotspots              |
+| OOM errors               | Memory       | Large allocation spikes          |
 
 ### Common Actions
 
-| I want to... | Do this... |
-|--------------|------------|
-| Find slow code | Select CPU profile, look for wide flames |
-| Find memory leaks | Select Memory profile over long time range |
-| Compare before/after | Use Grafana's comparison feature |
-| Share a profile | Open in Grafana, create a snapshot |
-| Drill into details | Click on flame graph bars to zoom |
+| I want to...         | Do this...                                 |
+| -------------------- | ------------------------------------------ |
+| Find slow code       | Select CPU profile, look for wide flames   |
+| Find memory leaks    | Select Memory profile over long time range |
+| Compare before/after | Use Grafana's comparison feature           |
+| Share a profile      | Open in Grafana, create a snapshot         |
+| Drill into details   | Click on flame graph bars to zoom          |
