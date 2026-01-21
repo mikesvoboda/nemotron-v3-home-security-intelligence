@@ -11,9 +11,41 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import AIPerformancePage from './AIPerformancePage';
 import * as api from '../../services/api';
 
-// Mock the fetchConfig API
+// Mock the API functions
 vi.mock('../../services/api', () => ({
   fetchConfig: vi.fn(() => Promise.resolve({ grafana_url: '/grafana' })),
+  fetchModelZooCompactStatus: vi.fn(() =>
+    Promise.resolve({
+      models: [
+        {
+          name: 'yolo11-license-plate',
+          display_name: 'YOLO11 License Plate',
+          category: 'Detection',
+          status: 'loaded',
+          vram_mb: 300,
+          last_used_at: null,
+          enabled: true,
+        },
+      ],
+      total_models: 1,
+      loaded_count: 1,
+      disabled_count: 0,
+      vram_budget_mb: 1650,
+      vram_used_mb: 300,
+      timestamp: '2026-01-04T12:00:00Z',
+    })
+  ),
+  fetchModelZooLatencyHistory: vi.fn(() =>
+    Promise.resolve({
+      model_name: 'yolo11-license-plate',
+      display_name: 'YOLO11 License Plate',
+      snapshots: [],
+      window_minutes: 60,
+      bucket_seconds: 60,
+      has_data: false,
+      timestamp: '2026-01-04T12:00:00Z',
+    })
+  ),
 }));
 
 const renderWithRouter = () => {
@@ -448,11 +480,11 @@ describe('AIPerformancePage', () => {
 
       await waitFor(() => {
         const iframe = screen.getByTestId('grafana-iframe');
-        expect(iframe).toHaveClass('h-[calc(100vh-73px)]');
+        expect(iframe).toHaveClass('h-[600px]');
       });
     });
 
-    it('iframe has no border', async () => {
+    it('iframe has border styling', async () => {
       renderWithRouter();
       await act(async () => {
         await vi.runAllTimersAsync();
@@ -460,7 +492,84 @@ describe('AIPerformancePage', () => {
 
       await waitFor(() => {
         const iframe = screen.getByTestId('grafana-iframe');
-        expect(iframe).toHaveClass('border-0');
+        expect(iframe).toHaveClass('border');
+        expect(iframe).toHaveClass('border-gray-800');
+        expect(iframe).toHaveClass('rounded-lg');
+      });
+    });
+  });
+
+  describe('ModelZooSection integration', () => {
+    it('renders ModelZooSection component', async () => {
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('model-zoo-section')).toBeInTheDocument();
+      });
+    });
+
+    it('ModelZooSection is positioned above Grafana iframe', async () => {
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      await waitFor(() => {
+        const modelZooSection = screen.getByTestId('model-zoo-section');
+        const iframe = screen.getByTestId('grafana-iframe');
+        // Both should be in the document
+        expect(modelZooSection).toBeInTheDocument();
+        expect(iframe).toBeInTheDocument();
+        // ModelZooSection should appear before iframe in DOM order
+        // The scrollable container contains ModelZooSection and a div containing the iframe
+        const scrollContainer = modelZooSection.parentElement;
+        expect(scrollContainer).not.toBeNull();
+        const children = scrollContainer ? Array.from(scrollContainer.children) : [];
+        // First child is ModelZooSection, second is the iframe container div
+        const modelZooIndex = children.findIndex(
+          (child) => child === modelZooSection || child.contains(modelZooSection)
+        );
+        const iframeContainerIndex = children.findIndex((child) => child.contains(iframe));
+        expect(modelZooIndex).toBeLessThan(iframeContainerIndex);
+      });
+    });
+
+    it('ModelZooSection displays Model Zoo title', async () => {
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Model Zoo')).toBeInTheDocument();
+      });
+    });
+
+    it('ModelZooSection has padding class applied', async () => {
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      await waitFor(() => {
+        const modelZooSection = screen.getByTestId('model-zoo-section');
+        expect(modelZooSection).toHaveClass('p-8');
+      });
+    });
+
+    it('page has scrollable content area containing ModelZooSection and iframe', async () => {
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      await waitFor(() => {
+        const modelZooSection = screen.getByTestId('model-zoo-section');
+        const scrollContainer = modelZooSection.parentElement;
+        expect(scrollContainer).toHaveClass('overflow-y-auto');
       });
     });
   });

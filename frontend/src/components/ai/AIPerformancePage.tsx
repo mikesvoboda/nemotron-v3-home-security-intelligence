@@ -14,6 +14,7 @@
 import { Brain, RefreshCw, ExternalLink, AlertCircle } from 'lucide-react';
 import { useEffect, useState, useRef, useCallback } from 'react';
 
+import ModelZooSection from './ModelZooSection';
 import { fetchConfig } from '../../services/api';
 import { resolveGrafanaUrl } from '../../utils/grafanaUrl';
 
@@ -138,15 +139,23 @@ export default function AIPerformancePage() {
         </div>
       )}
 
-      {/* Grafana iframe */}
-      <iframe
-        ref={iframeRef}
-        src={dashboardUrl}
-        className="h-[calc(100vh-73px)] w-full border-0"
-        title="AI Performance Dashboard"
-        data-testid="grafana-iframe"
-        onError={handleIframeError}
-      />
+      {/* Scrollable content area */}
+      <div className="h-[calc(100vh-73px)] overflow-y-auto">
+        {/* Model Zoo Section */}
+        <ModelZooSection className="p-8" data-testid="ai-performance-model-zoo" />
+
+        {/* Grafana iframe */}
+        <div className="px-8 pb-8">
+          <iframe
+            ref={iframeRef}
+            src={dashboardUrl}
+            className="h-[600px] w-full rounded-lg border border-gray-800"
+            title="AI Performance Dashboard"
+            data-testid="grafana-iframe"
+            onError={handleIframeError}
+          />
+        </div>
+      </div>
     </div>
   );
 }

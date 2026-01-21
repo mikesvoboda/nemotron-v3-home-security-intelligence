@@ -127,6 +127,31 @@ vi.mock('../entities/EntityDetailModal', () => ({
   ),
 }));
 
+// Mock the MatchedEntitiesSection component
+vi.mock('./MatchedEntitiesSection', () => ({
+  default: vi.fn(
+    ({
+      eventId,
+      onEntityClick,
+    }: {
+      eventId: number;
+      onEntityClick?: (entityId: string) => void;
+    }) => (
+      <div data-testid="matched-entities-section-mock" data-event-id={eventId}>
+        Mocked MatchedEntitiesSection
+        {onEntityClick && (
+          <button
+            data-testid="mock-entity-click"
+            onClick={() => onEntityClick('entity-person-123')}
+          >
+            Click Entity
+          </button>
+        )}
+      </div>
+    )
+  ),
+}));
+
 describe('EventDetailModal', () => {
   // Mock event data
   const mockEvent: Event = {
@@ -2483,6 +2508,122 @@ describe('EventDetailModal', () => {
       await waitFor(() => {
         expect(screen.queryByTestId('feedback-form')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe('MatchedEntitiesSection integration', () => {
+    const mockEventWithNumericId: Event = {
+      id: '123',
+      timestamp: '2024-01-15T10:30:00Z',
+      camera_name: 'Front Door',
+      risk_score: 65,
+      risk_label: 'High',
+      summary: 'Person detected at entrance',
+      image_url: 'https://example.com/image.jpg',
+      thumbnail_url: 'https://example.com/thumbnail.jpg',
+      detections: [{ label: 'person', confidence: 0.95 }],
+      reviewed: false,
+    };
+
+    const mockIntegrationProps: EventDetailModalProps = {
+      event: mockEventWithNumericId,
+      isOpen: true,
+      onClose: vi.fn(),
+    };
+
+    it('renders MatchedEntitiesSection with correct eventId', async () => {
+      renderWithQueryClient(<EventDetailModal {...mockIntegrationProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('matched-entities-section-mock')).toBeInTheDocument();
+      });
+
+      const section = screen.getByTestId('matched-entities-section-mock');
+      expect(section).toHaveAttribute('data-event-id', '123');
+    });
+
+    it('does not render MatchedEntitiesSection when event ID is invalid', async () => {
+      const invalidEvent = { ...mockEventWithNumericId, id: 'invalid-id' };
+      renderWithQueryClient(<EventDetailModal {...mockIntegrationProps} event={invalidEvent} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('matched-entities-section-mock')).not.toBeInTheDocument();
+    });
+
+    it('opens EntityDetailModal when entity is clicked in MatchedEntitiesSection', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithQueryClient(<EventDetailModal {...mockIntegrationProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('matched-entities-section-mock')).toBeInTheDocument();
+      });
+
+      // Click the mock entity button
+      const entityButton = screen.getByTestId('mock-entity-click');
+      await user.click(entityButton);
+
+      // Wait for the EntityDetailModal to open with the fetched entity
+      await waitFor(() => {
+        expect(screen.getByTestId('entity-detail-modal')).toBeInTheDocument();
+        expect(screen.getByTestId('entity-loaded')).toBeInTheDocument();
+      });
+
+      // Verify fetchEntity was called with the correct entity ID
+      expect(api.fetchEntity).toHaveBeenCalledWith('entity-person-123');
+    });
+
+    it('closes EntityDetailModal when close button is clicked', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithQueryClient(<EventDetailModal {...mockIntegrationProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('matched-entities-section-mock')).toBeInTheDocument();
+      });
+
+      // Click the mock entity button to open the modal
+      const entityButton = screen.getByTestId('mock-entity-click');
+      await user.click(entityButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('entity-detail-modal')).toBeInTheDocument();
+      });
+
+      // Close the modal
+      const closeButton = screen.getByTestId('close-entity-modal');
+      await user.click(closeButton);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('entity-detail-modal')).not.toBeInTheDocument();
+      });
+    });
+
+    it('handles fetchEntity error gracefully', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.mocked(api.fetchEntity).mockRejectedValueOnce(new Error('API Error'));
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithQueryClient(<EventDetailModal {...mockIntegrationProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('matched-entities-section-mock')).toBeInTheDocument();
+      });
+
+      // Click the mock entity button
+      const entityButton = screen.getByTestId('mock-entity-click');
+      await user.click(entityButton);
+
+      // Wait for the error to be logged
+      await waitFor(() => {
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch entity details:', expect.any(Error));
+      });
+
+      // EntityDetailModal should not open
+      expect(screen.queryByTestId('entity-detail-modal')).not.toBeInTheDocument();
+
+      consoleSpy.mockRestore();
     });
   });
 });

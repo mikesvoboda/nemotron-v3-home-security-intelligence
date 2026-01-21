@@ -37,6 +37,58 @@ vi.mock('../../hooks/useCommandPaletteContext', () => ({
   }),
 }));
 
+// Mock the useAIServiceStatus hook
+vi.mock('../../hooks/useAIServiceStatus', () => ({
+  useAIServiceStatus: () => ({
+    degradationMode: 'normal' as const,
+    services: {
+      rtdetr: {
+        service: 'rtdetr',
+        status: 'healthy',
+        circuit_state: 'closed',
+        last_success: '2024-01-15T12:00:00Z',
+        failure_count: 0,
+        error_message: null,
+        last_check: '2024-01-15T12:00:00Z',
+      },
+      nemotron: {
+        service: 'nemotron',
+        status: 'healthy',
+        circuit_state: 'closed',
+        last_success: '2024-01-15T12:00:00Z',
+        failure_count: 0,
+        error_message: null,
+        last_check: '2024-01-15T12:00:00Z',
+      },
+      florence: {
+        service: 'florence',
+        status: 'healthy',
+        circuit_state: 'closed',
+        last_success: '2024-01-15T12:00:00Z',
+        failure_count: 0,
+        error_message: null,
+        last_check: '2024-01-15T12:00:00Z',
+      },
+      clip: {
+        service: 'clip',
+        status: 'healthy',
+        circuit_state: 'closed',
+        last_success: '2024-01-15T12:00:00Z',
+        failure_count: 0,
+        error_message: null,
+        last_check: '2024-01-15T12:00:00Z',
+      },
+    },
+    availableFeatures: ['object_detection', 'risk_analysis', 'image_captioning', 'entity_tracking'],
+    hasUnavailableService: false,
+    isOffline: false,
+    isDegraded: false,
+    getServiceState: vi.fn(),
+    isFeatureAvailable: vi.fn(),
+    lastUpdate: '2024-01-15T12:00:00Z',
+  }),
+}));
+
 // Helper to create mock channel status
 function createMockChannel(
   name: string,
@@ -1553,6 +1605,35 @@ describe('Header', () => {
       const searchButton = screen.getByTestId('search-trigger');
       expect(searchButton).toHaveClass('hidden');
       expect(searchButton).toHaveClass('sm:flex');
+    });
+  });
+
+  describe('AI Service Status Integration', () => {
+    it('renders AI service status badge in header', () => {
+      renderHeader();
+      expect(screen.getByTestId('ai-service-status')).toBeInTheDocument();
+    });
+
+    it('displays AI service status in compact mode', () => {
+      renderHeader();
+      // The AIServiceStatus component in compact mode shows "All Systems Operational" for normal mode
+      expect(screen.getByText('All Systems Operational')).toBeInTheDocument();
+    });
+
+    it('AI service status container is hidden on mobile (uses sm:block)', () => {
+      renderHeader();
+      const aiStatusContainer = screen.getByTestId('ai-service-status');
+      expect(aiStatusContainer).toHaveClass('hidden');
+      expect(aiStatusContainer).toHaveClass('sm:block');
+    });
+
+    it('AI service status badge has appropriate styling', () => {
+      renderHeader();
+      const aiStatusContainer = screen.getByTestId('ai-service-status');
+      // The compact badge should be rendered inside the container
+      expect(aiStatusContainer).toBeInTheDocument();
+      // The badge should contain the status text
+      expect(aiStatusContainer.textContent).toContain('All Systems Operational');
     });
   });
 });
