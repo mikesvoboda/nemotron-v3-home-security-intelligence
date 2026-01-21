@@ -67,15 +67,15 @@ Integration of NVIDIA NeMo Data Designer to improve testing coverage and Nemotro
 
 ### Sampler Columns (Statistical Control)
 
-| Column | Values | Purpose |
-|--------|--------|---------|
-| `time_of_day` | morning, midday, evening, night, late_night | Test time-based risk calibration |
-| `day_type` | weekday, weekend, holiday | Baseline deviation testing |
-| `camera_location` | front_door, backyard, driveway, side_gate | Zone-based context |
-| `detection_count` | 1, 2-3, 4-6, 7+ | Batch complexity |
-| `primary_object` | person, vehicle, animal, package | Core detection types |
-| `scenario_type` | normal, suspicious, threat, edge_case | Ground truth classification |
-| `enrichment_level` | none, basic, full | Context utilization testing |
+| Column             | Values                                      | Purpose                          |
+| ------------------ | ------------------------------------------- | -------------------------------- |
+| `time_of_day`      | morning, midday, evening, night, late_night | Test time-based risk calibration |
+| `day_type`         | weekday, weekend, holiday                   | Baseline deviation testing       |
+| `camera_location`  | front_door, backyard, driveway, side_gate   | Zone-based context               |
+| `detection_count`  | 1, 2-3, 4-6, 7+                             | Batch complexity                 |
+| `primary_object`   | person, vehicle, animal, package            | Core detection types             |
+| `scenario_type`    | normal, suspicious, threat, edge_case       | Ground truth classification      |
+| `enrichment_level` | none, basic, full                           | Context utilization testing      |
 
 ### Scenario Type Definitions
 
@@ -86,12 +86,12 @@ Integration of NVIDIA NeMo Data Designer to improve testing coverage and Nemotro
 
 ### Ground Truth Risk Ranges
 
-| Scenario Type | Risk Range | Risk Level |
-|---------------|------------|------------|
-| normal | 0-25 | low |
-| suspicious | 30-55 | medium |
-| threat | 70-100 | high/critical |
-| edge_case | 20-60 | varies |
+| Scenario Type | Risk Range | Risk Level    |
+| ------------- | ---------- | ------------- |
+| normal        | 0-25       | low           |
+| suspicious    | 30-55      | medium        |
+| threat        | 70-100     | high/critical |
+| edge_case     | 20-60      | varies        |
 
 ## Column Inventory
 
@@ -110,7 +110,7 @@ Integration of NVIDIA NeMo Data Designer to improve testing coverage and Nemotro
 # LLM-STRUCTURED (3) - Pydantic-validated generation
 - detections: list[Detection]
 - enrichment_context: EnrichmentContext | None
-- ground_truth: GroundTruth  # risk_range, reasoning, expected_models
+- ground_truth: GroundTruth # risk_range, reasoning, expected_models
 
 # LLM-TEXT (3) - Narrative generation
 - scenario_narrative: str
@@ -130,7 +130,7 @@ Integration of NVIDIA NeMo Data Designer to improve testing coverage and Nemotro
 - reasoning_embedding: vector[768]
 
 # EXPRESSION (3) - Derived fields
-- formatted_prompt_input: str  # Pre-rendered for each template
+- formatted_prompt_input: str # Pre-rendered for each template
 - complexity_score: float
 - scenario_hash: str
 
@@ -193,14 +193,14 @@ class GroundTruth(BaseModel):
 
 ### LLM-Judge Rubrics
 
-| Dimension | Scale | Evaluates |
-|-----------|-------|-----------|
-| `relevance` | 1-4 | Does output address the actual security concern? |
-| `risk_calibration` | 1-4 | Is score appropriate for scenario severity? |
-| `context_usage` | 1-4 | Are enrichment inputs reflected in reasoning? |
-| `reasoning_quality` | 1-4 | Is the explanation logical and complete? |
-| `threat_identification` | 1-4 | Did it correctly identify/miss the actual threat? |
-| `actionability` | 1-4 | Is the output useful for a homeowner to act on? |
+| Dimension               | Scale | Evaluates                                         |
+| ----------------------- | ----- | ------------------------------------------------- |
+| `relevance`             | 1-4   | Does output address the actual security concern?  |
+| `risk_calibration`      | 1-4   | Is score appropriate for scenario severity?       |
+| `context_usage`         | 1-4   | Are enrichment inputs reflected in reasoning?     |
+| `reasoning_quality`     | 1-4   | Is the explanation logical and complete?          |
+| `threat_identification` | 1-4   | Did it correctly identify/miss the actual threat? |
+| `actionability`         | 1-4   | Is the output useful for a homeowner to act on?   |
 
 ## File Structure
 
@@ -307,7 +307,7 @@ def test_enrichment_context_reflected_in_reasoning(synthetic_scenarios):
 # .github/workflows/prompt-evaluation.yml
 prompt-evaluation:
   runs-on: ubuntu-latest
-  if: github.event_name == 'schedule'  # Nightly only
+  if: github.event_name == 'schedule' # Nightly only
   steps:
     - uses: actions/checkout@v4
     - name: Run prompt evaluation suite
@@ -348,34 +348,34 @@ Sample Images (from curated test set)
 
 ### Additional Columns
 
-| Column | Type | Purpose |
-|--------|------|---------|
-| `image_path` | Seed | Reference to test image |
-| `nvidia_vision_description` | LLM-Structured | What NVIDIA's vision model sees |
-| `nvidia_detected_objects` | LLM-Structured | Objects with bounding boxes |
-| `nvidia_risk_assessment` | LLM-Structured | Full risk analysis from image |
-| `vision_alignment_score` | LLM-Judge | How well does local pipeline match? |
+| Column                      | Type           | Purpose                             |
+| --------------------------- | -------------- | ----------------------------------- |
+| `image_path`                | Seed           | Reference to test image             |
+| `nvidia_vision_description` | LLM-Structured | What NVIDIA's vision model sees     |
+| `nvidia_detected_objects`   | LLM-Structured | Objects with bounding boxes         |
+| `nvidia_risk_assessment`    | LLM-Structured | Full risk analysis from image       |
+| `vision_alignment_score`    | LLM-Judge      | How well does local pipeline match? |
 
 ### Image Curation
 
-| Category | Count | Source |
-|----------|-------|--------|
-| Normal activity | 25 | Stock footage, staged captures |
-| Suspicious | 15 | Staged scenarios |
-| Threat simulation | 10 | Controlled/synthetic (no real weapons) |
-| Edge cases | 15 | Weather, lighting, occlusion, costumes |
-| **Total** | 65 | Curated test set |
+| Category          | Count | Source                                 |
+| ----------------- | ----- | -------------------------------------- |
+| Normal activity   | 25    | Stock footage, staged captures         |
+| Suspicious        | 15    | Staged scenarios                       |
+| Threat simulation | 10    | Controlled/synthetic (no real weapons) |
+| Edge cases        | 15    | Weather, lighting, occlusion, costumes |
+| **Total**         | 65    | Curated test set                       |
 
 ## Implementation Phases
 
-| Phase | Scope | Deliverables | Effort |
-|-------|-------|--------------|--------|
-| **1. Foundation** | NeMo setup + basic generation | `tools/nemo_data_designer/`, initial 100 scenarios | 3-4 days |
-| **2. Evaluation Harness** | Metrics + comparison engine | `backend/evaluation/`, prompt comparison reports | 2-3 days |
-| **3. Testing Integration** | Pytest + CI | `test_nemotron_prompts.py`, GitHub Actions workflow | 2 days |
-| **4. Full Coverage** | Scenario expansion | 1,500+ scenarios, embeddings, coverage analysis | 3-4 days |
-| **5. Enrichment Pipeline** | Model zoo edge cases | Circuit breaker tests, VRAM eviction scenarios | 2-3 days |
-| **6. Multimodal Evaluation** | Image-based ground truth | Vision comparison pipeline, image test fixtures | 4-5 days |
+| Phase                        | Scope                         | Deliverables                                        | Effort   |
+| ---------------------------- | ----------------------------- | --------------------------------------------------- | -------- |
+| **1. Foundation**            | NeMo setup + basic generation | `tools/nemo_data_designer/`, initial 100 scenarios  | 3-4 days |
+| **2. Evaluation Harness**    | Metrics + comparison engine   | `backend/evaluation/`, prompt comparison reports    | 2-3 days |
+| **3. Testing Integration**   | Pytest + CI                   | `test_nemotron_prompts.py`, GitHub Actions workflow | 2 days   |
+| **4. Full Coverage**         | Scenario expansion            | 1,500+ scenarios, embeddings, coverage analysis     | 3-4 days |
+| **5. Enrichment Pipeline**   | Model zoo edge cases          | Circuit breaker tests, VRAM eviction scenarios      | 2-3 days |
+| **6. Multimodal Evaluation** | Image-based ground truth      | Vision comparison pipeline, image test fixtures     | 4-5 days |
 
 **Total estimated effort:** 16-21 days
 
