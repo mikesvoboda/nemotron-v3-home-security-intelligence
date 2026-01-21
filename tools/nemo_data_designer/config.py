@@ -8,12 +8,29 @@ Models:
     Detection: Single object detection with bbox and confidence
     EnrichmentContext: Additional context from enrichment pipeline
     GroundTruth: Expected risk assessment and key reasoning points
+    JudgeScores: LLM-Judge rubric dimension scores
     ScenarioBundle: Complete scenario combining all components
+
+Column Types (24 total):
+    - SAMPLERS (7): Statistical control columns
+    - LLM-STRUCTURED (3): Pydantic-validated generation
+    - LLM-TEXT (3): Narrative generation
+    - LLM-JUDGE (6): Quality rubrics
+    - EMBEDDING (2): Semantic search vectors
+    - EXPRESSION (3): Derived fields
+    - VALIDATION (2): Quality gates
 """
 
-from typing import Literal
+from __future__ import annotations
+
+import hashlib
+import json
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 # =============================================================================
 # Detection Models
@@ -98,6 +115,77 @@ class EnrichmentContext(BaseModel):
     cross_camera_matches: int = Field(
         ge=0, le=5, default=0, description="Number of re-ID matches across cameras"
     )
+
+
+# =============================================================================
+# LLM-Judge Models
+# =============================================================================
+
+
+class JudgeScores(BaseModel):
+    """LLM-Judge rubric scores for evaluating response quality.
+
+    Each dimension is scored 1-4:
+    - 1: Poor - fails to meet basic requirements
+    - 2: Fair - partially meets requirements
+    - 3: Good - meets requirements well
+    - 4: Excellent - exceeds requirements
+
+    Attributes:
+        relevance: Does output address the actual security concern?
+        risk_calibration: Is score appropriate for scenario severity?
+        context_usage: Are enrichment inputs reflected in reasoning?
+        reasoning_quality: Is the explanation logical and complete?
+        threat_identification: Did it correctly identify/miss the actual threat?
+        actionability: Is the output useful for a homeowner to act on?
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "relevance": 4,
+                "risk_calibration": 3,
+                "context_usage": 3,
+                "reasoning_quality": 4,
+                "threat_identification": 4,
+                "actionability": 3,
+            }
+        }
+    )
+
+    relevance: int = Field(
+        ge=1, le=4, default=3, description="Does output address the actual security concern? (1-4)"
+    )
+    risk_calibration: int = Field(
+        ge=1, le=4, default=3, description="Is score appropriate for scenario severity? (1-4)"
+    )
+    context_usage: int = Field(
+        ge=1, le=4, default=3, description="Are enrichment inputs reflected in reasoning? (1-4)"
+    )
+    reasoning_quality: int = Field(
+        ge=1, le=4, default=3, description="Is the explanation logical and complete? (1-4)"
+    )
+    threat_identification: int = Field(
+        ge=1, le=4, default=3, description="Did it correctly identify/miss the actual threat? (1-4)"
+    )
+    actionability: int = Field(
+        ge=1, le=4, default=3, description="Is the output useful for a homeowner to act on? (1-4)"
+    )
+
+    def total_score(self) -> int:
+        """Calculate total score across all dimensions (6-24)."""
+        return (
+            self.relevance
+            + self.risk_calibration
+            + self.context_usage
+            + self.reasoning_quality
+            + self.threat_identification
+            + self.actionability
+        )
+
+    def average_score(self) -> float:
+        """Calculate average score across all dimensions (1.0-4.0)."""
+        return self.total_score() / 6.0
 
 
 # =============================================================================
@@ -313,3 +401,364 @@ ENRICHMENT_MODELS = {
     "basic": ["florence_2"],
     "full": ["florence_2", "pose_estimation", "reid", "ocr"],
 }
+
+
+# Complexity multipliers for scenario factors
+COMPLEXITY_FACTORS = {
+    "detection_count": {
+        "1": 0.1,
+        "2-3": 0.2,
+        "4-6": 0.4,
+        "7+": 0.7,
+    },
+    "enrichment_level": {
+        "none": 0.0,
+        "basic": 0.15,
+        "full": 0.3,
+    },
+    "scenario_type": {
+        "normal": 0.1,
+        "suspicious": 0.3,
+        "threat": 0.5,
+        "edge_case": 0.4,
+    },
+}
+
+
+# Embedding dimensions for vector columns
+EMBEDDING_DIM = 768
+
+
+# =============================================================================
+# Expression Column Helper Functions
+# =============================================================================
+
+
+def calculate_complexity_score(
+    detection_count: str,
+    enrichment_level: str,
+    scenario_type: str,
+) -> float:
+    """Calculate scenario complexity score (0.0 - 1.0).
+
+    Combines detection count, enrichment level, and scenario type to produce
+    a normalized complexity score for categorizing scenarios.
+
+    Args:
+        detection_count: Number of detections ("1", "2-3", "4-6", "7+")
+        enrichment_level: Enrichment level ("none", "basic", "full")
+        scenario_type: Type of scenario ("normal", "suspicious", "threat", "edge_case")
+
+    Returns:
+        Complexity score between 0.0 and 1.0
+
+    Examples:
+        >>> calculate_complexity_score("1", "none", "normal")
+        0.2
+        >>> calculate_complexity_score("7+", "full", "threat")
+        1.0
+    """
+    dc_weight = COMPLEXITY_FACTORS["detection_count"].get(detection_count, 0.2)
+    el_weight = COMPLEXITY_FACTORS["enrichment_level"].get(enrichment_level, 0.15)
+    st_weight = COMPLEXITY_FACTORS["scenario_type"].get(scenario_type, 0.3)
+
+    # Weighted sum normalized to 0-1 range
+    raw_score = dc_weight + el_weight + st_weight
+    # Max possible is 0.7 + 0.3 + 0.5 = 1.5, normalize to 0-1
+    normalized = min(1.0, raw_score / 1.5)
+
+    return round(normalized, 3)
+
+
+def generate_scenario_hash(scenario: dict) -> str:
+    """Generate deterministic hash for scenario deduplication.
+
+    Creates a SHA-256 hash from key scenario fields to uniquely identify
+    scenarios and detect duplicates.
+
+    Args:
+        scenario: Dictionary containing scenario data
+
+    Returns:
+        Hex string of first 16 characters of SHA-256 hash
+
+    Examples:
+        >>> scenario = {"scenario_type": "threat", "time_of_day": "night"}
+        >>> generate_scenario_hash(scenario)
+        'a1b2c3d4e5f67890'  # pragma: allowlist secret
+    """
+    # Use stable fields for hashing
+    hash_fields = [
+        scenario.get("time_of_day", ""),
+        scenario.get("day_type", ""),
+        scenario.get("camera_location", ""),
+        scenario.get("detection_count", ""),
+        scenario.get("primary_object", ""),
+        scenario.get("scenario_type", ""),
+        scenario.get("enrichment_level", ""),
+        scenario.get("scenario_narrative", ""),
+    ]
+
+    hash_input = "|".join(str(f) for f in hash_fields)
+    hash_digest = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
+
+    return hash_digest[:16]
+
+
+def validate_detection_schema(detections: Sequence[dict] | None) -> bool:  # noqa: PLR0911
+    """Validate that detections conform to Detection schema.
+
+    Args:
+        detections: List of detection dictionaries to validate
+
+    Returns:
+        True if all detections are valid, False otherwise
+
+    Examples:
+        >>> detections = [{"object_type": "person", "confidence": 0.9, "bbox": [0,0,100,100], "timestamp_offset_seconds": 0}]
+        >>> validate_detection_schema(detections)
+        True
+    """
+    if detections is None:
+        return True
+
+    required_fields = {"object_type", "confidence", "bbox", "timestamp_offset_seconds"}
+
+    for det in detections:
+        if not isinstance(det, dict):
+            return False
+        if not required_fields.issubset(det.keys()):
+            return False
+        if det.get("confidence", 0) < 0.5 or det.get("confidence", 0) > 1.0:
+            return False
+        if (
+            det.get("timestamp_offset_seconds", -1) < 0
+            or det.get("timestamp_offset_seconds", 91) > 90
+        ):
+            return False
+        bbox = det.get("bbox", [])
+        if not isinstance(bbox, list | tuple) or len(bbox) != 4:
+            return False
+
+    return True
+
+
+def validate_temporal_consistency(detections: Sequence[dict] | None) -> bool:
+    """Validate temporal consistency of detections within batch window.
+
+    Checks that detection timestamps are within the 90-second batch window
+    and are logically ordered.
+
+    Args:
+        detections: List of detection dictionaries
+
+    Returns:
+        True if temporally consistent, False otherwise
+
+    Examples:
+        >>> detections = [{"timestamp_offset_seconds": 10}, {"timestamp_offset_seconds": 50}]
+        >>> validate_temporal_consistency(detections)
+        True
+    """
+    if detections is None or len(detections) == 0:
+        return True
+
+    timestamps = []
+    for det in detections:
+        ts = det.get("timestamp_offset_seconds")
+        if ts is None or not isinstance(ts, int):
+            return False
+        if ts < 0 or ts > 90:
+            return False
+        timestamps.append(ts)
+
+    # Check that timestamps span a reasonable range for the batch
+    if len(timestamps) > 1:
+        time_span = max(timestamps) - min(timestamps)
+        # For multiple detections, expect at least 5 seconds between first and last
+        if time_span < 5:
+            return True  # Still valid, just clustered detections
+    return True
+
+
+def format_prompt_input(
+    scenario: dict,
+    template_name: str = "default",  # noqa: ARG001 - reserved for multi-template support
+) -> str:
+    """Format scenario data into a prompt input string.
+
+    Pre-renders the scenario data into a format ready for Nemotron prompt templates.
+
+    Args:
+        scenario: Dictionary containing full scenario data
+        template_name: Name of the prompt template to format for
+
+    Returns:
+        Formatted prompt input string
+
+    Examples:
+        >>> scenario = {"scenario_narrative": "Person at door", "detections": []}
+        >>> format_prompt_input(scenario)
+        '...'
+    """
+    detections_str = json.dumps(scenario.get("detections", []), indent=2)
+    enrichment_str = json.dumps(scenario.get("enrichment_context"), indent=2)
+
+    prompt_parts = [
+        f"Time: {scenario.get('time_of_day', 'unknown')} ({scenario.get('day_type', 'unknown')})",
+        f"Location: {scenario.get('camera_location', 'unknown')}",
+        "",
+        f"Narrative: {scenario.get('scenario_narrative', 'No description available')}",
+        "",
+        "Detections:",
+        detections_str,
+    ]
+
+    # Add enrichment context if available
+    enrichment_level = scenario.get("enrichment_level", "none")
+    if enrichment_level != "none" and scenario.get("enrichment_context"):
+        prompt_parts.extend(
+            [
+                "",
+                "Enrichment Context:",
+                enrichment_str,
+            ]
+        )
+
+    return "\n".join(prompt_parts)
+
+
+def generate_default_judge_scores(scenario_type: str) -> JudgeScores:
+    """Generate default LLM-Judge scores based on scenario type.
+
+    Provides reasonable default scores for scenarios where LLM-Judge
+    evaluation has not yet been run.
+
+    Args:
+        scenario_type: Type of scenario ("normal", "suspicious", "threat", "edge_case")
+
+    Returns:
+        JudgeScores instance with default values
+    """
+    # Default scores vary by scenario complexity
+    defaults = {
+        "normal": JudgeScores(
+            relevance=3,
+            risk_calibration=3,
+            context_usage=3,
+            reasoning_quality=3,
+            threat_identification=3,
+            actionability=3,
+        ),
+        "suspicious": JudgeScores(
+            relevance=3,
+            risk_calibration=3,
+            context_usage=3,
+            reasoning_quality=3,
+            threat_identification=3,
+            actionability=3,
+        ),
+        "threat": JudgeScores(
+            relevance=3,
+            risk_calibration=3,
+            context_usage=3,
+            reasoning_quality=3,
+            threat_identification=4,  # Higher for threats
+            actionability=3,
+        ),
+        "edge_case": JudgeScores(
+            relevance=3,
+            risk_calibration=2,  # Lower - edge cases are harder to calibrate
+            context_usage=3,
+            reasoning_quality=3,
+            threat_identification=2,  # Lower - edge cases are ambiguous
+            actionability=3,
+        ),
+    }
+
+    return defaults.get(scenario_type, JudgeScores())
+
+
+def generate_placeholder_embedding(seed_text: str, dim: int = EMBEDDING_DIM) -> list[float]:
+    """Generate a placeholder embedding vector for testing.
+
+    Creates a deterministic pseudo-embedding based on the input text hash.
+    This is NOT a real semantic embedding - use only for testing structure.
+
+    Args:
+        seed_text: Text to generate embedding from
+        dim: Dimension of the embedding vector (default: 768)
+
+    Returns:
+        List of floats representing a placeholder embedding
+
+    Note:
+        For production use, call NVIDIA embedding API instead.
+    """
+    import random
+
+    # Use hash of text as random seed for deterministic output
+    text_hash = int(hashlib.sha256(seed_text.encode("utf-8")).hexdigest()[:8], 16)
+    rng = random.Random(text_hash)  # noqa: S311 - intentional for deterministic test data
+
+    # Generate normalized pseudo-embedding
+    embedding = [rng.gauss(0, 0.1) for _ in range(dim)]
+
+    # L2 normalize
+    magnitude = sum(x * x for x in embedding) ** 0.5
+    if magnitude > 0:
+        embedding = [x / magnitude for x in embedding]
+
+    return embedding
+
+
+# =============================================================================
+# Column Type Enumerations
+# =============================================================================
+
+# Complete column inventory for full scenario coverage
+COLUMN_TYPES = {
+    "samplers": [
+        "time_of_day",
+        "day_type",
+        "camera_location",
+        "detection_count",
+        "primary_object",
+        "scenario_type",
+        "enrichment_level",
+    ],
+    "llm_structured": [
+        "detections",
+        "enrichment_context",
+        "ground_truth",
+    ],
+    "llm_text": [
+        "scenario_narrative",
+        "expected_summary",
+        "reasoning_key_points",
+    ],
+    "llm_judge": [
+        "relevance",
+        "risk_calibration",
+        "context_usage",
+        "reasoning_quality",
+        "threat_identification",
+        "actionability",
+    ],
+    "embedding": [
+        "scenario_embedding",
+        "reasoning_embedding",
+    ],
+    "expression": [
+        "formatted_prompt_input",
+        "complexity_score",
+        "scenario_hash",
+    ],
+    "validation": [
+        "detection_schema_valid",
+        "temporal_consistency",
+    ],
+}
+
+# Total column count for verification
+TOTAL_COLUMNS = sum(len(cols) for cols in COLUMN_TYPES.values())  # Should be 24
