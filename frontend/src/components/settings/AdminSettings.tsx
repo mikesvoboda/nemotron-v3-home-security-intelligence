@@ -33,7 +33,7 @@ import {
   Wrench,
   Zap,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useDebugMode } from '../../contexts/DebugModeContext';
 import {
@@ -41,6 +41,7 @@ import {
   type SeedCamerasRequest,
   type SeedEventsRequest,
 } from '../../hooks/useAdminMutations';
+import { useSettingsApi } from '../../hooks/useSettingsApi';
 import { useToast } from '../../hooks/useToast';
 import ConfirmWithTextDialog from '../developer-tools/ConfirmWithTextDialog';
 import ConfirmDialog from '../jobs/ConfirmDialog';
@@ -174,18 +175,23 @@ const DEFAULT_SYSTEM_CONFIG: SystemConfigState = {
 export default function AdminSettings({ className }: AdminSettingsProps) {
   const { debugMode } = useDebugMode();
   const toast = useToast();
-  const { seedCameras, seedEvents, clearSeededData } = useAdminMutations();
+  const {
+    seedCameras,
+    seedEvents,
+    clearSeededData,
+    orphanCleanup,
+    clearCache,
+    flushQueues,
+  } = useAdminMutations();
+
+  // Settings API integration
+  const { settings, isLoading: isLoadingSettings, updateMutation } = useSettingsApi();
 
   // Section open state (all start expanded except Developer Tools)
   const [featureTogglesOpen, setFeatureTogglesOpen] = useState(true);
   const [systemConfigOpen, setSystemConfigOpen] = useState(true);
   const [maintenanceOpen, setMaintenanceOpen] = useState(true);
   const [developerToolsOpen, setDeveloperToolsOpen] = useState(false);
-
-  // Maintenance action states
-  const [isCleaningOrphans, setIsCleaningOrphans] = useState(false);
-  const [isClearingCache, setIsClearingCache] = useState(false);
-  const [isFlushingQueues, setIsFlushingQueues] = useState(false);
 
   // Confirmation dialog states for maintenance
   const [confirmOrphanCleanup, setConfirmOrphanCleanup] = useState(false);
@@ -197,14 +203,49 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
   const [confirmSeedEvents, setConfirmSeedEvents] = useState(false);
   const [confirmClearTestData, setConfirmClearTestData] = useState(false);
 
-  // Feature toggles state - will be wired to Settings API in Phase 2
-  const [featureToggles, setFeatureToggles] = useState<FeatureTogglesState>(DEFAULT_FEATURE_TOGGLES);
+  // Feature toggles from API - track which one is being toggled
   const [togglingFeature, setTogglingFeature] = useState<FeatureToggleKey | null>(null);
 
-  // System config state - will be wired to Settings API when available
+  // Local system config state for form editing (synced from API)
   const [systemConfig, setSystemConfig] = useState<SystemConfigState>(DEFAULT_SYSTEM_CONFIG);
-  const [originalConfig] = useState<SystemConfigState>(DEFAULT_SYSTEM_CONFIG);
-  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [originalConfig, setOriginalConfig] = useState<SystemConfigState>(DEFAULT_SYSTEM_CONFIG);
+  // Track whether we've synced from API to avoid re-syncing during mutations
+  const [hasSyncedFromApi, setHasSyncedFromApi] = useState(false);
+
+  // Sync system config from API response when settings load (only once on initial load)
+  useEffect(() => {
+    if (settings && !hasSyncedFromApi && !updateMutation.isPending) {
+      const syncedConfig: SystemConfigState = {
+        rateLimiting: {
+          requestsPerMinute: settings.rate_limiting.requests_per_minute,
+          burstSize: settings.rate_limiting.burst_size,
+          enabled: settings.rate_limiting.enabled,
+        },
+        queueSettings: {
+          maxSize: settings.queue.max_size,
+          backpressureThreshold: Math.round(settings.queue.backpressure_threshold * 100),
+        },
+      };
+      setSystemConfig(syncedConfig);
+      setOriginalConfig(syncedConfig);
+      setHasSyncedFromApi(true);
+    }
+  }, [settings, hasSyncedFromApi, updateMutation.isPending]);
+
+  // Feature toggles derived from API
+  const featureToggles: FeatureTogglesState = useMemo(() => {
+    if (settings) {
+      return {
+        vision_extraction_enabled: settings.features.vision_extraction_enabled,
+        reid_enabled: settings.features.reid_enabled,
+        scene_change_enabled: settings.features.scene_change_enabled,
+        clip_generation_enabled: settings.features.clip_generation_enabled,
+        image_quality_enabled: settings.features.image_quality_enabled,
+        background_eval_enabled: settings.features.background_eval_enabled,
+      };
+    }
+    return DEFAULT_FEATURE_TOGGLES;
+  }, [settings]);
 
   // Track if config has changed
   const hasConfigChanges = useMemo(() => {
@@ -218,22 +259,15 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
     );
   }, [systemConfig, originalConfig]);
 
-  // Feature toggle handler - will be wired to Settings API in Phase 2
+  // Feature toggle handler - wired to Settings API
   const handleFeatureToggle = useCallback(
     async (id: FeatureToggleKey, newValue: boolean) => {
       setTogglingFeature(id);
       try {
-        // TODO: Wire to Settings API in Phase 2
-        // await updateSettings({ [id]: newValue });
-
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 300));
-
-        // Update local state
-        setFeatureToggles((prev) => ({
-          ...prev,
-          [id]: newValue,
-        }));
+        // Update via Settings API
+        await updateMutation.mutateAsync({
+          features: { [id]: newValue },
+        });
 
         const toggleName = FEATURE_TOGGLE_CONFIGS.find((t) => t.id === id)?.name ?? id;
         toast.success(`${toggleName} ${newValue ? 'enabled' : 'disabled'}`, {
@@ -247,7 +281,7 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
         setTogglingFeature(null);
       }
     },
-    [toast]
+    [toast, updateMutation]
   );
 
   // System config handlers
@@ -278,10 +312,21 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
   );
 
   const handleSaveConfig = useCallback(async () => {
-    setIsSavingConfig(true);
     try {
-      // TODO: Wire to actual Settings API in Phase 2
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Update via Settings API
+      await updateMutation.mutateAsync({
+        rate_limiting: {
+          enabled: systemConfig.rateLimiting.enabled,
+          requests_per_minute: systemConfig.rateLimiting.requestsPerMinute,
+          burst_size: systemConfig.rateLimiting.burstSize,
+        },
+        queue: {
+          max_size: systemConfig.queueSettings.maxSize,
+          backpressure_threshold: systemConfig.queueSettings.backpressureThreshold / 100,
+        },
+      });
+      // Update original config to match saved state
+      setOriginalConfig(systemConfig);
       toast.success('System config saved', {
         description: 'Configuration changes have been applied',
       });
@@ -289,69 +334,58 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
       toast.error('Failed to save config', {
         description: error instanceof Error ? error.message : 'Unknown error',
       });
-    } finally {
-      setIsSavingConfig(false);
     }
-  }, [toast]);
+  }, [toast, updateMutation, systemConfig]);
 
   const handleResetConfig = useCallback(() => {
-    setSystemConfig(DEFAULT_SYSTEM_CONFIG);
-  }, []);
+    setSystemConfig(originalConfig);
+  }, [originalConfig]);
 
-  // Maintenance action handlers (placeholder implementations)
+  // Maintenance action handlers - wired to API
   const handleOrphanCleanup = useCallback(async () => {
-    setIsCleaningOrphans(true);
     try {
-      // TODO: Wire to actual API endpoint in Phase 2
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const result = await orphanCleanup.mutateAsync({ dry_run: false, min_age_hours: 24 });
       toast.success('Orphan cleanup completed', {
-        description: 'Removed 15 orphaned files (2.3 GB)',
+        description: `Removed ${result.deleted_files} orphaned files (${result.deleted_bytes_formatted})`,
       });
     } catch (error) {
       toast.error('Orphan cleanup failed', {
         description: error instanceof Error ? error.message : 'Unknown error',
       });
     } finally {
-      setIsCleaningOrphans(false);
       setConfirmOrphanCleanup(false);
     }
-  }, [toast]);
+  }, [toast, orphanCleanup]);
 
   const handleCacheClear = useCallback(async () => {
-    setIsClearingCache(true);
     try {
-      // TODO: Wire to actual API endpoint in Phase 2
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const result = await clearCache.mutateAsync();
       toast.success('Cache cleared', {
-        description: 'All cached data has been purged',
+        description: result.message,
       });
     } catch (error) {
       toast.error('Cache clear failed', {
         description: error instanceof Error ? error.message : 'Unknown error',
       });
     } finally {
-      setIsClearingCache(false);
       setConfirmCacheClear(false);
     }
-  }, [toast]);
+  }, [toast, clearCache]);
 
   const handleFlushQueues = useCallback(async () => {
-    setIsFlushingQueues(true);
     try {
-      // TODO: Wire to actual API endpoint in Phase 2
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const result = await flushQueues.mutateAsync();
       toast.success('Queues flushed', {
-        description: 'All processing queues have been cleared',
+        description: result.message,
       });
     } catch (error) {
       toast.error('Queue flush failed', {
         description: error instanceof Error ? error.message : 'Unknown error',
       });
     } finally {
-      setIsFlushingQueues(false);
       setConfirmFlushQueues(false);
     }
-  }, [toast]);
+  }, [toast, flushQueues]);
 
   // Developer tools handlers
   const handleSeedCameras = useCallback(async () => {
@@ -487,17 +521,12 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
             );
           })}
         </div>
-        <Callout
-          title="Feature toggles will be persisted in Phase 2"
-          icon={AlertTriangle}
-          color="amber"
-          className="mt-4"
-        >
-          <span className="text-tremor-default text-amber-200/80">
-            Feature toggles are currently stored in memory. They will be persisted via the Settings
-            API in a future update.
-          </span>
-        </Callout>
+        {isLoadingSettings && (
+          <div className="mt-4 flex items-center gap-2 text-gray-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Loading settings...</span>
+          </div>
+        )}
       </CollapsibleSection>
 
       {/* System Config Section */}
@@ -649,11 +678,11 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
           <div className="flex gap-3 border-t border-gray-800 pt-4">
             <Button
               onClick={() => void handleSaveConfig()}
-              disabled={!hasConfigChanges || isSavingConfig}
+              disabled={!hasConfigChanges || updateMutation.isPending}
               className="flex-1 bg-[#76B900] text-gray-950 hover:bg-[#5c8f00] disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="btn-save-config"
             >
-              {isSavingConfig ? (
+              {updateMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Saving...
@@ -667,7 +696,7 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
             </Button>
             <Button
               onClick={handleResetConfig}
-              disabled={!hasConfigChanges || isSavingConfig}
+              disabled={!hasConfigChanges || updateMutation.isPending}
               variant="secondary"
               className="flex-1 disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="btn-reset-config"
@@ -677,12 +706,12 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
             </Button>
           </div>
 
-          <Callout title="Settings API pending" icon={AlertTriangle} color="amber">
-            <span className="text-tremor-default text-amber-200/80">
-              System configuration changes will be persisted via Settings API in Phase 2. Current
-              changes are for UI demonstration only.
-            </span>
-          </Callout>
+          {isLoadingSettings && (
+            <div className="flex items-center gap-2 text-gray-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Loading settings...</span>
+            </div>
+          )}
         </div>
       </CollapsibleSection>
 
@@ -707,12 +736,12 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
               </Text>
               <Button
                 onClick={() => setConfirmOrphanCleanup(true)}
-                disabled={isCleaningOrphans}
+                disabled={orphanCleanup.isPending}
                 className="w-full bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
                 size="sm"
                 data-testid="btn-orphan-cleanup"
               >
-                {isCleaningOrphans ? (
+                {orphanCleanup.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Running...
@@ -737,12 +766,12 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
               </Text>
               <Button
                 onClick={() => setConfirmCacheClear(true)}
-                disabled={isClearingCache}
+                disabled={clearCache.isPending}
                 className="w-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                 size="sm"
                 data-testid="btn-cache-clear"
               >
-                {isClearingCache ? (
+                {clearCache.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Clearing...
@@ -765,12 +794,12 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
               <Text className="mb-4 text-xs text-gray-500">Clear all processing queues</Text>
               <Button
                 onClick={() => setConfirmFlushQueues(true)}
-                disabled={isFlushingQueues}
+                disabled={flushQueues.isPending}
                 className="w-full bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
                 size="sm"
                 data-testid="btn-flush-queues"
               >
-                {isFlushingQueues ? (
+                {flushQueues.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Flushing...
@@ -783,13 +812,6 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
                 )}
               </Button>
             </div>
-          </div>
-
-          <div className="rounded-lg border border-gray-700 bg-[#121212] p-4">
-            <Text className="text-sm text-gray-400">
-              <strong className="text-white">Last cleanup:</strong> 2 hours ago (removed 15 files,
-              2.3 GB)
-            </Text>
           </div>
         </div>
       </CollapsibleSection>
@@ -929,7 +951,7 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
         confirmLabel="Run Cleanup"
         loadingText="Running..."
         variant="warning"
-        isLoading={isCleaningOrphans}
+        isLoading={orphanCleanup.isPending}
         onConfirm={() => void handleOrphanCleanup()}
         onCancel={() => setConfirmOrphanCleanup(false)}
       />
@@ -941,7 +963,7 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
         confirmLabel="Clear Cache"
         loadingText="Clearing..."
         variant="warning"
-        isLoading={isClearingCache}
+        isLoading={clearCache.isPending}
         onConfirm={() => void handleCacheClear()}
         onCancel={() => setConfirmCacheClear(false)}
       />
@@ -953,7 +975,7 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
         confirmLabel="Flush Queues"
         loadingText="Flushing..."
         variant="warning"
-        isLoading={isFlushingQueues}
+        isLoading={flushQueues.isPending}
         onConfirm={() => void handleFlushQueues()}
         onCancel={() => setConfirmFlushQueues(false)}
       />

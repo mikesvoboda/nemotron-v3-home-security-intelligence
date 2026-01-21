@@ -13,6 +13,7 @@ def clean_env(monkeypatch):
     """Clean environment variables and settings cache before each test.
 
     Sets DATABASE_URL to a valid test value since it's now required.
+    Sets ENVIRONMENT=development to allow weak test passwords (NEM-3141).
     """
     # Clear all config-related environment variables
     env_vars = [
@@ -24,6 +25,7 @@ def clean_env(monkeypatch):
         "API_PORT",
         "SMTP_PORT",
         "DEBUG",
+        "ENVIRONMENT",
     ]
 
     for var in env_vars:
@@ -34,6 +36,10 @@ def clean_env(monkeypatch):
         "DATABASE_URL",
         "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
     )
+
+    # Set ENVIRONMENT to development to allow weak test passwords (NEM-3141).
+    # Production/staging would reject the short "test" password in DATABASE_URL.
+    monkeypatch.setenv("ENVIRONMENT", "development")
 
     # Set FOSCAM_BASE_PATH to expected default since .env file may override
     monkeypatch.setenv("FOSCAM_BASE_PATH", "/export/foscam")

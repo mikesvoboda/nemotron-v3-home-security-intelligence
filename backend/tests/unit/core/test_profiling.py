@@ -200,12 +200,7 @@ class TestProfileIfEnabledDecorator:
 
 
 class TestProfilingStateManagement:
-    """Tests for profiling state management (start/stop/stats).
-
-    Note: Some tests may fail if pytest-benchmark or another profiling tool
-    is active, as only one cProfile profiler can be active at a time.
-    We handle this gracefully by skipping tests when profiling conflicts occur.
-    """
+    """Tests for profiling state management (start/stop/stats)."""
 
     def test_profiling_manager_start(self, monkeypatch, tmp_path):
         """Verify profiling can be started."""
@@ -223,14 +218,9 @@ class TestProfilingStateManagement:
         manager = ProfilingManager(output_dir=tmp_path)
         assert manager.is_profiling is False
 
-        try:
-            manager.start()
-            assert manager.is_profiling is True
-            manager.stop()
-        except ValueError as e:
-            if "profiling tool is already active" in str(e):
-                pytest.skip("Another profiling tool (pytest-benchmark) is active")
-            raise
+        manager.start()
+        assert manager.is_profiling is True
+        manager.stop()
 
     def test_profiling_manager_stop_returns_stats(self, monkeypatch, tmp_path):
         """Verify profiling stop returns statistics."""
@@ -247,12 +237,7 @@ class TestProfilingStateManagement:
 
         manager = ProfilingManager(output_dir=tmp_path)
 
-        try:
-            manager.start()
-        except ValueError as e:
-            if "profiling tool is already active" in str(e):
-                pytest.skip("Another profiling tool (pytest-benchmark) is active")
-            raise
+        manager.start()
 
         # Do some work to profile
         _ = sum(range(100))
@@ -276,12 +261,7 @@ class TestProfilingStateManagement:
 
         manager = ProfilingManager(output_dir=tmp_path)
 
-        try:
-            manager.start()
-        except ValueError as e:
-            if "profiling tool is already active" in str(e):
-                pytest.skip("Another profiling tool (pytest-benchmark) is active")
-            raise
+        manager.start()
 
         # Do some work to profile
         _ = sum(range(100))
@@ -307,12 +287,7 @@ class TestProfilingStateManagement:
 
         manager = ProfilingManager(output_dir=tmp_path)
 
-        try:
-            manager.start()
-        except ValueError as e:
-            if "profiling tool is already active" in str(e):
-                pytest.skip("Another profiling tool (pytest-benchmark) is active")
-            raise
+        manager.start()
 
         # Do some work to profile
         _ = [x**2 for x in range(100)]
@@ -359,12 +334,7 @@ class TestProfilingStateManagement:
 
         manager = ProfilingManager(output_dir=new_dir)
 
-        try:
-            manager.start()
-        except ValueError as e:
-            if "profiling tool is already active" in str(e):
-                pytest.skip("Another profiling tool (pytest-benchmark) is active")
-            raise
+        manager.start()
 
         manager.stop()
 

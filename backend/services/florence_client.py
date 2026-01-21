@@ -252,7 +252,11 @@ class FlorenceClient:
 
         try:
             # Use persistent HTTP client (NEM-1721)
-            response = await self._health_http_client.get(f"{self._base_url}/health")
+            # NEM-3147: Include W3C Trace Context headers for distributed tracing
+            response = await self._health_http_client.get(
+                f"{self._base_url}/health",
+                headers=self._get_headers(),
+            )
             response.raise_for_status()
             return True
         except (httpx.ConnectError, httpx.TimeoutException) as e:

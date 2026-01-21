@@ -908,6 +908,103 @@ groups:
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/model-not-loaded'
 
   # =============================================================================
+  # Enrichment Service Model Zoo VRAM Alerts (NEM-3149)
+  # =============================================================================
+  # Monitor VRAM usage and model evictions in the enrichment service's Model Zoo.
+  # The Model Zoo manages 9 on-demand models with LRU eviction within a 6.8GB budget.
+  - name: enrichment_model_zoo_alerts
+    rules:
+      # Critical: VRAM utilization exceeds 90% for extended period
+      - alert: EnrichmentVRAMUtilizationCritical
+        expr: enrichment_vram_utilization_percent > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: enrichment
+          service: model_zoo
+        annotations:
+          summary: 'Enrichment Model Zoo VRAM utilization critically high (>90%)'
+          description: 'Model Zoo VRAM utilization is {{ $value | printf "%.1f" }}% for more than 5 minutes. Models may be evicted aggressively, degrading inference performance.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/model-zoo-vram-critical'
+
+      # Warning: VRAM utilization elevated (>80%)
+      - alert: EnrichmentVRAMUtilizationHigh
+        expr: enrichment_vram_utilization_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: enrichment
+          service: model_zoo
+        annotations:
+          summary: 'Enrichment Model Zoo VRAM utilization elevated (>80%)'
+          description: 'Model Zoo VRAM utilization is {{ $value | printf "%.1f" }}% for more than 10 minutes. Consider increasing VRAM budget or reducing concurrent model usage.'
+
+      # Critical: High model eviction rate (>10 evictions in 5 minutes)
+      - alert: EnrichmentModelEvictionRateHigh
+        expr: |
+          increase(enrichment_model_evictions_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+          component: enrichment
+          service: model_zoo
+        annotations:
+          summary: 'High model eviction rate in Enrichment Model Zoo'
+          description: 'More than 10 model evictions in 5 minutes. This indicates VRAM pressure causing thrashing. Current eviction rate: {{ $value | printf "%.0f" }} evictions/5min.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/model-zoo-eviction-storm'
+
+      # Warning: Moderate model eviction rate (>5 evictions in 5 minutes)
+      - alert: EnrichmentModelEvictionRateElevated
+        expr: |
+          increase(enrichment_model_evictions_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: enrichment
+          service: model_zoo
+        annotations:
+          summary: 'Elevated model eviction rate in Enrichment Model Zoo'
+          description: 'More than 5 model evictions in 5 minutes. VRAM budget may be insufficient for workload. Eviction rate: {{ $value | printf "%.0f" }} evictions/5min.'
+
+      # Warning: CRITICAL priority model evicted (should be rare)
+      - alert: EnrichmentCriticalModelEvicted
+        expr: |
+          increase(enrichment_model_evictions_total{priority="CRITICAL"}[15m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: enrichment
+          service: model_zoo
+        annotations:
+          summary: 'CRITICAL priority model evicted from Model Zoo'
+          description: 'A CRITICAL priority model (threat detection) was evicted. This should be rare and may indicate severe VRAM pressure.'
+
+      # Warning: Model load time slow (P95 > 30s)
+      - alert: EnrichmentModelLoadTimeSlow
+        expr: |
+          histogram_quantile(0.95, rate(enrichment_model_load_time_seconds_bucket[10m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          component: enrichment
+          service: model_zoo
+        annotations:
+          summary: 'Enrichment Model Zoo model load times are slow'
+          description: 'P95 model load time is {{ $value | printf "%.1f" }}s. This may indicate I/O bottlenecks or GPU memory fragmentation.'
+
+      # Info: No models loaded (may be expected during low activity)
+      - alert: EnrichmentNoModelsLoaded
+        expr: enrichment_models_loaded == 0
+        for: 30m
+        labels:
+          severity: info
+          component: enrichment
+          service: model_zoo
+        annotations:
+          summary: 'No models loaded in Enrichment Model Zoo'
+          description: 'No models have been loaded in the Model Zoo for 30 minutes. This may be expected during low activity periods.'
+
+  # =============================================================================
   # Database and Cache Cascade Alerts
   # =============================================================================
   # Monitor for database/cache cascade failures that could bring down the system.

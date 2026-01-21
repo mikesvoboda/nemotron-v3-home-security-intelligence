@@ -69,10 +69,17 @@ from backend.core.telemetry import add_span_attributes, get_tracer, record_excep
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
-from backend.services.batch_fetch import batch_fetch_detections
-from backend.services.cache_service import get_cache_service
-from backend.services.context_enricher import ContextEnricher, EnrichedContext, get_context_enricher
-from backend.services.cost_tracker import get_cost_tracker
+
+# Service facade for reduced coupling (NEM-3150)
+# Instead of importing 8+ services directly, we use a facade that aggregates
+# commonly-used service operations. Direct imports are kept only for:
+# 1. Type hints needed in method signatures
+# 2. Constants/enums that are part of the public API
+from backend.services.analyzer_facade import (
+    AnalyzerServiceFacade,
+    get_analyzer_facade,
+)
+from backend.services.context_enricher import ContextEnricher, EnrichedContext
 from backend.services.enrichment_pipeline import (
     BoundingBox,
     DetectionInput,
@@ -80,11 +87,8 @@ from backend.services.enrichment_pipeline import (
     EnrichmentResult,
     EnrichmentStatus,
     EnrichmentTrackingResult,
-    get_enrichment_pipeline,
 )
-from backend.services.household_matcher import HouseholdMatch, get_household_matcher
-from backend.services.inference_semaphore import get_inference_semaphore
-from backend.services.prompt_auto_tuner import get_prompt_auto_tuner
+from backend.services.household_matcher import HouseholdMatch
 from backend.services.prompt_sanitizer import (
     sanitize_camera_name,
     sanitize_detection_description,
@@ -158,6 +162,7 @@ class NemotronAnalyzer:
         use_enriched_context: bool = True,
         use_enrichment_pipeline: bool = True,
         max_retries: int | None = None,
+        service_facade: AnalyzerServiceFacade | None = None,
     ):
         """Initialize Nemotron analyzer with Redis client.
 
@@ -165,16 +170,19 @@ class NemotronAnalyzer:
             redis_client: Redis client instance for queue and cache operations.
             context_enricher: Optional context enricher for enhanced prompts.
                 If not provided and use_enriched_context is True, will use the
-                global singleton.
+                global singleton via the service facade.
             enrichment_pipeline: Optional enrichment pipeline for license plates,
                 faces, and OCR. If not provided and use_enrichment_pipeline is True,
-                will use the global singleton.
+                will use the global singleton via the service facade.
             use_enriched_context: Whether to use enriched context in prompts.
                 Set to False for basic analysis without zone/baseline data.
             use_enrichment_pipeline: Whether to run the enrichment pipeline for
                 license plates and faces. Set to False to skip this step.
             max_retries: Maximum retry attempts for transient LLM failures.
                 If not provided, uses NEMOTRON_MAX_RETRIES from settings (default: 3).
+            service_facade: Optional service facade for accessing dependent services.
+                If not provided, uses the global singleton. Passing a custom facade
+                simplifies testing by providing a single mock target (NEM-3150).
         """
         self._redis = redis_client
         settings = get_settings()
@@ -199,6 +207,9 @@ class NemotronAnalyzer:
         self._use_enrichment_pipeline = use_enrichment_pipeline
         self._context_enricher = context_enricher
         self._enrichment_pipeline = enrichment_pipeline
+        # Service facade for reduced coupling (NEM-3150)
+        # Provides access to cache, cost tracking, inference semaphore, etc.
+        self._facade = service_facade
         # Retry configuration (NEM-1343)
         self._max_retries = (
             max_retries if max_retries is not None else settings.nemotron_max_retries
@@ -548,24 +559,37 @@ class NemotronAnalyzer:
             },
         )
 
+    def _get_facade(self) -> AnalyzerServiceFacade:
+        """Get the service facade, creating global singleton if needed.
+
+        The facade aggregates access to multiple dependent services (NEM-3150),
+        reducing direct imports from 8+ to 2-3.
+
+        Returns:
+            AnalyzerServiceFacade instance
+        """
+        if self._facade is None:
+            self._facade = get_analyzer_facade()
+        return self._facade
+
     def _get_context_enricher(self) -> ContextEnricher:
-        """Get the context enricher, creating global singleton if needed.
+        """Get the context enricher, using facade for lazy loading.
 
         Returns:
             ContextEnricher instance
         """
         if self._context_enricher is None:
-            self._context_enricher = get_context_enricher()
+            self._context_enricher = self._get_facade().get_context_enricher()
         return self._context_enricher
 
     def _get_enrichment_pipeline(self) -> EnrichmentPipeline:
-        """Get the enrichment pipeline, creating global singleton if needed.
+        """Get the enrichment pipeline, using facade for lazy loading.
 
         Returns:
             EnrichmentPipeline instance
         """
         if self._enrichment_pipeline is None:
-            self._enrichment_pipeline = get_enrichment_pipeline()
+            self._enrichment_pipeline = self._get_facade().get_enrichment_pipeline()
         return self._enrichment_pipeline
 
     # =========================================================================
@@ -916,8 +940,8 @@ class NemotronAnalyzer:
         if enrichment_result is None:
             return ""
 
-        # Get the household matcher singleton
-        matcher = get_household_matcher()
+        # Get the household matcher via facade (NEM-3150)
+        matcher = self._get_facade().get_household_matcher()
 
         # Use a new session for household matching queries
         async with get_session() as session:
@@ -1347,8 +1371,8 @@ class NemotronAnalyzer:
             else:
                 camera_name = camera.name
 
-            # Use batch fetching to handle large detection lists efficiently
-            detections = await batch_fetch_detections(session, int_detection_ids)
+            # Use batch fetching via facade to handle large detection lists efficiently
+            detections = await self._get_facade().fetch_detections(session, int_detection_ids)
 
             if not detections:
                 logger.warning(
@@ -1379,7 +1403,7 @@ class NemotronAnalyzer:
             # This provides insights from self-evaluation to improve prompt quality
             auto_tuning_context = ""
             try:
-                auto_tuner = get_prompt_auto_tuner()
+                auto_tuner = self._get_facade().get_prompt_auto_tuner()
                 auto_tuning_context = await auto_tuner.get_tuning_context(
                     session=session,
                     camera_id=camera_id,
@@ -1658,7 +1682,7 @@ class NemotronAnalyzer:
 
         # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
         try:
-            cache = await get_cache_service()
+            cache = await self._get_facade().get_cache_service()
             await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_CREATED)
         except Exception as e:
             logger.warning(
@@ -2001,7 +2025,7 @@ class NemotronAnalyzer:
 
         # Invalidate event stats cache so stats endpoints return fresh data (NEM-1682)
         try:
-            cache = await get_cache_service()
+            cache = await self._get_facade().get_cache_service()
             await cache.invalidate_event_stats(reason=CacheInvalidationReason.EVENT_CREATED)
         except Exception as e:
             logger.warning(
@@ -2074,9 +2098,8 @@ class NemotronAnalyzer:
         if not detections:
             return None
 
-        pipeline = self._get_enrichment_pipeline()
-
         # Convert Detection models to DetectionInput format
+        # Build input list BEFORE creating pipeline to avoid unnecessary pipeline creation
         detection_inputs: list[DetectionInput] = []
         from pathlib import Path
 
@@ -2123,6 +2146,9 @@ class NemotronAnalyzer:
         # This enables vision extraction, scene change detection, and re-id
         if detections and detections[0].file_path:
             images[None] = detections[0].file_path
+
+        # Now that we know we have valid inputs, get the pipeline
+        pipeline = self._get_enrichment_pipeline()
 
         # Run the enrichment pipeline with tracking for partial failure visibility
         tracking_result = await pipeline.enrich_batch_with_tracking(
@@ -2468,9 +2494,9 @@ class NemotronAnalyzer:
         headers = {"Content-Type": "application/json"}
         headers.update(self._get_auth_headers())
 
-        # Acquire shared AI inference semaphore (NEM-1463)
+        # Acquire shared AI inference semaphore via facade (NEM-1463, NEM-3150)
         # This limits concurrent AI operations to prevent GPU/service overload
-        inference_semaphore = get_inference_semaphore()
+        inference_semaphore = self._get_facade().get_inference_semaphore()
 
         # Retry loop with exponential backoff for transient failures
         last_exception: Exception | None = None
@@ -2525,8 +2551,8 @@ class NemotronAnalyzer:
                             else None,
                         )
 
-                        # Record cost tracking metrics (NEM-1673)
-                        cost_tracker = get_cost_tracker()
+                        # Record cost tracking metrics via facade (NEM-1673, NEM-3150)
+                        cost_tracker = self._get_facade().get_cost_tracker()
                         cost_tracker.track_llm_usage(
                             input_tokens=input_tokens,
                             output_tokens=output_tokens,

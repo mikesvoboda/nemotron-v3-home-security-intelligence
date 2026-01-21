@@ -8,6 +8,11 @@ from .ai_services import (
 )
 from .alert_dedup import AlertDeduplicationService, DedupResult, build_dedup_key
 from .alert_engine import AlertRuleEngine, EvaluationResult, TriggeredRule, get_alert_engine
+from .analyzer_facade import (
+    AnalyzerServiceFacade,
+    get_analyzer_facade,
+    reset_analyzer_facade,
+)
 from .audit import (
     AuditService,
     audit_service,
@@ -343,6 +348,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "OCRService",
     "PlateDetectorService",
     "YOLOWorldService",
+    # Classes - Facades
+    "AnalyzerServiceFacade",
     # Classes
     "PipelineQualityAuditService",
     "AlertDeduplicationService",
@@ -485,6 +492,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "detect_plates",
     "detection_in_zone",
     "get_alert_engine",
+    "get_analyzer_facade",
     "get_available_models",
     "get_background_evaluator",
     "get_baseline_service",
@@ -532,6 +540,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "read_plates",
     "read_single_plate",
     "refresh_event_search_vector",
+    "reset_analyzer_facade",
     "reset_background_evaluator",
     "reset_baseline_service",
     "reset_cache_service",

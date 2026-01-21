@@ -8,6 +8,7 @@ Tests cover:
 - Thread safety with concurrent access
 - Status reporting and monitoring
 - Idle model cleanup
+- Prometheus metrics for VRAM monitoring (NEM-3149)
 """
 
 from __future__ import annotations
@@ -19,6 +20,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from ai.enrichment.model_manager import (
+    ENRICHMENT_MODEL_EVICTIONS_TOTAL,
+    ENRICHMENT_MODEL_LOAD_TIME_SECONDS,
+    ENRICHMENT_MODELS_LOADED,
+    ENRICHMENT_VRAM_BUDGET_BYTES,
+    ENRICHMENT_VRAM_USAGE_BYTES,
+    ENRICHMENT_VRAM_UTILIZATION_PERCENT,
     ModelConfig,
     ModelInfo,
     ModelPriority,
@@ -650,3 +657,174 @@ class TestCUDAIntegration:
         ):
             await manager.unload_model("test-model")
             mock_empty_cache.assert_not_called()
+
+
+# =============================================================================
+# Prometheus Metrics Tests (NEM-3149)
+# =============================================================================
+
+
+class TestPrometheusMetrics:
+    """Tests for Prometheus metrics tracking VRAM usage and model evictions."""
+
+    def test_budget_metric_set_on_init(self) -> None:
+        """VRAM budget metric is set when manager is initialized."""
+        # Create manager - triggers budget metric to be set (side effect)
+        _manager = OnDemandModelManager(vram_budget_gb=2.0)
+
+        # 2GB = 2 * 1024 * 1024 * 1024 bytes = 2147483648 bytes
+        expected_budget_bytes = 2.0 * 1024 * 1024 * 1024
+        assert ENRICHMENT_VRAM_BUDGET_BYTES._value.get() == expected_budget_bytes
+
+        # Cleanup - create new manager with different budget to reset
+        _ = OnDemandModelManager(vram_budget_gb=6.8)
+
+    @pytest.mark.asyncio
+    async def test_vram_usage_metric_updated_on_load(self) -> None:
+        """VRAM usage metrics are updated when models are loaded."""
+        manager = OnDemandModelManager(vram_budget_gb=1.0)
+        config = create_model_config("metrics-test-load", 500)
+        manager.register_model(config)
+
+        # Initially no models loaded
+        initial_usage = ENRICHMENT_VRAM_USAGE_BYTES._value.get()
+        initial_loaded = ENRICHMENT_MODELS_LOADED._value.get()
+
+        await manager.get_model("metrics-test-load")
+
+        # After loading, usage should increase by 500MB
+        # 500 MB = 500 * 1024 * 1024 bytes = 524288000 bytes
+        new_usage = ENRICHMENT_VRAM_USAGE_BYTES._value.get()
+        new_loaded = ENRICHMENT_MODELS_LOADED._value.get()
+
+        # The difference should be 500MB in bytes
+        assert new_usage == initial_usage + (500 * 1024 * 1024)
+        assert new_loaded == initial_loaded + 1
+
+        # Cleanup
+        await manager.unload_all()
+
+    @pytest.mark.asyncio
+    async def test_vram_utilization_metric(self) -> None:
+        """VRAM utilization percentage is correctly calculated."""
+        manager = OnDemandModelManager(vram_budget_gb=1.0)  # 1GB = 1024 MB budget
+        config = create_model_config("metrics-test-util", 512)  # 512 MB = 50%
+        manager.register_model(config)
+
+        await manager.get_model("metrics-test-util")
+
+        utilization = ENRICHMENT_VRAM_UTILIZATION_PERCENT._value.get()
+        # 512 / 1024 * 100 = 50%
+        assert utilization == 50.0
+
+        # Cleanup
+        await manager.unload_all()
+
+    @pytest.mark.asyncio
+    async def test_vram_usage_metric_updated_on_unload(self) -> None:
+        """VRAM usage metrics are updated when models are unloaded."""
+        manager = OnDemandModelManager(vram_budget_gb=1.0)
+        config = create_model_config("metrics-test-unload", 300)
+        manager.register_model(config)
+
+        await manager.get_model("metrics-test-unload")
+        usage_after_load = ENRICHMENT_VRAM_USAGE_BYTES._value.get()
+        loaded_after_load = ENRICHMENT_MODELS_LOADED._value.get()
+
+        await manager.unload_model("metrics-test-unload")
+        usage_after_unload = ENRICHMENT_VRAM_USAGE_BYTES._value.get()
+        loaded_after_unload = ENRICHMENT_MODELS_LOADED._value.get()
+
+        # Usage should decrease by 300MB
+        assert usage_after_unload == usage_after_load - (300 * 1024 * 1024)
+        assert loaded_after_unload == loaded_after_load - 1
+
+    @pytest.mark.asyncio
+    async def test_eviction_counter_incremented(self) -> None:
+        """Eviction counter is incremented when models are evicted."""
+        # Use small budget to force eviction
+        manager = OnDemandModelManager(vram_budget_gb=0.5)  # 512 MB budget
+
+        config1 = create_model_config("evict-test-1", 300, ModelPriority.LOW)
+        config2 = create_model_config("evict-test-2", 300, ModelPriority.MEDIUM)
+        manager.register_model(config1)
+        manager.register_model(config2)
+
+        # Get initial eviction count for model1
+        initial_evictions = ENRICHMENT_MODEL_EVICTIONS_TOTAL.labels(
+            model_name="evict-test-1",
+            priority="LOW",
+        )._value.get()
+
+        # Load model1
+        await manager.get_model("evict-test-1")
+        assert manager.is_loaded("evict-test-1")
+
+        # Loading model2 should evict model1 (300 + 300 = 600 > 512)
+        await manager.get_model("evict-test-2")
+
+        # Model1 should be evicted
+        assert not manager.is_loaded("evict-test-1")
+
+        # Eviction counter for model1 should be incremented
+        new_evictions = ENRICHMENT_MODEL_EVICTIONS_TOTAL.labels(
+            model_name="evict-test-1",
+            priority="LOW",
+        )._value.get()
+        assert new_evictions == initial_evictions + 1
+
+        # Cleanup
+        await manager.unload_all()
+
+    @pytest.mark.asyncio
+    async def test_load_time_histogram_recorded(self) -> None:
+        """Model load time is recorded in histogram."""
+        manager = OnDemandModelManager(vram_budget_gb=1.0)
+
+        # Create config with small delay to ensure measurable load time
+        config = create_model_config("load-time-test", 200, load_delay=0.05)
+        manager.register_model(config)
+
+        # Get initial histogram sum for this model (histogram _sum is a float, not a Value)
+        histogram = ENRICHMENT_MODEL_LOAD_TIME_SECONDS.labels(model_name="load-time-test")
+        initial_sum = histogram._sum.get()
+
+        await manager.get_model("load-time-test")
+
+        # Histogram sum should have increased
+        new_sum = histogram._sum.get()
+        assert new_sum > initial_sum
+        # The load time should be at least the delay we added
+        assert new_sum >= initial_sum + 0.05
+
+        # Cleanup
+        await manager.unload_all()
+
+    @pytest.mark.asyncio
+    async def test_models_loaded_gauge_accuracy(self) -> None:
+        """Models loaded gauge accurately reflects loaded model count."""
+        manager = OnDemandModelManager(vram_budget_gb=2.0)  # Large budget
+
+        config1 = create_model_config("gauge-test-1", 100)
+        config2 = create_model_config("gauge-test-2", 100)
+        config3 = create_model_config("gauge-test-3", 100)
+        manager.register_model(config1)
+        manager.register_model(config2)
+        manager.register_model(config3)
+
+        # Load models one by one and check gauge
+        initial = ENRICHMENT_MODELS_LOADED._value.get()
+
+        await manager.get_model("gauge-test-1")
+        assert ENRICHMENT_MODELS_LOADED._value.get() == initial + 1
+
+        await manager.get_model("gauge-test-2")
+        assert ENRICHMENT_MODELS_LOADED._value.get() == initial + 2
+
+        await manager.get_model("gauge-test-3")
+        assert ENRICHMENT_MODELS_LOADED._value.get() == initial + 3
+
+        # Unload all
+        await manager.unload_all()
+        # Gauge should be back to initial
+        assert ENRICHMENT_MODELS_LOADED._value.get() == initial

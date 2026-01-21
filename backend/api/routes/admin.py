@@ -17,7 +17,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
 from backend.core.database import get_db
+from backend.core.dependencies import get_redis_dependency
 from backend.core.logging import get_logger
+from backend.core.redis import RedisClient
 from backend.models.audit import AuditAction, AuditStatus
 from backend.models.camera import Camera
 from backend.models.detection import Detection
@@ -1006,4 +1008,301 @@ async def seed_pipeline_latency(
         stages_seeded=stages_seeded,
         time_span_hours=request.time_span_hours,
         message=f"Seeded {request.num_samples} samples per stage across {request.time_span_hours} hours",
+    )
+
+
+# --- Maintenance Action Schemas ---
+
+
+class ClearCacheResponse(BaseModel):
+    """Response schema for cache clear endpoint."""
+
+    keys_cleared: int
+    cache_types: list[str]
+    duration_seconds: float
+    message: str
+
+
+class FlushQueuesResponse(BaseModel):
+    """Response schema for queue flush endpoint."""
+
+    queues_flushed: list[str]
+    items_cleared: dict[str, int]
+    duration_seconds: float
+    message: str
+
+
+# --- Maintenance Endpoints ---
+
+
+@router.post(
+    "/maintenance/clear-cache",
+    response_model=ClearCacheResponse,
+    responses={
+        200: {"description": "Cache cleared successfully"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def clear_cache(
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    _admin: None = Depends(require_admin_access),
+) -> ClearCacheResponse:
+    """Clear all cached data from Redis.
+
+    Invalidates all cache entries including:
+    - Events cache
+    - Cameras cache
+    - System status cache
+    - Stats cache
+    - Detections cache
+    - Alerts cache
+    - Summaries cache
+
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+
+    Args:
+        http_request: FastAPI request for audit logging
+        db: Database session for audit logging
+        _admin: Admin access validation (via dependency)
+
+    Returns:
+        Summary of cache clear operation
+    """
+    import time
+
+    from backend.services.cache_service import get_cache_service
+
+    start_time = time.time()
+
+    try:
+        cache = await get_cache_service()
+    except Exception as e:
+        logger.error(f"Failed to get cache service: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to connect to cache service: {e}",
+        ) from e
+
+    # Clear all cache types
+    cache_types = []
+    total_keys = 0
+
+    # Invalidate each cache type
+    cache_invalidations = [
+        ("events", cache.invalidate_events),
+        ("event_stats", cache.invalidate_event_stats),
+        ("cameras", cache.invalidate_cameras),
+        ("system", cache.invalidate_system_status),
+        ("alerts", cache.invalidate_alerts),
+        ("detections", cache.invalidate_detections),
+        ("summaries", cache.invalidate_summaries),
+    ]
+
+    for cache_type, invalidate_func in cache_invalidations:
+        try:
+            keys_cleared = await invalidate_func()
+            if keys_cleared > 0:
+                cache_types.append(cache_type)
+                total_keys += keys_cleared
+                logger.info(
+                    f"Cleared {keys_cleared} keys from {cache_type} cache",
+                    extra={"cache_type": cache_type, "keys_cleared": keys_cleared},
+                )
+        except Exception as e:
+            logger.warning(
+                f"Failed to clear {cache_type} cache: {e}",
+                extra={"cache_type": cache_type, "error": str(e)},
+            )
+
+    duration = time.time() - start_time
+
+    # Log to audit trail
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.CLEANUP_EXECUTED,
+            resource_type="cache",
+            actor="admin",
+            details={
+                "operation": "clear_cache",
+                "cache_types": cache_types,
+                "keys_cleared": total_keys,
+                "duration_seconds": round(duration, 3),
+            },
+            request=http_request,
+            status=AuditStatus.SUCCESS,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.CLEANUP_EXECUTED.value,
+                "resource_type": "cache",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    logger.info(
+        "Admin operation: clear_cache",
+        extra={
+            "admin_operation": True,
+            "operation": "clear_cache",
+            "result": {
+                "keys_cleared": total_keys,
+                "cache_types": cache_types,
+                "duration_seconds": round(duration, 3),
+            },
+        },
+    )
+
+    return ClearCacheResponse(
+        keys_cleared=total_keys,
+        cache_types=cache_types,
+        duration_seconds=round(duration, 3),
+        message=f"Cleared {total_keys} cache keys across {len(cache_types)} cache types",
+    )
+
+
+@router.post(
+    "/maintenance/flush-queues",
+    response_model=FlushQueuesResponse,
+    responses={
+        200: {"description": "Queues flushed successfully"},
+        401: {"description": "Unauthorized - Admin API key required"},
+        403: {"description": "Forbidden - Debug mode or admin not enabled"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def flush_queues(
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+    redis: RedisClient = Depends(get_redis_dependency),
+    _admin: None = Depends(require_admin_access),
+) -> FlushQueuesResponse:
+    """Flush all processing queues in Redis.
+
+    Clears the following queues:
+    - Detection queue (incoming detection jobs)
+    - Analysis queue (LLM analysis jobs)
+    - DLQ detection queue (failed detection jobs)
+    - DLQ analysis queue (failed analysis jobs)
+
+    WARNING: This will discard any pending items in the queues.
+    Items will need to be reprocessed from scratch.
+
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+
+    Args:
+        http_request: FastAPI request for audit logging
+        db: Database session for audit logging
+        _admin: Admin access validation (via dependency)
+
+    Returns:
+        Summary of queue flush operation
+    """
+    import time
+
+    from backend.core.constants import (
+        ANALYSIS_QUEUE,
+        DETECTION_QUEUE,
+        DLQ_ANALYSIS_QUEUE,
+        DLQ_DETECTION_QUEUE,
+        get_prefixed_queue_name,
+    )
+
+    start_time = time.time()
+
+    # Define queues to flush (using prefixed names)
+    queue_definitions = [
+        ("detection_queue", get_prefixed_queue_name(DETECTION_QUEUE)),
+        ("analysis_queue", get_prefixed_queue_name(ANALYSIS_QUEUE)),
+        ("dlq_detection_queue", get_prefixed_queue_name(DLQ_DETECTION_QUEUE)),
+        ("dlq_analysis_queue", get_prefixed_queue_name(DLQ_ANALYSIS_QUEUE)),
+    ]
+
+    queues_flushed = []
+    items_cleared: dict[str, int] = {}
+
+    for queue_name, prefixed_name in queue_definitions:
+        try:
+            # Get queue length before clearing
+            queue_len = await redis.get_queue_length(prefixed_name)
+            items_cleared[queue_name] = queue_len
+
+            # Clear the queue
+            if queue_len > 0:
+                cleared = await redis.clear_queue(prefixed_name)
+                if cleared:
+                    queues_flushed.append(queue_name)
+                    logger.info(
+                        f"Flushed {queue_len} items from {queue_name}",
+                        extra={"queue_name": queue_name, "items_cleared": queue_len},
+                    )
+        except Exception as e:
+            logger.warning(
+                f"Failed to flush {queue_name}: {e}",
+                extra={"queue_name": queue_name, "error": str(e)},
+            )
+            items_cleared[queue_name] = 0
+
+    duration = time.time() - start_time
+    total_items = sum(items_cleared.values())
+
+    # Log to audit trail
+    try:
+        await get_db_audit_service().log_action(
+            db=db,
+            action=AuditAction.CLEANUP_EXECUTED,
+            resource_type="queue",
+            actor="admin",
+            details={
+                "operation": "flush_queues",
+                "queues_flushed": queues_flushed,
+                "items_cleared": items_cleared,
+                "total_items": total_items,
+                "duration_seconds": round(duration, 3),
+            },
+            request=http_request,
+            status=AuditStatus.SUCCESS,
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(
+            "Audit log write failed",
+            extra={
+                "action": AuditAction.CLEANUP_EXECUTED.value,
+                "resource_type": "queue",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+        )
+
+    # Use WARNING level since this is a destructive operation
+    logger.warning(
+        "Admin operation: flush_queues (DESTRUCTIVE)",
+        extra={
+            "admin_operation": True,
+            "operation": "flush_queues",
+            "destructive": True,
+            "result": {
+                "queues_flushed": queues_flushed,
+                "items_cleared": items_cleared,
+                "total_items": total_items,
+                "duration_seconds": round(duration, 3),
+            },
+        },
+    )
+
+    return FlushQueuesResponse(
+        queues_flushed=queues_flushed,
+        items_cleared=items_cleared,
+        duration_seconds=round(duration, 3),
+        message=f"Flushed {total_items} items from {len(queues_flushed)} queues",
     )

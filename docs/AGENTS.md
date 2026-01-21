@@ -14,6 +14,7 @@ This directory contains all project documentation organized into role-based hubs
 | `operator/`        | Deployment, monitoring, administration    | [README](operator/README.md)        |
 | `user/`            | End-user dashboard documentation          | [README](user/README.md)            |
 | `reference/`       | Env vars, glossary, troubleshooting       | [README](reference/README.md)       |
+| `deployment/`      | Container orchestration documentation     | [AGENTS.md](deployment/AGENTS.md)   |
 
 ## Directory Structure
 
@@ -116,6 +117,9 @@ docs/
 │   ├── README.md                # UI pages index
 │   └── *.md                     # Page-specific docs
 │
+├── deployment/                  # Container orchestration docs
+│   └── container-orchestration.md  # Startup, health checks, recovery
+│
 └── user/                        # End-user documentation hub
     ├── AGENTS.md                # User docs navigation
     └── README.md                # Hub: Dashboard, alerts, features
@@ -143,6 +147,7 @@ docs/
 ### For Deployment
 
 - **Deployment guide**: `operator/deployment/README.md`
+- **Container orchestration**: `deployment/container-orchestration.md` - Startup sequences, health checks, recovery
 - **Monitoring setup**: `operator/monitoring/README.md`
 - **Configuration**: `operator/admin/README.md`
 
@@ -164,6 +169,7 @@ Each major directory has its own AGENTS.md:
 | `architecture/AGENTS.md`              | System design documents        |
 | `benchmarks/AGENTS.md`                | Performance benchmarks         |
 | `decisions/AGENTS.md`                 | Architectural Decision Records |
+| `deployment/AGENTS.md`                | Container orchestration docs   |
 | `developer/AGENTS.md`                 | Developer documentation        |
 | `developer/api/AGENTS.md`             | API endpoint documentation     |
 | `developer/architecture/AGENTS.md`    | Developer architecture guides  |

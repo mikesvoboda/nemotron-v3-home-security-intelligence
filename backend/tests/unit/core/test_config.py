@@ -11,6 +11,7 @@ def clean_env(monkeypatch):
     """Clean environment variables and settings cache before each test.
 
     Sets DATABASE_URL to a valid test value since it's now required.
+    Sets ENVIRONMENT=development to allow weak test passwords (NEM-3141).
     """
     # Clear all config-related environment variables
     env_vars = [
@@ -30,6 +31,7 @@ def clean_env(monkeypatch):
         "BATCH_IDLE_TIMEOUT_SECONDS",
         "RTDETR_URL",
         "NEMOTRON_URL",
+        "ENVIRONMENT",
     ]
 
     for var in env_vars:
@@ -41,6 +43,10 @@ def clean_env(monkeypatch):
         "DATABASE_URL",
         "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
     )
+
+    # Set ENVIRONMENT to development to allow weak test passwords (NEM-3141).
+    # Production/staging would reject the short "test" password in DATABASE_URL.
+    monkeypatch.setenv("ENVIRONMENT", "development")
 
     # Python 3.14: Pydantic Settings still reads .env after delenv.
     # Set explicit values for all settings that tests rely on having defaults.
@@ -321,8 +327,10 @@ class TestSettingsConfiguration:
         """Test Settings loads from .env file when DATABASE_URL is set."""
         env_file = tmp_path / ".env"
         # Write a test .env file with all required fields
+        # Include ENVIRONMENT=development to allow weak test passwords (NEM-3141)
         env_file.write_text(
             'DATABASE_URL="postgresql+asyncpg://test:test@localhost:5432/test"\n'  # pragma: allowlist secret
+            "ENVIRONMENT=development\n"
             "API_PORT=8888\n"
         )
 
@@ -336,8 +344,10 @@ class TestSettingsConfiguration:
     def test_env_variables_override_env_file(self, tmp_path, monkeypatch):
         """Test environment variables take precedence over .env file."""
         env_file = tmp_path / ".env"
+        # Include ENVIRONMENT=development to allow weak test passwords (NEM-3141)
         env_file.write_text(
             'DATABASE_URL="postgresql+asyncpg://test:test@localhost:5432/test"\n'  # pragma: allowlist secret
+            "ENVIRONMENT=development\n"
             "API_PORT=8888\n"
         )
 
@@ -348,7 +358,7 @@ class TestSettingsConfiguration:
         settings = Settings()
         assert settings.api_port == 9999  # Environment variable wins
 
-    def test_get_settings_caches_instance(self):
+    def test_get_settings_caches_instance(self, clean_env):
         """Test get_settings returns cached Settings instance."""
         get_settings.cache_clear()
         settings1 = get_settings()
@@ -502,3 +512,119 @@ class TestDatabaseConnectionString:
         assert settings.database_url == url_with_params
         assert "ssl=require" in settings.database_url
         assert "connect_timeout=10" in settings.database_url
+
+
+class TestProductionPasswordValidation:
+    """Test production password validation (NEM-3141).
+
+    Ensures weak/default passwords are rejected in production and staging environments.
+    """
+
+    def test_production_rejects_weak_database_password(self, clean_env):
+        """Test that production environment rejects weak database passwords."""
+        clean_env.setenv("ENVIRONMENT", "production")
+        # Use the old hardcoded development password  # pragma: allowlist secret
+        clean_env.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://security:security_dev_password@localhost:5432/security",  # pragma: allowlist secret
+        )
+        get_settings.cache_clear()
+
+        with pytest.raises(ValidationError) as exc_info:
+            Settings()
+
+        assert "weak" in str(exc_info.value).lower() or "password" in str(exc_info.value).lower()
+
+    def test_production_rejects_short_database_password(self, clean_env):
+        """Test that production environment rejects short database passwords."""
+        clean_env.setenv("ENVIRONMENT", "production")
+        # Use a short password (less than 16 chars)
+        clean_env.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://security:short@localhost:5432/security",  # pragma: allowlist secret
+        )
+        get_settings.cache_clear()
+
+        with pytest.raises(ValidationError) as exc_info:
+            Settings()
+
+        assert "weak" in str(exc_info.value).lower() or "password" in str(exc_info.value).lower()
+
+    def test_production_accepts_strong_password(self, clean_env):
+        """Test that production environment accepts strong passwords."""
+        clean_env.setenv("ENVIRONMENT", "production")
+        # Use a strong password (32 chars, unique)
+        clean_env.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://security:a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6@localhost:5432/security",  # pragma: allowlist secret
+        )
+        get_settings.cache_clear()
+
+        # Should not raise
+        settings = Settings()
+        assert settings.environment == "production"
+
+    def test_staging_rejects_weak_password(self, clean_env):
+        """Test that staging environment also rejects weak passwords."""
+        clean_env.setenv("ENVIRONMENT", "staging")
+        clean_env.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://security:password@localhost:5432/security",  # pragma: allowlist secret
+        )
+        get_settings.cache_clear()
+
+        with pytest.raises(ValidationError) as exc_info:
+            Settings()
+
+        assert "weak" in str(exc_info.value).lower() or "password" in str(exc_info.value).lower()
+
+    def test_development_allows_weak_password(self, clean_env):
+        """Test that development environment allows weak passwords."""
+        clean_env.setenv("ENVIRONMENT", "development")
+        # Use the old hardcoded development password  # pragma: allowlist secret
+        clean_env.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://security:security_dev_password@localhost:5432/security",  # pragma: allowlist secret
+        )
+        get_settings.cache_clear()
+
+        # Should not raise in development
+        settings = Settings()
+        assert settings.environment == "development"
+
+    def test_test_environment_allows_weak_password(self, clean_env):
+        """Test that test environment allows weak passwords."""
+        clean_env.setenv("ENVIRONMENT", "test")
+        clean_env.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://security:test@localhost:5432/security",  # pragma: allowlist secret
+        )
+        get_settings.cache_clear()
+
+        # Should not raise in test environment
+        settings = Settings()
+        assert settings.environment == "test"
+
+    def test_production_rejects_common_weak_passwords(self, clean_env):
+        """Test that production rejects various common weak passwords."""
+        weak_passwords = [
+            "password",
+            "postgres",
+            "admin",
+            "root",
+            "123456",
+            "changeme",
+            "secret",
+            "ftp_dev_password",
+        ]
+
+        for weak_pw in weak_passwords:
+            clean_env.setenv("ENVIRONMENT", "production")
+            clean_env.setenv(
+                "DATABASE_URL",
+                f"postgresql+asyncpg://security:{weak_pw}@localhost:5432/security",  # pragma: allowlist secret
+            )
+            get_settings.cache_clear()
+
+            with pytest.raises(ValidationError, match=r"(?i)weak|password"):
+                Settings()

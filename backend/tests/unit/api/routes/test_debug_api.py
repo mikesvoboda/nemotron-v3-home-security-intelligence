@@ -44,19 +44,6 @@ def debug_settings() -> Settings:
     )
 
 
-@pytest.fixture
-def production_settings() -> Settings:
-    """Create settings with debug=False (production mode)."""
-    return Settings(
-        debug=False,
-        database_url=os.environ.get(
-            "DATABASE_URL",
-            "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
-        ),
-        redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379/15"),
-    )
-
-
 async def _mock_redis_none():
     """Mock dependency that yields None."""
     yield None
@@ -301,29 +288,6 @@ class TestLogLevelEndpoint:
 
 class TestDebugEndpointSecurity:
     """Tests for debug endpoint security controls."""
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Debug mode check disabled for local development deployment")
-    async def test_debug_endpoints_require_debug_mode_enabled(
-        self, mock_redis: MagicMock, production_settings: Settings
-    ) -> None:
-        """Verify debug endpoints return 404 when debug=False."""
-
-        async def mock_redis_dependency():
-            yield mock_redis
-
-        with patch("backend.api.routes.debug.get_settings", return_value=production_settings):
-            app.dependency_overrides[get_redis_optional] = mock_redis_dependency
-            try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
-                ) as client:
-                    response = await client.get("/api/debug/pipeline-state")
-
-                # Should return 404 when debug mode is disabled
-                assert response.status_code == 404
-            finally:
-                app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_debug_endpoints_work_when_debug_mode_enabled(

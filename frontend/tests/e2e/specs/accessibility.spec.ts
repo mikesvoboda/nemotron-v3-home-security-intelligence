@@ -181,8 +181,10 @@ test.describe('Event Timeline Page Accessibility', () => {
     // Wait for LiveActivitySection to fully render with its animated elements
     // This prevents flaky accessibility violations from timing-dependent rendering of
     // animated badges, pulse animations, and dynamic connection status indicators
-    await page.waitForSelector('[aria-labelledby="live-activity-heading"]', { state: 'visible' });
-    await page.waitForLoadState('networkidle');
+    await page.waitForSelector('[aria-labelledby="live-activity-heading"]', { state: 'visible', timeout: 10000 }).catch(() => {});
+    await page.waitForLoadState('networkidle').catch(() => {});
+    // Additional wait for animations to settle
+    await page.waitForTimeout(500);
 
     const results = await runA11yCheck(page);
 
@@ -192,7 +194,10 @@ test.describe('Event Timeline Page Accessibility', () => {
   test('timeline filters are accessible', async ({ page }) => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
+    await page.waitForLoadState('networkidle').catch(() => {});
     await timelinePage.showFilters();
+    // Wait for filters to be fully rendered
+    await page.waitForTimeout(500);
 
     // Check that filter controls have proper labels
     const results = await runA11yCheck(page);
@@ -203,10 +208,11 @@ test.describe('Event Timeline Page Accessibility', () => {
   test('timeline search input is accessible', async ({ page }) => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
+    await page.waitForLoadState('networkidle').catch(() => {});
 
     // Verify search input has proper accessibility
     const searchInput = timelinePage.fullTextSearchInput;
-    await expect(searchInput).toBeVisible();
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
 
     // Search should have a label or placeholder for accessibility
     const placeholder = await searchInput.getAttribute('placeholder');

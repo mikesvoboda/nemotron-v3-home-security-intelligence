@@ -10,10 +10,12 @@
  * - Automatic reconnection with exponential backoff
  * - Heartbeat/ping-pong support
  * - Comprehensive logging with message IDs and connection IDs
+ * - Message compression support (NEM-3154)
  */
 
 import { TypedWebSocketEmitter } from './typedEventEmitter';
 import { logger } from '../services/logger';
+import { parseWebSocketMessage } from '../utils/websocketCompression';
 
 import type { WebSocketEventHandler, WebSocketEventKey } from '../types/websocket-events';
 
@@ -80,6 +82,10 @@ export interface ManagedConnection {
   connectionId: string;
   /** Timestamp of the last pong received (for heartbeat timeout detection) */
   lastPongTime: number | null;
+  /** Last received sequence number for gap detection (NEM-3142) */
+  lastReceivedSeq: number;
+  /** Total number of gaps detected for this connection (NEM-3142) */
+  gapCount: number;
 }
 
 /**
@@ -100,9 +106,11 @@ export interface ConnectionConfig {
 
 /**
  * Heartbeat message structure from the server.
+ * Includes lastSeq for gap detection during idle periods (NEM-3142).
  */
 interface HeartbeatMessage {
   type: 'ping';
+  lastSeq?: number;
 }
 
 /**
@@ -185,6 +193,8 @@ class WebSocketManager {
         lastHeartbeat: null,
         connectionId: '',
         lastPongTime: null,
+        lastReceivedSeq: 0,
+        gapCount: 0,
       };
       this.connections.set(url, connection);
       this.configs.set(url, config);
@@ -259,6 +269,8 @@ class WebSocketManager {
     lastHeartbeat: Date | null;
     connectionId: string;
     lastPongTime: number | null;
+    lastReceivedSeq: number;
+    gapCount: number;
   } {
     const connection = this.connections.get(url);
     const config = this.configs.get(url);
@@ -271,6 +283,8 @@ class WebSocketManager {
         lastHeartbeat: null,
         connectionId: '',
         lastPongTime: null,
+        lastReceivedSeq: 0,
+        gapCount: 0,
       };
     }
 
@@ -281,6 +295,8 @@ class WebSocketManager {
       lastHeartbeat: connection.lastHeartbeat,
       connectionId: connection.connectionId,
       lastPongTime: connection.lastPongTime,
+      lastReceivedSeq: connection.lastReceivedSeq,
+      gapCount: connection.gapCount,
     };
   }
 
@@ -362,6 +378,9 @@ class WebSocketManager {
         const previousAttempts = connection.reconnectAttempts;
         connection.reconnectAttempts = 0;
         connection.lastPongTime = Date.now();
+        // Reset sequence tracking on new connection (NEM-3142)
+        connection.lastReceivedSeq = 0;
+        // Note: gapCount is intentionally NOT reset to track total gaps across reconnections
 
         logger.info('WebSocket connected', {
           component: 'WebSocketManager',
@@ -450,74 +469,163 @@ class WebSocketManager {
         });
       };
 
+      // Enable binary message support for compression (NEM-3154)
+      ws.binaryType = 'arraybuffer';
+
       ws.onmessage = (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data as string) as unknown;
+        // Handle message processing (supports both text and compressed binary)
+        const processMessage = async () => {
+          try {
+            // Parse message (handles both text JSON and compressed binary)
+            // NEM-3154: Use parseWebSocketMessage for compression support
+            let data: unknown;
+            const isBinary =
+              event.data instanceof ArrayBuffer || event.data instanceof Blob;
 
-          // Extract message_id and type for logging
-          const messageId =
-            typeof data === 'object' && data !== null && 'message_id' in data
-              ? (data as { message_id: unknown }).message_id
-              : undefined;
-          const messageType =
-            typeof data === 'object' && data !== null && 'type' in data
-              ? (data as { type: unknown }).type
-              : 'unknown';
-          const timestamp =
-            typeof data === 'object' && data !== null && 'timestamp' in data
-              ? (data as { timestamp: number }).timestamp
-              : undefined;
-
-          // Calculate latency if timestamp is provided
-          const latencyMs = timestamp ? Date.now() - timestamp : undefined;
-
-          if (isHeartbeatMessage(data)) {
-            connection.lastHeartbeat = new Date();
-            connection.lastPongTime = Date.now();
-
-            logger.debug('WebSocket heartbeat received', {
-              component: 'WebSocketManager',
-              connection_id: connection.connectionId,
-            });
-
-            if (config.autoRespondToHeartbeat && ws.readyState === WebSocket.OPEN) {
-              const pongMessage: PongMessage = { type: 'pong' };
-              ws.send(JSON.stringify(pongMessage));
-
-              logger.debug('WebSocket heartbeat sent (pong)', {
+            if (isBinary) {
+              // Binary message - potentially compressed (NEM-3154)
+              data = await parseWebSocketMessage(event);
+              logger.debug('WebSocket compressed message decompressed', {
                 component: 'WebSocketManager',
                 connection_id: connection.connectionId,
+                original_size:
+                  event.data instanceof ArrayBuffer
+                    ? event.data.byteLength
+                    : 'blob',
               });
+            } else {
+              // Text message - parse as JSON
+              data = JSON.parse(event.data as string) as unknown;
             }
 
-            connection.subscribers.forEach((subscriber) => {
-              subscriber.onHeartbeat?.();
+            // Extract message_id and type for logging
+            const messageId =
+              typeof data === 'object' && data !== null && 'message_id' in data
+                ? (data as { message_id: unknown }).message_id
+                : undefined;
+            const messageType =
+              typeof data === 'object' && data !== null && 'type' in data
+                ? (data as { type: unknown }).type
+                : 'unknown';
+            const timestamp =
+              typeof data === 'object' && data !== null && 'timestamp' in data
+                ? (data as { timestamp: number }).timestamp
+                : undefined;
+
+            // Calculate latency if timestamp is provided
+            const latencyMs = timestamp ? Date.now() - timestamp : undefined;
+
+            if (isHeartbeatMessage(data)) {
+              connection.lastHeartbeat = new Date();
+              connection.lastPongTime = Date.now();
+
+              // Check lastSeq from heartbeat for gap detection (NEM-3142)
+              const heartbeatLastSeq = data.lastSeq;
+              if (
+                heartbeatLastSeq !== undefined &&
+                heartbeatLastSeq > connection.lastReceivedSeq
+              ) {
+                // Gap detected: server has sent messages we haven't received
+                const gap = heartbeatLastSeq - connection.lastReceivedSeq;
+                connection.gapCount += 1;
+                logger.warn('WebSocket message gap detected via heartbeat', {
+                  component: 'WebSocketManager',
+                  connection_id: connection.connectionId,
+                  expected_seq: connection.lastReceivedSeq + 1,
+                  server_last_seq: heartbeatLastSeq,
+                  missed_messages: gap,
+                  total_gaps: connection.gapCount,
+                });
+                // Update to server's lastSeq to continue tracking from there
+                connection.lastReceivedSeq = heartbeatLastSeq;
+              }
+
+              logger.debug('WebSocket heartbeat received', {
+                component: 'WebSocketManager',
+                connection_id: connection.connectionId,
+                lastSeq: heartbeatLastSeq,
+              });
+
+              if (config.autoRespondToHeartbeat && ws.readyState === WebSocket.OPEN) {
+                const pongMessage: PongMessage = { type: 'pong' };
+                ws.send(JSON.stringify(pongMessage));
+
+                logger.debug('WebSocket heartbeat sent (pong)', {
+                  component: 'WebSocketManager',
+                  connection_id: connection.connectionId,
+                });
+              }
+
+              connection.subscribers.forEach((subscriber) => {
+                subscriber.onHeartbeat?.();
+              });
+
+              return;
+            }
+
+            // Extract and track sequence number for gap detection (NEM-3142)
+            const seq =
+              typeof data === 'object' && data !== null && 'seq' in data
+                ? (data as { seq: number }).seq
+                : undefined;
+
+            if (seq !== undefined) {
+              // Check for gaps in sequence numbers
+              if (connection.lastReceivedSeq > 0 && seq !== connection.lastReceivedSeq + 1) {
+                const expectedSeq = connection.lastReceivedSeq + 1;
+                if (seq > expectedSeq) {
+                  // Gap detected: missed messages
+                  const gap = seq - expectedSeq;
+                  connection.gapCount += 1;
+                  logger.warn('WebSocket message gap detected', {
+                    component: 'WebSocketManager',
+                    connection_id: connection.connectionId,
+                    expected_seq: expectedSeq,
+                    received_seq: seq,
+                    missed_messages: gap,
+                    total_gaps: connection.gapCount,
+                  });
+                } else if (seq < expectedSeq) {
+                  // Out of order or duplicate message
+                  logger.warn('WebSocket message out of order or duplicate', {
+                    component: 'WebSocketManager',
+                    connection_id: connection.connectionId,
+                    expected_seq: expectedSeq,
+                    received_seq: seq,
+                  });
+                }
+              }
+              connection.lastReceivedSeq = seq;
+            }
+
+            logger.debug('WebSocket message received', {
+              component: 'WebSocketManager',
+              connection_id: connection.connectionId,
+              message_id: messageId || 'unknown',
+              type: messageType,
+              latency_ms: latencyMs,
+              seq,
+              compressed: isBinary,
             });
 
-            return;
+            connection.subscribers.forEach((subscriber) => {
+              subscriber.onMessage?.(data);
+            });
+          } catch (error) {
+            logger.debug('WebSocket message received (non-JSON or decompression error)', {
+              component: 'WebSocketManager',
+              connection_id: connection.connectionId,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+
+            connection.subscribers.forEach((subscriber) => {
+              subscriber.onMessage?.(event.data as unknown);
+            });
           }
+        };
 
-          logger.debug('WebSocket message received', {
-            component: 'WebSocketManager',
-            connection_id: connection.connectionId,
-            message_id: messageId || 'unknown',
-            type: messageType,
-            latency_ms: latencyMs,
-          });
-
-          connection.subscribers.forEach((subscriber) => {
-            subscriber.onMessage?.(data);
-          });
-        } catch {
-          logger.debug('WebSocket message received (non-JSON)', {
-            component: 'WebSocketManager',
-            connection_id: connection.connectionId,
-          });
-
-          connection.subscribers.forEach((subscriber) => {
-            subscriber.onMessage?.(event.data as unknown);
-          });
-        }
+        // Execute async processing
+        void processMessage();
       };
     } catch (error) {
       logger.error('WebSocket connection error', {
@@ -623,6 +731,8 @@ export interface TypedSubscription {
     lastHeartbeat: Date | null;
     connectionId: string;
     lastPongTime: number | null;
+    lastReceivedSeq: number;
+    gapCount: number;
   };
 }
 

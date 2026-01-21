@@ -320,12 +320,7 @@ export interface EventsQueryParams {
   object_type?: string;
   limit?: number;
   /**
-   * @deprecated Use cursor parameter instead for better performance with large datasets.
-   */
-  offset?: number;
-  /**
    * Cursor for pagination. Pass the `next_cursor` value from the previous response.
-   * Recommended over offset pagination for better performance.
    */
   cursor?: string;
 }
@@ -336,12 +331,7 @@ export interface EventsQueryParams {
 export interface DetectionQueryParams {
   limit?: number;
   /**
-   * @deprecated Use cursor parameter instead for better performance with large datasets.
-   */
-  offset?: number;
-  /**
    * Cursor for pagination. Pass the `next_cursor` value from the previous response.
-   * Recommended over offset pagination for better performance.
    */
   cursor?: string;
 }
@@ -1690,13 +1680,10 @@ export async function fetchEvents(
     if (params.reviewed !== undefined) queryParams.append('reviewed', String(params.reviewed));
     if (params.object_type) queryParams.append('object_type', params.object_type);
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    // Prefer cursor over offset for pagination
     if (params.cursor) {
       // Validate cursor format before sending to API (NEM-2585)
       validateCursorFormat(params.cursor);
       queryParams.append('cursor', params.cursor);
-    } else if (params.offset !== undefined) {
-      queryParams.append('offset', String(params.offset));
     }
   }
 
@@ -1894,13 +1881,10 @@ export async function fetchEventDetections(
 
   if (params) {
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    // Prefer cursor over offset for pagination
     if (params.cursor) {
       // Validate cursor format before sending to API (NEM-2585)
       validateCursorFormat(params.cursor);
       queryParams.append('cursor', params.cursor);
-    } else if (params.offset !== undefined) {
-      queryParams.append('offset', String(params.offset));
     }
   }
 
@@ -2045,8 +2029,6 @@ export async function fetchDetections(
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
     if (params.cursor) {
       queryParams.append('cursor', params.cursor);
-    } else if (params.offset !== undefined) {
-      queryParams.append('offset', String(params.offset));
     }
   }
 
@@ -2248,7 +2230,8 @@ export interface LogsQueryParams {
   end_date?: string;
   limit?: number;
   /**
-   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   * Page offset for pagination. Use cursor instead for better performance with large datasets.
+   * @deprecated Prefer cursor-based pagination for new code.
    */
   offset?: number;
   /**
@@ -2871,14 +2854,10 @@ export interface EventSearchParams {
   /** Maximum number of results (default 50) */
   limit?: number;
   /**
-   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   * Page offset for pagination. Search uses offset-based pagination
+   * because it doesn't support cursor pagination on the backend.
    */
   offset?: number;
-  /**
-   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
-   * Recommended over offset pagination for better performance.
-   */
-  cursor?: string;
 }
 
 /**
@@ -2913,12 +2892,7 @@ export async function searchEvents(
   if (params.object_type) queryParams.append('object_type', params.object_type);
   if (params.reviewed !== undefined) queryParams.append('reviewed', String(params.reviewed));
   if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-  // Prefer cursor over offset for pagination
-  if (params.cursor) {
-    queryParams.append('cursor', params.cursor);
-  } else if (params.offset !== undefined) {
-    queryParams.append('offset', String(params.offset));
-  }
+  if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
 
   return fetchApi<GeneratedSearchResponse>(`/api/events/search?${queryParams.toString()}`, options);
 }
@@ -3474,7 +3448,8 @@ export interface AuditLogsQueryParams {
   /** Page size (default 100, max 1000) */
   limit?: number;
   /**
-   * @deprecated Use cursor parameter instead for better performance with large datasets.
+   * Page offset for pagination. Use cursor instead for better performance with large datasets.
+   * @deprecated Prefer cursor-based pagination for new code.
    */
   offset?: number;
   /**
@@ -3553,12 +3528,7 @@ export interface AlertRulesQueryParams {
   /** Maximum number of results (default 50) */
   limit?: number;
   /**
-   * @deprecated Use cursor parameter instead for better performance with large datasets.
-   */
-  offset?: number;
-  /**
    * Cursor for pagination. Pass the `next_cursor` value from the previous response.
-   * Recommended over offset pagination for better performance.
    */
   cursor?: string;
 }
@@ -3578,11 +3548,8 @@ export async function fetchAlertRules(
     if (params.enabled !== undefined) queryParams.append('enabled', String(params.enabled));
     if (params.severity) queryParams.append('severity', params.severity);
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    // Prefer cursor over offset for pagination
     if (params.cursor) {
       queryParams.append('cursor', params.cursor);
-    } else if (params.offset !== undefined) {
-      queryParams.append('offset', String(params.offset));
     }
   }
 
@@ -4642,12 +4609,7 @@ export interface EntitiesQueryParams {
   /** Maximum number of results (1-1000, default 50) */
   limit?: number;
   /**
-   * @deprecated Use cursor parameter instead for better performance with large datasets.
-   */
-  offset?: number;
-  /**
    * Cursor for pagination. Pass the `next_cursor` value from the previous response.
-   * Recommended over offset pagination for better performance.
    */
   cursor?: string;
 }
@@ -4673,11 +4635,8 @@ export async function fetchEntities(
     if (params.camera_id) queryParams.append('camera_id', params.camera_id);
     if (params.since) queryParams.append('since', params.since);
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    // Prefer cursor over offset for pagination
     if (params.cursor) {
       queryParams.append('cursor', params.cursor);
-    } else if (params.offset !== undefined) {
-      queryParams.append('offset', String(params.offset));
     }
   }
 
@@ -5106,12 +5065,7 @@ export interface EntityQueryParams {
   /** Maximum number of results (1-1000, default 50) */
   limit?: number;
   /**
-   * @deprecated Use cursor parameter instead for better performance with large datasets.
-   */
-  offset?: number;
-  /**
    * Cursor for pagination. Pass the `next_cursor` value from the previous response.
-   * Recommended over offset pagination for better performance.
    */
   cursor?: string;
 }
@@ -5159,11 +5113,8 @@ export async function fetchTrackedEntities(
   if (params?.limit !== undefined) {
     searchParams.append('limit', String(params.limit));
   }
-  // Prefer cursor over offset for pagination
   if (params?.cursor) {
     searchParams.append('cursor', params.cursor);
-  } else if (params?.offset !== undefined) {
-    searchParams.append('offset', String(params.offset));
   }
 
   const queryString = searchParams.toString();

@@ -261,6 +261,11 @@ def spec_needs_regeneration(project_root: Path, verbose: bool = False) -> tuple[
 
 def get_openapi_spec() -> dict[str, object]:
     """Extract OpenAPI spec from FastAPI app."""
+    # Set ENVIRONMENT to test/development to bypass production password validation.
+    # This is required because importing backend.main instantiates Settings which
+    # validates DATABASE_URL passwords in production mode.
+    os.environ.setdefault("ENVIRONMENT", "test")
+
     from backend.main import app
 
     result: dict[str, object] = app.openapi()

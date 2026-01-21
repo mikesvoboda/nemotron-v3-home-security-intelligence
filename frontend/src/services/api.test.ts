@@ -1635,7 +1635,7 @@ describe('Events API', () => {
         reviewed: false,
         object_type: 'person',
         limit: 25,
-        offset: 10,
+        cursor: 'eyJpZCI6IDEwfQ==',
       };
 
       await fetchEvents(params);
@@ -1652,7 +1652,7 @@ describe('Events API', () => {
       expect(callUrl).toContain('reviewed=false');
       expect(callUrl).toContain('object_type=person');
       expect(callUrl).toContain('limit=25');
-      expect(callUrl).toContain('offset=10');
+      expect(callUrl).toContain('cursor=eyJpZCI6IDEwfQ%3D%3D');
     });
 
     it('fetches events with partial params', async () => {
@@ -1901,11 +1901,11 @@ describe('Detections API', () => {
     it('fetches detections with pagination params', async () => {
       vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockDetectionListResponse));
 
-      await fetchEventDetections(1, { limit: 10, offset: 5 });
+      await fetchEventDetections(1, { limit: 10, cursor: 'eyJpZCI6IDV9' });
 
       const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
       expect(callUrl).toContain('limit=10');
-      expect(callUrl).toContain('offset=5');
+      expect(callUrl).toContain('cursor=eyJpZCI6IDV9');
     });
 
     it('fetches detections with only limit', async () => {

@@ -300,7 +300,7 @@ def mock_nemotron_response():
 @pytest.mark.e2e
 @pytest.mark.asyncio
 @pytest.mark.skip(
-    reason="Test hangs during execution - needs investigation of async await chain. "
+    reason="Test hangs during execution - see NEM-3155 for investigation. "
     "Individual components are tested in other passing tests."
 )
 async def test_complete_pipeline_flow_with_mocked_services(

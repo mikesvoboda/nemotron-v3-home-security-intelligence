@@ -163,7 +163,17 @@ def test_run_quick_mode_returns_config():
 def test_run_quick_mode_accepts_custom_paths():
     """Test run_quick_mode accepts custom path values."""
     # Return custom values for paths, then defaults for everything else
-    inputs = iter(["/custom/cameras", "/custom/models"] + [""] * 20)
+    # Input flow:
+    # 1. Foscam path: "/custom/cameras"
+    # 2. "Create it now?" (dir doesn't exist): "n"
+    # 3. AI models path: "/custom/models"
+    # 4. Database password: "" (uses existing .env default if present, or generated)
+    # 5. If weak password warning: "Use this weak password anyway?": "y"
+    # 6. Redis password: ""
+    # 7. Grafana password: ""
+    # 8. FTP password: ""
+    # 9-23. Port prompts (15 services): "" * 15
+    inputs = iter(["/custom/cameras", "n", "/custom/models", "", "y", "", "", ""] + [""] * 20)
 
     with (
         patch("builtins.input", side_effect=lambda _: next(inputs)),

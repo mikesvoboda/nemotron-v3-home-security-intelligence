@@ -240,7 +240,11 @@ class TestCheckHealth:
             result = await client.check_health()
 
             assert result is True
-            mock_http.get.assert_called_once_with("http://test-clip:8093/health")
+            # NEM-3147: Health check now includes W3C Trace Context headers
+            mock_http.get.assert_called_once()
+            call_args = mock_http.get.call_args
+            assert call_args[0][0] == "http://test-clip:8093/health"
+            assert "headers" in call_args[1]
         finally:
             client._health_http_client = original_client
 

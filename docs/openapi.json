@@ -13,6 +13,107 @@
         "title": "AIModelEnum",
         "type": "string"
       },
+      "AIServiceCircuitState": {
+        "description": "Circuit breaker state for an AI service.\n\nStates:\n- closed: Normal operation, requests pass through\n- open: Service failing, requests fail immediately\n- half_open: Testing recovery, limited requests allowed",
+        "enum": [
+          "closed",
+          "open",
+          "half_open"
+        ],
+        "title": "AIServiceCircuitState",
+        "type": "string"
+      },
+      "AIServiceHealthDetail": {
+        "description": "Detailed health information for a single AI service.\n\nProvides comprehensive status including circuit breaker state,\nerror rates, and latency metrics for monitoring and alerting.",
+        "example": {
+          "circuit_state": "closed",
+          "error_rate_1h": 0.02,
+          "last_health_check": "2026-01-20T12:00:00Z",
+          "latency_p99_ms": 450,
+          "status": "healthy",
+          "url": "http://ai-detector:8090"
+        },
+        "properties": {
+          "circuit_state": {
+            "$ref": "#/components/schemas/AIServiceCircuitState",
+            "default": "closed",
+            "description": "Circuit breaker state for this service"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if service is unhealthy",
+            "title": "Error"
+          },
+          "error_rate_1h": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error rate over the last hour (0.0 to 1.0)",
+            "title": "Error Rate 1H"
+          },
+          "last_health_check": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of the last successful health check",
+            "title": "Last Health Check"
+          },
+          "latency_p99_ms": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "99th percentile latency in milliseconds",
+            "title": "Latency P99 Ms"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AIServiceStatus",
+            "description": "Current health status of the service"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Service URL if configured",
+            "title": "Url"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "AIServiceHealthDetail",
+        "type": "object"
+      },
       "AIServiceHealthStatus": {
         "description": "Health status for an AI service.\n\nIncludes service identification, health state, circuit breaker state,\nand response time metrics.",
         "example": {
@@ -100,6 +201,123 @@
           "status"
         ],
         "title": "AIServiceHealthStatus",
+        "type": "object"
+      },
+      "AIServiceOverallStatus": {
+        "description": "Overall status for the AI services subsystem.\n\nStatuses:\n- healthy: All services are operational\n- degraded: Some services are unhealthy but system is functional\n- critical: Critical services are down, system cannot process requests",
+        "enum": [
+          "healthy",
+          "degraded",
+          "critical"
+        ],
+        "title": "AIServiceOverallStatus",
+        "type": "string"
+      },
+      "AIServiceStatus": {
+        "description": "Health status for an individual AI service.\n\nStatuses:\n- healthy: Service is fully operational\n- unhealthy: Service is down or experiencing critical issues\n- degraded: Service is partially operational\n- unknown: Service status cannot be determined",
+        "enum": [
+          "healthy",
+          "unhealthy",
+          "degraded",
+          "unknown"
+        ],
+        "title": "AIServiceStatus",
+        "type": "string"
+      },
+      "AIServicesHealthResponse": {
+        "description": "Response schema for GET /api/health/ai-services endpoint.\n\nProvides a unified view of all AI service health including:\n- Overall system status (healthy/degraded/critical)\n- Individual service health with circuit breaker states\n- Queue depths for detection and analysis pipelines\n\nHTTP Status Codes:\n- 200: System is healthy or degraded (can still serve traffic)\n- 503: Critical services are unhealthy (should not receive traffic)",
+        "example": {
+          "overall_status": "healthy",
+          "queues": {
+            "analysis_queue": {
+              "depth": 2,
+              "dlq_depth": 0
+            },
+            "detection_queue": {
+              "depth": 5,
+              "dlq_depth": 0
+            }
+          },
+          "services": {
+            "clip": {
+              "circuit_state": "closed",
+              "error_rate_1h": 0.0,
+              "last_health_check": "2026-01-20T12:00:00Z",
+              "latency_p99_ms": 200,
+              "status": "healthy",
+              "url": "http://clip-service:8092"
+            },
+            "enrichment": {
+              "circuit_state": "half_open",
+              "error": "Intermittent connection issues",
+              "error_rate_1h": 0.15,
+              "last_health_check": "2026-01-20T11:55:00Z",
+              "latency_p99_ms": 1200,
+              "status": "degraded",
+              "url": "http://enrichment-service:8093"
+            },
+            "florence": {
+              "circuit_state": "closed",
+              "error_rate_1h": 0.0,
+              "last_health_check": "2026-01-20T12:00:00Z",
+              "latency_p99_ms": 350,
+              "status": "healthy",
+              "url": "http://florence-service:8091"
+            },
+            "nemotron": {
+              "circuit_state": "closed",
+              "error_rate_1h": 0.01,
+              "last_health_check": "2026-01-20T12:00:00Z",
+              "latency_p99_ms": 2500,
+              "status": "healthy",
+              "url": "http://llm-analyzer:8080"
+            },
+            "rtdetr": {
+              "circuit_state": "closed",
+              "error_rate_1h": 0.02,
+              "last_health_check": "2026-01-20T12:00:00Z",
+              "latency_p99_ms": 450,
+              "status": "healthy",
+              "url": "http://ai-detector:8090"
+            }
+          },
+          "timestamp": "2026-01-20T12:00:00Z"
+        },
+        "properties": {
+          "overall_status": {
+            "$ref": "#/components/schemas/AIServiceOverallStatus",
+            "description": "Overall health status of the AI services subsystem"
+          },
+          "queues": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/QueueDepthInfo"
+            },
+            "description": "Queue depth information for processing queues",
+            "title": "Queues",
+            "type": "object"
+          },
+          "services": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AIServiceHealthDetail"
+            },
+            "description": "Health details for each AI service keyed by service name",
+            "title": "Services",
+            "type": "object"
+          },
+          "timestamp": {
+            "description": "Timestamp when this health check was performed",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "overall_status",
+          "services",
+          "queues",
+          "timestamp"
+        ],
+        "title": "AIServicesHealthResponse",
         "type": "object"
       },
       "ActivityBaselineEntry": {
@@ -4516,6 +4734,38 @@
           "timestamp"
         ],
         "title": "CleanupStatusResponse",
+        "type": "object"
+      },
+      "ClearCacheResponse": {
+        "description": "Response schema for cache clear endpoint.",
+        "properties": {
+          "cache_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cache Types",
+            "type": "array"
+          },
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "number"
+          },
+          "keys_cleared": {
+            "title": "Keys Cleared",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "keys_cleared",
+          "cache_types",
+          "duration_seconds",
+          "message"
+        ],
+        "title": "ClearCacheResponse",
         "type": "object"
       },
       "ClearDataRequest": {
@@ -10423,6 +10673,41 @@
           "observer_type"
         ],
         "title": "FileWatcherStatusResponse",
+        "type": "object"
+      },
+      "FlushQueuesResponse": {
+        "description": "Response schema for queue flush endpoint.",
+        "properties": {
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "number"
+          },
+          "items_cleared": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Items Cleared",
+            "type": "object"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "queues_flushed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Queues Flushed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "queues_flushed",
+          "items_cleared",
+          "duration_seconds",
+          "message"
+        ],
+        "title": "FlushQueuesResponse",
         "type": "object"
       },
       "FrontendLogBatchCreate": {
@@ -18190,6 +18475,33 @@
         "title": "QualityScores",
         "type": "object"
       },
+      "QueueDepthInfo": {
+        "description": "Queue depth information for a processing queue.\n\nTracks the number of items in the main queue and the dead letter queue\nfor monitoring backlog and failed processing.",
+        "example": {
+          "depth": 5,
+          "dlq_depth": 0
+        },
+        "properties": {
+          "depth": {
+            "description": "Number of items currently in the queue",
+            "minimum": 0.0,
+            "title": "Depth",
+            "type": "integer"
+          },
+          "dlq_depth": {
+            "default": 0,
+            "description": "Number of items in the dead letter queue",
+            "minimum": 0.0,
+            "title": "Dlq Depth",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "depth"
+        ],
+        "title": "QueueDepthInfo",
+        "type": "object"
+      },
       "QueueDepths": {
         "description": "Queue depth information for pipeline queues.",
         "example": {
@@ -23647,6 +23959,68 @@
           }
         },
         "summary": "Cleanup Orphans",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/maintenance/clear-cache": {
+      "post": {
+        "description": "Clear all cached data from Redis.\n\nInvalidates all cache entries including:\n- Events cache\n- Cameras cache\n- System status cache\n- Stats cache\n- Detections cache\n- Alerts cache\n- Summaries cache\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cache clear operation",
+        "operationId": "clear_cache_api_admin_maintenance_clear_cache_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearCacheResponse"
+                }
+              }
+            },
+            "description": "Cache cleared successfully"
+          },
+          "401": {
+            "description": "Unauthorized - Admin API key required"
+          },
+          "403": {
+            "description": "Forbidden - Debug mode or admin not enabled"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Clear Cache",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/maintenance/flush-queues": {
+      "post": {
+        "description": "Flush all processing queues in Redis.\n\nClears the following queues:\n- Detection queue (incoming detection jobs)\n- Analysis queue (LLM analysis jobs)\n- DLQ detection queue (failed detection jobs)\n- DLQ analysis queue (failed analysis jobs)\n\nWARNING: This will discard any pending items in the queues.\nItems will need to be reprocessed from scratch.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of queue flush operation",
+        "operationId": "flush_queues_api_admin_maintenance_flush_queues_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlushQueuesResponse"
+                }
+              }
+            },
+            "description": "Queues flushed successfully"
+          },
+          "401": {
+            "description": "Unauthorized - Admin API key required"
+          },
+          "403": {
+            "description": "Forbidden - Debug mode or admin not enabled"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Flush Queues",
         "tags": [
           "admin"
         ]
@@ -30865,6 +31239,31 @@
         "summary": "Get feedback statistics",
         "tags": [
           "feedback"
+        ]
+      }
+    },
+    "/api/health/ai-services": {
+      "get": {
+        "description": "Get a unified view of all AI service health including circuit breaker states,\nerror rates, latency metrics, and queue depths.\n\nThe response includes:\n- **overall_status**: healthy/degraded/critical based on service availability\n- **services**: Individual health status for each AI service (rtdetr, nemotron, florence, clip, enrichment)\n- **queues**: Current depth of detection and analysis queues with DLQ counts\n\nHTTP Status Codes:\n- **200**: All services operational or system is degraded but functional\n- **503**: Critical services (rtdetr, nemotron) are unhealthy",
+        "operationId": "get_ai_services_health_api_health_ai_services_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AIServicesHealthResponse"
+                }
+              }
+            },
+            "description": "AI services health status returned"
+          },
+          "503": {
+            "description": "Critical AI services are unhealthy"
+          }
+        },
+        "summary": "Get Unified AI Services Health Status",
+        "tags": [
+          "health"
         ]
       }
     },

@@ -1893,6 +1893,14 @@ async def metrics() -> Response:
 
     Returns metrics in Prometheus text format for scraping.
     Updates GPU metrics gauges before returning.
+
+    Includes VRAM monitoring metrics (NEM-3149):
+    - enrichment_vram_usage_bytes: Current VRAM usage by model manager
+    - enrichment_vram_budget_bytes: Configured VRAM budget
+    - enrichment_vram_utilization_percent: VRAM utilization percentage
+    - enrichment_models_loaded: Number of currently loaded models
+    - enrichment_model_evictions_total: Counter of model evictions by name/priority
+    - enrichment_model_load_time_seconds: Histogram of model load times
     """
     # Update model status gauges from model manager
     if model_manager is not None:
@@ -1901,6 +1909,13 @@ async def metrics() -> Response:
         CLOTHING_MODEL_LOADED.set(1 if model_manager.is_loaded("fashion_clip") else 0)
         DEPTH_MODEL_LOADED.set(1 if model_manager.is_loaded("depth_estimator") else 0)
         POSE_MODEL_LOADED.set(1 if model_manager.is_loaded("pose_analyzer") else 0)
+
+        # Update VRAM metrics to ensure they're current before serving
+        # This calls _update_vram_metrics() which updates:
+        # - enrichment_vram_usage_bytes
+        # - enrichment_vram_utilization_percent
+        # - enrichment_models_loaded
+        model_manager._update_vram_metrics()
     else:
         VEHICLE_MODEL_LOADED.set(0)
         PET_MODEL_LOADED.set(0)

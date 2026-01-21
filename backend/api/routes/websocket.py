@@ -63,6 +63,7 @@ from backend.core.async_context import set_connection_id
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
+from backend.core.websocket.sequence_tracker import get_sequence_tracker
 from backend.core.websocket.subscription_manager import (
     SubscriptionResponse,
     get_subscription_manager,
@@ -229,10 +230,45 @@ async def handle_validated_message(
             await websocket.send_text(error_response.model_dump_json())
 
 
+async def send_sequenced_message(
+    websocket: WebSocket,
+    connection_id: str,
+    message: dict[str, Any],
+) -> bool:
+    """Send a message with a sequence number to a WebSocket client.
+
+    Adds a 'seq' field to the message with the next sequence number for this
+    connection. This enables clients to detect missed messages.
+
+    Args:
+        websocket: The WebSocket connection to send to.
+        connection_id: Unique identifier for this connection (for sequence tracking).
+        message: The message dictionary to send.
+
+    Returns:
+        True if the message was sent successfully, False otherwise.
+
+    Note:
+        The sequence number is added to the message in-place before serialization.
+        Messages are sent as JSON strings.
+    """
+    sequence_tracker = get_sequence_tracker()
+    seq = sequence_tracker.next_sequence(connection_id)
+    message["seq"] = seq
+
+    try:
+        await websocket.send_text(json.dumps(message))
+        return True
+    except Exception as e:
+        logger.debug(f"Failed to send sequenced message (connection likely closed): {e}")
+        return False
+
+
 async def send_heartbeat(
     websocket: WebSocket,
     interval: int,
     stop_event: asyncio.Event,
+    connection_id: str = "",
 ) -> None:
     """Send periodic heartbeat pings to keep the WebSocket connection alive.
 
@@ -240,11 +276,17 @@ async def send_heartbeat(
     keeps connections alive through proxies/load balancers that may have
     idle timeouts.
 
+    Heartbeat messages include the current sequence number (lastSeq) to allow
+    clients to detect message gaps even during idle periods.
+
     Args:
         websocket: The WebSocket connection to send heartbeats on.
         interval: Time in seconds between heartbeat messages.
         stop_event: Event to signal when to stop sending heartbeats.
+        connection_id: Unique identifier for this connection (for sequence tracking).
     """
+    sequence_tracker = get_sequence_tracker()
+
     while not stop_event.is_set():
         try:
             await asyncio.sleep(interval)
@@ -252,8 +294,14 @@ async def send_heartbeat(
                 break
             # Check if connection is still open before sending
             if websocket.client_state == WebSocketState.CONNECTED:
-                await websocket.send_text('{"type":"ping"}')
-                logger.debug("Sent server heartbeat ping to WebSocket client")
+                # Include lastSeq in heartbeat for gap detection (NEM-3142)
+                last_seq = sequence_tracker.get_current_sequence(connection_id)
+                heartbeat_msg = {"type": "ping", "lastSeq": last_seq}
+                await websocket.send_text(json.dumps(heartbeat_msg))
+                logger.debug(
+                    "Sent server heartbeat ping to WebSocket client",
+                    extra={"connection_id": connection_id, "lastSeq": last_seq},
+                )
             else:
                 logger.debug("WebSocket no longer connected, stopping heartbeat")
                 break
@@ -358,18 +406,23 @@ async def websocket_events_endpoint(  # noqa: PLR0912
     # Get subscription manager for event filtering (NEM-2383)
     subscription_manager = get_subscription_manager()
 
+    # Get sequence tracker for message ordering (NEM-3142)
+    sequence_tracker = get_sequence_tracker()
+
     try:
         # Register the WebSocket connection
         await broadcaster.connect(websocket)
         # Register connection with subscription manager (default: receive all events)
         subscription_manager.register_connection(connection_id)
+        # Register connection with sequence tracker, including WebSocket mapping (NEM-3142)
+        sequence_tracker.register_connection(connection_id, websocket)
         logger.info(
             "WebSocket client connected to /ws/events", extra={"connection_id": connection_id}
         )
 
         # Start server-initiated heartbeat task
         heartbeat_task = asyncio.create_task(
-            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop)
+            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop, connection_id)
         )
 
         # Keep the connection alive by waiting for messages
@@ -467,6 +520,8 @@ async def websocket_events_endpoint(  # noqa: PLR0912
         await broadcaster.disconnect(websocket)
         # Clean up subscriptions (NEM-2383)
         subscription_manager.remove_connection(connection_id)
+        # Clean up sequence tracker (NEM-3142)
+        sequence_tracker.remove_connection(connection_id, websocket)
         # Clear connection_id context (NEM-1640)
         set_connection_id(None)
         logger.info(
@@ -573,18 +628,23 @@ async def websocket_system_status(  # noqa: PLR0912
     # Get subscription manager for event filtering (NEM-2383)
     subscription_manager = get_subscription_manager()
 
+    # Get sequence tracker for message ordering (NEM-3142)
+    sequence_tracker = get_sequence_tracker()
+
     try:
         # Add connection to broadcaster
         await broadcaster.connect(websocket)
         # Register connection with subscription manager (default: receive all events)
         subscription_manager.register_connection(connection_id)
+        # Register connection with sequence tracker, including WebSocket mapping (NEM-3142)
+        sequence_tracker.register_connection(connection_id, websocket)
         logger.info(
             "WebSocket client connected to /ws/system", extra={"connection_id": connection_id}
         )
 
         # Start server-initiated heartbeat task
         heartbeat_task = asyncio.create_task(
-            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop)
+            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop, connection_id)
         )
 
         # Keep connection alive and handle messages
@@ -682,6 +742,8 @@ async def websocket_system_status(  # noqa: PLR0912
         await broadcaster.disconnect(websocket)
         # Clean up subscriptions (NEM-2383)
         subscription_manager.remove_connection(connection_id)
+        # Clean up sequence tracker (NEM-3142)
+        sequence_tracker.remove_connection(connection_id, websocket)
         # Clear connection_id context (NEM-1640)
         set_connection_id(None)
         logger.info(
@@ -781,9 +843,14 @@ async def websocket_job_logs(  # noqa: PLR0912
     pubsub = None
     log_listener_task: asyncio.Task[None] | None = None
 
+    # Get sequence tracker for message ordering (NEM-3142)
+    sequence_tracker = get_sequence_tracker()
+
     try:
         # Accept the WebSocket connection
         await websocket.accept()
+        # Register connection with sequence tracker, including WebSocket mapping (NEM-3142)
+        sequence_tracker.register_connection(connection_id, websocket)
         logger.info(
             "WebSocket client connected to /ws/jobs/{job_id}/logs",
             extra={"connection_id": connection_id, "job_id": job_id},
@@ -791,7 +858,7 @@ async def websocket_job_logs(  # noqa: PLR0912
 
         # Start server-initiated heartbeat task
         heartbeat_task = asyncio.create_task(
-            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop)
+            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop, connection_id)
         )
 
         # Subscribe to job logs channel via Redis pub/sub
@@ -937,6 +1004,8 @@ async def websocket_job_logs(  # noqa: PLR0912
                     extra={"connection_id": connection_id, "job_id": job_id},
                 )
 
+        # Clean up sequence tracker (NEM-3142)
+        sequence_tracker.remove_connection(connection_id, websocket)
         # Clear connection_id context
         set_connection_id(None)
         logger.info(
