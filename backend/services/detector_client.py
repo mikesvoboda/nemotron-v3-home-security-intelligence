@@ -1042,7 +1042,7 @@ class DetectorClient:
                         bbox_y = int(bbox["y"])
                         bbox_width = int(bbox["width"])
                         bbox_height = int(bbox["height"])
-                    elif isinstance(bbox, (list, tuple)) and len(bbox) == 4:
+                    elif isinstance(bbox, list | tuple) and len(bbox) == 4:
                         bbox_x = int(bbox[0])
                         bbox_y = int(bbox[1])
                         bbox_width = int(bbox[2])

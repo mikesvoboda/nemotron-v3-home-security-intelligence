@@ -703,7 +703,6 @@ services:
 
   # Pyroscope for continuous profiling (NEM-3097)
   # Custom image with py-spy for Python process profiling
-  # Pyroscope for continuous profiling (NEM-3097)
   # Services push profiles via py-spy when PYROSCOPE_ENABLED=true
   pyroscope:
     image: docker.io/grafana/pyroscope:1.4.0

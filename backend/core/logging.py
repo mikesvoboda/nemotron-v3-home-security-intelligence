@@ -57,7 +57,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse, urlunparse
 
-from pythonjsonlogger.json import JsonFormatter
+from pythonjsonlogger import jsonlogger
 
 from backend.core.config import get_settings
 
@@ -609,7 +609,7 @@ class ContextFilter(logging.Filter):
         return True
 
 
-class CustomJsonFormatter(JsonFormatter):
+class CustomJsonFormatter(jsonlogger.JsonFormatter):
     """Custom JSON formatter with ISO timestamp, trace context, and extra fields.
 
     NEM-1638: Enhanced to include trace_id, span_id, and correlation_id for

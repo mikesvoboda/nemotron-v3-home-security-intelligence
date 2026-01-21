@@ -1197,7 +1197,7 @@ class NemotronAnalyzer:
                     bbox_width = bbox["x2"] - bbox_x
                 if bbox_height is None and "y2" in bbox:
                     bbox_height = bbox["y2"] - bbox_y
-            elif isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
+            elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
                 bbox_x, bbox_y, bbox_width, bbox_height = bbox[:4]
             else:
                 continue
@@ -2880,7 +2880,7 @@ class NemotronAnalyzer:
             if "risk_score" in data:
                 try:
                     score = data["risk_score"]
-                    if isinstance(score, (int, float)):
+                    if isinstance(score, int | float):
                         risk_score = max(0, min(100, int(score)))
                     elif isinstance(score, str):
                         risk_score = max(0, min(100, int(float(score))))

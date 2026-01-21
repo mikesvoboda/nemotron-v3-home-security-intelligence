@@ -254,7 +254,7 @@ class EnrichmentError:
             )
 
         # Handle timeout errors (transient)
-        if isinstance(exc, (httpx.TimeoutException, TimeoutError, asyncio.TimeoutError)):
+        if isinstance(exc, httpx.TimeoutException | TimeoutError | asyncio.TimeoutError):
             return cls(
                 operation=operation,
                 category=ErrorCategory.TIMEOUT,
@@ -305,12 +305,10 @@ class EnrichmentError:
         # Handle AI service unavailable errors (transient)
         if isinstance(
             exc,
-            (
-                AIServiceError,
-                EnrichmentUnavailableError,
-                FlorenceUnavailableError,
-                CLIPUnavailableError,
-            ),
+            AIServiceError
+            | EnrichmentUnavailableError
+            | FlorenceUnavailableError
+            | CLIPUnavailableError,
         ):
             return cls(
                 operation=operation,
@@ -322,7 +320,7 @@ class EnrichmentError:
             )
 
         # Handle parsing errors (permanent)
-        if isinstance(exc, (ValueError, KeyError, TypeError, json.JSONDecodeError)):
+        if isinstance(exc, ValueError | KeyError | TypeError | json.JSONDecodeError):
             return cls(
                 operation=operation,
                 category=ErrorCategory.PARSE_ERROR,
@@ -333,7 +331,7 @@ class EnrichmentError:
             )
 
         # Handle validation errors (permanent)
-        if isinstance(exc, (ValidationError, AttributeError)):
+        if isinstance(exc, ValidationError | AttributeError):
             return cls(
                 operation=operation,
                 category=ErrorCategory.VALIDATION_ERROR,
