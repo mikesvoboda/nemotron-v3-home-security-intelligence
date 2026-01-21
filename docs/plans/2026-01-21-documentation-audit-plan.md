@@ -147,24 +147,81 @@ Each UI doc should meet these criteria:
 
 ### Current Status by Page
 
-| Page Doc | Hero | Screenshot | Overview | Components | Settings | Troubleshooting | Deep Dive |
-|----------|------|------------|----------|------------|----------|-----------------|-----------|
-| dashboard.md | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| timeline.md | ? | ✅ | ? | ? | ? | ? | ? |
-| entities.md | ? | ✅ | ? | ? | ? | ? | ? |
-| alerts.md | ? | ✅ | ? | ? | ? | ? | ? |
-| analytics.md | ? | ✅ | ? | ? | ? | ? | ? |
-| operations.md | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| settings.md | ? | ✅ | ? | ? | ? | ? | ? |
-| jobs.md | ? | ✅ | ? | ? | ? | ? | ? |
-| logs.md | ? | ✅ | ? | ? | ? | ? | ? |
-| audit-log.md | ? | ✅ | ? | ? | ? | ? | ? |
-| ai-audit.md | ? | ? | ? | ? | ? | ? | ? |
-| ai-performance.md | ? | ✅ | ? | ? | ? | ? | ? |
-| zones.md | ? | ? | ? | ? | ? | ? | ? |
-| trash.md | ? | ✅ | ? | ? | ? | ? | ? |
-| **pyroscope.md** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **tracing.md** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Page Doc | Hero | Screenshot | Overview | Components | Settings | Troubleshooting | Deep Dive | Related Code | Mermaid |
+|----------|------|------------|----------|------------|----------|-----------------|-----------|--------------|---------|
+| dashboard.md | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| timeline.md | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| entities.md | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| alerts.md | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| analytics.md | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| operations.md | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| settings.md | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| jobs.md | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| logs.md | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| audit-log.md | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| ai-audit.md | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| ai-performance.md | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| zones.md | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| trash.md | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| pyroscope.md | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| tracing.md | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+### Audit Summary
+
+**Documents with Full Coverage (all criteria met):**
+- dashboard.md
+- timeline.md
+- alerts.md
+- operations.md
+
+**Documents Missing Only Hero Images:**
+- entities.md (also missing Mermaid diagrams)
+- analytics.md (also missing Mermaid diagrams)
+- settings.md (also missing Mermaid diagrams)
+- jobs.md (also missing Mermaid diagrams)
+- logs.md (also missing Mermaid diagrams)
+- audit-log.md (also missing Mermaid diagrams)
+- ai-audit.md (also missing Mermaid diagrams)
+- ai-performance.md (also missing Mermaid diagrams)
+- zones.md (also missing Mermaid diagrams)
+- trash.md (also missing Mermaid diagrams)
+- pyroscope.md (has Mermaid diagram)
+- tracing.md (has Mermaid diagram)
+
+### Priority Recommendations
+
+**Tier 1 - High Priority (Missing Hero Images):**
+All 12 docs below are complete except for AI-generated hero images:
+1. entities.md - Needs hero image
+2. analytics.md - Needs hero image
+3. settings.md - Has hero image already!
+4. jobs.md - Needs hero image
+5. logs.md - Needs hero image
+6. audit-log.md - Needs hero image
+7. ai-audit.md - Needs hero image
+8. ai-performance.md - Needs hero image
+9. zones.md - Needs hero image
+10. trash.md - Needs hero image
+11. pyroscope.md - Needs hero image
+12. tracing.md - Needs hero image
+
+**Tier 2 - Medium Priority (Missing Mermaid Diagrams):**
+These docs would benefit from Mermaid diagrams to visualize workflows:
+1. entities.md - Could use entity re-ID flow diagram
+2. analytics.md - Could use data aggregation flow diagram
+3. jobs.md - Could use job lifecycle state diagram
+4. logs.md - Could use log flow diagram
+5. audit-log.md - Could use audit event flow diagram
+6. ai-audit.md - Could use self-evaluation flow diagram
+7. ai-performance.md - Already has data flow (text-based, could be Mermaid)
+8. zones.md - Could use zone detection flow diagram
+9. trash.md - Could use soft-delete lifecycle diagram
+
+**Key Findings:**
+- pyroscope.md and tracing.md (newly created) are well-documented with screenshots, overviews, components, settings, troubleshooting, technical deep dives, related code, AND Mermaid diagrams
+- The main gap across docs is AI-generated hero images (aesthetic, not functional)
+- All 16 UI page docs have current screenshots
+- All 16 UI page docs have comprehensive content sections
 
 ---
 

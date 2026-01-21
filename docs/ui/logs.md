@@ -2,389 +2,339 @@
 
 ![Logs Screenshot](../images/screenshots/logs.png)
 
-The centralized logging interface for viewing, filtering, and analyzing system logs from both backend services and frontend components.
+Centralized logging dashboard for viewing, filtering, and analyzing system logs via Grafana/Loki.
 
 ## What You're Looking At
 
-The System Logs page provides a unified view of all application logs, helping you monitor system health, debug issues, and track activity across the entire security monitoring platform. It collects logs from:
+The System Logs page provides a unified view of all application logs using the HSI System Logs dashboard embedded from Grafana. Powered by Loki, this page helps you monitor system health, debug issues, and track activity across the entire security monitoring platform.
+
+### Layout Overview
+
+```
++----------------------------------------------------------+
+|  HEADER: FileText Icon | "System Logs" | Action Buttons   |
++----------------------------------------------------------+
+|                                                          |
+|  +----------------------------------------------------+  |
+|  |                                                    |  |
+|  |           GRAFANA DASHBOARD EMBED                  |  |
+|  |                                                    |  |
+|  |  +------------+ +------------+ +------------+      |  |
+|  |  | Log Level  | | Component  | | Time       |      |  |
+|  |  | Filter     | | Filter     | | Range      |      |  |
+|  |  +------------+ +------------+ +------------+      |  |
+|  |                                                    |  |
+|  |  +------------------------------------------+      |  |
+|  |  |                                          |      |  |
+|  |  |           LOG STREAM / TABLE             |      |  |
+|  |  |                                          |      |  |
+|  |  +------------------------------------------+      |  |
+|  |                                                    |  |
+|  +----------------------------------------------------+  |
+|                                                          |
++----------------------------------------------------------+
+```
+
+The page embeds the HSI System Logs dashboard from Grafana, which provides:
+
+- **Log Level Filter** - Filter by severity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- **Component Filter** - Filter by source service or component
+- **Time Range** - Select the time period to view
+- **Log Stream** - Real-time log viewing with LogQL query support
+
+### Log Sources
+
+The centralized logging system collects logs from:
 
 - **Backend API services** - API route handlers, authentication, and request processing
 - **AI detection pipeline** - RT-DETRv2 detection, Nemotron risk analysis, batch aggregation
 - **File watcher** - Camera FTP uploads and image processing
-- **Frontend components** - UI errors, user interactions, and browser events
 - **WebSocket events** - Real-time connection status and broadcast messages
 - **Cleanup services** - Data retention and file management
 
 ## Key Components
 
-### Statistics Cards
+### Header Controls
 
-At the top of the page, four cards provide a quick health overview:
-
-| Card               | Description                                                                                              |
-| ------------------ | -------------------------------------------------------------------------------------------------------- |
-| **Errors Today**   | Count of ERROR-level logs in the past 24 hours. Shows red with "Active" badge when > 0. Click to filter. |
-| **Warnings Today** | Count of WARNING-level logs. Yellow highlight when > 0. Click to filter.                                 |
-| **Total Today**    | Total log entries generated today (all levels).                                                          |
-| **Most Active**    | The component generating the most logs, with entry count.                                                |
-
-Statistics auto-refresh every 30 seconds to keep the dashboard current.
-
-**Interactive filtering:** Click the "Errors Today" or "Warnings Today" cards to filter the logs table to show only that level. Click again to clear the filter. A ring indicator appears around the active filter card.
+| Button | Function |
+|--------|----------|
+| **Open in Grafana** | Opens the full HSI System Logs dashboard in a new tab for advanced features |
+| **Open in Explore** | Opens Grafana Explore with Loki datasource for ad-hoc LogQL queries |
+| **Refresh** | Reloads the embedded dashboard |
 
 ### Log Levels
 
-Logs are categorized by severity level, each with distinct color coding:
+Logs are categorized by severity level:
 
-| Level        | Color                  | Table Icon    | Modal Icon  | Use Case                                                |
-| ------------ | ---------------------- | ------------- | ----------- | ------------------------------------------------------- |
-| **DEBUG**    | Gray                   | Bug           | Code2       | Verbose development information, disabled in production |
-| **INFO**     | Blue                   | Info          | Info        | Normal operations, successful actions                   |
-| **WARNING**  | Yellow/Amber           | AlertTriangle | AlertCircle | Potential issues that don't block operations            |
-| **ERROR**    | Red                    | AlertOctagon  | XCircle     | Failed operations requiring attention                   |
-| **CRITICAL** | Red (solid background) | AlertOctagon  | XCircle     | Severe failures, system instability                     |
+| Level | Color | Use Case |
+|-------|-------|----------|
+| **DEBUG** | Gray | Verbose development information |
+| **INFO** | Blue | Normal operations, successful actions |
+| **WARNING** | Yellow | Potential issues that don't block operations |
+| **ERROR** | Red | Failed operations requiring attention |
+| **CRITICAL** | Red (bold) | Severe failures, system instability |
 
-Note: The table view and detail modal use slightly different icons for visual variety. All icons are from the [Lucide](https://lucide.dev/) icon library.
+### Using LogQL
 
-### Filter Panel
+Loki uses LogQL, a query language similar to PromQL. Common query patterns:
 
-Click "Show Filters" (toggles to "Hide Filters" when expanded) to reveal filtering options:
+**Basic filtering:**
 
-- **Log Level** - Filter by severity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-- **Component** - Filter by source system:
-  - `frontend` - Browser-side logs
-  - `api` - Backend API routes
-  - `user_event` - User interactions
-  - `file_watcher` - Camera file monitoring
-  - `detector` - AI object detection
-  - `aggregator` - Batch processing
-  - `risk_analyzer` - Nemotron AI analysis
-  - `event_broadcaster` - WebSocket events
-  - `gpu_monitor` - GPU health monitoring
-  - `cleanup_service` - Data retention
-- **Camera** - Filter logs related to a specific camera
-- **Start Date / End Date** - Filter by time range
-- **Search** - Full-text search across log messages
+```logql
+{job="hsi-backend"} |= "error"
+```
 
-An "Active" badge appears when any filters are applied. Click "Clear All Filters" to reset.
+**Filter by log level:**
 
-**URL Persistence:** Date range filters are persisted to the URL (via the `logDateRange` query parameter), allowing you to share filtered views or bookmark specific date ranges.
+```logql
+{job="hsi-backend"} | json | level="ERROR"
+```
 
-### Logs Table
+**Search across all services:**
 
-The main table displays log entries with:
+```logql
+{namespace="hsi"} |~ "(?i)detection"
+```
 
-- **Timestamp** - Relative time (e.g., "Just now", "5m ago", "2h ago", "3d ago") or formatted date for logs older than 7 days
-- **Level** - Color-coded severity badge with icon
-- **Component** - Source system in NVIDIA green monospace font (`#76B900`)
-- **Message** - Truncated to 100 characters (click row for full details)
+**Common LogQL Operators:**
 
-Table features:
-
-- Click any row to open the detail modal
-- Results summary shows "Showing X-Y of Z logs"
-- Pagination controls at the bottom (50 logs per page by default)
-- "Page X of Y" indicator with Previous/Next buttons
-- Newest logs appear first (sorted by timestamp descending, then by ID for tie-breaking)
-- Empty state with helpful information when no logs match filters
-
-### Log Detail Modal
-
-Clicking a log row opens a centered modal (max-width 4xl) with:
-
-**Header Section:**
-
-- Component name as title
-- Full timestamp with date and time
-- Level badge with icon
-- Close button (X) or press Escape
-
-**Message Section:**
-
-- Complete log message without truncation
-
-**Log Details Section:**
-
-- Log ID (unique identifier)
-- Component name
-- Source (backend or frontend)
-- Camera ID (if applicable)
-- Event ID (if linked to a security event)
-- Detection ID (if linked to an AI detection)
-- Request ID (for API request correlation)
-- Duration (in milliseconds, for performance tracking)
-
-**Additional Data Section:**
-
-- Pretty-printed JSON of the `extra` field
-- Contains structured context like stack traces, request details, etc.
-
-**User Agent Section (frontend logs only):**
-
-- Browser/device information for frontend-originated logs
-
-## Settings & Configuration
-
-### Frontend Logger Configuration
-
-The frontend logger (in `frontend/src/services/logger.ts`) can be configured:
-
-| Setting           | Default | Description                               |
-| ----------------- | ------- | ----------------------------------------- |
-| `batchSize`       | 10      | Entries to accumulate before sending      |
-| `flushIntervalMs` | 5000    | Automatic flush interval (5 seconds)      |
-| `maxQueueSize`    | 100     | Maximum queue size before dropping oldest |
-| `enabled`         | true    | Toggle logging on/off                     |
-
-### API Query Parameters
-
-The `/api/logs` endpoint accepts:
-
-| Parameter             | Default | Description                                    |
-| --------------------- | ------- | ---------------------------------------------- |
-| `limit`               | 100     | Results per page (1-1000)                      |
-| `offset`              | 0       | Skip N results (deprecated, use cursor)        |
-| `cursor`              | -       | Cursor-based pagination token                  |
-| `level`               | -       | Filter by log level                            |
-| `component`           | -       | Filter by component name                       |
-| `camera_id`           | -       | Filter by camera                               |
-| `source`              | -       | Filter by source (backend/frontend)            |
-| `search`              | -       | Full-text search in messages                   |
-| `start_date`          | -       | Filter from date (ISO format)                  |
-| `end_date`            | -       | Filter to date (ISO format)                    |
-| `include_total_count` | false   | Calculate total (expensive for large datasets) |
-
-### Database Retention
-
-Logs follow a **7-day retention policy** by default (configurable via `LOG_RETENTION_DAYS` environment variable). This is shorter than the 30-day retention for events and detections due to the higher volume of log data. Older logs are automatically cleaned up by the cleanup service which runs daily at 03:00.
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `\|=` | Contains string | `\|= "error"` |
+| `\|~` | Matches regex | `\|~ "timeout\|failed"` |
+| `!=` | Does not contain | `!= "health"` |
+| `!~` | Does not match regex | `!~ "debug"` |
 
 ## Common Use Cases
 
 ### Troubleshooting a Specific Issue
 
-1. Use the **Search** bar to find logs containing error messages or keywords
-2. Apply **Log Level** filter to show only ERROR and CRITICAL logs
-3. Apply **Date Range** filters to narrow down to when the issue occurred
-4. Click on relevant log entries to view full details and metadata
+1. Click **Open in Explore** to access the full LogQL interface
+2. Use a query like `{job="hsi-backend"} |= "error" | json | line_format "{{.message}}"`
+3. Adjust the time range to cover when the issue occurred
+4. Review matching log entries and their context
 
-### Monitoring a Specific Component
+### Monitoring a Specific Service
 
-1. Click **Show Filters**
-2. Select the component from the **Component** dropdown (e.g., `detector`, `risk_analyzer`)
-3. Optionally set a **Start Date** to view recent activity
-4. Review the log entries to understand component behavior
+1. In the embedded dashboard, use the component/job filter dropdown
+2. Select the service you want to monitor (e.g., `hsi-rtdetr`, `hsi-nemotron`)
+3. Optionally filter by log level to focus on warnings and errors
+
+### Real-time Log Streaming
+
+1. Set the time range to "Last 5 minutes" or similar recent range
+2. Enable auto-refresh (30s is set by default in the dashboard)
+3. Watch logs stream in as they are generated
 
 ### Finding Logs for a Specific Camera
 
-1. Click **Show Filters**
-2. Select the camera from the **Camera** dropdown
-3. The table updates to show only logs related to that camera
-4. Use **Log Level** filter to focus on errors or warnings
+Use LogQL to filter by camera:
 
-### Investigating High Error Counts
+```logql
+{job="hsi-backend"} | json | camera_id="front_door"
+```
 
-1. Check the **Errors Today** card - if it is red with a high count, errors are occurring
-2. Click **Show Filters**
-3. Set **Log Level** to ERROR
-4. Review recent error messages
-5. Click entries to view full details and identify patterns
+### Investigating High Error Rates
 
-### Correlating Logs with Security Events
+1. Click **Open in Explore**
+2. Query error logs: `{namespace="hsi"} | json | level="ERROR"`
+3. Use the log visualization to see error distribution over time
+4. Drill into specific time periods with high error counts
 
-When investigating a security event:
+## Settings & Configuration
 
-1. Note the Event ID from the event detail page
-2. Go to the Logs Dashboard
-3. Use **Search** to find the Event ID
-4. Review all logs associated with that event to understand processing flow
+### Grafana URL
 
----
+The Grafana URL is automatically configured from the backend. If the embedded dashboard fails to load:
 
-## Best Practices
+1. Verify Grafana is running
+2. Check the `grafana_url` config setting
+3. Verify network connectivity
 
-**Regular Monitoring:**
+### Loki Data Source
 
-- Check the **Errors Today** card at the start of each day
-- If errors are present, investigate promptly to prevent cascading issues
+Loki must be configured as a data source in Grafana:
 
-**Proactive Warning Review:**
+```yaml
+# Grafana provisioning (grafana/datasources.yml)
+- name: Loki
+  type: loki
+  url: http://loki:3100
+  access: proxy
+```
 
-- Periodically filter by WARNING level to identify potential issues before they become errors
-- Look for patterns or recurring warnings that might indicate configuration problems
+### Dashboard Auto-Refresh
 
-**Correlation with Events:**
+The embedded dashboard is configured with:
 
-- When reviewing security events, check logs for the same time period
-- Look for errors in the `detector`, `aggregator`, or `risk_analyzer` components that might affect event quality
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Refresh Interval | 30 seconds | How often the dashboard auto-updates |
+| Kiosk Mode | Enabled | Hides Grafana navigation for clean embed |
+| Theme | Dark | Matches the HSI application theme |
 
-**Search Tips:**
+### Retention
 
-- Use specific error messages or exception names when searching
-- Combine search with date range filters to narrow results
-- Use camera IDs or event IDs to trace specific workflows
+Log data retention is configured in Loki:
 
----
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Retention Period | 7 days | How long logs are kept |
+| Compaction | Enabled | Automatic storage optimization |
 
 ## Troubleshooting
 
-### No Logs Appear
+### Dashboard Shows "No Data"
 
-1. **Check time range** - Clear date filters or expand the range
-2. **Verify backend is running** - Check the health indicator in the header
-3. **Check component filter** - Some components may not generate logs frequently
-4. **Database connection** - Verify PostgreSQL is accessible
+1. **Check Loki is running**: `docker ps | grep loki`
+2. **Verify Alloy is collecting logs**: Check Alloy container logs
+3. **Check time range**: Ensure the selected time range has log data
+4. **Verify datasource**: Confirm Loki is configured in Grafana
 
-### Statistics Show Zero
+### Logs are Missing from a Service
 
-1. **Check date boundary** - Stats are calculated from midnight UTC
-2. **Recent deployment** - Logs from previous deployment may have different schema
-3. **Refresh manually** - Stats auto-refresh every 30 seconds
+1. **Check service labels**: Ensure the service has proper job/namespace labels
+2. **Verify Alloy configuration**: Check that the service logs are being scraped
+3. **Check log format**: Ensure logs are in a format Loki can parse
 
-### Search Returns No Results
+### "Failed to load configuration" Error
 
-1. **Check exact spelling** - Search is case-insensitive but partial
-2. **Try shorter terms** - The search uses ILIKE pattern matching
-3. **Clear other filters** - Multiple filters combine with AND logic
+The frontend couldn't fetch the Grafana URL from the backend:
 
-### Frontend Logs Not Appearing
+1. Verify the backend is running
+2. Check network connectivity
+3. The dashboard will use `/grafana` as a fallback
 
-1. **Check browser console** - Logs appear in console first
-2. **Verify network requests** - Look for `/api/logs/frontend/batch` calls
-3. **Check sendBeacon support** - Required for page unload logging
-4. **Flush timer** - Logs batch every 5 seconds by default
+### Embedded Dashboard Doesn't Load
 
-### Log Detail Modal Won't Close
+1. **Check Grafana is accessible**: Navigate directly to the Grafana URL
+2. **Verify dashboard exists**: Check that `hsi-logs` dashboard is provisioned
+3. **Check browser console**: Look for CORS or iframe errors
+4. **Try refreshing**: Click the Refresh button in the header
 
-1. **Press Escape key** - Keyboard shortcut to close
-2. **Click outside modal** - Backdrop click closes the modal
-3. **Click Close button** - Bottom right of the modal
+### LogQL Query Errors
 
-### High Error Count
-
-1. **Click the Errors card** - Filter to show only errors
-2. **Check component distribution** - Identify which system is failing
-3. **Review recent timestamps** - Determine if errors are ongoing
-4. **Check related events** - Use Event ID links to find correlated events
-
----
+1. **Check syntax**: LogQL requires labels in curly braces first
+2. **Escape special characters**: Use backslash for regex special chars
+3. **Use Explore**: The Grafana Explore view provides query hints and autocomplete
 
 ## Technical Deep Dive
 
-For developers wanting to understand the underlying systems.
-
 ### Architecture
 
-- **Log Storage**: [Database Guide](../operator/database.md) - Database setup and the `logs` table with BRIN and GIN indexes
-- **API Implementation**: `backend/api/routes/logs.py` - FastAPI endpoints with cursor pagination
-- **Frontend Logger**: `frontend/src/services/logger.ts` - Batched logging with sendBeacon fallback
+```mermaid
+flowchart LR
+    subgraph Services["Logging Services"]
+        B[Backend]
+        R[RT-DETRv2]
+        N[Nemotron]
+    end
 
-### Data Model
+    subgraph Collection["Log Collection"]
+        A[Alloy]
+        L[Loki]
+    end
 
-The `Log` model (`backend/models/log.py`) stores:
+    subgraph Visualization["Visualization"]
+        G[Grafana]
+        F[Frontend]
+    end
 
-```python
-class Log(Base):
-    __tablename__ = "logs"
+    B -->|stdout/stderr| A
+    R -->|stdout/stderr| A
+    N -->|stdout/stderr| A
+    A -->|push| L
+    L -->|query| G
+    G -->|iframe| F
 
-    id: int                    # Auto-incrementing primary key
-    timestamp: datetime        # When the log was created (with timezone, server default NOW())
-    level: str                 # DEBUG, INFO, WARNING, ERROR, CRITICAL (max 10 chars, CHECK constraint)
-    component: str             # Source component (max 50 chars)
-    message: str               # Log message (TEXT, unlimited storage)
-
-    # Optional metadata for correlation
-    camera_id: str | None      # Related camera (max 100 chars)
-    event_id: int | None       # Related security event (foreign key)
-    request_id: str | None     # API request correlation ID (max 36 chars, UUID format)
-    detection_id: int | None   # Related AI detection (foreign key)
-    duration_ms: int | None    # Operation duration for performance tracking
-    extra: dict | None         # JSONB additional context (stack traces, request details, etc.)
-
-    # Source tracking
-    source: str                # "backend" or "frontend" (max 10 chars, CHECK constraint)
-    user_agent: str | None     # Browser info (frontend logs only, TEXT)
-
-    # Full-text search
-    search_vector: TSVECTOR    # Auto-populated by database trigger
-                               # Combines: message (weight A), component (weight B), level (weight C)
+    style Services fill:#e0f2fe
+    style Collection fill:#fef3c7
+    style Visualization fill:#dcfce7
 ```
 
-The model includes CHECK constraints to ensure `level` and `source` contain valid values only.
+### Data Flow
 
-### Database Indexes
-
-Optimized for common query patterns:
-
-- `idx_logs_timestamp` - Time-based filtering
-- `idx_logs_level` - Level filtering
-- `idx_logs_component` - Component filtering
-- `idx_logs_camera_id` - Camera correlation
-- `idx_logs_source` - Source filtering
-- `ix_logs_timestamp_brin` - BRIN index for time-series queries (compact)
-- `idx_logs_search_vector` - GIN index for full-text search
-
-### API Endpoints
-
-| Endpoint                   | Method | Description                             |
-| -------------------------- | ------ | --------------------------------------- |
-| `/api/logs`                | GET    | List logs with filtering and pagination |
-| `/api/logs/stats`          | GET    | Get daily statistics                    |
-| `/api/logs/{log_id}`       | GET    | Get single log by ID                    |
-| `/api/logs/frontend`       | POST   | Create frontend log entry               |
-| `/api/logs/frontend/batch` | POST   | Create multiple frontend logs (max 100) |
-
-### Frontend Integration
-
-The frontend logger automatically captures:
-
-- **Unhandled errors** via `window.onerror` - captures message, source, line/column numbers, and stack trace
-- **Promise rejections** via `window.onunhandledrejection` - captures rejection reason and stack
-- **Page unload logs** via `beforeunload` event with `navigator.sendBeacon()` for reliable delivery
-- **Visibility changes** via `visibilitychange` event - flushes logs when tab becomes hidden (mobile browsers)
-
-The logger automatically includes the current page URL in all log entries.
-
-Usage in components:
-
-```typescript
-import { logger } from '../../services/logger';
-
-// Global logger (component defaults to 'frontend')
-logger.info('Message', { extra: 'data' });
-logger.error('Error occurred', { stack: error.stack });
-logger.debug('Debug info'); // Also logs to console
-logger.warn('Warning message');
-
-// User events (component set to 'user_event')
-logger.event('button_clicked', { buttonId: 'submit' });
-
-// API errors (component set to 'api')
-logger.apiError('/api/events', 500, 'Internal server error');
-
-// Component-specific logger
-const log = logger.forComponent('MyComponent');
-log.debug('Component mounted');
-log.info('Data loaded', { count: 10 });
-log.warn('Deprecated prop used', { prop: 'oldProp' });
-log.error('Failed to save', { error: err.message });
-```
+1. Services write logs to stdout/stderr
+2. Grafana Alloy collects and labels log streams
+3. Alloy pushes logs to Loki for storage and indexing
+4. Grafana queries Loki for visualization
+5. Frontend embeds Grafana dashboard in iframe
 
 ### Related Code
 
-- Frontend Dashboard: `frontend/src/components/logs/LogsDashboard.tsx`
-- Filters Component: `frontend/src/components/logs/LogFilters.tsx`
-- Table Component: `frontend/src/components/logs/LogsTable.tsx`
-- Detail Modal: `frontend/src/components/logs/LogDetailModal.tsx`
-- Stats Cards: `frontend/src/components/logs/LogStatsCards.tsx`
-- Logger Service: `frontend/src/services/logger.ts`
-- Backend Routes: `backend/api/routes/logs.py`
-- Log Model: `backend/models/log.py`
-- Audit Logger: `backend/services/audit_logger.py`
+**Frontend:**
+- Logs Page: `frontend/src/components/logs/LogsPage.tsx`
+- Grafana URL Utility: `frontend/src/utils/grafanaUrl.ts`
 
-### Performance Considerations
+**Backend:**
+- Configuration: `backend/core/config.py`
 
-1. **Total count disabled by default** - Use `include_total_count=true` only when needed
-2. **Cursor-based pagination** - More efficient than offset for large datasets
-3. **BRIN index** - 1000x smaller than B-tree for time-series queries
-4. **Batch frontend logging** - Single request for multiple entries
-5. **30-second stats refresh** - Balances freshness vs. server load
+**Infrastructure:**
+- Loki Container: `docker-compose.prod.yml` (loki service)
+- Grafana Dashboard: `grafana/dashboards/hsi-logs.json`
+- Alloy Configuration: `alloy/config.alloy`
+
+### Dashboard Configuration
+
+The embedded dashboard URL includes these parameters:
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `orgId` | 1 | Grafana organization ID |
+| `kiosk` | 1 | Hide Grafana navigation |
+| `theme` | dark | Match HSI dark theme |
+| `refresh` | 30s | Auto-refresh interval |
+
+Full URL pattern:
+```
+{grafana_url}/d/hsi-logs/hsi-system-logs?orgId=1&kiosk=1&theme=dark&refresh=30s
+```
+
+## Correlation with Other Observability Tools
+
+### Logs to Traces
+
+When investigating an issue, correlate logs with distributed traces:
+
+1. Find a relevant log entry with a trace ID
+2. Open the [Distributed Tracing](tracing.md) page
+3. Search for the trace ID to see the full request flow
+
+### Logs to Profiling
+
+Correlate logs with continuous profiling data:
+
+1. Note the timestamp of interesting log entries
+2. Open the [Profiling](pyroscope.md) page
+3. Select the same time range to see resource usage patterns
+
+### Logs to Events
+
+Investigate security events through their logs:
+
+1. Note the Event ID from the [Timeline](timeline.md)
+2. Use LogQL to search: `{job="hsi-backend"} |= "event_id=123"`
+3. Review the processing logs for that event
+
+---
+
+## Quick Reference
+
+### When to Use Logs
+
+| Scenario | Query Approach |
+|----------|----------------|
+| Debugging errors | Filter by level=ERROR |
+| Service health | Filter by job/service |
+| Specific event | Search by event ID or correlation ID |
+| Time-based investigation | Set time range, scan chronologically |
+
+### Common Actions
+
+| I want to... | Do this... |
+|--------------|------------|
+| See all errors | `{namespace="hsi"} \| json \| level="ERROR"` |
+| Filter by service | Use job dropdown in dashboard |
+| Advanced queries | Click "Open in Explore" |
+| Full Grafana features | Click "Open in Grafana" |
+| Refresh view | Click the Refresh button |
