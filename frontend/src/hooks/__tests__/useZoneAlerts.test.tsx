@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TrustViolationType } from '../../types/zoneAlert';
 import { AnomalyType, AnomalySeverity } from '../../types/zoneAnomaly';
+import { useWebSocketEvents } from '../useWebSocketEvent';
 import { useZoneAlerts, zoneAlertQueryKeys } from '../useZoneAlerts';
 
 import type { TrustViolationListResponse } from '../../types/zoneAlert';
@@ -19,10 +20,24 @@ declare const global: {
   fetch: typeof fetch;
 };
 
+// Mock useWebSocketEvents with full control
+// Note: We need to define these outside vi.mock to avoid hoisting issues
+let mockWebSocketHandlers: Record<string, (data: unknown) => void> = {};
+let mockIsConnected = true;
+let mockReconnectCount = 0;
 
-// Mock useWebSocketEvents
 vi.mock('../useWebSocketEvent', () => ({
-  useWebSocketEvents: () => ({ isConnected: true }),
+  useWebSocketEvents: vi.fn((handlers: Record<string, (data: unknown) => void>) => {
+    // Store handlers for later invocation in tests
+    mockWebSocketHandlers = { ...handlers };
+    return {
+      isConnected: mockIsConnected,
+      reconnectCount: mockReconnectCount,
+      hasExhaustedRetries: false,
+      lastHeartbeat: null,
+      reconnect: vi.fn(),
+    };
+  }),
 }));
 
 // Mock useToast
@@ -515,5 +530,598 @@ describe('zoneAlertQueryKeys', () => {
     const combinedKey = zoneAlertQueryKeys.combined({ limit: 50 });
     expect(combinedKey).toContain('zone-alerts');
     expect(combinedKey).toContain('combined');
+  });
+});
+
+describe('useZoneAlerts - WebSocket Integration', () => {
+  // Get reference to mocked function
+  const mockUseWebSocketEvents = vi.mocked(useWebSocketEvents);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset mock state
+    mockWebSocketHandlers = {};
+    mockIsConnected = true;
+    mockReconnectCount = 0;
+
+    // Setup default fetch mock
+    global.fetch = mockFetch;
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/zones/anomalies')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            items: [],
+            pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+          }),
+        });
+      }
+      if (url.includes('/zones/trust-violations')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            items: [],
+            pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+          }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } }),
+      });
+    });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('subscribes to WebSocket events when enableRealtime is true', async () => {
+    const { result } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Should have subscribed to both event types
+    expect(mockUseWebSocketEvents).toHaveBeenCalled();
+    const handlerArg = mockUseWebSocketEvents.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(handlerArg).toHaveProperty('zone.anomaly');
+    expect(handlerArg).toHaveProperty('zone.trust_violation');
+  });
+
+  it('does not subscribe to WebSocket events when enableRealtime is false', async () => {
+    renderHook(() => useZoneAlerts({ enableRealtime: false }), {
+      wrapper: createTestWrapper(),
+    });
+
+    // Give time for subscription
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Should have been called with empty handlers object
+    expect(mockUseWebSocketEvents).toHaveBeenCalled();
+    const handlerArg = mockUseWebSocketEvents.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(Object.keys(handlerArg)).toHaveLength(0);
+  });
+
+  it('does not subscribe when enabled is false', async () => {
+    renderHook(() => useZoneAlerts({ enabled: false, enableRealtime: true }), {
+      wrapper: createTestWrapper(),
+    });
+
+    // Give time for subscription
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Should have been called with empty handlers object (enabled gates both queries and websocket)
+    expect(mockUseWebSocketEvents).toHaveBeenCalled();
+    // When enabled is false, the hook passes an empty object to useWebSocketEvents
+    // but useWebSocketEvents itself is gated by the enabled option
+    const optionsArg = mockUseWebSocketEvents.mock.calls[0]?.[1] as { enabled: boolean };
+    expect(optionsArg.enabled).toBe(false);
+  });
+
+  it('handles zone.anomaly WebSocket events and invalidates queries', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0,
+          staleTime: 0,
+        },
+      },
+    });
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { result } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Verify handlers were registered
+    expect(mockWebSocketHandlers['zone.anomaly']).toBeDefined();
+
+    // Simulate receiving a zone.anomaly WebSocket event
+    // Must match ZoneAnomalyEventPayload structure
+    const anomalyEvent = {
+      id: 'anomaly-ws-1',
+      zone_id: 'zone-1',
+      camera_id: 'cam-1',
+      anomaly_type: AnomalyType.UNUSUAL_TIME,
+      severity: AnomalySeverity.CRITICAL,
+      title: 'New critical anomaly',
+      timestamp: '2024-01-15T05:00:00Z',
+    };
+
+    // Clear previous calls
+    invalidateSpy.mockClear();
+
+    await act(async () => {
+      const handler = mockWebSocketHandlers['zone.anomaly'];
+      if (handler) {
+        handler(anomalyEvent);
+      }
+      // Allow async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+
+    // Should have invalidated anomaly queries
+    expect(invalidateSpy).toHaveBeenCalled();
+  });
+
+  it('shows toast for critical anomaly events', async () => {
+    const { result } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Verify handlers were registered
+    expect(mockWebSocketHandlers['zone.anomaly']).toBeDefined();
+
+    // Clear previous toast calls
+    mockToast.error.mockClear();
+
+    // Simulate critical anomaly event
+    // Must match ZoneAnomalyEventPayload structure
+    const criticalEvent = {
+      id: 'anomaly-ws-critical',
+      zone_id: 'zone-1',
+      camera_id: 'cam-1',
+      anomaly_type: AnomalyType.UNUSUAL_TIME,
+      severity: AnomalySeverity.CRITICAL,
+      title: 'Critical Alert',
+      timestamp: '2024-01-15T05:00:00Z',
+    };
+
+    await act(async () => {
+      const handler = mockWebSocketHandlers['zone.anomaly'];
+      if (handler) {
+        handler(criticalEvent);
+      }
+      // Allow async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+
+    // Should show error toast for critical alerts
+    expect(mockToast.error).toHaveBeenCalledWith('Critical Alert: Critical Alert');
+  });
+
+  it('does not show toast for non-critical anomaly events', async () => {
+    const { result } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Simulate warning anomaly event
+    // Must match ZoneAnomalyEventPayload structure
+    const warningEvent = {
+      id: 'anomaly-ws-warning',
+      zone_id: 'zone-1',
+      camera_id: 'cam-1',
+      anomaly_type: AnomalyType.UNUSUAL_FREQUENCY,
+      severity: AnomalySeverity.WARNING,
+      title: 'Warning Alert',
+      timestamp: '2024-01-15T05:00:00Z',
+    };
+
+    act(() => {
+      const handler = mockWebSocketHandlers['zone.anomaly'];
+      if (handler) {
+        handler(warningEvent);
+      }
+    });
+
+    // Give time for potential toast
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Should not show toast for warning alerts
+    expect(mockToast.error).not.toHaveBeenCalled();
+  });
+
+  it('handles zone.trust_violation WebSocket events', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0,
+          staleTime: 0,
+        },
+      },
+    });
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { result } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Simulate trust violation event
+    const violationEvent = {
+      id: 'violation-1',
+      zone_id: 'zone-1',
+      camera_id: 'cam-1',
+      violation_type: TrustViolationType.UNKNOWN_ENTITY,
+      severity: 'critical',
+      title: 'Unknown Entity',
+      description: 'Unknown person detected',
+      entity_id: null,
+      entity_type: 'person',
+      detection_id: null,
+      thumbnail_url: null,
+      acknowledged: false,
+      acknowledged_at: null,
+      acknowledged_by: null,
+      timestamp: '2024-01-15T05:00:00Z',
+      created_at: '2024-01-15T05:00:00Z',
+      updated_at: '2024-01-15T05:00:00Z',
+    };
+
+    act(() => {
+      const handler = mockWebSocketHandlers['zone.trust_violation'];
+      if (handler) {
+        handler(violationEvent);
+      }
+    });
+
+    // Should have invalidated trust violation queries
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalled();
+    });
+  });
+
+  it('shows toast for critical trust violation events', async () => {
+    const { result } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Simulate critical trust violation
+    const criticalViolation = {
+      id: 'violation-1',
+      zone_id: 'zone-1',
+      camera_id: 'cam-1',
+      violation_type: TrustViolationType.UNKNOWN_ENTITY,
+      severity: 'critical',
+      title: 'Unknown Entity Detected',
+      description: 'Unknown person in restricted area',
+      entity_id: null,
+      entity_type: 'person',
+      detection_id: null,
+      thumbnail_url: null,
+      acknowledged: false,
+      acknowledged_at: null,
+      acknowledged_by: null,
+      timestamp: '2024-01-15T05:00:00Z',
+      created_at: '2024-01-15T05:00:00Z',
+      updated_at: '2024-01-15T05:00:00Z',
+    };
+
+    act(() => {
+      const handler = mockWebSocketHandlers['zone.trust_violation'];
+      if (handler) {
+        handler(criticalViolation);
+      }
+    });
+
+    // Should show error toast for critical violations
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith('Security Alert: Unknown Entity Detected');
+    });
+  });
+
+  it('filters WebSocket anomaly events by zones', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0,
+          staleTime: 0,
+        },
+      },
+    });
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { result } = renderHook(
+      () => useZoneAlerts({ zones: ['zone-1'], enableRealtime: true }),
+      {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      }
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Simulate event for different zone
+    // Must match ZoneAnomalyEventPayload structure
+    const otherZoneEvent = {
+      id: 'anomaly-ws-other',
+      zone_id: 'zone-2',
+      camera_id: 'cam-2',
+      anomaly_type: AnomalyType.UNUSUAL_TIME,
+      severity: AnomalySeverity.CRITICAL,
+      title: 'Other zone event',
+      timestamp: '2024-01-15T05:00:00Z',
+    };
+
+    invalidateSpy.mockClear();
+
+    act(() => {
+      const handler = mockWebSocketHandlers['zone.anomaly'];
+      if (handler) {
+        handler(otherZoneEvent);
+      }
+    });
+
+    // Give time for potential invalidation
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Should NOT invalidate queries for other zones
+    expect(invalidateSpy).not.toHaveBeenCalled();
+  });
+
+  it('filters WebSocket trust violation events by zones', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0,
+          staleTime: 0,
+        },
+      },
+    });
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { result } = renderHook(
+      () => useZoneAlerts({ zones: ['zone-1'], enableRealtime: true }),
+      {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      }
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // Simulate violation for different zone
+    const otherZoneViolation = {
+      id: 'violation-1',
+      zone_id: 'zone-2',
+      camera_id: 'cam-2',
+      violation_type: TrustViolationType.UNKNOWN_ENTITY,
+      severity: 'critical',
+      title: 'Other zone violation',
+      description: null,
+      entity_id: null,
+      entity_type: null,
+      detection_id: null,
+      thumbnail_url: null,
+      acknowledged: false,
+      acknowledged_at: null,
+      acknowledged_by: null,
+      timestamp: '2024-01-15T05:00:00Z',
+      created_at: '2024-01-15T05:00:00Z',
+      updated_at: '2024-01-15T05:00:00Z',
+    };
+
+    invalidateSpy.mockClear();
+
+    act(() => {
+      const handler = mockWebSocketHandlers['zone.trust_violation'];
+      if (handler) {
+        handler(otherZoneViolation);
+      }
+    });
+
+    // Give time for potential invalidation
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Should NOT invalidate queries for other zones
+    expect(invalidateSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores invalid anomaly event payloads', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0,
+          staleTime: 0,
+        },
+      },
+    });
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { result } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    invalidateSpy.mockClear();
+
+    // Simulate invalid event payload
+    act(() => {
+      const handler = mockWebSocketHandlers['zone.anomaly'];
+      if (handler) {
+        handler({ invalid: 'payload' });
+      }
+    });
+
+    // Give time for potential processing
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Should not invalidate queries for invalid payloads
+    expect(invalidateSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores invalid trust violation event payloads', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0,
+          staleTime: 0,
+        },
+      },
+    });
+
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { result } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: ({ children }) => (
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      ),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    invalidateSpy.mockClear();
+
+    // Simulate invalid event payload
+    act(() => {
+      const handler = mockWebSocketHandlers['zone.trust_violation'];
+      if (handler) {
+        handler({ invalid: 'payload' });
+      }
+    });
+
+    // Give time for potential processing
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Should not invalidate queries for invalid payloads
+    expect(invalidateSpy).not.toHaveBeenCalled();
+  });
+
+  it('provides isConnected status from WebSocket', async () => {
+    // Set connected state
+    mockIsConnected = true;
+
+    const { result } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isConnected).toBe(true);
+  });
+
+  it('reflects WebSocket disconnected state', async () => {
+    // Set disconnected state
+    mockIsConnected = false;
+
+    const { result } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.isConnected).toBe(false);
+  });
+
+  it('handles WebSocket reconnection attempts', async () => {
+    // Set reconnecting state
+    mockIsConnected = false;
+    mockReconnectCount = 3;
+
+    const { result } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // isConnected should reflect the WebSocket state
+    expect(result.current.isConnected).toBe(false);
+  });
+
+  it('passes connection config to useWebSocketEvents', async () => {
+    renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: createTestWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(mockUseWebSocketEvents).toHaveBeenCalled();
+    });
+
+    // Check the options passed
+    const options = mockUseWebSocketEvents.mock.calls[0]?.[1] as { enabled: boolean };
+    expect(options).toHaveProperty('enabled', true);
+  });
+
+  it('cleans up WebSocket subscription on unmount', async () => {
+    const { unmount } = renderHook(() => useZoneAlerts({ enableRealtime: true }), {
+      wrapper: createTestWrapper(),
+    });
+
+    // Wait for mount
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Unmount the hook
+    unmount();
+
+    // The WebSocket manager should handle cleanup internally
+    // We just verify the hook doesn't throw or leave hanging subscriptions
+    expect(mockUseWebSocketEvents).toHaveBeenCalled();
   });
 });
