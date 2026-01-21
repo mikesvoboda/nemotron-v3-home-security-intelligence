@@ -13,10 +13,19 @@
 
 # =============================================================================
 # Base stage: shared Python setup with build dependencies
-# Uses Python 3.14 (standard build)
-# Note: Free-threaded Python (3.14t) is not yet available in official Docker images.
-# The application will gracefully fall back to GIL-enabled mode.
+#
+# Python Image Options:
+#   Standard (GIL enabled):     python:3.14-slim-bookworm
+#   Free-threaded (no GIL):     ghcr.io/mikesvoboda/python:3.14t-slim-bookworm
+#
+# To enable free-threading, uncomment the GHCR image below and comment out
+# the standard image. The application in backend/core/free_threading.py will
+# automatically detect and utilize free-threading when available.
+#
+# Free-threading benefits: ~4x speedup for CPU-bound multi-threaded workloads
+# Free-threading overhead: ~5-10% slower for single-threaded code
 # =============================================================================
+# FROM ghcr.io/mikesvoboda/python:3.14t-slim-bookworm AS base
 FROM python:3.14-slim-bookworm AS base
 
 # Security labels
