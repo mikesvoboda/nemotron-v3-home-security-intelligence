@@ -291,6 +291,10 @@ ignore = [
     "T201",   # print() ok in tool scripts for CLI output
     "E402",   # module level import not at top ok for sys.path manipulation
 ]
+"backend/evaluation/harness.py" = [
+    "T201",   # print() ok for CLI output in evaluation harness
+    "S311",   # pseudo-random ok for mock data generation (not security-sensitive)
+]
 "scripts/**/*.py" = [
     "SIM102",  # nested ifs more readable in utility scripts
     "S603",    # subprocess call ok in CI/utility scripts (trusted input)
