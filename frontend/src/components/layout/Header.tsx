@@ -11,6 +11,7 @@ import { useStorageStatusStore, CRITICAL_USAGE_THRESHOLD } from '../../stores/st
 import { WebSocketStatus } from '../common';
 import IconButton from '../common/IconButton';
 import SceneChangeAlert from '../common/SceneChangeAlert';
+import { AIServiceStatus } from '../status/AIServiceStatus';
 
 /**
  * Get the dot color class based on health status
@@ -292,6 +293,11 @@ export default function Header() {
           onDismiss={dismissSceneChangeAlert}
           onDismissAll={dismissAllSceneChangeAlerts}
         />
+
+        {/* AI Service Status Badge - hidden on mobile */}
+        <div className="hidden sm:block" data-testid="ai-service-status">
+          <AIServiceStatus compact={true} />
+        </div>
 
         {/* System Health Indicator with Tooltip */}
         <div
