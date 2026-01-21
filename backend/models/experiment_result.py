@@ -15,8 +15,6 @@ This data enables:
 - Statistical analysis of A/B test results
 """
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 from typing import Any
 

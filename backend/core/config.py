@@ -10,6 +10,7 @@ __all__ = [
 ]
 
 import os
+import sys
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,21 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from backend.core.sanitization import URLValidationError, validate_grafana_url
 from backend.core.url_validation import SSRFValidationError
 from backend.core.url_validation import validate_webhook_url as validate_webhook_url_ssrf
+
+
+def _get_default_inference_limit() -> int:
+    """Get default inference limit based on Python capabilities.
+
+    Returns a higher concurrency limit when running on free-threaded Python
+    (3.13t/3.14t with GIL disabled) to leverage true thread parallelism.
+
+    Returns:
+        Default limit: 20 for free-threaded Python, 4 for standard Python.
+    """
+    # Python 3.13+ exposes sys._is_gil_enabled() to check GIL status
+    if hasattr(sys, "_is_gil_enabled") and not sys._is_gil_enabled():
+        return 20  # Higher limit with true parallelism
+    return 4  # Conservative limit with GIL
 
 
 class TranscodeCacheSettings(BaseSettings):
@@ -712,13 +728,14 @@ class Settings(BaseSettings):
     )
 
     # AI service concurrency settings (NEM-1463)
+    # Default dynamically set based on Python runtime (free-threading support)
     ai_max_concurrent_inferences: int = Field(
-        default=4,
+        default_factory=_get_default_inference_limit,
         ge=1,
         le=32,
         description="Maximum concurrent AI inference operations (RT-DETR detection + Nemotron analysis). "
         "Limits GPU/AI service load under high traffic. Set lower for constrained GPU VRAM, "
-        "higher for distributed AI services. Default: 4 concurrent operations.",
+        "higher for distributed AI services. Default: 20 for free-threaded Python, 4 for standard Python.",
     )
 
     context_utilization_warning_threshold: float = Field(
@@ -1222,6 +1239,22 @@ class Settings(BaseSettings):
         ge=1,
         le=10,
         description="Maximum test calls allowed when Florence circuit is half-open",
+    )
+
+    # Redis compression settings (Python 3.14 compression.zstd)
+    redis_compression_enabled: bool = Field(
+        default=True,
+        description="Enable Zstd compression for Redis queue payloads. "
+        "Uses Python 3.14's native compression.zstd module for better compression "
+        "ratio and faster compression/decompression than gzip/zlib.",
+    )
+    redis_compression_threshold: int = Field(
+        default=1024,
+        ge=0,
+        le=1048576,
+        description="Minimum payload size in bytes before compression is applied. "
+        "Payloads smaller than this threshold are stored uncompressed to avoid "
+        "compression overhead. Default: 1024 bytes (1KB). Set to 0 to compress all payloads.",
     )
 
     # Queue settings

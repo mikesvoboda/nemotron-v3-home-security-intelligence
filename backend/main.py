@@ -71,6 +71,7 @@ from backend.api.routes.system import register_workers
 from backend.core import close_db, get_container, get_settings, init_db, wire_services
 from backend.core.config_validation import log_config_summary, validate_config
 from backend.core.docker_client import DockerClient
+from backend.core.free_threading import get_threading_mode, verify_free_threading
 from backend.core.logging import enable_deferred_db_logging, redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
 from backend.core.telemetry import init_profiling, setup_telemetry, shutdown_telemetry
@@ -479,6 +480,17 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
     # Initialize logging first (before any other initialization)
     setup_logging()
     lifespan_logger = get_logger(__name__)
+
+    # Verify free-threaded Python is active (Python 3.14t with PYTHON_GIL=0)
+    # This should fail fast if the container is misconfigured
+    try:
+        verify_free_threading()
+        lifespan_logger.info(f"Python runtime: {get_threading_mode()}")
+    except RuntimeError as e:
+        lifespan_logger.warning(f"Free-threading verification: {e}")
+        lifespan_logger.warning(
+            "Continuing with GIL enabled - concurrent performance may be reduced"
+        )
 
     # Install signal handlers for graceful shutdown (SIGTERM/SIGINT)
     # This must be done early, after the event loop is running

@@ -63,6 +63,8 @@ services:
     ports:
       - '8000:8000'
     environment:
+      # Free-threaded Python: Disable GIL for true parallelism (Python 3.14t)
+      - PYTHON_GIL=0
       - DATABASE_URL=postgresql+asyncpg://security:ci_test_password@postgres:5432/security
       - REDIS_URL=redis://redis:6379
       # AI services are optional for smoke tests - they will show as degraded

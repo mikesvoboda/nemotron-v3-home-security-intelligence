@@ -1507,6 +1507,10 @@ async def test_stop_uses_executor_for_blocking_join(file_watcher):
 
     Bug fix for wa0t.13: The observer.join(timeout=5) call was blocking the
     event loop for up to 5 seconds during shutdown.
+
+    Note: run_in_executor is called twice:
+    1. For observer.join() (blocking filesystem operation)
+    2. For hash_executor.shutdown() (blocking executor shutdown)
     """
     # Start watcher
     with patch.object(file_watcher.observer, "start"):
@@ -1528,8 +1532,9 @@ async def test_stop_uses_executor_for_blocking_join(file_watcher):
         # Verify stop was called
         mock_stop.assert_called_once()
 
-        # Verify run_in_executor was used for join
-        mock_loop.run_in_executor.assert_awaited_once()
+        # Verify run_in_executor was used for blocking operations
+        # Called twice: once for observer.join(), once for hash_executor.shutdown()
+        assert mock_loop.run_in_executor.await_count == 2
 
         # Verify join was NOT called directly (it should be called via executor)
         # The lambda passed to run_in_executor will call join, not the test

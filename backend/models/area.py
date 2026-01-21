@@ -15,8 +15,6 @@ Hierarchy:
 Implements NEM-3129: Phase 5.2 - Create Property and Area models.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -24,10 +22,9 @@ from sqlalchemy import Column, ForeignKey, Index, Integer, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from .camera import Base
+from .camera import Base, Camera
 
 if TYPE_CHECKING:
-    from .camera import Camera
     from .property import Property
 
 # Association table for Camera <-> Area many-to-many relationship

@@ -55,6 +55,7 @@ from watchdog.observers.polling import PollingObserver
 # via the FILE_WATCHER_POLLING environment variable or settings.file_watcher_polling.
 from backend.core.config import get_settings
 from backend.core.constants import DETECTION_QUEUE
+from backend.core.executors import get_cpu_executor, get_executor_type
 from backend.core.logging import get_logger
 from backend.core.metrics import record_pipeline_stage_latency
 from backend.core.redis import QueueOverflowPolicy
@@ -436,14 +437,20 @@ class FileWatcher:
         # Create event handler
         self._event_handler = self._create_event_handler()
 
-        # Log initialization with observer type
+        # Initialize CPU executor for parallel hash computation
+        # Uses InterpreterPoolExecutor on Python 3.14+, ThreadPoolExecutor otherwise
+        self._hash_executor = get_cpu_executor(max_workers=4)
+
+        # Log initialization with observer type and executor info
         observer_type = "polling" if self._use_polling else "native"
         polling_info = f", interval={self._polling_interval}s" if self._use_polling else ""
+        executor_type = get_executor_type()
         logger.info(
             f"FileWatcher initialized for camera root: {self.camera_root} "
             f"(observer={observer_type}{polling_info}, "
             f"dedupe={'enabled' if self._dedupe_service else 'disabled'}, "
-            f"auto_create={'enabled' if auto_create_cameras and camera_creator else 'disabled'})"
+            f"auto_create={'enabled' if auto_create_cameras and camera_creator else 'disabled'}, "
+            f"executor={executor_type})"
         )
 
     def _create_event_handler(self) -> FileSystemEventHandler:
@@ -967,8 +974,9 @@ class FileWatcher:
     async def stop(self) -> None:
         """Stop watching and cleanup resources.
 
-        Cancels all pending debounce tasks and stops the observer.
-        Uses run_in_executor for blocking observer.join() to avoid blocking the event loop.
+        Cancels all pending debounce tasks, stops the observer, and shuts down
+        the hash executor. Uses run_in_executor for blocking operations to avoid
+        blocking the event loop.
         """
         if not self.running:
             logger.debug("FileWatcher not running, nothing to stop")
@@ -993,6 +1001,13 @@ class FileWatcher:
         # Run blocking join() in thread pool to avoid blocking the event loop
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, lambda: self.observer.join(timeout=5))
+
+        # Shutdown the hash executor gracefully
+        if self._hash_executor is not None:
+            await loop.run_in_executor(
+                None, lambda: self._hash_executor.shutdown(wait=True, cancel_futures=False)
+            )
+            logger.debug("Hash executor shut down")
 
         # Clear loop reference
         self._loop = None

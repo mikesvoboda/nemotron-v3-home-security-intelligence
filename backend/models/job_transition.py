@@ -4,8 +4,6 @@ This module provides the JobTransition model for recording all state transitions
 of background jobs, enabling audit trails and debugging of job lifecycle issues.
 """
 
-from __future__ import annotations
-
 import uuid
 from datetime import UTC, datetime
 from enum import StrEnum, auto
@@ -54,7 +52,7 @@ class JobTransition(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid.uuid4,
+        default=uuid.uuid7,
     )
     # Use String(36) to match the Job model's id type (UUID as string)
     job_id: Mapped[str] = mapped_column(

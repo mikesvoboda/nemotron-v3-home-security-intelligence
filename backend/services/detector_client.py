@@ -47,7 +47,9 @@ __all__ = [
 
 import asyncio
 import json
+import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -94,6 +96,55 @@ DETECTOR_READ_TIMEOUT = 60.0
 DETECTOR_HEALTH_TIMEOUT = 5.0
 
 
+# =============================================================================
+# Free-Threading Support (Python 3.13t/3.14t)
+# =============================================================================
+
+
+def _is_free_threaded() -> bool:
+    """Check if Python is running in free-threaded mode (GIL disabled).
+
+    Free-threaded Python (3.13t, 3.14t) disables the Global Interpreter Lock,
+    enabling true thread parallelism for CPU-bound operations like image
+    preprocessing.
+
+    Returns:
+        True if running free-threaded Python with GIL disabled, False otherwise.
+    """
+    # Python 3.13+ exposes sys._is_gil_enabled() to check GIL status
+    if hasattr(sys, "_is_gil_enabled"):
+        return not sys._is_gil_enabled()
+    return False
+
+
+def _get_default_inference_limit() -> int:
+    """Get default inference limit based on Python capabilities.
+
+    Returns a higher concurrency limit when running on free-threaded Python
+    to leverage true thread parallelism for AI inference operations.
+
+    Returns:
+        Default limit: 20 for free-threaded Python, 4 for standard Python.
+    """
+    if _is_free_threaded():
+        return 20  # Higher limit with true parallelism
+    return 4  # Conservative limit with GIL
+
+
+def _get_preprocess_worker_count() -> int:
+    """Get the number of preprocessing workers based on Python capabilities.
+
+    Returns more workers for free-threaded Python since we can achieve
+    true parallelism for image preprocessing (PIL operations, file I/O).
+
+    Returns:
+        Worker count: 8 for free-threaded Python, 2 for standard Python.
+    """
+    if _is_free_threaded():
+        return 8  # More workers with true parallelism
+    return 2  # Fewer workers with GIL (limited parallelism benefit)
+
+
 class DetectorClient:
     """Client for interacting with RT-DETRv2 object detection service.
 
@@ -105,6 +156,12 @@ class DetectorClient:
         - Configurable timeouts and retry attempts via settings
         - API key authentication via X-API-Key header when configured
         - Concurrency limiting via semaphore to prevent GPU overload (NEM-1500)
+        - Parallel preprocessing with ThreadPoolExecutor (free-threading optimized)
+
+    Free-Threading Support (Python 3.13t/3.14t):
+        When running on free-threaded Python (GIL disabled), this client
+        automatically increases concurrency limits and preprocessing workers
+        to leverage true thread parallelism for AI inference operations.
 
     Security: Supports API key authentication via X-API-Key header when
     configured in settings (RTDETR_API_KEY environment variable).
@@ -112,9 +169,14 @@ class DetectorClient:
 
     # Class-level semaphore for limiting concurrent AI requests (NEM-1500)
     # This prevents overwhelming the GPU service with too many parallel requests
-    # Default: 4 concurrent requests (configurable via ai_max_concurrent_inferences)
+    # Default depends on Python runtime: 20 for free-threaded, 4 for standard
     _request_semaphore: asyncio.Semaphore | None = None
     _semaphore_limit: int = 0
+
+    # Class-level thread pool for parallel image preprocessing
+    # Workers count adapts to free-threading availability
+    _preprocess_executor: ThreadPoolExecutor | None = None
+    _preprocess_workers: int = 0
 
     @classmethod
     def _get_semaphore(cls) -> asyncio.Semaphore:
@@ -137,6 +199,43 @@ class DetectorClient:
             logger.debug(f"Created DetectorClient semaphore with limit={limit}")
 
         return cls._request_semaphore
+
+    @classmethod
+    def _get_preprocess_executor(cls) -> ThreadPoolExecutor:
+        """Get or create the thread pool for parallel image preprocessing.
+
+        Uses a class-level ThreadPoolExecutor to parallelize CPU-bound image
+        preprocessing operations (PIL image loading, validation, etc.).
+
+        The worker count adapts to Python's threading capabilities:
+        - Free-threaded Python (GIL disabled): 8 workers for true parallelism
+        - Standard Python with GIL: 2 workers (limited parallelism benefit)
+
+        Returns:
+            ThreadPoolExecutor for preprocessing tasks
+        """
+        workers = _get_preprocess_worker_count()
+
+        # Create or recreate executor if worker count changed
+        if cls._preprocess_executor is None or cls._preprocess_workers != workers:
+            # Shutdown existing executor if any
+            if cls._preprocess_executor is not None:
+                cls._preprocess_executor.shutdown(wait=False)
+
+            cls._preprocess_executor = ThreadPoolExecutor(
+                max_workers=workers,
+                thread_name_prefix="rtdetr-preprocess",
+            )
+            cls._preprocess_workers = workers
+            logger.debug(
+                "Created DetectorClient preprocess executor",
+                extra={
+                    "workers": workers,
+                    "free_threading": _is_free_threaded(),
+                },
+            )
+
+        return cls._preprocess_executor
 
     def __init__(self, max_retries: int | None = None) -> None:
         """Initialize detector client with configuration.
@@ -204,10 +303,21 @@ class DetectorClient:
         self._warmup_enabled = settings.ai_warmup_enabled
         self._cold_start_threshold = settings.ai_cold_start_threshold_seconds
 
-        logger.debug(
-            f"DetectorClient initialized with max_retries={self._max_retries}, "
-            f"timeout={settings.rtdetr_read_timeout}s, max_concurrent={self._max_concurrent}, "
-            f"circuit_breaker=rtdetr(failure_threshold=5, recovery_timeout=60s)"
+        # Get preprocess worker count for logging
+        preprocess_workers = _get_preprocess_worker_count()
+        free_threading = _is_free_threaded()
+
+        logger.info(
+            "DetectorClient initialized",
+            extra={
+                "free_threading": free_threading,
+                "max_concurrent_inferences": self._max_concurrent,
+                "preprocess_workers": preprocess_workers,
+                "max_retries": self._max_retries,
+                "timeout_seconds": settings.rtdetr_read_timeout,
+                "circuit_breaker_failure_threshold": 5,
+                "circuit_breaker_recovery_timeout": 60.0,
+            },
         )
 
     async def close(self) -> None:

@@ -7,8 +7,6 @@ also broadcast via WebSocket for real-time frontend updates.
 NEM-3122: Phase 3.1 - Alertmanager webhook receiver for Prometheus alerts.
 """
 
-from __future__ import annotations
-
 import enum
 from datetime import datetime
 

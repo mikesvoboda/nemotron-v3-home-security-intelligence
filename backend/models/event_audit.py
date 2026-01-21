@@ -1,7 +1,5 @@
 """EventAudit model for AI pipeline performance tracking."""
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import TYPE_CHECKING
 

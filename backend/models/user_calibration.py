@@ -1,7 +1,5 @@
 """UserCalibration model for personalized risk threshold calibration."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 
 from sqlalchemy import CheckConstraint, DateTime, Float, Index, Integer, String

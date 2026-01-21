@@ -50,7 +50,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum, auto
-from typing import Any, TypeVar
+from typing import Any
 
 from prometheus_client import Counter, Gauge
 
@@ -59,8 +59,6 @@ from backend.core.logging import get_logger
 from backend.core.telemetry import get_trace_context
 
 logger = get_logger(__name__)
-
-T = TypeVar("T")
 
 
 # =============================================================================
@@ -427,7 +425,7 @@ class CircuitBreaker:
             case _:
                 return False
 
-    async def call(
+    async def call[T](
         self,
         operation: Callable[..., Awaitable[T]],
         *args: Any,
@@ -822,7 +820,7 @@ class CircuitBreaker:
         async with self._lock:
             self.check_and_raise()
 
-    async def protected_call(
+    async def protected_call[T](
         self,
         func: Callable[[], Awaitable[T]],
         record_on: tuple[type[BaseException], ...] = (Exception,),

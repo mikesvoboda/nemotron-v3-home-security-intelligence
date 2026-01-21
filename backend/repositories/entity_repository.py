@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import builtins
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 from uuid import UUID
 
 from sqlalchemy import desc, func, select
@@ -471,6 +471,7 @@ class EntityRepository(Repository[Entity]):
         result = await self.session.execute(stmt)
         return result.scalar_one() or 0
 
+    @override
     async def count(self) -> int:
         """Get total count of entities.
 

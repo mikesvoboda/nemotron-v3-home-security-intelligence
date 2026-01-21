@@ -12,8 +12,6 @@ Models:
 Implements NEM-3016: Create HouseholdMember and RegisteredVehicle database models.
 """
 
-from __future__ import annotations
-
 import enum
 from datetime import datetime
 from typing import TYPE_CHECKING
