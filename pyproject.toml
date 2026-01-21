@@ -114,6 +114,14 @@ dev = [
     # Note: py-spy requires system installation (not pip) - install with:
     # pip install py-spy  # or cargo install py-spy
 ]
+# NeMo Data Designer for synthetic test data generation
+# Usage: `uv sync --extra nemo` or `uv sync --group nemo`
+nemo = [
+    "data-designer>=0.1.0",
+    "pandas>=2.0.0",
+    "pyarrow>=14.0.0",
+    "numpy>=1.24.0",
+]
 
 # =============================================================================
 # PEP 735 Dependency Groups (uv 0.5.0+)
@@ -127,6 +135,7 @@ dev = [
 #   benchmark - Performance benchmarking tools
 #   security  - Security scanning tools
 #   mutation  - Mutation testing tools
+#   nemo      - NeMo Data Designer for synthetic data generation
 #   dev       - All development dependencies (includes all groups above)
 # =============================================================================
 
@@ -183,6 +192,16 @@ mutation = [
 quality = [
     "wily>=1.25.0",  # Note: radon is provided by wily dependency (5.1.x)
     "vulture>=2.11",
+]
+
+# NeMo Data Designer (synthetic data generation for testing)
+# Usage: uv sync --group nemo
+# Requires NVIDIA_API_KEY environment variable
+nemo = [
+    "data-designer>=0.1.0",
+    "pandas>=2.0.0",
+    "pyarrow>=14.0.0",
+    "numpy>=1.24.0",
 ]
 
 # All Development Dependencies (combines all groups above)
@@ -267,6 +286,10 @@ ignore = [
 "ai/**/*.py" = [
     "ASYNC230", # blocking I/O in async ok for example clients
     "T201",   # print() ok in AI example clients
+]
+"tools/**/*.py" = [
+    "T201",   # print() ok in tool scripts for CLI output
+    "E402",   # module level import not at top ok for sys.path manipulation
 ]
 "scripts/**/*.py" = [
     "SIM102",  # nested ifs more readable in utility scripts
