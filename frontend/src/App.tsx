@@ -90,6 +90,9 @@ const NotificationPreferencesPage = lazy(() => import('./pages/NotificationPrefe
 // Data Management (exports/backups)
 const DataManagementPage = lazy(() => import('./pages/DataManagementPage'));
 
+// Zone Intelligence Dashboard
+const ZonesPage = lazy(() => import('./pages/ZonesPage'));
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -130,6 +133,7 @@ export default function App() {
                             />
                             <Route path="/trash" element={<TrashPage />} />
                             <Route path="/data" element={<DataManagementPage />} />
+                            <Route path="/zones" element={<ZonesPage />} />
                           </Routes>
                         </PageTransition>
                       </Suspense>

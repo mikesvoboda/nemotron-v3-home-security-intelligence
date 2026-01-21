@@ -59,6 +59,9 @@ from .property import Property
 from .scene_change import SceneChange, SceneChangeType
 from .summary import Summary, SummaryType
 from .user_calibration import UserCalibration
+from .zone_anomaly import AnomalySeverity, AnomalyType, ZoneAnomaly
+from .zone_baseline import ZoneActivityBaseline
+from .zone_household_config import ZoneHouseholdConfig
 
 __all__ = [
     "ActionResult",
@@ -67,6 +70,8 @@ __all__ = [
     "AlertRule",
     "AlertSeverity",
     "AlertStatus",
+    "AnomalySeverity",
+    "AnomalyType",
     "Area",
     "AuditAction",
     "AuditLog",
@@ -130,6 +135,9 @@ __all__ = [
     "UserCalibration",
     "VehicleType",
     "Zone",
+    "ZoneActivityBaseline",
+    "ZoneAnomaly",
+    "ZoneHouseholdConfig",
     "ZoneShape",
     "ZoneType",
     "camera_areas",

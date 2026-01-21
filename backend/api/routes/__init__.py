@@ -18,6 +18,7 @@ from .rum import router as rum_router
 from .services import router as services_router
 from .settings_api import router as settings_api_router
 from .summaries import router as summaries_router
+from .zone_household import router as zone_household_router
 from .zones import router as zones_router
 
 __all__ = [
@@ -39,5 +40,6 @@ __all__ = [
     "services_router",
     "settings_api_router",
     "summaries_router",
+    "zone_household_router",
     "zones_router",
 ]
