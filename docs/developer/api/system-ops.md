@@ -2,7 +2,7 @@
 
 This guide covers system health monitoring, configuration, alerts, logging, notification preferences, and service management.
 
-**Total Endpoints: 60** (Health: 6, GPU: 2, Config: 2, Statistics: 8, Cleanup: 3, Severity: 2, Alerts: 8, Logs: 4, Notifications: 10, Services: 5, Models: 4, Anomaly Config: 2, Circuit Breakers: 2, Metrics: 1, WebSocket Registry: 1)
+**Total Endpoints: 61** (Health: 6, GPU: 2, Config: 2, Statistics: 8, Cleanup: 3, Severity: 2, Alerts: 8, Logs: 5, Notifications: 10, Services: 5, Models: 4, Anomaly Config: 2, Circuit Breakers: 2, Metrics: 1, WebSocket Registry: 1)
 
 ## System Operations Overview
 
@@ -1090,12 +1090,13 @@ View and query application logs.
 
 ### Endpoints
 
-| Method | Endpoint             | Description         |
-| ------ | -------------------- | ------------------- |
-| GET    | `/api/logs`          | List logs           |
-| GET    | `/api/logs/stats`    | Log statistics      |
-| GET    | `/api/logs/{id}`     | Get log entry       |
-| POST   | `/api/logs/frontend` | Submit frontend log |
+| Method | Endpoint                   | Description                |
+| ------ | -------------------------- | -------------------------- |
+| GET    | `/api/logs`                | List logs                  |
+| GET    | `/api/logs/stats`          | Log statistics             |
+| GET    | `/api/logs/{id}`           | Get log entry              |
+| POST   | `/api/logs/frontend`       | Submit single frontend log |
+| POST   | `/api/logs/frontend/batch` | Submit multiple logs       |
 
 ### List Logs
 
@@ -1167,7 +1168,9 @@ GET /api/logs/stats
 
 ### Submit Frontend Log
 
-Allow frontend to send logs to backend:
+Allow frontend to send logs to backend for centralized logging and debugging.
+
+#### Single Log Entry
 
 ```bash
 POST /api/logs/frontend
@@ -1175,12 +1178,106 @@ Content-Type: application/json
 
 {
   "level": "ERROR",
-  "component": "EventTimeline",
-  "message": "Failed to load events",
-  "extra": { "error": "Network timeout" },
-  "url": "http://localhost:5173/events"
+  "message": "Failed to load component",
+  "timestamp": "2024-01-21T12:00:00Z",
+  "component": "Dashboard",
+  "context": {"userId": "123", "action": "load"},
+  "url": "/dashboard",
+  "user_agent": "Mozilla/5.0..."
 }
 ```
+
+**Request Body Fields:**
+
+| Field        | Type   | Required | Description                                      |
+| ------------ | ------ | -------- | ------------------------------------------------ |
+| `level`      | string | Yes      | Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL |
+| `message`    | string | Yes      | Log message text                                 |
+| `timestamp`  | string | No       | ISO 8601 timestamp (defaults to server time)     |
+| `component`  | string | No       | Frontend component name                          |
+| `context`    | object | No       | Additional context data (JSON object)            |
+| `url`        | string | No       | Page URL where the log originated                |
+| `user_agent` | string | No       | Browser user agent string                        |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "count": 1,
+  "message": "Log entry recorded"
+}
+```
+
+#### Batch Log Entries
+
+Submit multiple log entries in a single request (1-100 entries). This is more efficient for high-volume logging scenarios.
+
+```bash
+POST /api/logs/frontend/batch
+Content-Type: application/json
+
+{
+  "entries": [
+    {
+      "level": "INFO",
+      "message": "Page loaded successfully",
+      "component": "App",
+      "timestamp": "2024-01-21T12:00:00Z"
+    },
+    {
+      "level": "ERROR",
+      "message": "API call failed",
+      "component": "ApiClient",
+      "context": {"endpoint": "/api/events", "status": 500},
+      "timestamp": "2024-01-21T12:00:01Z"
+    },
+    {
+      "level": "WARNING",
+      "message": "Slow render detected",
+      "component": "EventTimeline",
+      "context": {"render_time_ms": 2500},
+      "timestamp": "2024-01-21T12:00:02Z"
+    }
+  ]
+}
+```
+
+**Request Body:**
+
+| Field     | Type  | Required | Description                      |
+| --------- | ----- | -------- | -------------------------------- |
+| `entries` | array | Yes      | Array of log entries (1-100 max) |
+
+Each entry in the array follows the same schema as the single log entry endpoint.
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "count": 3,
+  "message": "3 log entries recorded"
+}
+```
+
+**Error Response (validation failure):**
+
+```json
+{
+  "success": false,
+  "count": 0,
+  "message": "Batch must contain 1-100 entries",
+  "errors": ["entries: ensure this value has at most 100 items"]
+}
+```
+
+**Use Cases:**
+
+- **Error Reporting**: Capture frontend errors with stack traces and component context
+- **Performance Monitoring**: Log slow renders, API latency, and user interactions
+- **User Journey Tracking**: Track navigation and feature usage for debugging
+- **Debugging**: Centralize frontend and backend logs for correlation
 
 ---
 
