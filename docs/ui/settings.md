@@ -43,6 +43,8 @@ Each tab displays an icon alongside its name for quick visual identification.
 
 ### Cameras Tab
 
+![Cameras Tab](../images/screenshots/settings-cameras.png)
+
 Manage your security camera configurations with full CRUD (Create, Read, Update, Delete) functionality.
 
 #### Camera Table
@@ -76,6 +78,8 @@ When multiple cameras are configured, use the search bar to filter cameras by na
 ---
 
 ### Rules Tab
+
+![Rules Tab](../images/screenshots/settings-rules.png)
 
 Configure custom alert rules that determine when and how you receive notifications about security events.
 
@@ -134,6 +138,8 @@ When creating or editing a rule:
 
 ### Processing Tab
 
+![Processing Tab](../images/screenshots/settings-processing.png)
+
 Configure how the system processes detection events and manages data retention.
 
 #### Processing Parameters
@@ -190,6 +196,8 @@ Displays current application name and version at the bottom of the settings card
 ---
 
 ### Notifications Tab
+
+![Notifications Tab](../images/screenshots/settings-notifications.png)
 
 Configure how and when you receive notifications about security events.
 
@@ -252,6 +260,8 @@ View environment-based notification channel settings:
 
 ### Ambient Tab
 
+![Ambient Tab](../images/screenshots/settings-ambient.png)
+
 Configure visual and audio cues that communicate system status at a glance.
 
 #### Available Features
@@ -286,6 +296,8 @@ Desktop notifications require browser permission:
 
 ### Calibration Tab
 
+![Calibration Tab](../images/screenshots/settings-calibration.png)
+
 Fine-tune how the AI classifies security events based on your specific environment.
 
 #### How Calibration Works
@@ -316,6 +328,8 @@ The core calibration interface (RiskSensitivitySettings component) provides:
 ---
 
 ### Prompts Tab
+
+![Prompts Tab](../images/screenshots/settings-prompts.png)
 
 Manage AI model prompt configurations with full version history and import/export capabilities.
 
@@ -363,6 +377,8 @@ The prompt management system includes testing capabilities to validate configura
 ---
 
 ### Storage Tab
+
+![Storage Tab](../images/screenshots/settings-storage.png)
 
 Monitor disk usage and perform storage maintenance operations. The panel is collapsible and shows a summary badge with current disk usage percentage when collapsed.
 
