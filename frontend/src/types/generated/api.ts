@@ -64,6 +64,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/maintenance/clear-cache": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clear Cache
+         * @description Clear all cached data from Redis.
+         *
+         *     Invalidates all cache entries including:
+         *     - Events cache
+         *     - Cameras cache
+         *     - System status cache
+         *     - Stats cache
+         *     - Detections cache
+         *     - Alerts cache
+         *     - Summaries cache
+         *
+         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *
+         *     Args:
+         *         http_request: FastAPI request for audit logging
+         *         db: Database session for audit logging
+         *         _admin: Admin access validation (via dependency)
+         *
+         *     Returns:
+         *         Summary of cache clear operation
+         */
+        post: operations["clear_cache_api_admin_maintenance_clear_cache_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/maintenance/flush-queues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Flush Queues
+         * @description Flush all processing queues in Redis.
+         *
+         *     Clears the following queues:
+         *     - Detection queue (incoming detection jobs)
+         *     - Analysis queue (LLM analysis jobs)
+         *     - DLQ detection queue (failed detection jobs)
+         *     - DLQ analysis queue (failed analysis jobs)
+         *
+         *     WARNING: This will discard any pending items in the queues.
+         *     Items will need to be reprocessed from scratch.
+         *
+         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *
+         *     Args:
+         *         http_request: FastAPI request for audit logging
+         *         db: Database session for audit logging
+         *         _admin: Admin access validation (via dependency)
+         *
+         *     Returns:
+         *         Summary of queue flush operation
+         */
+        post: operations["flush_queues_api_admin_maintenance_flush_queues_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/seed/cameras": {
         parameters: {
             query?: never;
@@ -3876,6 +3956,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/health/ai-services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Unified AI Services Health Status
+         * @description Get a unified view of all AI service health including circuit breaker states,
+         *     error rates, latency metrics, and queue depths.
+         *
+         *     The response includes:
+         *     - **overall_status**: healthy/degraded/critical based on service availability
+         *     - **services**: Individual health status for each AI service (rtdetr, nemotron, florence, clip, enrichment)
+         *     - **queues**: Current depth of detection and analysis queues with DLQ counts
+         *
+         *     HTTP Status Codes:
+         *     - **200**: All services operational or system is degraded but functional
+         *     - **503**: Critical services (rtdetr, nemotron) are unhealthy
+         */
+        get: operations["get_ai_services_health_api_health_ai_services_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/household/members": {
         parameters: {
             query?: never;
@@ -7171,6 +7281,66 @@ export interface components {
          */
         AIModelEnum: "nemotron" | "florence2" | "yolo_world" | "xclip" | "fashion_clip";
         /**
+         * AIServiceCircuitState
+         * @description Circuit breaker state for an AI service.
+         *
+         *     States:
+         *     - closed: Normal operation, requests pass through
+         *     - open: Service failing, requests fail immediately
+         *     - half_open: Testing recovery, limited requests allowed
+         * @enum {string}
+         */
+        AIServiceCircuitState: "closed" | "open" | "half_open";
+        /**
+         * AIServiceHealthDetail
+         * @description Detailed health information for a single AI service.
+         *
+         *     Provides comprehensive status including circuit breaker state,
+         *     error rates, and latency metrics for monitoring and alerting.
+         * @example {
+         *       "circuit_state": "closed",
+         *       "error_rate_1h": 0.02,
+         *       "last_health_check": "2026-01-20T12:00:00Z",
+         *       "latency_p99_ms": 450,
+         *       "status": "healthy",
+         *       "url": "http://ai-detector:8090"
+         *     }
+         */
+        AIServiceHealthDetail: {
+            /**
+             * @description Circuit breaker state for this service
+             * @default closed
+             */
+            circuit_state: components["schemas"]["AIServiceCircuitState"];
+            /**
+             * Error
+             * @description Error message if service is unhealthy
+             */
+            error?: string | null;
+            /**
+             * Error Rate 1H
+             * @description Error rate over the last hour (0.0 to 1.0)
+             */
+            error_rate_1h?: number | null;
+            /**
+             * Last Health Check
+             * @description Timestamp of the last successful health check
+             */
+            last_health_check?: string | null;
+            /**
+             * Latency P99 Ms
+             * @description 99th percentile latency in milliseconds
+             */
+            latency_p99_ms?: number | null;
+            /** @description Current health status of the service */
+            status: components["schemas"]["AIServiceStatus"];
+            /**
+             * Url
+             * @description Service URL if configured
+             */
+            url?: string | null;
+        };
+        /**
          * AIServiceHealthStatus
          * @description Health status for an AI service.
          *
@@ -7224,6 +7394,123 @@ export interface components {
              * @description Service URL if configured
              */
             url?: string | null;
+        };
+        /**
+         * AIServiceOverallStatus
+         * @description Overall status for the AI services subsystem.
+         *
+         *     Statuses:
+         *     - healthy: All services are operational
+         *     - degraded: Some services are unhealthy but system is functional
+         *     - critical: Critical services are down, system cannot process requests
+         * @enum {string}
+         */
+        AIServiceOverallStatus: "healthy" | "degraded" | "critical";
+        /**
+         * AIServiceStatus
+         * @description Health status for an individual AI service.
+         *
+         *     Statuses:
+         *     - healthy: Service is fully operational
+         *     - unhealthy: Service is down or experiencing critical issues
+         *     - degraded: Service is partially operational
+         *     - unknown: Service status cannot be determined
+         * @enum {string}
+         */
+        AIServiceStatus: "healthy" | "unhealthy" | "degraded" | "unknown";
+        /**
+         * AIServicesHealthResponse
+         * @description Response schema for GET /api/health/ai-services endpoint.
+         *
+         *     Provides a unified view of all AI service health including:
+         *     - Overall system status (healthy/degraded/critical)
+         *     - Individual service health with circuit breaker states
+         *     - Queue depths for detection and analysis pipelines
+         *
+         *     HTTP Status Codes:
+         *     - 200: System is healthy or degraded (can still serve traffic)
+         *     - 503: Critical services are unhealthy (should not receive traffic)
+         * @example {
+         *       "overall_status": "healthy",
+         *       "queues": {
+         *         "analysis_queue": {
+         *           "depth": 2,
+         *           "dlq_depth": 0
+         *         },
+         *         "detection_queue": {
+         *           "depth": 5,
+         *           "dlq_depth": 0
+         *         }
+         *       },
+         *       "services": {
+         *         "clip": {
+         *           "circuit_state": "closed",
+         *           "error_rate_1h": 0,
+         *           "last_health_check": "2026-01-20T12:00:00Z",
+         *           "latency_p99_ms": 200,
+         *           "status": "healthy",
+         *           "url": "http://clip-service:8092"
+         *         },
+         *         "enrichment": {
+         *           "circuit_state": "half_open",
+         *           "error": "Intermittent connection issues",
+         *           "error_rate_1h": 0.15,
+         *           "last_health_check": "2026-01-20T11:55:00Z",
+         *           "latency_p99_ms": 1200,
+         *           "status": "degraded",
+         *           "url": "http://enrichment-service:8093"
+         *         },
+         *         "florence": {
+         *           "circuit_state": "closed",
+         *           "error_rate_1h": 0,
+         *           "last_health_check": "2026-01-20T12:00:00Z",
+         *           "latency_p99_ms": 350,
+         *           "status": "healthy",
+         *           "url": "http://florence-service:8091"
+         *         },
+         *         "nemotron": {
+         *           "circuit_state": "closed",
+         *           "error_rate_1h": 0.01,
+         *           "last_health_check": "2026-01-20T12:00:00Z",
+         *           "latency_p99_ms": 2500,
+         *           "status": "healthy",
+         *           "url": "http://llm-analyzer:8080"
+         *         },
+         *         "rtdetr": {
+         *           "circuit_state": "closed",
+         *           "error_rate_1h": 0.02,
+         *           "last_health_check": "2026-01-20T12:00:00Z",
+         *           "latency_p99_ms": 450,
+         *           "status": "healthy",
+         *           "url": "http://ai-detector:8090"
+         *         }
+         *       },
+         *       "timestamp": "2026-01-20T12:00:00Z"
+         *     }
+         */
+        AIServicesHealthResponse: {
+            /** @description Overall health status of the AI services subsystem */
+            overall_status: components["schemas"]["AIServiceOverallStatus"];
+            /**
+             * Queues
+             * @description Queue depth information for processing queues
+             */
+            queues: {
+                [key: string]: components["schemas"]["QueueDepthInfo"];
+            };
+            /**
+             * Services
+             * @description Health details for each AI service keyed by service name
+             */
+            services: {
+                [key: string]: components["schemas"]["AIServiceHealthDetail"];
+            };
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp when this health check was performed
+             */
+            timestamp: string;
         };
         /**
          * ActivityBaselineEntry
@@ -10356,6 +10643,20 @@ export interface components {
              * @description Timestamp of status snapshot
              */
             timestamp: string;
+        };
+        /**
+         * ClearCacheResponse
+         * @description Response schema for cache clear endpoint.
+         */
+        ClearCacheResponse: {
+            /** Cache Types */
+            cache_types: string[];
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Keys Cleared */
+            keys_cleared: number;
+            /** Message */
+            message: string;
         };
         /**
          * ClearDataRequest
@@ -14418,6 +14719,22 @@ export interface components {
              * @description Whether the file watcher is currently running
              */
             running: boolean;
+        };
+        /**
+         * FlushQueuesResponse
+         * @description Response schema for queue flush endpoint.
+         */
+        FlushQueuesResponse: {
+            /** Duration Seconds */
+            duration_seconds: number;
+            /** Items Cleared */
+            items_cleared: {
+                [key: string]: number;
+            };
+            /** Message */
+            message: string;
+            /** Queues Flushed */
+            queues_flushed: string[];
         };
         /**
          * FullHealthResponse
@@ -19322,6 +19639,30 @@ export interface components {
             risk_justification?: number | null;
         };
         /**
+         * QueueDepthInfo
+         * @description Queue depth information for a processing queue.
+         *
+         *     Tracks the number of items in the main queue and the dead letter queue
+         *     for monitoring backlog and failed processing.
+         * @example {
+         *       "depth": 5,
+         *       "dlq_depth": 0
+         *     }
+         */
+        QueueDepthInfo: {
+            /**
+             * Depth
+             * @description Number of items currently in the queue
+             */
+            depth: number;
+            /**
+             * Dlq Depth
+             * @description Number of items in the dead letter queue
+             * @default 0
+             */
+            dlq_depth: number;
+        };
+        /**
          * QueueDepths
          * @description Queue depth information for pipeline queues.
          * @example {
@@ -23207,6 +23548,88 @@ export interface operations {
             };
             /** @description Validation error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clear_cache_api_admin_maintenance_clear_cache_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cache cleared successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearCacheResponse"];
+                };
+            };
+            /** @description Unauthorized - Admin API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - Debug mode or admin not enabled */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    flush_queues_api_admin_maintenance_flush_queues_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queues flushed successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlushQueuesResponse"];
+                };
+            };
+            /** @description Unauthorized - Admin API key required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden - Debug mode or admin not enabled */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -28331,6 +28754,33 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FeedbackStatsResponse"];
                 };
+            };
+        };
+    };
+    get_ai_services_health_api_health_ai_services_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description AI services health status returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIServicesHealthResponse"];
+                };
+            };
+            /** @description Critical AI services are unhealthy */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
