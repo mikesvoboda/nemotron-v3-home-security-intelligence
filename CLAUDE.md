@@ -201,6 +201,7 @@ mcp__linear__update_issue(
 ### Creating Epics with Subtasks
 
 1. **Create the epic first:**
+
 ```python
 epic = mcp__linear__create_issue(
     title="Epic: Feature Name",
@@ -212,6 +213,7 @@ epic = mcp__linear__create_issue(
 ```
 
 2. **Create subtasks and link to epic:**
+
 ```python
 # The Linear MCP doesn't support parentId directly
 # Create subtasks mentioning the epic in description
@@ -252,13 +254,13 @@ issue = mcp__linear__get_issue(issueId="NEM-123")
 
 ### Common Patterns
 
-| Action | Tool Call |
-| ------ | --------- |
-| Start work | `update_issue(issueId, status="b88c8ae2-...")` (In Progress) |
-| Request review | `update_issue(issueId, status="ec90a3c4-...")` (In Review) |
-| Complete task | `update_issue(issueId, status="38267c1e-...")` (Done) |
-| Search issues | `search_issues(query="keyword")` |
-| List team issues | `list_issues(teamId="998946a2-...")` |
+| Action           | Tool Call                                                    |
+| ---------------- | ------------------------------------------------------------ |
+| Start work       | `update_issue(issueId, status="b88c8ae2-...")` (In Progress) |
+| Request review   | `update_issue(issueId, status="ec90a3c4-...")` (In Review)   |
+| Complete task    | `update_issue(issueId, status="38267c1e-...")` (Done)        |
+| Search issues    | `search_issues(query="keyword")`                             |
+| List team issues | `list_issues(teamId="998946a2-...")`                         |
 
 For complete documentation, see **[Linear Integration Guide](docs/development/linear-integration.md)**.
 

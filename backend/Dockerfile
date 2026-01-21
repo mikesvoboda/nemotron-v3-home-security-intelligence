@@ -117,13 +117,23 @@ WORKDIR /app
 
 # Install runtime dependencies only (no build tools like gcc)
 # ffmpeg for video processing, libgl1 and libglib2.0-0 for OpenCV (required by ultralytics)
+# procps for pgrep (needed by profiler)
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    procps \
+    curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
+
+# Install py-spy for continuous profiling (pushes to Pyroscope)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+RUN uv tool install py-spy && ln -s /root/.local/bin/py-spy /usr/local/bin/py-spy
+
+# Copy profiler script
+COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
 
 # Create non-root user for security (no login shell for additional security)
 RUN useradd -m -u 1000 -s /usr/sbin/nologin appuser
