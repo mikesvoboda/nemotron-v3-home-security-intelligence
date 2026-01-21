@@ -1,0 +1,444 @@
+name: Flaky Test Detection
+
+# This workflow runs tests multiple times to detect intermittent failures
+# and categorizes tests by stability for quarantine recommendations.
+
+on:
+  schedule:
+    # Run nightly at 2 AM UTC to analyze test stability
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_runs:
+        description: 'Number of test runs per suite'
+        required: false
+        default: '5'
+        type: string
+      test_suite:
+        description: 'Test suite to analyze (unit/integration/all)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  UV_VERSION: '0.9.18'
+  TEST_RUNS: ${{ github.event.inputs.test_runs || '5' }}
+  TEST_SUITE: ${{ github.event.inputs.test_suite || 'all' }}
+
+jobs:
+  # ==========================================================================
+  # Run unit tests multiple times to detect flakiness
+  # ==========================================================================
+
+  detect-flaky-unit-tests:
+    name: Detect Flaky Unit Tests (Run ${{ matrix.run }}/5)
+    runs-on: ubuntu-latest
+    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'unit' || github.event.schedule
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2, 3, 4, 5]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      LOG_DB_ENABLED: 'false'
+      FLAKY_TEST_RESULTS_FILE: flaky-test-results-unit-run-${{ matrix.run }}.jsonl
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run unit tests (Run ${{ matrix.run }})
+        # Run tests with timeout disabled and rerun failures up to 2 times
+        # This helps identify tests that pass inconsistently
+        run: |
+          uv run pytest backend/tests/unit/ \
+            -n auto --dist=worksteal \
+            --timeout=0 \
+            --reruns 2 --reruns-delay 1 \
+            --junit-xml=test-results-unit-run-${{ matrix.run }}.xml \
+            --durations=0 \
+            -v
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: test-results-unit-run-${{ matrix.run }}
+          path: |
+            test-results-unit-run-${{ matrix.run }}.xml
+            flaky-test-results-unit-run-${{ matrix.run }}.jsonl
+          retention-days: 30
+
+  # ==========================================================================
+  # Run integration tests multiple times to detect flakiness
+  # ==========================================================================
+
+  detect-flaky-integration-tests:
+    name: Detect Flaky Integration Tests (Run ${{ matrix.run }}/5)
+    runs-on: ubuntu-latest
+    if: github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'integration' || github.event.schedule
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2, 3, 4, 5]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      REDIS_URL: redis://localhost:6379
+      LOG_DB_ENABLED: 'false'
+      CI: 'true'
+      FLAKY_TEST_RESULTS_FILE: flaky-test-results-integration-run-${{ matrix.run }}.jsonl
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run integration tests (Run ${{ matrix.run }})
+        # Run tests serially with reruns enabled
+        run: |
+          uv run pytest backend/tests/integration/ \
+            -n0 \
+            --timeout=30 \
+            --reruns 2 --reruns-delay 2 \
+            --junit-xml=test-results-integration-run-${{ matrix.run }}.xml \
+            --durations=0 \
+            -v
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: test-results-integration-run-${{ matrix.run }}
+          path: |
+            test-results-integration-run-${{ matrix.run }}.xml
+            flaky-test-results-integration-run-${{ matrix.run }}.jsonl
+          retention-days: 30
+
+  # ==========================================================================
+  # Analyze all test results to identify flaky tests
+  # ==========================================================================
+
+  analyze-flaky-tests:
+    name: Analyze Flaky Tests
+    runs-on: ubuntu-latest
+    needs: [detect-flaky-unit-tests, detect-flaky-integration-tests]
+    if: always()
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Download all test results
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          path: test-results/
+
+      - name: List downloaded artifacts
+        run: |
+          echo "Downloaded test results:"
+          find test-results/ -type f -name "*.jsonl" -o -name "*.xml" | sort
+
+      - name: Analyze flaky tests
+        run: |
+          # Run the flaky test analysis script
+          python3 scripts/analyze-flaky-tests.py test-results/ \
+            --output flaky-test-report.json \
+            --quarantine-file backend/tests/flaky_tests.txt
+        env:
+          FLAKY_THRESHOLD: '0.9' # Tests with <90% pass rate are flaky
+          MIN_RUNS: '3' # Require at least 3 runs to flag as flaky
+          RERUN_WEIGHT: '0.5' # Weight reruns in flakiness calculation
+
+      - name: Upload flaky test report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: flaky-test-report
+          path: flaky-test-report.json
+          retention-days: 90
+
+      - name: Parse test timing variance
+        run: |
+          # Extract timing data from JUnit XML to identify tests with high variance
+          python3 - <<'PYTHON'
+          import sys
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          from statistics import mean, stdev
+          from collections import defaultdict
+
+          timing_data = defaultdict(list)
+
+          # Parse all JUnit XML files
+          for xml_file in Path("test-results").rglob("*.xml"):
+              try:
+                  tree = ET.parse(xml_file)
+                  root = tree.getroot()
+
+                  for testcase in root.findall(".//testcase"):
+                      name = testcase.get("name")
+                      classname = testcase.get("classname")
+                      time = testcase.get("time")
+
+                      if name and classname and time:
+                          nodeid = f"{classname}::{name}"
+                          timing_data[nodeid].append(float(time))
+              except Exception as e:
+                  print(f"Error parsing {xml_file}: {e}", file=sys.stderr)
+
+          # Calculate variance for tests with multiple runs
+          print("\n=== Tests with High Timing Variance ===")
+          print("(Indicates potential race conditions or resource contention)\n")
+
+          variance_tests = []
+          for nodeid, times in timing_data.items():
+              if len(times) >= 3:
+                  avg = mean(times)
+                  if avg > 0.1:  # Only consider tests that take >100ms
+                      try:
+                          sd = stdev(times)
+                          cv = sd / avg  # Coefficient of variation
+                          if cv > 0.5:  # >50% variance
+                              variance_tests.append((nodeid, avg, sd, cv, len(times)))
+                      except:
+                          pass
+
+          # Sort by coefficient of variation
+          variance_tests.sort(key=lambda x: x[3], reverse=True)
+
+          if variance_tests:
+              print(f"Found {len(variance_tests)} test(s) with high timing variance:\n")
+              for nodeid, avg, sd, cv, count in variance_tests[:20]:
+                  print(f"{nodeid}")
+                  print(f"  Mean: {avg:.3f}s, StdDev: {sd:.3f}s, CV: {cv:.2%}, Runs: {count}")
+          else:
+              print("No tests with high timing variance detected.")
+
+          print()
+          PYTHON
+
+      - name: Check for new flaky tests
+        id: check_new_flaky
+        run: |
+          # Check if any new flaky tests were detected
+          if [ -f flaky-test-report.json ]; then
+            NEW_FLAKY_COUNT=$(python3 -c "
+          import json
+          with open('flaky-test-report.json') as f:
+              data = json.load(f)
+              print(data.get('total_flaky', 0))
+          ")
+            echo "new_flaky_count=$NEW_FLAKY_COUNT" >> $GITHUB_OUTPUT
+
+            if [ "$NEW_FLAKY_COUNT" -gt 0 ]; then
+              echo "WARNING: Detected $NEW_FLAKY_COUNT flaky test(s)"
+              exit 0  # Don't fail the workflow, just warn
+            fi
+          fi
+
+      - name: Create issue for new flaky tests
+        if: steps.check_new_flaky.outputs.new_flaky_count > 0
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            // Read flaky test report
+            const report = JSON.parse(fs.readFileSync('flaky-test-report.json', 'utf8'));
+
+            if (report.total_flaky === 0) {
+              console.log('No flaky tests to report');
+              return;
+            }
+
+            // Generate issue body
+            let body = `## Flaky Test Detection Report\n\n`;
+            body += `**Generated:** ${report.generated_at}\n`;
+            body += `**Total Flaky Tests:** ${report.total_flaky}\n\n`;
+
+            body += `### Summary\n\n`;
+            body += `The automated flaky test detection workflow identified ${report.total_flaky} test(s) with inconsistent pass/fail behavior across multiple runs.\n\n`;
+
+            body += `### Detected Flaky Tests\n\n`;
+            body += `| Test | Pass Rate | Flakiness Score | Runs |\n`;
+            body += `|------|-----------|-----------------|------|\n`;
+
+            for (const test of report.tests.slice(0, 20)) {
+              const shortName = test.nodeid.length > 80
+                ? '...' + test.nodeid.slice(-77)
+                : test.nodeid;
+              body += `| \`${shortName}\` | ${(test.pass_rate * 100).toFixed(1)}% | ${test.flakiness_score.toFixed(2)} | ${test.total_runs} |\n`;
+            }
+
+            if (report.tests.length > 20) {
+              body += `\n*...and ${report.tests.length - 20} more*\n`;
+            }
+
+            body += `\n### Recommended Actions\n\n`;
+            body += `1. **Investigate Root Causes**: Review test implementation for race conditions, timing issues, or external dependencies\n`;
+            body += `2. **Add Quarantine Markers**: Use \`@pytest.mark.flaky\` decorator on confirmed flaky tests\n`;
+            body += `3. **Improve Test Isolation**: Ensure tests don't share state or depend on execution order\n`;
+            body += `4. **Check Resource Contention**: Tests with high timing variance may have resource issues\n`;
+            body += `5. **Review Test Data**: Ensure test fixtures are deterministic\n\n`;
+
+            body += `### Resources\n\n`;
+            body += `- [View full report](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n`;
+            body += `- [Flaky test documentation](docs/development/testing.md#flaky-tests)\n`;
+            body += `- [Testing patterns](docs/developer/patterns/AGENTS.md#testing-patterns)\n`;
+
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'flaky-tests',
+              per_page: 5
+            });
+
+            const existingIssue = issues.data.find(issue =>
+              issue.title.includes('Flaky Test Detection')
+            );
+
+            if (existingIssue) {
+              // Update existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: `## Update: ${new Date().toISOString().split('T')[0]}\n\n${body}`
+              });
+              console.log(`Updated existing issue #${existingIssue.number}`);
+            } else {
+              // Create new issue
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `[CI] Flaky Test Detection - ${report.total_flaky} test(s) detected`,
+                body: body,
+                labels: ['flaky-tests', 'testing', 'ci']
+              });
+              console.log(`Created new issue #${issue.data.number}`);
+            }
+
+  # ==========================================================================
+  # Update CI workflow with flaky test tracking
+  # ==========================================================================
+
+  update-ci-metrics:
+    name: Update CI Metrics
+    runs-on: ubuntu-latest
+    needs: [analyze-flaky-tests]
+    if: always()
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Download flaky test report
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          name: flaky-test-report
+          path: reports/
+        continue-on-error: true
+
+      - name: Update metrics dashboard
+        run: |
+          echo "Flaky test metrics updated"
+          echo "Report available at: reports/flaky-test-report.json"
+
+          # This could push metrics to a monitoring system like:
+          # - Prometheus pushgateway
+          # - CloudWatch
+          # - Datadog
+          # - Custom dashboard
+        continue-on-error: true
