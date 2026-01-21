@@ -205,6 +205,9 @@ class GroundTruth(BaseModel):
         reasoning_key_points: Key points that should appear in reasoning
         expected_enrichment_models: Enrichment models expected to contribute
         should_trigger_alert: Whether scenario should trigger user alert
+        expected_vram_mb: Total VRAM required for all models (optional)
+        should_trigger_circuit_breaker: Whether scenario should activate circuit breaker
+        expected_fallback_behavior: Expected fallback when models fail (optional)
     """
 
     model_config = ConfigDict(
@@ -218,6 +221,9 @@ class GroundTruth(BaseModel):
                 ],
                 "expected_enrichment_models": ["florence_2", "pose_estimation"],
                 "should_trigger_alert": True,
+                "expected_vram_mb": 800,
+                "should_trigger_circuit_breaker": False,
+                "expected_fallback_behavior": None,
             }
         }
     )
@@ -233,6 +239,15 @@ class GroundTruth(BaseModel):
     )
     should_trigger_alert: bool = Field(
         default=False, description="Whether this scenario should trigger a user alert"
+    )
+    expected_vram_mb: int | None = Field(
+        default=None, description="Total VRAM required for all enrichment models (MB)"
+    )
+    should_trigger_circuit_breaker: bool = Field(
+        default=False, description="Whether scenario should trigger circuit breaker activation"
+    )
+    expected_fallback_behavior: str | None = Field(
+        default=None, description="Expected fallback when enrichment models fail"
     )
 
 
