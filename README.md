@@ -15,6 +15,10 @@ Turn "dumb" security cameras into an intelligent threat detection system — **1
 | --------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------- |
 | ![Alerts](docs/images/screenshots/alerts.png) | ![Analytics](docs/images/screenshots/analytics.png) | ![AI Performance](docs/images/screenshots/ai-performance.png) |
 
+| Profiling                                           | Tracing                                         | Operations                                            |
+| --------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------- |
+| ![Profiling](docs/images/screenshots/pyroscope.png) | ![Tracing](docs/images/screenshots/tracing.png) | ![Operations](docs/images/screenshots/operations.png) |
+
 </details>
 
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)

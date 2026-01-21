@@ -2,495 +2,279 @@
 
 ![Analytics Screenshot](../images/screenshots/analytics.png)
 
-The analytics dashboard provides comprehensive insights into detection patterns, risk trends, and camera performance over time.
+Analytics dashboard for monitoring detection trends, risk analysis, and camera performance metrics.
 
 ## What You're Looking At
 
-The Analytics page is your data analysis hub for understanding security trends and system performance. It provides:
+The Analytics page provides comprehensive insights into security detection patterns, risk trends, and camera performance. Powered by Grafana dashboards, this page helps you understand activity patterns, identify anomalies, and monitor system health.
+
+### Layout Overview
+
+```
++----------------------------------------------------------+
+|  HEADER: BarChart Icon | "Analytics" | Action Buttons     |
++----------------------------------------------------------+
+|                                                          |
+|  +----------------------------------------------------+  |
+|  |                                                    |  |
+|  |           GRAFANA DASHBOARD EMBED                  |  |
+|  |                                                    |  |
+|  |  +------------+ +------------+ +------------+      |  |
+|  |  | Detection  | | Risk       | | Camera     |      |  |
+|  |  | Trends     | | Analysis   | | Performance|      |  |
+|  |  +------------+ +------------+ +------------+      |  |
+|  |                                                    |  |
+|  |  +------------------------------------------+      |  |
+|  |  |                                          |      |  |
+|  |  |           VISUALIZATION PANELS           |      |  |
+|  |  |                                          |      |  |
+|  |  +------------------------------------------+      |  |
+|  |                                                    |  |
+|  +----------------------------------------------------+  |
+|                                                          |
++----------------------------------------------------------+
+```
+
+The page embeds the HSI Analytics dashboard from Grafana, which provides:
 
 - **Detection Trends** - Daily detection counts visualized over time
 - **Risk Analysis** - Risk score distribution and historical breakdown
-- **Camera Performance** - Uptime statistics, activity patterns, and pipeline latency
-- **Anomaly Detection** - Configurable settings for detecting unusual activity
-
-The page is organized into four main tabs: Overview, Detections, Risk Analysis, and Camera Performance.
+- **Camera Activity** - Metrics and activity patterns per camera
+- **Activity Baselines** - Learned patterns for anomaly detection
 
 ## Key Components
 
-### Date Range Selector
+### Header Controls
 
-Located in the top-right corner, the date range dropdown lets you filter all analytics data:
+| Button                      | Function                                                                                |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| **Grafana / Native Toggle** | Switch between embedded Grafana dashboard and native React components                   |
+| **Open in Grafana**         | Opens the full Grafana dashboard in a new tab for advanced features (Grafana view only) |
+| **Refresh**                 | Reloads the embedded dashboard (Grafana view only)                                      |
 
-- **Last hour** - Real-time activity view (`1h`)
-- **Last 24 hours** - Daily perspective (`24h`)
-- **Today** - Start of today to now (`today`)
-- **Last 7 days** - Default view for recent trends (`7d`)
-- **Last 30 days** - Monthly perspective (`30d`)
-- **Last 90 days** - Quarterly view (`90d`)
-- **All time** - No date filtering (`all`)
-- **Custom range** - Select specific start and end dates (`custom`)
+### View Modes
 
-The selected range is persisted in the URL query parameters, so you can bookmark or share specific views.
+The Analytics page supports two view modes:
 
-### Camera Selector
+#### Grafana View (Default)
 
-Choose between viewing aggregate statistics across all cameras or drilling down into a specific camera:
+The primary view embeds the HSI Analytics Grafana dashboard (`hsi-analytics`) in kiosk mode. This provides:
 
-- **All Cameras** (default) - Shows combined statistics across your entire system with "Showing aggregate stats across all cameras" indicator
-- **Individual Camera** - Shows camera-specific baselines and detailed metrics
+- Consistent visualization style with other monitoring dashboards
+- Auto-refresh every 30 seconds
+- Full Grafana interactivity (zoom, pan, time range selection)
+- Access to all Grafana features when opened in full mode
 
-When a specific camera is selected, additional information appears:
+#### Native View
 
-- **Total samples** count
-- **Learning status** badge ("Learning Complete" in green or "Still Learning" in yellow)
+A fallback view showing select React-based analytics components:
 
-### Refresh Button
+| Component                  | Description                              |
+| -------------------------- | ---------------------------------------- |
+| **Camera Uptime Card**     | 7-day uptime statistics for all cameras  |
+| **Pipeline Latency Panel** | Real-time AI pipeline processing metrics |
 
-A "Refresh" button next to the camera selector allows manual data refresh. The button shows a spinning icon while refreshing and is disabled during refresh to prevent duplicate requests.
+Use native view when Grafana is unavailable or for quick access to specific metrics.
 
-### Overview Tab
+### Grafana Dashboard Panels
 
-The Overview tab provides a high-level summary of your security system:
+The embedded Grafana dashboard includes panels for:
 
-#### Key Metrics Cards
+| Panel                   | Description                                                  |
+| ----------------------- | ------------------------------------------------------------ |
+| **Detection Trend**     | Time series of daily detection counts                        |
+| **Risk Distribution**   | Breakdown of events by risk level (Low/Medium/High/Critical) |
+| **Camera Activity**     | Event counts and activity per camera                         |
+| **Object Distribution** | Detection counts by object type                              |
+| **Risk History**        | Stacked area chart of risk levels over time                  |
 
-Four metric cards at the top show:
+## Understanding Analytics Data
 
-| Metric             | Description                                      |
-| ------------------ | ------------------------------------------------ |
-| Total Events       | Number of security events in the selected period |
-| Total Detections   | Number of object detections processed            |
-| Average Confidence | Mean confidence score of AI detections           |
-| High Risk Events   | Count of events flagged as high risk             |
+### Detection Trends
 
-#### Detection Trend Chart
+The detection trend visualization shows how many detections occur over time:
 
-An area chart showing daily detection counts over time. The chart displays the date range in the title (e.g., "Detection Trend (2026-01-11 to 2026-01-18)").
+| Pattern                 | Meaning                                          |
+| ----------------------- | ------------------------------------------------ |
+| **Activity spikes**     | Unusual increase in detections (potential event) |
+| **Quiet periods**       | Low activity (normal or potential camera issues) |
+| **Day/night cycles**    | Expected pattern for outdoor cameras             |
+| **Consistent baseline** | Normal operation                                 |
 
-**How data is aggregated:**
+### Risk Analysis
 
-- Detections are grouped by the date portion of `detected_at` timestamp
-- Days with no detections show as zero (gaps are filled)
-- The chart uses TanStack Query for efficient data fetching with caching
+Events are categorized by risk level based on AI analysis:
 
-Useful for identifying:
+| Risk Level | Score Range | Color  | Meaning                 |
+| ---------- | ----------- | ------ | ----------------------- |
+| Low        | 0-30        | Green  | Routine activity        |
+| Medium     | 31-60       | Yellow | Notable but expected    |
+| High       | 61-80       | Orange | Requires attention      |
+| Critical   | 81-100      | Red    | Immediate review needed |
 
-- Activity spikes (unusual increases in detections)
-- Quiet periods (potential camera issues or legitimate low activity)
-- Day-of-week patterns (weekday vs. weekend differences)
+### Camera Performance
 
-#### Top Cameras by Activity
+Monitor camera health through:
 
-A bar chart ranking cameras by event count, helping you identify:
-
-- Most active monitoring zones
-- Cameras that may need attention
-- Activity distribution across your property
-
-### Detections Tab
-
-The Detections tab focuses on what the AI is detecting:
-
-#### Object Type Distribution
-
-A horizontal bar list showing detection counts by object type (person, vehicle, animal, etc.):
-
-- Color-coded by category (cyan, violet, amber, rose, emerald, fuchsia cycling)
-- Shows detection count for each type with "X detections" label
-- Total detection count displayed in the header
-- Identifies the most common detections
-
-**Color mapping for common classes:**
-
-- Person: NVIDIA Green (#76B900)
-- Vehicle/Car: Amber (#F59E0B)
-- Truck: Dark amber (#D97706)
-- Animal: Purple (#8B5CF6)
-- Dog/Cat/Bird: Various purple shades
-
-#### Class Frequency Baseline
-
-_Available when a specific camera is selected._ Titled "Object Class Distribution" in the UI.
-
-Shows the learned distribution of object classes for the selected camera:
-
-- **Horizontal bar chart** showing each detected object class
-- **Frequency score** per object class (higher = more common)
-- **Sample count** (how much data backs the baseline) shown as "(X samples)"
-- **Most common class** highlighted in the header (e.g., "Most common: Person")
-- **Color-coded legend** at the bottom showing all unique classes
-
-**Color assignments:**
-
-- Person: NVIDIA Green (#76B900)
-- Vehicle/Car: Amber tones
-- Animals: Purple tones
-- Other classes: Gray default
-
-This baseline is used for anomaly detection - significant deviations from this learned pattern may indicate unusual activity. When "All Cameras" is selected, a message prompts to select a specific camera.
-
-#### Detection Quality Metrics
-
-Shows the overall quality of AI detections:
-
-- Average confidence percentage
-- Total detection count
-
-### Risk Analysis Tab
-
-The Risk Analysis tab helps you understand threat levels across your system:
-
-#### Risk Score Distribution
-
-A bar list showing events grouped by risk level:
-
-| Risk Level | Score Range | Color  |
-| ---------- | ----------- | ------ |
-| Low        | 0-30        | Green  |
-| Medium     | 31-60       | Yellow |
-| High       | 61-80       | Orange |
-| Critical   | 81-100      | Red    |
-
-#### Anomaly Detection Settings
-
-Configure how sensitive the system is to unusual activity:
-
-- **Detection Threshold** - Slider from 1.0 to 4.0 standard deviations
-
-  - Lower values = more sensitive (more alerts, more false positives)
-  - Higher values = less sensitive (fewer alerts, may miss events)
-  - Sensitivity levels: Very High (1.0-1.5), High (1.5-2.0), Medium (2.0-2.5), Low (2.5-3.0), Very Low (3.0-4.0)
-
-- **Minimum Samples** - Number of samples required before anomaly detection is reliable (default: varies)
-
-- **System-managed settings** (read-only):
-  - Decay Factor: How quickly old data loses relevance
-  - Window Days: Time window for baseline calculations
-
-#### Recent High-Risk Events
-
-A table listing the most recent high-risk events with:
-
-- Timestamp
-- Camera name
-- Risk score badge
-- AI reasoning/description
-
-#### Risk Level Breakdown
-
-A stacked area chart showing the daily breakdown of events by risk level over time. The chart displays the date range in the title.
-
-**How data is aggregated:**
-
-- Events are grouped by date and `risk_level` field
-- Each day shows stacked counts for each risk level
-- Days with no events show as zero for all levels
-- Data fetched via `useRiskHistoryQuery` hook with TanStack Query
-
-The legend shows:
-
-- Critical (81+) - Red (#EF4444)
-- High (61-80) - Orange (#F97316)
-- Medium (31-60) - Yellow (#F59E0B)
-- Low (0-30) - Emerald (#10B981)
-
-### Camera Performance Tab
-
-The Camera Performance tab monitors system health and efficiency:
-
-#### Detection Counts by Camera
-
-A bar list showing event counts per camera, helping you verify all cameras are functioning.
-
-#### Camera Uptime Card
-
-Shows uptime percentage for each camera based on detection activity. **Note:** This card always displays the last 30 days, regardless of the global date range selection.
-
-| Status   | Uptime | Indicator       |
-| -------- | ------ | --------------- |
-| Healthy  | 95%+   | Green (emerald) |
-| Degraded | 80-94% | Yellow          |
-| Warning  | 60-79% | Orange          |
-| Critical | <60%   | Red             |
-
-Uptime is calculated as: (days with at least one detection) / (total days in 30-day range)
-
-The card displays:
-
-- Camera name and uptime percentage
-- Visual progress bar color-coded by health status
-- Legend explaining the status thresholds
-
-#### Activity Heatmap
-
-_Available when a specific camera is selected._
-
-A 24x7 grid showing weekly activity patterns titled "Weekly Activity Pattern":
-
-- **Rows (Y-axis)**: Days of the week (Mon-Sun)
-- **Columns (X-axis)**: Hours (0-23, displayed as 12a, 3a, 6a, 9a, 12p, 3p, 6p, 9p)
-- **Green shades**: Normal activity levels (intensity based on avg_count relative to max)
-- **Orange shades**: Peak hours (statistically higher activity flagged by `is_peak`)
-- **Gray cells**: Insufficient data (sample_count < min_samples_required)
-
-**Color intensity scale:**
-
-- 0-20% of max: Light green (#76B900/20)
-- 20-40% of max: Medium-light green (#76B900/40)
-- 40-60% of max: Medium green (#76B900/60)
-- 60-80% of max: Medium-dark green (#76B900/80)
-- 80-100% of max: Full green (#76B900)
-- Peak hours use orange scale instead
-
-Hover over cells to see:
-
-- Day and hour (e.g., "Mon 9a")
-- Average detection count
-- Sample count
-- Peak hour indicator if applicable
-
-Shows "Learning (X / 168 slots)" badge if `learning_complete` is false. A complete baseline requires data for all 168 hour/day combinations (24 hours x 7 days).
-
-#### Pipeline Latency Breakdown
-
-Shows processing time through each stage of the AI pipeline:
-
-| Stage                        | Internal Key       | Description                                    |
-| ---------------------------- | ------------------ | ---------------------------------------------- |
-| File Watcher -> RT-DETR      | `watch_to_detect`  | Time to detect new images and start processing |
-| RT-DETR -> Batch Aggregator  | `detect_to_batch`  | Object detection processing time               |
-| Batch Aggregator -> Nemotron | `batch_to_analyze` | Risk analysis queue time                       |
-| Total End-to-End             | `total_pipeline`   | Complete pipeline processing time              |
-
-For each stage, displays:
-
-- **Avg**: Average latency in milliseconds
-- **P50**: Median latency (50th percentile)
-- **P95**: 95th percentile latency
-- **P99**: 99th percentile latency
-- **Samples**: Number of measurements
-
-The **Bottleneck** badge (red) highlights the stage with the highest P95 latency.
-
-**Time range selector** (dropdown):
-
-- 1 hour (60 minutes, 60-second buckets)
-- 6 hours (360 minutes, 5-minute buckets)
-- 24 hours (1440 minutes, 15-minute buckets)
-
-**Historical Trend** panel shows a sparkline visualization of P95 latency over time for each stage.
-
-The panel auto-refreshes every 60 seconds by default and includes a manual refresh button.
-
-#### Scene Change Detection
-
-_Available when a specific camera is selected._
-
-Monitors for potential camera tampering with a summary showing total and unacknowledged counts:
-
-| Change Type   | Internal Key    | Description                                  |
-| ------------- | --------------- | -------------------------------------------- |
-| View Blocked  | `view_blocked`  | Camera view obstructed (red badge)           |
-| Angle Changed | `angle_changed` | Camera physically moved (orange badge)       |
-| View Tampered | `view_tampered` | Deliberate interference detected (red badge) |
-
-Each scene change shows:
-
-- **Change type badge** - Color-coded by severity
-- **Detection timestamp** - When the change was detected
-- **Similarity score** - Percentage (lower = more different from baseline)
-- **Acknowledgment status** - Green "Acknowledged" badge if reviewed
-- **Acknowledged timestamp** - When it was acknowledged (if applicable)
-
-Click the green "Acknowledge" button to mark a scene change as reviewed. This action calls the POST endpoint to update the database.
-
-**Footer note**: "Scene changes are detected when the camera view significantly differs from the baseline. Low similarity scores indicate potential tampering or view changes."
-
-## Settings & Configuration
-
-### Anomaly Detection Tuning
-
-Access anomaly settings in the Risk Analysis tab. Adjust based on your needs:
-
-| Environment       | Recommended Threshold | Notes                          |
-| ----------------- | --------------------- | ------------------------------ |
-| High security     | 1.5-2.0 std           | More alerts, review frequently |
-| Standard home     | 2.0-2.5 std           | Balanced approach              |
-| High traffic area | 2.5-3.0 std           | Fewer false positives          |
-
-### Date Range Persistence
-
-The selected date range is stored in the URL query parameter `?range=`. Options:
-
-- `1h` - Last hour
-- `24h` - Last 24 hours
-- `today` - Today only
-- `7d` - Last 7 days (default)
-- `30d` - Last 30 days
-- `90d` - Last 90 days
-- `all` - All time (no filtering)
-- `custom` with `start` and `end` parameters (YYYY-MM-DD format)
-
-Example custom range URL: `?range=custom&start=2026-01-01&end=2026-01-15`
+- **Uptime percentage** - Days with detections vs. total days
+- **Activity distribution** - Which cameras are most active
+- **Detection quality** - Confidence scores of AI detections
 
 ## Using Analytics Effectively
 
 ### Daily Review
 
-1. Check the Overview tab for any unusual spikes
-2. Review High-Risk Events in Risk Analysis
-3. Glance at Camera Performance for uptime issues
+1. Check detection trends for any unusual spikes
+2. Review high-risk events in the risk distribution panel
+3. Verify all cameras show expected activity
 
 ### Weekly Review
 
 1. Compare this week's trends to previous weeks
-2. Check if any cameras are underperforming
-3. Review the Activity Heatmap for pattern changes
-4. Adjust Anomaly Configuration if needed
+2. Look for pattern changes in activity levels
+3. Check if any cameras are underperforming
 
 ### After Incidents
 
-1. Use the Risk Analysis tab to understand severity
-2. Check Detection Trend for similar past events
-3. Review Camera Uptime to ensure coverage during incident
-4. Verify Scene Change Detection did not miss tampering
+1. Use time range selection to focus on incident period
+2. Review risk levels during the timeframe
+3. Check which cameras captured the activity
 
-## Understanding Baseline Learning
+## Settings & Configuration
 
-When you select a specific camera, the system displays baseline learning status.
+### Grafana URL
 
-### What is Baseline Learning?
+The Grafana URL is automatically configured from the backend. If the embedded dashboard fails to load:
 
-The AI builds a model of "normal" activity for each camera by:
+1. Verify Grafana is running
+2. Check the `grafana_url` config setting
+3. Verify network connectivity between frontend and Grafana
 
-1. Collecting detection samples over time
-2. Analyzing patterns in timing and frequency
-3. Building statistical models of expected behavior
+### Dashboard Configuration
 
-### Learning Indicators
+The HSI Analytics dashboard is provisioned automatically:
 
-| Indicator         | Samples    | Meaning                           |
-| ----------------- | ---------- | --------------------------------- |
-| Still Learning    | < minimum  | Need more data for reliable model |
-| Learning Complete | >= minimum | Baseline established              |
+```yaml
+# Grafana provisioning location
+monitoring/grafana/dashboards/analytics.json
+```
 
-### Why Baselines Matter
+### Auto-Refresh
 
-With a complete baseline, the system can:
-
-- Flag unusual activity automatically
-- Reduce false positives for known patterns
-- Detect genuine anomalies more accurately
+The embedded dashboard refreshes every 30 seconds automatically. Use the manual Refresh button for immediate updates.
 
 ## Troubleshooting
 
-### Charts show "No data available"
+### Dashboard Shows "No Data"
 
-1. Check the date range - expand to a longer period
-2. Verify cameras are uploading images to `/export/foscam/{camera_name}/`
-3. Check that the AI pipeline is running (see System Health in header)
+1. **Check time range**: Expand the time period in Grafana
+2. **Verify cameras are active**: Check camera status in the [Dashboard](dashboard.md)
+3. **Check AI pipeline**: Verify the detection pipeline is running
+4. **Verify datasources**: Confirm Grafana can reach the backend API
 
-### Activity Heatmap shows "Still Learning"
+### "Failed to load configuration" Error
 
-The baseline requires data collection over time. Each hour/day combination needs multiple samples before patterns are reliable. Continue monitoring for 1-2 weeks for complete baseline.
+The frontend couldn't fetch the Grafana URL from the backend:
 
-### Camera Uptime shows Critical (<60%)
+1. Verify the backend is running
+2. Check network connectivity
+3. The dashboard will use `/grafana` as a fallback
 
-Possible causes:
+### Dashboard Loads But Shows Empty Panels
 
-1. Camera is offline or disconnected
-2. FTP upload settings are incorrect
-3. Camera directory permissions issue
-4. Network connectivity problems
+1. Check that data exists in the database
+2. Verify the Grafana datasource is configured correctly
+3. Try opening in full Grafana to see any error messages
 
-Check:
+### Native View Shows Errors
 
-- Camera power and network connection
-- FTP configuration on the camera
-- Directory exists at `/export/foscam/{camera_name}/`
-- File watcher service is running
+If the native view components fail to load:
 
-### Pipeline Latency is High
-
-If the Nemotron stage shows high latency:
-
-1. Check GPU utilization (should be available but not maxed)
-2. Verify llama.cpp server is running
-3. Consider adjusting batch window settings
-
-If the RT-DETR stage shows high latency:
-
-1. Check detector service health
-2. Verify GPU memory availability
-
-### Anomaly Config Won't Save
-
-1. Check backend connectivity
-2. Ensure values are within valid ranges:
-   - Threshold: 1.0 to 4.0
-   - Minimum Samples: 1 to 100
-
----
+1. Check backend API connectivity
+2. Verify the `/api/analytics/*` endpoints are responding
+3. Check browser console for specific error messages
 
 ## Technical Deep Dive
 
-For developers wanting to understand the underlying systems.
-
 ### Architecture
 
-- **Analytics API**: [Backend Routes](../../backend/api/routes/analytics.py)
-- **System API** (anomaly config): [System Routes](../../backend/api/routes/system.py)
-- **AI Pipeline**: [AI Pipeline Architecture](../architecture/ai-pipeline.md)
-- **Data Model**: [Data Model Documentation](../architecture/data-model.md)
+```mermaid
+flowchart LR
+    subgraph DataSources["Data Sources"]
+        DB[(PostgreSQL)]
+        B[Backend API]
+    end
+
+    subgraph Visualization["Visualization"]
+        G[Grafana]
+        F[Frontend]
+    end
+
+    DB --> B
+    B --> G
+    G -->|iframe embed| F
+    B -->|native API| F
+
+    style DataSources fill:#e0f2fe
+    style Visualization fill:#dcfce7
+```
 
 ### Related Code
 
-**Frontend Components:**
+**Frontend:**
 
-- Main Page: `frontend/src/components/analytics/AnalyticsPage.tsx`
-- Activity Heatmap: `frontend/src/components/analytics/ActivityHeatmap.tsx`
-- Class Frequency: `frontend/src/components/analytics/ClassFrequencyChart.tsx`
-- Camera Uptime: `frontend/src/components/analytics/CameraUptimeCard.tsx`
-- Date Range Dropdown: `frontend/src/components/analytics/DateRangeDropdown.tsx`
-- Custom Date Picker: `frontend/src/components/analytics/CustomDateRangePicker.tsx`
-- Anomaly Config: `frontend/src/components/analytics/AnomalyConfigPanel.tsx`
-- Pipeline Latency: `frontend/src/components/analytics/PipelineLatencyPanel.tsx`
-- Scene Changes: `frontend/src/components/analytics/SceneChangePanel.tsx`
+- Analytics Page: `frontend/src/components/analytics/AnalyticsPage.tsx`
+- Camera Uptime Card: `frontend/src/components/analytics/CameraUptimeCard.tsx`
+- Pipeline Latency Panel: `frontend/src/components/analytics/PipelineLatencyPanel.tsx`
+- Grafana URL Utility: `frontend/src/utils/grafanaUrl.ts`
 
-**Backend Routes:**
+**Backend:**
 
-- Analytics Routes: `backend/api/routes/analytics.py` (detection-trends, risk-history, camera-uptime, object-distribution)
-- System Routes: `backend/api/routes/system.py` (anomaly-config endpoints)
-- Event Stats: `backend/api/routes/events.py`
-- Detection Stats: `backend/api/routes/detections.py`
-- Camera Routes: `backend/api/routes/cameras.py` (baselines, scene-changes)
+- Analytics Routes: `backend/api/routes/analytics.py`
+- System Routes: `backend/api/routes/system.py` (pipeline latency)
 
-**Backend Services:**
+**Infrastructure:**
 
-- Baseline Service: `backend/services/baseline.py`
-- Scene Baseline: `backend/services/scene_baseline.py`
-- Scene Change Detector: `backend/services/scene_change_detector.py`
-
-**React Hooks:**
-
-- `frontend/src/hooks/useDateRangeState.ts` - Date range state management with URL persistence
-- `frontend/src/hooks/useDetectionTrendsQuery.ts` - Detection trends data fetching (TanStack Query)
-- `frontend/src/hooks/useRiskHistoryQuery.ts` - Risk history data fetching (TanStack Query)
-- `frontend/src/hooks/useCameraUptimeQuery.ts` - Camera uptime data fetching (TanStack Query)
+- Grafana Dashboard: `monitoring/grafana/dashboards/analytics.json`
+- Grafana Container: `docker-compose.prod.yml` (grafana service)
 
 ### API Endpoints
 
-| Endpoint                                             | Method | Description                                                |
-| ---------------------------------------------------- | ------ | ---------------------------------------------------------- |
-| `/api/analytics/detection-trends`                    | GET    | Daily detection counts (requires `start_date`, `end_date`) |
-| `/api/analytics/risk-history`                        | GET    | Daily risk level breakdown by low/medium/high/critical     |
-| `/api/analytics/camera-uptime`                       | GET    | Camera uptime percentages based on active days             |
-| `/api/analytics/object-distribution`                 | GET    | Detection counts by object type with percentages           |
-| `/api/cameras/{id}/baseline/activity`                | GET    | Camera activity baseline (24x7 hour/day matrix)            |
-| `/api/cameras/{id}/baseline/classes`                 | GET    | Camera class frequency baseline                            |
-| `/api/system/anomaly-config`                         | GET    | Get current anomaly detection configuration                |
-| `/api/system/anomaly-config`                         | PUT    | Update anomaly detection configuration                     |
-| `/api/system/pipeline-latency`                       | GET    | Pipeline stage latencies (watch, detect, batch, analyze)   |
-| `/api/system/pipeline-latency/history`               | GET    | Historical pipeline latency data                           |
-| `/api/cameras/{id}/scene-changes`                    | GET    | Scene change detections for tampering monitoring           |
-| `/api/cameras/{id}/scene-changes/{scid}/acknowledge` | POST   | Acknowledge a scene change                                 |
+| Endpoint                             | Method | Description                     |
+| ------------------------------------ | ------ | ------------------------------- |
+| `/api/analytics/detection-trends`    | GET    | Daily detection counts          |
+| `/api/analytics/risk-history`        | GET    | Daily risk level breakdown      |
+| `/api/analytics/camera-uptime`       | GET    | Camera uptime percentages       |
+| `/api/analytics/object-distribution` | GET    | Detection counts by object type |
+| `/api/system/pipeline-latency`       | GET    | Pipeline stage latencies        |
+
+### Data Flow
+
+1. Detection data is stored in PostgreSQL via the AI pipeline
+2. Backend API aggregates and serves analytics data
+3. Grafana queries the backend API for visualizations
+4. Frontend embeds the Grafana dashboard in an iframe
+5. Native view components query the API directly
+
+---
+
+## Quick Reference
+
+### When to Use Analytics
+
+| Scenario          | What to Look For                     |
+| ----------------- | ------------------------------------ |
+| Daily monitoring  | Detection trends, high-risk events   |
+| Camera issues     | Low activity, missing detections     |
+| Security review   | Risk distribution, activity patterns |
+| Performance check | Pipeline latency (native view)       |
+
+### Common Actions
+
+| I want to...                | Do this...                    |
+| --------------------------- | ----------------------------- |
+| See overall trends          | Use Grafana view (default)    |
+| Check pipeline health       | Switch to Native view         |
+| Get more dashboard controls | Click "Open in Grafana"       |
+| Force data refresh          | Click "Refresh" button        |
+| Compare time periods        | Use Grafana time range picker |

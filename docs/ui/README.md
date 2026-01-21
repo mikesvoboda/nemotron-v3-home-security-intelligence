@@ -17,6 +17,8 @@ Page-specific documentation for the Nemotron Home Security dashboard.
 | [AI Audit](ai-audit.md)             | AI decision explanations                             |
 | [AI Performance](ai-performance.md) | Model metrics and performance                        |
 | [Operations](operations.md)         | System health and resources                          |
+| [Profiling](pyroscope.md)           | Continuous profiling with Pyroscope                  |
+| [Tracing](tracing.md)               | Distributed tracing with Jaeger                      |
 | [Trash](trash.md)                   | Deleted event recovery                               |
 | [Logs](logs.md)                     | Application log viewer                               |
 | [Settings](settings.md)             | Application configuration                            |
