@@ -24,11 +24,13 @@ import EnrichmentPanel from './EnrichmentPanel';
 import EntityTrackingPanel from './EntityTrackingPanel';
 import EventVideoPlayer from './EventVideoPlayer';
 import FeedbackForm from './FeedbackForm';
+import MatchedEntitiesSection from './MatchedEntitiesSection';
 import ReidMatchesPanel from './ReidMatchesPanel';
 import ThumbnailStrip from './ThumbnailStrip';
 import { useEventDetectionsQuery } from '../../hooks/useEventDetectionsQuery';
 import { useToast } from '../../hooks/useToast';
 import {
+  fetchEntity,
   getDetectionFullImageUrl,
   getDetectionImageUrl,
   getDetectionVideoThumbnailUrl,
@@ -323,6 +325,17 @@ export default function EventDetailModal({
     if (index !== -1) {
       setThumbnailLightboxIndex(index);
       setThumbnailLightboxOpen(true);
+    }
+  };
+
+  // Handle matched entity click to open EntityDetailModal
+  const handleMatchedEntityClick = async (entityId: string) => {
+    try {
+      const entity = await fetchEntity(entityId);
+      setSelectedEntity(entity);
+      setEntityDetailOpen(true);
+    } catch (error) {
+      console.error('Failed to fetch entity details:', error);
     }
   };
 
@@ -933,6 +946,14 @@ export default function EventDetailModal({
                             currentTimestamp={event.timestamp}
                           />
                         </div>
+                      )}
+
+                      {/* Matched Entities (Re-ID Matches) */}
+                      {!isNaN(eventIdNumber) && (
+                        <MatchedEntitiesSection
+                          eventId={eventIdNumber}
+                          onEntityClick={(entityId) => void handleMatchedEntityClick(entityId)}
+                        />
                       )}
 
                       {/* User Notes */}
