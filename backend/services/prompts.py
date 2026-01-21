@@ -156,12 +156,16 @@ def validate_clothing_items(
 
 
 if TYPE_CHECKING:
+    from backend.services.age_classifier_loader import AgeClassificationResult
     from backend.services.depth_anything_loader import DepthAnalysisResult
     from backend.services.enrichment_pipeline import EnrichmentResult
     from backend.services.fashion_clip_loader import ClothingClassification
+    from backend.services.gender_classifier_loader import GenderClassificationResult
     from backend.services.image_quality_loader import ImageQualityResult
+    from backend.services.osnet_loader import PersonEmbeddingResult
     from backend.services.pet_classifier_loader import PetClassificationResult
     from backend.services.segformer_loader import ClothingSegmentationResult
+    from backend.services.threat_detection_loader import ThreatDetectionResult
     from backend.services.vehicle_classifier_loader import VehicleClassificationResult
     from backend.services.vehicle_damage_loader import VehicleDamageResult
     from backend.services.violence_loader import ViolenceDetectionResult
@@ -1194,6 +1198,234 @@ def format_camera_health_context(
         # Unknown or other change types
         lines.append(f"Scene change detected (similarity: {similarity_score:.0%})")
         lines.append("Detection accuracy may be affected")
+
+    return "\n".join(lines)
+
+
+def format_threat_detection_context(
+    threat_result: ThreatDetectionResult | None,
+    time_of_day: str | None = None,
+) -> str:
+    """Format threat/weapon detection results for prompt context.
+
+    Args:
+        threat_result: ThreatDetectionResult from threat detection, or None
+        time_of_day: Optional time context for risk assessment
+
+    Returns:
+        Formatted string for prompt inclusion
+    """
+    if threat_result is None:
+        return "Threat detection: Not performed"
+
+    if not threat_result.has_threats:
+        return "Threat detection: No weapons or threatening objects detected"
+
+    lines = ["**WEAPON/THREAT DETECTION**"]
+
+    if threat_result.has_high_priority:
+        lines.append("  CRITICAL ALERT: High-priority weapon detected!")
+        lines.append("  Immediate review recommended.")
+
+    lines.append(f"  Threats found: {threat_result.threat_summary}")
+    lines.append(f"  Highest confidence: {threat_result.highest_confidence:.0%}")
+
+    for threat in sorted(threat_result.threats, key=lambda t: t.confidence, reverse=True)[:5]:
+        priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""
+        lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+    # Time-based escalation
+    if time_of_day and time_of_day.lower() in ("night", "late_night", "early_morning"):
+        lines.append(f"  TIME CONTEXT: Detection during {time_of_day}")
+        lines.append("  Elevated concern: Armed threat at unusual hour")
+
+    return "\n".join(lines)
+
+
+def format_age_classification_context(
+    age_classifications: dict[str, AgeClassificationResult],
+) -> str:
+    """Format age classification results for prompt context.
+
+    Args:
+        age_classifications: Dict mapping detection_id to AgeClassificationResult
+
+    Returns:
+        Formatted string for prompt inclusion
+    """
+    if not age_classifications:
+        return "Age estimation: No persons analyzed"
+
+    lines = [f"Age estimation ({len(age_classifications)} persons):"]
+
+    has_minors = False
+    for det_id, age in age_classifications.items():
+        confidence_note = ""
+        if age.confidence < 0.5:
+            confidence_note = " [LOW CONFIDENCE]"
+        elif age.confidence < 0.7:
+            confidence_note = " [medium confidence]"
+
+        minor_marker = ""
+        if age.is_minor:
+            minor_marker = " **MINOR**"
+            has_minors = True
+
+        lines.append(
+            f"  Person {det_id}: {age.display_name} ({age.confidence:.0%})"
+            f"{confidence_note}{minor_marker}"
+        )
+
+    if has_minors:
+        lines.append("")
+        lines.append("  **NOTE**: Minor(s) detected - may indicate lost/unaccompanied child")
+        lines.append("  Consider context and presence of adults when assessing risk")
+
+    return "\n".join(lines)
+
+
+def format_gender_classification_context(
+    gender_classifications: dict[str, GenderClassificationResult],
+) -> str:
+    """Format gender classification results for prompt context.
+
+    Args:
+        gender_classifications: Dict mapping detection_id to GenderClassificationResult
+
+    Returns:
+        Formatted string for prompt inclusion
+    """
+    if not gender_classifications:
+        return "Gender estimation: No persons analyzed"
+
+    lines = [f"Gender estimation ({len(gender_classifications)} persons):"]
+
+    for det_id, gender in gender_classifications.items():
+        confidence_note = ""
+        if gender.confidence < 0.6:
+            confidence_note = " [low confidence]"
+
+        lines.append(
+            f"  Person {det_id}: {gender.gender} ({gender.confidence:.0%}){confidence_note}"
+        )
+
+    return "\n".join(lines)
+
+
+def format_person_demographics_context(
+    age_classifications: dict[str, AgeClassificationResult] | None,
+    gender_classifications: dict[str, GenderClassificationResult] | None,
+) -> str:
+    """Format combined age and gender demographics for prompt context.
+
+    Combines age and gender classifications into a unified person description
+    for each detection ID.
+
+    Args:
+        age_classifications: Dict mapping detection_id to AgeClassificationResult, or None
+        gender_classifications: Dict mapping detection_id to GenderClassificationResult, or None
+
+    Returns:
+        Formatted string combining age and gender for prompt context
+    """
+    if not age_classifications and not gender_classifications:
+        return "Person demographics: Not analyzed"
+
+    # Collect all person IDs
+    all_ids: set[str] = set()
+    if age_classifications:
+        all_ids.update(age_classifications.keys())
+    if gender_classifications:
+        all_ids.update(gender_classifications.keys())
+
+    if not all_ids:
+        return "Person demographics: No persons analyzed"
+
+    lines = [f"Person demographics ({len(all_ids)} persons):"]
+
+    has_minors = False
+    for det_id in sorted(all_ids):
+        parts = [f"  Person {det_id}:"]
+
+        # Add gender if available
+        if gender_classifications and det_id in gender_classifications:
+            gender = gender_classifications[det_id]
+            parts.append(f" {gender.gender}")
+
+        # Add age if available
+        if age_classifications and det_id in age_classifications:
+            age = age_classifications[det_id]
+            parts.append(f", {age.display_name}")
+            if age.is_minor:
+                parts.append(" **MINOR**")
+                has_minors = True
+
+        # Add confidence notes
+        notes = []
+        if (
+            gender_classifications
+            and det_id in gender_classifications
+            and gender_classifications[det_id].confidence < 0.6
+        ):
+            notes.append("gender uncertain")
+        if (
+            age_classifications
+            and det_id in age_classifications
+            and age_classifications[det_id].confidence < 0.6
+        ):
+            notes.append("age uncertain")
+        if notes:
+            parts.append(f" [{', '.join(notes)}]")
+
+        lines.append("".join(parts))
+
+    if has_minors:
+        lines.append("")
+        lines.append("  **NOTE**: Minor(s) detected - evaluate context carefully")
+
+    return "\n".join(lines)
+
+
+def format_person_reid_context(
+    reid_matches: dict[str, list[tuple[PersonEmbeddingResult, float]]] | None,
+) -> str:
+    """Format person re-identification matches for prompt context.
+
+    Args:
+        reid_matches: Dict mapping detection_id to list of (match, similarity) tuples,
+                     or None if re-id was not performed
+
+    Returns:
+        Formatted string for prompt inclusion
+    """
+    if reid_matches is None:
+        return "Person re-identification: Not performed"
+
+    if not reid_matches:
+        return "Person re-identification: No matches found (all new individuals)"
+
+    lines = ["Person re-identification:"]
+
+    for det_id, matches in reid_matches.items():
+        if not matches:
+            lines.append(f"  Person {det_id}: New individual (no prior matches)")
+            continue
+
+        # Get top match
+        top_match, top_sim = matches[0]
+        match_id = top_match.detection_id or "unknown"
+
+        if top_sim >= 0.9:
+            lines.append(f"  Person {det_id}: HIGH CONFIDENCE match to {match_id} ({top_sim:.0%})")
+        elif top_sim >= 0.8:
+            lines.append(f"  Person {det_id}: Likely same person as {match_id} ({top_sim:.0%})")
+        else:
+            lines.append(f"  Person {det_id}: Possible match to {match_id} ({top_sim:.0%})")
+
+        # Add additional matches if present
+        for match, sim in matches[1:3]:
+            alt_id = match.detection_id or "unknown"
+            lines.append(f"    Alternative: {alt_id} ({sim:.0%})")
 
     return "\n".join(lines)
 
