@@ -193,6 +193,7 @@ datasources:
 
   # Loki datasource for log aggregation with trace correlation
   - name: Loki
+    uid: loki
     type: loki
     access: proxy
     url: http://loki:3100
@@ -203,10 +204,10 @@ datasources:
       derivedFields:
         # Link logs to traces via trace_id
         - name: TraceID
-          matcherRegex: "trace_id=([a-f0-9]{32})"
-          url: "${__value.raw}"
+          matcherRegex: 'trace_id=([a-f0-9]{32})'
+          url: '${__value.raw}'
           datasourceUid: jaeger
-          urlDisplayLabel: "View Trace"
+          urlDisplayLabel: 'View Trace'
 
   # Pyroscope datasource for continuous profiling
   - name: Pyroscope
@@ -221,5 +222,5 @@ datasources:
         tags:
           - key: service.name
             value: service
-        profileTypeId: "process_cpu:cpu:nanoseconds:cpu:nanoseconds"
+        profileTypeId: 'process_cpu:cpu:nanoseconds:cpu:nanoseconds'
         customQuery: true
