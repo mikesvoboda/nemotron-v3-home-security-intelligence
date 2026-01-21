@@ -11,6 +11,7 @@ import {
   Briefcase,
   ClipboardCheck,
   Clock,
+  Flame,
   Home,
   ScrollText,
   Settings,
@@ -59,6 +60,7 @@ export const navGroups: NavGroup[] = [
       { id: 'analytics', label: 'Analytics', icon: BarChart3, path: '/analytics' },
       { id: 'ai-audit', label: 'AI Audit', icon: ClipboardCheck, path: '/ai-audit' },
       { id: 'ai', label: 'AI Performance', icon: Brain, path: '/ai' },
+      { id: 'pyroscope', label: 'Profiling', icon: Flame, path: '/pyroscope' },
     ],
   },
   {
