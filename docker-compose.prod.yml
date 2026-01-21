@@ -684,13 +684,26 @@ services:
           memory: 512M
 
   # Pyroscope for continuous profiling (NEM-3097)
-  # Collects CPU and memory profiles from application services
+  # Custom image with py-spy for Python process profiling
   pyroscope:
-    image: docker.io/grafana/pyroscope:1.4.0
+    build:
+      context: ./monitoring/pyroscope
+      dockerfile: Dockerfile
     container_name: pyroscope
+    # Share host PID namespace to access other container processes for profiling
+    pid: host
+    # Required capabilities for py-spy to trace processes
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
     volumes:
       - ./monitoring/pyroscope/pyroscope-config.yml:/etc/pyroscope/config.yml:ro,z
       - pyroscope_data:/data
+      # Mount host /proc for process discovery
+      - /proc:/host/proc:ro
+    environment:
+      - PROFILE_INTERVAL=30
     command: -config.file=/etc/pyroscope/config.yml
     ports:
       - '4040:4040'
@@ -705,8 +718,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.25'
-          memory: 512M
+          cpus: '0.5'
+          memory: 768M
 
   # Alloy for log collection via eBPF (NEM-3093)
   # Collects container logs from Podman and forwards to Loki
