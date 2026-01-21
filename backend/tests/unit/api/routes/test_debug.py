@@ -57,19 +57,6 @@ def debug_settings() -> Settings:
     )
 
 
-@pytest.fixture
-def production_settings() -> Settings:
-    """Create settings with debug=False (production mode)."""
-    return Settings(
-        debug=False,
-        database_url=os.environ.get(
-            "DATABASE_URL",
-            "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
-        ),
-        redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379/15"),
-    )
-
-
 async def _mock_redis_dependency(mock_redis: MagicMock):
     """Generator that yields the mock Redis client."""
     yield mock_redis
@@ -156,32 +143,6 @@ class TestDebugConfigEndpoint:
             finally:
                 app.dependency_overrides.clear()
 
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Debug mode check disabled for local development deployment")
-    async def test_get_config_returns_404_when_debug_disabled(
-        self, mock_redis: MagicMock, production_settings: Settings
-    ) -> None:
-        """Verify config endpoint returns 404 when debug=False."""
-        from backend.core.redis import get_redis_optional
-        from backend.main import app
-
-        async def mock_redis_gen():
-            yield mock_redis
-
-        with (
-            patch("backend.api.routes.debug.get_settings", return_value=production_settings),
-        ):
-            app.dependency_overrides[get_redis_optional] = mock_redis_gen
-            try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
-                ) as client:
-                    response = await client.get("/api/debug/config")
-
-                assert response.status_code == 404
-            finally:
-                app.dependency_overrides.clear()
-
 
 class TestDebugRedisInfoEndpoint:
     """Tests for GET /api/debug/redis/info endpoint."""
@@ -237,32 +198,6 @@ class TestDebugRedisInfoEndpoint:
             finally:
                 app.dependency_overrides.clear()
 
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Debug mode check disabled for local development deployment")
-    async def test_get_redis_info_returns_404_when_debug_disabled(
-        self, mock_redis: MagicMock, production_settings: Settings
-    ) -> None:
-        """Verify redis info endpoint returns 404 when debug=False."""
-        from backend.core.redis import get_redis_optional
-        from backend.main import app
-
-        async def mock_redis_gen():
-            yield mock_redis
-
-        with (
-            patch("backend.api.routes.debug.get_settings", return_value=production_settings),
-        ):
-            app.dependency_overrides[get_redis_optional] = mock_redis_gen
-            try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
-                ) as client:
-                    response = await client.get("/api/debug/redis/info")
-
-                assert response.status_code == 404
-            finally:
-                app.dependency_overrides.clear()
-
 
 class TestDebugWebSocketConnectionsEndpoint:
     """Tests for GET /api/debug/websocket/connections endpoint."""
@@ -295,32 +230,6 @@ class TestDebugWebSocketConnectionsEndpoint:
                 # Check structure
                 assert "connection_count" in data["event_broadcaster"]
                 assert "connection_count" in data["system_broadcaster"]
-            finally:
-                app.dependency_overrides.clear()
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Debug mode check disabled for local development deployment")
-    async def test_get_websocket_connections_returns_404_when_debug_disabled(
-        self, mock_redis: MagicMock, production_settings: Settings
-    ) -> None:
-        """Verify websocket connections endpoint returns 404 when debug=False."""
-        from backend.core.redis import get_redis_optional
-        from backend.main import app
-
-        async def mock_redis_gen():
-            yield mock_redis
-
-        with (
-            patch("backend.api.routes.debug.get_settings", return_value=production_settings),
-        ):
-            app.dependency_overrides[get_redis_optional] = mock_redis_gen
-            try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
-                ) as client:
-                    response = await client.get("/api/debug/websocket/connections")
-
-                assert response.status_code == 404
             finally:
                 app.dependency_overrides.clear()
 
@@ -397,141 +306,13 @@ class TestDebugCircuitBreakersEndpoint:
 
                 reset_circuit_breaker_registry()
 
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Debug mode check disabled for local development deployment")
-    async def test_get_circuit_breakers_returns_404_when_debug_disabled(
-        self, mock_redis: MagicMock, production_settings: Settings
-    ) -> None:
-        """Verify circuit breakers endpoint returns 404 when debug=False."""
-        from backend.core.redis import get_redis_optional
-        from backend.main import app
-
-        async def mock_redis_gen():
-            yield mock_redis
-
-        with (
-            patch("backend.api.routes.debug.get_settings", return_value=production_settings),
-        ):
-            app.dependency_overrides[get_redis_optional] = mock_redis_gen
-            try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
-                ) as client:
-                    response = await client.get("/api/debug/circuit-breakers")
-
-                assert response.status_code == 404
-            finally:
-                app.dependency_overrides.clear()
-
 
 class TestDebugLogLevelEndpoint:
     """Tests for POST /api/debug/log-level endpoint (extended tests)."""
 
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Debug mode check disabled for local development deployment")
-    async def test_log_level_returns_404_when_debug_disabled(
-        self, mock_redis: MagicMock, production_settings: Settings
-    ) -> None:
-        """Verify log level endpoint returns 404 when debug=False."""
-        from backend.core.redis import get_redis_optional
-        from backend.main import app
-
-        async def mock_redis_gen():
-            yield mock_redis
-
-        with (
-            patch("backend.api.routes.debug.get_settings", return_value=production_settings),
-        ):
-            app.dependency_overrides[get_redis_optional] = mock_redis_gen
-            try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
-                ) as client:
-                    response = await client.post(
-                        "/api/debug/log-level",
-                        json={"level": "DEBUG"},
-                    )
-
-                assert response.status_code == 404
-            finally:
-                app.dependency_overrides.clear()
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Debug mode check disabled for local development deployment")
-    async def test_get_log_level_returns_404_when_debug_disabled(
-        self, mock_redis: MagicMock, production_settings: Settings
-    ) -> None:
-        """Verify GET log level endpoint returns 404 when debug=False."""
-        from backend.core.redis import get_redis_optional
-        from backend.main import app
-
-        async def mock_redis_gen():
-            yield mock_redis
-
-        with (
-            patch("backend.api.routes.debug.get_settings", return_value=production_settings),
-        ):
-            app.dependency_overrides[get_redis_optional] = mock_redis_gen
-            try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
-                ) as client:
-                    response = await client.get("/api/debug/log-level")
-
-                assert response.status_code == 404
-            finally:
-                app.dependency_overrides.clear()
-
 
 class TestDebugEndpointSecurity:
     """Security tests for all debug endpoints."""
-
-    @pytest.mark.asyncio
-    @pytest.mark.skip(reason="Debug mode check disabled for local development deployment")
-    async def test_all_debug_endpoints_require_debug_mode(
-        self, mock_redis: MagicMock, production_settings: Settings
-    ) -> None:
-        """Verify all debug endpoints are blocked when debug=False."""
-        from backend.core.redis import get_redis_optional
-        from backend.main import app
-
-        async def mock_redis_gen():
-            yield mock_redis
-
-        endpoints = [
-            ("GET", "/api/debug/config"),
-            ("GET", "/api/debug/redis/info"),
-            ("GET", "/api/debug/websocket/connections"),
-            ("GET", "/api/debug/circuit-breakers"),
-            ("GET", "/api/debug/log-level"),
-            ("POST", "/api/debug/log-level"),
-            ("GET", "/api/debug/pipeline-state"),
-            ("POST", "/api/debug/profile/start"),
-            ("POST", "/api/debug/profile/stop"),
-            ("GET", "/api/debug/profile/stats"),
-            ("GET", "/api/debug/recordings"),
-        ]
-
-        with (
-            patch("backend.api.routes.debug.get_settings", return_value=production_settings),
-        ):
-            app.dependency_overrides[get_redis_optional] = mock_redis_gen
-            try:
-                async with AsyncClient(
-                    transport=ASGITransport(app=app), base_url="http://test"
-                ) as client:
-                    for method, url in endpoints:
-                        if method == "GET":
-                            response = await client.get(url)
-                        else:
-                            response = await client.post(url, json={"level": "DEBUG"})
-
-                        assert response.status_code == 404, (
-                            f"Endpoint {method} {url} should return 404 when debug=False, "
-                            f"got {response.status_code}"
-                        )
-            finally:
-                app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
     async def test_debug_endpoints_do_not_leak_sensitive_info(

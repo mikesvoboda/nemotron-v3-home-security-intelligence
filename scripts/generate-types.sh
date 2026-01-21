@@ -190,6 +190,7 @@ print_step "Generating OpenAPI specification from backend..."
 
 # Set default environment variables for OpenAPI generation
 # These are only needed for Settings validation during import, not for actual functionality
+export ENVIRONMENT="${ENVIRONMENT:-test}"  # Bypass production password validation
 export DATABASE_URL="${DATABASE_URL:-postgresql+asyncpg://user:password@localhost:5432/security}"  # pragma: allowlist secret
 export REDIS_URL="${REDIS_URL:-redis://localhost:6379/0}"
 

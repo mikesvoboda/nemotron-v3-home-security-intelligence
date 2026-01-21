@@ -4,6 +4,14 @@ from .ai_audit import (
     EnrichedSuggestion,
     ExampleImprovement,
 )
+from .ai_services_health import (
+    AIServiceCircuitState,
+    AIServiceHealthDetail,
+    AIServiceOverallStatus,
+    AIServicesHealthResponse,
+    AIServiceStatus,
+    QueueDepthInfo,
+)
 from .alerts import (
     AlertCreate,
     AlertListResponse,
@@ -219,6 +227,12 @@ __all__ = [
     "COMMON_ERROR_RESPONSES",
     "EVENT_REGISTRY",
     "HTTP_STATUS_PHRASES",
+    # AI Services Health schemas (NEM-3143)
+    "AIServiceCircuitState",
+    "AIServiceHealthDetail",
+    "AIServiceOverallStatus",
+    "AIServiceStatus",
+    "AIServicesHealthResponse",
     "ActivityBaselineEntry",
     "ActivityBaselineResponse",
     "AlertCreate",
@@ -340,6 +354,7 @@ __all__ = [
     "PetEnrichmentData",
     "PoseEnrichment",
     "ProblemDetail",
+    "QueueDepthInfo",
     "RateLimitErrorResponse",
     "RiskLevel",
     "SceneChangeAcknowledgeResponse",

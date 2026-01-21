@@ -1,17 +1,84 @@
 """Pytest configuration and shared fixtures.
 
-This module provides shared test fixtures for all backend tests:
-- isolated_db: Function-scoped isolated database for unit tests (PostgreSQL)
-- test_db: Callable session factory for unit tests
-- mock_redis: Mock Redis client for unit tests
+This module provides shared test fixtures for all backend tests.
 
-Integration tests use module-scoped containers defined in backend/tests/integration/conftest.py
-for full test isolation without race conditions.
+FIXTURE HIERARCHY AND ORGANIZATION:
+====================================
 
+Root Fixtures (backend/tests/conftest.py - THIS FILE):
+    Database Fixtures:
+        - isolated_db: Function-scoped isolated database for unit tests (PostgreSQL)
+        - test_db: Callable session factory for unit tests
+        - session: Transaction-based isolation with savepoint rollback
+
+    Mock Fixtures (Consolidated - NEM-3152):
+        - mock_db_session: Comprehensive database session mock
+        - mock_db_session_context: Async context manager wrapper for mock_db_session
+        - mock_redis_client: Full-featured Redis client mock
+        - mock_redis: Simplified Redis mock for basic operations
+        - mock_http_client: HTTP client mock with all methods
+        - mock_http_response: HTTP response mock
+        - mock_detector_client: RT-DETR detector service mock
+        - mock_nemotron_client: Nemotron LLM service mock
+        - mock_baseline_service: Baseline service mock
+        - mock_settings: Application settings mock
+
+    Factory Fixtures:
+        - camera_factory: Camera model factory
+        - detection_factory: Detection model factory
+        - event_factory: Event model factory
+        - zone_factory: Zone model factory
+
+    Utility Fixtures:
+        - unique_id: Generate unique IDs for test data isolation
+        - reset_settings_cache: Auto-reset settings between tests
+
+Domain-Specific Fixtures (in subdirectories):
+    Integration Tests (backend/tests/integration/conftest.py):
+        - postgres_container, redis_container: Session-scoped test services
+        - worker_db_url, worker_redis_url: Worker-isolated resources for pytest-xdist
+        - integration_db, db_session, isolated_db_session: Integration test DB access
+        - session: Override of root session for worker isolation
+        - client: FastAPI test client with full app lifecycle
+
+    Chaos Tests (backend/tests/chaos/conftest.py):
+        - fault_injector: Core fault injection framework
+        - rtdetr_*, redis_*, database_*, nemotron_*: Service-specific fault fixtures
+        - high_latency, packet_loss: Network condition simulation
+        - all_ai_services_down, cache_and_ai_down: Compound fault scenarios
+
+    Contract Tests (backend/tests/contracts/conftest.py):
+        - test_app: FastAPI app with mocked dependencies
+        - async_client: HTTP client for contract testing
+        - patch_database_dependency, patch_redis_dependency: Dependency injection patches
+        NOTE: Uses mock_db_session and mock_redis_client from root conftest.py
+
+    Security Tests (backend/tests/security/conftest.py):
+        - security_client: Synchronous test client for security testing
+
+    Unit Tests (backend/tests/unit/conftest.py):
+        - mock_transformers_for_speed: Speed optimization for transformers import
+
+    Unit Model Tests (backend/tests/unit/models/conftest.py):
+        - _soft_delete_serial_lock: Cross-process lock for soft delete tests
+
+CONSOLIDATION (NEM-3152):
+==========================
+Mock fixtures have been consolidated in this root conftest.py to eliminate duplication.
+Previously, mock_db_session and mock_redis_client were duplicated in:
+- backend/tests/conftest.py (comprehensive versions)
+- backend/tests/contracts/conftest.py (basic versions - REMOVED)
+
+Shared utility functions have been extracted to backend/tests/test_utils.py:
+- check_tcp_connection
+- wait_for_postgres_container
+- wait_for_redis_container
+- get_table_deletion_order
+
+ENVIRONMENT CONFIGURATION:
+==========================
 Tests use PostgreSQL and Redis via testcontainers or local instances.
 Configure TEST_DATABASE_URL/TEST_REDIS_URL environment variables for overrides.
-
-See backend/tests/AGENTS.md for full documentation on test conventions.
 
 Hypothesis Configuration:
 - default: 100 examples, reasonable timeouts for local development
@@ -23,9 +90,18 @@ Flaky Test Detection:
 - Tests marked with @pytest.mark.flaky are quarantined (failures don't fail CI)
 - Test outcomes are tracked in FLAKY_TEST_RESULTS_FILE for analysis
 - Use pytest-rerunfailures with --reruns flag for automatic retry
+
+See backend/tests/AGENTS.md for full documentation on test conventions.
 """
 
 from __future__ import annotations
+
+# CRITICAL: Set ENVIRONMENT before any imports that might instantiate Settings.
+# The password validation in config.py rejects weak passwords in production/staging.
+# Tests use weak passwords by design, so we must run in development/test mode.
+import os as _os
+
+_os.environ.setdefault("ENVIRONMENT", "test")
 
 import logging
 import os

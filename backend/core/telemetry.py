@@ -467,7 +467,7 @@ def get_trace_context() -> dict[str, str | None]:
 
 
 # =============================================================================
-# W3C Trace Context Propagation (NEM-XXXX)
+# W3C Trace Context Propagation (NEM-3147)
 # =============================================================================
 
 
@@ -627,6 +627,102 @@ def trace_function(
         return sync_wrapper  # type: ignore[return-value]
 
     return decorator
+
+
+# =============================================================================
+# AI Service Span Helper (NEM-3147)
+# =============================================================================
+
+
+@contextmanager
+def ai_service_span(
+    service_name: str,
+    operation: str,
+    *,
+    endpoint_url: str | None = None,
+    **attributes: str | int | float | bool,
+) -> Iterator[SpanProtocol]:
+    """Context manager for AI service call tracing with semantic conventions.
+
+    Creates a span with OpenTelemetry semantic conventions for HTTP client calls,
+    including proper span kind and attributes for distributed tracing correlation.
+
+    This is optimized for AI service calls (RT-DETR, Nemotron, Florence, CLIP, etc.)
+    and includes attributes that help correlate circuit breaker events with traces.
+
+    Args:
+        service_name: Name of the AI service (e.g., "rtdetr", "nemotron", "florence")
+        operation: Operation being performed (e.g., "detect", "analyze", "embed")
+        endpoint_url: Optional URL of the service endpoint
+        **attributes: Additional attributes to set on the span
+
+    Yields:
+        The created Span object (SpanProtocol compatible)
+
+    Example:
+        >>> from backend.core.telemetry import ai_service_span
+        >>> with ai_service_span("florence", "extract", endpoint_url=url) as span:
+        ...     response = await client.post(url, json=payload)
+        ...     span.set_attribute("ai.response_tokens", len(response.text))
+    """
+    span_name = f"{service_name}.{operation}"
+
+    # Build semantic attributes for AI service calls
+    span_attributes: dict[str, str | int | float | bool] = {
+        "ai.service": service_name,
+        "ai.operation": operation,
+        "peer.service": service_name,  # Standard OTEL attribute for remote service
+    }
+    if endpoint_url:
+        span_attributes["http.url"] = endpoint_url
+        span_attributes["server.address"] = (
+            endpoint_url.split("://")[-1].split("/")[0].split(":")[0]
+        )
+
+    # Merge with caller-provided attributes
+    span_attributes.update(attributes)
+
+    with trace_span(span_name, record_exception_on_error=True, **span_attributes) as span:
+        yield span
+
+
+def set_ai_response_attributes(
+    span: SpanProtocol,
+    *,
+    status_code: int | None = None,
+    response_size_bytes: int | None = None,
+    inference_time_ms: float | None = None,
+    model_name: str | None = None,
+    tokens_used: int | None = None,
+    error: str | None = None,
+) -> None:
+    """Set standard response attributes on an AI service span.
+
+    Convenience function to add response-related attributes after an AI service
+    call completes. These attributes help with performance analysis and debugging.
+
+    Args:
+        span: The span to add attributes to
+        status_code: HTTP response status code
+        response_size_bytes: Size of the response body in bytes
+        inference_time_ms: AI model inference time in milliseconds
+        model_name: Name of the AI model used
+        tokens_used: Number of tokens consumed (for LLM calls)
+        error: Error message if the call failed
+    """
+    if status_code is not None:
+        span.set_attribute("http.response.status_code", status_code)
+    if response_size_bytes is not None:
+        span.set_attribute("http.response.body.size", response_size_bytes)
+    if inference_time_ms is not None:
+        span.set_attribute("ai.inference_time_ms", inference_time_ms)
+    if model_name is not None:
+        span.set_attribute("ai.model", model_name)
+    if tokens_used is not None:
+        span.set_attribute("ai.tokens_used", tokens_used)
+    if error is not None:
+        span.set_attribute("error", True)
+        span.set_attribute("error.message", error)
 
 
 # =============================================================================

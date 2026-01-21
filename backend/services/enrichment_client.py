@@ -891,7 +891,11 @@ class EnrichmentClient:
 
         try:
             # Use persistent HTTP client (NEM-1721)
-            response = await self._health_http_client.get(f"{self._base_url}/health")
+            # NEM-3147: Include W3C Trace Context headers for distributed tracing
+            response = await self._health_http_client.get(
+                f"{self._base_url}/health",
+                headers=self._get_headers(),
+            )
             response.raise_for_status()
             result = cast("dict[str, Any]", response.json())
             result["circuit_breaker_state"] = circuit_state
@@ -2429,10 +2433,12 @@ class EnrichmentClient:
             ai_start_time = time.time()
 
             # Send request with explicit timeout
+            # NEM-3147: Include W3C Trace Context headers for distributed tracing
             async with asyncio.timeout(explicit_timeout):
                 response = await self._http_client.post(
                     f"{self._base_url}/{endpoint}",
                     json=payload,
+                    headers=self._get_headers(),
                 )
                 response.raise_for_status()
 
@@ -2501,7 +2507,11 @@ class EnrichmentClient:
             - model_specs: Dictionary of registered model specifications
         """
         try:
-            response = await self._http_client.get(f"{self._base_url}/models/status")
+            # NEM-3147: Include W3C Trace Context headers for distributed tracing
+            response = await self._http_client.get(
+                f"{self._base_url}/models/status",
+                headers=self._get_headers(),
+            )
             response.raise_for_status()
             return cast("dict[str, Any]", response.json())
         except httpx.HTTPStatusError as e:
@@ -2527,9 +2537,11 @@ class EnrichmentClient:
             True if the model was successfully loaded, False otherwise
         """
         try:
+            # NEM-3147: Include W3C Trace Context headers for distributed tracing
             response = await self._http_client.post(
                 f"{self._base_url}/models/preload",
                 params={"model_name": model_name},
+                headers=self._get_headers(),
             )
             if response.status_code == 200:
                 logger.info(f"Successfully preloaded model: {model_name}")

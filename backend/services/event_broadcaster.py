@@ -1500,20 +1500,45 @@ class EventBroadcaster:
     async def _send_to_all_clients(self, event_data: Any) -> None:
         """Send event data to all connected WebSocket clients.
 
+        Implements threshold-based compression (NEM-3154):
+        - Messages smaller than websocket_compression_threshold are sent as plain JSON
+        - Messages larger than the threshold are compressed with zlib/deflate
+        - Compressed messages are sent as binary with a magic header byte
+
         Args:
             event_data: Event data to send (will be JSON-serialized)
         """
+        from backend.core.websocket.compression import prepare_message
+
         if not self._connections:
             return
 
         # Convert to JSON string if not already
         message = event_data if isinstance(event_data, str) else json.dumps(event_data)
 
+        # Prepare message with optional compression (NEM-3154)
+        prepared_message, was_compressed = prepare_message(message)
+
+        if was_compressed:
+            logger.debug(
+                "Sending compressed WebSocket message",
+                extra={
+                    "original_size": len(message),
+                    "compressed_size": len(prepared_message),
+                    "client_count": len(self._connections),
+                },
+            )
+
         # Send to all clients, removing disconnected ones
         disconnected = []
         for ws in self._connections:
             try:
-                await ws.send_text(message)
+                if was_compressed and isinstance(prepared_message, bytes):
+                    # Send as binary for compressed messages
+                    await ws.send_bytes(prepared_message)
+                elif isinstance(prepared_message, str):
+                    # Send as text for uncompressed messages
+                    await ws.send_text(prepared_message)
             except Exception as e:
                 logger.warning(f"Failed to send to WebSocket client: {e}")
                 disconnected.append(ws)

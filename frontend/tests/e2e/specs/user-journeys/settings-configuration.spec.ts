@@ -46,6 +46,14 @@ test.describe('Settings Configuration Journey (NEM-1664)', () => {
     // Given: Dashboard is visible
     await expect(page.locator('[data-testid="dashboard-container"]')).toBeVisible();
 
+    // Expand ADMIN group if collapsed (Settings is in ADMIN group)
+    const adminGroupHeader = page.locator('[data-testid="nav-group-header-admin"]');
+    const adminGroupExpanded = await adminGroupHeader.getAttribute('aria-expanded');
+    if (adminGroupExpanded === 'false') {
+      await adminGroupHeader.click();
+      await page.waitForTimeout(300); // Wait for animation
+    }
+
     // When: Click settings navigation link
     const settingsLink = page.locator('[data-testid="nav-settings"]').or(
       page.locator('a[href="/settings"]').or(

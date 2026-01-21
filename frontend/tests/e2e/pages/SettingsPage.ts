@@ -126,7 +126,7 @@ export class SettingsPage extends BasePage {
    */
   async goToCamerasTab(): Promise<void> {
     await this.camerasTab.click();
-    await expect(this.camerasTab).toHaveAttribute('data-selected', 'true');
+    await expect(this.camerasTab).toHaveAttribute('aria-selected', 'true');
   }
 
   /**
@@ -134,7 +134,7 @@ export class SettingsPage extends BasePage {
    */
   async goToProcessingTab(): Promise<void> {
     await this.processingTab.click();
-    await expect(this.processingTab).toHaveAttribute('data-selected', 'true');
+    await expect(this.processingTab).toHaveAttribute('aria-selected', 'true');
   }
 
   /**
@@ -142,7 +142,7 @@ export class SettingsPage extends BasePage {
    */
   async goToNotificationsTab(): Promise<void> {
     await this.notificationsTab.click();
-    await expect(this.notificationsTab).toHaveAttribute('data-selected', 'true');
+    await expect(this.notificationsTab).toHaveAttribute('aria-selected', 'true');
   }
 
   /**
@@ -150,7 +150,7 @@ export class SettingsPage extends BasePage {
    */
   async goToRulesTab(): Promise<void> {
     await this.rulesTab.click();
-    await expect(this.rulesTab).toHaveAttribute('data-selected', 'true');
+    await expect(this.rulesTab).toHaveAttribute('aria-selected', 'true');
   }
 
   /**
@@ -158,7 +158,7 @@ export class SettingsPage extends BasePage {
    */
   async goToAmbientTab(): Promise<void> {
     await this.ambientTab.click();
-    await expect(this.ambientTab).toHaveAttribute('data-selected', 'true');
+    await expect(this.ambientTab).toHaveAttribute('aria-selected', 'true');
   }
 
   /**
@@ -166,7 +166,7 @@ export class SettingsPage extends BasePage {
    */
   async goToCalibrationTab(): Promise<void> {
     await this.calibrationTab.click();
-    await expect(this.calibrationTab).toHaveAttribute('data-selected', 'true');
+    await expect(this.calibrationTab).toHaveAttribute('aria-selected', 'true');
   }
 
   /**
@@ -174,7 +174,7 @@ export class SettingsPage extends BasePage {
    */
   async goToPromptsTab(): Promise<void> {
     await this.promptsTab.click();
-    await expect(this.promptsTab).toHaveAttribute('data-selected', 'true');
+    await expect(this.promptsTab).toHaveAttribute('aria-selected', 'true');
   }
 
   /**
@@ -182,7 +182,7 @@ export class SettingsPage extends BasePage {
    */
   async goToStorageTab(): Promise<void> {
     await this.storageTab.click();
-    await expect(this.storageTab).toHaveAttribute('data-selected', 'true');
+    await expect(this.storageTab).toHaveAttribute('aria-selected', 'true');
   }
 
   /**
@@ -199,7 +199,7 @@ export class SettingsPage extends BasePage {
       prompts: this.promptsTab,
       storage: this.storageTab,
     };
-    const attr = await tabs[tab].getAttribute('data-selected');
+    const attr = await tabs[tab].getAttribute('aria-selected');
     return attr === 'true';
   }
 

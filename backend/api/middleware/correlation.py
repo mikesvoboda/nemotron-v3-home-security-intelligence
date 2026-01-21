@@ -4,7 +4,7 @@ This module provides utilities for propagating correlation IDs and W3C Trace Con
 to outgoing HTTP requests when calling external services (RT-DETR, Nemotron, etc.).
 
 NEM-1472: Correlation ID propagation to AI service HTTP clients
-NEM-XXXX: W3C Trace Context propagation for distributed tracing
+NEM-3147: W3C Trace Context propagation for distributed tracing
 
 Usage:
     from backend.api.middleware.correlation import get_correlation_headers
@@ -65,7 +65,7 @@ def get_correlation_headers() -> dict[str, str]:
     if request_id:
         headers["X-Request-ID"] = request_id
 
-    # Add W3C Trace Context headers for distributed tracing (NEM-XXXX)
+    # Add W3C Trace Context headers for distributed tracing (NEM-3147)
     # This enables trace continuity across service boundaries in Jaeger/Tempo
     headers.update(get_trace_headers())
 

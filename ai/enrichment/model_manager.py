@@ -10,6 +10,7 @@ Key features:
 - Thread-safe async operations with asyncio locks
 - Logging for model load/unload events
 - Status reporting for monitoring
+- Prometheus metrics for VRAM usage, evictions, and model load times
 
 Usage:
     manager = OnDemandModelManager(vram_budget_gb=6.8)
@@ -29,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -37,8 +39,50 @@ from enum import IntEnum
 from typing import Any
 
 import torch
+from prometheus_client import Counter, Gauge, Histogram
 
 logger = logging.getLogger(__name__)
+
+# =============================================================================
+# Prometheus Metrics for VRAM and Model Management (NEM-3149)
+# =============================================================================
+
+# VRAM usage gauges
+ENRICHMENT_VRAM_USAGE_BYTES = Gauge(
+    "enrichment_vram_usage_bytes",
+    "Current VRAM usage by the enrichment service model manager in bytes",
+)
+
+ENRICHMENT_VRAM_BUDGET_BYTES = Gauge(
+    "enrichment_vram_budget_bytes",
+    "Configured VRAM budget for the enrichment service in bytes",
+)
+
+ENRICHMENT_VRAM_UTILIZATION_PERCENT = Gauge(
+    "enrichment_vram_utilization_percent",
+    "VRAM utilization percentage (usage / budget * 100)",
+)
+
+# Model count gauge
+ENRICHMENT_MODELS_LOADED = Gauge(
+    "enrichment_models_loaded",
+    "Number of models currently loaded in the enrichment service",
+)
+
+# Model eviction counter
+ENRICHMENT_MODEL_EVICTIONS_TOTAL = Counter(
+    "enrichment_model_evictions_total",
+    "Total number of model evictions by model name and priority",
+    ["model_name", "priority"],
+)
+
+# Model load time histogram (buckets for typical model load times: 100ms to 60s)
+ENRICHMENT_MODEL_LOAD_TIME_SECONDS = Histogram(
+    "enrichment_model_load_time_seconds",
+    "Time taken to load a model in seconds",
+    ["model_name"],
+    buckets=[0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0],
+)
 
 
 class ModelPriority(IntEnum):
@@ -126,6 +170,11 @@ class OnDemandModelManager:
         self.model_registry: dict[str, ModelConfig] = {}
         self._lock = asyncio.Lock()
         self.pending_loads: list[str] = []
+
+        # Set Prometheus budget metric (convert MB to bytes)
+        ENRICHMENT_VRAM_BUDGET_BYTES.set(self.vram_budget * 1024 * 1024)
+        # Initialize usage metrics to 0
+        self._update_vram_metrics()
 
         logger.info(f"Initialized OnDemandModelManager with {vram_budget_gb}GB VRAM budget")
 
@@ -229,6 +278,24 @@ class OnDemandModelManager:
         """
         return sum(info.vram_mb for info in self.loaded_models.values())
 
+    def _update_vram_metrics(self) -> None:
+        """Update Prometheus VRAM metrics.
+
+        Called after any model load/unload operation to keep metrics current.
+        """
+        usage_mb = self._current_vram_usage()
+        usage_bytes = usage_mb * 1024 * 1024
+
+        ENRICHMENT_VRAM_USAGE_BYTES.set(usage_bytes)
+        ENRICHMENT_MODELS_LOADED.set(len(self.loaded_models))
+
+        # Calculate utilization percentage
+        if self.vram_budget > 0:
+            utilization = (usage_mb / self.vram_budget) * 100
+            ENRICHMENT_VRAM_UTILIZATION_PERCENT.set(round(utilization, 1))
+        else:
+            ENRICHMENT_VRAM_UTILIZATION_PERCENT.set(0)
+
     async def _evict_lru_model(self) -> bool:
         """Evict the least recently used model, respecting priority.
 
@@ -259,6 +326,13 @@ class OnDemandModelManager:
             f"Evicting model '{name}' to free {info.vram_mb}MB VRAM "
             f"(priority: {info.priority.name}, last_used: {info.last_used.isoformat()})"
         )
+
+        # Track eviction in Prometheus metrics
+        ENRICHMENT_MODEL_EVICTIONS_TOTAL.labels(
+            model_name=name,
+            priority=info.priority.name,
+        ).inc()
+
         await self._unload_model_internal(name)
         return True
 
@@ -283,8 +357,15 @@ class OnDemandModelManager:
                 f"({config.vram_mb}MB, priority: {config.priority.name})"
             )
 
+            # Track load time for Prometheus metrics
+            start_time = time.monotonic()
+
             # Run loader in thread pool to avoid blocking
             model = await asyncio.get_event_loop().run_in_executor(None, config.loader_fn)
+
+            # Record load time
+            load_duration = time.monotonic() - start_time
+            ENRICHMENT_MODEL_LOAD_TIME_SECONDS.labels(model_name=model_name).observe(load_duration)
 
             self.loaded_models[model_name] = ModelInfo(
                 model=model,
@@ -293,8 +374,11 @@ class OnDemandModelManager:
                 last_used=datetime.now(),
             )
 
+            # Update VRAM metrics after successful load
+            self._update_vram_metrics()
+
             logger.info(
-                f"Model '{model_name}' loaded successfully. "
+                f"Model '{model_name}' loaded successfully in {load_duration:.2f}s. "
                 f"Current VRAM usage: {self._current_vram_usage()}MB / {self.vram_budget}MB"
             )
             return model
@@ -319,6 +403,9 @@ class OnDemandModelManager:
         # Clear CUDA cache to actually free VRAM
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+
+        # Update VRAM metrics after unload
+        self._update_vram_metrics()
 
         logger.info(
             f"Unloaded model '{model_name}'. "
