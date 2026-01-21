@@ -10,8 +10,8 @@
 
 import { QueryClient } from '@tanstack/react-query';
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { server } from '../../mocks/server';
 import { createQueryWrapper } from '../../test-utils/renderWithProviders';

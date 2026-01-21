@@ -98,7 +98,10 @@ class TestVerifyApiKey:
 
         with patch("backend.api.routes.dlq.get_settings", return_value=mock_settings):
             with pytest.raises(Exception) as exc_info:
-                await verify_api_key(x_api_key="invalid_key", api_key=None)
+                await verify_api_key(
+                    x_api_key="invalid_key",  # pragma: allowlist secret
+                    api_key=None,
+                )
 
             assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
             assert "Invalid API key" in exc_info.value.detail  # pragma: allowlist secret
@@ -116,8 +119,13 @@ class TestVerifyApiKey:
 
             # Slightly different key should fail
             with pytest.raises(Exception) as exc_info:
-                await verify_api_key(x_api_key="secure_key_124", api_key=None)
-            assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED  # pragma: allowlist secret
+                await verify_api_key(
+                    x_api_key="secure_key_124",  # pragma: allowlist secret
+                    api_key=None,
+                )
+            assert (
+                exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+            )  # pragma: allowlist secret
 
     @pytest.mark.asyncio
     async def test_verify_api_key_multiple_valid_keys(self, mock_settings):

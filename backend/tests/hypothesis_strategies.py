@@ -184,7 +184,7 @@ def valid_uuid_hex(draw: st.DrawFn) -> str:  # pragma: allowlist secret
     """Generate valid UUID hex strings (without dashes).
 
     Returns 32-character hex string, commonly used for batch IDs.
-    Example: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+    Example: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"  # pragma: allowlist secret
     """
     return uuid.UUID(bytes=draw(st.binary(min_size=16, max_size=16))).hex
 
@@ -464,7 +464,7 @@ def valid_rtsp_url(draw: st.DrawFn) -> str:  # pragma: allowlist secret
 
     Examples:
         "rtsp://192.168.1.100/stream1"
-        "rtsp://admin:pass@camera.local:8554/live"
+        "rtsp://admin:pass@camera.local:8554/live"  # pragma: allowlist secret
         "rtsp://10.0.0.5:554/h264"
     """
     # Generate host (IP or hostname)

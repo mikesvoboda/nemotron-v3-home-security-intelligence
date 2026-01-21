@@ -160,7 +160,7 @@ describe('useSeedCamerasMutation', () => {
   it('seeds cameras successfully', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockSeedCamerasResponse,
+      json: () => Promise.resolve(mockSeedCamerasResponse),
     } as Response);
 
     const { result } = renderHook(() => useSeedCamerasMutation(), {
@@ -194,7 +194,7 @@ describe('useSeedCamerasMutation', () => {
       ok: false,
       status: 400,
       statusText: 'Bad Request',
-      json: async () => ({ detail: errorMessage }),
+      json: () => Promise.resolve({ detail: errorMessage }),
     } as Response);
 
     const { result } = renderHook(() => useSeedCamerasMutation(), {
@@ -214,7 +214,7 @@ describe('useSeedCamerasMutation', () => {
   it('calls endpoint with correct headers', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockSeedCamerasResponse,
+      json: () => Promise.resolve(mockSeedCamerasResponse),
     } as Response);
 
     const { result } = renderHook(() => useSeedCamerasMutation(), {
@@ -245,7 +245,7 @@ describe('useSeedCamerasMutation', () => {
             () =>
               resolve({
                 ok: true,
-                json: async () => mockSeedCamerasResponse,
+                json: () => Promise.resolve(mockSeedCamerasResponse),
               } as Response),
             100
           )
@@ -279,7 +279,7 @@ describe('useSeedEventsMutation', () => {
   it('seeds events successfully', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockSeedEventsResponse,
+      json: () => Promise.resolve(mockSeedEventsResponse),
     } as Response);
 
     const { result } = renderHook(() => useSeedEventsMutation(), {
@@ -313,7 +313,7 @@ describe('useSeedEventsMutation', () => {
       ok: false,
       status: 422,
       statusText: 'Unprocessable Entity',
-      json: async () => ({ detail: errorMessage }),
+      json: () => Promise.resolve({ detail: errorMessage }),
     } as Response);
 
     const { result } = renderHook(() => useSeedEventsMutation(), {
@@ -338,7 +338,7 @@ describe('useSeedPipelineLatencyMutation', () => {
   it('seeds pipeline latency data successfully', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockSeedPipelineLatencyResponse,
+      json: () => Promise.resolve(mockSeedPipelineLatencyResponse),
     } as Response);
 
     const { result } = renderHook(() => useSeedPipelineLatencyMutation(), {
@@ -369,7 +369,7 @@ describe('useSeedPipelineLatencyMutation', () => {
   it('handles optional parameters', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockSeedPipelineLatencyResponse,
+      json: () => Promise.resolve(mockSeedPipelineLatencyResponse),
     } as Response);
 
     const { result } = renderHook(() => useSeedPipelineLatencyMutation(), {
@@ -400,7 +400,7 @@ describe('useClearSeededDataMutation', () => {
   it('clears seeded data with confirmation', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockClearDataResponse,
+      json: () => Promise.resolve(mockClearDataResponse),
     } as Response);
 
     const { result } = renderHook(() => useClearSeededDataMutation(), {
@@ -433,7 +433,7 @@ describe('useClearSeededDataMutation', () => {
       ok: false,
       status: 400,
       statusText: 'Bad Request',
-      json: async () => ({ detail: errorMessage }),
+      json: () => Promise.resolve({ detail: errorMessage }),
     } as Response);
 
     const { result } = renderHook(() => useClearSeededDataMutation(), {
@@ -458,7 +458,7 @@ describe('useOrphanCleanupMutation', () => {
   it('runs orphan cleanup successfully', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockOrphanCleanupResponse,
+      json: () => Promise.resolve(mockOrphanCleanupResponse),
     } as Response);
 
     const { result } = renderHook(() => useOrphanCleanupMutation(), {
@@ -497,7 +497,7 @@ describe('useOrphanCleanupMutation', () => {
 
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => dryRunResponse,
+      json: () => Promise.resolve(dryRunResponse),
     } as Response);
 
     const { result } = renderHook(() => useOrphanCleanupMutation(), {
@@ -523,7 +523,7 @@ describe('useClearCacheMutation', () => {
   it('clears cache successfully', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockClearCacheResponse,
+      json: () => Promise.resolve(mockClearCacheResponse),
     } as Response);
 
     const { result } = renderHook(() => useClearCacheMutation(), {
@@ -548,7 +548,7 @@ describe('useClearCacheMutation', () => {
   it('requires no parameters', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockClearCacheResponse,
+      json: () => Promise.resolve(mockClearCacheResponse),
     } as Response);
 
     const { result } = renderHook(() => useClearCacheMutation(), {
@@ -580,7 +580,7 @@ describe('useFlushQueuesMutation', () => {
   it('flushes queues successfully', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockFlushQueuesResponse,
+      json: () => Promise.resolve(mockFlushQueuesResponse),
     } as Response);
 
     const { result } = renderHook(() => useFlushQueuesMutation(), {
@@ -612,7 +612,7 @@ describe('useFlushQueuesMutation', () => {
 
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => emptyResponse,
+      json: () => Promise.resolve(emptyResponse),
     } as Response);
 
     const { result } = renderHook(() => useFlushQueuesMutation(), {
@@ -661,7 +661,7 @@ describe('useAdminMutations', () => {
   it('allows using multiple mutations independently', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({}),
+      json: () => Promise.resolve({}),
     } as Response);
 
     const { result } = renderHook(() => useAdminMutations(), {
@@ -677,7 +677,7 @@ describe('useAdminMutations', () => {
 
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockClearCacheResponse,
+      json: () => Promise.resolve(mockClearCacheResponse),
     } as Response);
 
     result.current.clearCache.mutate();
@@ -700,7 +700,7 @@ describe('Cache Invalidation', () => {
   it('invalidates camera queries after seeding cameras', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockSeedCamerasResponse,
+      json: () => Promise.resolve(mockSeedCamerasResponse),
     } as Response);
 
     const queryClient = new QueryClient({
@@ -735,7 +735,7 @@ describe('Cache Invalidation', () => {
   it('invalidates multiple query keys after clearing seeded data', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => mockClearDataResponse,
+      json: () => Promise.resolve(mockClearDataResponse),
     } as Response);
 
     const queryClient = new QueryClient({
@@ -775,7 +775,7 @@ describe('Error Handling', () => {
       ok: false,
       status: 500,
       statusText: 'Internal Server Error',
-      json: async () => ({ detail: errorDetail }),
+      json: () => Promise.resolve({ detail: errorDetail }),
     } as Response);
 
     const { result } = renderHook(() => useSeedCamerasMutation(), {
@@ -796,9 +796,7 @@ describe('Error Handling', () => {
       ok: false,
       status: 503,
       statusText: 'Service Unavailable',
-      json: async () => {
-        throw new Error('Invalid JSON');
-      },
+      json: () => Promise.reject(new Error('Invalid JSON')),
     } as unknown as Response);
 
     const { result } = renderHook(() => useSeedCamerasMutation(), {

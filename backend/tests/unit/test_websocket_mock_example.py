@@ -197,10 +197,13 @@ class TestWebSocketMockExamples:
 
         # Set headers
         mock_websocket_client.headers["user-agent"] = "TestClient/1.0"
-        mock_websocket_client.headers["sec-websocket-protocol"] = "api-key.test_key_123"  # pragma: allowlist secret
+        mock_websocket_client.headers["sec-websocket-protocol"] = (
+            "api-key.test_key_123"  # pragma: allowlist secret
+        )
 
         # Verify values are accessible
-        assert mock_websocket_client.query_params["api_key"] == "test_key_123"
+        expected_api_key = "test_key_123"  # pragma: allowlist secret
+        assert mock_websocket_client.query_params["api_key"] == expected_api_key
         assert mock_websocket_client.headers["user-agent"] == "TestClient/1.0"
 
     @pytest.mark.asyncio

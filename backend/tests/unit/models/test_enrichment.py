@@ -352,11 +352,11 @@ class TestReIDEmbeddingModel:
         embedding = ReIDEmbedding(
             detection_id=1,
             embedding=emb_vector,
-            embedding_hash="abc123def456",
+            embedding_hash="abc123def456",  # pragma: allowlist secret
         )
         assert embedding.detection_id == 1
         assert len(embedding.embedding) == 512
-        assert embedding.embedding_hash == "abc123def456"
+        assert embedding.embedding_hash == "abc123def456"  # pragma: allowlist secret
 
     def test_reid_embedding_unique_per_detection(self):
         """Test detection_id has unique constraint."""

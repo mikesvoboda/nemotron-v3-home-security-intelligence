@@ -91,8 +91,8 @@ def run_script(base_spec: dict, current_spec: dict, format: str = "text") -> tup
         current_path = current_f.name
 
     try:
-        result = subprocess.run(  # noqa: S603, S607  # tested - runs our own script
-            [
+        result = subprocess.run(  # noqa: S603  # intentional - tests our own script
+            [  # noqa: S607  # partial path OK for test script
                 "python",
                 "scripts/check-api-breaking-changes.py",
                 "--base",
@@ -120,7 +120,7 @@ def test_no_breaking_changes(base_spec: dict):
         {"name": "offset", "in": "query", "required": False, "schema": {"type": "integer"}}
     )
 
-    exit_code, stdout, stderr = run_script(base_spec, current_spec)
+    exit_code, stdout, _stderr = run_script(base_spec, current_spec)
 
     assert exit_code == 0
     assert "No breaking changes detected" in stdout
@@ -131,7 +131,7 @@ def test_removed_endpoint(base_spec: dict):
     current_spec = json.loads(json.dumps(base_spec))
     del current_spec["paths"]["/users/{id}"]
 
-    exit_code, stdout, stderr = run_script(base_spec, current_spec)
+    exit_code, stdout, _stderr = run_script(base_spec, current_spec)
 
     assert exit_code == 1
     assert "Endpoint Removed" in stdout or "Method Removed" in stdout
@@ -143,7 +143,7 @@ def test_removed_method(base_spec: dict):
     current_spec = json.loads(json.dumps(base_spec))
     del current_spec["paths"]["/users"]["post"]
 
-    exit_code, stdout, stderr = run_script(base_spec, current_spec)
+    exit_code, stdout, _stderr = run_script(base_spec, current_spec)
 
     assert exit_code == 1
     assert "Method Removed" in stdout
@@ -155,7 +155,7 @@ def test_parameter_made_required(base_spec: dict):
     current_spec = json.loads(json.dumps(base_spec))
     current_spec["paths"]["/users"]["get"]["parameters"][0]["required"] = True
 
-    exit_code, stdout, stderr = run_script(base_spec, current_spec)
+    exit_code, stdout, _stderr = run_script(base_spec, current_spec)
 
     assert exit_code == 1
     assert "Parameter Made Required" in stdout
@@ -167,7 +167,7 @@ def test_parameter_type_changed(base_spec: dict):
     current_spec = json.loads(json.dumps(base_spec))
     current_spec["paths"]["/users"]["get"]["parameters"][0]["schema"]["type"] = "string"
 
-    exit_code, stdout, stderr = run_script(base_spec, current_spec)
+    exit_code, stdout, _stderr = run_script(base_spec, current_spec)
 
     assert exit_code == 1
     assert "Parameter Type Changed" in stdout
@@ -179,7 +179,7 @@ def test_removed_required_parameter(base_spec: dict):
     current_spec = json.loads(json.dumps(base_spec))
     current_spec["paths"]["/users/{id}"]["get"]["parameters"] = []
 
-    exit_code, stdout, stderr = run_script(base_spec, current_spec)
+    exit_code, stdout, _stderr = run_script(base_spec, current_spec)
 
     assert exit_code == 1
     assert "Required Parameter Removed" in stdout
@@ -191,7 +191,7 @@ def test_request_body_removed(base_spec: dict):
     current_spec = json.loads(json.dumps(base_spec))
     del current_spec["paths"]["/users"]["post"]["requestBody"]
 
-    exit_code, stdout, stderr = run_script(base_spec, current_spec)
+    exit_code, stdout, _stderr = run_script(base_spec, current_spec)
 
     assert exit_code == 1
     assert "Request Body Removed" in stdout
@@ -210,7 +210,7 @@ def test_multiple_breaking_changes(base_spec: dict):
     # Make parameter required
     current_spec["paths"]["/users"]["get"]["parameters"][0]["required"] = True
 
-    exit_code, stdout, stderr = run_script(base_spec, current_spec)
+    exit_code, stdout, _stderr = run_script(base_spec, current_spec)
 
     assert exit_code == 1
     assert "Summary: 3 breaking" in stdout or "3 breaking" in stdout.lower()
@@ -221,7 +221,7 @@ def test_markdown_output(base_spec: dict):
     current_spec = json.loads(json.dumps(base_spec))
     del current_spec["paths"]["/users"]["post"]
 
-    exit_code, stdout, stderr = run_script(base_spec, current_spec, format="markdown")
+    exit_code, stdout, _stderr = run_script(base_spec, current_spec, format="markdown")
 
     assert exit_code == 1
     assert "## 🚨 Breaking Changes Detected" in stdout
@@ -234,7 +234,7 @@ def test_json_output(base_spec: dict):
     current_spec = json.loads(json.dumps(base_spec))
     del current_spec["paths"]["/users"]["post"]
 
-    exit_code, stdout, stderr = run_script(base_spec, current_spec, format="json")
+    exit_code, stdout, _stderr = run_script(base_spec, current_spec, format="json")
 
     assert exit_code == 1
     output = json.loads(stdout)
@@ -245,8 +245,8 @@ def test_json_output(base_spec: dict):
 
 def test_invalid_spec_file():
     """Test handling of invalid spec files."""
-    result = subprocess.run(  # noqa: S603, S607  # tested - runs our own script
-        [
+    result = subprocess.run(  # intentional - tests our own script
+        [  # noqa: S607  # partial path OK for test script
             "python",
             "scripts/check-api-breaking-changes.py",
             "--base",

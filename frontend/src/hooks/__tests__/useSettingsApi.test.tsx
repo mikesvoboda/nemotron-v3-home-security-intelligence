@@ -110,7 +110,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockFetch.mockResolvedValue({
     ok: true,
-    json: async () => mockSettingsResponse,
+    json: () => Promise.resolve(mockSettingsResponse),
   } as Response);
 });
 
@@ -159,7 +159,7 @@ describe('useSettingsQuery', () => {
       ok: false,
       status: 500,
       statusText: 'Internal Server Error',
-      json: async () => ({ detail: errorMessage }),
+      json: () => Promise.resolve({ detail: errorMessage }),
     } as Response);
 
     const { result } = renderHook(() => useSettingsQuery(), {
@@ -283,7 +283,7 @@ describe('useSettingsQuery', () => {
       ok: false,
       status: 503,
       statusText: 'Service Unavailable',
-      json: async () => ({ detail: errorDetail }),
+      json: () => Promise.resolve({ detail: errorDetail }),
     } as Response);
 
     const { result } = renderHook(() => useSettingsQuery(), {
@@ -302,9 +302,7 @@ describe('useSettingsQuery', () => {
       ok: false,
       status: 500,
       statusText: 'Internal Server Error',
-      json: async () => {
-        throw new Error('Invalid JSON');
-      },
+      json: () => Promise.reject(new Error('Invalid JSON')),
     } as unknown as Response);
 
     const { result } = renderHook(() => useSettingsQuery(), {
@@ -336,7 +334,7 @@ describe('useUpdateSettings', () => {
 
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => updatedSettings,
+      json: () => Promise.resolve(updatedSettings),
     } as Response);
 
     const { result } = renderHook(() => useUpdateSettings(), {
@@ -397,7 +395,7 @@ describe('useUpdateSettings', () => {
       ok: false,
       status: 422,
       statusText: 'Unprocessable Entity',
-      json: async () => ({ detail: errorMessage }),
+      json: () => Promise.resolve({ detail: errorMessage }),
     } as Response);
 
     const { result } = renderHook(() => useUpdateSettings(), {
@@ -425,7 +423,7 @@ describe('useUpdateSettings', () => {
             () =>
               resolve({
                 ok: true,
-                json: async () => mockSettingsResponse,
+                json: () => Promise.resolve(mockSettingsResponse),
               } as Response),
             100
           )
@@ -635,7 +633,7 @@ describe('useSettingsApi', () => {
 
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => updatedSettings,
+      json: () => Promise.resolve(updatedSettings),
     } as Response);
 
     result.current.updateMutation.mutate({
@@ -688,7 +686,7 @@ describe('useSettingsApi', () => {
       ok: false,
       status: 404,
       statusText: 'Not Found',
-      json: async () => ({ detail: errorMessage }),
+      json: () => Promise.resolve({ detail: errorMessage }),
     } as Response);
 
     const { result } = renderHook(() => useSettingsApi(), {
@@ -721,7 +719,7 @@ describe('useSettingsApi', () => {
       ok: false,
       status: 400,
       statusText: 'Bad Request',
-      json: async () => ({ detail: errorMessage }),
+      json: () => Promise.resolve({ detail: errorMessage }),
     } as Response);
 
     result.current.updateMutation.mutate({
@@ -772,7 +770,7 @@ describe('Integration Tests', () => {
 
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => updatedSettings,
+      json: () => Promise.resolve(updatedSettings),
     } as Response);
 
     result.current.updateMutation.mutate(fullUpdate);

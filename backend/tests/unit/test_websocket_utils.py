@@ -290,7 +290,8 @@ class TestMockWebsocketClient:
         assert hasattr(mock_websocket_client, "headers")
 
         mock_websocket_client.query_params["api_key"] = "test_key"  # pragma: allowlist secret
-        assert mock_websocket_client.query_params["api_key"] == "test_key"
+        expected_key = "test_key"  # pragma: allowlist secret
+        assert mock_websocket_client.query_params["api_key"] == expected_key
 
     def test_has_subscription_tracking(self, mock_websocket_client):
         """Test that subscription tracking is available."""

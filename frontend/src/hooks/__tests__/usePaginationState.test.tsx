@@ -15,9 +15,9 @@
  * - Reset functionality
  */
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
 import { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, it, expect, vi } from 'vitest';
 
 import { usePaginationState } from '../usePaginationState';
 
