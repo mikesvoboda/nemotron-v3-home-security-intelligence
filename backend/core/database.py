@@ -984,7 +984,7 @@ def _sanitize_query_parameters(
         return result
 
     # Handle tuple/list-style positional parameters
-    if isinstance(parameters, (list, tuple)):
+    if isinstance(parameters, list | tuple):
         result_list: list[Any] = []
         for i, value in enumerate(parameters):
             if i >= max_items:

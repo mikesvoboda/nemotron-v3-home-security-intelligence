@@ -457,9 +457,9 @@ def _serialize_value(value: Any) -> Any:
     """
     if value is None:
         return None
-    if isinstance(value, (str, int, float, bool)):
+    if isinstance(value, str | int | float | bool):
         return value
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return [_serialize_value(v) for v in value]
     if isinstance(value, dict):
         return {str(k): _serialize_value(v) for k, v in value.items()}

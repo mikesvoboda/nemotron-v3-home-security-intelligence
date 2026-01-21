@@ -116,7 +116,7 @@ class TestRequestLoggingMiddleware:
         assert duration_log is not None
 
         if hasattr(duration_log, "duration_ms"):
-            assert isinstance(duration_log.duration_ms, (int, float))
+            assert isinstance(duration_log.duration_ms, int | float)
             assert duration_log.duration_ms >= 0
 
     def test_middleware_logs_status_code(self, app_with_middleware, caplog):

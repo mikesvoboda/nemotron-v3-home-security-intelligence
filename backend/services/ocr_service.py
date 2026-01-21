@@ -162,7 +162,7 @@ def _run_ocr_sync(
         confidences = []
 
         for line in result[0]:
-            if len(line) >= 2 and isinstance(line[1], (list, tuple)):
+            if len(line) >= 2 and isinstance(line[1], list | tuple):
                 text = line[1][0] if len(line[1]) > 0 else ""
                 conf = line[1][1] if len(line[1]) > 1 else 0.0
                 if text:

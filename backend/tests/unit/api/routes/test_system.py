@@ -1089,7 +1089,7 @@ class TestGetStatsEndpoint:
             assert "total_events" in data
             assert "total_detections" in data
             assert "uptime_seconds" in data
-            assert isinstance(data["uptime_seconds"], (int, float))
+            assert isinstance(data["uptime_seconds"], int | float)
 
 
 @pytest.mark.integration  # Requires isolated_db fixture (real database)
