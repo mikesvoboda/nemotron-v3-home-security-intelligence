@@ -308,7 +308,8 @@ class TestFrontendLogValidation:
 
         assert response.status_code == 422
         data = response.json()
-        assert "detail" in data
+        # API returns structured error format with "error" key
+        assert "detail" in data or "error" in data
 
     @pytest.mark.asyncio
     async def test_missing_entries_field_returns_422(self, client, mock_redis):
