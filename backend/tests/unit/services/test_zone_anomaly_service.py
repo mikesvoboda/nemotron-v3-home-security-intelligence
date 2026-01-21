@@ -910,3 +910,211 @@ class TestEdgeCases:
 
         result = service._check_unusual_time(detection, zone, baseline, threshold=2.0)
         assert result is not None
+
+
+# =============================================================================
+# Additional Coverage Tests
+# =============================================================================
+
+
+class TestAdditionalCoverage:
+    """Additional tests to improve coverage."""
+
+    def test_check_unusual_time_with_zero_std(self) -> None:
+        """Test unusual time check when std is 0."""
+        from backend.services.zone_anomaly_service import ZoneAnomalyService
+
+        service = ZoneAnomalyService()
+
+        detection = MagicMock()
+        detection.detected_at = datetime(2026, 1, 21, 3, 15, 0, tzinfo=UTC)
+        detection.id = 123
+        detection.thumbnail_path = None
+
+        zone = MagicMock()
+        zone.id = str(uuid.uuid4())
+        zone.camera_id = "front_door"
+        zone.name = "Front Yard"
+
+        # Expected activity is low but non-zero, std is exactly 0
+        baseline = MagicMock()
+        baseline.hourly_pattern = [0.5] * 24  # Low but above 0.1
+        baseline.hourly_std = [0.0] * 24  # All zeros
+
+        result = service._check_unusual_time(detection, zone, baseline, threshold=2.0)
+        # With expected=0.5 < 1.0, should calculate deviation
+        assert result is not None
+
+    def test_check_unusual_time_with_high_std(self) -> None:
+        """Test unusual time check with high std value."""
+        from backend.services.zone_anomaly_service import ZoneAnomalyService
+
+        service = ZoneAnomalyService()
+
+        detection = MagicMock()
+        detection.detected_at = datetime(2026, 1, 21, 3, 15, 0, tzinfo=UTC)
+        detection.id = 123
+        detection.thumbnail_path = None
+
+        zone = MagicMock()
+        zone.id = str(uuid.uuid4())
+        zone.camera_id = "front_door"
+        zone.name = "Front Yard"
+
+        # Low expected activity with very high std
+        baseline = MagicMock()
+        baseline.hourly_pattern = [0.05] * 24  # Very low
+        baseline.hourly_std = [10.0] * 24  # High std
+
+        result = service._check_unusual_time(detection, zone, baseline, threshold=2.0)
+        # deviation = (1.0 - 0.05) / 10.0 = 0.095, below threshold
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_check_unusual_frequency_without_timestamp(self) -> None:
+        """Test frequency check returns None when timestamp is missing."""
+        from backend.services.zone_anomaly_service import ZoneAnomalyService
+
+        service = ZoneAnomalyService()
+
+        detection = MagicMock()
+        detection.detected_at = None
+        detection.timestamp = None
+
+        zone = MagicMock()
+        zone.id = str(uuid.uuid4())
+
+        baseline = MagicMock()
+        baseline.typical_crossing_rate = 10.0
+        baseline.typical_crossing_std = 5.0
+
+        result = await service._check_unusual_frequency(detection, zone, baseline, threshold=2.0)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_check_unusual_dwell_without_timestamp(self) -> None:
+        """Test dwell check handles missing timestamp gracefully."""
+        from backend.services.zone_anomaly_service import ZoneAnomalyService
+
+        service = ZoneAnomalyService()
+
+        detection = MagicMock()
+        detection.detected_at = None
+        detection.timestamp = None
+        detection.enrichment_data = {"dwell_time": 600.0}
+
+        zone = MagicMock()
+        zone.id = str(uuid.uuid4())
+        zone.camera_id = "front_door"
+        zone.name = "Front Yard"
+
+        baseline = MagicMock()
+        baseline.typical_dwell_time = 30.0
+        baseline.typical_dwell_std = 10.0
+
+        result = await service._check_unusual_dwell(detection, zone, baseline, threshold=2.0)
+        # Should still work with timestamp=None
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_check_detection_with_normal_values(self) -> None:
+        """Test check_detection when all values are within normal range."""
+        from backend.services.zone_anomaly_service import ZoneAnomalyService
+
+        service = ZoneAnomalyService()
+
+        detection = MagicMock()
+        detection.detected_at = datetime(2026, 1, 21, 14, 30, 0, tzinfo=UTC)
+        detection.id = 123
+        detection.thumbnail_path = None
+        detection.enrichment_data = {"dwell_time": 25.0}  # Normal dwell
+
+        zone = MagicMock()
+        zone.id = str(uuid.uuid4())
+        zone.camera_id = "front_door"
+        zone.name = "Front Yard"
+
+        mock_baseline = MagicMock()
+        mock_baseline.sample_count = 100
+        mock_baseline.hourly_pattern = [10.0] * 24  # High activity all day
+        mock_baseline.hourly_std = [5.0] * 24
+        mock_baseline.typical_crossing_rate = 50.0  # Very high
+        mock_baseline.typical_crossing_std = 20.0
+        mock_baseline.typical_dwell_time = 30.0
+        mock_baseline.typical_dwell_std = 10.0
+
+        mock_session = AsyncMock()
+
+        with patch.object(service._baseline_service, "get_baseline", return_value=mock_baseline):
+            result = await service.check_detection(detection, zone, session=mock_session)
+            # All values are normal, should return None
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_anomalies_for_zone_without_filters(self) -> None:
+        """Test get_anomalies with default parameters."""
+        from backend.services.zone_anomaly_service import ZoneAnomalyService
+
+        service = ZoneAnomalyService()
+        zone_id = uuid.uuid4()
+
+        mock_anomaly = MagicMock()
+        mock_anomaly.id = uuid.uuid4()
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [mock_anomaly]
+
+        mock_session = AsyncMock()
+        mock_session.execute.return_value = mock_result
+
+        result = await service.get_anomalies_for_zone(
+            zone_id,
+            since=None,
+            unacknowledged_only=False,
+            session=mock_session,
+        )
+
+        assert len(result) == 1
+
+    @pytest.mark.asyncio
+    async def test_get_anomaly_counts_with_filters(self) -> None:
+        """Test get_anomaly_counts with since and unacknowledged filters."""
+        from backend.services.zone_anomaly_service import ZoneAnomalyService
+
+        service = ZoneAnomalyService()
+
+        since = datetime(2026, 1, 20, 0, 0, 0, tzinfo=UTC)
+
+        mock_row = (str(uuid.uuid4()), 10)
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+
+        mock_session = AsyncMock()
+        mock_session.execute.return_value = mock_result
+
+        result = await service.get_anomaly_counts_by_zone(
+            since=since,
+            unacknowledged_only=True,
+            session=mock_session,
+        )
+
+        assert len(result) == 1
+
+    @pytest.mark.asyncio
+    async def test_get_anomaly_counts_without_session_raises(self) -> None:
+        """Test get_anomaly_counts raises when session is None."""
+        from backend.services.zone_anomaly_service import ZoneAnomalyService
+
+        service = ZoneAnomalyService()
+
+        with pytest.raises(ValueError, match="session is required"):
+            await service.get_anomaly_counts_by_zone(session=None)
+
+    @pytest.mark.asyncio
+    async def test_baseline_service_get_baseline_without_session(self) -> None:
+        """Test ZoneBaselineService returns None when session is None."""
+        from backend.services.zone_anomaly_service import ZoneBaselineService
+
+        service = ZoneBaselineService()
+        result = await service.get_baseline("zone-123", session=None)
+        assert result is None
