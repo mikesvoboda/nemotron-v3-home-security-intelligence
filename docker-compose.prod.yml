@@ -39,7 +39,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: docker.io/library/postgres:16-alpine
     ports:
       - '5432:5432'
     volumes:
@@ -314,9 +314,9 @@ services:
       - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
     environment:
-      # Free-threaded Python: Disable GIL for true parallelism (Python 3.14t)
-      # This must be set before Python starts to take effect
-      - PYTHON_GIL=0
+      # Free-threaded Python: Disabled - standard Python 3.14 image doesn't support no-GIL
+      # To enable, use python:3.14t-slim-bookworm image and uncomment:
+      # - PYTHON_GIL=0
       # Environment setting: defaults to 'development' for local deploys
       # Override with ENVIRONMENT=production for actual production deployments
       - ENVIRONMENT=${ENVIRONMENT:-development}
@@ -401,7 +401,7 @@ services:
               capabilities: [gpu]
 
   redis:
-    image: redis:7.4-alpine3.21
+    image: docker.io/library/redis:7.4-alpine3.21
     ports:
       - '6379:6379'
     volumes:
@@ -505,7 +505,7 @@ services:
   # Jaeger all-in-one for distributed tracing (NEM-1629)
   # Provides trace collection, storage, and visualization for cross-service request correlation
   jaeger:
-    image: jaegertracing/all-in-one:1.54
+    image: docker.io/jaegertracing/all-in-one:1.54
     ports:
       - '16686:16686' # Jaeger UI
       - '4317:4317' # OTLP gRPC receiver
@@ -532,7 +532,7 @@ services:
           memory: 512M
 
   prometheus:
-    image: prom/prometheus:v2.48.0
+    image: docker.io/prom/prometheus:v2.48.0
     ports:
       - '9090:9090'
     volumes:
@@ -562,7 +562,7 @@ services:
           memory: 512M
 
   grafana:
-    image: grafana/grafana:10.2.3
+    image: docker.io/grafana/grafana:10.2.3
     ports:
       - '3002:3000'
     volumes:
@@ -611,7 +611,7 @@ services:
           memory: 256M
 
   redis-exporter:
-    image: oliver006/redis_exporter:v1.55.0
+    image: docker.io/oliver006/redis_exporter:v1.55.0
     ports:
       - '9121:9121'
     environment:
@@ -635,7 +635,7 @@ services:
           memory: 64M
 
   json-exporter:
-    image: prometheuscommunity/json-exporter:v0.6.0
+    image: docker.io/prometheuscommunity/json-exporter:v0.6.0
     ports:
       - '7979:7979'
     volumes:
@@ -653,7 +653,7 @@ services:
 
   # Alertmanager for alert routing, grouping, and delivery (NEM-1631)
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    image: docker.io/prom/alertmanager:v0.27.0
     ports:
       - '9093:9093'
     volumes:
@@ -682,7 +682,7 @@ services:
   # Blackbox Exporter for synthetic monitoring (NEM-1637)
   # Probes endpoints for availability, latency, and health status
   blackbox-exporter:
-    image: prom/blackbox-exporter:v0.24.0
+    image: docker.io/prom/blackbox-exporter:v0.24.0
     ports:
       - '9115:9115'
     volumes:
@@ -708,7 +708,7 @@ services:
   # Loki for log aggregation (NEM-3093)
   # Receives logs from Alloy and stores them for querying via Grafana
   loki:
-    image: grafana/loki:2.9.4
+    image: docker.io/grafana/loki:2.9.4
     container_name: loki
     volumes:
       - ./monitoring/loki/loki-config.yml:/etc/loki/config.yml:ro,z
