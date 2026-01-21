@@ -49,7 +49,19 @@ class ServiceInfo(TypedDict):
     desc: str
 
 
-# Service definitions with default ports
+# Service definitions with STANDARDIZED DEFAULT PORTS (NEM-3148)
+# NOTE: Ports are the same for development and Docker environments.
+# Docker uses service names (postgres, redis, ai-detector) on the container network.
+# Development uses localhost. Ports themselves never change - only hostnames vary.
+#
+# Internal Service Ports (never change):
+#   - Backend: 8000 (FastAPI default)
+#   - PostgreSQL: 5432 (database standard)
+#   - Redis: 6379 (cache standard)
+#   - AI Services: 8090-8094 (detector, llm, florence, clip, enrichment)
+#
+# setup.py automatically detects port conflicts and finds alternatives for external
+# ports (5173, 8443, 3002, 9090, etc.) but internal service ports remain constant.
 SERVICES: dict[str, ServiceInfo] = {
     "backend": {"port": 8000, "category": "Core", "desc": "Backend API"},
     "frontend": {"port": 5173, "category": "Core", "desc": "Frontend web UI"},
@@ -68,10 +80,9 @@ SERVICES: dict[str, ServiceInfo] = {
     "json_exporter": {"port": 7979, "category": "Monitoring", "desc": "JSON exporter"},
 }
 
-# Fixed development passwords - used when no existing .env is found
-# These provide stable, predictable behavior for local development
-DEV_POSTGRES_PASSWORD = "security_dev_password"  # pragma: allowlist secret  # noqa: S105
-DEV_FTP_PASSWORD = "ftp_dev_password"  # pragma: allowlist secret  # noqa: S105
+# NOTE: Development passwords are no longer hardcoded for security (NEM-3141).
+# When no existing .env is found, unique passwords are generated at setup time.
+# This prevents accidental use of well-known default credentials.
 
 
 def load_existing_env(env_path: Path | None = None) -> dict[str, str]:
@@ -387,20 +398,21 @@ def run_quick_mode() -> dict:  # noqa: PLR0912
     ai_models_path = prompt_with_default("AI models path", "/export/ai_models")
     print()
 
-    # Credentials - use existing .env values or fixed development defaults
+    # Credentials - use existing .env values or generate new unique passwords
     # This prevents password mismatches with existing database volumes
     print("-- Credentials " + "-" * 46)
 
-    # Use existing password if available, otherwise use fixed development default
-    default_postgres_pw = existing_env.get("POSTGRES_PASSWORD", DEV_POSTGRES_PASSWORD)
-    default_ftp_pw = existing_env.get("FTP_PASSWORD", DEV_FTP_PASSWORD)
+    # Use existing password if available, otherwise generate a unique password
+    # (NEM-3141: No more hardcoded defaults for security)
+    default_postgres_pw = existing_env.get("POSTGRES_PASSWORD") or generate_password(32)
+    default_ftp_pw = existing_env.get("FTP_PASSWORD") or generate_password(16)
     default_redis_pw = existing_env.get("REDIS_PASSWORD", "")
     default_grafana_pw = existing_env.get("GF_SECURITY_ADMIN_PASSWORD", "")
 
     if existing_env.get("POSTGRES_PASSWORD"):
         print("* Using existing database password from .env")
     else:
-        print("* Using development default password (stable across runs)")
+        print("* Generating unique password (unique per installation)")
 
     postgres_password = prompt_for_password("Database password", default_postgres_pw)
     print("(Optional) Redis password for production use (press Enter to skip)")
@@ -509,9 +521,10 @@ def run_guided_mode() -> dict:  # noqa: PLR0912
     print("=" * 60)
     print()
 
-    # Use existing password if available, otherwise use fixed development default
-    default_postgres_pw = existing_env.get("POSTGRES_PASSWORD", DEV_POSTGRES_PASSWORD)
-    default_ftp_pw = existing_env.get("FTP_PASSWORD", DEV_FTP_PASSWORD)
+    # Use existing password if available, otherwise generate a unique password
+    # (NEM-3141: No more hardcoded defaults for security)
+    default_postgres_pw = existing_env.get("POSTGRES_PASSWORD") or generate_password(32)
+    default_ftp_pw = existing_env.get("FTP_PASSWORD") or generate_password(16)
     default_redis_pw = existing_env.get("REDIS_PASSWORD", "")
     default_grafana_pw = existing_env.get("GF_SECURITY_ADMIN_PASSWORD", "")
 
@@ -519,8 +532,8 @@ def run_guided_mode() -> dict:  # noqa: PLR0912
         print("* Found existing .env - using current passwords as defaults")
         print("  Press Enter to keep existing passwords, or enter new ones.")
     else:
-        print("* Using fixed development defaults for stable local development.")
-        print("  For production, generate unique passwords: openssl rand -base64 32")
+        print("* Generating unique passwords for this installation.")
+        print("  These are cryptographically secure and unique to your setup.")
     print()
     print("IMPORTANT: Database credentials are REQUIRED for the system to start.")
     print()
