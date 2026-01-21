@@ -1,13 +1,15 @@
 #!/bin/bash
 # Pre-push parallel test runner
-# Runs backend unit tests, E2E+a11y tests, and API type checks concurrently
+# Runs backend unit/integration tests, frontend unit tests, E2E+a11y tests, and API type checks concurrently
 #
 # Parallelization strategy:
 #   - Backend unit tests (pytest) - ~2-3 minutes
 #   - E2E + Accessibility tests (Playwright) - ~30-60 seconds
 #   - API types contract check (openapi-typescript) - ~10-20 seconds
+#   - Backend integration tests (subset for speed) - ~30-60 seconds
+#   - Frontend unit tests (vitest) - ~10-30 seconds
 #
-# Total time: max(unit_tests, e2e_tests, api_types) instead of sum
+# Total time: max(all_jobs) instead of sum (~60-70% faster)
 #
 # Usage: ./scripts/pre-push-tests.sh
 # Skip: SKIP=parallel-tests git push
@@ -28,21 +30,25 @@ NC='\033[0m' # No Color
 UNIT_EXIT_FILE=$(mktemp)
 E2E_EXIT_FILE=$(mktemp)
 API_EXIT_FILE=$(mktemp)
+INTEGRATION_EXIT_FILE=$(mktemp)
+FRONTEND_EXIT_FILE=$(mktemp)
 UNIT_LOG=$(mktemp)
 E2E_LOG=$(mktemp)
 API_LOG=$(mktemp)
+INTEGRATION_LOG=$(mktemp)
+FRONTEND_LOG=$(mktemp)
 
 # Cleanup on exit
 cleanup() {
-    rm -f "$UNIT_EXIT_FILE" "$E2E_EXIT_FILE" "$API_EXIT_FILE"
-    rm -f "$UNIT_LOG" "$E2E_LOG" "$API_LOG"
+    rm -f "$UNIT_EXIT_FILE" "$E2E_EXIT_FILE" "$API_EXIT_FILE" "$INTEGRATION_EXIT_FILE" "$FRONTEND_EXIT_FILE"
+    rm -f "$UNIT_LOG" "$E2E_LOG" "$API_LOG" "$INTEGRATION_LOG" "$FRONTEND_LOG"
 }
 trap cleanup EXIT
 
 cd "$PROJECT_ROOT"
 
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}        PARALLEL PRE-PUSH VALIDATION (3 concurrent jobs)       ${NC}"
+echo -e "${BLUE}        PARALLEL PRE-PUSH VALIDATION (5 concurrent jobs)       ${NC}"
 echo -e "${BLUE}═══════════════════════════════════════════════════════════════${NC}"
 echo ""
 
@@ -97,11 +103,35 @@ E2E_PID=$!
 ) &
 API_PID=$!
 
+# Job 4: Backend integration tests (subset for speed)
+(
+    redis-cli -n 15 FLUSHDB > /dev/null 2>&1 || true
+    if uv run pytest backend/tests/integration/ -n0 --tb=short -q -x --timeout=60 > "$INTEGRATION_LOG" 2>&1; then
+        echo "0" > "$INTEGRATION_EXIT_FILE"
+    else
+        echo "1" > "$INTEGRATION_EXIT_FILE"
+    fi
+) &
+INTEGRATION_PID=$!
+
+# Job 5: Frontend unit tests with coverage
+(
+    cd "$PROJECT_ROOT/frontend"
+    if npm test -- --coverage --run > "$FRONTEND_LOG" 2>&1; then
+        echo "0" > "$FRONTEND_EXIT_FILE"
+    else
+        echo "1" > "$FRONTEND_EXIT_FILE"
+    fi
+) &
+FRONTEND_PID=$!
+
 # Show running jobs
-echo -e "${YELLOW}Running 3 jobs in parallel:${NC}"
+echo -e "${YELLOW}Running 5 jobs in parallel:${NC}"
 echo "  [1] Backend unit tests (pytest, 85% coverage)"
 echo "  [2] E2E + Accessibility tests (Playwright Chromium)"
 echo "  [3] API types contract check (openapi-typescript)"
+echo "  [4] Backend integration tests (subset for speed)"
+echo "  [5] Frontend unit tests (vitest with coverage)"
 echo ""
 echo -e "${BLUE}Waiting for all jobs to complete...${NC}"
 
@@ -109,11 +139,15 @@ echo -e "${BLUE}Waiting for all jobs to complete...${NC}"
 wait $UNIT_PID 2>/dev/null || true
 wait $E2E_PID 2>/dev/null || true
 wait $API_PID 2>/dev/null || true
+wait $INTEGRATION_PID 2>/dev/null || true
+wait $FRONTEND_PID 2>/dev/null || true
 
 # Read exit codes
 UNIT_EXIT=$(cat "$UNIT_EXIT_FILE" 2>/dev/null || echo "1")
 E2E_EXIT=$(cat "$E2E_EXIT_FILE" 2>/dev/null || echo "1")
 API_EXIT=$(cat "$API_EXIT_FILE" 2>/dev/null || echo "1")
+INTEGRATION_EXIT=$(cat "$INTEGRATION_EXIT_FILE" 2>/dev/null || echo "1")
+FRONTEND_EXIT=$(cat "$FRONTEND_EXIT_FILE" 2>/dev/null || echo "1")
 
 # Report results
 echo ""
@@ -141,6 +175,20 @@ if [ "$API_EXIT" = "0" ]; then
     echo -e "${GREEN}✓ [3] API Types Contract: PASSED${NC}"
 else
     echo -e "${RED}✗ [3] API Types Contract: FAILED${NC}"
+fi
+
+# Integration test results
+if [ "$INTEGRATION_EXIT" = "0" ]; then
+    echo -e "${GREEN}✓ [4] Backend Integration Tests: PASSED${NC}"
+else
+    echo -e "${RED}✗ [4] Backend Integration Tests: FAILED${NC}"
+fi
+
+# Frontend unit test results
+if [ "$FRONTEND_EXIT" = "0" ]; then
+    echo -e "${GREEN}✓ [5] Frontend Unit Tests: PASSED${NC}"
+else
+    echo -e "${RED}✗ [5] Frontend Unit Tests: FAILED${NC}"
 fi
 
 echo ""
@@ -175,8 +223,26 @@ if [ "$API_EXIT" != "0" ]; then
     echo ""
 fi
 
+if [ "$INTEGRATION_EXIT" != "0" ]; then
+    SHOW_DETAILS=true
+    echo -e "${RED}─────────────────────────────────────────────────────────────────${NC}"
+    echo -e "${RED}Backend Integration Test Failures:${NC}"
+    echo -e "${RED}─────────────────────────────────────────────────────────────────${NC}"
+    cat "$INTEGRATION_LOG"
+    echo ""
+fi
+
+if [ "$FRONTEND_EXIT" != "0" ]; then
+    SHOW_DETAILS=true
+    echo -e "${RED}─────────────────────────────────────────────────────────────────${NC}"
+    echo -e "${RED}Frontend Unit Test Failures:${NC}"
+    echo -e "${RED}─────────────────────────────────────────────────────────────────${NC}"
+    cat "$FRONTEND_LOG"
+    echo ""
+fi
+
 # Final result
-if [ "$UNIT_EXIT" = "0" ] && [ "$E2E_EXIT" = "0" ] && [ "$API_EXIT" = "0" ]; then
+if [ "$UNIT_EXIT" = "0" ] && [ "$E2E_EXIT" = "0" ] && [ "$API_EXIT" = "0" ] && [ "$INTEGRATION_EXIT" = "0" ] && [ "$FRONTEND_EXIT" = "0" ]; then
     echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
     echo -e "${GREEN}              ALL PARALLEL VALIDATIONS PASSED                  ${NC}"
     echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"

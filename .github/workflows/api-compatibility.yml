@@ -31,8 +31,7 @@ jobs:
   api-compatibility:
     name: API Breaking Change Detection
     runs-on: ubuntu-latest
-    # Non-blocking - reports breaking changes without failing CI
-    continue-on-error: true
+    # Blocking for PRs unless 'breaking-change-approved' label is present
     steps:
       - name: Checkout current branch
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -201,13 +200,119 @@ jobs:
             full-diff.txt
           retention-days: 30
 
-      - name: Fail if breaking changes detected (informational)
-        if: steps.oasdiff.outputs.HAS_BREAKING == 'true'
+      - name: Check for breaking-change-approved label
+        id: check-label
+        if: github.event_name == 'pull_request' && steps.oasdiff.outputs.HAS_BREAKING == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const hasApprovalLabel = labels.includes('breaking-change-approved');
+            core.setOutput('has_approval', hasApprovalLabel);
+            if (hasApprovalLabel) {
+              core.info('✅ Breaking changes approved via label');
+            } else {
+              core.info('❌ No breaking-change-approved label found');
+            }
+            return hasApprovalLabel;
+
+      - name: Comment on PR with breaking changes
+        if: github.event_name == 'pull_request' && steps.oasdiff.outputs.HAS_BREAKING == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          script: |
+            const fs = require('fs');
+            const breakingChanges = fs.readFileSync('breaking-changes.txt', 'utf8');
+            const fullDiff = fs.readFileSync('full-diff.txt', 'utf8').substring(0, 5000);
+            const hasApproval = '${{ steps.check-label.outputs.has_approval }}' === 'true';
+
+            const body = `## 🚨 Breaking API Changes Detected
+
+            ${hasApproval ? '✅ **Approved**: This PR has the \`breaking-change-approved\` label.' : '❌ **Not Approved**: Add the \`breaking-change-approved\` label to merge despite breaking changes.'}
+
+            ### Breaking Changes
+
+            \`\`\`
+            ${breakingChanges}
+            \`\`\`
+
+            <details>
+            <summary>Full API Diff</summary>
+
+            \`\`\`
+            ${fullDiff}
+            ${fullDiff.length >= 5000 ? '\n... (truncated, see workflow artifacts for full diff)' : ''}
+            \`\`\`
+            </details>
+
+            ### Required Actions
+
+            1. **Review** all breaking changes above
+            2. **Update** frontend API clients if needed
+            3. **Update** API documentation
+            4. **Consider** API versioning for major changes
+            5. **Add label** \`breaking-change-approved\` to proceed with merge
+
+            ### Run Locally
+
+            \`\`\`bash
+            ./scripts/check-api-compatibility.sh
+            # Or use Python script:
+            uv run python scripts/check-api-breaking-changes.py --base docs/openapi.json --current openapi-current.json
+            \`\`\`
+            `;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' &&
+              c.body.includes('Breaking API Changes Detected')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: body,
+              });
+            }
+
+      - name: Fail if breaking changes detected and not approved
+        if: |
+          github.event_name == 'pull_request' &&
+          steps.oasdiff.outputs.HAS_BREAKING == 'true' &&
+          steps.check-label.outputs.has_approval != 'true'
         run: |
-          echo "::warning::Breaking API changes detected. Review the changes above."
-          echo "This check is non-blocking but breaking changes should be reviewed carefully."
-          # Exit with success since continue-on-error: true handles this
-          exit 0
+          echo "::error::Breaking API changes detected without approval."
+          echo "::error::Add the 'breaking-change-approved' label to this PR to proceed."
+          echo ""
+          echo "Breaking changes detected:"
+          cat breaking-changes.txt
+          exit 1
+
+      - name: Success message for approved breaking changes
+        if: |
+          github.event_name == 'pull_request' &&
+          steps.oasdiff.outputs.HAS_BREAKING == 'true' &&
+          steps.check-label.outputs.has_approval == 'true'
+        run: |
+          echo "::notice::Breaking changes approved via 'breaking-change-approved' label."
+          echo "Proceeding with merge."
 
   # ============================================================================
   # Issue Creation Job (only on main branch failures)
