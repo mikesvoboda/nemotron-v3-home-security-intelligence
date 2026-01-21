@@ -1,0 +1,9 @@
+# Threat scenario test images
+# Expected risk score range: 70-100
+
+# IMPORTANT: Use staged scenarios only, no real weapons
+# Examples to add:
+# - forced_entry_attempt_staged.jpg
+# - person_concealing_face_night.jpg
+# - lock_tampering_staged.jpg
+# - prowler_behavior.jpg
