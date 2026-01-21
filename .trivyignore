@@ -176,6 +176,16 @@ CVE-2025-6020
 # Reference: https://security-tracker.debian.org/tracker/CVE-2026-0861
 CVE-2026-0861
 
+# CVE-2023-2953 - OpenLDAP null pointer dereference in ber_memalloc_x (REVIEW BY: 2026-04-21)
+# HIGH severity, no fix available in Debian bookworm stable (version 2.5.13+dfsg-5)
+# Affects libldap-2.5-0 package, a transitive dependency of curl (via libcurl4)
+# Not exploitable in our context:
+#   1. Our application does not use LDAP functionality
+#   2. libldap is only included as a dependency of curl, used for health checks
+#   3. The vulnerability requires LDAP operations to trigger
+# Reference: https://security-tracker.debian.org/tracker/CVE-2023-2953
+CVE-2023-2953
+
 # =============================================================================
 # Python Package Vulnerabilities - No Fix Available
 # =============================================================================
@@ -213,5 +223,5 @@ AVD-DS-0002
 #
 # Remove entries when fixes become available.
 #
-# Last reviewed: 2026-01-17 (NEM-2689)
-# Next review: 2026-04-17
+# Last reviewed: 2026-01-21 (NEM-3226)
+# Next review: 2026-04-21

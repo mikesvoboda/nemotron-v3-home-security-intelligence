@@ -297,12 +297,25 @@ def mock_nemotron_response():
     }
 
 
+@pytest.fixture(autouse=True)
+async def reset_inference_semaphore_fixture():
+    """Reset the global inference semaphore before each test.
+
+    This prevents semaphore state leakage between tests that could
+    cause hanging when the semaphore is not properly released.
+    """
+    from backend.services.inference_semaphore import reset_inference_semaphore
+
+    # Reset before test
+    reset_inference_semaphore()
+    yield
+    # Reset after test for cleanup
+    reset_inference_semaphore()
+
+
 @pytest.mark.e2e
 @pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="Test hangs during execution - see NEM-3155 for investigation. "
-    "Individual components are tested in other passing tests."
-)
+@pytest.mark.timeout(60)  # Add explicit 60-second timeout to prevent hanging
 async def test_complete_pipeline_flow_with_mocked_services(
     isolated_db,
     test_camera,
@@ -324,8 +337,10 @@ async def test_complete_pipeline_flow_with_mocked_services(
     The test uses mocked external services (RT-DETRv2, Nemotron, Redis)
     so it can run without actual service dependencies.
 
-    Note: Currently skipped due to timeout issue. Individual functionality
-    is covered by other tests that all pass.
+    Timeout Handling (NEM-3155):
+        Test has a 60-second timeout to prevent hanging. The global inference
+        semaphore is reset before/after each test to prevent state leakage.
+        DetectorClient HTTP connections are properly closed in a finally block.
     """
     camera_id = test_camera.id
 
@@ -345,12 +360,16 @@ async def test_complete_pipeline_flow_with_mocked_services(
 
         # Step 2: Process image through detector
         detector = DetectorClient()
-        async with get_session() as session:
-            detections = await detector.detect_objects(
-                image_path=test_image_path,
-                camera_id=camera_id,
-                session=session,
-            )
+        try:
+            async with get_session() as session:
+                detections = await detector.detect_objects(
+                    image_path=test_image_path,
+                    camera_id=camera_id,
+                    session=session,
+                )
+        finally:
+            # Ensure HTTP clients are properly closed
+            await detector.close()
 
         # Verify detections were created
         assert len(detections) == 2

@@ -177,6 +177,26 @@ sudo systemctl restart docker
 | `docker-compose.prod.yml` | Production  | Containerized | Full deployment with GPU      |
 | `docker-compose.ghcr.yml` | Pre-built   | External      | Fast deploy from GHCR images  |
 
+### Deployment Mode Selection Guide
+
+Choose your deployment mode based on your needs:
+
+| Question                                           | Recommended Mode                             |
+| -------------------------------------------------- | -------------------------------------------- |
+| **First time deploying / Want simplest setup?**    | Production (`docker-compose.prod.yml`)       |
+| **Developing locally with code hot-reload?**       | Development (`docker-compose.yml` + host AI) |
+| **Need GPU debugging / AI runs better on host?**   | Hybrid (container backend + host AI)         |
+| **Have a dedicated GPU server?**                   | Remote AI host mode                          |
+| **Want fastest deployment from pre-built images?** | GHCR (`docker-compose.ghcr.yml`)             |
+
+**Decision flowchart:**
+
+1. **Production deployment?** Use `docker-compose.prod.yml` - everything containerized, no networking complexity
+2. **Active development?** Use `docker-compose.yml` with host AI for hot-reload and easier debugging
+3. **GPU issues in containers?** Run AI services on host, backend in container (see [Deployment Modes](../deployment-modes.md))
+
+> **Tip:** If AI services are unreachable, it's usually a networking mode mismatch. See [Deployment Modes & AI Networking](../deployment-modes.md) for URL configuration by mode.
+
 ### Production Deployment
 
 ```bash
