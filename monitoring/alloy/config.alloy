@@ -52,8 +52,35 @@ loki.process "parse" {
     expression = "camera[=: ]+(?P<camera>[a-z_]+)"
   }
 
+  // Extract trace_id for log-to-trace correlation
+  stage.regex {
+    expression = "trace_id[=:]\\s*(?P<trace_id>[a-f0-9]{32})"
+  }
+
+  // Extract span_id for log-to-trace correlation
+  stage.regex {
+    expression = "span_id[=:]\\s*(?P<span_id>[a-f0-9]{16})"
+  }
+
+  // Extract batch_id for batch processing correlation
+  stage.regex {
+    expression = "batch_id[=:]\\s*(?P<batch_id>[a-f0-9-]+)"
+  }
+
+  // Extract duration in milliseconds for performance analysis
+  stage.regex {
+    expression = "duration[=:]\\s*(?P<duration_ms>\\d+)\\s*ms"
+  }
+
   stage.labels {
-    values = { level = "", camera = "" }
+    values = {
+      level = "",
+      camera = "",
+      trace_id = "",
+      span_id = "",
+      batch_id = "",
+      duration_ms = "",
+    }
   }
 
   forward_to = [loki.write.local.receiver]

@@ -52,15 +52,11 @@ export type {
   Event,
   EventListResponse,
   EventStatsResponse,
-  FrontendLogCreate,
   GPUStats,
   GPUStatsSample,
   GPUStatsHistoryResponse,
   HealthResponse,
   HTTPValidationError,
-  LogEntry,
-  LogsResponse,
-  LogStats,
   MediaErrorResponse,
   PipelineLatencies,
   QueueDepths,
@@ -177,8 +173,6 @@ import type {
   GPUStats,
   GPUStatsHistoryResponse,
   HealthResponse,
-  LogsResponse as GeneratedLogsResponse,
-  LogStats,
   ReadinessResponse,
   SceneChangeAcknowledgeResponse,
   SceneChangeListResponse,
@@ -2210,61 +2204,6 @@ export function getMediaUrl(cameraId: string, filename: string): string {
 
 export function getThumbnailUrl(filename: string): string {
   return `${BASE_URL}/api/media/thumbnails/${filename}`;
-}
-
-// ============================================================================
-// Logs Endpoints
-// ============================================================================
-
-export async function fetchLogStats(): Promise<LogStats> {
-  return fetchApi<LogStats>('/api/logs/stats');
-}
-
-export interface LogsQueryParams {
-  level?: string;
-  component?: string;
-  camera_id?: string;
-  source?: string;
-  search?: string;
-  start_date?: string;
-  end_date?: string;
-  limit?: number;
-  /**
-   * Page offset for pagination. Use cursor instead for better performance with large datasets.
-   * @deprecated Prefer cursor-based pagination for new code.
-   */
-  offset?: number;
-  /**
-   * Cursor for pagination. Pass the `next_cursor` value from the previous response.
-   * Recommended over offset pagination for better performance.
-   */
-  cursor?: string;
-}
-
-export async function fetchLogs(params?: LogsQueryParams): Promise<GeneratedLogsResponse> {
-  const queryParams = new URLSearchParams();
-
-  if (params) {
-    if (params.level) queryParams.append('level', params.level);
-    if (params.component) queryParams.append('component', params.component);
-    if (params.camera_id) queryParams.append('camera_id', params.camera_id);
-    if (params.source) queryParams.append('source', params.source);
-    if (params.search) queryParams.append('search', params.search);
-    if (params.start_date) queryParams.append('start_date', params.start_date);
-    if (params.end_date) queryParams.append('end_date', params.end_date);
-    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
-    // Prefer cursor over offset for pagination
-    if (params.cursor) {
-      queryParams.append('cursor', params.cursor);
-    } else if (params.offset !== undefined) {
-      queryParams.append('offset', String(params.offset));
-    }
-  }
-
-  const queryString = queryParams.toString();
-  const endpoint = queryString ? `/api/logs?${queryString}` : '/api/logs';
-
-  return fetchApi<GeneratedLogsResponse>(endpoint);
 }
 
 // ============================================================================

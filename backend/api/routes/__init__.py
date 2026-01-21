@@ -13,7 +13,6 @@ from .hierarchy import property_router as property_router
 from .hierarchy import router as hierarchy_router
 from .household import router as household_router
 from .jobs import router as jobs_router
-from .logs import router as logs_router
 from .notification_preferences import router as notification_preferences_router
 from .rum import router as rum_router
 from .services import router as services_router
@@ -34,7 +33,6 @@ __all__ = [
     "hierarchy_router",
     "household_router",
     "jobs_router",
-    "logs_router",
     "notification_preferences_router",
     "property_router",
     "rum_router",

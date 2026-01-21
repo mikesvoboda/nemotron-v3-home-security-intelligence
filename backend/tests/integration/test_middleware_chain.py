@@ -272,7 +272,7 @@ async def test_body_limit_middleware_accepts_small_payloads(client):
     small_payload = {"data": "x" * 1000}  # ~1KB
 
     response = await client.post(
-        "/api/logs/frontend",
+        "/api/rum",
         json=small_payload,
     )
 
@@ -287,7 +287,7 @@ async def test_body_limit_middleware_rejects_large_payloads(client):
     large_payload = {"data": "x" * (11 * 1024 * 1024)}  # ~11MB
 
     response = await client.post(
-        "/api/logs/frontend",
+        "/api/rum",
         content=str(large_payload).encode(),
         headers={"Content-Type": "application/json"},
     )

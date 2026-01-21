@@ -147,6 +147,18 @@ repos:
         files: ^backend/(api|models|schemas)/.*\.py$
         pass_filenames: false
 
+  # TypeScript API types generation - auto-regenerates frontend/src/types/generated/api.ts
+  # Runs when backend API files change so generated types are included in the commit
+  # This prevents pre-push failures due to outdated types
+  - repo: local
+    hooks:
+      - id: generate-api-types
+        name: Generate TypeScript API Types
+        entry: bash -c './scripts/generate-types.sh && git add frontend/src/types/generated/api.ts'
+        language: system
+        files: ^backend/(api|models|schemas)/.*\.py$
+        pass_filenames: false
+
   # Frontend Prettier - Uses local prettier with tailwindcss plugin
   # Handles all frontend files: TS/TSX/JS/JSX plus CSS/JSON/MD
   - repo: local

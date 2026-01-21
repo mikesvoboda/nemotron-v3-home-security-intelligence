@@ -1,12 +1,11 @@
 /**
- * Logs Tests for Home Security Dashboard
+ * Logs Tests for Grafana-embedded System Logs page
  *
- * Comprehensive tests for the System Logs page including:
- * - Log stats display
- * - Log filtering
- * - Log table display
- * - Pagination
- * - Log detail modal
+ * Tests for the System Logs page which embeds Grafana/Loki dashboard:
+ * - Page load and title
+ * - External Grafana links
+ * - Refresh functionality
+ * - Grafana iframe presence
  */
 
 import { test, expect } from '@playwright/test';
@@ -14,12 +13,7 @@ import { test, expect } from '@playwright/test';
 // Skip entire file in CI - timing issues cause flaky failures
 test.skip(() => !!process.env.CI, 'E2E tests flaky in CI - run locally');
 import { LogsPage } from '../pages';
-import {
-  setupApiMocks,
-  defaultMockConfig,
-  emptyMockConfig,
-  errorMockConfig,
-} from '../fixtures';
+import { setupApiMocks, defaultMockConfig } from '../fixtures';
 
 test.describe('Logs Page Load', () => {
   let logsPage: LogsPage;
@@ -40,20 +34,20 @@ test.describe('Logs Page Load', () => {
     await expect(logsPage.pageTitle).toBeVisible();
   });
 
-  test('logs displays page subtitle', async () => {
-    await logsPage.goto();
-    await logsPage.waitForLogsLoad();
-    await expect(logsPage.pageSubtitle).toBeVisible();
-  });
-
   test('logs title says System Logs', async () => {
     await logsPage.goto();
     await logsPage.waitForLogsLoad();
     await expect(logsPage.pageTitle).toHaveText(/System Logs/i);
   });
+
+  test('page container has correct data-testid', async () => {
+    await logsPage.goto();
+    await logsPage.waitForLogsLoad();
+    await expect(logsPage.pageContainer).toBeVisible();
+  });
 });
 
-test.describe('Logs Filters', () => {
+test.describe('Grafana Integration', () => {
   let logsPage: LogsPage;
 
   test.beforeEach(async ({ page }) => {
@@ -63,47 +57,41 @@ test.describe('Logs Filters', () => {
     await logsPage.waitForLogsLoad();
   });
 
-  test('level filter is visible after expanding', async () => {
-    await logsPage.showFilters();
-    await expect(logsPage.levelFilter).toBeVisible();
+  test('Grafana iframe is visible', async () => {
+    const isVisible = await logsPage.isGrafanaIframeVisible();
+    expect(isVisible).toBe(true);
   });
 
-  test('component filter is visible after expanding', async () => {
-    await logsPage.showFilters();
-    await expect(logsPage.componentFilter).toBeVisible();
+  test('Open Grafana link is visible', async () => {
+    await expect(logsPage.openGrafanaButton).toBeVisible();
   });
 
-  test('search input is visible', async () => {
-    await expect(logsPage.searchInput).toBeVisible();
+  test('Explore (LogQL) link is visible', async () => {
+    await expect(logsPage.exploreButton).toBeVisible();
   });
 
-  test('can select DEBUG level filter', async () => {
-    await logsPage.filterByLevel('debug');
-    await expect(logsPage.levelFilter).toHaveValue('DEBUG');
+  test('Open Grafana link has correct href pattern', async () => {
+    const href = await logsPage.getOpenGrafanaHref();
+    expect(href).toMatch(/\/grafana\/d\/hsi-logs/);
   });
 
-  test('can select INFO level filter', async () => {
-    await logsPage.filterByLevel('info');
-    await expect(logsPage.levelFilter).toHaveValue('INFO');
+  test('Explore link has correct href pattern', async () => {
+    const href = await logsPage.getExploreHref();
+    expect(href).toMatch(/\/grafana\/explore/);
   });
 
-  test('can select WARNING level filter', async () => {
-    await logsPage.filterByLevel('warning');
-    await expect(logsPage.levelFilter).toHaveValue('WARNING');
+  test('Open Grafana link opens in new tab', async () => {
+    const target = await logsPage.openGrafanaButton.getAttribute('target');
+    expect(target).toBe('_blank');
   });
 
-  test('can select ERROR level filter', async () => {
-    await logsPage.filterByLevel('error');
-    await expect(logsPage.levelFilter).toHaveValue('ERROR');
-  });
-
-  test('can search logs', async () => {
-    await logsPage.searchLogs('detection');
-    await expect(logsPage.searchInput).toHaveValue('detection');
+  test('Explore link opens in new tab', async () => {
+    const target = await logsPage.exploreButton.getAttribute('target');
+    expect(target).toBe('_blank');
   });
 });
 
-test.describe('Logs Table', () => {
+test.describe('Refresh Functionality', () => {
   let logsPage: LogsPage;
 
   test.beforeEach(async ({ page }) => {
@@ -113,63 +101,12 @@ test.describe('Logs Table', () => {
     await logsPage.waitForLogsLoad();
   });
 
-  test('logs table is visible', async () => {
-    await expect(logsPage.logsTable).toBeVisible();
+  test('refresh button is visible', async () => {
+    await expect(logsPage.refreshButton).toBeVisible();
   });
 
-  test('logs table has rows', async () => {
-    const rowCount = await logsPage.getLogRowCount();
-    expect(rowCount).toBeGreaterThanOrEqual(0);
-  });
-});
-
-test.describe('Logs Pagination', () => {
-  let logsPage: LogsPage;
-
-  test.beforeEach(async ({ page }) => {
-    await setupApiMocks(page, defaultMockConfig);
-    logsPage = new LogsPage(page);
-    await logsPage.goto();
-    await logsPage.waitForLogsLoad();
-  });
-
-  test('previous page button exists', async () => {
-    await expect(logsPage.previousPageButton).toBeVisible();
-  });
-
-  test('next page button exists', async () => {
-    await expect(logsPage.nextPageButton).toBeVisible();
-  });
-});
-
-test.describe('Logs Empty State', () => {
-  let logsPage: LogsPage;
-
-  test.beforeEach(async ({ page }) => {
-    await setupApiMocks(page, emptyMockConfig);
-    logsPage = new LogsPage(page);
-  });
-
-  test('shows empty state when no logs', async () => {
-    await logsPage.goto();
-    await logsPage.waitForLogsLoad();
-    const hasEmpty = await logsPage.hasEmptyState();
-    expect(hasEmpty).toBe(true);
-  });
-});
-
-test.describe('Logs Error State', () => {
-  let logsPage: LogsPage;
-
-  test.beforeEach(async ({ page }) => {
-    await setupApiMocks(page, errorMockConfig);
-    logsPage = new LogsPage(page);
-  });
-
-  test('page loads even with API errors', async () => {
-    await logsPage.goto();
-    await logsPage.waitForLogsLoad();
-    // Page should still render even with errors
-    await expect(logsPage.pageTitle).toBeVisible();
+  test('refresh button can be clicked', async () => {
+    // Should not throw
+    await logsPage.refresh();
   });
 });

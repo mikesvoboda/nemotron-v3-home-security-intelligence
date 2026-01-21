@@ -1,0 +1,92 @@
+# Log-based alert rules using Loki
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: log-alerts
+    folder: HSI Alerts
+    interval: 1m
+    rules:
+      - uid: high-error-rate
+        title: High Error Rate
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              expr: sum(count_over_time({level="ERROR"}[5m])) > 10
+              refId: A
+        noDataState: OK
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: High error rate detected in logs
+          description: More than 10 errors in the last 5 minutes
+        labels:
+          severity: warning
+
+      - uid: error-spike
+        title: Error Spike
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: loki
+            model:
+              expr: sum(count_over_time({level="ERROR"}[1m])) > 20
+              refId: A
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: Sudden spike in error logs
+          description: More than 20 errors in the last minute
+        labels:
+          severity: critical
+
+      - uid: service-silent
+        title: Service Silent
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              expr: absent_over_time({container="backend"}[5m])
+              refId: A
+        noDataState: Alerting
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: Backend service not producing logs
+          description: No logs from backend container for 5 minutes
+        labels:
+          severity: warning
+
+      - uid: critical-error
+        title: Critical Error Detected
+        condition: A
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: loki
+            model:
+              expr: count_over_time({level="CRITICAL"}[1m]) > 0
+              refId: A
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: Critical error in logs
+          description: A CRITICAL level log entry was detected
+        labels:
+          severity: critical

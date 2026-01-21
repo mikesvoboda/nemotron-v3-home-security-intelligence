@@ -48,8 +48,6 @@ import type {
   SeverityMetadataResponse,
   PipelineLatencyResponse,
   PipelineLatencyHistoryResponse,
-  LogsResponse,
-  LogStats,
   SceneChangeListResponse,
 } from './generated';
 
@@ -243,18 +241,6 @@ export type AuditEndpoint = '/api/audit' | `/api/audit/${NumericId}` | '/api/aud
 export type SearchEndpoint = '/api/events/search';
 
 // ============================================================================
-// Log Endpoints
-// ============================================================================
-
-/**
- * Log API endpoints
- *
- * - `/api/logs` - List logs
- * - `/api/logs/stats` - Log statistics
- */
-export type LogEndpoint = '/api/logs' | '/api/logs/stats';
-
-// ============================================================================
 // DLQ Endpoints
 // ============================================================================
 
@@ -331,7 +317,6 @@ export type ApiEndpoint =
   | ZoneEndpoint
   | AuditEndpoint
   | SearchEndpoint
-  | LogEndpoint
   | DLQEndpoint
   | NotificationEndpoint
   | AiAuditEndpoint
@@ -428,14 +413,10 @@ export type EndpointResponseType<T extends string> =
                                     ? AuditLogListResponse
                                     : T extends '/api/audit/stats'
                                       ? AuditLogStats
-                                      : T extends '/api/logs'
-                                        ? LogsResponse
-                                        : T extends '/api/logs/stats'
-                                          ? LogStats
-                                          : T extends '/api/detections/stats'
-                                            ? DetectionStatsResponse
-                                            : T extends '/api/scene-changes'
-                                              ? SceneChangeListResponse
+                                      : T extends '/api/detections/stats'
+                                        ? DetectionStatsResponse
+                                        : T extends '/api/scene-changes'
+                                          ? SceneChangeListResponse
                                               : // Pattern matches (less specific)
                                                 T extends `/api/cameras/${infer _}/zones/${infer _}`
                                                 ? Zone
@@ -570,10 +551,6 @@ const ENDPOINT_PATTERNS = {
   audit: /^\/api\/audit$/,
   auditDetail: /^\/api\/audit\/(\d+)$/,
   auditStats: /^\/api\/audit\/stats$/,
-
-  // Log endpoints
-  logs: /^\/api\/logs$/,
-  logStats: /^\/api\/logs\/stats$/,
 
   // DLQ endpoints
   dlqStats: /^\/api\/dlq\/stats$/,
@@ -1013,27 +990,6 @@ export function parseEndpoint(endpoint: string): ParsedEndpoint | null {
       resource: 'audit',
       action: 'detail',
       id: match[1],
-      subResource: undefined,
-      subId: undefined,
-    };
-  }
-
-  // Log endpoints
-  if (ENDPOINT_PATTERNS.logs.test(endpoint)) {
-    return {
-      resource: 'logs',
-      action: 'list',
-      id: undefined,
-      subResource: undefined,
-      subId: undefined,
-    };
-  }
-
-  if (ENDPOINT_PATTERNS.logStats.test(endpoint)) {
-    return {
-      resource: 'logs',
-      action: 'stats',
-      id: undefined,
       subResource: undefined,
       subId: undefined,
     };
