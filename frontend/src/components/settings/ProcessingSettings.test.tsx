@@ -731,4 +731,67 @@ describe('ProcessingSettings', () => {
       expect(screen.getByText('0.75')).toBeInTheDocument();
     });
   });
+
+  describe('SeverityThresholds integration', () => {
+    it('renders SeverityThresholds component within ProcessingSettings', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+      // Mock the severity config API
+      const mockSeverityConfig: api.SeverityMetadataResponse = {
+        definitions: [
+          {
+            severity: 'low',
+            label: 'Low',
+            description: 'Routine activity',
+            color: '#22c55e',
+            priority: 3,
+            min_score: 0,
+            max_score: 29,
+          },
+          {
+            severity: 'medium',
+            label: 'Medium',
+            description: 'Elevated attention needed',
+            color: '#eab308',
+            priority: 2,
+            min_score: 30,
+            max_score: 59,
+          },
+          {
+            severity: 'high',
+            label: 'High',
+            description: 'Significant concern',
+            color: '#f97316',
+            priority: 1,
+            min_score: 60,
+            max_score: 84,
+          },
+          {
+            severity: 'critical',
+            label: 'Critical',
+            description: 'Immediate attention required',
+            color: '#ef4444',
+            priority: 0,
+            min_score: 85,
+            max_score: 100,
+          },
+        ],
+        thresholds: {
+          low_max: 29,
+          medium_max: 59,
+          high_max: 84,
+        },
+      };
+      vi.mocked(api.fetchSeverityConfig).mockResolvedValue(mockSeverityConfig);
+
+      renderWithProviders(<ProcessingSettings />);
+
+      // SeverityThresholds component should be visible
+      await waitFor(() => {
+        expect(screen.getByText('Risk Score Thresholds')).toBeInTheDocument();
+      });
+
+      // Verify the severity thresholds card is rendered with correct test id
+      expect(screen.getByTestId('severity-thresholds-card')).toBeInTheDocument();
+    });
+  });
 });

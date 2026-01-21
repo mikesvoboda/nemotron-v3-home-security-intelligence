@@ -1,17 +1,16 @@
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import AuditDetailModal from './AuditDetailModal';
 import AuditFilters, { type AuditFilterParams } from './AuditFilters';
 import AuditStatsCards, { type StatsFilterType } from './AuditStatsCards';
-import AuditTable, { type AuditEntry } from './AuditTable';
+import AuditTableInfinite, { type AuditEntry } from './AuditTableInfinite';
 import {
-  fetchAuditLogs,
-  fetchAuditStats,
-  isAbortError,
-  type AuditLogsQueryParams,
-  type AuditLogStats,
-} from '../../services/api';
+  useAuditLogsInfiniteQuery,
+  useInfiniteScroll,
+  type AuditLogFilters,
+} from '../../hooks';
+import { fetchAuditStats, type AuditLogStats } from '../../services/api';
 
 /**
  * Get today's date in YYYY-MM-DD format for filtering
@@ -29,27 +28,18 @@ export interface AuditLogPageProps {
  * AuditLogPage component assembles the complete audit log viewer interface
  * - Displays AuditStatsCards at the top with statistics
  * - Provides AuditFilters for filtering audit entries
- * - Shows AuditTable with paginated audit entries
+ * - Shows AuditTableInfinite with infinite scroll pagination
  * - Opens AuditDetailModal when clicking on a row
  * - Fetches data from /api/audit and /api/audit/stats endpoints
  * - Uses NVIDIA dark theme styling (bg-[#1A1A1A], green accents #76B900)
  */
 export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
-  // State for audit logs data
-  const [logs, setLogs] = useState<AuditEntry[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   // State for stats
   const [stats, setStats] = useState<AuditLogStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
-  // State for query parameters
-  const [queryParams, setQueryParams] = useState<AuditLogsQueryParams>({
-    limit: 50,
-    offset: 0,
-  });
+  // State for filters
+  const [filters, setFilters] = useState<AuditLogFilters>({});
 
   // State for detail modal
   const [selectedLog, setSelectedLog] = useState<AuditEntry | null>(null);
@@ -62,6 +52,31 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
 
   // Controlled filters for AuditFilters component
   const [controlledFilters, setControlledFilters] = useState<AuditFilterParams>({});
+
+  // Use infinite query hook for audit logs
+  const {
+    logs,
+    totalCount,
+    isLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    error,
+    isError,
+  } = useAuditLogsInfiniteQuery({
+    filters,
+    limit: 50,
+  });
+
+  // Use infinite scroll hook for automatic loading
+  const { sentinelRef, isLoadingMore } = useInfiniteScroll({
+    onLoadMore: fetchNextPage,
+    hasMore: hasNextPage,
+    isLoading: isFetchingNextPage,
+  });
+
+  // Cast logs to match AuditEntry type
+  const auditLogs = useMemo(() => logs as AuditEntry[], [logs]);
 
   // Load stats on mount
   useEffect(() => {
@@ -79,56 +94,17 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
     void loadStats();
   }, []);
 
-  // Load logs whenever query parameters change (with AbortController to cancel stale requests)
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const loadLogs = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetchAuditLogs(queryParams, { signal: controller.signal });
-        // Cast items to match AuditEntry type
-        setLogs(response.items as AuditEntry[]);
-        setTotalCount(response.pagination.total);
-      } catch (err) {
-        // Ignore aborted requests - user changed filters before request completed
-        if (isAbortError(err)) return;
-        setError(err instanceof Error ? err.message : 'Failed to load audit logs');
-      } finally {
-        // Only update loading state if request wasn't aborted
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
-    void loadLogs();
-
-    // Cleanup: abort pending request when filters change or component unmounts
-    return () => controller.abort();
-  }, [queryParams]);
-
   // Handle filter changes from AuditFilters component
-  const handleFilterChange = useCallback((filters: AuditFilterParams) => {
-    setQueryParams((prev) => ({
-      ...prev,
-      action: filters.action,
-      resource_type: filters.resourceType,
-      actor: filters.actor,
-      status: filters.status,
-      start_date: filters.startDate,
-      end_date: filters.endDate,
-      offset: 0, // Reset to first page when filters change
-    }));
+  const handleFilterChange = useCallback((filterParams: AuditFilterParams) => {
+    setFilters({
+      action: filterParams.action,
+      resource_type: filterParams.resourceType,
+      actor: filterParams.actor,
+      status: filterParams.status,
+      start_date: filterParams.startDate,
+      end_date: filterParams.endDate,
+    });
   }, []);
-
-  // Handle pagination from AuditTable component
-  const handlePageChange = (offset: number) => {
-    setQueryParams((prev) => ({
-      ...prev,
-      offset,
-    }));
-  };
 
   // Handle row click to open detail modal
   const handleRowClick = (log: AuditEntry) => {
@@ -239,6 +215,13 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
     setActiveStatsFilter(null);
     setControlledFilters({});
   }, []);
+
+  // Handle load more button click
+  const handleLoadMore = useCallback(() => {
+    if (!isFetchingNextPage && hasNextPage) {
+      fetchNextPage();
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
     <div className={`flex flex-col ${className}`}>
@@ -354,21 +337,32 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
         </div>
       )}
 
-      {/* Audit Table with Pagination */}
-      <AuditTable
-        logs={logs}
+      {/* Audit Table with Infinite Scroll */}
+      <AuditTableInfinite
+        logs={auditLogs}
         totalCount={totalCount}
-        limit={queryParams.limit || 50}
-        offset={queryParams.offset || 0}
-        loading={loading}
-        error={error}
+        loading={isLoading}
+        loadingMore={isFetchingNextPage || isLoadingMore}
+        error={isError ? (error?.message || 'Failed to load audit logs') : null}
+        hasMore={hasNextPage}
         onRowClick={handleRowClick}
-        onPageChange={handlePageChange}
+        onLoadMore={handleLoadMore}
         onActorClick={handleActorClick}
         onActionClick={handleActionClick}
         activeActorFilter={activeActorFilter}
         activeActionFilter={activeActionFilter}
+        loadMoreRef={{ current: null }}
       />
+
+      {/* Infinite scroll sentinel - triggers loading when visible */}
+      {hasNextPage && !isLoading && !isError && auditLogs.length > 0 && (
+        <div
+          ref={sentinelRef}
+          className="h-4"
+          data-testid="infinite-scroll-sentinel"
+          aria-hidden="true"
+        />
+      )}
 
       {/* Detail Modal */}
       <AuditDetailModal log={selectedLog} isOpen={isModalOpen} onClose={handleModalClose} />

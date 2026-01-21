@@ -1,5 +1,11 @@
 export { default as DeveloperToolsPage } from './DeveloperToolsPage';
 
+export { default as CircuitBreakerDebugPanel } from './CircuitBreakerDebugPanel';
+export type { CircuitBreakerDebugPanelProps } from './CircuitBreakerDebugPanel';
+
+export { default as MemorySnapshotPanel } from './MemorySnapshotPanel';
+export type { MemorySnapshotPanelProps } from './MemorySnapshotPanel';
+
 export { default as ProfilingPanel } from './ProfilingPanel';
 export type { ProfilingPanelProps } from './ProfilingPanel';
 

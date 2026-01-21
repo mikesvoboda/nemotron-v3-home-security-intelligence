@@ -42,14 +42,7 @@ loki.process "parse" {
 
   stage.docker {}
 
-  // Set default level first (will be overwritten if a level is found)
-  stage.static_labels {
-    values = {
-      level = "UNKNOWN",
-    }
-  }
-
-  // Extract log level - overwrites default if pattern matches
+  // Extract log level
   stage.regex {
     expression = "(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL)"
   }
@@ -81,6 +74,7 @@ loki.process "parse" {
 
   stage.labels {
     values = {
+      level = "",
       camera = "",
       trace_id = "",
       span_id = "",
