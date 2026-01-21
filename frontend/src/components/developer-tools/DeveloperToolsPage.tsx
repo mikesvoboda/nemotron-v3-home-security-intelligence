@@ -3,13 +3,17 @@ import {
   Activity,
   Database,
   FileText,
+  HardDrive,
   Settings,
   Terminal,
   Video,
+  Zap,
 } from 'lucide-react';
 
+import CircuitBreakerDebugPanel from './CircuitBreakerDebugPanel';
 import ConfigInspectorPanel from './ConfigInspectorPanel';
 import LogLevelPanel from './LogLevelPanel';
+import MemorySnapshotPanel from './MemorySnapshotPanel';
 import ProfilingPanel from './ProfilingPanel';
 import RecordingReplayPanel from './RecordingReplayPanel';
 import TestDataPanel from './TestDataPanel';
@@ -139,6 +143,28 @@ export default function DeveloperToolsPage() {
             data-testid="test-data-section"
           >
             <TestDataPanel />
+          </CollapsibleSection>
+
+          {/* Memory Snapshot */}
+          <CollapsibleSection
+            title="Memory Snapshot"
+            icon={<HardDrive className="h-5 w-5 text-[#76B900]" />}
+            isOpen={sectionStates.memory}
+            onToggle={() => toggleSection('memory')}
+            data-testid="memory-section"
+          >
+            <MemorySnapshotPanel />
+          </CollapsibleSection>
+
+          {/* Circuit Breakers Debug */}
+          <CollapsibleSection
+            title="Circuit Breakers"
+            icon={<Zap className="h-5 w-5 text-[#76B900]" />}
+            isOpen={sectionStates['circuit-breakers']}
+            onToggle={() => toggleSection('circuit-breakers')}
+            data-testid="circuit-breakers-section"
+          >
+            <CircuitBreakerDebugPanel />
           </CollapsibleSection>
         </div>
       </div>

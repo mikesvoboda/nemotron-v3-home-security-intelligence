@@ -6717,3 +6717,294 @@ export async function unlinkCameraFromArea(
     method: 'DELETE',
   });
 }
+
+// ============================================================================
+// Memory Debug Endpoints (NEM-3173)
+// ============================================================================
+
+/**
+ * Garbage collector statistics.
+ */
+export interface MemoryGCStats {
+  /** Number of collections per generation */
+  collections: number[];
+  /** Total objects collected */
+  collected: number;
+  /** Number of uncollectable objects */
+  uncollectable: number;
+  /** Collection thresholds per generation */
+  thresholds: number[];
+}
+
+/**
+ * Statistics for a single object type.
+ */
+export interface MemoryObjectStats {
+  /** Object type name (e.g., 'dict', 'list', 'str') */
+  type_name: string;
+  /** Number of instances */
+  count: number;
+  /** Total size in bytes */
+  size_bytes: number;
+  /** Human-readable size */
+  size_human: string;
+}
+
+/**
+ * Top memory allocation entry from tracemalloc.
+ */
+export interface TraceMallocAllocation {
+  /** File path and line number */
+  file: string;
+  /** Size in bytes */
+  size_bytes: number;
+  /** Human-readable size */
+  size_human: string;
+  /** Number of allocations */
+  count: number;
+}
+
+/**
+ * Tracemalloc statistics.
+ */
+export interface TraceMallocStats {
+  /** Whether tracemalloc is enabled */
+  enabled: boolean;
+  /** Current traced memory in bytes */
+  current_bytes: number;
+  /** Peak traced memory in bytes */
+  peak_bytes: number;
+  /** Top memory allocations by size */
+  top_allocations: TraceMallocAllocation[];
+}
+
+/**
+ * Response from GET /api/debug/memory
+ */
+export interface MemoryStatsResponse {
+  /** Process RSS memory in bytes */
+  process_rss_bytes: number;
+  /** Human-readable RSS memory */
+  process_rss_human: string;
+  /** Process virtual memory in bytes */
+  process_vms_bytes: number;
+  /** Human-readable virtual memory */
+  process_vms_human: string;
+  /** Garbage collector statistics */
+  gc_stats: MemoryGCStats;
+  /** Tracemalloc statistics */
+  tracemalloc_stats: TraceMallocStats;
+  /** Top object types by memory usage */
+  top_objects: MemoryObjectStats[];
+  /** ISO timestamp of response */
+  timestamp: string;
+}
+
+/**
+ * Response from POST /api/debug/memory/gc
+ */
+export interface TriggerGcResponse {
+  /** Objects collected per generation */
+  collected: {
+    gen0: number;
+    gen1: number;
+    gen2: number;
+    total: number;
+  };
+  /** Memory before and after GC */
+  memory: {
+    rss_before_bytes: number;
+    rss_after_bytes: number;
+    freed_bytes: number;
+    freed_human: string;
+  };
+  /** Number of uncollectable objects */
+  uncollectable: number;
+  /** ISO timestamp */
+  timestamp: string;
+}
+
+/**
+ * Response from POST /api/debug/memory/tracemalloc/start
+ */
+export interface StartTracemallocResponse {
+  /** Operation status */
+  status: 'started' | 'already_running';
+  /** Number of frames if started */
+  nframes?: number;
+  /** Human-readable message */
+  message: string;
+  /** ISO timestamp */
+  timestamp: string;
+}
+
+/**
+ * Response from POST /api/debug/memory/tracemalloc/stop
+ */
+export interface StopTracemallocResponse {
+  /** Operation status */
+  status: 'stopped' | 'not_running';
+  /** Final memory stats before stopping */
+  final_stats?: {
+    current_bytes: number;
+    current_human: string;
+    peak_bytes: number;
+    peak_human: string;
+  };
+  /** Human-readable message */
+  message: string;
+  /** ISO timestamp */
+  timestamp: string;
+}
+
+/**
+ * Fetch memory statistics from the debug API.
+ *
+ * Returns detailed memory usage including process RSS/VMS, GC stats,
+ * tracemalloc data, and top objects by memory consumption.
+ *
+ * Only available when debug mode is enabled on the backend.
+ *
+ * @param options - Query options
+ * @param options.topN - Number of top objects to return (default: 20)
+ * @param options.forceGc - Force GC before measurement (default: false)
+ * @returns Memory statistics response
+ *
+ * @example
+ * ```typescript
+ * const stats = await fetchMemoryStats();
+ * console.log(`RSS: ${stats.process_rss_human}`);
+ * console.log(`Top object: ${stats.top_objects[0].type_name}`);
+ * ```
+ */
+export async function fetchMemoryStats(options?: {
+  topN?: number;
+  forceGc?: boolean;
+}): Promise<MemoryStatsResponse> {
+  const params = new URLSearchParams();
+  if (options?.topN !== undefined) {
+    params.set('top_n', options.topN.toString());
+  }
+  if (options?.forceGc !== undefined) {
+    params.set('force_gc', options.forceGc.toString());
+  }
+  const query = params.toString();
+  const url = query ? `/api/debug/memory?${query}` : '/api/debug/memory';
+  return fetchApi<MemoryStatsResponse>(url);
+}
+
+/**
+ * Trigger garbage collection and return statistics.
+ *
+ * Forces a full GC cycle across all generations and returns
+ * the number of objects collected and memory freed.
+ *
+ * Only available when debug mode is enabled on the backend.
+ *
+ * @returns GC trigger response with collection stats
+ *
+ * @example
+ * ```typescript
+ * const result = await triggerGc();
+ * console.log(`Collected ${result.collected.total} objects`);
+ * console.log(`Freed ${result.memory.freed_human}`);
+ * ```
+ */
+export async function triggerGc(): Promise<TriggerGcResponse> {
+  return fetchApi<TriggerGcResponse>('/api/debug/memory/gc', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Start tracemalloc memory tracing.
+ *
+ * Enables detailed memory allocation tracking. Adds some overhead
+ * but allows tracking where memory is being allocated.
+ *
+ * Only available when debug mode is enabled on the backend.
+ *
+ * @param nframes - Number of stack frames to capture (default: 25)
+ * @returns Start tracemalloc response
+ *
+ * @example
+ * ```typescript
+ * const result = await startTracemalloc(10);
+ * console.log(result.message); // "tracemalloc started with 10 frames"
+ * ```
+ */
+export async function startTracemalloc(nframes?: number): Promise<StartTracemallocResponse> {
+  const params = nframes !== undefined ? `?nframes=${nframes}` : '';
+  return fetchApi<StartTracemallocResponse>(`/api/debug/memory/tracemalloc/start${params}`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Stop tracemalloc memory tracing.
+ *
+ * Stops memory allocation tracking and returns final statistics.
+ *
+ * Only available when debug mode is enabled on the backend.
+ *
+ * @returns Stop tracemalloc response with final stats
+ *
+ * @example
+ * ```typescript
+ * const result = await stopTracemalloc();
+ * if (result.final_stats) {
+ *   console.log(`Peak memory: ${result.final_stats.peak_human}`);
+ * }
+ * ```
+ */
+export async function stopTracemalloc(): Promise<StopTracemallocResponse> {
+  return fetchApi<StopTracemallocResponse>('/api/debug/memory/tracemalloc/stop', {
+    method: 'POST',
+  });
+}
+
+/**
+ * Response from GET /api/debug/circuit-breakers
+ */
+export interface DebugCircuitBreakersResponse {
+  /** All circuit breaker states keyed by name */
+  circuit_breakers: Record<
+    string,
+    {
+      name: string;
+      state: 'closed' | 'open' | 'half_open';
+      failure_count: number;
+      success_count: number;
+      last_failure_time: number | null;
+      config: {
+        failure_threshold: number;
+        recovery_timeout: number;
+        half_open_max_calls: number;
+      };
+    }
+  >;
+  /** ISO timestamp of response */
+  timestamp: string;
+}
+
+/**
+ * Fetch circuit breaker states from the debug API.
+ *
+ * Returns detailed circuit breaker information including states,
+ * failure counts, and configuration for all registered breakers.
+ *
+ * Only available when debug mode is enabled on the backend.
+ *
+ * @returns Debug circuit breakers response
+ *
+ * @example
+ * ```typescript
+ * const result = await fetchDebugCircuitBreakers();
+ * for (const [name, breaker] of Object.entries(result.circuit_breakers)) {
+ *   console.log(`${name}: ${breaker.state} (${breaker.failure_count} failures)`);
+ * }
+ * ```
+ */
+export async function fetchDebugCircuitBreakers(): Promise<DebugCircuitBreakersResponse> {
+  return fetchApi<DebugCircuitBreakersResponse>('/api/debug/circuit-breakers');
+}

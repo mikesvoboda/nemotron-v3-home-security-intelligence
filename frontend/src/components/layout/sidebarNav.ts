@@ -11,6 +11,7 @@ import {
   Briefcase,
   ClipboardCheck,
   Clock,
+  Database,
   Flame,
   Home,
   ScrollText,
@@ -80,6 +81,7 @@ export const navGroups: NavGroup[] = [
     defaultExpanded: false,
     items: [
       { id: 'audit', label: 'Audit Log', icon: Shield, path: '/audit' },
+      { id: 'data', label: 'Data Management', icon: Database, path: '/data' },
       { id: 'trash', label: 'Trash', icon: Trash2, path: '/trash' },
       {
         id: 'settings',

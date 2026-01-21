@@ -1132,3 +1132,59 @@ export const searchJobs = vi.fn().mockResolvedValue({
   meta: { total: 0, limit: 50, offset: 0, has_more: false },
   aggregations: { by_status: {}, by_type: {} },
 });
+
+// Memory debug endpoints (NEM-3173)
+export const fetchMemoryStats = vi.fn().mockResolvedValue({
+  process_rss_bytes: 536870912,
+  process_rss_human: '512.0 MB',
+  process_vms_bytes: 1073741824,
+  process_vms_human: '1.0 GB',
+  gc_stats: {
+    collections: [10, 5, 2],
+    collected: 1500,
+    uncollectable: 0,
+    thresholds: [700, 10, 10],
+  },
+  tracemalloc_stats: {
+    enabled: false,
+    current_bytes: 0,
+    peak_bytes: 0,
+    top_allocations: [],
+  },
+  top_objects: [],
+  timestamp: '2024-01-15T10:30:00Z',
+});
+export const triggerGc = vi.fn().mockResolvedValue({
+  collected: { gen0: 10, gen1: 5, gen2: 2, total: 17 },
+  memory: {
+    rss_before_bytes: 536870912,
+    rss_after_bytes: 520093696,
+    freed_bytes: 16777216,
+    freed_human: '16.0 MB',
+  },
+  uncollectable: 0,
+  timestamp: '2024-01-15T10:30:00Z',
+});
+export const startTracemalloc = vi.fn().mockResolvedValue({
+  status: 'started',
+  nframes: 25,
+  message: 'tracemalloc started with 25 frames',
+  timestamp: '2024-01-15T10:30:00Z',
+});
+export const stopTracemalloc = vi.fn().mockResolvedValue({
+  status: 'stopped',
+  final_stats: {
+    current_bytes: 104857600,
+    current_human: '100.0 MB',
+    peak_bytes: 157286400,
+    peak_human: '150.0 MB',
+  },
+  message: 'tracemalloc stopped',
+  timestamp: '2024-01-15T10:30:00Z',
+});
+
+// Debug circuit breaker endpoints (NEM-3173)
+export const fetchDebugCircuitBreakers = vi.fn().mockResolvedValue({
+  circuit_breakers: {},
+  timestamp: '2024-01-15T10:30:00Z',
+});

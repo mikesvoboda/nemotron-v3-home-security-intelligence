@@ -46,6 +46,8 @@ export interface ConnectionStatusSummary {
   hasExhaustedRetries: boolean;
   /** True if all channels have failed (exhausted retries) */
   allFailed: boolean;
+  /** Timestamp when disconnection started (null if connected) */
+  disconnectedSince: Date | null;
 }
 
 export interface UseConnectionStatusReturn {
@@ -116,6 +118,7 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
   const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [systemStatus, setSystemStatus] = useState<BackendSystemStatus | null>(null);
   const [isPollingFallback, setIsPollingFallback] = useState(false);
+  const [disconnectedSince, setDisconnectedSince] = useState<Date | null>(null);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastEventIdRef = useRef<string | number | null>(null);
 
@@ -305,6 +308,23 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
     };
   }, [stopPolling]);
 
+  // Track when disconnection started
+  useEffect(() => {
+    const isConnected =
+      eventsChannel.state === 'connected' && systemChannel.state === 'connected';
+
+    if (isConnected) {
+      // Clear disconnection time when reconnected
+      setDisconnectedSince(null);
+    } else if (disconnectedSince === null) {
+      // Set disconnection time when first disconnected
+      setDisconnectedSince(new Date());
+    }
+    // Note: We intentionally don't include disconnectedSince in deps to avoid resetting
+    // the timestamp on every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventsChannel.state, systemChannel.state]);
+
   const clearEvents = useCallback(() => {
     setEvents([]);
     lastEventIdRef.current = null;
@@ -351,8 +371,9 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
       totalReconnectAttempts: eventsChannel.reconnectAttempts + systemChannel.reconnectAttempts,
       hasExhaustedRetries,
       allFailed,
+      disconnectedSince,
     };
-  }, [eventsChannel, systemChannel]);
+  }, [eventsChannel, systemChannel, disconnectedSince]);
 
   return {
     summary,

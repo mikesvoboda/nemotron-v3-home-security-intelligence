@@ -67,7 +67,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum(count_over_time({job=\"podman-containers\", container=~\"$service\"} |~ \"(?i)(error|critical)\" [$__interval])) / sum(count_over_time({job=\"podman-containers\", container=~\"$service\"} [$__interval]))",
+          "expr": "sum(count_over_time({container=~\"$service\"} |~ \"(?i)(error|critical)\" [$__interval])) / sum(count_over_time({container=~\"$service\"} [$__interval]))",
           "legendFormat": "Error Rate",
           "refId": "A"
         }
@@ -112,7 +112,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum(rate({job=\"podman-containers\", container=~\"$service\"} [$__interval]))",
+          "expr": "sum(rate({container=~\"$service\"} [$__interval]))",
           "legendFormat": "Throughput",
           "refId": "A"
         }
@@ -153,7 +153,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum(count_over_time({job=\"podman-containers\", container=~\"$service\"} [$__range]))",
+          "expr": "sum(count_over_time({container=~\"$service\"} [$__range]))",
           "legendFormat": "Total",
           "refId": "A"
         }
@@ -239,7 +239,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum by (level) (count_over_time({job=\"podman-containers\", container=~\"$service\", level=~\"$level\"} |~ \"$search\" [$__interval]))",
+          "expr": "sum by (level) (count_over_time({container=~\"$service\"} | json | level=~\"$level\" |~ \"$search\" [$__interval]))",
           "legendFormat": "{{level}}",
           "refId": "A"
         }
@@ -302,7 +302,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum by (level) (count_over_time({job=\"podman-containers\", container=~\"$service\", level=~\"$level\"} |~ \"$search\" [$__range]))",
+          "expr": "sum by (level) (count_over_time({container=~\"$service\"} | json | level=~\"$level\" |~ \"$search\" [$__range]))",
           "legendFormat": "{{level}}",
           "refId": "A"
         }
@@ -357,8 +357,8 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "topk(10, sum by (container) (count_over_time({job=\"podman-containers\", container=~\"$service\", level=~\"ERROR|CRITICAL\"} [$__range])))",
-          "legendFormat": "{{container}}",
+          "expr": "topk(10, sum by (msg) (count_over_time({container=~\"$service\"} | json | level=~\"ERROR|CRITICAL\" [$__range])))",
+          "legendFormat": "{{msg}}",
           "refId": "A"
         }
       ],
@@ -428,7 +428,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum by (container) (count_over_time({job=\"podman-containers\", container=~\"$service\", level=~\"ERROR|CRITICAL\"} [$__range]))",
+          "expr": "sum by (container) (count_over_time({container=~\"$service\"} | json | level=~\"ERROR|CRITICAL\" [$__range]))",
           "legendFormat": "{{container}}",
           "refId": "A"
         }
@@ -467,7 +467,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{job=\"podman-containers\", container=~\"$service\", level=~\"$level\"} |~ \"$search\"",
+          "expr": "{container=~\"$service\"} | json | level=~\"$level\" |~ \"$search\"",
           "legendFormat": "",
           "refId": "A"
         }
@@ -514,10 +514,9 @@
           { "selected": false, "text": "INFO", "value": "INFO" },
           { "selected": false, "text": "WARNING", "value": "WARNING" },
           { "selected": false, "text": "ERROR", "value": "ERROR" },
-          { "selected": false, "text": "CRITICAL", "value": "CRITICAL" },
-          { "selected": false, "text": "UNKNOWN", "value": "UNKNOWN" }
+          { "selected": false, "text": "CRITICAL", "value": "CRITICAL" }
         ],
-        "query": "DEBUG,INFO,WARNING,ERROR,CRITICAL,UNKNOWN",
+        "query": "DEBUG,INFO,WARNING,ERROR,CRITICAL",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"

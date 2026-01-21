@@ -142,10 +142,10 @@ describe('Sidebar', () => {
     expect(settingsLink).toHaveClass('bg-[#76B900]');
   });
 
-  it('renders all 13 navigation items', () => {
+  it('renders all 15 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(13);
+    expect(links).toHaveLength(15);
   });
 
   it('jobs link has correct href', () => {
@@ -161,6 +161,11 @@ describe('Sidebar', () => {
   it('AI audit link has correct href', () => {
     renderWithRouter();
     expect(screen.getByRole('link', { name: /AI Audit/i })).toHaveAttribute('href', '/ai-audit');
+  });
+
+  it('data management link has correct href', () => {
+    renderWithRouter();
+    expect(screen.getByRole('link', { name: /Data Management/i })).toHaveAttribute('href', '/data');
   });
 
   it('navigation items have transition classes for smooth hover', () => {
@@ -382,9 +387,10 @@ describe('Sidebar', () => {
     });
 
     it('exports navItems as flattened list of all items', () => {
-      expect(navItems).toHaveLength(13);
+      expect(navItems).toHaveLength(15);
       expect(navItems.some((item) => item.id === 'dashboard')).toBe(true);
       expect(navItems.some((item) => item.id === 'settings')).toBe(true);
+      expect(navItems.some((item) => item.id === 'data')).toBe(true);
     });
 
     it('exports STORAGE_KEY constant', () => {

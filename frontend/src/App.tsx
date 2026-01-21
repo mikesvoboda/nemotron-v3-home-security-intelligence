@@ -84,6 +84,12 @@ const SettingsPage = lazy(() => import('./components/settings/SettingsPage'));
 // Trash (soft-deleted events)
 const TrashPage = lazy(() => import('./pages/TrashPage'));
 
+// Notification Preferences (standalone page)
+const NotificationPreferencesPage = lazy(() => import('./pages/NotificationPreferencesPage'));
+
+// Data Management (exports/backups)
+const DataManagementPage = lazy(() => import('./pages/DataManagementPage'));
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -118,7 +124,12 @@ export default function App() {
                             <Route path="/operations" element={<OperationsPage />} />
                             <Route path="/tracing" element={<TracingPage />} />
                             <Route path="/settings" element={<SettingsPage />} />
+                            <Route
+                              path="/notifications"
+                              element={<NotificationPreferencesPage />}
+                            />
                             <Route path="/trash" element={<TrashPage />} />
+                            <Route path="/data" element={<DataManagementPage />} />
                           </Routes>
                         </PageTransition>
                       </Suspense>

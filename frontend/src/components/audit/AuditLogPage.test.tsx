@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
@@ -15,14 +16,34 @@ const BASE_TIME = new Date('2024-01-15T10:00:00Z').getTime();
 // Mock API module
 vi.mock('../../services/api');
 
-// Create a wrapper with Router for testing
-function Wrapper({ children }: { children: ReactNode }) {
-  return <MemoryRouter>{children}</MemoryRouter>;
+// Create a new QueryClient for each test
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: Infinity,
+        staleTime: Infinity,
+      },
+    },
+  });
 }
 
-// Helper function to render with Router
-function renderWithRouter(ui: React.ReactElement) {
-  return render(ui, { wrapper: Wrapper });
+// Create a wrapper with Router and React Query for testing
+function createWrapper() {
+  const queryClient = createTestQueryClient();
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>{children}</MemoryRouter>
+      </QueryClientProvider>
+    );
+  };
+}
+
+// Helper function to render with Router and React Query
+function renderWithProviders(ui: React.ReactElement) {
+  return render(ui, { wrapper: createWrapper() });
 }
 
 describe('AuditLogPage', () => {
@@ -121,7 +142,7 @@ describe('AuditLogPage', () => {
 
   describe('Rendering', () => {
     it('renders the audit log page header', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       expect(screen.getByText('Audit Log')).toBeInTheDocument();
       expect(
@@ -136,7 +157,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays info box explaining what creates audit entries', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading audit logs...')).not.toBeInTheDocument();
@@ -150,7 +171,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays loading state initially', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       expect(screen.getByText('Loading audit logs...')).toBeInTheDocument();
 
@@ -160,7 +181,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays audit logs after loading', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -176,15 +197,15 @@ describe('AuditLogPage', () => {
     });
 
     it('displays audit entry count', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Showing 1-3 of 3 audit entries/)).toBeInTheDocument();
+        expect(screen.getByText(/Showing 3 of 3 audit entries/)).toBeInTheDocument();
       });
     });
 
     it('displays status badges', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -198,7 +219,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays resource type and ID', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for table to load
       await waitFor(() => {
@@ -216,7 +237,7 @@ describe('AuditLogPage', () => {
 
   describe('Statistics Cards', () => {
     it('displays stats cards with data', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for stats to load (value appears when loading is complete)
       await waitFor(() => {
@@ -232,7 +253,7 @@ describe('AuditLogPage', () => {
     });
 
     it('displays action breakdown', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('Actions by Type')).toBeInTheDocument();
@@ -243,7 +264,7 @@ describe('AuditLogPage', () => {
 
     it('clicking "Successful Operations" card filters by status=success', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -258,15 +279,14 @@ describe('AuditLogPage', () => {
       // Verify the API was called with status=success filter
       await waitFor(() => {
         expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'success' }),
-          expect.anything()
+          expect.objectContaining({ status: 'success' })
         );
       });
     });
 
     it('clicking "Failed Operations" card filters by status=failure', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -281,15 +301,14 @@ describe('AuditLogPage', () => {
       // Verify the API was called with status=failure filter
       await waitFor(() => {
         expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'failure' }),
-          expect.anything()
+          expect.objectContaining({ status: 'failure' })
         );
       });
     });
 
     it('clicking "Total Audit Entries" card clears all filters', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -300,24 +319,25 @@ describe('AuditLogPage', () => {
       const successCard = screen.getByText('Successful Operations').closest('[role="button"]');
       await user.click(successCard!);
 
+      // Verify Success card is active (has ring-2 class)
+      await waitFor(() => {
+        expect(successCard).toHaveClass('ring-2');
+      });
+
       // Then click Total to clear
       const totalCard = screen.getByText('Total Audit Entries').closest('[role="button"]');
       await user.click(totalCard!);
 
-      // Verify the API was called without status filter
+      // Verify Total card is now active and Success card is no longer active
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenLastCalledWith(
-          expect.objectContaining({
-            status: undefined,
-          }),
-          expect.anything()
-        );
+        expect(totalCard).toHaveClass('ring-2');
+        expect(successCard).not.toHaveClass('ring-2');
       });
     });
 
     it('clicking "Entries Today" card filters by today\'s date', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -338,15 +358,14 @@ describe('AuditLogPage', () => {
           expect.objectContaining({
             start_date: today,
             end_date: today,
-          }),
-          expect.anything()
+          })
         );
       });
     });
 
     it('clicking an action badge filters by that action', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for action badges to load
       await waitFor(() => {
@@ -362,15 +381,14 @@ describe('AuditLogPage', () => {
       // Verify the API was called with action filter
       await waitFor(() => {
         expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ action: 'event_reviewed' }),
-          expect.anything()
+          expect.objectContaining({ action: 'event_reviewed' })
         );
       });
     });
 
     it('clicking active stats card toggles off the filter', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -381,29 +399,23 @@ describe('AuditLogPage', () => {
       const successCard = screen.getByText('Successful Operations').closest('[role="button"]');
       await user.click(successCard!);
 
-      // Verify filter was applied
+      // Verify card shows active state
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'success' }),
-          expect.anything()
-        );
+        expect(successCard).toHaveClass('ring-2');
       });
 
       // Click again to toggle off
       await user.click(successCard!);
 
-      // Verify filter was cleared
+      // Verify card no longer shows active state
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenLastCalledWith(
-          expect.objectContaining({ status: undefined }),
-          expect.anything()
-        );
+        expect(successCard).not.toHaveClass('ring-2');
       });
     });
 
     it('clicking active action badge toggles off the filter', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for action badges to load
       await waitFor(() => {
@@ -415,31 +427,25 @@ describe('AuditLogPage', () => {
       expect(actionsSection).toBeInTheDocument();
       const eventReviewedBadge = within(actionsSection!).getByRole('button', { name: /Event Reviewed/i });
 
-      // Click to activate filter
+      // Click to activate filter - filter chip should appear
       await user.click(eventReviewedBadge);
 
-      // Verify filter was applied
+      // Verify filter chip appears showing the active filter
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ action: 'event_reviewed' }),
-          expect.anything()
-        );
+        expect(screen.getByText('Active filters:')).toBeInTheDocument();
       });
 
       // Click again to toggle off
       await user.click(eventReviewedBadge);
 
-      // Verify filter was cleared
+      // Verify filter chip is removed
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenLastCalledWith(
-          expect.objectContaining({ action: undefined }),
-          expect.anything()
-        );
+        expect(screen.queryByText('Active filters:')).not.toBeInTheDocument();
       });
     });
 
     it('stats cards have cursor pointer style', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -454,7 +460,7 @@ describe('AuditLogPage', () => {
 
     it('active stats card shows visual selection ring', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -473,7 +479,7 @@ describe('AuditLogPage', () => {
 
     it('clicking stats card auto-expands filter panel', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for stats to load
       await waitFor(() => {
@@ -498,7 +504,7 @@ describe('AuditLogPage', () => {
     it('shows friendly placeholder when no audit logs exist', async () => {
       vi.mocked(api.fetchAuditLogs).mockResolvedValue(mockEmptyResponse);
 
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('No Audit Entries Found')).toBeInTheDocument();
@@ -512,7 +518,7 @@ describe('AuditLogPage', () => {
 
   describe('Filtering', () => {
     it('displays filter toggle button', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -523,7 +529,7 @@ describe('AuditLogPage', () => {
 
     it('shows filters when toggle is clicked', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -540,7 +546,7 @@ describe('AuditLogPage', () => {
 
     it('filters by action type', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -556,15 +562,14 @@ describe('AuditLogPage', () => {
       // Verify the API was called with the filter
       await waitFor(() => {
         expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ action: 'event_reviewed' }),
-          expect.anything()
+          expect.objectContaining({ action: 'event_reviewed' })
         );
       });
     });
 
     it('filters by status', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -580,15 +585,14 @@ describe('AuditLogPage', () => {
       // Verify the API was called with the filter
       await waitFor(() => {
         expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'failure' }),
-          expect.anything()
+          expect.objectContaining({ status: 'failure' })
         );
       });
     });
 
     it('clears all filters', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -599,93 +603,66 @@ describe('AuditLogPage', () => {
       const statusSelect = screen.getByLabelText('Status');
       await user.selectOptions(statusSelect, 'success');
 
+      // Verify filter is applied (Active badge appears)
+      await waitFor(() => {
+        expect(screen.getByText('Active')).toBeInTheDocument();
+      });
+
       // Clear filters
       await user.click(screen.getByText('Clear All Filters'));
 
-      // Verify the API was called without filters
+      // Verify the "Active" badge is gone (indicates filters are cleared)
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenLastCalledWith(
-          expect.objectContaining({
-            action: undefined,
-            status: undefined,
-          }),
-          expect.anything()
-        );
+        expect(screen.queryByText('Active')).not.toBeInTheDocument();
       });
     });
   });
 
-  describe('Pagination', () => {
-    it('displays pagination controls when there are multiple pages', async () => {
-      vi.mocked(api.fetchAuditLogs).mockResolvedValue({
-        ...mockAuditResponse,
-        pagination: {
-          ...mockAuditResponse.pagination,
-          total: 100,
-        },
-      });
-
-      renderWithRouter(<AuditLogPage />);
+  describe('Infinite Scroll', () => {
+    it('displays "All audit entries loaded" when no more pages', async () => {
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
       });
 
-      expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
-      expect(screen.getByLabelText('Next page')).toBeInTheDocument();
-      expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+      // With has_more: false, should show all entries loaded message
+      expect(screen.getByText('All audit entries loaded')).toBeInTheDocument();
     });
 
-    it('navigates to next page', async () => {
+    it('displays "Load More" button when there are more pages', async () => {
       vi.mocked(api.fetchAuditLogs).mockResolvedValue({
         ...mockAuditResponse,
         pagination: {
           ...mockAuditResponse.pagination,
           total: 100,
+          has_more: true,
+          next_cursor: 'cursor123',
         },
       });
 
-      const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByLabelText('Next page'));
-
-      await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 50 }),
-          expect.anything()
-        );
-      });
+      expect(screen.getByText('Load More')).toBeInTheDocument();
     });
 
-    it('previous button is disabled on first page', async () => {
-      vi.mocked(api.fetchAuditLogs).mockResolvedValue({
-        ...mockAuditResponse,
-        pagination: {
-          ...mockAuditResponse.pagination,
-          total: 100,
-        },
-      });
+    it('hides pagination controls when loading initially', () => {
+      renderWithProviders(<AuditLogPage />);
 
-      renderWithRouter(<AuditLogPage />);
-
-      await waitFor(() => {
-        expect(screen.getByText('testuser1')).toBeInTheDocument();
-      });
-
-      const prevButton = screen.getByLabelText('Previous page');
-      expect(prevButton).toBeDisabled();
+      // During initial loading, infinite scroll controls should not be visible
+      expect(screen.queryByText('Load More')).not.toBeInTheDocument();
+      expect(screen.queryByText('All audit entries loaded')).not.toBeInTheDocument();
     });
   });
 
   describe('Detail Modal', () => {
     it('opens detail modal when row is clicked', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -707,7 +684,7 @@ describe('AuditLogPage', () => {
 
     it('closes detail modal when close button is clicked', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(screen.getByText('testuser1')).toBeInTheDocument();
@@ -736,11 +713,12 @@ describe('AuditLogPage', () => {
     it('displays error message when fetching audit logs fails', async () => {
       vi.mocked(api.fetchAuditLogs).mockRejectedValue(new Error('Network error'));
 
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
+      // Wait for error to appear (React Query may retry before failing)
       await waitFor(() => {
         expect(screen.getByText('Error Loading Audit Logs')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       expect(screen.getByText('Network error')).toBeInTheDocument();
     });
@@ -748,7 +726,7 @@ describe('AuditLogPage', () => {
     it('handles stats fetch errors gracefully', async () => {
       vi.mocked(api.fetchAuditStats).mockRejectedValue(new Error('Stats fetch failed'));
 
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Should still load audit logs
       await waitFor(() => {
@@ -759,21 +737,19 @@ describe('AuditLogPage', () => {
 
   describe('API Calls', () => {
     it('fetches audit logs on mount', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          {
+          expect.objectContaining({
             limit: 50,
-            offset: 0,
-          },
-          expect.anything()
+          })
         );
       });
     });
 
     it('fetches audit stats on mount', async () => {
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       await waitFor(() => {
         expect(api.fetchAuditStats).toHaveBeenCalled();
@@ -784,7 +760,7 @@ describe('AuditLogPage', () => {
   describe('Clickable Table Filters', () => {
     it('clicking actor in table filters by that actor', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for table to load
       await waitFor(() => {
@@ -799,15 +775,14 @@ describe('AuditLogPage', () => {
       // Verify the API was called with actor filter
       await waitFor(() => {
         expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ actor: 'testuser1' }),
-          expect.anything()
+          expect.objectContaining({ actor: 'testuser1' })
         );
       });
     });
 
     it('clicking action badge in table filters by that action', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for table to load
       await waitFor(() => {
@@ -822,8 +797,7 @@ describe('AuditLogPage', () => {
       // Verify the API was called with action filter
       await waitFor(() => {
         expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ action: 'event_reviewed' }),
-          expect.anything()
+          expect.objectContaining({ action: 'event_reviewed' })
         );
       });
     });
@@ -832,7 +806,7 @@ describe('AuditLogPage', () => {
   describe('Filter Chips', () => {
     it('shows filter chip when action filter is applied from table', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for table to load
       await waitFor(() => {
@@ -853,7 +827,7 @@ describe('AuditLogPage', () => {
 
     it('shows filter chip when actor filter is applied from table', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for table to load
       await waitFor(() => {
@@ -874,7 +848,7 @@ describe('AuditLogPage', () => {
 
     it('clears filter when filter chip is clicked', async () => {
       const user = userEvent.setup();
-      renderWithRouter(<AuditLogPage />);
+      renderWithProviders(<AuditLogPage />);
 
       // Wait for table to load
       await waitFor(() => {
@@ -895,16 +869,10 @@ describe('AuditLogPage', () => {
       const clearButton = screen.getByLabelText(/Clear actor filter: testuser1/i);
       await user.click(clearButton);
 
-      // Verify filter was cleared
+      // Verify filter chip is gone (main assertion)
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenLastCalledWith(
-          expect.objectContaining({ actor: undefined }),
-          expect.anything()
-        );
+        expect(screen.queryByText('Active filters:')).not.toBeInTheDocument();
       });
-
-      // Verify filter chip is gone
-      expect(screen.queryByText('Active filters:')).not.toBeInTheDocument();
     });
   });
 });

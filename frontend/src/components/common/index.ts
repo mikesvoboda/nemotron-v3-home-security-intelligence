@@ -1,6 +1,9 @@
 export { default as Button } from './Button';
 export type { ButtonProps, ButtonVariant, ButtonSize } from './Button';
 
+export { default as ConnectionStatusBanner } from './ConnectionStatusBanner';
+export type { ConnectionStatusBannerProps } from './ConnectionStatusBanner';
+
 export { default as ChunkLoadErrorBoundary } from './ChunkLoadErrorBoundary';
 export type {
   ChunkLoadErrorBoundaryProps,
@@ -15,6 +18,20 @@ export type { ErrorBoundaryProps, ErrorBoundaryState } from './ErrorBoundary';
 
 export { FeatureErrorBoundary } from './FeatureErrorBoundary';
 export type { FeatureErrorBoundaryProps, FeatureErrorBoundaryState } from './FeatureErrorBoundary';
+
+// Centralized API error boundary (NEM-3179)
+export {
+  ApiErrorBoundary,
+  ApiErrorFallback,
+  useApiErrorHandler,
+  isTransientError,
+} from './ApiErrorBoundary';
+export type {
+  ApiErrorBoundaryProps,
+  ApiErrorBoundaryState,
+  ApiErrorFallbackProps,
+  FallbackRenderFunction,
+} from './ApiErrorBoundary';
 
 export { default as LoadingSpinner } from './LoadingSpinner';
 

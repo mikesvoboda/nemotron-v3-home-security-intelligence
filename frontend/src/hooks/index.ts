@@ -580,3 +580,79 @@ export type {
   UsePropertyMutationsReturn,
   UseAreaMutationsReturn,
 } from './usePropertyQueries';
+
+// Audit logs infinite query hook (NEM-3170, NEM-3180)
+export { useAuditLogsInfiniteQuery, auditLogsQueryKeys } from './useAuditLogsInfiniteQuery';
+export type {
+  AuditLogFilters,
+  UseAuditLogsInfiniteQueryOptions,
+  UseAuditLogsInfiniteQueryReturn,
+} from './useAuditLogsInfiniteQuery';
+
+// Detection stream WebSocket hook (NEM-3169)
+export { useDetectionStream, default as useDetectionStreamDefault } from './useDetectionStream';
+export type {
+  DetectionEventHandler,
+  BatchEventHandler,
+  UseDetectionStreamOptions,
+  UseDetectionStreamReturn,
+} from './useDetectionStream';
+
+// Service status WebSocket hook (NEM-3169)
+export {
+  useServiceStatusWebSocket,
+  default as useServiceStatusWebSocketDefault,
+} from './useServiceStatusWebSocket';
+export type {
+  ServiceStatus as ServiceStatusWebSocketType,
+  ServiceStatusEntry,
+  ServiceStatusMap,
+  ServiceStatusChangeHandler,
+  UseServiceStatusWebSocketOptions,
+  UseServiceStatusWebSocketReturn,
+} from './useServiceStatusWebSocket';
+
+// GPU stats WebSocket hook (NEM-3169)
+export { useGpuStatsWebSocket, default as useGpuStatsWebSocketDefault } from './useGpuStatsWebSocket';
+export type {
+  GpuStatsEntry,
+  GpuStatsUpdateHandler,
+  UseGpuStatsWebSocketOptions,
+  UseGpuStatsWebSocketReturn,
+} from './useGpuStatsWebSocket';
+
+// System health WebSocket hook (NEM-3169)
+export {
+  useSystemHealthWebSocket,
+  default as useSystemHealthWebSocketDefault,
+} from './useSystemHealthWebSocket';
+export type {
+  HealthStatus as SystemHealthStatus,
+  ComponentHealthMap,
+  HealthChangeEntry,
+  HealthChangeHandler,
+  UseSystemHealthWebSocketOptions,
+  UseSystemHealthWebSocketReturn,
+} from './useSystemHealthWebSocket';
+
+// Memory debug stats hook (NEM-3173)
+export {
+  useMemoryStatsQuery,
+  MEMORY_STATS_QUERY_KEY,
+  default as useMemoryStatsQueryDefault,
+} from './useMemoryStatsQuery';
+export type {
+  UseMemoryStatsQueryOptions,
+  UseMemoryStatsQueryReturn,
+} from './useMemoryStatsQuery';
+
+// Circuit breaker debug hook (NEM-3173)
+export {
+  useCircuitBreakerDebugQuery,
+  CIRCUIT_BREAKER_DEBUG_QUERY_KEY,
+  default as useCircuitBreakerDebugQueryDefault,
+} from './useCircuitBreakerDebugQuery';
+export type {
+  UseCircuitBreakerDebugQueryOptions,
+  UseCircuitBreakerDebugQueryReturn,
+} from './useCircuitBreakerDebugQuery';
