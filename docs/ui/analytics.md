@@ -156,7 +156,7 @@ The HSI Analytics dashboard is provisioned automatically:
 
 ```yaml
 # Grafana provisioning location
-grafana/dashboards/hsi-analytics.json
+monitoring/grafana/dashboards/analytics.json
 ```
 
 ### Auto-Refresh
@@ -168,7 +168,7 @@ The embedded dashboard refreshes every 30 seconds automatically. Use the manual 
 ### Dashboard Shows "No Data"
 
 1. **Check time range**: Expand the time period in Grafana
-2. **Verify cameras are active**: Check camera status in the Cameras page
+2. **Verify cameras are active**: Check camera status in the [Dashboard](dashboard.md)
 3. **Check AI pipeline**: Verify the detection pipeline is running
 4. **Verify datasources**: Confirm Grafana can reach the backend API
 
@@ -232,7 +232,7 @@ flowchart LR
 - System Routes: `backend/api/routes/system.py` (pipeline latency)
 
 **Infrastructure:**
-- Grafana Dashboard: `grafana/dashboards/hsi-analytics.json`
+- Grafana Dashboard: `monitoring/grafana/dashboards/analytics.json`
 - Grafana Container: `docker-compose.prod.yml` (grafana service)
 
 ### API Endpoints

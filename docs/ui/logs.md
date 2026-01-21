@@ -156,7 +156,7 @@ The Grafana URL is automatically configured from the backend. If the embedded da
 Loki must be configured as a data source in Grafana:
 
 ```yaml
-# Grafana provisioning (grafana/datasources.yml)
+# Grafana provisioning (monitoring/grafana/provisioning/datasources/prometheus.yml)
 - name: Loki
   type: loki
   url: http://loki:3100
@@ -179,7 +179,7 @@ Log data retention is configured in Loki:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Retention Period | 7 days | How long logs are kept |
+| Retention Period | 30 days | How long logs are kept |
 | Compaction | Enabled | Automatic storage optimization |
 
 ## Troubleshooting
@@ -271,8 +271,8 @@ flowchart LR
 
 **Infrastructure:**
 - Loki Container: `docker-compose.prod.yml` (loki service)
-- Grafana Dashboard: `grafana/dashboards/hsi-logs.json`
-- Alloy Configuration: `alloy/config.alloy`
+- Grafana Dashboard: `monitoring/grafana/dashboards/logs.json`
+- Alloy Configuration: `monitoring/alloy/config.alloy`
 
 ### Dashboard Configuration
 

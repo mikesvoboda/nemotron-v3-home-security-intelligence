@@ -153,7 +153,7 @@ The Grafana URL is automatically configured from the backend. If the embedded da
 Pyroscope must be configured as a data source in Grafana:
 
 ```yaml
-# Grafana provisioning (grafana/datasources.yml)
+# Grafana provisioning (monitoring/grafana/provisioning/datasources/prometheus.yml)
 - name: Pyroscope
   type: pyroscope
   url: http://pyroscope:4040
@@ -246,8 +246,8 @@ flowchart LR
 
 **Infrastructure:**
 - Pyroscope Container: `docker-compose.prod.yml` (pyroscope service)
-- Grafana Dashboard: `grafana/dashboards/hsi-profiling.json`
-- Alloy Configuration: `alloy/config.alloy`
+- Grafana Dashboard: `monitoring/grafana/dashboards/hsi-profiling.json`
+- Alloy Configuration: `monitoring/alloy/config.alloy`
 
 ### Data Flow
 

@@ -259,7 +259,7 @@ The Grafana URL is automatically configured from the backend. If the embedded da
 Jaeger must be configured as a data source in Grafana:
 
 ```yaml
-# Grafana provisioning (grafana/datasources.yml)
+# Grafana provisioning (monitoring/grafana/provisioning/datasources/prometheus.yml)
 - name: Jaeger
   type: jaeger
   url: http://jaeger:16686
@@ -359,12 +359,11 @@ flowchart LR
 
 **Backend:**
 - Tracing Configuration: `backend/core/telemetry.py`
-- OpenTelemetry Setup: `backend/core/otel.py`
 
 **Infrastructure:**
 - Jaeger Container: `docker-compose.prod.yml` (jaeger service)
-- Grafana Dashboard: `grafana/dashboards/hsi-tracing.json`
-- Alloy Configuration: `alloy/config.alloy`
+- Grafana Dashboard: `monitoring/grafana/dashboards/tracing.json`
+- Alloy Configuration: `monitoring/alloy/config.alloy`
 
 ### OpenTelemetry Integration
 
