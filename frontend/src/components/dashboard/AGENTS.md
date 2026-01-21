@@ -6,26 +6,44 @@ Contains all components for the main security dashboard page, including risk vis
 
 ## Files
 
-| File                            | Purpose                                                  |
-| ------------------------------- | -------------------------------------------------------- |
-| `ActivityFeed.tsx`              | Scrolling feed of recent events                          |
-| `ActivityFeed.test.tsx`         | Test suite for ActivityFeed                              |
-| `CameraGrid.tsx`                | Responsive grid of camera thumbnails                     |
-| `CameraGrid.test.tsx`           | Test suite for CameraGrid                                |
-| `DashboardConfigModal.tsx`      | Modal for dashboard configuration settings               |
-| `DashboardConfigModal.test.tsx` | Test suite for DashboardConfigModal                      |
-| `DashboardLayout.tsx`           | Responsive layout wrapper for dashboard widgets          |
-| `DashboardLayout.test.tsx`      | Test suite for DashboardLayout                           |
-| `DashboardPage.tsx`             | Main dashboard page orchestrating all widgets            |
-| `DashboardPage.test.tsx`        | Test suite for DashboardPage                             |
-| `GpuStats.tsx`                  | GPU metrics with utilization history                     |
-| `GpuStats.test.tsx`             | Test suite for GpuStats                                  |
-| `PipelineQueues.tsx`            | AI pipeline queue depth display                          |
-| `PipelineQueues.test.tsx`       | Test suite for PipelineQueues                            |
-| `PipelineTelemetry.tsx`         | Pipeline latency and throughput metrics                  |
-| `PipelineTelemetry.test.tsx`    | Test suite for PipelineTelemetry                         |
-| `StatsRow.tsx`                  | Key metrics summary cards with integrated risk sparkline |
-| `StatsRow.test.tsx`             | Test suite for StatsRow                                  |
+| File                                    | Purpose                                                  |
+| --------------------------------------- | -------------------------------------------------------- |
+| `ActivityFeed.tsx`                      | Scrolling feed of recent events                          |
+| `ActivityFeed.test.tsx`                 | Test suite for ActivityFeed                              |
+| `CameraGrid.tsx`                        | Responsive grid of camera thumbnails                     |
+| `CameraGrid.test.tsx`                   | Test suite for CameraGrid                                |
+| `DashboardConfigModal.tsx`              | Modal for dashboard configuration settings               |
+| `DashboardConfigModal.test.tsx`         | Test suite for DashboardConfigModal                      |
+| `DashboardLayout.tsx`                   | Responsive layout wrapper for dashboard widgets          |
+| `DashboardLayout.test.tsx`              | Test suite for DashboardLayout                           |
+| `DashboardPage.tsx`                     | Main dashboard page orchestrating all widgets            |
+| `DashboardPage.test.tsx`                | Test suite for DashboardPage                             |
+| `ExpandableSummary.tsx`                 | Expandable summary section with toggle                   |
+| `ExpandableSummary.test.tsx`            | Test suite for ExpandableSummary                         |
+| `GpuStats.tsx`                          | GPU metrics with utilization history                     |
+| `GpuStats.test.tsx`                     | Test suite for GpuStats                                  |
+| `PipelineQueues.tsx`                    | AI pipeline queue depth display                          |
+| `PipelineQueues.test.tsx`               | Test suite for PipelineQueues                            |
+| `PipelineTelemetry.tsx`                 | Pipeline latency and throughput metrics                  |
+| `PipelineTelemetry.test.tsx`            | Test suite for PipelineTelemetry                         |
+| `SeverityBadge.tsx`                     | Severity level badge component                           |
+| `SeverityBadge.test.tsx`                | Test suite for SeverityBadge                             |
+| `StatsRow.tsx`                          | Key metrics summary cards with integrated risk sparkline |
+| `StatsRow.test.tsx`                     | Test suite for StatsRow                                  |
+| `SummaryBulletList.tsx`                 | Bullet list component for AI summaries                   |
+| `SummaryBulletList.test.tsx`            | Test suite for SummaryBulletList                         |
+| `SummaryCardEmpty.tsx`                  | Empty state for summary cards                            |
+| `SummaryCardEmpty.test.tsx`             | Test suite for SummaryCardEmpty                          |
+| `SummaryCardError.tsx`                  | Error state for summary cards                            |
+| `SummaryCardError.test.tsx`             | Test suite for SummaryCardError                          |
+| `SummaryCards.tsx`                      | Summary cards container component                        |
+| `SummaryCards.test.tsx`                 | Test suite for SummaryCards                              |
+| `SummaryCards.a11y.test.tsx`            | Accessibility tests for SummaryCards                     |
+| `SummaryCards.integration.test.tsx`     | Integration tests for SummaryCards                       |
+| `SummaryCardsIntegration.test.tsx`      | Additional integration tests                             |
+| `SummaryCardSkeleton.tsx`               | Loading skeleton for summary cards                       |
+| `SummaryCardSkeleton.test.tsx`          | Test suite for SummaryCardSkeleton                       |
+| `index.ts`                              | Barrel exports for dashboard components                  |
 
 ## Key Components
 

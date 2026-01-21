@@ -42,6 +42,7 @@ workflows/
   bundle-size.yml             # Frontend bundle size tracking
   ci-analytics.yml            # CI metrics and analytics
   docs.yml                    # Documentation generation
+  docs-drift.yml              # Documentation drift detection
   nightly.yml                 # Nightly benchmarks and analysis
   # Frontend Quality
   accessibility-tests.yml     # Accessibility (a11y) testing
@@ -145,6 +146,43 @@ npm run docs:watch  # Watch mode
 **Configuration Files:**
 
 - `frontend/typedoc.json` - TypeDoc configuration
+
+### docs-drift.yml - Documentation Drift Detection
+
+**Trigger:** Push/PR to main branch
+
+**Purpose:** Automatically detect when code changes may require documentation updates.
+
+**Jobs:**
+
+| Job          | Duration | Description                                    |
+| ------------ | -------- | ---------------------------------------------- |
+| detect-drift | ~2m      | Analyze changes and detect documentation drift |
+
+**Features:**
+
+- Compares base and head commits to identify changed files
+- Runs `scripts/check-docs-drift.py` to analyze if docs need updating
+- Creates Linear tasks for detected drift items (if `LINEAR_API_KEY` is set)
+- Posts summary comment on PRs with drift details
+- Uploads drift report as artifact (30-day retention)
+
+**Drift Detection Categories:**
+
+- High priority: API changes, schema changes, configuration changes
+- Medium priority: Service logic changes, component changes
+- Low priority: Minor refactoring, test changes
+
+**Outputs:**
+
+- PR comment with drift summary table (priorities, descriptions)
+- Linear tasks created for documentation work
+- `drift-report.json` artifact
+
+**Related Scripts:**
+
+- `scripts/check-docs-drift.py` - Drift detection logic
+- `scripts/create-docs-tasks.py` - Linear task creation
 
 ### deploy.yml - Container Deployment
 

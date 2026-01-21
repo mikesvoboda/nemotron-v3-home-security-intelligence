@@ -35,19 +35,19 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | `.env.example`               | Environment variable template                                           |
 | `semgrep.yml`                | Semgrep security scanning configuration                                 |
 | `vulture_whitelist.py`       | False positive suppressions for Vulture dead code detection             |
+| `lychee.toml`                | Lychee link checker configuration                                       |
 | `.prettierrc`                | Prettier code formatting configuration                                  |
 | `codecov.yml`                | Codecov coverage reporting configuration                                |
 | `commitlint.config.js`       | Commit message linting configuration                                    |
 
 ### Documentation
 
-| File                     | Purpose                                             |
-| ------------------------ | --------------------------------------------------- |
-| `README.md`              | Project overview and quick start guide              |
-| `LICENSE`                | Mozilla Public License 2.0                          |
-| `CHANGELOG.md`           | Release history and notable changes                 |
-| `llms.txt`               | LLM-readable project documentation index            |
-| `requirements-audit.txt` | Python dependency audit results and security review |
+| File           | Purpose                                  |
+| -------------- | ---------------------------------------- |
+| `README.md`    | Project overview and quick start guide   |
+| `LICENSE`      | Mozilla Public License 2.0               |
+| `CHANGELOG.md` | Release history and notable changes      |
+| `llms.txt`     | LLM-readable project documentation index |
 
 > **Note:** Detailed Docker deployment documentation is in `docs/operator/deployment/`.
 
@@ -60,7 +60,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | `.python-version`   | Python version (3.14)                         |
 | `package.json`      | Root-level Node.js configuration (minimal)    |
 | `package-lock.json` | Node.js lockfile                              |
-| `setup.sh`          | Interactive environment setup (Linux/macOS)   |
+| `setup.sh`          | Interactive environment setup wrapper         |
 | `setup.bat`         | Environment setup launcher (Windows)          |
 | `setup.py`          | Python setup script with interactive prompts  |
 
@@ -104,6 +104,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   └── tests/            # Unit and integration tests
 ├── custom/               # Custom resources (test clips, configurations)
 │   └── clips/            # Video clips for testing
+├── certs/                # SSL certificates directory (placeholder)
 ├── data/                 # Runtime data directory (logs, thumbnails, gitignored)
 ├── docs/                 # Documentation
 │   ├── admin-guide/      # Administrator documentation
@@ -137,10 +138,14 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   │   └── utils/        # Utility functions
 │   ├── tests/            # E2E and integration tests (Playwright)
 │   └── public/           # Static assets (favicon, images)
-├── monitoring/           # Prometheus + Grafana configuration
-│   └── grafana/          # Grafana dashboards
+├── monitoring/           # Prometheus + Grafana + Loki + Pyroscope configuration
+│   ├── alloy/            # Grafana Alloy collector configuration
+│   ├── grafana/          # Grafana dashboards
+│   ├── loki/             # Loki log aggregation configuration
+│   └── pyroscope/        # Pyroscope continuous profiling configuration
 ├── mutants/              # Mutation testing results (mutmut)
 ├── scripts/              # Development and deployment scripts
+│   └── hooks/            # Git hooks (post-checkout worktree protection)
 ├── setup_lib/            # Python utilities for setup.py
 ├── tests/                # Root-level setup script tests
 ├── vsftpd/               # vsftpd FTP server container configuration

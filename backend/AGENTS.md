@@ -25,12 +25,12 @@ The backend is a FastAPI-based REST API server for an AI-powered home security m
 
 | Component           | Count | Description                                     |
 | ------------------- | ----- | ----------------------------------------------- |
-| API Routes          | 28    | REST endpoints organized by domain              |
-| Services            | 89    | Business logic, AI pipeline, background workers |
-| Models              | 25    | SQLAlchemy ORM models                           |
-| Schemas             | 43    | Pydantic request/response schemas               |
+| API Routes          | 34    | REST endpoints organized by domain              |
+| Services            | 124   | Business logic, AI pipeline, background workers |
+| Models              | 35    | SQLAlchemy ORM models                           |
+| Schemas             | 49    | Pydantic request/response schemas               |
 | Middleware          | 20    | Request processing pipeline                     |
-| Repositories        | 5     | Data access abstraction layer                   |
+| Repositories        | 9     | Data access abstraction layer                   |
 | Core Infrastructure | 28    | Database, Redis, config, logging, etc.          |
 
 ## Running the Backend
@@ -58,16 +58,18 @@ backend/
 ├── alembic.ini             # Alembic configuration
 ├── alembic/                # Database migrations (Alembic)
 ├── api/                    # REST API layer
-│   ├── routes/             # 28 API route modules
-│   ├── schemas/            # 43 Pydantic schema modules
+│   ├── routes/             # 34 API route modules
+│   ├── schemas/            # 49 Pydantic schema modules
 │   ├── middleware/         # 20 middleware components
+│   ├── helpers/            # API helper modules
 │   └── utils/              # API utility modules
 ├── core/                   # Infrastructure (28 modules)
-│   └── websocket/          # WebSocket event infrastructure
-├── models/                 # SQLAlchemy ORM models (25 models)
-├── repositories/           # Data access layer (5 repositories)
-├── jobs/                   # Background job modules
-├── services/               # Business logic and AI pipeline (89 modules)
+│   ├── websocket/          # WebSocket event infrastructure
+│   └── middleware/         # Core middleware components
+├── models/                 # SQLAlchemy ORM models (35 models)
+├── repositories/           # Data access layer (9 repositories)
+├── jobs/                   # Background job modules (3 jobs)
+├── services/               # Business logic and AI pipeline (124 modules)
 │   └── orchestrator/       # Service orchestration subsystem
 ├── tests/                  # Unit and integration tests
 ├── data/                   # Runtime data (sample images, thumbnails)

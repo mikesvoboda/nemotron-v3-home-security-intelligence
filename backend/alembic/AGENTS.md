@@ -13,72 +13,33 @@ backend/alembic/
 ├── helpers.py           # Migration helper utilities
 ├── README               # Alembic-generated readme
 ├── script.py.mako       # Template for new migrations
-└── versions/            # 52 migration scripts (see versions/AGENTS.md)
+└── versions/            # 4 migration scripts (see versions/AGENTS.md)
 ```
 
 ## Current Migration Chain
 
-The migration chain has grown to 52 migrations with multiple merge points. Key migration categories:
+The migrations have been consolidated into a clean schema. Current migration chain:
 
-**Foundation (initial_schema through enrichment_data):**
+1. **`e36700c35af6_initial_schema.py`** - Comprehensive initial schema
 
-- `968b0dff6a9b` - Initial schema (cameras, detections, events, logs, gpu_stats)
-- `20251228_fts` - Full-text search vectors
-- Alert rules, zones, audit logs, baselines, clip paths
-- Datetime timezone fixes, search vector backfill
-- LLM prompt storage, event audits, camera constraints
-- Enrichment data column for vision model results
+   - All core tables (cameras, detections, events, alerts, zones, etc.)
+   - Full-text search with TSVECTOR and GIN indexes
+   - BRIN indexes for time-series data
+   - All constraints and check constraints
+   - Background job infrastructure
 
-**Database Optimization:**
+2. **`a1b2c3d4e5f6_add_household_organization_model.py`** - Household support
 
-- `add_object_types_gin_trgm_index` - GIN trigram index for LIKE queries
-- `add_composite_indexes_for_filters` - Multi-column indexes
-- `add_covering_indexes_for_pagination` - Include columns for index-only scans
-- `add_deleted_at_indexes` - Soft delete query optimization
-- `add_partial_indexes_boolean_columns` - Partial indexes for boolean filters
-- `add_gin_brin_specialized_indexes` - GIN and BRIN specialized indexes
-- `add_gpu_stats_recorded_at_brin_index` - BRIN index for time-series data
-- `add_time_series_partitioning` - Table partitioning for large tables
-- `add_search_indexes` - Additional search optimization
-- `add_alerts_deduplication_indexes` - Alert dedup performance
-- `add_events_backlog_improvement_indexes` - Event backlog queries
-- `add_detections_camera_object_index` - Detection lookup optimization
-- `add_detections_object_type_detected_at_index` - Detection type queries
-- `add_detection_search_vector` - Full-text search on detections
+   - Households and household members tables
+   - Multi-tenant organization support
 
-**Feature Additions:**
+3. **`b2c3d4e5f6g7_add_property_and_area_models.py`** - Property/Area models
 
-- `add_prompt_versions_table` - AI prompt version management
-- `add_prompt_configs_table` - Prompt configuration storage
-- `add_notification_preferences_tables` - User notification settings
-- `add_user_feedback_and_calibration` - User feedback and calibration
-- `add_entity_model` - Entity tracking (people, vehicles)
-- `add_trust_status_to_entities` - Entity trust classification
-- `add_job_transitions_table` - Background job state tracking
-- `add_event_detections_junction_table` - M2M events/detections
-- `add_4_feedback_types` - Extended feedback categorization
-- `create_scene_changes_table` - Scene change detection
+   - Properties table for multi-site support
+   - Areas table for logical zone groupings
 
-**Fixes and Maintenance:**
-
-- `fix_camera_timezone_idempotent` - Timezone handling
-- `add_check_constraints` - Data integrity constraints
-- `add_deleted_at_soft_delete` - Soft delete support
-- `drop_detection_ids_column` - Schema cleanup
-- `add_snooze_until_column` - Alert snoozing
-- `add_alert_version_id_column` - Alert versioning
-- `add_row_version_to_prompt_versions` - Optimistic locking
-- `add_prompt_version_unique_constraint` - Uniqueness enforcement
-
-**Merge Migrations:**
-
-- `d4cdaa821492_merge_heads` - Primary merge point
-- `d896ab921049_merge_user_feedback_and_notification_` - Feature merge
-- `eb2e0919ec02_merge_heads_add_notification_` - Notification merge
-- `b80664ed1373_merge_migration_branches` - Branch consolidation
-- `00c8a000b44f_merge_database_optimization_heads` - Optimization merge
-- `071128727b6c_merge_deleted_at_indexes` - Index merge
-- `6b206d6591cb_merge_add_4_feedback_types_and_job_` - Feedback/job merge
+4. **`f1231ed7e32d_rename_zones_to_camera_zones.py`** - Rename zones
+   - Renames `zones` table to `camera_zones` for clarity
 
 See `versions/AGENTS.md` for detailed documentation of individual migrations.
 

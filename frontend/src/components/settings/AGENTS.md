@@ -8,16 +8,19 @@ Contains components for application configuration and system settings. Includes 
 
 | File                                    | Purpose                                            |
 | --------------------------------------- | -------------------------------------------------- |
+| `AdminSettings.tsx`                     | Admin settings panel with advanced options         |
+| `AdminSettings.test.tsx`                | Test suite for AdminSettings                       |
 | `AIModelsSettings.tsx`                  | AI model status and metrics display                |
 | `AIModelsSettings.test.tsx`             | Test suite for AIModelsSettings                    |
+| `AIModelsTab.tsx`                       | Tab component for AI models section                |
 | `AlertRulesSettings.tsx`                | Alert rule configuration management                |
 | `AlertRulesSettings.test.tsx`           | Test suite for AlertRulesSettings                  |
 | `AmbientStatusSettings.tsx`             | Ambient status display settings                    |
 | `AmbientStatusSettings.test.tsx`        | Test suite for AmbientStatusSettings               |
+| `AreaCameraLinking.tsx`                 | Link cameras to areas/zones                        |
+| `AreaCameraLinking.test.tsx`            | Test suite for AreaCameraLinking                   |
 | `CalibrationPanel.tsx`                  | Camera calibration panel                           |
 | `CalibrationPanel.test.tsx`             | Test suite for CalibrationPanel                    |
-| `CameraForm.tsx`                        | Form for adding/editing cameras                    |
-| `CameraForm.test.tsx`                   | Test suite for CameraForm                          |
 | `CamerasSettings.tsx`                   | Camera management CRUD interface                   |
 | `CamerasSettings.test.tsx`              | Test suite for CamerasSettings                     |
 | `CleanupPreviewPanel.tsx`               | Preview panel for data cleanup operations          |
@@ -25,16 +28,16 @@ Contains components for application configuration and system settings. Includes 
 | `DlqMonitor.tsx`                        | Dead letter queue monitoring and management        |
 | `DlqMonitor.test.tsx`                   | Test suite for DlqMonitor                          |
 | `DlqMonitor.msw.test.tsx`               | MSW-based integration tests for DlqMonitor         |
-| `GlobalNotificationPreferences.tsx`     | Global notification preferences settings           |
-| `NotificationPreferencesForm.tsx`       | Form for notification preferences                  |
-| `NotificationPreferencesForm.test.tsx`  | Test suite for NotificationPreferencesForm         |
+| `HouseholdSettings.tsx`                 | Household configuration settings                   |
+| `HouseholdSettings.test.tsx`            | Test suite for HouseholdSettings                   |
 | `NotificationSettings.tsx`              | Email and webhook notification config              |
 | `NotificationSettings.test.tsx`         | Test suite for NotificationSettings                |
 | `ProcessingSettings.tsx`                | Event processing configuration                     |
 | `ProcessingSettings.test.tsx`           | Test suite for ProcessingSettings                  |
 | `PromptManagementPanel.tsx`             | AI prompt management interface                     |
 | `PromptManagementPanel.test.tsx`        | Test suite for PromptManagementPanel               |
-| `QuietHoursScheduler.tsx`               | Quiet hours scheduling configuration               |
+| `PropertyManagement.tsx`                | Property and area management                       |
+| `PropertyManagement.test.tsx`           | Test suite for PropertyManagement                  |
 | `RiskSensitivitySettings.tsx`           | Risk sensitivity configuration settings            |
 | `RiskSensitivitySettings.test.tsx`      | Test suite for RiskSensitivitySettings             |
 | `SettingsPage.tsx`                      | Main settings page with tabbed interface           |
@@ -44,6 +47,7 @@ Contains components for application configuration and system settings. Includes 
 | `StorageDashboard.tsx`                  | Disk usage and storage breakdown dashboard         |
 | `StorageDashboard.test.tsx`             | Test suite for StorageDashboard                    |
 | `StorageDashboard.msw.test.tsx`         | MSW-based integration tests for StorageDashboard   |
+| `prompts/`                              | Prompt management subdirectory                     |
 
 ## Key Components
 

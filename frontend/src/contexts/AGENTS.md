@@ -8,19 +8,35 @@ React Context providers for global state management across the application. Curr
 
 ```
 frontend/src/contexts/
-├── AGENTS.md            # This documentation file
-├── index.ts             # Central export point
-├── ToastContext.tsx     # Toast notification provider and hook
-└── ToastContext.test.tsx # Tests for toast context
+├── AGENTS.md                     # This documentation file
+├── index.ts                      # Central export point
+├── AnnouncementContext.tsx       # Live region announcements provider
+├── AnnouncementContext.test.tsx  # Tests for announcement context
+├── DebugModeContext.tsx          # Debug mode state provider
+├── DebugModeContext.test.tsx     # Tests for debug mode context
+├── RateLimitContext.tsx          # Rate limit state provider
+├── RateLimitContext.test.tsx     # Tests for rate limit context
+├── SystemDataContext.tsx         # System data state provider
+├── SystemDataContext.test.tsx    # Tests for system data context
+├── ToastContext.tsx              # Toast notification provider and hook
+└── ToastContext.test.tsx         # Tests for toast context
 ```
 
 ## Key Files
 
-| File                   | Purpose                                               |
-| ---------------------- | ----------------------------------------------------- |
-| `index.ts`             | Re-exports all contexts for clean imports             |
-| `ToastContext.tsx`     | Toast notification provider with auto-dismiss         |
-| `ToastContext.test.tsx` | Comprehensive tests for toast functionality           |
+| File                           | Purpose                                               |
+| ------------------------------ | ----------------------------------------------------- |
+| `index.ts`                     | Re-exports all contexts for clean imports             |
+| `AnnouncementContext.tsx`      | ARIA live region announcements for accessibility      |
+| `AnnouncementContext.test.tsx` | Tests for announcement context                        |
+| `DebugModeContext.tsx`         | Debug mode state provider with localStorage           |
+| `DebugModeContext.test.tsx`    | Tests for debug mode context                          |
+| `RateLimitContext.tsx`         | API rate limit state tracking                         |
+| `RateLimitContext.test.tsx`    | Tests for rate limit context                          |
+| `SystemDataContext.tsx`        | System data provider for shared system state          |
+| `SystemDataContext.test.tsx`   | Tests for system data context                         |
+| `ToastContext.tsx`             | Toast notification provider with auto-dismiss         |
+| `ToastContext.test.tsx`        | Comprehensive tests for toast functionality           |
 
 ## Toast Context (`ToastContext.tsx`)
 

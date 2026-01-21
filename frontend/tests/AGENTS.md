@@ -9,52 +9,52 @@ Test suite directory for end-to-end (E2E) tests using Playwright and integration
 ```
 frontend/tests/
 ├── AGENTS.md           # This documentation file
+├── contract/           # Contract tests for API validation
+│   └── api-contract.spec.ts  # API contract validation tests
 ├── e2e/                # End-to-end Playwright tests
 │   ├── AGENTS.md       # E2E test documentation
 │   ├── fixtures/       # Test fixtures and mock configurations
 │   │   ├── AGENTS.md   # Fixtures documentation
 │   │   ├── index.ts    # Central fixture exports with auto-mocking
 │   │   ├── api-mocks.ts    # API mock setup functions
+│   │   ├── performance.ts  # Performance testing fixtures
 │   │   ├── test-data.ts    # Mock data for cameras, events, GPU, etc.
 │   │   └── websocket-mock.ts  # WebSocket simulation helpers
 │   ├── pages/          # Page Object Model classes
 │   │   ├── AGENTS.md   # Page objects documentation
 │   │   ├── index.ts    # Central page object exports
 │   │   ├── BasePage.ts # Base class for all page objects
-│   │   ├── DashboardPage.ts
-│   │   ├── TimelinePage.ts
-│   │   ├── AlertsPage.ts
-│   │   ├── AlertRulesPage.ts
-│   │   ├── EntitiesPage.ts
-│   │   ├── LogsPage.ts
-│   │   ├── AuditPage.ts
 │   │   ├── AIAuditPage.ts
-│   │   ├── SystemPage.ts
+│   │   ├── AIPerformancePage.ts
+│   │   ├── AlertRulesPage.ts
+│   │   ├── AlertsPage.ts
+│   │   ├── AnalyticsPage.ts
+│   │   ├── AuditPage.ts
+│   │   ├── DashboardPage.ts
+│   │   ├── EntitiesPage.ts
+│   │   ├── JobsPage.ts
+│   │   ├── LogsPage.ts
 │   │   ├── SettingsPage.ts
+│   │   ├── SystemPage.ts
+│   │   ├── TimelinePage.ts
+│   │   ├── TrashPage.ts
 │   │   └── ZonesPage.ts
-│   ├── specs/          # Test specification files
+│   ├── specs/          # Test specification files (see AGENTS.md for full list)
 │   │   ├── AGENTS.md   # Specs documentation
 │   │   ├── smoke.spec.ts       # Dashboard loading and smoke tests
 │   │   ├── dashboard.spec.ts   # Dashboard component tests
-│   │   ├── navigation.spec.ts  # Page navigation tests
-│   │   ├── realtime.spec.ts    # Real-time/WebSocket tests
-│   │   ├── events.spec.ts      # Events and timeline tests
-│   │   ├── alerts.spec.ts      # Alerts page tests
-│   │   ├── alert-rules.spec.ts # Alert rules configuration tests
-│   │   ├── entities.spec.ts    # Entities page tests
-│   │   ├── logs.spec.ts        # Logs page tests
-│   │   ├── audit.spec.ts       # Audit log tests
-│   │   ├── ai-audit.spec.ts    # AI pipeline audit tests
-│   │   ├── system.spec.ts      # System monitoring tests
-│   │   ├── settings.spec.ts    # Settings page tests
-│   │   ├── zones.spec.ts       # Camera zones tests
-│   │   ├── responsive.spec.ts  # Responsive design tests
-│   │   ├── accessibility.spec.ts # WCAG 2.1 AA compliance tests
-│   │   └── error-handling.spec.ts  # Error state tests
+│   │   ├── ... (40+ spec files)
+│   │   └── user-journeys/      # User journey subdirectory
 │   ├── utils/          # Test utility functions
 │   │   ├── AGENTS.md   # Utils documentation
 │   │   ├── index.ts    # Central utility exports
-│   │   └── accessibility.ts  # Accessibility testing helpers
+│   │   ├── browser-helpers.ts
+│   │   ├── data-generators.ts
+│   │   ├── test-helpers.ts
+│   │   └── wait-helpers.ts
+│   ├── visual/         # Visual regression tests
+│   │   ├── AGENTS.md   # Visual tests documentation
+│   │   └── *.visual.spec.ts  # Visual regression specs
 │   └── .gitkeep        # Git placeholder
 └── integration/        # Integration tests (WebSocket, cross-component)
     ├── AGENTS.md       # Integration tests documentation

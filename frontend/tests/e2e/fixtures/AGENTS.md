@@ -10,6 +10,7 @@ Centralized test fixtures for E2E tests including mock data, API mocking utiliti
 | ------------------- | ---------------------------------------------- |
 | `index.ts`          | Central exports and custom test fixture        |
 | `api-mocks.ts`      | API route interception and mock response setup |
+| `performance.ts`    | Performance testing fixtures and utilities     |
 | `test-data.ts`      | Mock data for cameras, events, GPU, logs, etc. |
 | `websocket-mock.ts` | WebSocket simulation helpers                   |
 

@@ -1,6 +1,6 @@
 /**
  * Tests for TracingPage component
- * Tests the Grafana/Jaeger tracing iframe embed implementation
+ * Tests the Grafana HSI Distributed Tracing dashboard iframe embed
  */
 
 import { render, screen, waitFor, act } from '@testing-library/react';
@@ -67,13 +67,13 @@ describe('TracingPage', () => {
       });
     });
 
-    it('renders the Compare Traces link', async () => {
+    it('renders the Open in Grafana link', async () => {
       renderWithRouter();
       await act(async () => {
         await vi.runAllTimersAsync();
       });
       await waitFor(() => {
-        expect(screen.getByTestId('compare-traces-link')).toBeInTheDocument();
+        expect(screen.getByTestId('grafana-external-link')).toBeInTheDocument();
       });
     });
 
@@ -216,106 +216,8 @@ describe('TracingPage', () => {
     });
   });
 
-  describe('view mode toggle', () => {
-    it('renders both view mode buttons', async () => {
-      renderWithRouter();
-      await act(async () => {
-        await vi.runAllTimersAsync();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('view-mode-search')).toBeInTheDocument();
-        expect(screen.getByTestId('view-mode-dependencies')).toBeInTheDocument();
-      });
-    });
-
-    it('defaults to search view mode', async () => {
-      renderWithRouter();
-      await act(async () => {
-        await vi.runAllTimersAsync();
-      });
-
-      await waitFor(() => {
-        const searchButton = screen.getByTestId('view-mode-search');
-        expect(searchButton).toHaveClass('bg-[#76B900]', 'text-black');
-      });
-    });
-
-    it('switches to dependencies view mode when clicked', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      renderWithRouter();
-      await act(async () => {
-        await vi.runAllTimersAsync();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('view-mode-dependencies')).toBeInTheDocument();
-      });
-
-      const dependenciesButton = screen.getByTestId('view-mode-dependencies');
-      await user.click(dependenciesButton);
-
-      await waitFor(() => {
-        expect(dependenciesButton).toHaveClass('bg-[#76B900]', 'text-black');
-      });
-    });
-
-    it('updates iframe URL when switching to dependencies view', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      (api.fetchConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
-        app_name: 'Test App',
-        version: '1.0.0',
-        retention_days: 30,
-        batch_window_seconds: 90,
-        batch_idle_timeout_seconds: 30,
-        detection_confidence_threshold: 0.5,
-        grafana_url: 'http://grafana.example.com',
-        debug: false,
-      });
-
-      renderWithRouter();
-      await act(async () => {
-        await vi.runAllTimersAsync();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('view-mode-dependencies')).toBeInTheDocument();
-      });
-
-      const dependenciesButton = screen.getByTestId('view-mode-dependencies');
-      await user.click(dependenciesButton);
-
-      await waitFor(() => {
-        const iframe = screen.getByTestId('tracing-iframe');
-        expect(iframe).toHaveAttribute('src', expect.stringContaining('dependencyGraph'));
-      });
-    });
-
-    it('search button text is correct', async () => {
-      renderWithRouter();
-      await act(async () => {
-        await vi.runAllTimersAsync();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('view-mode-search')).toHaveTextContent('Trace Search');
-      });
-    });
-
-    it('dependencies button text is correct', async () => {
-      renderWithRouter();
-      await act(async () => {
-        await vi.runAllTimersAsync();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('view-mode-dependencies')).toHaveTextContent('Service Map');
-      });
-    });
-  });
-
-  describe('Grafana/Jaeger integration', () => {
-    it('renders iframe with correct Grafana Explore URL for search mode', async () => {
+  describe('Grafana dashboard integration', () => {
+    it('renders iframe with correct HSI Distributed Tracing dashboard URL', async () => {
       (api.fetchConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
         app_name: 'Test App',
         version: '1.0.0',
@@ -335,11 +237,11 @@ describe('TracingPage', () => {
       await waitFor(() => {
         const iframe = screen.getByTestId('tracing-iframe');
         const src = iframe.getAttribute('src');
-        expect(src).toContain('http://grafana.example.com/explore');
+        expect(src).toContain('http://grafana.example.com/d/hsi-tracing/hsi-distributed-tracing');
         expect(src).toContain('orgId=1');
         expect(src).toContain('kiosk=1');
         expect(src).toContain('theme=dark');
-        expect(src).toContain('queryType%22%3A%22search');
+        expect(src).toContain('refresh=30s');
       });
     });
 
@@ -354,52 +256,26 @@ describe('TracingPage', () => {
 
       await waitFor(() => {
         const iframe = screen.getByTestId('tracing-iframe');
-        expect(iframe).toHaveAttribute('src', expect.stringContaining('/grafana/explore'));
+        expect(iframe).toHaveAttribute('src', expect.stringContaining('/grafana/d/hsi-tracing'));
       });
 
       consoleSpy.mockRestore();
     });
 
-    it('iframe URL includes Jaeger datasource', async () => {
+    it('Open in Grafana link opens in new tab', async () => {
       renderWithRouter();
       await act(async () => {
         await vi.runAllTimersAsync();
       });
 
       await waitFor(() => {
-        const iframe = screen.getByTestId('tracing-iframe');
-        const src = iframe.getAttribute('src');
-        expect(src).toContain('datasource%22%3A%22Jaeger');
+        const grafanaLink = screen.getByTestId('grafana-external-link');
+        expect(grafanaLink).toHaveAttribute('target', '_blank');
+        expect(grafanaLink).toHaveAttribute('rel', 'noopener noreferrer');
       });
     });
 
-    it('iframe URL includes service name', async () => {
-      renderWithRouter();
-      await act(async () => {
-        await vi.runAllTimersAsync();
-      });
-
-      await waitFor(() => {
-        const iframe = screen.getByTestId('tracing-iframe');
-        const src = iframe.getAttribute('src');
-        expect(src).toContain('service%22%3A%22nemotron-backend');
-      });
-    });
-
-    it('Compare Traces link opens in new tab', async () => {
-      renderWithRouter();
-      await act(async () => {
-        await vi.runAllTimersAsync();
-      });
-
-      await waitFor(() => {
-        const compareLink = screen.getByTestId('compare-traces-link');
-        expect(compareLink).toHaveAttribute('target', '_blank');
-        expect(compareLink).toHaveAttribute('rel', 'noopener noreferrer');
-      });
-    });
-
-    it('Compare Traces link has correct URL with split view', async () => {
+    it('Open in Grafana link has correct dashboard URL', async () => {
       (api.fetchConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
         app_name: 'Test App',
         version: '1.0.0',
@@ -417,24 +293,24 @@ describe('TracingPage', () => {
       });
 
       await waitFor(() => {
-        const compareLink = screen.getByTestId('compare-traces-link');
-        expect(compareLink).toHaveAttribute(
+        const grafanaLink = screen.getByTestId('grafana-external-link');
+        expect(grafanaLink).toHaveAttribute(
           'href',
-          'http://grafana.example.com/explore?orgId=1&theme=dark&split=true'
+          'http://grafana.example.com/d/hsi-tracing/hsi-distributed-tracing?orgId=1&theme=dark'
         );
       });
     });
 
-    it('renders Compare Traces text with icon', async () => {
+    it('renders Open in Grafana text with icon', async () => {
       renderWithRouter();
       await act(async () => {
         await vi.runAllTimersAsync();
       });
 
       await waitFor(() => {
-        const compareLink = screen.getByTestId('compare-traces-link');
-        expect(compareLink).toHaveTextContent('Compare Traces');
-        expect(compareLink.querySelector('svg')).toBeInTheDocument();
+        const grafanaLink = screen.getByTestId('grafana-external-link');
+        expect(grafanaLink).toHaveTextContent('Open in Grafana');
+        expect(grafanaLink.querySelector('svg')).toBeInTheDocument();
       });
     });
 
@@ -574,15 +450,15 @@ describe('TracingPage', () => {
       });
     });
 
-    it('Compare Traces link has accessible name', async () => {
+    it('Open in Grafana link has accessible name', async () => {
       renderWithRouter();
       await act(async () => {
         await vi.runAllTimersAsync();
       });
 
       await waitFor(() => {
-        const compareLink = screen.getByTestId('compare-traces-link');
-        expect(compareLink).toHaveTextContent('Compare Traces');
+        const grafanaLink = screen.getByTestId('grafana-external-link');
+        expect(grafanaLink).toHaveTextContent('Open in Grafana');
       });
     });
 
@@ -662,7 +538,7 @@ describe('TracingPage', () => {
   });
 
   describe('URL construction', () => {
-    it('constructs proper search query URL', async () => {
+    it('constructs proper dashboard URL with all parameters', async () => {
       (api.fetchConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
         app_name: 'Test App',
         version: '1.0.0',
@@ -683,42 +559,11 @@ describe('TracingPage', () => {
         const iframe = screen.getByTestId('tracing-iframe');
         const src = iframe.getAttribute('src');
         // Verify URL structure
-        expect(src).toContain('/grafana/explore?');
+        expect(src).toContain('/grafana/d/hsi-tracing/hsi-distributed-tracing?');
         expect(src).toContain('orgId=1');
         expect(src).toContain('kiosk=1');
         expect(src).toContain('theme=dark');
-      });
-    });
-
-    it('constructs proper dependency graph URL', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      (api.fetchConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
-        app_name: 'Test App',
-        version: '1.0.0',
-        retention_days: 30,
-        batch_window_seconds: 90,
-        batch_idle_timeout_seconds: 30,
-        detection_confidence_threshold: 0.5,
-        grafana_url: '/grafana',
-        debug: false,
-      });
-
-      renderWithRouter();
-      await act(async () => {
-        await vi.runAllTimersAsync();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('view-mode-dependencies')).toBeInTheDocument();
-      });
-
-      const dependenciesButton = screen.getByTestId('view-mode-dependencies');
-      await user.click(dependenciesButton);
-
-      await waitFor(() => {
-        const iframe = screen.getByTestId('tracing-iframe');
-        const src = iframe.getAttribute('src');
-        expect(src).toContain('queryType%22%3A%22dependencyGraph');
+        expect(src).toContain('refresh=30s');
       });
     });
 
@@ -743,7 +588,7 @@ describe('TracingPage', () => {
         const iframe = screen.getByTestId('tracing-iframe');
         const src = iframe.getAttribute('src');
         // Should resolve localhost to current hostname (in tests, it's empty/localhost)
-        expect(src).toContain('/explore?');
+        expect(src).toContain('/d/hsi-tracing/hsi-distributed-tracing?');
       });
     });
   });

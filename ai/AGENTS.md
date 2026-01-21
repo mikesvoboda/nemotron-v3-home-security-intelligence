@@ -17,6 +17,7 @@ All services run as FastAPI HTTP servers with GPU passthrough via Docker/Podman.
 ```
 ai/
 ├── AGENTS.md              # This file
+├── __init__.py            # Package init
 ├── rtdetr/                # RT-DETRv2 object detection server
 │   ├── AGENTS.md          # RT-DETRv2 documentation
 │   ├── Dockerfile         # Container build (PyTorch + CUDA)
@@ -36,20 +37,24 @@ ai/
 │   ├── AGENTS.md          # CLIP documentation
 │   ├── Dockerfile         # Container build
 │   ├── model.py           # FastAPI server for embeddings
-│   ├── test_model.py      # Unit tests (pytest)
 │   └── requirements.txt   # Python dependencies
 ├── florence/              # Florence-2 vision-language server
 │   ├── AGENTS.md          # Florence-2 documentation
 │   ├── Dockerfile         # Container build
+│   ├── __init__.py        # Package init
 │   ├── model.py           # FastAPI server for attribute extraction
-│   └── requirements.txt   # Python dependencies
+│   ├── test_model.py      # Unit tests (pytest)
+│   ├── requirements.txt   # Python dependencies
+│   └── tests/             # Additional tests directory
 ├── enrichment/            # Combined enrichment service (Model Zoo)
 │   ├── AGENTS.md          # Enrichment documentation
 │   ├── Dockerfile         # Container build
+│   ├── __init__.py        # Package init
 │   ├── model.py           # FastAPI server with /enrich endpoint
 │   ├── model_manager.py   # On-demand VRAM-aware model loading
 │   ├── model_registry.py  # Model configuration and registration
 │   ├── vitpose.py         # ViTPose+ pose estimation (legacy)
+│   ├── test_model.py      # Unit tests (pytest)
 │   ├── requirements.txt   # Python dependencies
 │   ├── models/            # Model implementations
 │   │   ├── pose_estimator.py   # YOLOv8n-pose wrapper
@@ -57,7 +62,7 @@ ai/
 │   │   ├── demographics.py     # Age/gender estimation
 │   │   ├── person_reid.py      # OSNet re-ID embeddings
 │   │   └── action_recognizer.py # X-CLIP video actions
-│   └── tests/             # Unit tests
+│   └── tests/             # Additional unit tests
 ├── download_models.sh     # Download AI models
 ├── start_detector.sh      # Start RT-DETRv2 (port 8090)
 ├── start_llm.sh           # Start Nemotron 4B (port 8091)

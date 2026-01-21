@@ -53,9 +53,20 @@ operator/
   scene-change-detection.md # Scene change detection configuration
   secrets-management.md   # Secrets management guide
   service-control.md      # Service control and lifecycle management
+  storage-retention.md    # Storage and data retention policies
   admin/                  # Administration subdirectory
+    AGENTS.md             # Admin guide navigation
+    README.md             # Admin overview
+    api-keys.md           # API key security
+    security.md           # Metrics endpoint hardening
   deployment/             # Deployment guides subdirectory
+    AGENTS.md             # Deployment guide navigation
+    README.md             # Deployment overview
+    self-hosted-runner.md # GitHub Actions self-hosted runner
   monitoring/             # Monitoring guides subdirectory
+    AGENTS.md             # Monitoring guide navigation
+    README.md             # Monitoring overview
+    slos.md               # SLI/SLO framework
 ```
 
 ## Migration Status

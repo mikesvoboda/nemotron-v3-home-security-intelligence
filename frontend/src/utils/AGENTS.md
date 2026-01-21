@@ -6,31 +6,40 @@ Utility functions for common operations across the frontend application, includi
 
 ## Key Files
 
-| File                       | Purpose                                                |
-| -------------------------- | ------------------------------------------------------ |
-| `confidence.ts`            | Detection confidence level utilities                   |
-| `confidence.test.ts`       | Tests for confidence utilities                         |
-| `error-handling.ts`        | Error handling and sanitization utilities              |
-| `error-handling.test.ts`   | Tests for error handling utilities                     |
-| `groupBy.ts`               | Array grouping utility function                        |
-| `groupBy.test.ts`          | Tests for groupBy utility                              |
-| `pipeline.ts`              | Function pipeline composition utilities                |
-| `pipeline.test.ts`         | Tests for pipeline utilities                           |
-| `poseVisualization.ts`     | Pose skeleton visualization utilities                  |
-| `poseVisualization.test.ts`| Tests for pose visualization utilities                 |
-| `promptDiff.ts`            | Prompt diff generation and suggestion application      |
-| `promptDiff.test.ts`       | Tests for prompt diff utilities                        |
-| `risk.ts`                  | Risk scoring utilities for security events             |
-| `risk.test.ts`             | Tests for risk utilities                               |
-| `sanitize.ts`              | Input/output sanitization utilities                    |
-| `time.ts`                  | Time and duration formatting utilities                 |
-| `time.test.ts`             | Tests for time utilities                               |
-| `tryCatch.ts`              | Try/catch wrapper utilities for async operations       |
-| `tryCatch.test.ts`         | Tests for tryCatch utilities                           |
-| `validation.ts`            | Input validation utilities                             |
-| `validation.test.ts`       | Tests for validation utilities                         |
-| `webcodecs.ts`             | WebCodecs API feature detection and fallback helpers   |
-| `webcodecs.test.ts`        | Tests for WebCodecs utilities                          |
+| File                         | Purpose                                                |
+| ---------------------------- | ------------------------------------------------------ |
+| `confidence.ts`              | Detection confidence level utilities                   |
+| `confidence.test.ts`         | Tests for confidence utilities                         |
+| `error-handling.ts`          | Error handling and sanitization utilities              |
+| `error-handling.test.ts`     | Tests for error handling utilities                     |
+| `eventClustering.ts`         | Event clustering and grouping utilities                |
+| `eventClustering.test.ts`    | Tests for event clustering utilities                   |
+| `grafanaUrl.ts`              | Grafana URL building utilities                         |
+| `groupBy.ts`                 | Array grouping utility function                        |
+| `groupBy.test.ts`            | Tests for groupBy utility                              |
+| `pipeline.ts`                | Function pipeline composition utilities                |
+| `pipeline.test.ts`           | Tests for pipeline utilities                           |
+| `poseVisualization.ts`       | Pose skeleton visualization utilities                  |
+| `poseVisualization.test.ts`  | Tests for pose visualization utilities                 |
+| `promptDiff.ts`              | Prompt diff generation and suggestion application      |
+| `promptDiff.test.ts`         | Tests for prompt diff utilities                        |
+| `risk.ts`                    | Risk scoring utilities for security events             |
+| `risk.test.ts`               | Tests for risk utilities                               |
+| `sanitize.ts`                | Input/output sanitization utilities                    |
+| `severityCalculator.ts`      | Severity level calculation utilities                   |
+| `severityCalculator.test.ts` | Tests for severity calculator utilities                |
+| `severityColors.ts`          | Severity color mapping utilities                       |
+| `severityColors.test.ts`     | Tests for severity color utilities                     |
+| `summaryParser.ts`           | AI summary parsing utilities                           |
+| `summaryParser.test.ts`      | Tests for summary parser utilities                     |
+| `time.ts`                    | Time and duration formatting utilities                 |
+| `time.test.ts`               | Tests for time utilities                               |
+| `tryCatch.ts`                | Try/catch wrapper utilities for async operations       |
+| `tryCatch.test.ts`           | Tests for tryCatch utilities                           |
+| `validation.ts`              | Input validation utilities                             |
+| `validation.test.ts`         | Tests for validation utilities                         |
+| `webcodecs.ts`               | WebCodecs API feature detection and fallback helpers   |
+| `webcodecs.test.ts`          | Tests for WebCodecs utilities                          |
 
 ## Risk Utilities (`risk.ts`)
 

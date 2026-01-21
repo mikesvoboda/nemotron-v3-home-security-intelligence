@@ -9,7 +9,9 @@ This directory contains custom configurations and resources for the Home Securit
 ```
 custom/
   AGENTS.md     # This file
+  cache/        # Runtime cache directory (created as needed)
   clips/        # Custom video clips directory
+    AGENTS.md   # Clips directory guide
 ```
 
 ## Key Subdirectories

@@ -6,21 +6,25 @@ Page Object Model (POM) classes that encapsulate page selectors and interactions
 
 ## Key Files
 
-| File               | Purpose                                 |
-| ------------------ | --------------------------------------- |
-| `index.ts`         | Central exports for all page objects    |
-| `BasePage.ts`      | Base class with common layout selectors |
-| `DashboardPage.ts` | Main dashboard page selectors/actions   |
-| `TimelinePage.ts`  | Event timeline page                     |
-| `AlertsPage.ts`    | Alerts management page                  |
-| `AlertRulesPage.ts`| Alert rules configuration page          |
-| `EntitiesPage.ts`  | Entity tracking page                    |
-| `LogsPage.ts`      | Application logs page                   |
-| `AuditPage.ts`     | Audit log viewer page                   |
-| `AIAuditPage.ts`   | AI pipeline audit page                  |
-| `SystemPage.ts`    | System monitoring page                  |
-| `SettingsPage.ts`  | Application settings page               |
-| `ZonesPage.ts`     | Camera zone configuration page          |
+| File                  | Purpose                                 |
+| --------------------- | --------------------------------------- |
+| `index.ts`            | Central exports for all page objects    |
+| `BasePage.ts`         | Base class with common layout selectors |
+| `AIAuditPage.ts`      | AI pipeline audit page                  |
+| `AIPerformancePage.ts`| AI performance metrics page             |
+| `AlertRulesPage.ts`   | Alert rules configuration page          |
+| `AlertsPage.ts`       | Alerts management page                  |
+| `AnalyticsPage.ts`    | Analytics and metrics page              |
+| `AuditPage.ts`        | Audit log viewer page                   |
+| `DashboardPage.ts`    | Main dashboard page selectors/actions   |
+| `EntitiesPage.ts`     | Entity tracking page                    |
+| `JobsPage.ts`         | Background jobs monitoring page         |
+| `LogsPage.ts`         | Application logs page                   |
+| `SettingsPage.ts`     | Application settings page               |
+| `SystemPage.ts`       | System monitoring page                  |
+| `TimelinePage.ts`     | Event timeline page                     |
+| `TrashPage.ts`        | Deleted items management page           |
+| `ZonesPage.ts`        | Camera zone configuration page          |
 
 ## BasePage - Base Class
 

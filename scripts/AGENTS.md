@@ -11,6 +11,8 @@ scripts/
   AGENTS.md                          # This file
   README.md                          # Quick reference for all scripts
   AI_STARTUP_README.md               # Quick reference for AI services
+  hooks/                             # Git hooks
+    post-checkout                    # Post-checkout hook for worktree protection
 
   # Setup Scripts
   setup.sh                           # Main setup script (Linux/macOS)
@@ -25,7 +27,7 @@ scripts/
   dev.sh                             # Development server management
   restart-all.sh                     # Full stack restart (all containers)
   redeploy.sh                        # Stop, destroy volumes, redeploy fresh
-  recycle-containers.sh              # Recycle containers with graceful restart
+  quick-rebuild.sh                   # Quick rebuild and restart containers
   setup-container-api.sh             # Setup container API access
 
   # Validation & Testing
@@ -90,13 +92,17 @@ scripts/
   ci-smoke-test.sh                   # Quick CI smoke test
   coverage-analysis.py               # Advanced coverage analysis
   linear-label-issues.sh             # Bulk label Linear issues
+  check-docs-drift.py                # Detect documentation drift from code
+  docs-drift-rules.yml               # Rules configuration for docs drift detection
 
   # Development Tools
   create-worktree.sh                 # Create git worktree for isolated work
   git-bisect-helper.sh               # Helper for git bisect debugging
   generate-docs.sh                   # Generate documentation
-  load-test.sh                       # Load testing script
+  load-test.sh                       # Load testing shell wrapper
+  load_test.py                       # Load testing Python implementation
   mutation-test.sh                   # Mutation testing runner
+  verify-observability.sh            # Verify observability stack (Prometheus, Grafana, etc)
 
   # Utilities
   validate-api-types.sh              # Validate API type definitions
@@ -1113,9 +1119,6 @@ source .venv/bin/activate
 ```bash
 # Start services
 ./scripts/dev.sh start
-
-# Optional: Start AI services
-./scripts/start-ai.sh start
 
 # Make changes...
 

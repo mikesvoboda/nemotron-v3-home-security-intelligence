@@ -1,14 +1,14 @@
 /**
  * TracingPage - Distributed tracing dashboard via Grafana/Jaeger
  *
- * Embeds Grafana's Explore view with Jaeger datasource for:
- * - Trace search and visualization
- * - Service dependency graphs
- * - Trace comparison (split view)
- * - Correlation to metrics
+ * Embeds the HSI Distributed Tracing dashboard for:
+ * - Pipeline analysis traces (detection → enrichment → LLM)
+ * - Detection processing traces from RT-DETRv2
+ * - LLM inference traces from Nemotron
+ * - Error trace visualization
  */
 
-import { Activity, RefreshCw, ExternalLink, AlertCircle, SplitSquareHorizontal } from 'lucide-react';
+import { Activity, RefreshCw, ExternalLink, AlertCircle } from 'lucide-react';
 import { useEffect, useState, useRef, useCallback } from 'react';
 
 import { fetchConfig } from '../../services/api';
@@ -19,7 +19,6 @@ export default function TracingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [viewMode, setViewMode] = useState<'search' | 'dependencies'>('search');
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Fetch Grafana URL from config
@@ -59,18 +58,9 @@ export default function TracingPage() {
     }
   }, []);
 
-  // Construct Grafana Explore URL
-  const getExploreUrl = () => {
-    const baseParams = 'orgId=1&kiosk=1&theme=dark';
-    const jaegerQuery = encodeURIComponent(JSON.stringify({
-      datasource: 'Jaeger',
-      queries: [{
-        refId: 'A',
-        queryType: viewMode === 'search' ? 'search' : 'dependencyGraph',
-        service: 'nemotron-backend'
-      }]
-    }));
-    return `${grafanaUrl}/explore?${baseParams}&left=${jaegerQuery}`;
+  // Construct Grafana Dashboard URL (HSI Distributed Tracing dashboard)
+  const getDashboardUrl = () => {
+    return `${grafanaUrl}/d/hsi-tracing/hsi-distributed-tracing?orgId=1&kiosk=1&theme=dark&refresh=30s`;
   };
 
   // Loading state
@@ -98,42 +88,16 @@ export default function TracingPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* View Mode Toggle */}
-          <div className="flex rounded-lg bg-gray-800 p-1">
-            <button
-              onClick={() => setViewMode('search')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                viewMode === 'search'
-                  ? 'bg-[#76B900] text-black'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-              data-testid="view-mode-search"
-            >
-              Trace Search
-            </button>
-            <button
-              onClick={() => setViewMode('dependencies')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                viewMode === 'dependencies'
-                  ? 'bg-[#76B900] text-black'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-              data-testid="view-mode-dependencies"
-            >
-              Service Map
-            </button>
-          </div>
-
-          {/* Compare Traces */}
+          {/* Open in Grafana */}
           <a
-            href={`${grafanaUrl}/explore?orgId=1&theme=dark&split=true`}
+            href={`${grafanaUrl}/d/hsi-tracing/hsi-distributed-tracing?orgId=1&theme=dark`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
-            data-testid="compare-traces-link"
+            data-testid="grafana-external-link"
           >
-            <SplitSquareHorizontal className="h-4 w-4" />
-            Compare Traces
+            <ExternalLink className="h-4 w-4" />
+            Open in Grafana
           </a>
 
           {/* Open Jaeger */}
@@ -172,10 +136,10 @@ export default function TracingPage() {
         </div>
       )}
 
-      {/* Grafana iframe */}
+      {/* Grafana Dashboard iframe */}
       <iframe
         ref={iframeRef}
-        src={getExploreUrl()}
+        src={getDashboardUrl()}
         className="h-[calc(100vh-73px)] w-full border-0"
         title="Distributed Tracing"
         data-testid="tracing-iframe"

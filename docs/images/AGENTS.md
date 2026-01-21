@@ -121,6 +121,25 @@ Resilience pattern SVG diagrams:
 - `websocket-circuit-breaker.svg` - WebSocket circuit breaker
 - `websocket-manager.svg` - WebSocket manager
 
+### screenshots/
+
+Application screenshots for documentation:
+
+- `ai-performance.png` - AI Performance page
+- `alerts.png` - Alerts page
+- `analytics.png` - Analytics page
+- `audit-log.png` - Audit Log page
+- `dashboard.png` - Dashboard page
+- `dashboard-tour.gif` - Dashboard tour animation
+- `entities.png` - Entities page
+- `jobs.png` - Background Jobs page
+- `logs.png` - Logs page
+- `operations.png` - System Operations page
+- `settings.png` - Settings page
+- `system.png` - System page
+- `timeline.png` - Event Timeline page
+- `trash.png` - Trash page
+
 ### user-guide/
 
 User guide images:
