@@ -11,6 +11,9 @@
  * NOTE: Skipped in CI due to beforeAll hook timeout issues causing flakiness.
  * Run locally for alerts page validation.
  *
+ * IMPORTANT: These tests require a longer timeout due to complex mock setup.
+ * Run with: npx playwright test tests/e2e/specs/alerts.spec.ts --timeout=60000
+ *
  * Optimization: Uses serial mode with shared page setup to reduce test execution time.
  * Each describe block shares a single page instance across its tests.
  */
@@ -35,7 +38,7 @@ test.describe('Alerts Page Load', () => {
   let alertsPage: AlertsPage;
   let page: Page;
 
-  test.describe.configure({ mode: 'serial' });
+  test.describe.configure({ mode: 'serial', timeout: 45000 });
 
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext();
@@ -75,7 +78,7 @@ test.describe('Alerts Filter', () => {
   let alertsPage: AlertsPage;
   let page: Page;
 
-  test.describe.configure({ mode: 'serial' });
+  test.describe.configure({ mode: 'serial', timeout: 45000 });
 
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext();
@@ -147,7 +150,7 @@ test.describe('Alerts Pagination', () => {
   let alertsPage: AlertsPage;
   let page: Page;
 
-  test.describe.configure({ mode: 'serial' });
+  test.describe.configure({ mode: 'serial', timeout: 45000 });
 
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext();
@@ -179,7 +182,7 @@ test.describe('Alerts Empty State', () => {
   let alertsPage: AlertsPage;
   let page: Page;
 
-  test.describe.configure({ mode: 'serial' });
+  test.describe.configure({ mode: 'serial', timeout: 45000 });
 
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext();
@@ -242,7 +245,7 @@ test.describe('Alerts High Alert Mode', () => {
   let alertsPage: AlertsPage;
   let page: Page;
 
-  test.describe.configure({ mode: 'serial' });
+  test.describe.configure({ mode: 'serial', timeout: 45000 });
 
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext();

@@ -63,7 +63,7 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
       await page.waitForTimeout(500);
 
       // Verify tab is selected
-      await expect(tabElement).toHaveAttribute('data-selected', 'true');
+      await expect(tabElement).toHaveAttribute('aria-selected', 'true');
 
       // Verify tab panel content is visible (filter for visible panel since multiple exist)
       const tabPanel = page.locator('[role="tabpanel"]:not([aria-hidden="true"])').first();
@@ -369,7 +369,7 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     await page.waitForTimeout(1000);
 
     // Verify Processing tab is selected
-    await expect(processingTab).toHaveAttribute('data-selected', 'true');
+    await expect(processingTab).toHaveAttribute('aria-selected', 'true');
 
     // When: Navigate to dashboard
     await page.goto('/');
@@ -380,7 +380,7 @@ test.describe('Settings Navigation and Configuration Journey (NEM-2049)', () => 
     await page.waitForTimeout(1500);
 
     // Then: A tab should be selected (may be default or remembered)
-    const anySelectedTab = page.locator('[role="tab"][data-selected="true"]');
+    const anySelectedTab = page.locator('[role="tab"][aria-selected="true"]');
     await expect(anySelectedTab).toBeVisible();
   });
 
