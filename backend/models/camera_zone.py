@@ -11,6 +11,7 @@ to distinguish detection polygons from logical Areas in the organizational hiera
 
 import enum
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
@@ -18,7 +19,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.time_utils import utc_now
 
-from .camera import Base, Camera
+from .camera import Base
+
+if TYPE_CHECKING:
+    from .camera import Camera
+    from .zone_anomaly import ZoneAnomaly
+    from .zone_baseline import ZoneActivityBaseline
+    from .zone_household_config import ZoneHouseholdConfig
 
 
 class CameraZoneType(str, enum.Enum):
@@ -99,6 +106,23 @@ class CameraZone(Base):
 
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="camera_zones")
+    household_config: Mapped[ZoneHouseholdConfig | None] = relationship(
+        "ZoneHouseholdConfig",
+        back_populates="zone",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    activity_baseline: Mapped[ZoneActivityBaseline | None] = relationship(
+        "ZoneActivityBaseline",
+        back_populates="zone",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    anomalies: Mapped[list[ZoneAnomaly]] = relationship(
+        "ZoneAnomaly",
+        back_populates="zone",
+        cascade="all, delete-orphan",
+    )
 
     # Indexes for common queries
     __table_args__ = (
