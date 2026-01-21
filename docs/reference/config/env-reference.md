@@ -448,6 +448,26 @@ API_KEYS=["key1-here", "key2-here"]
 | `QUEUE_OVERFLOW_POLICY`        | No       | `dlq`   | -          | `dlq`, `reject`, or `drop_oldest` |
 | `QUEUE_BACKPRESSURE_THRESHOLD` | No       | `0.8`   | 0.5-1.0    | Start warnings at this fill ratio |
 
+### Queue Overflow Policy Options
+
+When the queue reaches `QUEUE_MAX_SIZE`, the system applies the configured overflow policy:
+
+| Policy        | Behavior                                                                         | Use Case                                        |
+| ------------- | -------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `dlq`         | **Default.** Move overflow items to dead-letter queue for later retry/inspection | Production - preserves all data for recovery    |
+| `reject`      | Reject new items with an error; existing items preserved                         | Strict mode - alerts immediately on capacity    |
+| `drop_oldest` | Discard oldest items to make room for new ones                                   | High-throughput - prioritizes recent detections |
+
+**Consequences by policy:**
+
+- **`dlq` (default):** Overflowed items are moved to `dlq:detection_queue` or `dlq:analysis_queue`. No data loss but requires monitoring DLQ depth. Use `/api/dlq/stats` to check and `/api/dlq/requeue-all/{queue_name}` to recover items.
+
+- **`reject`:** New detections are dropped when queue is full. Backend logs error `Queue overflow: item rejected`. Useful for alerting on capacity issues but causes immediate data loss.
+
+- **`drop_oldest`:** Oldest queued items are removed to make space. Prioritizes freshness over completeness. May result in missed security events from earlier timeframes.
+
+> **Recommendation:** Use `dlq` (default) for production deployments. Monitor `hsi:queue:dlq:*` Redis keys or the `/api/dlq/stats` endpoint to detect overflow conditions.
+
 ---
 
 ## Dead Letter Queue (DLQ)
