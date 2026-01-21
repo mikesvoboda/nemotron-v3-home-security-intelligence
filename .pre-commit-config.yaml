@@ -1,5 +1,5 @@
 # Pre-commit hooks configuration
-# Install: pip install pre-commit && pre-commit install && pre-commit install --hook-type pre-push
+# Install: pip install pre-commit && pre-commit install && pre-commit install --hook-type pre-push && pre-commit install --hook-type commit-msg
 # Run all: pre-commit run --all-files
 #
 # Performance Notes:
@@ -13,12 +13,15 @@
 #       Job 1: Backend unit tests with 85% coverage (pytest)
 #       Job 2: E2E + Accessibility tests (Playwright Chromium)
 #       Job 3: API types contract check (openapi-typescript)
+#       Job 4: Backend integration tests (subset for speed)
+#       Job 5: Frontend unit tests (vitest with coverage)
 #   - CI: Full test suite (unit + integration + E2E multi-browser)
 #   - Local dev: Use ./scripts/validate.sh for full validation before PRs
 #
 # Skipping Hooks (emergencies only):
 #   SKIP=parallel-tests git push         # Skip all parallel tests on push
 #   git push --no-verify                  # Skip ALL pre-push hooks (use sparingly!)
+#   git commit --no-verify               # Skip commit-msg linting (use sparingly!)
 #
 # To run full tests manually before pushing:
 #   ./scripts/validate.sh              # Full backend + frontend validation
@@ -42,6 +45,25 @@ repos:
       - id: detect-private-key
         # Exclude test files that contain mock/fake private keys for testing
         exclude: ^backend/tests/.*test_config\.py$
+
+  # Commit message linting - enforces conventional commit format
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args:
+          - feat
+          - fix
+          - docs
+          - chore
+          - refactor
+          - test
+          - style
+          - perf
+          - build
+          - ci
+          - revert
 
   # Secret detection - prevents committing secrets and credentials
   # Uses .secrets.baseline for known false positives
@@ -186,6 +208,23 @@ repos:
         files: ^frontend/.*\.(ts|tsx)$
         pass_filenames: false
 
+  # Dependency lock consistency checks
+  - repo: local
+    hooks:
+      - id: uv-lock-check
+        name: Check uv lock file is up-to-date
+        entry: bash -c 'cd "$0" && uv lock --check' .
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+
+      - id: npm-install-check
+        name: Check npm dependencies are installed
+        entry: bash -c 'cd frontend && npm ci --prefer-offline --no-audit --dry-run'
+        language: system
+        files: ^frontend/(package\.json|package-lock\.json)$
+        pass_filenames: false
+
   # Test validation hooks
   # NOTE: Full test suite runs in CI. Pre-commit focuses on fast lint/format checks.
   - repo: local
@@ -201,14 +240,16 @@ repos:
         always_run: true
         stages: [pre-push]
 
-      # Parallel test runner - runs 3 jobs concurrently to minimize push time
+      # Parallel test runner - runs 5 jobs concurrently to minimize push time
       # Job 1: Backend unit tests with 85% coverage (pytest) - ~2-3 min
       # Job 2: E2E + Accessibility tests (Playwright Chromium) - ~30-60s
       # Job 3: API types contract check (openapi-typescript) - ~10-20s
-      # Total time: max(job1, job2, job3) instead of sum (~60-70% faster)
+      # Job 4: Backend integration tests (subset for speed) - ~30-60s
+      # Job 5: Frontend unit tests (vitest with coverage) - ~10-30s
+      # Total time: max(job1, job2, job3, job4, job5) instead of sum (~60-70% faster)
       # Skip with: SKIP=parallel-tests git push
       - id: parallel-tests
-        name: Parallel Tests (Unit + E2E + API Types)
+        name: Parallel Tests (Unit + Integration + E2E + Frontend + API Types)
         entry: ./scripts/pre-push-tests.sh
         language: script
         pass_filenames: false

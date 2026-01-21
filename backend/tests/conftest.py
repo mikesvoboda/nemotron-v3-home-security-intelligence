@@ -21,6 +21,7 @@ Root Fixtures (backend/tests/conftest.py - THIS FILE):
         - mock_detector_client: RT-DETR detector service mock
         - mock_nemotron_client: Nemotron LLM service mock
         - mock_baseline_service: Baseline service mock
+        - mock_websocket_client: Comprehensive WebSocket client mock
         - mock_settings: Application settings mock
 
     Factory Fixtures:
@@ -85,6 +86,12 @@ Hypothesis Configuration:
 - ci: 200 examples, extended deadline for slower CI environments
 - fast: 10 examples for quick smoke tests during development
 - debug: 10 examples with verbose output for debugging failures
+
+Domain-Specific Hypothesis Strategies:
+- See backend/tests/hypothesis_strategies.py for comprehensive property-based testing strategies
+- Includes strategies for: camera IDs, detection bboxes, risk scores, confidence values,
+  timestamps, RTSP URLs, detection labels, polygon coordinates, and composite model instances
+- Use with @given decorator from hypothesis for property-based tests
 
 Flaky Test Detection:
 - Tests marked with @pytest.mark.flaky are quarantined (failures don't fail CI)
@@ -1092,10 +1099,11 @@ def unique_id(prefix: str = "test") -> str:
 
 
 # =============================================================================
-# Consolidated Mock Fixtures (NEM-1448)
+# Consolidated Mock Fixtures (NEM-1448, NEM-3152)
 # =============================================================================
 # These fixtures consolidate common mock patterns to reduce duplication across tests.
 # See backend/tests/mock_utils.py for factory functions that can be used directly.
+# WebSocket utilities are available in backend/tests/websocket_utils.py.
 
 
 @pytest.fixture
@@ -1505,6 +1513,98 @@ def mock_baseline_service() -> AsyncMock:
     service.get_baseline = AsyncMock(return_value=None)
     service.check_anomaly = AsyncMock(return_value=False)
     return service
+
+
+@pytest.fixture
+def mock_websocket_client() -> MagicMock:
+    """Create a comprehensive mock WebSocket client for testing.
+
+    Returns a MagicMock configured as a WebSocket with:
+    - Connection state tracking (connected/disconnected)
+    - Message tracking (sent messages captured)
+    - Common operations: connect, disconnect, send, receive, subscribe, unsubscribe
+    - Error injection support for testing error handling
+    - Query params and headers support
+    - Async context manager support
+
+    Usage:
+        def test_websocket_broadcast(mock_websocket_client):
+            # Configure behavior
+            mock_websocket_client.application_state.CONNECTED = WebSocketState.CONNECTED
+
+            # Simulate sending message
+            await mock_websocket_client.send_text('{"type": "event", "data": {...}}')
+
+            # Verify message was sent
+            assert mock_websocket_client.send_text.called
+            assert len(mock_websocket_client.sent_messages) == 1
+
+            # Simulate receiving message
+            mock_websocket_client.receive_text.return_value = '{"action": "ping"}'
+    """
+    from fastapi.websockets import WebSocketState
+
+    websocket = MagicMock()
+
+    # Connection state tracking
+    websocket.application_state = MagicMock()
+    websocket.application_state.CONNECTED = WebSocketState.CONNECTED
+    websocket.application_state.DISCONNECTED = WebSocketState.DISCONNECTED
+    websocket.client_state = WebSocketState.DISCONNECTED
+
+    # Track sent messages for verification
+    websocket.sent_messages = []
+
+    # Connection lifecycle methods
+    async def mock_accept():
+        websocket.client_state = WebSocketState.CONNECTED
+
+    async def mock_close(code: int = 1000):
+        websocket.client_state = WebSocketState.DISCONNECTED
+        websocket.close_code = code
+
+    websocket.accept = AsyncMock(side_effect=mock_accept)
+    websocket.close = AsyncMock(side_effect=mock_close)
+    websocket.close_code = None
+
+    # Message sending methods
+    async def mock_send_text(message: str):
+        websocket.sent_messages.append({"type": "text", "data": message})
+
+    async def mock_send_json(data: dict):
+        websocket.sent_messages.append({"type": "json", "data": data})
+
+    async def mock_send_bytes(data: bytes):
+        websocket.sent_messages.append({"type": "bytes", "data": data})
+
+    websocket.send_text = AsyncMock(side_effect=mock_send_text)
+    websocket.send_json = AsyncMock(side_effect=mock_send_json)
+    websocket.send_bytes = AsyncMock(side_effect=mock_send_bytes)
+
+    # Message receiving methods (default to returning None)
+    websocket.receive_text = AsyncMock(return_value=None)
+    websocket.receive_json = AsyncMock(return_value=None)
+    websocket.receive_bytes = AsyncMock(return_value=None)
+
+    # Query parameters and headers
+    websocket.query_params = {}
+    websocket.headers = {}
+
+    # Subscription tracking
+    websocket.subscriptions = set()
+
+    # Error injection support
+    websocket.inject_error = None  # Set to exception to inject error on next operation
+
+    # Async iteration support (for message streaming)
+    async def mock_iter():
+        # Empty async generator for default behavior
+        for _ in []:
+            yield
+
+    websocket.__aiter__ = mock_iter
+
+    return websocket
 
 
 # =============================================================================
