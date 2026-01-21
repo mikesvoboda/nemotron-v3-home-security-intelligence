@@ -201,6 +201,15 @@ run_backend_validation() {
         exit 1
     fi
     print_success "Backend tests passed with sufficient coverage"
+
+    # Optional: Run prompt evaluation (commented out by default)
+    # Requires Nemotron service or uses mock mode
+    # print_step "Running prompt evaluation (optional)..."
+    # if ! uv run python -m backend.evaluation.harness --mock --output reports/evaluation.json; then
+    #     print_warning "Prompt evaluation failed (not blocking validation)"
+    # else
+    #     print_success "Prompt evaluation completed"
+    # fi
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

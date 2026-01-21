@@ -1575,3 +1575,63 @@ def zone_factory():
     from backend.tests.factories import ZoneFactory
 
     return ZoneFactory
+
+
+# =============================================================================
+# NeMo Data Designer Synthetic Scenarios (NEM-3230)
+# =============================================================================
+# These fixtures provide access to pre-generated synthetic scenarios for
+# prompt evaluation and testing.
+
+SYNTHETIC_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "synthetic"
+
+
+@pytest.fixture(scope="session")
+def synthetic_scenarios() -> Generator:
+    """Load pre-generated NeMo Data Designer scenarios.
+
+    Returns a pandas DataFrame with synthetic security scenarios for testing.
+    Skips if scenarios file doesn't exist or pandas is not installed.
+
+    Usage:
+        def test_with_scenarios(synthetic_scenarios):
+            assert len(synthetic_scenarios) > 0
+            assert "scenario_type" in synthetic_scenarios.columns
+    """
+    # Check if pandas is available
+    try:
+        import pandas as pd
+    except ImportError:
+        pytest.skip("pandas not installed (required for synthetic scenarios)")
+
+    parquet_path = SYNTHETIC_FIXTURES_DIR / "scenarios.parquet"
+    if not parquet_path.exists():
+        pytest.skip(
+            "Synthetic scenarios not generated yet. Run tools/nemo_data_designer/generate_scenarios.py"
+        )
+
+    yield pd.read_parquet(parquet_path)
+
+
+@pytest.fixture(scope="session")
+def scenario_by_type(synthetic_scenarios):
+    """Group scenarios by type for targeted testing.
+
+    Returns a dictionary mapping scenario types to DataFrames filtered by that type.
+    Skips if synthetic_scenarios is not available.
+
+    Usage:
+        def test_threat_scenarios(scenario_by_type):
+            threat_scenarios = scenario_by_type["threat"]
+            for scenario in threat_scenarios.itertuples():
+                assert scenario.ground_truth_range[0] >= 70  # Threats score high
+    """
+    if synthetic_scenarios is None:
+        pytest.skip("Synthetic scenarios not available")
+
+    return {
+        "normal": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "normal"],
+        "suspicious": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "suspicious"],
+        "threat": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "threat"],
+        "edge_case": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "edge_case"],
+    }

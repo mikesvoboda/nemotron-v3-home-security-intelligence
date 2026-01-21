@@ -361,6 +361,7 @@ markers = [
     "db: mark test as requiring database access",
     "redis: mark test as requiring Redis access",
     "requires_debug_mode: mark test as validating DEBUG=false enforcement (CI security check)",
+    "prompt_evaluation: mark test as prompt evaluation (requires synthetic scenarios and Nemotron service or mock mode)",
 ]
 
 [tool.coverage.run]
