@@ -775,50 +775,72 @@ This document lists all screenshots needed for the user documentation. Each entr
 
 Use this checklist to track screenshot capture progress:
 
-- [ ] placeholder-dashboard-overview.png
-- [ ] placeholder-header-health.png
-- [ ] placeholder-quick-stats.png
-- [ ] placeholder-risk-gauge.png
-- [ ] placeholder-risk-gauge-states.png (composite)
-- [ ] placeholder-camera-grid.png
-- [ ] placeholder-activity-feed.png
-- [ ] placeholder-event-timeline.png
-- [ ] placeholder-timeline-filters.png
-- [ ] placeholder-event-detail-modal.png
-- [ ] placeholder-detection-image.png
-- [ ] placeholder-alerts-page.png
-- [ ] placeholder-risk-level-guide.png (infographic)
-- [ ] placeholder-alert-cards-comparison.png (composite)
-- [ ] placeholder-settings-page.png
-- [ ] placeholder-settings-cameras.png
-- [ ] placeholder-settings-ai-models.png
-- [ ] placeholder-dashboard-full-overview.png
-- [ ] placeholder-dashboard-risk-gauge.png
-- [ ] placeholder-dashboard-camera-grid.png
-- [ ] placeholder-dashboard-gpu-stats.png
-- [ ] placeholder-dashboard-activity-feed.png
-- [ ] placeholder-getting-started-dashboard.png
-- [ ] placeholder-getting-started-gauge.png
-- [ ] placeholder-dashboard-tutorial-annotated.png (annotated)
-- [ ] placeholder-event-detail-complete.png
-- [ ] placeholder-alerts-page-view.png
-- [ ] placeholder-sidebar-navigation.png
-- [ ] placeholder-timeline-full-page.png
-- [ ] placeholder-event-card-detail.png
-- [ ] placeholder-timeline-filters-expanded.png
-- [ ] placeholder-understanding-risk-scale.png (infographic)
-- [ ] placeholder-ai-reasoning-section.png
-- [ ] placeholder-alerts-notifications-page.png
-- [ ] placeholder-notification-settings.png
-- [ ] placeholder-settings-full-overview.png
-- [ ] placeholder-settings-cameras-tab.png
-- [ ] placeholder-settings-ai-models-tab.png
-- [ ] placeholder-search-interface.png
-- [ ] placeholder-search-results.png
-- [ ] placeholder-logs-dashboard-full.png
-- [ ] placeholder-log-detail-modal.png
+- [x] placeholder-dashboard-overview.png
+- [x] placeholder-header-health.png
+- [x] placeholder-quick-stats.png
+- [x] placeholder-risk-gauge.png
+- [ ] placeholder-risk-gauge-states.png (composite) - **Requires manual creation**
+- [x] placeholder-camera-grid.png
+- [x] placeholder-activity-feed.png
+- [x] placeholder-event-timeline.png
+- [x] placeholder-timeline-filters.png
+- [x] placeholder-event-detail-modal.png
+- [ ] placeholder-detection-image.png - **Requires actual detection with bounding boxes**
+- [x] placeholder-alerts-page.png
+- [ ] placeholder-risk-level-guide.png (infographic) - **Requires design software**
+- [ ] placeholder-alert-cards-comparison.png (composite) - **Requires manual creation**
+- [x] placeholder-settings-page.png
+- [x] placeholder-settings-cameras.png (captured as settings-cameras-tab.png)
+- [x] placeholder-settings-ai-models.png (captured as settings-ai-models-tab.png)
+- [x] placeholder-dashboard-full-overview.png
+- [x] placeholder-dashboard-risk-gauge.png
+- [x] placeholder-dashboard-camera-grid.png
+- [x] placeholder-dashboard-gpu-stats.png
+- [x] placeholder-dashboard-activity-feed.png
+- [x] placeholder-getting-started-dashboard.png
+- [x] placeholder-getting-started-gauge.png
+- [ ] placeholder-dashboard-tutorial-annotated.png (annotated) - **Requires annotation overlays**
+- [ ] placeholder-event-detail-complete.png - **Requires full modal view with all sections**
+- [x] placeholder-alerts-page-view.png
+- [x] placeholder-sidebar-navigation.png
+- [x] placeholder-timeline-full-page.png
+- [ ] placeholder-event-card-detail.png - **Requires isolated event card capture**
+- [x] placeholder-timeline-filters-expanded.png
+- [ ] placeholder-understanding-risk-scale.png (infographic) - **Requires design software**
+- [ ] placeholder-ai-reasoning-section.png - **Requires modal with AI reasoning visible**
+- [x] placeholder-alerts-notifications-page.png
+- [x] placeholder-notification-settings.png
+- [x] placeholder-settings-full-overview.png
+- [x] placeholder-settings-cameras-tab.png
+- [x] placeholder-settings-ai-models-tab.png
+- [x] placeholder-search-interface.png
+- [x] placeholder-search-results.png
+- [x] placeholder-logs-dashboard-full.png
+- [ ] placeholder-log-detail-modal.png - **Requires log entry click interaction**
 
-**Total: 42 screenshots** (38 actual screenshots + 4 composite/infographic images)
+**Capture Progress: 31/42 screenshots captured**
+
+### Screenshots Requiring Manual Work
+
+The following screenshots require manual creation or special conditions:
+
+1. **Composite/Infographic images** (require design software):
+
+   - `placeholder-risk-gauge-states.png` - Four risk gauge states side by side
+   - `placeholder-risk-level-guide.png` - Horizontal risk scale visualization
+   - `placeholder-alert-cards-comparison.png` - Four alert cards comparison
+   - `placeholder-understanding-risk-scale.png` - Thermometer-style risk scale
+
+2. **Annotated images** (require annotation software):
+
+   - `placeholder-dashboard-tutorial-annotated.png` - Dashboard with numbered callouts
+
+3. **Special UI state images** (require specific interactions):
+   - `placeholder-detection-image.png` - Image with AI bounding boxes
+   - `placeholder-event-detail-complete.png` - Full event modal with all sections
+   - `placeholder-event-card-detail.png` - Isolated single event card
+   - `placeholder-ai-reasoning-section.png` - Modal showing AI reasoning section
+   - `placeholder-log-detail-modal.png` - Log detail modal after clicking log row
 
 ---
 
