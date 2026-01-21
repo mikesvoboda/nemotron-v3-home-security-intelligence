@@ -22,10 +22,10 @@ Add a dedicated Distributed Tracing page to the frontend that embeds Grafana's E
 
 ### Why This Approach
 
-| Alternative | Reason Not Chosen |
-|-------------|-------------------|
-| Iframe Jaeger directly | Light theme only, no metric correlation |
-| Native React components | High development effort, reinventing wheel |
+| Alternative                | Reason Not Chosen                                             |
+| -------------------------- | ------------------------------------------------------------- |
+| Iframe Jaeger directly     | Light theme only, no metric correlation                       |
+| Native React components    | High development effort, reinventing wheel                    |
 | Replace with Grafana Tempo | Infrastructure migration risk, lose Jaeger's trace comparison |
 
 ### Benefits of Chosen Approach
@@ -232,7 +232,13 @@ environment:
  * - Correlation to metrics
  */
 
-import { Activity, RefreshCw, ExternalLink, AlertCircle, SplitSquareHorizontal } from 'lucide-react';
+import {
+  Activity,
+  RefreshCw,
+  ExternalLink,
+  AlertCircle,
+  SplitSquareHorizontal,
+} from 'lucide-react';
 import { useEffect, useState, useRef, useCallback } from 'react';
 
 import { fetchConfig } from '../../services/api';
@@ -286,14 +292,18 @@ export default function TracingPage() {
   // Construct Grafana Explore URL
   const getExploreUrl = () => {
     const baseParams = 'orgId=1&kiosk=1&theme=dark';
-    const jaegerQuery = encodeURIComponent(JSON.stringify({
-      datasource: 'Jaeger',
-      queries: [{
-        refId: 'A',
-        queryType: viewMode === 'search' ? 'search' : 'dependencyGraph',
-        service: 'nemotron-backend'
-      }]
-    }));
+    const jaegerQuery = encodeURIComponent(
+      JSON.stringify({
+        datasource: 'Jaeger',
+        queries: [
+          {
+            refId: 'A',
+            queryType: viewMode === 'search' ? 'search' : 'dependencyGraph',
+            service: 'nemotron-backend',
+          },
+        ],
+      })
+    );
     return `${grafanaUrl}/explore?${baseParams}&left=${jaegerQuery}`;
   };
 
@@ -327,9 +337,7 @@ export default function TracingPage() {
             <button
               onClick={() => setViewMode('search')}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                viewMode === 'search'
-                  ? 'bg-[#76B900] text-black'
-                  : 'text-gray-400 hover:text-white'
+                viewMode === 'search' ? 'bg-[#76B900] text-black' : 'text-gray-400 hover:text-white'
               }`}
               data-testid="view-mode-search"
             >
@@ -428,7 +436,7 @@ const TracingPage = lazy(() =>
 );
 
 // Add route (after /operations)
-<Route path="/tracing" element={<TracingPage />} />
+<Route path="/tracing" element={<TracingPage />} />;
 ```
 
 #### Navigation Configuration
@@ -460,6 +468,7 @@ import { Activity } from 'lucide-react';
 **File:** `frontend/src/components/tracing/TracingPage.test.tsx`
 
 See Section 5 of the brainstorming session for complete test implementation covering:
+
 - Rendering states (loading, loaded, error)
 - View mode toggle functionality
 - External links (Compare Traces, Open Jaeger)
@@ -469,15 +478,15 @@ See Section 5 of the brainstorming session for complete test implementation cove
 
 ## File Summary
 
-| File | Action | Lines Changed |
-|------|--------|---------------|
-| `monitoring/grafana/provisioning/datasources/prometheus.yml` | Edit | +120 |
-| `docker-compose.prod.yml` | Edit | +4 |
-| `frontend/src/components/tracing/TracingPage.tsx` | Create | ~180 |
-| `frontend/src/components/tracing/TracingPage.test.tsx` | Create | ~120 |
-| `frontend/src/components/tracing/index.ts` | Create | ~1 |
-| `frontend/src/components/layout/sidebarNav.ts` | Edit | +2 |
-| `frontend/src/App.tsx` | Edit | +4 |
+| File                                                         | Action | Lines Changed |
+| ------------------------------------------------------------ | ------ | ------------- |
+| `monitoring/grafana/provisioning/datasources/prometheus.yml` | Edit   | +120          |
+| `docker-compose.prod.yml`                                    | Edit   | +4            |
+| `frontend/src/components/tracing/TracingPage.tsx`            | Create | ~180          |
+| `frontend/src/components/tracing/TracingPage.test.tsx`       | Create | ~120          |
+| `frontend/src/components/tracing/index.ts`                   | Create | ~1            |
+| `frontend/src/components/layout/sidebarNav.ts`               | Edit   | +2            |
+| `frontend/src/App.tsx`                                       | Edit   | +4            |
 
 ## Architecture Diagram
 

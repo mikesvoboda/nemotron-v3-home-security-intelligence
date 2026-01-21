@@ -53,24 +53,24 @@ Expand the observability stack with centralized log aggregation (Loki), continuo
 
 ## Design Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Implementation approach | Incremental (Loki → Pyroscope → Alloy) | Lower risk, easier debugging |
-| Log retention | 30 days | Matches metrics retention |
-| Profile targets | Backend + AI services | Cover orchestration and inference |
-| Profiling method | Hybrid (eBPF for AI, SDK for backend) | No code changes to AI services, finer control for backend |
-| Alloy role | Unified collector | Single config point for all telemetry |
-| Resource budget | Moderate (2-4GB RAM, 1-2 CPU) | Production-quality without over-provisioning |
-| Container runtime | Podman | Existing infrastructure |
-| Monitoring services | Required (not optional) | All observability in production by default |
+| Decision                | Choice                                 | Rationale                                                 |
+| ----------------------- | -------------------------------------- | --------------------------------------------------------- |
+| Implementation approach | Incremental (Loki → Pyroscope → Alloy) | Lower risk, easier debugging                              |
+| Log retention           | 30 days                                | Matches metrics retention                                 |
+| Profile targets         | Backend + AI services                  | Cover orchestration and inference                         |
+| Profiling method        | Hybrid (eBPF for AI, SDK for backend)  | No code changes to AI services, finer control for backend |
+| Alloy role              | Unified collector                      | Single config point for all telemetry                     |
+| Resource budget         | Moderate (2-4GB RAM, 1-2 CPU)          | Production-quality without over-provisioning              |
+| Container runtime       | Podman                                 | Existing infrastructure                                   |
+| Monitoring services     | Required (not optional)                | All observability in production by default                |
 
 ## New Services
 
-| Service | Image | RAM | CPU | Storage | Purpose |
-|---------|-------|-----|-----|---------|---------|
-| **Loki** | `grafana/loki:2.9.4` | 512MB | 0.25 | 2GB (30d) | Log aggregation |
-| **Pyroscope** | `grafana/pyroscope:1.4.0` | 512MB | 0.25 | 1GB (30d) | Continuous profiling |
-| **Alloy** | `grafana/alloy:v1.0.0` | 768MB | 0.5 | - | Unified telemetry collector |
+| Service       | Image                     | RAM   | CPU  | Storage   | Purpose                     |
+| ------------- | ------------------------- | ----- | ---- | --------- | --------------------------- |
+| **Loki**      | `grafana/loki:2.9.4`      | 512MB | 0.25 | 2GB (30d) | Log aggregation             |
+| **Pyroscope** | `grafana/pyroscope:1.4.0` | 512MB | 0.25 | 1GB (30d) | Continuous profiling        |
+| **Alloy**     | `grafana/alloy:v1.0.0`    | 768MB | 0.5  | -         | Unified telemetry collector |
 
 **Total new resources:** ~1.8GB RAM, 1 CPU core
 
@@ -108,7 +108,7 @@ schema_config:
         period: 24h
 
 limits_config:
-  retention_period: 720h  # 30 days
+  retention_period: 720h # 30 days
   ingestion_rate_mb: 4
   ingestion_burst_size_mb: 8
 
@@ -130,12 +130,12 @@ storage:
 
 limits:
   max_query_length: 24h
-  max_query_lookback: 720h  # 30 days
+  max_query_lookback: 720h # 30 days
 
 retention:
-  max_retention_period: 720h  # 30 days
+  max_retention_period: 720h # 30 days
 
-scrape_configs: []  # Alloy handles scraping via eBPF
+scrape_configs: [] # Alloy handles scraping via eBPF
 ```
 
 ### Alloy Configuration (Podman-compatible)
@@ -332,30 +332,30 @@ volumes:
 **Add to each AI service in `docker-compose.prod.yml`:**
 
 ```yaml
-  ai-detector:
-    labels:
-      pyroscope.profile: "true"
-      pyroscope.service: "ai-detector"
+ai-detector:
+  labels:
+    pyroscope.profile: 'true'
+    pyroscope.service: 'ai-detector'
 
-  ai-llm:
-    labels:
-      pyroscope.profile: "true"
-      pyroscope.service: "ai-llm"
+ai-llm:
+  labels:
+    pyroscope.profile: 'true'
+    pyroscope.service: 'ai-llm'
 
-  ai-florence:
-    labels:
-      pyroscope.profile: "true"
-      pyroscope.service: "ai-florence"
+ai-florence:
+  labels:
+    pyroscope.profile: 'true'
+    pyroscope.service: 'ai-florence'
 
-  ai-clip:
-    labels:
-      pyroscope.profile: "true"
-      pyroscope.service: "ai-clip"
+ai-clip:
+  labels:
+    pyroscope.profile: 'true'
+    pyroscope.service: 'ai-clip'
 
-  ai-enrichment:
-    labels:
-      pyroscope.profile: "true"
-      pyroscope.service: "ai-enrichment"
+ai-enrichment:
+  labels:
+    pyroscope.profile: 'true'
+    pyroscope.service: 'ai-enrichment'
 ```
 
 ### Grafana Datasources
@@ -363,45 +363,45 @@ volumes:
 **Add to `monitoring/grafana/provisioning/datasources/prometheus.yml`:**
 
 ```yaml
-  # Loki datasource for log aggregation
-  - name: Loki
-    type: loki
-    access: proxy
-    url: http://loki:3100
-    isDefault: false
-    editable: false
-    jsonData:
-      maxLines: 1000
-      derivedFields:
-        # Link logs to traces via trace_id
-        - name: TraceID
-          matcherRegex: "trace_id=([a-f0-9]+)"
-          url: "${__value.raw}"
-          datasourceUid: jaeger
-          urlDisplayLabel: "View Trace"
-        # Link logs to profiles via span_id
-        - name: ProfileLink
-          matcherRegex: "span_id=([a-f0-9]+)"
-          url: "${__value.raw}"
-          datasourceUid: pyroscope
-          urlDisplayLabel: "View Profile"
-
-  # Pyroscope datasource for continuous profiling
-  - name: Pyroscope
-    type: grafana-pyroscope-datasource
-    access: proxy
-    url: http://pyroscope:4040
-    isDefault: false
-    editable: false
-    jsonData:
-      # Enable trace-to-profile correlation
-      tracesToProfiles:
+# Loki datasource for log aggregation
+- name: Loki
+  type: loki
+  access: proxy
+  url: http://loki:3100
+  isDefault: false
+  editable: false
+  jsonData:
+    maxLines: 1000
+    derivedFields:
+      # Link logs to traces via trace_id
+      - name: TraceID
+        matcherRegex: 'trace_id=([a-f0-9]+)'
+        url: '${__value.raw}'
         datasourceUid: jaeger
-        tags:
-          - key: service.name
-            value: service
-        profileTypeId: "process_cpu:cpu:nanoseconds:cpu:nanoseconds"
-        customQuery: true
+        urlDisplayLabel: 'View Trace'
+      # Link logs to profiles via span_id
+      - name: ProfileLink
+        matcherRegex: 'span_id=([a-f0-9]+)'
+        url: '${__value.raw}'
+        datasourceUid: pyroscope
+        urlDisplayLabel: 'View Profile'
+
+# Pyroscope datasource for continuous profiling
+- name: Pyroscope
+  type: grafana-pyroscope-datasource
+  access: proxy
+  url: http://pyroscope:4040
+  isDefault: false
+  editable: false
+  jsonData:
+    # Enable trace-to-profile correlation
+    tracesToProfiles:
+      datasourceUid: jaeger
+      tags:
+        - key: service.name
+          value: service
+      profileTypeId: 'process_cpu:cpu:nanoseconds:cpu:nanoseconds'
+      customQuery: true
 ```
 
 ### Backend SDK Integration
@@ -450,6 +450,7 @@ LOG_FORMAT = (
 ### Phase 1: Loki (Log Aggregation)
 
 **Tasks:**
+
 1. Create `monitoring/loki/loki-config.yml`
 2. Add Loki service to `docker-compose.prod.yml`
 3. Add Alloy service (log collection pipeline only)
@@ -457,6 +458,7 @@ LOG_FORMAT = (
 5. Verify logs appear in Grafana Explore
 
 **Validation:**
+
 ```bash
 curl -s http://localhost:3100/ready  # Should return "ready"
 # In Grafana Explore: {job=~".+"}
@@ -467,6 +469,7 @@ curl -s http://localhost:3100/ready  # Should return "ready"
 ### Phase 2: Pyroscope (Profiling)
 
 **Tasks:**
+
 1. Create `monitoring/pyroscope/pyroscope-config.yml`
 2. Add Pyroscope service to `docker-compose.prod.yml`
 3. Enable eBPF pipeline in Alloy config
@@ -475,6 +478,7 @@ curl -s http://localhost:3100/ready  # Should return "ready"
 6. Verify flame graphs appear
 
 **Validation:**
+
 ```bash
 curl -s http://localhost:4040/ready  # Should return "ready"
 curl -s http://localhost:4040/api/v1/apps | jq .  # Should list AI services
@@ -485,12 +489,14 @@ curl -s http://localhost:4040/api/v1/apps | jq .  # Should list AI services
 ### Phase 3: Backend SDK Profiling
 
 **Tasks:**
+
 1. Add `pyroscope-io` to backend requirements
 2. Add profiling initialization to backend startup
 3. Rebuild backend container
 4. Verify backend profiles in Pyroscope
 
 **Validation:**
+
 ```bash
 curl -s http://localhost:4040/api/v1/apps | jq . | grep hsi-backend
 ```
@@ -500,11 +506,13 @@ curl -s http://localhost:4040/api/v1/apps | jq . | grep hsi-backend
 ### Phase 4: Trace Pipeline Migration
 
 **Tasks:**
+
 1. Update backend OTEL endpoint: `jaeger:4317` → `alloy:4317`
 2. Enable OTLP receiver in Alloy config
 3. Verify traces flow through Alloy to Jaeger
 
 **Validation:**
+
 ```bash
 curl http://localhost:8000/api/health
 # Check Jaeger UI for trace from "hsi-backend"
@@ -515,11 +523,13 @@ curl http://localhost:8000/api/health
 ### Phase 5: Full Correlation
 
 **Tasks:**
+
 1. Add trace_id/span_id to backend log format
 2. Configure Grafana derived fields
 3. Verify log↔trace↔profile navigation
 
 **Validation:**
+
 1. Query Loki: `{container="backend"} |= "trace_id"`
 2. Click trace_id → Opens Jaeger trace
 3. Click span → Shows "View Profile" link
@@ -529,14 +539,14 @@ curl http://localhost:8000/api/health
 
 ## Correlation Matrix
 
-| From | To | How |
-|------|----|-----|
-| Trace span | Logs | Click span → Loki query with `trace_id` |
-| Trace span | Profile | Click span → Pyroscope flame graph |
-| Log line | Trace | Click `trace_id` in log → Jaeger trace view |
-| Log line | Profile | Click `span_id` → Pyroscope flame graph |
-| Metric alert | Logs | Grafana Explore split view |
-| Profile hotspot | Traces | Pyroscope → linked spans |
+| From            | To      | How                                         |
+| --------------- | ------- | ------------------------------------------- |
+| Trace span      | Logs    | Click span → Loki query with `trace_id`     |
+| Trace span      | Profile | Click span → Pyroscope flame graph          |
+| Log line        | Trace   | Click `trace_id` in log → Jaeger trace view |
+| Log line        | Profile | Click `span_id` → Pyroscope flame graph     |
+| Metric alert    | Logs    | Grafana Explore split view                  |
+| Profile hotspot | Traces  | Pyroscope → linked spans                    |
 
 ## Testing & Verification
 
@@ -589,30 +599,30 @@ echo "=== Verification Complete ==="
 
 ## Success Criteria
 
-| Criteria | Measurement |
-|----------|-------------|
-| Logs queryable | Can run `{container="backend"} \|= "ERROR"` in Grafana |
-| Log retention | Logs older than 30 days auto-deleted |
-| AI profiles visible | Flame graphs for all 5 AI services in Pyroscope |
-| Backend profiles visible | Async spans visible in hsi-backend flame graph |
-| Trace correlation | Click trace_id in log → opens Jaeger trace |
-| Profile correlation | Click span in Jaeger → opens Pyroscope flame graph |
-| Resource budget | Total new RAM < 2GB, CPU < 1 core |
-| No service disruption | All existing functionality unchanged |
+| Criteria                 | Measurement                                            |
+| ------------------------ | ------------------------------------------------------ |
+| Logs queryable           | Can run `{container="backend"} \|= "ERROR"` in Grafana |
+| Log retention            | Logs older than 30 days auto-deleted                   |
+| AI profiles visible      | Flame graphs for all 5 AI services in Pyroscope        |
+| Backend profiles visible | Async spans visible in hsi-backend flame graph         |
+| Trace correlation        | Click trace_id in log → opens Jaeger trace             |
+| Profile correlation      | Click span in Jaeger → opens Pyroscope flame graph     |
+| Resource budget          | Total new RAM < 2GB, CPU < 1 core                      |
+| No service disruption    | All existing functionality unchanged                   |
 
 ## Files Summary
 
-| File | Action |
-|------|--------|
-| `monitoring/loki/loki-config.yml` | Create |
-| `monitoring/pyroscope/pyroscope-config.yml` | Create |
-| `monitoring/alloy/config.alloy` | Create |
+| File                                                         | Action |
+| ------------------------------------------------------------ | ------ |
+| `monitoring/loki/loki-config.yml`                            | Create |
+| `monitoring/pyroscope/pyroscope-config.yml`                  | Create |
+| `monitoring/alloy/config.alloy`                              | Create |
 | `monitoring/grafana/provisioning/datasources/prometheus.yml` | Modify |
-| `docker-compose.prod.yml` | Modify |
-| `backend/pyproject.toml` | Modify |
-| `backend/core/telemetry.py` | Modify |
-| `backend/core/logging_config.py` | Modify |
-| `scripts/verify-observability.sh` | Create |
+| `docker-compose.prod.yml`                                    | Modify |
+| `backend/pyproject.toml`                                     | Modify |
+| `backend/core/telemetry.py`                                  | Modify |
+| `backend/core/logging_config.py`                             | Modify |
+| `scripts/verify-observability.sh`                            | Create |
 
 ## References
 

@@ -25,7 +25,7 @@ schema_config:
         period: 24h
 
 limits_config:
-  retention_period: 720h  # 30 days
+  retention_period: 720h # 30 days
   ingestion_rate_mb: 4
   ingestion_burst_size_mb: 8
 

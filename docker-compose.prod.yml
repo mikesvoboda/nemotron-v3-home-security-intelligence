@@ -76,8 +76,8 @@ services:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-detector'
     build:
-      context: ./ai/rtdetr
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ai/rtdetr/Dockerfile
     ports:
       - '8090:8090'
     volumes:
@@ -85,6 +85,9 @@ services:
       # Docker ignores the :U flag, making this backward compatible
       - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface:U
     environment:
+      - SERVICE_NAME=ai-detector
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-false}
+      - PYROSCOPE_URL=http://pyroscope:4040
       - RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}
       - RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}
     healthcheck:
@@ -147,13 +150,16 @@ services:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-florence'
     build:
-      context: ./ai/florence
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ai/florence/Dockerfile
     ports:
       - '8092:8092'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
     environment:
+      - SERVICE_NAME=ai-florence
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-false}
+      - PYROSCOPE_URL=http://pyroscope:4040
       - MODEL_PATH=/models/florence-2-large
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
@@ -178,13 +184,16 @@ services:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-clip'
     build:
-      context: ./ai/clip
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ai/clip/Dockerfile
     ports:
       - '8093:8093'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
     environment:
+      - SERVICE_NAME=ai-clip
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-false}
+      - PYROSCOPE_URL=http://pyroscope:4040
       - CLIP_MODEL_PATH=/models/clip-vit-l
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
@@ -209,8 +218,8 @@ services:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-enrichment'
     build:
-      context: ./ai/enrichment
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ai/enrichment/Dockerfile
     ports:
       - '8094:8094'
     volumes:
@@ -227,6 +236,9 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
     environment:
+      - SERVICE_NAME=ai-enrichment
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-false}
+      - PYROSCOPE_URL=http://pyroscope:4040
       # Existing models (now on-demand)
       - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
       - PET_MODEL_PATH=/models/pet-classifier
@@ -282,6 +294,9 @@ services:
       # SECURITY: Redis password authentication (optional, for production use)
       # Must match REDIS_PASSWORD set in the redis service
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      # Pyroscope continuous profiling (set PYROSCOPE_ENABLED=true to enable)
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-false}
+      - PYROSCOPE_URL=http://pyroscope:4040
       - RTDETR_URL=http://ai-detector:8090
       - NEMOTRON_URL=http://ai-llm:8091
       - FLORENCE_URL=http://ai-florence:8092
@@ -684,7 +699,9 @@ services:
           memory: 512M
 
   # Pyroscope for continuous profiling (NEM-3097)
-  # Collects CPU and memory profiles from application services
+  # Custom image with py-spy for Python process profiling
+  # Pyroscope for continuous profiling (NEM-3097)
+  # Services push profiles via py-spy when PYROSCOPE_ENABLED=true
   pyroscope:
     image: docker.io/grafana/pyroscope:1.4.0
     container_name: pyroscope
