@@ -63,6 +63,11 @@ const AIAuditPage = lazy(() =>
   import('./components/ai').then((module) => ({ default: module.AIAuditPage }))
 );
 
+// Pyroscope profiling
+const PyroscopePage = lazy(() =>
+  import('./components/pyroscope').then((module) => ({ default: module.PyroscopePage }))
+);
+
 // Operations (formerly System Monitoring)
 const OperationsPage = lazy(() =>
   import('./components/system').then((module) => ({ default: module.SystemMonitoringPage }))
@@ -109,6 +114,7 @@ export default function App() {
                             <Route path="/audit" element={<AuditLogPage />} />
                             <Route path="/ai" element={<AIPerformancePage />} />
                             <Route path="/ai-audit" element={<AIAuditPage />} />
+                            <Route path="/pyroscope" element={<PyroscopePage />} />
                             <Route path="/operations" element={<OperationsPage />} />
                             <Route path="/tracing" element={<TracingPage />} />
                             <Route path="/settings" element={<SettingsPage />} />
