@@ -1,0 +1,10 @@
+# Edge case test images
+# Expected risk score range: 20-60 (varies)
+
+# These test ambiguous scenarios where risk is unclear
+# Examples to add:
+# - halloween_costume.jpg
+# - heavy_rain_fog.jpg
+# - night_ir_illumination.jpg
+# - multiple_people_overlap.jpg
+# - unusual_camera_angle.jpg

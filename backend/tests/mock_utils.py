@@ -58,7 +58,7 @@ def create_mock_redis(
 
     # Configure additional methods
     for method_name, return_value in extra_methods.items():
-        if isinstance(return_value, (Mock, MagicMock, AsyncMock)):
+        if isinstance(return_value, Mock | MagicMock | AsyncMock):
             setattr(mock_redis, method_name, return_value)
         else:
             method_mock = AsyncMock(return_value=return_value)

@@ -1575,3 +1575,179 @@ def zone_factory():
     from backend.tests.factories import ZoneFactory
 
     return ZoneFactory
+
+
+# =============================================================================
+# NeMo Data Designer Synthetic Scenarios (NEM-3230)
+# =============================================================================
+# These fixtures provide access to pre-generated synthetic scenarios for
+# prompt evaluation and testing.
+
+SYNTHETIC_FIXTURES_DIR = Path(__file__).parent / "fixtures" / "synthetic"
+
+
+@pytest.fixture(scope="session")
+def synthetic_scenarios() -> Generator:
+    """Load pre-generated NeMo Data Designer scenarios.
+
+    Returns a pandas DataFrame with synthetic security scenarios for testing.
+    Skips if scenarios file doesn't exist or pandas is not installed.
+
+    Usage:
+        def test_with_scenarios(synthetic_scenarios):
+            assert len(synthetic_scenarios) > 0
+            assert "scenario_type" in synthetic_scenarios.columns
+    """
+    # Check if pandas is available
+    try:
+        import pandas as pd
+    except ImportError:
+        pytest.skip("pandas not installed (required for synthetic scenarios)")
+
+    parquet_path = SYNTHETIC_FIXTURES_DIR / "scenarios.parquet"
+    if not parquet_path.exists():
+        pytest.skip(
+            "Synthetic scenarios not generated yet. Run tools/nemo_data_designer/generate_scenarios.py"
+        )
+
+    yield pd.read_parquet(parquet_path)
+
+
+@pytest.fixture(scope="session")
+def scenario_by_type(synthetic_scenarios):
+    """Group scenarios by type for targeted testing.
+
+    Returns a dictionary mapping scenario types to DataFrames filtered by that type.
+    Skips if synthetic_scenarios is not available.
+
+    Usage:
+        def test_threat_scenarios(scenario_by_type):
+            threat_scenarios = scenario_by_type["threat"]
+            for scenario in threat_scenarios.itertuples():
+                assert scenario.ground_truth_range[0] >= 70  # Threats score high
+    """
+    if synthetic_scenarios is None:
+        pytest.skip("Synthetic scenarios not available")
+
+    return {
+        "normal": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "normal"],
+        "suspicious": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "suspicious"],
+        "threat": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "threat"],
+        "edge_case": synthetic_scenarios[synthetic_scenarios["scenario_type"] == "edge_case"],
+    }
+
+
+# =============================================================================
+# Enrichment Edge Case Fixtures (NEM-3232)
+# =============================================================================
+
+
+@pytest.fixture
+def mock_threat_detector():
+    """Mock threat detector with controlled outputs.
+
+    Provides a mock threat detection model that returns predictable results
+    for testing enrichment pipeline threat detection logic.
+
+    Returns:
+        MagicMock configured for threat detection
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    mock = MagicMock()
+    mock.detect = AsyncMock(
+        return_value=[
+            {
+                "threat_type": "weapon",
+                "confidence": 0.92,
+                "bbox": [100, 150, 80, 120],
+            }
+        ]
+    )
+    return mock
+
+
+@pytest.fixture
+def mock_model_zoo(request):
+    """Configurable mock for entire model zoo.
+
+    Provides a flexible mock ModelManager that can be configured per-test
+    to simulate different model availability and behavior scenarios.
+
+    Usage:
+        @pytest.mark.parametrize("mock_model_zoo", [
+            {"available_models": ["florence_2", "pose_estimation"]},
+        ], indirect=True)
+        def test_with_limited_models(mock_model_zoo):
+            # mock_model_zoo will only allow specified models
+            pass
+
+    Args:
+        request: pytest request fixture for parameterization
+
+    Returns:
+        MagicMock configured as ModelManager
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    # Get configuration from parametrize (if provided)
+    config = getattr(request, "param", {})
+    available_models = config.get("available_models", None)
+
+    mock_manager = MagicMock()
+
+    async def mock_get_model(model_name: str):
+        """Mock get_model that respects available_models constraint."""
+        if available_models is not None and model_name not in available_models:
+            raise RuntimeError(f"Model {model_name} not available")
+        mock_model = MagicMock()
+        mock_model.predict = AsyncMock(return_value=[])
+        return mock_model
+
+    mock_manager.get_model = AsyncMock(side_effect=mock_get_model)
+    mock_manager.status = MagicMock(
+        return_value={
+            "loaded_models": available_models or [],
+            "total_loaded_vram_mb": 0,
+            "load_counts": {},
+        }
+    )
+
+    return mock_manager
+
+
+@pytest.fixture
+def enrichment_scenarios():
+    """Load enrichment edge case scenarios for testing.
+
+    Provides access to pre-generated enrichment edge case scenarios including:
+    - Multi-threat scenarios
+    - Rare pose scenarios
+    - Boundary confidence scenarios
+    - OCR failure scenarios
+    - VRAM stress scenarios
+
+    Returns:
+        Dict mapping scenario type to list of ScenarioBundle instances
+
+    Raises:
+        pytest.skip: If scenario generation tools are not available
+    """
+    try:
+        from tools.nemo_data_designer.enrichment_scenarios import (
+            generate_boundary_confidence_scenarios,
+            generate_multi_threat_scenarios,
+            generate_ocr_failure_scenarios,
+            generate_rare_pose_scenarios,
+            generate_vram_stress_scenarios,
+        )
+    except ImportError:
+        pytest.skip("Enrichment scenario generators not available")
+
+    return {
+        "multi_threat": generate_multi_threat_scenarios(count=5),
+        "rare_pose": generate_rare_pose_scenarios(count=5),
+        "boundary_confidence": generate_boundary_confidence_scenarios(count=5),
+        "ocr_failure": generate_ocr_failure_scenarios(count=5),
+        "vram_stress": generate_vram_stress_scenarios(count=3),
+    }

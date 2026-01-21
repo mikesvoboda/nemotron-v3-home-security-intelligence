@@ -164,7 +164,7 @@ def categorize_exception(e: Exception, worker_name: str) -> str:
         return f"{worker_name}_memory_error"
 
     # Validation/data errors
-    if isinstance(e, (ValueError, TypeError, KeyError)):
+    if isinstance(e, ValueError | TypeError | KeyError):
         return f"{worker_name}_validation_error"
 
     # Redis-specific errors (check by module name)

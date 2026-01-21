@@ -338,7 +338,7 @@ async def test_job_progress_tracking(client: AsyncClient, mock_redis, integratio
 
     data = response.json()
     assert "progress" in data
-    assert isinstance(data["progress"], (int, float))
+    assert isinstance(data["progress"], int | float)
     assert 0 <= data["progress"] <= 100
 
 
