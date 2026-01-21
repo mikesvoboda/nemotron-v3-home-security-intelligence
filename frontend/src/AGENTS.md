@@ -218,13 +218,10 @@ Event-related components:
 
 #### `/components/logs/`
 
-Application logging components:
+System logs viewing via Grafana/Loki:
 
-- `LogsDashboard.tsx` - Main logs dashboard view
-- `LogsTable.tsx` - Paginated table of log entries
-- `LogFilters.tsx` - Log filtering controls
-- `LogDetailModal.tsx` - Detailed log entry modal
-- `LogStatsCards.tsx` - Statistics cards by log level
+- `LogsPage.tsx` - Main logs page embedding Grafana Loki dashboard
+- `LogsPage.test.tsx` - Test suite for LogsPage
 
 #### `/components/settings/`
 
@@ -424,7 +421,7 @@ All routes use lazy loading for code splitting. Defined in `App.tsx`:
 | `/analytics`  | `AnalyticsPage`        | Analytics and insights dashboard   |
 | `/alerts`     | `AlertsPage`           | Alert management and history       |
 | `/entities`   | `EntitiesPage`         | Entity tracking and management     |
-| `/logs`       | `LogsDashboard`        | Application logs viewer            |
+| `/logs`       | `LogsPage`             | System logs via Grafana/Loki       |
 | `/audit`      | `AuditLogPage`         | System audit log                   |
 | `/ai`         | `AIPerformancePage`    | AI model performance monitoring    |
 | `/ai-audit`   | `AIAuditPage`          | AI decision audit and analysis     |
