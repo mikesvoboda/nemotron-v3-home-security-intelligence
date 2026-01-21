@@ -30,8 +30,6 @@ import {
   fetchEventDetections,
   fetchEventEnrichments,
   createAnalysisStream,
-  fetchLogStats,
-  fetchLogs,
   getMediaUrl,
   getThumbnailUrl,
   getDetectionImageUrl,
@@ -73,9 +71,6 @@ import {
   type EventEnrichmentsResponse,
   type EventEnrichmentsQueryParams,
   type AnalysisStreamParams,
-  type LogStats,
-  type LogsResponse,
-  type LogsQueryParams,
   type ExportQueryParams,
   type EventSearchParams,
   type SearchResponse,
@@ -245,36 +240,6 @@ const mockDetection: Detection = {
 
 const mockDetectionListResponse: DetectionListResponse = {
   items: [mockDetection],
-  pagination: {
-    total: 1,
-    limit: 50,
-    offset: null,
-    cursor: null,
-    next_cursor: null,
-    has_more: false,
-  },
-};
-
-const mockLogStats: LogStats = {
-  total_today: 100,
-  errors_today: 5,
-  warnings_today: 10,
-  by_component: { frontend: 50, backend: 50 },
-  by_level: { INFO: 85, WARNING: 10, ERROR: 5 },
-  top_component: 'frontend',
-};
-
-const mockLogsResponse: LogsResponse = {
-  items: [
-    {
-      id: 1,
-      timestamp: '2025-01-01T10:00:00Z',
-      level: 'INFO',
-      component: 'frontend',
-      message: 'Test log message',
-      source: 'frontend',
-    },
-  ],
   pagination: {
     total: 1,
     limit: 50,
@@ -1934,88 +1899,6 @@ describe('Detections API', () => {
     it('includes full=true query parameter', () => {
       const url = getDetectionFullImageUrl(456);
       expect(url).toContain('?full=true');
-    });
-  });
-});
-
-describe('Logs API', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  describe('fetchLogStats', () => {
-    it('fetches log stats successfully', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockLogStats));
-
-      const result = await fetchLogStats();
-
-      expect(fetch).toHaveBeenCalledWith('/api/logs/stats', {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      expect(result.total_today).toBe(100);
-      expect(result.errors_today).toBe(5);
-    });
-  });
-
-  describe('fetchLogs', () => {
-    it('fetches logs without params', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockLogsResponse));
-
-      const result = await fetchLogs();
-
-      expect(fetch).toHaveBeenCalledWith('/api/logs', {
-        headers: { 'Content-Type': 'application/json' },
-      });
-      expect(result.items).toHaveLength(1);
-    });
-
-    it('fetches logs with all query params', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockLogsResponse));
-
-      const params: LogsQueryParams = {
-        level: 'ERROR',
-        component: 'frontend',
-        camera_id: 'cam-1',
-        source: 'backend',
-        search: 'error message',
-        start_date: '2025-01-01',
-        end_date: '2025-01-31',
-        limit: 25,
-        offset: 10,
-      };
-
-      await fetchLogs(params);
-
-      const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
-      expect(callUrl).toContain('level=ERROR');
-      expect(callUrl).toContain('component=frontend');
-      expect(callUrl).toContain('camera_id=cam-1');
-      expect(callUrl).toContain('source=backend');
-      expect(callUrl).toContain('search=error+message');
-      expect(callUrl).toContain('start_date=2025-01-01');
-      expect(callUrl).toContain('end_date=2025-01-31');
-      expect(callUrl).toContain('limit=25');
-      expect(callUrl).toContain('offset=10');
-    });
-
-    it('fetches logs with partial params', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockLogsResponse));
-
-      const params: LogsQueryParams = {
-        level: 'WARNING',
-        limit: 50,
-      };
-
-      await fetchLogs(params);
-
-      const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
-      expect(callUrl).toContain('level=WARNING');
-      expect(callUrl).toContain('limit=50');
-      expect(callUrl).not.toContain('component');
     });
   });
 });

@@ -132,12 +132,6 @@ export type PipelineStageLatency = components['schemas']['PipelineStageLatency']
 export type LatencyHistorySnapshot = components['schemas']['LatencyHistorySnapshot'];
 export type LatencyHistoryStageStats = components['schemas']['LatencyHistoryStageStats'];
 
-// Log types
-export type LogEntry = components['schemas']['LogEntry'];
-export type LogsResponse = components['schemas']['LogsResponse'];
-export type LogStats = components['schemas']['LogStats'];
-export type FrontendLogCreate = components['schemas']['FrontendLogCreate'];
-
 // DLQ types
 export type DLQJobResponse = components['schemas']['DLQJobResponse'];
 export type DLQJobsResponse = components['schemas']['DLQJobsResponse'];
