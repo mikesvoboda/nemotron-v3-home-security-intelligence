@@ -668,7 +668,15 @@ class ModelManager:
         logger.info(f"Loading model {model_name} (~{config.vram_mb}MB VRAM)")
 
         try:
-            model = await config.load_fn(config.path)
+            # Add Pyroscope label for per-model profiling
+            try:
+                import pyroscope
+
+                with pyroscope.tag_wrapper({"model": model_name}):
+                    model = await config.load_fn(config.path)
+            except ImportError:
+                # Pyroscope not installed, load without tagging
+                model = await config.load_fn(config.path)
             self._loaded_models[model_name] = model
 
             # Mark as available after successful load
