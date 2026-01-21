@@ -278,11 +278,13 @@ class TestNemotronAnalyzerConcurrencyLimits:
     @pytest.mark.asyncio
     async def test_call_llm_respects_semaphore_limit(self, mock_settings):
         """Test that _call_llm respects the semaphore concurrency limit."""
+        from backend.services.analyzer_facade import reset_analyzer_facade
         from backend.services.inference_semaphore import reset_inference_semaphore
         from backend.services.severity import reset_severity_service
         from backend.services.token_counter import reset_token_counter
 
-        # Reset services before test
+        # Reset services before test (facade caches semaphore, must reset both)
+        reset_analyzer_facade()
         reset_inference_semaphore()
         reset_severity_service()
         reset_token_counter()
@@ -346,10 +348,12 @@ class TestNemotronAnalyzerConcurrencyLimits:
     @pytest.mark.asyncio
     async def test_call_llm_releases_semaphore_on_error(self, mock_settings):
         """Test that _call_llm releases semaphore even when error occurs."""
+        from backend.services.analyzer_facade import reset_analyzer_facade
         from backend.services.inference_semaphore import reset_inference_semaphore
         from backend.services.severity import reset_severity_service
 
-        # Reset both services before test
+        # Reset services before test (facade caches semaphore, must reset both)
+        reset_analyzer_facade()
         reset_inference_semaphore()
         reset_severity_service()
 

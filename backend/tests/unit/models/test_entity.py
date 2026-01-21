@@ -121,8 +121,9 @@ class TestEntityModelInitialization:
 
         # Verify the column has a default function set
         assert id_col.default is not None
-        # The default callable should be uuid4 (verify by name)
-        assert id_col.default.arg.__name__ == "uuid4"
+        # The default callable should be uuid7 (verify by name)
+        # uuid7 provides time-ordered UUIDs for better database index performance
+        assert id_col.default.arg.__name__ == "uuid7"
 
     def test_entity_default_timestamps(self):
         """Test that timestamp defaults are properly defined on columns.

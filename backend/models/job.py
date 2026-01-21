@@ -6,8 +6,6 @@ enabling job tracking, filtering, and historical job data retention.
 Jobs go through states: QUEUED -> RUNNING -> COMPLETED/FAILED/CANCELLED
 """
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any

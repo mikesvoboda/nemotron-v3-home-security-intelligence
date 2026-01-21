@@ -4,8 +4,6 @@ This module provides persistent storage for AI model prompt configurations,
 allowing users to save and retrieve custom prompts, temperature, and token settings.
 """
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, Float, Index, Integer, String, Text, func

@@ -47,7 +47,7 @@ import asyncio
 import subprocess
 from collections.abc import Awaitable, Coroutine
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -55,8 +55,6 @@ if TYPE_CHECKING:
 from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
-
-T = TypeVar("T")
 
 
 async def async_sleep(seconds: float) -> None:
@@ -225,7 +223,7 @@ class AsyncTaskGroup:
         if self._tg is not None:
             await self._tg.__aexit__(exc_type, exc_val, exc_tb)
 
-    def create_task(self, coro: Coroutine[Any, Any, T]) -> asyncio.Task[T]:
+    def create_task[T](self, coro: Coroutine[Any, Any, T]) -> asyncio.Task[T]:
         """Create a task within this group.
 
         Args:
@@ -242,7 +240,7 @@ class AsyncTaskGroup:
         return self._tg.create_task(coro)
 
 
-async def bounded_gather(  # noqa: UP047 - Using TypeVar for broader compatibility
+async def bounded_gather[T](
     coros: list[Awaitable[T]],
     *,
     limit: int = 10,

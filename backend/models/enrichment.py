@@ -12,8 +12,6 @@ See: docs/plans/2026-01-19-model-zoo-prompt-improvements-design.md Section 6
 Related Linear issue: NEM-3042
 """
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 

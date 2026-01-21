@@ -19,12 +19,10 @@ Rule Evaluation:
     - Check cooldown before triggering (use dedup_key)
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from enum import StrEnum, auto
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
+from uuid import uuid7
 
 from sqlalchemy import (
     Boolean,
@@ -90,7 +88,7 @@ class Alert(Base):
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),
         primary_key=True,
-        default=lambda: str(uuid4()),
+        default=lambda: str(uuid7()),
     )
     event_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False
@@ -232,7 +230,7 @@ class AlertRule(Base):
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),
         primary_key=True,
-        default=lambda: str(uuid4()),
+        default=lambda: str(uuid7()),
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -15,11 +15,13 @@ __all__ = [
 ]
 
 import asyncio
+import base64
 import contextlib
 import json
 import random
 import ssl
 from collections.abc import AsyncGenerator, Awaitable, Callable
+from compression import zstd
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -84,6 +86,84 @@ class QueuePressureMetrics:
 
 class RedisClient:
     """Async Redis client with connection pooling, SSL/TLS support, and helper methods."""
+
+    # Compression prefix marker for identifying compressed data
+    # String prefix "Z:" to identify Zstd-compressed payloads (base64 encoded)
+    # Uses string prefix since Redis connection uses decode_responses=True
+    COMPRESSION_PREFIX: str = "Z:"
+
+    def _compress_payload(self, data: str) -> str:
+        """Compress a string payload using Zstd if it exceeds the compression threshold.
+
+        Uses Python 3.14's native compression.zstd module for efficient compression.
+        Payloads below the threshold are returned uncompressed to avoid overhead.
+
+        Compression is done in the following steps:
+        1. Encode string to UTF-8 bytes
+        2. Compress with Zstd
+        3. Base64 encode (for string storage compatibility)
+        4. Prepend COMPRESSION_PREFIX marker
+
+        Args:
+            data: JSON string to potentially compress
+
+        Returns:
+            Compressed data string with COMPRESSION_PREFIX if compressed,
+            or original string if below threshold, compression disabled,
+            or compression doesn't reduce size
+        """
+        settings = get_settings()
+
+        # Skip compression if disabled
+        if not settings.redis_compression_enabled:
+            return data
+
+        # Skip compression if data is below threshold
+        data_bytes = data.encode("utf-8")
+        if len(data_bytes) <= settings.redis_compression_threshold:
+            return data
+
+        # Compress with Zstd
+        compressed = zstd.compress(data_bytes)
+
+        # Base64 encode for string storage compatibility
+        compressed_b64 = base64.b64encode(compressed).decode("ascii")
+
+        # Build final compressed string with prefix
+        compressed_str = self.COMPRESSION_PREFIX + compressed_b64
+
+        # Only use compression if it actually reduces size
+        # (Zstd is efficient, but very small or already-compressed data may not benefit)
+        if len(compressed_str) < len(data):
+            return compressed_str
+
+        return data
+
+    def _decompress_payload(self, data: str) -> str:
+        """Decompress a payload string if it has the compression prefix.
+
+        Provides backward compatibility by detecting compressed vs uncompressed data
+        using the COMPRESSION_PREFIX marker.
+
+        Decompression is done in the following steps:
+        1. Check for COMPRESSION_PREFIX marker
+        2. Strip prefix and base64 decode
+        3. Decompress with Zstd
+        4. Decode UTF-8 to string
+
+        Args:
+            data: String data that may or may not be compressed
+
+        Returns:
+            Decompressed string if it was compressed, or original string otherwise
+        """
+        if data.startswith(self.COMPRESSION_PREFIX):
+            # Strip prefix, base64 decode, and decompress
+            compressed_b64 = data[len(self.COMPRESSION_PREFIX) :]
+            compressed = base64.b64decode(compressed_b64)
+            decompressed = zstd.decompress(compressed)
+            return decompressed.decode("utf-8")
+        return data
 
     def __init__(
         self,
@@ -614,6 +694,8 @@ class RedisClient:
             dlq_name = get_dlq_overflow_name(queue_name)
 
         serialized = json.dumps(data) if not isinstance(data, str) else data
+        # Apply compression if payload exceeds threshold
+        payload = self._compress_payload(serialized)
 
         # Check current queue length
         current_length = cast("int", await client.llen(queue_name))  # type: ignore[misc]
@@ -694,7 +776,7 @@ class RedisClient:
                     record_queue_items_moved_to_dlq(queue_name, moved_count)
 
                 # Now add the new item
-                new_length = cast("int", await client.rpush(queue_name, serialized))  # type: ignore[misc]
+                new_length = cast("int", await client.rpush(queue_name, payload))  # type: ignore[misc]
 
                 return QueueAddResult(
                     success=True,
@@ -705,7 +787,7 @@ class RedisClient:
 
             elif overflow_policy == QueueOverflowPolicy.DROP_OLDEST:
                 # Add item then trim with explicit warning
-                result = cast("int", await client.rpush(queue_name, serialized))  # type: ignore[misc]
+                result = cast("int", await client.rpush(queue_name, payload))  # type: ignore[misc]
                 dropped_count = max(0, result - max_size)
 
                 if dropped_count > 0:
@@ -735,7 +817,7 @@ class RedisClient:
                 )
 
         # Normal case: queue has space
-        new_length = cast("int", await client.rpush(queue_name, serialized))  # type: ignore[misc]
+        new_length = cast("int", await client.rpush(queue_name, payload))  # type: ignore[misc]
 
         return QueueAddResult(
             success=True,
@@ -799,6 +881,9 @@ class RedisClient:
     async def get_from_queue(self, queue_name: str, timeout: int = 0) -> Any | None:
         """Get item from the front of a queue (BLPOP).
 
+        Supports both compressed and uncompressed payloads for backward compatibility.
+        Compressed payloads are identified by the COMPRESSION_PREFIX marker.
+
         Args:
             queue_name: Name of the queue (Redis list key)
             timeout: Timeout in seconds. If 0 or less than minimum (5s),
@@ -817,10 +902,12 @@ class RedisClient:
         result = await client.blpop([queue_name], timeout=effective_timeout)  # type: ignore[misc]
         if result:
             _, value = result
+            # Decompress if payload is compressed (backward compatible)
+            decompressed = self._decompress_payload(value)
             try:
-                return json.loads(value)
+                return json.loads(decompressed)
             except json.JSONDecodeError:
-                return value
+                return decompressed
         return None
 
     async def pop_from_queue_nonblocking(self, queue_name: str) -> Any | None:
@@ -828,6 +915,9 @@ class RedisClient:
 
         Unlike get_from_queue() which uses BLPOP with a minimum timeout,
         this method returns immediately if the queue is empty.
+
+        Supports both compressed and uncompressed payloads for backward compatibility.
+        Compressed payloads are identified by the COMPRESSION_PREFIX marker.
 
         Use this for operations that need instant response without blocking,
         such as DLQ requeue operations.
@@ -841,10 +931,12 @@ class RedisClient:
         client = self._ensure_connected()
         result = await client.lpop(queue_name)  # type: ignore[misc]
         if result:
+            # Decompress if payload is compressed (backward compatible)
+            decompressed = self._decompress_payload(result)
             try:
-                return json.loads(result)
+                return json.loads(decompressed)
             except json.JSONDecodeError:
-                return result
+                return decompressed
         return None
 
     async def get_queue_length(self, queue_name: str) -> int:
@@ -868,6 +960,9 @@ class RedisClient:
     ) -> list[Any]:
         """Peek at items in a queue without removing them (LRANGE).
 
+        Supports both compressed and uncompressed payloads for backward compatibility.
+        Compressed payloads are identified by the COMPRESSION_PREFIX marker.
+
         Args:
             queue_name: Name of the queue (Redis list key)
             start: Start index (0-based)
@@ -883,10 +978,12 @@ class RedisClient:
         items = cast("list[str]", await client.lrange(queue_name, start, end))  # type: ignore[misc]
         result = []
         for item in items:
+            # Decompress if payload is compressed (backward compatible)
+            decompressed = self._decompress_payload(item)
             try:
-                result.append(json.loads(item))
+                result.append(json.loads(decompressed))
             except json.JSONDecodeError:
-                result.append(item)
+                result.append(decompressed)
         return result
 
     async def clear_queue(self, queue_name: str) -> bool:
