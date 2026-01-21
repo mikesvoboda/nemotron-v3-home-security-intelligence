@@ -72,6 +72,29 @@ loki.process "parse" {
     expression = "duration[=:]\\s*(?P<duration_ms>\\d+)\\s*ms"
   }
 
+  // PostgreSQL slow query logging (NEM-3054)
+  // Extract query duration from PostgreSQL log_min_duration_statement output
+  // Format: "2024-01-21 12:34:56.789 UTC [123] user@db LOG:  duration: 1234.567 ms  statement: SELECT..."
+  stage.regex {
+    expression = "duration:\\s*(?P<pg_duration_ms>[\\d.]+)\\s*ms"
+  }
+
+  // Extract PostgreSQL connection info from log_line_prefix: %t [%p] %u@%d
+  // Format: "2024-01-21 12:34:56.789 UTC [123] security@security"
+  stage.regex {
+    expression = "\\[(?P<pg_pid>\\d+)\\]\\s*(?P<pg_user>[^@]+)@(?P<pg_database>\\S+)"
+  }
+
+  // Mark PostgreSQL slow queries for easy filtering
+  stage.regex {
+    expression = "(?P<pg_slow_query>duration:\\s*[\\d.]+\\s*ms\\s+statement:)"
+  }
+
+  // Extract PostgreSQL event types (connection, checkpoint, lock_wait, deadlock)
+  stage.regex {
+    expression = "LOG:\\s*(?P<pg_event>connection\\s+\\w+|checkpoint\\s+\\w+|process\\s+\\d+.*deadlock|still\\s+waiting\\s+for)"
+  }
+
   stage.labels {
     values = {
       level = "",
@@ -80,6 +103,12 @@ loki.process "parse" {
       span_id = "",
       batch_id = "",
       duration_ms = "",
+      pg_duration_ms = "",
+      pg_pid = "",
+      pg_user = "",
+      pg_database = "",
+      pg_slow_query = "",
+      pg_event = "",
     }
   }
 

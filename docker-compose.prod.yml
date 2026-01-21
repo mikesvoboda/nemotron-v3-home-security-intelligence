@@ -56,6 +56,35 @@ services:
     #   - postgres_password
     # environment:
     #   - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    # PostgreSQL server-side query logging (NEM-3054)
+    # Logs slow queries (>1s) to container stdout, collected by Alloy -> Loki
+    # - log_min_duration_statement: Log queries exceeding 1000ms (1 second)
+    # - log_duration: Include query duration in all logged statements
+    # - log_line_prefix: Timestamp, PID, user@database for correlation
+    # - log_statement: 'ddl' logs only schema changes (not all queries)
+    # - log_checkpoints: Log checkpoint activity for performance analysis
+    # - log_connections/disconnections: Track connection lifecycle
+    # - log_lock_waits: Log queries waiting >1s for locks (deadlock detection)
+    command:
+      - postgres
+      - -c
+      - log_min_duration_statement=1000
+      - -c
+      - log_duration=on
+      - -c
+      - log_line_prefix=%t [%p] %u@%d
+      - -c
+      - log_statement=ddl
+      - -c
+      - log_checkpoints=on
+      - -c
+      - log_connections=on
+      - -c
+      - log_disconnections=on
+      - -c
+      - log_lock_waits=on
+      - -c
+      - deadlock_timeout=1s
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-security} -d ${POSTGRES_DB:-security}']
       interval: 10s
@@ -384,10 +413,10 @@ services:
       sh -c '
       if [ -n "$$REDIS_PASSWORD" ]; then
         echo "Starting Redis with password authentication"
-        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru --requirepass "$$REDIS_PASSWORD"
+        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128 --requirepass "$$REDIS_PASSWORD"
       else
         echo "Starting Redis without authentication (development mode)"
-        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru
+        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128
       fi
       '
     environment:

@@ -85,6 +85,32 @@ groups:
           summary: 'HSI Redis memory usage high'
           description: 'Redis memory usage is above 80% for more than 5 minutes.'
 
+      # Warning: Redis slow commands detected (>10ms)
+      # Monitors redis_slowlog_length which counts commands exceeding slowlog-log-slower-than threshold (10000 microseconds = 10ms)
+      # Alert fires when new slow commands are being added to the log
+      - alert: HSIRedisSlowCommands
+        expr: increase(redis_slowlog_length[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: 'HSI Redis slow commands detected'
+          description: 'Redis has logged {{ $value | printf "%.0f" }} slow commands (>10ms) in the last 5 minutes. Investigate command patterns causing latency.'
+
+      # Critical: High rate of slow Redis commands
+      # Fires when slow commands are accumulating rapidly
+      - alert: HSIRedisSlowCommandsCritical
+        expr: increase(redis_slowlog_length[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: 'HSI Redis experiencing many slow commands'
+          description: 'Redis has logged {{ $value | printf "%.0f" }} slow commands (>10ms) in the last 5 minutes. This indicates serious Redis performance degradation.'
+          runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/redis-slow-commands'
+
   # GPU Alerts
   - name: gpu_alerts
     rules:
