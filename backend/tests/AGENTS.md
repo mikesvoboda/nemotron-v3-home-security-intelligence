@@ -10,13 +10,17 @@ This directory contains all automated tests for the backend Python application. 
 
 ```
 backend/tests/
+├── AGENTS.md                # This file - test infrastructure overview
+├── async_utils.py           # Async testing utilities and helpers
+├── check_syntax.py          # Syntax validation script
 ├── conftest.py              # Shared pytest fixtures and configuration
 ├── factories.py             # factory_boy factories for test data generation
-├── strategies.py            # Hypothesis strategies for property-based testing
-├── async_utils.py           # Async testing utilities and helpers
-├── mock_utils.py            # Mock object creation utilities
-├── matchers.py              # Custom test matchers (empty placeholder)
 ├── __init__.py              # Package initialization
+├── MATCHERS.md              # Custom matcher documentation (empty placeholder)
+├── matchers.py              # Custom test matchers (empty placeholder)
+├── mock_utils.py            # Mock object creation utilities
+├── strategies.py            # Hypothesis strategies for property-based testing
+├── verify_database.py       # Database verification script
 ├── unit/                    # Unit tests for isolated components (300+ test files)
 ├── integration/             # Integration tests for API and multi-component workflows (109+ test files)
 ├── e2e/                     # End-to-end pipeline integration tests (2 test files)
@@ -26,12 +30,7 @@ backend/tests/
 ├── contracts/               # API contract tests (4 test files)
 ├── security/                # Security vulnerability tests (3 test files)
 ├── fixtures/                # Test fixtures including sample images
-├── check_syntax.py          # Syntax validation script
-├── run_db_tests.sh          # Database test runner script
-├── verify_database.py       # Database verification script
-├── MATCHERS.md              # Custom matcher documentation (empty placeholder)
-├── DATABASE_TEST_FIXES.md   # Documentation for database test fixes
-└── WEBSOCKET_TEST_SUMMARY.md # WebSocket testing documentation
+└── utils/                   # Additional test utilities
 ```
 
 ## Running Tests

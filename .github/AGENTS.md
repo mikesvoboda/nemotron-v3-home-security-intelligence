@@ -20,7 +20,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
   prompts/                    # AI prompt templates
     AGENTS.md                 # Prompts directory guide
     code-review.prompt.md     # System prompt for AI code review
-  workflows/                  # GitHub Actions workflow definitions (35 workflows)
+  workflows/                  # GitHub Actions workflow definitions (36 workflows)
     AGENTS.md                 # Workflows directory guide
     # Core CI/CD
     ci.yml                    # Main CI pipeline
@@ -29,7 +29,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
     release.yml               # Release workflow
     rollback.yml              # Deployment rollback
     semantic-release.yml      # Semantic versioning releases
-    release-drafter.yml       # Draft release notes
+    release-drafter.yml       # Draft release notes (workflow trigger)
     # API
     api-contract.yml          # API contract testing
     # Testing
@@ -51,6 +51,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
     bundle-size.yml           # Frontend bundle size tracking
     ci-analytics.yml          # CI metrics and analytics
     docs.yml                  # Documentation generation
+    docs-drift.yml            # Documentation drift detection
     nightly.yml               # Nightly benchmarks and analysis
     weekly-audit.yml          # Weekly security and code quality audits
     # Frontend Quality

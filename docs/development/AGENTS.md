@@ -8,25 +8,26 @@ This directory contains developer documentation for contributing to the Home Sec
 
 ```
 development/
-  AGENTS.md              # This file
-  AGENT_COORDINATION.md  # Parallel agent coordination protocol
-  code-quality.md        # Code quality tooling and standards
-  contributing.md        # Contribution guidelines
-  coverage.md            # Coverage reporting and analysis
-  docs-maintenance.md    # Documentation drift detection system
-  git-workflow.md        # Git safety protocols and pre-commit rules
-  git-worktree-workflow.md # Git worktree patterns for parallel development
-  health-monitoring-di.md # Health monitoring dependency injection patterns
-  hooks.md               # Git hooks configuration
-  linear-integration.md  # Linear MCP tools and workflow states
-  migration-rollback.md  # Database migration rollback procedures
-  model-testing.md       # AI model testing and validation guide
-  patterns.md            # Code patterns and conventions
-  setup.md               # Development environment setup
-  ssl-https.md           # SSL/HTTPS configuration for development
-  testing.md             # Testing guide
-  testing-workflow.md    # TDD workflow and test patterns by layer
-  validation-alignment.md # Frontend/backend validation alignment guide
+  AGENTS.md                  # This file
+  AGENT_COORDINATION.md      # Parallel agent coordination protocol
+  code-quality.md            # Code quality tooling and standards
+  contributing.md            # Contribution guidelines
+  coverage.md                # Coverage reporting and analysis
+  docs-maintenance.md        # Documentation drift detection system
+  git-workflow.md            # Git safety protocols and pre-commit rules
+  git-worktree-workflow.md   # Git worktree patterns for parallel development
+  health-monitoring-di.md    # Health monitoring dependency injection patterns
+  hooks.md                   # Git hooks configuration
+  linear-integration.md      # Linear MCP tools and workflow states
+  migration-rollback.md      # Database migration rollback procedures
+  model-testing.md           # AI model testing and validation guide
+  patterns.md                # Code patterns and conventions
+  setup.md                   # Development environment setup
+  ssl-https.md               # SSL/HTTPS configuration for development
+  testing.md                 # Testing guide
+  testing-workflow.md        # TDD workflow and test patterns by layer
+  test-optimization-guide.md # Test suite optimization and parallelization
+  validation-alignment.md    # Frontend/backend validation alignment guide
 ```
 
 ## Key Files
@@ -168,6 +169,20 @@ development/
 - PR checklist for TDD verification
 
 **When to use:** Following TDD practices, writing tests before implementation, understanding test patterns.
+
+### test-optimization-guide.md
+
+**Purpose:** Guide for optimizing test suite performance and parallelization.
+
+**Topics Covered:**
+
+- Test suite parallelization strategies
+- Slow test identification and optimization
+- CI/CD test pipeline optimization
+- pytest-xdist configuration
+- Test isolation best practices
+
+**When to use:** Debugging slow tests, optimizing CI pipeline, improving test suite performance.
 
 ### hooks.md
 

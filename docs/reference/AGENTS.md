@@ -10,7 +10,9 @@ This directory contains authoritative reference documentation for the Home Secur
 reference/
   AGENTS.md                  # This file
   README.md                  # Reference documentation hub
+  accessibility.md           # Accessibility guide
   glossary.md                # Terms and definitions
+  models.md                  # Model reference documentation
   stability.md               # API stability and versioning
   config/                    # Configuration reference
     AGENTS.md                # Config subdirectory guide
@@ -55,6 +57,32 @@ reference/
 - Version numbering
 
 **When to use:** Understanding API stability guarantees, planning integrations.
+
+### accessibility.md
+
+**Purpose:** Accessibility guidelines and WCAG compliance.
+
+**Topics Covered:**
+
+- Accessibility standards and compliance
+- ARIA patterns and usage
+- Keyboard navigation
+- Screen reader support
+
+**When to use:** Implementing accessible UI features, accessibility testing.
+
+### models.md
+
+**Purpose:** Reference documentation for AI models used in the system.
+
+**Topics Covered:**
+
+- Model inventory and specifications
+- Model capabilities and use cases
+- Performance characteristics
+- Configuration options
+
+**When to use:** Understanding available models, selecting models for tasks.
 
 ## Subdirectories
 

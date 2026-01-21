@@ -9,22 +9,20 @@ This directory contains API governance documentation including deprecation polic
 ```
 docs/api/
   AGENTS.md                    # This file - directory guide
-  DEPRECATION_POLICY.md        # API deprecation process and standards
   migrations/                  # Migration guides for deprecated endpoints
-    README.md                  # Migration guide template and index
 ```
 
-## Key Documents
+## Key Directories
 
-| Document                | Purpose                                                                                                    |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `DEPRECATION_POLICY.md` | Complete API deprecation process: timeline, OpenAPI extensions, changelog format, migration guide template |
+| Directory     | Purpose                                       |
+| ------------- | --------------------------------------------- |
+| `migrations/` | Migration guides for deprecated API endpoints |
 
 ## When to Use This Directory
 
-- **Deprecating an endpoint**: Follow the process in `DEPRECATION_POLICY.md`
-- **Creating a migration guide**: Use the template and place in `migrations/`
+- **Creating a migration guide**: Place in `migrations/`
 - **Adding new API governance docs**: Place standards documents here
+- **API endpoint documentation**: See `docs/developer/api/` for endpoint docs
 
 ## Related Documentation
 
@@ -34,5 +32,6 @@ docs/api/
 
 ## Entry Points
 
-1. **Start here**: `DEPRECATION_POLICY.md` for the complete deprecation process
+1. **API endpoint docs**: See `docs/developer/api/` for complete API documentation
 2. **Migration guides**: `migrations/` for endpoint-specific upgrade instructions
+3. **OpenAPI spec**: `docs/openapi.json` for machine-readable API specification

@@ -13,20 +13,26 @@ docs/developer/api/
   core-resources.md      # Cameras, events, detections, zones, entities, analytics
   ai-pipeline.md         # Enrichment, batches, AI audit, dead letter queue
   system-ops.md          # Health checks, config, alerts, logs, notifications
+  system-monitoring.md   # System monitoring endpoints
   realtime.md            # WebSocket streams for events and system status
+  calibration.md         # Camera calibration API
   coverage.md            # API endpoint coverage tracking
+  webhooks.md            # Webhook configuration and delivery
   websocket-contracts.md # WebSocket message formats and contracts
 ```
 
 ## Quick Navigation
 
-| Guide                               | Description                                               |
-| ----------------------------------- | --------------------------------------------------------- |
-| [README.md](README.md)              | API overview, authentication, pagination, error handling  |
-| [Core Resources](core-resources.md) | Cameras, events, detections, zones, entities, analytics   |
-| [AI Pipeline](ai-pipeline.md)       | Enrichment, batches, AI audit, dead letter queue          |
-| [System Operations](system-ops.md)  | Health checks, configuration, alerts, logs, notifications |
-| [Real-time](realtime.md)            | WebSocket streams for events and system status            |
+| Guide                                     | Description                                               |
+| ----------------------------------------- | --------------------------------------------------------- |
+| [README.md](README.md)                    | API overview, authentication, pagination, error handling  |
+| [Core Resources](core-resources.md)       | Cameras, events, detections, zones, entities, analytics   |
+| [AI Pipeline](ai-pipeline.md)             | Enrichment, batches, AI audit, dead letter queue          |
+| [System Operations](system-ops.md)        | Health checks, configuration, alerts, logs, notifications |
+| [System Monitoring](system-monitoring.md) | System monitoring and telemetry endpoints                 |
+| [Real-time](realtime.md)                  | WebSocket streams for events and system status            |
+| [Calibration](calibration.md)             | Camera calibration API endpoints                          |
+| [Webhooks](webhooks.md)                   | Webhook configuration and event delivery                  |
 
 ## Supporting Documentation
 

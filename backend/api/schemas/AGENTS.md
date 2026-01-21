@@ -1652,6 +1652,102 @@ Pydantic schemas for queue status monitoring API.
 
 ---
 
+### Alertmanager Schemas (`alertmanager.py`)
+
+Pydantic schemas for Prometheus Alertmanager webhook integration (NEM-3122).
+
+**Schemas:**
+
+| Schema                         | Purpose                                  |
+| ------------------------------ | ---------------------------------------- |
+| `AlertmanagerWebhook`          | Incoming Alertmanager webhook payload    |
+| `AlertmanagerWebhookResponse`  | Response for webhook acknowledgement     |
+| `AlertmanagerAlert`            | Individual alert from Alertmanager       |
+| `AlertmanagerAlertLabels`      | Alert labels (alertname, severity, etc.) |
+| `AlertmanagerAlertAnnotations` | Alert annotations (summary, description) |
+
+---
+
+### Hierarchy Schemas (`hierarchy.py`)
+
+Pydantic schemas for household organizational hierarchy (NEM-3131, NEM-3132, NEM-3133).
+
+**Schemas:**
+
+| Schema                  | Purpose                        |
+| ----------------------- | ------------------------------ |
+| `HouseholdCreate`       | Create household request       |
+| `HouseholdResponse`     | Household response             |
+| `HouseholdUpdate`       | Update household request       |
+| `HouseholdListResponse` | Paginated list of households   |
+| `PropertyCreate`        | Create property request        |
+| `PropertyResponse`      | Property response              |
+| `PropertyUpdate`        | Update property request        |
+| `PropertyListResponse`  | Paginated list of properties   |
+| `AreaCreate`            | Create area request            |
+| `AreaResponse`          | Area response                  |
+| `AreaUpdate`            | Update area request            |
+| `AreaListResponse`      | Paginated list of areas        |
+| `AreaCameraResponse`    | Camera linked to area          |
+| `AreaCamerasResponse`   | List of cameras in area        |
+| `CameraLinkRequest`     | Request to link camera to area |
+
+---
+
+### Household Schemas (`household.py`)
+
+Pydantic schemas for household member and vehicle management (NEM-3018).
+
+**Schemas:**
+
+| Schema                      | Purpose                         |
+| --------------------------- | ------------------------------- |
+| `HouseholdMemberCreate`     | Create household member         |
+| `HouseholdMemberResponse`   | Member response with embeddings |
+| `HouseholdMemberUpdate`     | Update household member         |
+| `PersonEmbeddingResponse`   | Person embedding details        |
+| `AddEmbeddingRequest`       | Add embedding from event        |
+| `RegisteredVehicleCreate`   | Create registered vehicle       |
+| `RegisteredVehicleResponse` | Vehicle response                |
+| `RegisteredVehicleUpdate`   | Update registered vehicle       |
+
+---
+
+### Settings Schemas (`settings_api.py`)
+
+Pydantic schemas for user-configurable system settings (NEM-3119, NEM-3120).
+
+**Schemas:**
+
+| Schema                 | Purpose                           |
+| ---------------------- | --------------------------------- |
+| `DetectionSettings`    | Detection confidence thresholds   |
+| `BatchSettings`        | Batch window and timeout settings |
+| `SeveritySettings`     | Risk level threshold settings     |
+| `RetentionSettings`    | Data retention period settings    |
+| `RateLimitingSettings` | Rate limiting configuration       |
+| `QueueSettings`        | Queue size and threshold settings |
+| `FeatureSettings`      | Feature flag settings             |
+| `SettingsResponse`     | Full settings response            |
+| `SettingsUpdate`       | Partial settings update request   |
+
+---
+
+### Summary Schemas (`summaries.py`)
+
+Pydantic schemas for dashboard summaries.
+
+**Schemas:**
+
+| Schema                    | Purpose                               |
+| ------------------------- | ------------------------------------- |
+| `BulletPointSchema`       | Single bullet point with priority     |
+| `StructuredSummarySchema` | Structured summary with bullet points |
+| `SummaryResponse`         | Summary response with metadata        |
+| `LatestSummariesResponse` | Both hourly and daily summaries       |
+
+---
+
 ## Common Patterns
 
 ### Field Validation
