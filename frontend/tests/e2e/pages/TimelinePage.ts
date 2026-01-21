@@ -103,8 +103,8 @@ export class TimelinePage extends BasePage {
     this.clearFiltersButton = page.getByRole('button', { name: /Clear All Filters/i });
 
     // Export Section
-    this.quickExportButton = page.getByRole('button', { name: /Quick Export/i });
-    this.advancedExportButton = page.getByRole('button', { name: /Advanced Export/i });
+    this.quickExportButton = page.getByRole('button', { name: /^Export$/i });
+    this.advancedExportButton = page.getByRole('button', { name: /More Options/i });
     this.exportPanel = page.locator('[class*="ExportPanel"]');
 
     // Results Section

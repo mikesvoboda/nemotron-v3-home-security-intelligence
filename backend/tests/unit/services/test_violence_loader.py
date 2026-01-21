@@ -72,17 +72,34 @@ class TestLoadViolenceModel:
     """Tests for load_violence_model function."""
 
     @pytest.mark.asyncio
-    async def test_load_violence_model_with_real_path(self) -> None:
+    async def test_load_violence_model_with_real_path(self, monkeypatch) -> None:
         """Test that the model can be loaded from the real path.
 
-        This test verifies that the downloaded model can actually be loaded.
-        It's an integration test that requires the model to be present.
+        This test verifies that the model loading logic works correctly.
+        Uses mocking to avoid requiring actual model files.
         """
-        import os
+        import sys
 
         model_path = "/models/model-zoo/violence-detection"
-        if not os.path.exists(model_path):
-            pytest.skip("Violence detection model not downloaded")
+
+        # Create mock torch
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = False
+
+        # Create mock model
+        mock_model = MagicMock()
+        mock_model.eval.return_value = None
+
+        # Create mock processor
+        mock_processor = MagicMock()
+
+        # Create mock transformers
+        mock_transformers = MagicMock()
+        mock_transformers.AutoImageProcessor.from_pretrained.return_value = mock_processor
+        mock_transformers.AutoModelForImageClassification.from_pretrained.return_value = mock_model
+
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+        monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
 
         result = await load_violence_model(model_path)
 

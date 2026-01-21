@@ -291,10 +291,12 @@ class Settings(BaseSettings):
 
     # Database configuration
     # PostgreSQL only - required for production and development
+    # Development: postgresql+asyncpg://user:pass@localhost:5432/security (local dev on standard port 5432)  # pragma: allowlist secret
+    # Docker: postgresql+asyncpg://user:pass@postgres:5432/security (container network with standard port 5432)  # pragma: allowlist secret
     # Example: postgresql+asyncpg://security:password@localhost:5432/security  # pragma: allowlist secret
     database_url: str = Field(
         default="",
-        description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db)",  # pragma: allowlist secret
+        description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db). Development: localhost:5432, Docker: postgres:5432",  # pragma: allowlist secret
     )
 
     # Database connection pool settings
@@ -326,9 +328,11 @@ class Settings(BaseSettings):
     )
 
     # Redis configuration
+    # Development: redis://localhost:6379/0 (local dev)
+    # Docker: redis://redis:6379/0 (container network with standard port 6379)
     redis_url: str = Field(
         default="redis://localhost:6379/0",
-        description="Redis connection URL",
+        description="Redis connection URL. Development: redis://localhost:6379/0, Docker: redis://redis:6379/0",
     )
     redis_password: str | None = Field(
         default=None,
@@ -494,15 +498,18 @@ class Settings(BaseSettings):
     )
 
     # API settings
+    # Backend always runs on port 8000 (standard for FastAPI development)
+    # Development: 0.0.0.0:8000 (accessible from host machine)
+    # Docker: 0.0.0.0:8000 (standard port 8000 within container, mapped externally in compose file)
     api_host: str = Field(
         default="0.0.0.0",  # noqa: S104
-        description="API server host address",
+        description="API server host address. Development/Docker: 0.0.0.0 (all interfaces)",
     )
     api_port: int = Field(
         default=8000,
         gt=0,
         le=65535,
-        description="API server port",
+        description="API server port. Standard: 8000 (development and Docker container)",
     )
 
     # CORS settings
@@ -586,13 +593,17 @@ class Settings(BaseSettings):
 
     # AI service endpoints (validated as URLs using Pydantic AnyHttpUrl)
     # Stored as str after validation for compatibility with httpx clients
+    # Development: http://localhost:8090 (local dev)
+    # Docker: http://ai-detector:8090 (container network)
     rtdetr_url: str = Field(
         default="http://localhost:8090",
-        description="RT-DETRv2 detection service URL",
+        description="RT-DETRv2 detection service URL. Development: http://localhost:8090, Docker: http://ai-detector:8090",
     )
+    # Development: http://localhost:8091 (local dev)
+    # Docker: http://ai-llm:8091 (container network)
     nemotron_url: str = Field(
         default="http://localhost:8091",
-        description="Nemotron reasoning service URL (llama.cpp server)",
+        description="Nemotron reasoning service URL (llama.cpp server). Development: http://localhost:8091, Docker: http://ai-llm:8091",
     )
 
     # AI service authentication
@@ -784,17 +795,19 @@ class Settings(BaseSettings):
             ) from None
 
     # Florence-2, CLIP, and Enrichment service URLs
+    # Development: http://localhost:8092, http://localhost:8093, http://localhost:8094 (local dev)
+    # Docker: http://ai-florence:8092, http://ai-clip:8093, http://ai-enrichment:8094 (container network)
     florence_url: str = Field(
         default="http://localhost:8092",
-        description="Florence-2 vision-language service URL",
+        description="Florence-2 vision-language service URL. Development: http://localhost:8092, Docker: http://ai-florence:8092",
     )
     clip_url: str = Field(
         default="http://localhost:8093",
-        description="CLIP embedding service URL for re-identification",
+        description="CLIP embedding service URL for re-identification. Development: http://localhost:8093, Docker: http://ai-clip:8093",
     )
     enrichment_url: str = Field(
         default="http://localhost:8094",
-        description="Combined enrichment service URL for vehicle, pet, and clothing classification",
+        description="Combined enrichment service URL for vehicle, pet, and clothing classification. Development: http://localhost:8094, Docker: http://ai-enrichment:8094",
     )
     use_enrichment_service: bool = Field(
         default=True,
@@ -845,14 +858,18 @@ class Settings(BaseSettings):
     prometheus_url: str = Field(
         default="http://prometheus:9090",
         description="Prometheus server URL for monitoring health checks. "
-        "Use 'http://prometheus:9090' for Docker/Podman, or 'http://localhost:9090' for local dev.",
+        "Development: http://localhost:9090 (local dev on standard port 9090). "
+        "Docker: http://prometheus:9090 (container network, standard port 9090)",
     )
 
     # Frontend URL for health checks (internal Docker network URL)
+    # Development: http://localhost:5173 (local Vite dev server)
+    # Docker: http://frontend:8080 (nginx-unprivileged on container network with internal port 8080)
     frontend_url: str = Field(
         default="http://frontend:8080",
-        description="Frontend container URL for health checks (Docker internal network). "
-        "Use 'http://frontend:8080' for Docker/Podman (nginx-unprivileged), or 'http://localhost:5173' for local dev.",
+        description="Frontend container URL for health checks. "
+        "Development: http://localhost:5173 (Vite dev server on standard port 5173). "
+        "Docker: http://frontend:8080 (nginx-unprivileged on standard internal port 8080)",
     )
 
     @field_validator("florence_url", "clip_url", "enrichment_url", mode="before")
@@ -1353,6 +1370,30 @@ class Settings(BaseSettings):
         description="Optional token for WebSocket authentication. When set, WebSocket "
         "connections must include this token as a query parameter (?token=<value>). "
         "Leave empty/unset to disable token authentication (single-user mode).",
+    )
+
+    # WebSocket compression settings (NEM-3154)
+    websocket_compression_enabled: bool = Field(
+        default=True,
+        description="Enable per-message deflate compression for WebSocket messages. "
+        "Compression is negotiated during the WebSocket handshake (RFC 7692). "
+        "Reduces bandwidth usage especially for large detection payloads with base64 images.",
+    )
+    websocket_compression_threshold: int = Field(
+        default=1024,
+        ge=0,
+        le=1048576,
+        description="Minimum message size in bytes before compression is applied (default: 1KB). "
+        "Messages smaller than this threshold are sent uncompressed to avoid CPU overhead. "
+        "Set to 0 to compress all messages regardless of size.",
+    )
+    websocket_compression_level: int = Field(
+        default=6,
+        ge=1,
+        le=9,
+        description="Compression level for deflate algorithm (1-9). "
+        "1 = fastest (least compression), 9 = slowest (best compression). "
+        "Default: 6 (good balance between speed and compression ratio).",
     )
 
     # Severity threshold settings (risk score 0-100)
@@ -2009,6 +2050,70 @@ class Settings(BaseSettings):
                 "for mutual TLS. Provide both, or neither (CA certs alone are allowed for "
                 "server certificate verification without client authentication)."
             )
+        return self
+
+    @model_validator(mode="after")
+    def validate_production_passwords(self) -> Settings:
+        """Validate that production environments don't use weak/default passwords (NEM-3141).
+
+        This security check ensures that known weak passwords (like development defaults)
+        are not used in production or staging environments. Weak passwords include:
+        - Common default passwords (password, admin, root, etc.)
+        - Old hardcoded development defaults (security_dev_password, ftp_dev_password)
+        - Passwords shorter than 16 characters
+
+        Returns:
+            self: The validated Settings instance
+
+        Raises:
+            ValueError: If a weak password is detected in production/staging environment
+        """
+        # Only enforce in production and staging environments
+        if self.environment not in ("production", "staging"):
+            return self
+
+        # Known weak/default passwords that should never be used in production
+        # These include old hardcoded defaults and common weak passwords
+        weak_passwords = {
+            "security_dev_password",
+            "ftp_dev_password",
+            "password",
+            "postgres",
+            "admin",
+            "root",
+            "123456",
+            "changeme",
+            "secret",
+        }
+
+        def is_weak(password: str | None) -> bool:
+            """Check if a password is considered weak."""
+            if password is None or password == "":
+                return False  # Empty passwords are handled elsewhere
+            if len(password) < 16:
+                return True
+            return password.lower() in weak_passwords
+
+        # Extract password from DATABASE_URL if present
+        db_password = None
+        if self.database_url and "@" in self.database_url:
+            # Format: postgresql+asyncpg://user:password@host:port/db  # pragma: allowlist secret
+            try:
+                # Extract the part between :// and @
+                auth_part = self.database_url.split("://")[1].split("@")[0]
+                if ":" in auth_part:
+                    db_password = auth_part.split(":", 1)[1]
+            except (IndexError, AttributeError):
+                pass  # Can't parse, skip validation
+
+        # Check database password in URL
+        if db_password and is_weak(db_password):
+            raise ValueError(
+                f"Weak database password detected in DATABASE_URL for {self.environment} environment. "
+                "Production/staging deployments must use strong, unique passwords. "
+                "Run ./setup.sh to generate secure credentials or set DATABASE_URL with a strong password."
+            )
+
         return self
 
     @field_validator("database_url")

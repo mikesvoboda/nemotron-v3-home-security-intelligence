@@ -30,10 +30,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import random
-import socket
 import tempfile
-import time
 from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -42,6 +39,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import xdist
 from sqlalchemy import inspect
+
+from backend.tests.test_utils import (
+    check_tcp_connection,
+    wait_for_postgres_container,
+    wait_for_redis_container,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -221,149 +224,20 @@ DEFAULT_DEV_POSTGRES_URL = "postgresql+asyncpg://security:security_dev_password@
 DEFAULT_DEV_REDIS_URL = "redis://localhost:6379/15"
 
 
-def _check_tcp_connection(host: str, port: int) -> bool:
-    """Check if a TCP service is reachable on the given host/port."""
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
-        result = sock.connect_ex((host, port))
-        sock.close()
-        return result == 0
-    except Exception:
-        return False
-
-
 def _check_local_postgres() -> bool:
-    """Check if local PostgreSQL is running on port 5432."""
-    return _check_tcp_connection("localhost", 5432)
+    """Check if local PostgreSQL is running on port 5432.
+
+    Uses shared check_tcp_connection from backend.tests.test_utils.
+    """
+    return check_tcp_connection("localhost", 5432)
 
 
 def _check_local_redis() -> bool:
-    """Check if local Redis is running on port 6379."""
-    return _check_tcp_connection("localhost", 6379)
+    """Check if local Redis is running on port 6379.
 
-
-# =============================================================================
-# Deterministic Readiness Checks (polling-based)
-# =============================================================================
-
-
-def wait_for_postgres_container(
-    container: PostgresContainer,
-    timeout: float = 30.0,
-    initial_delay: float = 0.1,
-    max_delay: float = 2.0,
-    fast_mode: bool = False,
-) -> None:
-    """Wait for PostgreSQL container to be ready using polling with exponential backoff.
-
-    Args:
-        container: PostgresContainer instance
-        timeout: Maximum time to wait in seconds
-        initial_delay: Initial delay between retries in seconds
-        max_delay: Maximum delay between retries in seconds
-        fast_mode: If True, use faster polling for unit tests (0.01s initial, 0.05s max)
-
-    Raises:
-        TimeoutError: If PostgreSQL is not ready within timeout
+    Uses shared check_tcp_connection from backend.tests.test_utils.
     """
-    # Override delays for fast mode (unit tests)
-    if fast_mode:
-        initial_delay = 0.01
-        max_delay = 0.05
-    import psycopg2
-
-    start = time.monotonic()
-    host = container.get_container_host_ip()
-    port = int(container.get_exposed_port(5432))
-    delay = initial_delay
-    attempt = 0
-
-    while time.monotonic() - start < timeout:
-        attempt += 1
-        try:
-            conn = psycopg2.connect(
-                host=host,
-                port=port,
-                user="postgres",
-                password="postgres",  # noqa: S106  # pragma: allowlist secret
-                dbname="security_test",
-                connect_timeout=2,
-            )
-            conn.close()
-            if attempt > 1:
-                logger.info(f"PostgreSQL ready after {attempt} attempts")
-            return
-        except Exception as e:
-            elapsed = time.monotonic() - start
-            remaining = timeout - elapsed
-            if remaining <= 0:
-                break
-            # Exponential backoff with jitter
-            jitter = random.uniform(0, delay * 0.1)  # noqa: S311
-            sleep_time = min(delay + jitter, remaining, max_delay)
-            logger.debug(
-                f"PostgreSQL not ready (attempt {attempt}): {e}, retrying in {sleep_time:.2f}s"
-            )
-            time.sleep(sleep_time)
-            delay = min(delay * 2, max_delay)
-
-    raise TimeoutError(f"PostgreSQL not ready after {timeout} seconds ({attempt} attempts)")
-
-
-def wait_for_redis_container(
-    container: RedisContainer,
-    timeout: float = 30.0,
-    initial_delay: float = 0.1,
-    max_delay: float = 2.0,
-    fast_mode: bool = False,
-) -> None:
-    """Wait for Redis container to be ready using polling with exponential backoff.
-
-    Args:
-        container: RedisContainer instance
-        timeout: Maximum time to wait in seconds
-        initial_delay: Initial delay between retries in seconds
-        max_delay: Maximum delay between retries in seconds
-        fast_mode: If True, use faster polling for unit tests (0.01s initial, 0.05s max)
-
-    Raises:
-        TimeoutError: If Redis is not ready within timeout
-    """
-    # Override delays for fast mode (unit tests)
-    if fast_mode:
-        initial_delay = 0.01
-        max_delay = 0.05
-    import redis
-
-    start = time.monotonic()
-    host = container.get_container_host_ip()
-    port = int(container.get_exposed_port(6379))
-    delay = initial_delay
-    attempt = 0
-
-    while time.monotonic() - start < timeout:
-        attempt += 1
-        try:
-            client = redis.Redis(host=host, port=port, socket_timeout=2)
-            client.ping()
-            client.close()
-            if attempt > 1:
-                logger.info(f"Redis ready after {attempt} attempts")
-            return
-        except Exception as e:
-            elapsed = time.monotonic() - start
-            remaining = timeout - elapsed
-            if remaining <= 0:
-                break
-            # Exponential backoff with jitter
-            jitter = random.uniform(0, delay * 0.1)  # noqa: S311
-            sleep_time = min(delay + jitter, remaining, max_delay)
-            logger.debug(f"Redis not ready (attempt {attempt}): {e}, retrying in {sleep_time:.2f}s")
-            time.sleep(sleep_time)
-            delay = min(delay * 2, max_delay)
-
-    raise TimeoutError(f"Redis not ready after {timeout} seconds ({attempt} attempts)")
+    return check_tcp_connection("localhost", 6379)
 
 
 # =============================================================================

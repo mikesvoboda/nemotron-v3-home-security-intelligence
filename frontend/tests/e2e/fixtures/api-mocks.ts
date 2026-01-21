@@ -1815,6 +1815,76 @@ export async function setupApiMocks(
     }
   });
 
+  // Jobs search endpoint: GET /api/jobs/search (BEFORE /api/jobs)
+  // This is the primary endpoint used by the Jobs page with useJobsSearchQuery
+  await page.route('**/api/jobs/search*', async (route) => {
+    if (mergedConfig.jobsError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to search jobs' }),
+      });
+    } else {
+      const jobs = mergedConfig.jobs || allJobs;
+      // Parse query parameters for filtering
+      const url = new URL(route.request().url());
+      const status = url.searchParams.get('status');
+      const jobType = url.searchParams.get('type');
+      const query = url.searchParams.get('q');
+
+      let filteredJobs = jobs;
+
+      // Filter by status
+      if (status) {
+        filteredJobs = filteredJobs.filter((j: { status: string }) => j.status === status);
+      }
+
+      // Filter by type
+      if (jobType) {
+        filteredJobs = filteredJobs.filter((j: { job_type: string }) => j.job_type === jobType);
+      }
+
+      // Filter by search query
+      if (query) {
+        const lowerQuery = query.toLowerCase();
+        filteredJobs = filteredJobs.filter((j: { job_id: string; job_type: string }) =>
+          j.job_id.toLowerCase().includes(lowerQuery) ||
+          j.job_type.toLowerCase().includes(lowerQuery)
+        );
+      }
+
+      // Return JobSearchResponse format (data, meta, aggregations)
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: filteredJobs,
+          meta: {
+            total: filteredJobs.length,
+            limit: 50,
+            offset: 0,
+          },
+          aggregations: {
+            by_status: {
+              pending: jobs.filter((j: { status: string }) => j.status === 'pending').length,
+              running: jobs.filter((j: { status: string }) => j.status === 'running').length,
+              completed: jobs.filter((j: { status: string }) => j.status === 'completed').length,
+              failed: jobs.filter((j: { status: string }) => j.status === 'failed').length,
+              cancelled: jobs.filter((j: { status: string }) => j.status === 'cancelled').length,
+            },
+            by_type: {
+              cleanup: jobs.filter((j: { job_type: string }) => j.job_type === 'cleanup').length,
+              export: jobs.filter((j: { job_type: string }) => j.job_type === 'export').length,
+              backup: jobs.filter((j: { job_type: string }) => j.job_type === 'backup').length,
+              import: jobs.filter((j: { job_type: string }) => j.job_type === 'import').length,
+              analysis: jobs.filter((j: { job_type: string }) => j.job_type === 'analysis').length,
+            },
+          },
+        }),
+      });
+    }
+  });
+
   // Jobs list endpoint: GET /api/jobs
   await page.route('**/api/jobs', async (route) => {
     if (mergedConfig.jobsError) {

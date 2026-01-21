@@ -117,6 +117,74 @@ export interface ClearDataResponse {
 export type ClearSeededDataRequest = ClearDataRequest;
 export type ClearSeededDataResponse = ClearDataResponse;
 
+/**
+ * Request schema for orphan cleanup endpoint
+ */
+export interface OrphanCleanupRequest {
+  /** If True, only report what would be deleted without actually deleting */
+  dry_run?: boolean;
+  /** Minimum age in hours before a file can be deleted (1-720) */
+  min_age_hours?: number;
+  /** Maximum gigabytes to delete in one run (0.1-100) */
+  max_delete_gb?: number;
+}
+
+/**
+ * Response schema for orphan cleanup endpoint
+ */
+export interface OrphanCleanupResponse {
+  /** Number of files scanned */
+  scanned_files: number;
+  /** Number of orphaned files found */
+  orphaned_files: number;
+  /** Number of files deleted */
+  deleted_files: number;
+  /** Bytes deleted */
+  deleted_bytes: number;
+  /** Human-readable bytes deleted */
+  deleted_bytes_formatted: string;
+  /** Number of failed deletions */
+  failed_count: number;
+  /** List of failed file paths */
+  failed_deletions: string[];
+  /** Duration in seconds */
+  duration_seconds: number;
+  /** Whether this was a dry run */
+  dry_run: boolean;
+  /** Files skipped due to being too young */
+  skipped_young: number;
+  /** Files skipped due to size limit */
+  skipped_size_limit: number;
+}
+
+/**
+ * Response schema for cache clear endpoint
+ */
+export interface ClearCacheResponse {
+  /** Number of cache keys cleared */
+  keys_cleared: number;
+  /** Cache types that were cleared */
+  cache_types: string[];
+  /** Duration in seconds */
+  duration_seconds: number;
+  /** Summary message */
+  message: string;
+}
+
+/**
+ * Response schema for queue flush endpoint
+ */
+export interface FlushQueuesResponse {
+  /** Names of queues that were flushed */
+  queues_flushed: string[];
+  /** Items cleared per queue */
+  items_cleared: Record<string, number>;
+  /** Duration in seconds */
+  duration_seconds: number;
+  /** Summary message */
+  message: string;
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -204,6 +272,40 @@ async function clearSeededData(params: ClearDataRequest): Promise<ClearDataRespo
     body: JSON.stringify(params),
   });
   return handleResponse<ClearDataResponse>(response);
+}
+
+/**
+ * Run orphan cleanup to find and delete orphaned files
+ */
+async function runOrphanCleanup(params: OrphanCleanupRequest): Promise<OrphanCleanupResponse> {
+  const response = await fetch(`${BASE_URL}/api/admin/cleanup/orphans`, {
+    method: 'POST',
+    headers: buildHeaders(),
+    body: JSON.stringify(params),
+  });
+  return handleResponse<OrphanCleanupResponse>(response);
+}
+
+/**
+ * Clear all cached data from Redis
+ */
+async function clearCache(): Promise<ClearCacheResponse> {
+  const response = await fetch(`${BASE_URL}/api/admin/maintenance/clear-cache`, {
+    method: 'POST',
+    headers: buildHeaders(),
+  });
+  return handleResponse<ClearCacheResponse>(response);
+}
+
+/**
+ * Flush all processing queues in Redis
+ */
+async function flushQueues(): Promise<FlushQueuesResponse> {
+  const response = await fetch(`${BASE_URL}/api/admin/maintenance/flush-queues`, {
+    method: 'POST',
+    headers: buildHeaders(),
+  });
+  return handleResponse<FlushQueuesResponse>(response);
 }
 
 // ============================================================================
@@ -297,6 +399,69 @@ export function useClearSeededDataMutation() {
   });
 }
 
+/**
+ * Mutation hook for running orphan cleanup
+ *
+ * @example
+ * ```tsx
+ * const { mutate, isPending, error } = useOrphanCleanupMutation();
+ * mutate({ dry_run: false, min_age_hours: 24 });
+ * ```
+ */
+export function useOrphanCleanupMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: runOrphanCleanup,
+    onSuccess: () => {
+      // Invalidate storage stats after cleanup
+      void queryClient.invalidateQueries({ queryKey: queryKeys.system.storage });
+    },
+  });
+}
+
+/**
+ * Mutation hook for clearing all cached data
+ *
+ * @example
+ * ```tsx
+ * const { mutate, isPending, error } = useClearCacheMutation();
+ * mutate();
+ * ```
+ */
+export function useClearCacheMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: clearCache,
+    onSuccess: () => {
+      // Invalidate all queries to refetch fresh data
+      void queryClient.invalidateQueries();
+    },
+  });
+}
+
+/**
+ * Mutation hook for flushing all processing queues
+ *
+ * @example
+ * ```tsx
+ * const { mutate, isPending, error } = useFlushQueuesMutation();
+ * mutate();
+ * ```
+ */
+export function useFlushQueuesMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: flushQueues,
+    onSuccess: () => {
+      // Invalidate system stats after queue flush
+      void queryClient.invalidateQueries({ queryKey: queryKeys.system.stats });
+    },
+  });
+}
+
 // ============================================================================
 // Combined Hook
 // ============================================================================
@@ -308,13 +473,18 @@ export function useClearSeededDataMutation() {
  *
  * @example
  * ```tsx
- * const { seedCameras, seedEvents, seedPipelineLatency, clearSeededData } = useAdminMutations();
+ * const { seedCameras, seedEvents, seedPipelineLatency, clearSeededData, orphanCleanup, clearCache, flushQueues } = useAdminMutations();
  *
  * // Seed cameras
  * seedCameras.mutate({ count: 5 });
  *
  * // Clear all data
  * clearSeededData.mutate({ confirm: 'DELETE_ALL_DATA' });
+ *
+ * // Maintenance operations
+ * orphanCleanup.mutate({ dry_run: false });
+ * clearCache.mutate();
+ * flushQueues.mutate();
  * ```
  */
 export function useAdminMutations() {
@@ -322,12 +492,19 @@ export function useAdminMutations() {
   const seedEvents = useSeedEventsMutation();
   const seedPipelineLatency = useSeedPipelineLatencyMutation();
   const clearSeededData = useClearSeededDataMutation();
+  const orphanCleanup = useOrphanCleanupMutation();
+  const clearCache = useClearCacheMutation();
+  const flushQueues = useFlushQueuesMutation();
 
   return {
     seedCameras,
     seedEvents,
     seedPipelineLatency,
     clearSeededData,
+    // Maintenance operations
+    orphanCleanup,
+    clearCache,
+    flushQueues,
   };
 }
 

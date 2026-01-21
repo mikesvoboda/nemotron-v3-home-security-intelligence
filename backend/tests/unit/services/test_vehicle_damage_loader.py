@@ -214,23 +214,27 @@ class TestLoadVehicleDamageModel:
     """
 
     @pytest.mark.asyncio
-    async def test_load_model_with_real_path(self) -> None:
+    async def test_load_model_with_real_path(self, monkeypatch) -> None:
         """Test that the model can be loaded from the real path.
 
-        This test verifies that the downloaded model can actually be loaded.
-        It's an integration test that requires the model to be present.
+        This test verifies that the model loading logic works correctly.
+        Uses mocking to avoid requiring actual model files.
         """
-        import os
+        from unittest.mock import MagicMock, patch
 
         model_path = "/models/model-zoo/vehicle-damage-detection"
-        if not os.path.exists(model_path):
-            pytest.skip("Vehicle damage detection model not downloaded")
 
-        model = await load_vehicle_damage_model(model_path)
+        # Mock the YOLO model
+        mock_model = MagicMock()
+        mock_model.names = {0: "crack", 1: "dent", 2: "glass_shatter"}
 
-        assert model is not None
-        # YOLO model should have names attribute
-        assert hasattr(model, "names")
+        # Patch YOLO where it's imported (inside the function)
+        with patch("ultralytics.YOLO", return_value=mock_model):
+            model = await load_vehicle_damage_model(model_path)
+
+            assert model is not None
+            # YOLO model should have names attribute
+            assert hasattr(model, "names")
 
     @pytest.mark.asyncio
     async def test_load_model_missing_path(self) -> None:

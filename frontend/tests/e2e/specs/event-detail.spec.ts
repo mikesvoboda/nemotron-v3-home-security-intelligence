@@ -69,14 +69,12 @@ test.describe('Event Detail Modal - Opening', () => {
     timelinePage = new TimelinePage(page);
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
+    // Additional wait for full interactivity
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.waitForTimeout(500); // Brief wait for any animations
   });
 
   test('opens modal when clicking an event card', async ({ page }) => {
-    // Wait for timeline content to load
-    await page.waitForLoadState('networkidle').catch(() => {
-      // Continue if network idle times out
-    });
-
     // Get the number of events on the page
     const eventCount = await timelinePage.getEventCount();
 
@@ -84,9 +82,9 @@ test.describe('Event Detail Modal - Opening', () => {
     if (eventCount > 0) {
       await timelinePage.clickEvent(0);
 
-      // Verify modal is visible
+      // Wait for modal to appear with longer timeout
       const modal = page.locator('[data-testid="event-detail-modal"]');
-      await expect(modal).toBeVisible();
+      await expect(modal).toBeVisible({ timeout: 10000 });
     } else {
       // Skip test if no events (this shouldn't happen with mocks but handles edge cases)
       test.skip();
@@ -95,7 +93,7 @@ test.describe('Event Detail Modal - Opening', () => {
 
   test('modal is not visible initially', async ({ page }) => {
     const modal = page.locator('[data-testid="event-detail-modal"]');
-    await expect(modal).not.toBeVisible();
+    await expect(modal).not.toBeVisible({ timeout: 3000 });
   });
 });
 

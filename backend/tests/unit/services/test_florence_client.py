@@ -339,7 +339,11 @@ class TestCheckHealth:
         result = await client.check_health()
 
         assert result is True
-        client._health_http_client.get.assert_called_once_with("http://localhost:8092/health")
+        # NEM-3147: Health check now includes W3C Trace Context headers
+        client._health_http_client.get.assert_called_once()
+        call_args = client._health_http_client.get.call_args
+        assert call_args[0][0] == "http://localhost:8092/health"
+        assert "headers" in call_args[1]
 
     @pytest.mark.asyncio
     async def test_check_health_connection_error(self, client) -> None:
@@ -1296,7 +1300,11 @@ class TestHTTPRequestVerification:
 
         await client.check_health()
 
-        client._health_http_client.get.assert_called_once_with("http://localhost:8092/health")
+        # NEM-3147: Health check now includes W3C Trace Context headers
+        client._health_http_client.get.assert_called_once()
+        call_args = client._health_http_client.get.call_args
+        assert call_args[0][0] == "http://localhost:8092/health"
+        assert "headers" in call_args[1]
 
 
 # =============================================================================

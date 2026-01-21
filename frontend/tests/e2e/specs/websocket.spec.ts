@@ -347,11 +347,14 @@ test.describe('WebSocket Connection Error Handling', () => {
     await expect(dashboardPage.pageTitle).toBeVisible();
     await expect(dashboardPage.cameraGridHeading).toBeVisible();
 
-    // Navigation should still work
+    // Navigation should still work - navigate to /operations (not /system)
     const systemPage = new SystemPage(page);
-    await page.goto('/system');
+    await page.goto('/operations');
+
+    // Wait for page load with increased timeout
     await systemPage.waitForSystemLoad();
-    // System Monitoring is the page title
+
+    // Operations is the page title
     await expect(systemPage.pageTitle).toBeVisible();
   });
 });

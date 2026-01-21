@@ -5,6 +5,7 @@ This module provides centralized WebSocket event management including:
 - Event payload schemas with Pydantic validation
 - WebSocket emitter service for broadcasting events
 - Subscription management for event filtering (NEM-2383)
+- Message compression for bandwidth optimization (NEM-3154)
 
 Usage:
     from backend.core.websocket import (
@@ -33,8 +34,27 @@ Usage:
     if manager.should_send("conn-123", "alert.created"):
         # Send the event
         pass
+
+    # Use compression for large messages (NEM-3154)
+    from backend.core.websocket import prepare_message, get_compression_stats
+    prepared, was_compressed = prepare_message(large_payload)
+    if was_compressed:
+        await websocket.send_bytes(prepared)
+    else:
+        await websocket.send_text(prepared)
 """
 
+from backend.core.websocket.compression import (
+    COMPRESSION_MAGIC_BYTE,
+    CompressionStats,
+    compress_message,
+    decompress_message,
+    get_compression_stats,
+    is_compressed_message,
+    prepare_message,
+    reset_compression_stats,
+    should_compress,
+)
 from backend.core.websocket.event_types import (
     EVENT_TYPE_METADATA,
     WebSocketEvent,
@@ -48,6 +68,11 @@ from backend.core.websocket.event_types import (
     get_required_payload_fields,
     validate_event_type,
 )
+from backend.core.websocket.sequence_tracker import (
+    SequenceTracker,
+    get_sequence_tracker,
+    reset_sequence_tracker_state,
+)
 from backend.core.websocket.subscription_manager import (
     SubscriptionManager,
     SubscriptionRequest,
@@ -57,20 +82,32 @@ from backend.core.websocket.subscription_manager import (
 )
 
 __all__ = [
+    "COMPRESSION_MAGIC_BYTE",
     "EVENT_TYPE_METADATA",
+    "CompressionStats",
+    "SequenceTracker",
     "SubscriptionManager",
     "SubscriptionRequest",
     "SubscriptionResponse",
     "WebSocketEvent",
     "WebSocketEventType",
+    "compress_message",
     "create_event",
+    "decompress_message",
     "get_all_channels",
     "get_all_event_types",
+    "get_compression_stats",
     "get_event_channel",
     "get_event_description",
     "get_event_types_by_channel",
     "get_required_payload_fields",
+    "get_sequence_tracker",
     "get_subscription_manager",
+    "is_compressed_message",
+    "prepare_message",
+    "reset_compression_stats",
+    "reset_sequence_tracker_state",
     "reset_subscription_manager_state",
+    "should_compress",
     "validate_event_type",
 ]

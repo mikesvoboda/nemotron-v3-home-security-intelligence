@@ -252,9 +252,13 @@ class TestServerHeartbeat:
 
         # Should have sent at least 1-2 pings
         assert mock_websocket.send_text.await_count >= 1
-        # Verify ping message format
+        # Verify ping message format (includes lastSeq from NEM-3142)
+        import json
+
         for call in mock_websocket.send_text.call_args_list:
-            assert call[0][0] == '{"type":"ping"}'
+            msg = json.loads(call[0][0])
+            assert msg["type"] == "ping"
+            assert "lastSeq" in msg  # NEM-3142: sequence tracking
 
     @pytest.mark.asyncio
     async def test_heartbeat_stops_when_event_set(self, mock_websocket):

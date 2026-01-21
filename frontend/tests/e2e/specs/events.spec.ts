@@ -141,11 +141,11 @@ test.describe('Event Timeline Export', () => {
     await timelinePage.waitForTimelineLoad();
   });
 
-  test('quick export button is visible', async () => {
+  test('export dropdown button is visible', async () => {
     await expect(timelinePage.quickExportButton).toBeVisible();
   });
 
-  test('advanced export button is visible', async () => {
+  test('more options export button is visible', async () => {
     await expect(timelinePage.advancedExportButton).toBeVisible();
   });
 });

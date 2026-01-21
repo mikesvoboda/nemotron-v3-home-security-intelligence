@@ -2,13 +2,17 @@
 
 This module provides fixtures for running contract tests against the API,
 including database setup, test client configuration, and schema loading.
+
+NOTE: Mock fixtures (mock_db_session, mock_redis_client) are imported from
+the root conftest.py to avoid duplication. See backend/tests/conftest.py
+for comprehensive mock fixture implementations.
 """
 
 from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -68,37 +72,9 @@ async def async_client(test_app) -> AsyncGenerator[AsyncClient]:
         yield client
 
 
-@pytest.fixture
-def mock_db_session():
-    """Create a mock database session for contract tests.
-
-    Returns a mock that can be used to simulate database operations
-    without requiring a real database connection.
-    """
-    session = AsyncMock()
-    session.execute = AsyncMock()
-    session.commit = AsyncMock()
-    session.refresh = AsyncMock()
-    session.close = AsyncMock()
-    return session
-
-
-@pytest.fixture
-def mock_redis_client():
-    """Create a mock Redis client for contract tests.
-
-    Returns a mock that simulates Redis operations without requiring
-    a real Redis connection.
-    """
-    redis = AsyncMock()
-    redis.ping = AsyncMock(return_value=True)
-    redis.get = AsyncMock(return_value=None)
-    redis.set = AsyncMock(return_value=True)
-    redis.llen = AsyncMock(return_value=0)
-    redis.health_check = AsyncMock(
-        return_value={"status": "healthy", "connected": True, "redis_version": "7.0.0"}
-    )
-    return redis
+# NOTE: mock_db_session and mock_redis_client are now imported from root conftest.py
+# They are automatically available to all tests via pytest's fixture discovery.
+# See backend/tests/conftest.py for their implementations.
 
 
 @pytest.fixture
@@ -107,6 +83,8 @@ def patch_database_dependency(mock_db_session):
 
     This fixture patches the get_db dependency to return a mock session,
     allowing contract tests to run without a real database.
+
+    Uses the mock_db_session fixture from root conftest.py.
     """
 
     async def mock_get_db():
@@ -122,6 +100,8 @@ def patch_redis_dependency(mock_redis_client):
 
     This fixture patches Redis-related dependencies to return mocks,
     allowing contract tests to run without a real Redis connection.
+
+    Uses the mock_redis_client fixture from root conftest.py.
     """
     with (
         patch("backend.core.redis.get_redis", return_value=mock_redis_client),

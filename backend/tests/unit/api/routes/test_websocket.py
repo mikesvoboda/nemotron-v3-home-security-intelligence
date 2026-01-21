@@ -476,9 +476,9 @@ class TestSendHeartbeat:
         assert mock_websocket.send_text.await_count >= 2
         assert mock_websocket.send_text.await_count <= 4
 
-        # Verify ping message format
+        # Verify ping message format (includes lastSeq for gap detection, NEM-3142)
         call_args = mock_websocket.send_text.call_args[0][0]
-        assert call_args == '{"type":"ping"}'
+        assert call_args == '{"type": "ping", "lastSeq": 0}'
 
     @pytest.mark.asyncio
     async def test_stops_when_event_is_set(self, mock_websocket):

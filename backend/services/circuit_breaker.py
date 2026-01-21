@@ -56,6 +56,7 @@ from prometheus_client import Counter, Gauge
 
 from backend.core.exceptions import CircuitBreakerOpenError as CoreCircuitBreakerOpenError
 from backend.core.logging import get_logger
+from backend.core.telemetry import get_trace_context
 
 logger = get_logger(__name__)
 
@@ -509,9 +510,12 @@ class CircuitBreaker:
             CIRCUIT_BREAKER_FAILURES_TOTAL.labels(service=self._name).inc()
             CIRCUIT_BREAKER_CALLS_TOTAL.labels(service=self._name, result="failure").inc()
 
+            # NEM-3147: Include trace context for distributed tracing correlation
+            trace_ctx = get_trace_context()
             logger.warning(
                 f"CircuitBreaker '{self._name}' failure recorded: "
-                f"{self._failure_count}/{self._config.failure_threshold}"
+                f"{self._failure_count}/{self._config.failure_threshold}",
+                extra={"service": self._name, **trace_ctx},
             )
 
             if self._state == CircuitState.HALF_OPEN:
@@ -550,10 +554,19 @@ class CircuitBreaker:
         # Increment trips counter (circuit has tripped open)
         HSI_CIRCUIT_BREAKER_TRIPS_TOTAL.labels(service=self._name).inc()
 
+        # NEM-3147: Include trace context for distributed tracing correlation
+        trace_ctx = get_trace_context()
         logger.warning(
             f"CircuitBreaker '{self._name}' transitioned {prev_state.value} -> OPEN "
             f"(failures={self._failure_count}, "
-            f"threshold={self._config.failure_threshold})"
+            f"threshold={self._config.failure_threshold})",
+            extra={
+                "service": self._name,
+                "from_state": prev_state.value,
+                "to_state": "open",
+                "failure_count": self._failure_count,
+                **trace_ctx,
+            },
         )
 
     def _transition_to_half_open(self) -> None:
@@ -572,9 +585,18 @@ class CircuitBreaker:
             to_state="half_open",
         ).inc()
 
+        # NEM-3147: Include trace context for distributed tracing correlation
+        trace_ctx = get_trace_context()
         logger.info(
             f"CircuitBreaker '{self._name}' transitioned OPEN -> HALF_OPEN "
-            f"(testing recovery after {self._config.recovery_timeout}s)"
+            f"(testing recovery after {self._config.recovery_timeout}s)",
+            extra={
+                "service": self._name,
+                "from_state": "open",
+                "to_state": "half_open",
+                "recovery_timeout": self._config.recovery_timeout,
+                **trace_ctx,
+            },
         )
 
     def _transition_to_closed(self) -> None:
@@ -595,8 +617,16 @@ class CircuitBreaker:
             to_state="closed",
         ).inc()
 
+        # NEM-3147: Include trace context for distributed tracing correlation
+        trace_ctx = get_trace_context()
         logger.info(
-            f"CircuitBreaker '{self._name}' transitioned HALF_OPEN -> CLOSED (service recovered)"
+            f"CircuitBreaker '{self._name}' transitioned HALF_OPEN -> CLOSED (service recovered)",
+            extra={
+                "service": self._name,
+                "from_state": "half_open",
+                "to_state": "closed",
+                **trace_ctx,
+            },
         )
 
     def reset(self) -> None:
