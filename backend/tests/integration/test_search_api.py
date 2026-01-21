@@ -223,7 +223,7 @@ async def test_search_relevance_scoring(client, setup_searchable_events):
     # Results should have rank scores
     for result in data["results"]:
         assert "rank" in result
-        assert isinstance(result["rank"], (int, float))
+        assert isinstance(result["rank"], int | float)
 
 
 @pytest.mark.asyncio

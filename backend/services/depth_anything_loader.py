@@ -543,7 +543,7 @@ async def analyze_depth(
         # Handle bbox that might be a BoundingBox object or tuple/list
         if hasattr(bbox, "to_tuple"):
             bbox_tuple = bbox.to_tuple()
-        elif isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
+        elif isinstance(bbox, list | tuple) and len(bbox) >= 4:
             bbox_tuple = tuple(bbox[:4])
         else:
             logger.warning(f"Invalid bbox format for detection {det_id}: {bbox}")

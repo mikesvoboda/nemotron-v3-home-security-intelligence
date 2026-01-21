@@ -1,0 +1,92 @@
+name: Prompt Evaluation
+
+# Run nightly at 2 AM UTC or manually
+on:
+  schedule:
+    - cron: '0 2 * * *' # Nightly at 2 AM UTC
+  workflow_dispatch: # Manual trigger
+
+permissions:
+  contents: read
+
+jobs:
+  prompt-evaluation:
+    name: Evaluate Nemotron Prompts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for better context
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+
+      - name: Install dependencies
+        run: |
+          uv sync --extra dev --extra nemo
+
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      - name: Run prompt evaluation (mock mode)
+        run: |
+          uv run python -m backend.evaluation.harness \
+            --mock \
+            --mock-count 50 \
+            --output reports/prompt_evaluation.json \
+            --format json \
+            --quiet
+        env:
+          # Force pure-Python protobuf for Python 3.14 compatibility
+          PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
+
+      - name: Generate HTML report
+        if: always()
+        run: |
+          uv run python -m backend.evaluation.harness \
+            --mock \
+            --mock-count 50 \
+            --output reports/prompt_evaluation.html \
+            --format html \
+            --quiet
+        env:
+          PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
+
+      - name: Upload evaluation report (JSON)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-evaluation-report-json
+          path: reports/prompt_evaluation.json
+          retention-days: 30
+
+      - name: Upload evaluation report (HTML)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prompt-evaluation-report-html
+          path: reports/prompt_evaluation.html
+          retention-days: 30
+
+      - name: Extract summary metrics
+        if: always()
+        run: |
+          echo "## Prompt Evaluation Summary" >> $GITHUB_STEP_SUMMARY
+          if [ -f reports/prompt_evaluation.json ]; then
+            # Extract key metrics using jq
+            echo "Evaluation completed successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Download the full report from the workflow artifacts." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Evaluation report not found" >> $GITHUB_STEP_SUMMARY
+          fi

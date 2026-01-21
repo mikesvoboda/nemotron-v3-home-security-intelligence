@@ -594,7 +594,7 @@ class PromptStorageService:
         """Validate an optional number field is within range."""
         if field in config:
             val = config[field]
-            if not isinstance(val, (int, float)) or val < min_val or val > max_val:
+            if not isinstance(val, int | float) or val < min_val or val > max_val:
                 errors.append(f"{field} must be a number between {min_val} and {max_val}")
 
     def validate_config(self, model_name: str, config: dict[str, Any]) -> list[str]:
