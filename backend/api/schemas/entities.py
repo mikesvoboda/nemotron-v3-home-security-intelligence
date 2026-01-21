@@ -20,7 +20,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.api.schemas.logs import PaginationInfo
+from backend.api.schemas.pagination import PaginationInfo
 
 # =============================================================================
 # Database Entity Type Enum (matches backend/models/enums.py)

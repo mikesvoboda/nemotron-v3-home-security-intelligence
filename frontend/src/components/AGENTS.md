@@ -35,7 +35,7 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | **feedback/**         | User feedback components                         | FeedbackPanel                                                                                                                                                                                                                       |
 | **jobs/**             | Background job monitoring components             | JobsPage, JobsList, JobsListItem, JobsEmptyState, JobsSearchBar, JobActions, JobHeader, JobDetailPanel, JobHistoryTimeline, JobLogsViewer, JobMetadata, ConnectionIndicator, ConfirmDialog, LogLine, StatusDot, TimelineEntry       |
 | **layout/**           | Application shell components                     | Layout, Header, Sidebar                                                                                                                                                                                                             |
-| **logs/**             | Logging dashboard and viewer                     | LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal                                                                                                                                                                 |
+| **logs/**             | System logs via Grafana/Loki embed               | LogsPage                                                                                                                                                                                                                            |
 | **performance/**      | Performance monitoring dashboard                 | PerformanceDashboard, PerformanceCharts, PerformanceAlerts                                                                                                                                                                          |
 | **search/**           | Full-text search components                      | SearchBar, SearchResultCard, SearchResultsPanel                                                                                                                                                                                     |
 | **settings/**         | Configuration pages                              | SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings, DlqMonitor, NotificationSettings, StorageDashboard                                                                                                             |
@@ -85,11 +85,8 @@ Routes:
 │ ├── AuditFilters
 │ ├── AuditTable
 │ └── AuditDetailModal
-├── /logs -> LogsDashboard (logs/)
-│ ├── LogStatsCards
-│ ├── LogFilters
-│ ├── LogsTable
-│ └── LogDetailModal
+├── /logs -> LogsPage (logs/)
+│ └── Grafana iframe (hsi-logs dashboard)
 ├── /system -> SystemMonitoringPage (system/)
 │ ├── HostSystemPanel
 │ ├── ContainersPanel
@@ -316,16 +313,8 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 ### logs/
 
-- `LogsDashboard.tsx` - Main logs page
-- `LogsDashboard.test.tsx` - Test suite for LogsDashboard
-- `LogsTable.tsx` - Paginated log entries table
-- `LogsTable.test.tsx` - Test suite for LogsTable
-- `LogFilters.tsx` - Log filtering controls
-- `LogFilters.test.tsx` - Test suite for LogFilters
-- `LogStatsCards.tsx` - Log statistics summary cards
-- `LogStatsCards.test.tsx` - Test suite for LogStatsCards
-- `LogDetailModal.tsx` - Full log entry detail modal
-- `LogDetailModal.test.tsx` - Test suite for LogDetailModal
+- `LogsPage.tsx` - System logs page embedding Grafana/Loki dashboard
+- `LogsPage.test.tsx` - Test suite for LogsPage
 
 ### settings/
 

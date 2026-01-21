@@ -67,7 +67,6 @@ from backend.api.routes import (
     websocket,
     zones,
 )
-from backend.api.routes.logs import router as logs_router
 from backend.api.routes.system import register_workers
 from backend.core import close_db, get_container, get_settings, init_db, wire_services
 from backend.core.config_validation import log_config_summary, validate_config
@@ -1079,7 +1078,6 @@ app.include_router(hierarchy.property_router)
 app.include_router(hierarchy.area_router)
 app.include_router(household.router)
 app.include_router(jobs.router)
-app.include_router(logs_router)
 app.include_router(media.router)
 app.include_router(metrics.router)
 app.include_router(notification.router)

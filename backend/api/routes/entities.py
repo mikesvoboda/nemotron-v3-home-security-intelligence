@@ -39,7 +39,7 @@ from backend.api.schemas.entities import (
     TrustedEntityListResponse,
     TrustStatus,
 )
-from backend.api.schemas.logs import PaginationInfo
+from backend.api.schemas.pagination import PaginationInfo
 from backend.core.dependencies import get_entity_repository, get_hybrid_entity_storage
 from backend.core.logging import get_logger
 from backend.core.redis import get_redis_optional
