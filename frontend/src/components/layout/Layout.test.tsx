@@ -37,6 +37,39 @@ vi.mock('../../hooks/useKeyboardShortcuts', () => ({
   useKeyboardShortcuts: vi.fn(),
 }));
 
+// Mock the useConnectionStatus hook to return connected state by default
+vi.mock('../../hooks/useConnectionStatus', () => ({
+  useConnectionStatus: vi.fn().mockReturnValue({
+    summary: {
+      eventsChannel: {
+        name: 'Events',
+        state: 'connected',
+        reconnectAttempts: 0,
+        maxReconnectAttempts: 5,
+        lastMessageTime: null,
+        hasExhaustedRetries: false,
+      },
+      systemChannel: {
+        name: 'System',
+        state: 'connected',
+        reconnectAttempts: 0,
+        maxReconnectAttempts: 5,
+        lastMessageTime: null,
+        hasExhaustedRetries: false,
+      },
+      overallState: 'connected',
+      anyReconnecting: false,
+      allConnected: true,
+      totalReconnectAttempts: 0,
+      hasExhaustedRetries: false,
+      allFailed: false,
+      disconnectedSince: null,
+    },
+    isPollingFallback: false,
+    retryConnection: vi.fn(),
+  }),
+}));
+
 // Helper to create service status
 function createServiceStatus(
   service: ServiceName,
@@ -348,9 +381,14 @@ describe('Layout', () => {
       const alert = screen.getByRole('alert');
       const child = screen.getByTestId('test-child');
 
-      // Alert should come before children in the DOM
-      expect(main.firstChild).toBe(alert);
+      // Alert should be in main content and come before children in the DOM
+      expect(main.contains(alert)).toBe(true);
       expect(main.contains(child)).toBe(true);
+
+      // Alert should come before the test child in DOM order
+      const alertPosition = Array.from(main.querySelectorAll('*')).indexOf(alert);
+      const childPosition = Array.from(main.querySelectorAll('*')).indexOf(child);
+      expect(alertPosition).toBeLessThan(childPosition);
     });
 
     it('shows worst status when multiple services are unhealthy', () => {

@@ -86,6 +86,7 @@ function createMockConnectionStatus(
       totalReconnectAttempts: eventsChannel.reconnectAttempts + systemChannel.reconnectAttempts,
       hasExhaustedRetries: eventsChannel.hasExhaustedRetries || systemChannel.hasExhaustedRetries,
       allFailed: eventsState === 'failed' && systemState === 'failed',
+      disconnectedSince: allConnected ? null : new Date(),
     },
     events: [],
     systemStatus,

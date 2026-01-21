@@ -8,7 +8,9 @@ export type DevToolsSectionId =
   | 'recording'
   | 'config-inspector'
   | 'log-level'
-  | 'test-data';
+  | 'test-data'
+  | 'memory'
+  | 'circuit-breakers';
 
 /**
  * Default expanded state for each section
@@ -20,6 +22,8 @@ const DEFAULT_SECTION_STATES: Record<DevToolsSectionId, boolean> = {
   'config-inspector': false,
   'log-level': false,
   'test-data': false,
+  memory: false,
+  'circuit-breakers': false,
 };
 
 const STORAGE_KEY = 'dev-tools-sections';

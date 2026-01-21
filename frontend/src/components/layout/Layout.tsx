@@ -7,10 +7,12 @@ import {
   CommandPaletteContext,
   CommandPaletteContextType,
 } from '../../hooks/useCommandPaletteContext';
+import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useServiceStatus } from '../../hooks/useServiceStatus';
 import { SidebarContext, SidebarContextType } from '../../hooks/useSidebarContext';
+import { ConnectionStatusBanner } from '../common';
 import CommandPalette from '../common/CommandPalette';
 import { ServiceStatusAlert } from '../common/ServiceStatusAlert';
 import ShortcutsHelpModal from '../common/ShortcutsHelpModal';
@@ -22,6 +24,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { services } = useServiceStatus();
+  const { summary, isPollingFallback, retryConnection } = useConnectionStatus();
   const [isDismissed, setIsDismissed] = useState(false);
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -87,6 +90,20 @@ export default function Layout({ children }: LayoutProps) {
             className={`flex-1 overflow-auto focus:outline-none ${isMobile ? 'pb-14' : ''}`}
             data-testid="main-content"
           >
+            {/* Connection status banner - shows when WebSocket is disconnected */}
+            <div className="px-4 pt-2">
+              <ConnectionStatusBanner
+                connectionState={summary.overallState}
+                disconnectedSince={summary.disconnectedSince}
+                reconnectAttempts={summary.totalReconnectAttempts}
+                maxReconnectAttempts={
+                  summary.eventsChannel.maxReconnectAttempts +
+                  summary.systemChannel.maxReconnectAttempts
+                }
+                onRetry={retryConnection}
+                isPollingFallback={isPollingFallback}
+              />
+            </div>
             {!isDismissed && <ServiceStatusAlert services={services} onDismiss={handleDismiss} />}
             {children}
           </main>
