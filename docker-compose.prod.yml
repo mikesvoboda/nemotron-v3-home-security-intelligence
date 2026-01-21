@@ -705,24 +705,11 @@ services:
   # Custom image with py-spy for Python process profiling
   # Services push profiles via py-spy when PYROSCOPE_ENABLED=true
   pyroscope:
-    build:
-      context: ./monitoring/pyroscope
-      dockerfile: Dockerfile
+    image: docker.io/grafana/pyroscope:1.4.0
     container_name: pyroscope
-    # Share host PID namespace to access other container processes for profiling
-    pid: host
-    # Required capabilities for py-spy to trace processes
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - apparmor:unconfined
     volumes:
       - ./monitoring/pyroscope/pyroscope-config.yml:/etc/pyroscope/config.yml:ro,z
       - pyroscope_data:/data
-      # Mount host /proc for process discovery
-      - /proc:/host/proc:ro
-    environment:
-      - PROFILE_INTERVAL=30
     command: -config.file=/etc/pyroscope/config.yml
     ports:
       - '4040:4040'
@@ -737,8 +724,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 768M
+          cpus: '0.25'
+          memory: 512M
 
   # Alloy for log collection via eBPF (NEM-3093)
   # Collects container logs from Podman and forwards to Loki
