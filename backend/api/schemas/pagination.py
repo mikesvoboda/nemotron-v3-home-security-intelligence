@@ -9,6 +9,23 @@ NEM-2075: Standardize pagination response envelope.
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class PaginationInfo(BaseModel):
+    """Pagination metadata for list responses (NEM-2075).
+
+    Standard pagination envelope used by entities and other list endpoints.
+    Supports both cursor-based pagination (recommended) and offset pagination.
+    """
+
+    total: int = Field(..., ge=0, description="Total count matching filters")
+    limit: int = Field(..., ge=1, le=1000, description="Page size (1-1000)")
+    offset: int | None = Field(
+        None, ge=0, description="Page offset (0-based, for offset pagination)"
+    )
+    cursor: str | None = Field(None, description="Current cursor position")
+    next_cursor: str | None = Field(None, description="Cursor for next page")
+    has_more: bool = Field(False, description="Whether more results are available")
+
+
 class PaginationMeta(BaseModel):
     """Pagination metadata for list responses.
 
