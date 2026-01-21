@@ -40,53 +40,54 @@ All rows visible without scrolling on 1080p+ displays.
 
 ### Row 1: Pipeline Health
 
-| Panel | Type | Query | Thresholds |
-|-------|------|-------|------------|
-| Success Rate | Stat + gauge | % traces without errors (1h) | Green ≥95%, Yellow ≥80%, Red <80% |
-| Latency by Stage | Bar gauge | P95 latency per operation | Per-stage thresholds |
-| Active Traces | Stat + sparkline | Traces started in last 5min | N/A |
-| Error Count | Stat | Error traces in last 1h | Green =0, Yellow 1-5, Red >5 |
+| Panel            | Type             | Query                        | Thresholds                        |
+| ---------------- | ---------------- | ---------------------------- | --------------------------------- |
+| Success Rate     | Stat + gauge     | % traces without errors (1h) | Green ≥95%, Yellow ≥80%, Red <80% |
+| Latency by Stage | Bar gauge        | P95 latency per operation    | Per-stage thresholds              |
+| Active Traces    | Stat + sparkline | Traces started in last 5min  | N/A                               |
+| Error Count      | Stat             | Error traces in last 1h      | Green =0, Yellow 1-5, Red >5      |
 
 **Latency by Stage breakdown:**
+
 - `detection_processing` → "Detection"
 - `analysis_processing` → "Enrichment"
 - `llm_inference` → "LLM"
 
 ### Row 2: Service Health
 
-| Panel | Type | Query | Thresholds |
-|-------|------|-------|------------|
-| Service Status | Stat + value mapping | Traces received in last 5min | Healthy/Degraded/Down |
-| Request Rate | Stat + sparkline | Traces per minute (1h) | N/A |
-| Error Rate | Stat + gauge | (errors/total) × 100 | Green <1%, Yellow <5%, Red ≥5% |
-| P95 Latency | Stat + sparkline | 95th percentile duration | Based on expected pipeline time |
+| Panel          | Type                 | Query                        | Thresholds                      |
+| -------------- | -------------------- | ---------------------------- | ------------------------------- |
+| Service Status | Stat + value mapping | Traces received in last 5min | Healthy/Degraded/Down           |
+| Request Rate   | Stat + sparkline     | Traces per minute (1h)       | N/A                             |
+| Error Rate     | Stat + gauge         | (errors/total) × 100         | Green <1%, Yellow <5%, Red ≥5%  |
+| P95 Latency    | Stat + sparkline     | 95th percentile duration     | Based on expected pipeline time |
 
 ### Row 3: Business Metrics
 
-| Panel | Type | Query | Source |
-|-------|------|-------|--------|
-| Events Processed | Stat + sparkline | Completed analysis_processing traces | Jaeger |
-| Detections/min | Stat + sparkline | detection_processing rate | Jaeger |
-| Cost per Analysis | Stat | hsi_cost_per_event_usd | Prometheus |
-| Queue Depths | Bar gauge | detection + analysis queue depths | Prometheus |
+| Panel             | Type             | Query                                | Source     |
+| ----------------- | ---------------- | ------------------------------------ | ---------- |
+| Events Processed  | Stat + sparkline | Completed analysis_processing traces | Jaeger     |
+| Detections/min    | Stat + sparkline | detection_processing rate            | Jaeger     |
+| Cost per Analysis | Stat             | hsi_cost_per_event_usd               | Prometheus |
+| Queue Depths      | Bar gauge        | detection + analysis queue depths    | Prometheus |
 
 ### Row 4: Auto-loaded Traces
 
-| Panel | Width | Query | Behavior |
-|-------|-------|-------|----------|
-| Latest Error Trace | 50% | Most recent trace with error=true | Shows "No errors" if none |
-| Latest Pipeline Run | 50% | Most recent analysis_processing | Full pipeline waterfall |
+| Panel               | Width | Query                             | Behavior                  |
+| ------------------- | ----- | --------------------------------- | ------------------------- |
+| Latest Error Trace  | 50%   | Most recent trace with error=true | Shows "No errors" if none |
+| Latest Pipeline Run | 50%   | Most recent analysis_processing   | Full pipeline waterfall   |
 
 Both use Grafana's native Jaeger trace visualization with clickable spans.
 
 ### Row 5: Debug Suite
 
-| Panel | Position | Type | Content |
-|-------|----------|------|---------|
-| Recent Traces Table | Left 50% | Table | Last 20 pipeline traces, filterable |
-| Latency Distribution | Top-right 25% | Histogram | Duration distribution with P50/P95/P99 |
-| Service Dependency Map | Middle-right 25% | Node graph | Service connections from traces |
-| Error Traces Panel | Bottom-right 25% | Table | All errors in last 1h |
+| Panel                  | Position         | Type       | Content                                |
+| ---------------------- | ---------------- | ---------- | -------------------------------------- |
+| Recent Traces Table    | Left 50%         | Table      | Last 20 pipeline traces, filterable    |
+| Latency Distribution   | Top-right 25%    | Histogram  | Duration distribution with P50/P95/P99 |
+| Service Dependency Map | Middle-right 25% | Node graph | Service connections from traces        |
+| Error Traces Panel     | Bottom-right 25% | Table      | All errors in last 1h                  |
 
 ## Data Sources
 
@@ -96,6 +97,7 @@ Both use Grafana's native Jaeger trace visualization with clickable spans.
 ## Frontend Integration
 
 Update `TracingPage.tsx` to load the dashboard:
+
 ```typescript
 const getDashboardUrl = () => {
   return `${grafanaUrl}/d/hsi-tracing/hsi-distributed-tracing?orgId=1&kiosk=1&theme=dark&refresh=30s`;

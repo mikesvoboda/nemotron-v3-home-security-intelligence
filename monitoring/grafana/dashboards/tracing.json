@@ -226,9 +226,7 @@
         "overrides": [
           {
             "matcher": { "id": "byName", "options": "duration" },
-            "properties": [
-              { "id": "unit", "value": "µs" }
-            ]
+            "properties": [{ "id": "unit", "value": "µs" }]
           }
         ]
       },
