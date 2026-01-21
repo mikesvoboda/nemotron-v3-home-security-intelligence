@@ -43,12 +43,12 @@ export class LogsPage extends BasePage {
     this.pageTitle = page.getByRole('heading', { name: /System Logs/i });
 
     // Header buttons
-    this.openGrafanaButton = page.getByRole('link', { name: /Open Grafana/i });
-    this.exploreButton = page.getByRole('link', { name: /Explore.*LogQL/i });
-    this.refreshButton = page.getByRole('button', { name: /Refresh/i });
+    this.openGrafanaButton = page.locator('[data-testid="grafana-external-link"]');
+    this.exploreButton = page.locator('[data-testid="explore-external-link"]');
+    this.refreshButton = page.locator('[data-testid="logs-refresh-button"]');
 
     // Grafana iframe
-    this.grafanaIframe = page.locator('iframe[data-testid="grafana-logs-iframe"]');
+    this.grafanaIframe = page.locator('[data-testid="logs-iframe"]');
 
     // Loading state
     this.loadingState = page.locator('[data-testid="logs-loading"]');

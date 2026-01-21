@@ -32,7 +32,7 @@ test.describe('Logs Dashboard Visual Regression', () => {
     await expect(page).toHaveScreenshot('logs-full-page.png', {
       fullPage: true,
       mask: [
-        page.locator('iframe[data-testid="grafana-logs-iframe"]'),
+        page.locator('[data-testid="logs-iframe"]'),
         page.locator('time'),
       ],
     });
