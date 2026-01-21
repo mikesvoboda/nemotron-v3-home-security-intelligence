@@ -269,20 +269,22 @@ build_ai_images_podman() {
 
     cd "$PROJECT_ROOT"
 
+    # Format: "image-name:dockerfile-path"
+    # All builds use project root as context (required by Dockerfiles that COPY from ai/*)
     local -a ai_services=(
-        "ai-detector:./ai/rtdetr"
-        "ai-llm:./ai/nemotron"
-        "ai-florence:./ai/florence"
-        "ai-clip:./ai/clip"
-        "ai-enrichment:./ai/enrichment"
+        "ai-detector:ai/rtdetr/Dockerfile"
+        "ai-llm:ai/nemotron/Dockerfile"
+        "ai-florence:ai/florence/Dockerfile"
+        "ai-clip:ai/clip/Dockerfile"
+        "ai-enrichment:ai/enrichment/Dockerfile"
     )
 
     for svc in "${ai_services[@]}"; do
         local name="${svc%%:*}"
-        local context="${svc#*:}"
+        local dockerfile="${svc#*:}"
 
-        print_step "Building $name from $context..."
-        if run_cmd $CONTAINER_CMD build --no-cache -t "$name" "$context"; then
+        print_step "Building $name from $dockerfile..."
+        if run_cmd $CONTAINER_CMD build --no-cache -t "$name" -f "$dockerfile" .; then
             print_success "$name image built"
         else
             print_fail "Failed to build $name"
@@ -1415,6 +1417,16 @@ main() {
             print_fail "Failed to build images"
             exit 1
         fi
+    fi
+
+    # Clean up dangling images and build cache to prevent disk space exhaustion
+    print_step "Pruning dangling images and build cache..."
+    if run_cmd $CONTAINER_CMD image prune -f; then
+        print_success "Dangling images pruned"
+    fi
+    # Also prune build cache (can grow very large with --no-cache rebuilds)
+    if run_cmd $CONTAINER_CMD builder prune -f 2>/dev/null; then
+        print_success "Build cache pruned"
     fi
 
     # Prepare directories for container volume mounts
