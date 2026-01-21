@@ -59,6 +59,7 @@ from .property import Property
 from .scene_change import SceneChange, SceneChangeType
 from .summary import Summary, SummaryType
 from .user_calibration import UserCalibration
+from .zone_household_config import ZoneHouseholdConfig
 
 __all__ = [
     "ActionResult",
@@ -130,6 +131,7 @@ __all__ = [
     "UserCalibration",
     "VehicleType",
     "Zone",
+    "ZoneHouseholdConfig",
     "ZoneShape",
     "ZoneType",
     "camera_areas",

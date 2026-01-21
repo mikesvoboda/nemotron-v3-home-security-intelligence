@@ -320,6 +320,53 @@
         "title": "AIServicesHealthResponse",
         "type": "object"
       },
+      "AccessSchedule": {
+        "description": "Schema for time-based access schedule configuration.\n\nAllows defining when specific members have access to a zone using\ncron-style expressions for flexible scheduling.\n\nExample:\n    {\n        \"member_ids\": [1, 2, 3],\n        \"cron_expression\": \"0 9-17 * * 1-5\",  # Weekdays 9am-5pm\n        \"description\": \"Service workers during business hours\"\n    }",
+        "example": {
+          "cron_expression": "0 9-17 * * 1-5",
+          "description": "Business hours access",
+          "member_ids": [
+            1,
+            2
+          ]
+        },
+        "properties": {
+          "cron_expression": {
+            "description": "Cron expression defining when access is granted (minute hour day month weekday)",
+            "minLength": 1,
+            "title": "Cron Expression",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional human-readable description of the schedule",
+            "title": "Description"
+          },
+          "member_ids": {
+            "description": "List of household member IDs this schedule applies to",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Member Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "member_ids",
+          "cron_expression"
+        ],
+        "title": "AccessSchedule",
+        "type": "object"
+      },
       "ActivityBaselineEntry": {
         "description": "A single activity baseline entry for a specific hour and day combination.\n\nThis represents one cell in the 24x7 activity heatmap (168 total entries).",
         "example": {
@@ -22170,6 +22217,51 @@
         "title": "TraceMallocStats",
         "type": "object"
       },
+      "TrustCheckResponse": {
+        "description": "Schema for trust check response.\n\nIndicates the trust level an entity has in a specific zone.",
+        "example": {
+          "entity_id": 1,
+          "entity_type": "member",
+          "reason": "Entity is the zone owner",
+          "trust_level": "full",
+          "zone_id": "550e8400-e29b-41d4-a716-446655440000"
+        },
+        "properties": {
+          "entity_id": {
+            "description": "ID of the entity being checked",
+            "title": "Entity Id",
+            "type": "integer"
+          },
+          "entity_type": {
+            "description": "Type of entity ('member' or 'vehicle')",
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Human-readable explanation of the trust level",
+            "title": "Reason",
+            "type": "string"
+          },
+          "trust_level": {
+            "$ref": "#/components/schemas/TrustLevelResult",
+            "description": "Trust level result (full, partial, monitor, none)"
+          },
+          "zone_id": {
+            "description": "ID of the zone",
+            "title": "Zone Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone_id",
+          "entity_id",
+          "entity_type",
+          "trust_level",
+          "reason"
+        ],
+        "title": "TrustCheckResponse",
+        "type": "object"
+      },
       "TrustLevel": {
         "description": "Trust level for household members determining alert behavior.\n\n- FULL: Never trigger alerts for this person\n- PARTIAL: Reduced alert severity, still monitored\n- MONITOR: Log activity but don't suppress alerts",
         "enum": [
@@ -22178,6 +22270,17 @@
           "monitor"
         ],
         "title": "TrustLevel",
+        "type": "string"
+      },
+      "TrustLevelResult": {
+        "description": "Trust level result from zone access check.\n\nThese values indicate the level of trust an entity has in a specific zone:\n- FULL: Entity is the zone owner - full trust, never alert\n- PARTIAL: Entity is allowed member/vehicle - reduced alert severity\n- MONITOR: Entity is scheduled for access at current time - log only\n- NONE: Entity has no special trust in this zone",
+        "enum": [
+          "full",
+          "partial",
+          "monitor",
+          "none"
+        ],
+        "title": "TrustLevelResult",
         "type": "string"
       },
       "TrustStatus": {
@@ -23216,6 +23319,240 @@
           "coordinates"
         ],
         "title": "ZoneCreate",
+        "type": "object"
+      },
+      "ZoneHouseholdConfigCreate": {
+        "description": "Schema for creating a zone household configuration.\n\nUsed when initially configuring household linkage for a zone.",
+        "example": {
+          "access_schedules": [
+            {
+              "cron_expression": "0 9-17 * * 1-5",
+              "description": "Weekday daytime access",
+              "member_ids": [
+                4,
+                5
+              ]
+            }
+          ],
+          "allowed_member_ids": [
+            2,
+            3
+          ],
+          "allowed_vehicle_ids": [
+            1,
+            2
+          ],
+          "owner_id": 1
+        },
+        "properties": {
+          "access_schedules": {
+            "description": "Time-based access schedules for specific members",
+            "items": {
+              "$ref": "#/components/schemas/AccessSchedule"
+            },
+            "title": "Access Schedules",
+            "type": "array"
+          },
+          "allowed_member_ids": {
+            "description": "IDs of household members allowed in this zone (partial trust)",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Allowed Member Ids",
+            "type": "array"
+          },
+          "allowed_vehicle_ids": {
+            "description": "IDs of registered vehicles allowed in this zone (partial trust)",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Allowed Vehicle Ids",
+            "type": "array"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the household member who owns this zone (full trust)",
+            "title": "Owner Id"
+          }
+        },
+        "title": "ZoneHouseholdConfigCreate",
+        "type": "object"
+      },
+      "ZoneHouseholdConfigResponse": {
+        "description": "Schema for zone household configuration response.",
+        "example": {
+          "access_schedules": [
+            {
+              "cron_expression": "0 9-17 * * 1-5",
+              "description": "Weekday access",
+              "member_ids": [
+                4
+              ]
+            }
+          ],
+          "allowed_member_ids": [
+            2,
+            3
+          ],
+          "allowed_vehicle_ids": [
+            1
+          ],
+          "created_at": "2026-01-21T10:00:00Z",
+          "id": 1,
+          "owner_id": 1,
+          "updated_at": "2026-01-21T12:00:00Z",
+          "zone_id": "550e8400-e29b-41d4-a716-446655440000"
+        },
+        "properties": {
+          "access_schedules": {
+            "description": "Time-based access schedules",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Access Schedules",
+            "type": "array"
+          },
+          "allowed_member_ids": {
+            "description": "IDs of household members allowed in this zone",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Allowed Member Ids",
+            "type": "array"
+          },
+          "allowed_vehicle_ids": {
+            "description": "IDs of registered vehicles allowed in this zone",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Allowed Vehicle Ids",
+            "type": "array"
+          },
+          "created_at": {
+            "description": "When the configuration was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Configuration ID",
+            "title": "Id",
+            "type": "integer"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the zone owner (household member with full trust)",
+            "title": "Owner Id"
+          },
+          "updated_at": {
+            "description": "When the configuration was last updated",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "zone_id": {
+            "description": "ID of the zone this configuration applies to",
+            "title": "Zone Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "zone_id",
+          "allowed_member_ids",
+          "allowed_vehicle_ids",
+          "access_schedules",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ZoneHouseholdConfigResponse",
+        "type": "object"
+      },
+      "ZoneHouseholdConfigUpdate": {
+        "description": "Schema for updating a zone household configuration.\n\nAll fields are optional - only provided fields will be updated.",
+        "example": {
+          "allowed_member_ids": [
+            3,
+            4,
+            5
+          ],
+          "owner_id": 2
+        },
+        "properties": {
+          "access_schedules": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AccessSchedule"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Time-based access schedules for specific members",
+            "title": "Access Schedules"
+          },
+          "allowed_member_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "IDs of household members allowed in this zone",
+            "title": "Allowed Member Ids"
+          },
+          "allowed_vehicle_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "IDs of registered vehicles allowed in this zone",
+            "title": "Allowed Vehicle Ids"
+          },
+          "owner_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the household member who owns this zone",
+            "title": "Owner Id"
+          }
+        },
+        "title": "ZoneHouseholdConfigUpdate",
         "type": "object"
       },
       "ZoneListResponse": {
@@ -36042,6 +36379,373 @@
         "summary": "Receive Alertmanager Webhook",
         "tags": [
           "webhooks"
+        ]
+      }
+    },
+    "/api/zones/member/{member_id}/zones": {
+      "get": {
+        "description": "Get all zones where a household member has trust.\n\nReturns zones where the member is:\n- The owner (full trust)\n- In the allowed members list (partial trust)\n- In any access schedule (potential monitor trust)\n\nArgs:\n    member_id: ID of the household member\n    db: Database session\n\nReturns:\n    List of zones with trust information",
+        "operationId": "get_member_zones_api_zones_member__member_id__zones_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "member_id",
+            "required": true,
+            "schema": {
+              "title": "Member Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Get Member Zones Api Zones Member  Member Id  Zones Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Member Zones",
+        "tags": [
+          "zone-household"
+        ]
+      }
+    },
+    "/api/zones/vehicle/{vehicle_id}/zones": {
+      "get": {
+        "description": "Get all zones where a vehicle has trust.\n\nReturns zones where the vehicle is in the allowed vehicles list.\n\nArgs:\n    vehicle_id: ID of the registered vehicle\n    db: Database session\n\nReturns:\n    List of zones with trust information",
+        "operationId": "get_vehicle_zones_api_zones_vehicle__vehicle_id__zones_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "title": "Vehicle Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Get Vehicle Zones Api Zones Vehicle  Vehicle Id  Zones Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Vehicle Zones",
+        "tags": [
+          "zone-household"
+        ]
+      }
+    },
+    "/api/zones/{zone_id}/household": {
+      "delete": {
+        "description": "Delete the household configuration for a zone.\n\nRemoves all household linkage for this zone, including owner,\nallowed members, allowed vehicles, and access schedules.\n\nArgs:\n    zone_id: ID of the zone\n    db: Database session\n\nRaises:\n    HTTPException: 404 if zone not found\n    HTTPException: 404 if config not found",
+        "operationId": "delete_zone_household_config_api_zones__zone_id__household_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Zone Household Config",
+        "tags": [
+          "zone-household"
+        ]
+      },
+      "get": {
+        "description": "Get the household configuration for a zone.\n\nReturns the household configuration if one exists, or null if the zone\nhas no household linkage configured.\n\nArgs:\n    zone_id: ID of the zone\n    db: Database session\n\nReturns:\n    ZoneHouseholdConfigResponse if config exists, None otherwise\n\nRaises:\n    HTTPException: 404 if zone not found",
+        "operationId": "get_zone_household_config_api_zones__zone_id__household_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ZoneHouseholdConfigResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Zone Household Config Api Zones  Zone Id  Household Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Zone Household Config",
+        "tags": [
+          "zone-household"
+        ]
+      },
+      "patch": {
+        "description": "Partially update the household configuration for a zone.\n\nOnly updates the fields that are provided in the request body.\nUnlike PUT, this endpoint requires an existing configuration.\n\nArgs:\n    zone_id: ID of the zone\n    config_data: Household configuration update data\n    db: Database session\n\nReturns:\n    Updated ZoneHouseholdConfigResponse\n\nRaises:\n    HTTPException: 404 if zone not found\n    HTTPException: 404 if config not found\n    HTTPException: 404 if owner_id references non-existent member",
+        "operationId": "patch_zone_household_config_api_zones__zone_id__household_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZoneHouseholdConfigUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneHouseholdConfigResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Zone Household Config",
+        "tags": [
+          "zone-household"
+        ]
+      },
+      "put": {
+        "description": "Create or update the household configuration for a zone.\n\nIf a configuration already exists for this zone, it will be updated.\nOtherwise, a new configuration will be created.\n\nArgs:\n    zone_id: ID of the zone\n    config_data: Household configuration data\n    db: Database session\n\nReturns:\n    Created or updated ZoneHouseholdConfigResponse\n\nRaises:\n    HTTPException: 404 if zone not found\n    HTTPException: 404 if owner_id references non-existent member",
+        "operationId": "upsert_zone_household_config_api_zones__zone_id__household_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ZoneHouseholdConfigCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneHouseholdConfigResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upsert Zone Household Config",
+        "tags": [
+          "zone-household"
+        ]
+      }
+    },
+    "/api/zones/{zone_id}/household/trust/{entity_type}/{entity_id}": {
+      "get": {
+        "description": "Check the trust level of an entity in a zone.\n\nEvaluates the trust level based on:\n1. Zone ownership (full trust)\n2. Allowed members/vehicles list (partial trust)\n3. Time-based access schedules (monitor trust)\n4. No configuration (none)\n\nArgs:\n    zone_id: ID of the zone\n    entity_type: Type of entity (\"member\" or \"vehicle\")\n    entity_id: ID of the entity to check\n    at_time: Optional time for schedule checking (defaults to now)\n    db: Database session\n\nReturns:\n    TrustCheckResponse with trust level and reason\n\nRaises:\n    HTTPException: 404 if zone not found",
+        "operationId": "check_entity_trust_api_zones__zone_id__household_trust__entity_type___entity_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entity_type",
+            "required": true,
+            "schema": {
+              "enum": [
+                "member",
+                "vehicle"
+              ],
+              "title": "Entity Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entity_id",
+            "required": true,
+            "schema": {
+              "title": "Entity Id",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Time to check access for (ISO 8601 format, defaults to current time)",
+            "in": "query",
+            "name": "at_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Time to check access for (ISO 8601 format, defaults to current time)",
+              "title": "At Time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrustCheckResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check Entity Trust",
+        "tags": [
+          "zone-household"
         ]
       }
     },

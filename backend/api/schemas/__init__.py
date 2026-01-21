@@ -221,6 +221,14 @@ from .websocket import (
     get_event_registry_response,
 )
 from .zone import ZoneCreate, ZoneListResponse, ZoneResponse, ZoneUpdate
+from .zone_household import (
+    AccessSchedule,
+    TrustCheckResponse,
+    TrustLevelResult,
+    ZoneHouseholdConfigCreate,
+    ZoneHouseholdConfigResponse,
+    ZoneHouseholdConfigUpdate,
+)
 
 __all__ = [
     # Constants (sorted separately)
@@ -233,6 +241,8 @@ __all__ = [
     "AIServiceOverallStatus",
     "AIServiceStatus",
     "AIServicesHealthResponse",
+    # Zone household schemas (NEM-3190)
+    "AccessSchedule",
     "ActivityBaselineEntry",
     "ActivityBaselineResponse",
     "AlertCreate",
@@ -374,6 +384,8 @@ __all__ = [
     "SimpleReadinessResponse",
     "TestNotificationRequest",
     "TestNotificationResponse",
+    "TrustCheckResponse",
+    "TrustLevelResult",
     "ValidationErrorDetail",
     "ValidationErrorResponse",
     "VehicleEnrichment",
@@ -402,6 +414,9 @@ __all__ = [
     "WebSocketSubscribeMessage",
     "WebSocketUnsubscribeMessage",
     "ZoneCreate",
+    "ZoneHouseholdConfigCreate",
+    "ZoneHouseholdConfigResponse",
+    "ZoneHouseholdConfigUpdate",
     "ZoneListResponse",
     "ZoneResponse",
     "ZoneUpdate",

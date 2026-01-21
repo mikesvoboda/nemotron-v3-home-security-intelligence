@@ -65,6 +65,7 @@ from backend.api.routes import (
     system,
     webhooks,
     websocket,
+    zone_household,
     zones,
 )
 from backend.api.routes.system import register_workers
@@ -1103,6 +1104,7 @@ app.include_router(summaries.router)
 app.include_router(system.router)
 app.include_router(webhooks.router)
 app.include_router(websocket.router)
+app.include_router(zone_household.router)
 app.include_router(zones.router)
 
 
