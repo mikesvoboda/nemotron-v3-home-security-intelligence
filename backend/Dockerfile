@@ -13,8 +13,13 @@
 
 # =============================================================================
 # Base stage: shared Python setup with build dependencies
+# Uses Python 3.14 free-threaded build (3.14t) for GIL-free parallelism
 # =============================================================================
-FROM python:3.14-slim-bookworm AS base
+FROM python:3.14t-slim-bookworm AS base
+
+# Enable free-threaded mode by disabling the GIL at runtime
+# This must be set before Python starts to take effect
+ENV PYTHON_GIL=0
 
 # Security labels
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -103,8 +108,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # =============================================================================
 # Production target: minimal runtime image without build tools
+# Uses Python 3.14 free-threaded build (3.14t) for GIL-free parallelism
 # =============================================================================
-FROM python:3.14-slim-bookworm AS prod
+FROM python:3.14t-slim-bookworm AS prod
+
+# Enable free-threaded mode by disabling the GIL at runtime
+# This must be set before Python starts to take effect
+ENV PYTHON_GIL=0
 
 # Security labels
 LABEL org.opencontainers.image.vendor="home-security-intelligence"

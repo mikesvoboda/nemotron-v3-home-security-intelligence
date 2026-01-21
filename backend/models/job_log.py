@@ -5,12 +5,10 @@ for detailed debugging and audit trails. Logs are associated with specific
 job attempts and include log level, timestamps, and optional context.
 """
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 from enum import StrEnum, auto
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID, uuid7
 
 from sqlalchemy import CheckConstraint, DateTime, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -50,7 +48,7 @@ class JobLog(Base):
     id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
         primary_key=True,
-        default=uuid4,
+        default=uuid7,
     )
     job_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),

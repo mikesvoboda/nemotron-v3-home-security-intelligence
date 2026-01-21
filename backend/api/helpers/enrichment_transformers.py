@@ -25,7 +25,7 @@ Usage:
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any
+from typing import Any, override
 
 from backend.api.schemas.enrichment_data import validate_enrichment_data
 from backend.core.logging import get_logger
@@ -162,13 +162,16 @@ class LicensePlateExtractor(BaseEnrichmentExtractor):
     """Extract license plate data from enrichment."""
 
     @property
+    @override
     def enrichment_key(self) -> str:
         return "license_plates"
 
     @property
+    @override
     def default_value(self) -> dict[str, Any]:
         return {"detected": False}
 
+    @override
     def extract(self, enrichment_data: dict[str, Any]) -> dict[str, Any]:
         """Extract license plate data.
 
@@ -192,13 +195,16 @@ class FaceExtractor(BaseEnrichmentExtractor):
     """Extract face detection data from enrichment."""
 
     @property
+    @override
     def enrichment_key(self) -> str:
         return "faces"
 
     @property
+    @override
     def default_value(self) -> dict[str, Any]:
         return {"detected": False, "count": 0}
 
+    @override
     def extract(self, enrichment_data: dict[str, Any]) -> dict[str, Any]:
         """Extract face detection data.
 
@@ -219,13 +225,16 @@ class ViolenceExtractor(BaseEnrichmentExtractor):
     """Extract violence detection data from enrichment."""
 
     @property
+    @override
     def enrichment_key(self) -> str:
         return "violence_detection"
 
     @property
+    @override
     def default_value(self) -> dict[str, Any]:
         return {"detected": False, "score": 0.0}
 
+    @override
     def extract(self, enrichment_data: dict[str, Any]) -> dict[str, Any]:
         """Extract violence detection data."""
         violence_data = enrichment_data.get(self.enrichment_key)
@@ -243,13 +252,16 @@ class VehicleExtractor(BaseEnrichmentExtractor):
     """Extract vehicle classification and damage data from enrichment."""
 
     @property
+    @override
     def enrichment_key(self) -> str:
         return "vehicle_classifications"
 
     @property
+    @override
     def default_value(self) -> None:
         return None
 
+    @override
     def extract(self, enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
         """Extract vehicle classification data with damage info if present."""
         first_key, vc = self._get_first_item_from_dict(enrichment_data, self.enrichment_key)
@@ -279,13 +291,16 @@ class ClothingExtractor(BaseEnrichmentExtractor):
     """Extract clothing classification and segmentation data from enrichment."""
 
     @property
+    @override
     def enrichment_key(self) -> str:
         return "clothing_classifications"
 
     @property
+    @override
     def default_value(self) -> None:
         return None
 
+    @override
     def extract(self, enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
         """Extract clothing data from both classification and segmentation."""
         clothing_classifications = enrichment_data.get(self.enrichment_key, {})
@@ -330,13 +345,16 @@ class ImageQualityExtractor(BaseEnrichmentExtractor):
     """Extract image quality assessment data from enrichment."""
 
     @property
+    @override
     def enrichment_key(self) -> str:
         return "image_quality"
 
     @property
+    @override
     def default_value(self) -> None:
         return None
 
+    @override
     def extract(self, enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
         """Extract image quality data."""
         iq = enrichment_data.get(self.enrichment_key)
@@ -356,13 +374,16 @@ class PetExtractor(BaseEnrichmentExtractor):
     """Extract pet classification data from enrichment."""
 
     @property
+    @override
     def enrichment_key(self) -> str:
         return "pet_classifications"
 
     @property
+    @override
     def default_value(self) -> None:
         return None
 
+    @override
     def extract(self, enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
         """Extract pet classification data."""
         first_key, pc = self._get_first_item_from_dict(enrichment_data, self.enrichment_key)
@@ -387,13 +408,16 @@ class PoseExtractor(BaseEnrichmentExtractor):
     """
 
     @property
+    @override
     def enrichment_key(self) -> str:
         return "pose_estimation"
 
     @property
+    @override
     def default_value(self) -> None:
         return None
 
+    @override
     def extract(self, enrichment_data: dict[str, Any]) -> dict[str, Any] | None:
         """Extract pose analysis data.
 

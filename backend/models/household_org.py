@@ -17,8 +17,6 @@ Hierarchy:
 Implements NEM-3128: Phase 5.1 - Create Household organization model.
 """
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import TYPE_CHECKING
 

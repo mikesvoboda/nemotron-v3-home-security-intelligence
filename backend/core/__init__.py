@@ -28,6 +28,19 @@ from backend.core.database import (
     init_db,
     with_session,
 )
+from backend.core.executors import (
+    HAS_INTERPRETER_POOL,
+    get_cpu_executor,
+    get_executor_info,
+    get_executor_type,
+    is_free_threaded,
+)
+from backend.core.free_threading import (
+    FreeThreadingStatus,
+    check_free_threading_support,
+    get_threading_mode,
+    verify_free_threading,
+)
 from backend.core.json_utils import (
     extract_json_field,
     extract_json_from_llm_response,
@@ -123,6 +136,7 @@ __all__ = [
     "DEFAULT_IMAGE_MIME",
     "DEFAULT_VIDEO_MIME",
     "EXTENSION_TO_MIME",
+    "HAS_INTERPRETER_POOL",
     "SENSITIVE_FIELD_NAMES",
     # Protocols
     "AIServiceProtocol",
@@ -137,6 +151,7 @@ __all__ = [
     "CircularDependencyError",
     "ConfigValidationResult",
     "Container",
+    "FreeThreadingStatus",
     "HealthCheckableProtocol",
     "InputT",
     "LifecycleProtocol",
@@ -157,6 +172,7 @@ __all__ = [
     "TLSError",
     "TLSMode",
     "ValidationItem",
+    "check_free_threading_support",
     # Functions
     "close_db",
     "close_redis",
@@ -168,8 +184,11 @@ __all__ = [
     "generate_self_signed_certificate",
     "get_cert_info",
     "get_container",
+    "get_cpu_executor",
     "get_db",
     "get_engine",
+    "get_executor_info",
+    "get_executor_type",
     "get_log_context",
     "get_logger",
     "get_metrics_response",
@@ -184,9 +203,11 @@ __all__ = [
     "get_session",
     "get_session_factory",
     "get_settings",
+    "get_threading_mode",
     "get_tls_config",
     "init_db",
     "init_redis",
+    "is_free_threaded",
     "is_image_mime_type",
     "is_supported_mime_type",
     "is_tls_enabled",
@@ -215,6 +236,7 @@ __all__ = [
     "validate_certificate",
     "validate_certificate_files",
     "validate_config",
+    "verify_free_threading",
     "wire_services",
     "with_session",
 ]

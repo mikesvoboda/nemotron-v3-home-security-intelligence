@@ -51,7 +51,7 @@ import uuid
 from collections.abc import AsyncIterator, Callable, Coroutine
 from contextlib import asynccontextmanager
 from contextvars import ContextVar, Token
-from typing import Any, ParamSpec, TypeVar
+from typing import Any
 
 # Import log context functions from logging module to avoid duplication
 from backend.core.logging import (
@@ -76,9 +76,6 @@ __all__ = [
     "set_job_id",
     "set_task_id",
 ]
-
-# Type variables for generic functions
-T = TypeVar("T")
 
 # Context variable for WebSocket connection ID
 _connection_id: ContextVar[str | None] = ContextVar("connection_id", default=None)
@@ -220,7 +217,7 @@ async def propagate_log_context(
         set_request_id(previous_request_id)
 
 
-def create_task_with_context(  # noqa: UP047
+def create_task_with_context[T](
     coro: Coroutine[Any, Any, T],
     *,
     request_id: str | None = None,
@@ -274,7 +271,7 @@ def create_task_with_context(  # noqa: UP047
     return asyncio.create_task(wrapped_coro(), name=name)
 
 
-def create_tracked_task(  # noqa: UP047
+def create_tracked_task[T](
     coro: Coroutine[Any, Any, T],
     *,
     name: str | None = None,
@@ -356,12 +353,7 @@ def create_tracked_task(  # noqa: UP047
     return asyncio.create_task(wrapped_coro(), name=name)
 
 
-# Type variables for decorator
-P = ParamSpec("P")
-R = TypeVar("R")
-
-
-def copy_context_to_task(  # noqa: UP047
+def copy_context_to_task[**P, R](
     func: Callable[P, Coroutine[Any, Any, R]],
 ) -> Callable[P, Coroutine[Any, Any, R]]:
     """Decorator that ensures coroutines preserve logging context.

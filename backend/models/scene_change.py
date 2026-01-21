@@ -5,11 +5,8 @@ tampering, angle changes, or blocked/obscured views. These are detected by the
 SceneChangeDetector service using SSIM (Structural Similarity Index) comparison.
 """
 
-from __future__ import annotations
-
 import enum
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -27,10 +24,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.core.time_utils import utc_now
 
-from .camera import Base
-
-if TYPE_CHECKING:
-    from .camera import Camera
+from .camera import Base, Camera
 
 
 class SceneChangeType(str, enum.Enum):

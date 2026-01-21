@@ -16,7 +16,11 @@ Usage:
 
 Configuration:
     The semaphore limit is controlled by the AI_MAX_CONCURRENT_INFERENCES
-    environment variable (default: 4). This can be tuned based on:
+    environment variable. The default depends on Python runtime:
+    - Free-threaded Python (3.13t/3.14t): 20 concurrent operations
+    - Standard Python with GIL: 4 concurrent operations
+
+    This can be tuned based on:
     - GPU VRAM capacity (lower for constrained VRAM)
     - AI service architecture (higher for distributed services)
     - Expected traffic patterns
@@ -26,6 +30,11 @@ Benefits:
     - Ensures predictable latency by preventing request pileup
     - Allows graceful degradation instead of service crashes
     - Shared limit ensures total AI load stays bounded
+
+Free-Threading Support (Python 3.13t/3.14t):
+    When running on free-threaded Python (GIL disabled), this module
+    automatically increases the default concurrency limit to 20 to
+    leverage true thread parallelism for AI inference operations.
 
 Memory Pressure Throttling (NEM-1727):
     When GPU memory pressure is detected, the semaphore permits can be
@@ -45,6 +54,7 @@ Thread Safety:
 from __future__ import annotations
 
 import asyncio
+import sys
 from typing import TYPE_CHECKING
 
 from backend.core.config import get_settings
@@ -54,6 +64,43 @@ if TYPE_CHECKING:
     from backend.services.gpu_monitor import MemoryPressureLevel
 
 logger = get_logger(__name__)
+
+
+# =============================================================================
+# Free-Threading Detection (Python 3.13t/3.14t)
+# =============================================================================
+
+
+def is_free_threaded() -> bool:
+    """Check if Python is running in free-threaded mode (GIL disabled).
+
+    Free-threaded Python (3.13t, 3.14t) disables the Global Interpreter Lock,
+    enabling true thread parallelism for CPU-bound operations. This allows
+    significantly higher concurrency for AI inference workloads.
+
+    Returns:
+        True if running free-threaded Python with GIL disabled, False otherwise.
+    """
+    # Python 3.13+ exposes sys._is_gil_enabled() to check GIL status
+    # Returns False when running free-threaded Python (GIL disabled)
+    if hasattr(sys, "_is_gil_enabled"):
+        return not sys._is_gil_enabled()
+    return False
+
+
+def _get_default_permits() -> int:
+    """Get default permit count based on runtime environment.
+
+    Returns a higher concurrency limit when running on free-threaded Python
+    to leverage true thread parallelism for AI inference operations.
+
+    Returns:
+        Default permit count: 20 for free-threaded Python, 4 for standard Python.
+    """
+    if is_free_threaded():
+        return 20  # Higher limit with true parallelism
+    return 4  # Conservative limit with GIL
+
 
 # Global singleton semaphore instance
 _inference_semaphore: asyncio.Semaphore | None = None
@@ -69,7 +116,9 @@ def get_inference_semaphore() -> asyncio.Semaphore:
 
     Returns a shared asyncio.Semaphore that limits concurrent AI inference
     operations. The limit is configured via AI_MAX_CONCURRENT_INFERENCES
-    setting (default: 4).
+    setting. The default depends on Python runtime:
+    - Free-threaded Python (GIL disabled): 20 concurrent operations
+    - Standard Python with GIL: 4 concurrent operations
 
     Returns:
         asyncio.Semaphore: The shared inference semaphore.
@@ -89,9 +138,18 @@ def get_inference_semaphore() -> asyncio.Semaphore:
         _original_permit_count = max_concurrent
         _current_permit_count = max_concurrent
 
+        # Log initialization with free-threading status
+        free_threading = is_free_threaded()
+        default_permits = _get_default_permits()
+
         logger.info(
-            "AI inference semaphore initialized with max_concurrent=%d",
-            max_concurrent,
+            "AI inference semaphore initialized",
+            extra={
+                "max_concurrent": max_concurrent,
+                "free_threading": free_threading,
+                "default_permits": default_permits,
+                "using_custom_limit": max_concurrent != default_permits,
+            },
         )
 
     return _inference_semaphore
