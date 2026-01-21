@@ -52,6 +52,7 @@ from backend.api.routes import (
     hierarchy,
     household,
     jobs,
+    logs,
     media,
     metrics,
     notification,
@@ -1091,6 +1092,7 @@ app.include_router(hierarchy.property_router)
 app.include_router(hierarchy.area_router)
 app.include_router(household.router)
 app.include_router(jobs.router)
+app.include_router(logs.router)
 app.include_router(media.router)
 app.include_router(metrics.router)
 app.include_router(notification.router)
