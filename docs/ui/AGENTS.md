@@ -4,6 +4,31 @@
 
 Page-specific documentation for the Nemotron Home Security dashboard. Each file documents what users see on a specific page, including key components, settings, and troubleshooting.
 
+## Directory Contents
+
+```
+ui/
+  AGENTS.md              # This file
+  README.md              # UI documentation hub
+  ai-audit.md            # AI Audit page
+  ai-performance.md      # AI Performance page
+  alerts.md              # Alerts page
+  analytics.md           # Analytics page
+  audit-log.md           # Audit Log page
+  dashboard.md           # Dashboard page
+  entities.md            # Entities page
+  interface-guide.md     # Interface usability guide
+  jobs.md                # Background Jobs page
+  keyboard-shortcuts.md  # Keyboard shortcuts reference
+  logs.md                # Application Logs page
+  mobile-pwa.md          # Mobile and PWA guide
+  operations.md          # System Monitoring page
+  settings.md            # Settings page
+  timeline.md            # Event Timeline page
+  trash.md               # Trash/Deleted Events page
+  zones.md               # Detection Zones page
+```
+
 ## Quick Navigation
 
 | File                | Page                 | Frontend Component                       |

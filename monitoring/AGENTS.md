@@ -2,7 +2,15 @@
 
 ## Purpose
 
-This directory contains observability and monitoring infrastructure configuration for the Home Security Intelligence system. It includes Prometheus metrics collection, JSON exporter configuration for API endpoint scraping, and Grafana dashboards for visualization.
+This directory contains observability and monitoring infrastructure configuration for the Home Security Intelligence system. It includes:
+
+- **Prometheus** - Metrics collection and alerting
+- **Grafana** - Dashboards for visualization
+- **Loki** - Log aggregation and querying
+- **Pyroscope** - Continuous profiling
+- **Alloy** - Grafana Alloy collector for unified telemetry
+- **JSON Exporter** - API endpoint scraping for metrics
+- **Blackbox Exporter** - Synthetic monitoring probes
 
 ## Directory Structure
 
@@ -11,11 +19,9 @@ monitoring/
   AGENTS.md                    # This file
   alerting-rules.yml           # Alert notification rules
   alertmanager.yml             # Alertmanager configuration
+  alloy/                       # Grafana Alloy collector configuration
+    config.alloy               # Alloy collector configuration
   blackbox-exporter.yml        # Blackbox Exporter synthetic monitoring config (NEM-1637)
-  json-exporter-config.yml     # JSON Exporter module definitions
-  prometheus.yml               # Prometheus scrape configuration
-  prometheus-rules.yml         # Prometheus recording rules
-  prometheus_rules.yml         # Prometheus alerting rules for AI pipeline
   grafana/                     # Grafana configuration
     AGENTS.md                  # Grafana directory guide
     dashboards/                # Dashboard JSON definitions
@@ -27,6 +33,14 @@ monitoring/
         dashboard.yml          # Dashboard provider config
       datasources/
         prometheus.yml         # Datasource configuration
+  json-exporter-config.yml     # JSON Exporter module definitions
+  loki/                        # Loki log aggregation configuration
+    loki-config.yml            # Loki server configuration
+  prometheus.yml               # Prometheus scrape configuration
+  prometheus-rules.yml         # Prometheus recording rules
+  prometheus_rules.yml         # Prometheus alerting rules for AI pipeline
+  pyroscope/                   # Pyroscope continuous profiling configuration
+    pyroscope-config.yml       # Pyroscope server configuration
 ```
 
 ## Key Files

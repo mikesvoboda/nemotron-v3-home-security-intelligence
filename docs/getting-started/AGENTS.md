@@ -9,9 +9,12 @@ This directory contains quick start guides for getting the Home Security Intelli
 ```
 getting-started/
   AGENTS.md          # This file
+  README.md          # Getting started hub and index
   first-run.md       # First run guide
   installation.md    # Installation guide
   prerequisites.md   # System prerequisites
+  quick-start.md     # Quick start guide
+  tour.md            # Product tour and walkthrough
   upgrading.md       # Upgrade guide
 ```
 
@@ -75,12 +78,38 @@ getting-started/
 
 **When to use:** Upgrading to a new version of the system.
 
+### quick-start.md
+
+**Purpose:** Condensed quick start guide for experienced users.
+
+**Topics Covered:**
+
+- Minimal setup steps
+- Essential configuration
+- Quick verification
+
+**When to use:** Fast setup for experienced users.
+
+### tour.md
+
+**Purpose:** Product tour and system walkthrough.
+
+**Topics Covered:**
+
+- Dashboard overview
+- Feature walkthrough
+- Navigation guide
+- Key concepts
+
+**When to use:** Learning the system after installation.
+
 ## Recommended Reading Order
 
-1. **prerequisites.md** - Verify your system meets requirements
+1. **quick-start.md** or **prerequisites.md** - Get started quickly or verify requirements
 2. **installation.md** - Install the system
 3. **first-run.md** - Get oriented with the dashboard
-4. Continue to **user-guide/** for detailed usage documentation
+4. **tour.md** - Learn the system features
+5. Continue to **docs/ui/** for detailed UI documentation
 
 ## Target Audience
 
@@ -93,7 +122,8 @@ getting-started/
 ## Related Documentation
 
 - **docs/AGENTS.md:** Documentation directory overview
-- **docs/user-guide/:** User documentation
+- **docs/ui/:** UI page documentation
+- **docs/user/:** User documentation hub
 - **docs/operator/admin/:** Administrator documentation
 - **docs/operator/ai-installation.md:** AI services setup
 - **docs/operator/deployment/README.md:** Docker deployment details

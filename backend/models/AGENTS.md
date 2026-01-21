@@ -17,33 +17,42 @@ This directory contains SQLAlchemy 2.0 ORM models for the home security intellig
 
 ```
 backend/models/
-├── __init__.py        # Module exports (all models and enums)
-├── camera.py          # Camera model and Base class definition
-├── detection.py       # Object detection results model (with video metadata support)
-├── event.py           # Security event model with LLM analysis
-├── event_audit.py     # AI pipeline audit model for performance tracking
-├── alert.py           # Alert and AlertRule models for notification system
-├── zone.py            # Zone model for camera region definitions
-├── baseline.py        # ActivityBaseline and ClassBaseline for anomaly detection
-├── audit.py           # AuditLog model for security-sensitive operations
-├── gpu_stats.py       # GPU performance metrics model
-├── log.py             # Structured application log model
-├── api_key.py         # API key authentication model
-├── prompt_config.py   # Current AI prompt configuration (user-editable)
-├── prompt_version.py  # AI prompt configuration version tracking (historical)
-├── scene_change.py    # Scene change detection for camera tampering alerts
-├── event_detection.py # Junction table for Event-Detection many-to-many relationship
-├── enums.py           # Shared enumerations (Severity, EntityType, TrustStatus)
-├── event_feedback.py  # User feedback on security events (NEM-1794)
+├── __init__.py              # Module exports (all models and enums)
+├── alert.py                 # Alert and AlertRule models for notification system
+├── area.py                  # Area/region model for camera coverage areas
+├── audit.py                 # AuditLog model for security-sensitive operations
+├── baseline.py              # ActivityBaseline and ClassBaseline for anomaly detection
+├── camera_calibration.py    # Camera calibration settings model
+├── camera.py                # Camera model and Base class definition
+├── camera_zone.py           # Camera zone model (CameraZone) for region definitions
+├── detection.py             # Object detection results model (with video metadata support)
+├── enrichment.py            # Detection enrichment data model
+├── entity.py                # Entity model for re-identification tracking (NEM-1880, NEM-2210)
+├── enums.py                 # Shared enumerations (Severity, EntityType, TrustStatus)
+├── event_audit.py           # AI pipeline audit model for performance tracking
+├── event_detection.py       # Junction table for Event-Detection many-to-many relationship
+├── event_feedback.py        # User feedback on security events (NEM-1794)
+├── event.py                 # Security event model with LLM analysis
+├── experiment_result.py     # Experiment/A/B test result tracking model
+├── export_job.py            # Export job persistence model
+├── gpu_stats.py             # GPU performance metrics model
+├── household.py             # Household model for multi-tenant support
+├── household_org.py         # Household organization/member model
+├── job_attempt.py           # Job execution attempt model (NEM-2396)
+├── job_log.py               # Job log entry model (NEM-2396)
+├── job.py                   # Background job model for job tracking
+├── job_transition.py        # Job state transition model (NEM-2396)
+├── log.py                   # Structured application log model
 ├── notification_preferences.py  # Notification settings models
-├── user_calibration.py  # Personalized risk threshold calibration
-├── entity.py          # Entity model for re-identification tracking (NEM-1880, NEM-2210)
-├── export_job.py      # Export job persistence model
-├── job.py             # Background job model for job tracking
-├── job_attempt.py     # Job execution attempt model (NEM-2396)
-├── job_log.py         # Job log entry model (NEM-2396)
-├── job_transition.py  # Job state transition model (NEM-2396)
-└── README.md          # Detailed model documentation
+├── prometheus_alert.py      # Prometheus alerting rules model
+├── prompt_config.py         # Current AI prompt configuration (user-editable)
+├── prompt_version.py        # AI prompt configuration version tracking (historical)
+├── property.py              # Property/location model for multi-site support
+├── scene_change.py          # Scene change detection for camera tampering alerts
+├── summary.py               # Summary model for dashboard summaries
+├── user_calibration.py      # Personalized risk threshold calibration
+├── zone.py                  # Zone model (legacy alias for CameraZone)
+└── README.md                # Detailed model documentation
 ```
 
 ## `__init__.py` - Module Exports

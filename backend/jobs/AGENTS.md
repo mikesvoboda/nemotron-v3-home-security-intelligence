@@ -10,6 +10,7 @@ This directory contains background job implementations for scheduled and periodi
 backend/jobs/
 |-- __init__.py              # Package exports
 |-- orphan_cleanup_job.py    # Orphaned file cleanup (NEM-2387)
+|-- summary_job.py           # Summary generation job for periodic analytics
 |-- timeout_checker_job.py   # Job timeout detection and handling
 ```
 
@@ -99,6 +100,61 @@ Supports async context manager (`async with`).
 | `orphan_cleanup_enabled`             | Enable/disable cleanup       |
 | `orphan_cleanup_scan_interval_hours` | Hours between scans          |
 | `orphan_cleanup_age_threshold_hours` | Min file age before deletion |
+
+## `summary_job.py` - Summary Generation Job (NEM-2891)
+
+Background job for generating dashboard summaries every 5 minutes using the Nemotron LLM.
+
+### SummaryJob Class
+
+Runs on a 5-minute interval to generate hourly and daily summaries of high/critical security events.
+
+**What It Does:**
+
+1. Calls `SummaryGenerator.generate_all_summaries()` to create summaries
+2. Broadcasts updates via WebSocket to connected clients
+3. Invalidates the Redis cache for summaries
+4. Logs success/failure metrics
+
+**Safety Features:**
+
+| Feature                 | Description                                |
+| ----------------------- | ------------------------------------------ |
+| 60-second timeout       | Prevents hanging if LLM is unresponsive    |
+| Graceful error handling | Logs errors without crashing the scheduler |
+| Circuit breaker         | Integrated via SummaryGenerator            |
+
+**Constructor Parameters:**
+
+| Parameter          | Type             | Default | Description                        |
+| ------------------ | ---------------- | ------- | ---------------------------------- |
+| `generator`        | SummaryGenerator | None    | Optional SummaryGenerator instance |
+| `broadcaster`      | EventBroadcaster | None    | Optional EventBroadcaster instance |
+| `cache_service`    | CacheService     | None    | Optional CacheService instance     |
+| `interval_minutes` | int              | 5       | Minutes between job runs           |
+
+**Methods:**
+
+| Method    | Description                         |
+| --------- | ----------------------------------- |
+| `start()` | Start scheduled job (idempotent)    |
+| `stop()`  | Stop scheduled job                  |
+| `run()`   | Execute a single summary generation |
+
+### Helper Functions
+
+| Function                   | Description                                 |
+| -------------------------- | ------------------------------------------- |
+| `invalidate_summary_cache` | Invalidate summary-related cache keys       |
+| `broadcast_summary_update` | Broadcast summary update via WebSocket      |
+| `get_summary_job`          | Get or create singleton SummaryJob instance |
+| `reset_summary_job`        | Reset singleton (for testing)               |
+
+### Cache Keys Invalidated
+
+- `summaries:latest`
+- `summaries:hourly`
+- `summaries:daily`
 
 ## `timeout_checker_job.py` - Job Timeout Detection
 

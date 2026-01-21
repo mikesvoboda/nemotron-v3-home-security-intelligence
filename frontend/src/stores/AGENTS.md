@@ -8,6 +8,19 @@ Stores manage application state that needs to persist across sessions or be shar
 
 ## Files
 
+| File                              | Purpose                                               |
+| --------------------------------- | ----------------------------------------------------- |
+| `dashboardConfig.ts`              | Dashboard widget configuration store                  |
+| `dashboardConfig.test.ts`         | Tests for dashboard configuration store               |
+| `prometheus-alert-store.ts`       | Prometheus alert state management                     |
+| `prometheus-alert-store.test.ts`  | Tests for Prometheus alert store                      |
+| `rate-limit-store.ts`             | API rate limit tracking store                         |
+| `rate-limit-store.test.ts`        | Tests for rate limit store                            |
+| `storage-status-store.ts`         | Storage status tracking store                         |
+| `storage-status-store.test.ts`    | Tests for storage status store                        |
+| `worker-status-store.ts`          | Background worker status store                        |
+| `worker-status-store.test.ts`     | Tests for worker status store                         |
+
 ### `dashboardConfig.ts`
 
 Dashboard widget customization store. Manages:

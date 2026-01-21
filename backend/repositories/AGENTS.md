@@ -28,12 +28,40 @@ Routes/Services --> Repositories --> SQLAlchemy ORM --> Database
 backend/repositories/
 |-- __init__.py               # Module exports
 |-- AGENTS.md                 # This documentation
+|-- alert_repository.py       # Alert and AlertRule repository
 |-- base.py                   # Generic Repository[T] base class
 |-- camera_repository.py      # Camera entity repository
-|-- event_repository.py       # Event entity repository
 |-- detection_repository.py   # Detection entity repository
 |-- entity_repository.py      # Entity re-identification repository (NEM-2450, NEM-2494)
+|-- event_repository.py       # Event entity repository
+|-- summary_repository.py     # Summary entity repository
+|-- zone_repository.py        # Zone entity repository
 ```
+
+## `alert_repository.py` - Alert Repository
+
+Extends base with alert and alert rule-specific methods:
+
+| Method                      | Description                              |
+| --------------------------- | ---------------------------------------- |
+| `get_by_event_id(event_id)` | Get alerts for a specific event          |
+| `get_by_rule_id(rule_id)`   | Get alerts triggered by a specific rule  |
+| `get_by_status(status)`     | Get alerts by status (pending/delivered) |
+| `get_by_severity(severity)` | Get alerts by severity level             |
+| `get_pending(limit)`        | Get pending alerts                       |
+| `get_recent(limit)`         | Get most recent alerts                   |
+| `acknowledge(id)`           | Mark alert as acknowledged               |
+| `dismiss(id)`               | Mark alert as dismissed                  |
+| `get_by_dedup_key(key)`     | Find alert by deduplication key          |
+| `count_by_status(status)`   | Count alerts by status                   |
+
+**AlertRuleRepository** - Extends base with alert rule methods:
+
+| Method                        | Description                     |
+| ----------------------------- | ------------------------------- |
+| `get_enabled_rules()`         | Get all enabled alert rules     |
+| `get_by_camera_id(camera_id)` | Get rules for a specific camera |
+| `get_by_severity(severity)`   | Get rules by minimum severity   |
 
 ## `base.py` - Generic Repository Base Class
 
@@ -98,6 +126,28 @@ Extends base with detection-specific methods:
 | `get_high_confidence(threshold)`  | Get detections above confidence level |
 | `get_for_event(event_id)`         | Get detections linked to an event     |
 | `get_recent(limit)`               | Get most recent detections            |
+
+## `summary_repository.py` - Summary Repository
+
+Extends base with summary-specific methods:
+
+| Method                             | Description                          |
+| ---------------------------------- | ------------------------------------ |
+| `get_latest_by_type(summary_type)` | Get latest summary of specified type |
+| `get_latest_all()`                 | Get both latest hourly and daily     |
+| `cleanup_old_summaries(days)`      | Delete summaries older than N days   |
+| `get_by_time_range(start, end)`    | Get summaries in a time range        |
+
+## `zone_repository.py` - Zone Repository
+
+Extends base with zone-specific methods:
+
+| Method                              | Description                           |
+| ----------------------------------- | ------------------------------------- |
+| `get_by_camera_id(camera_id)`       | Get all zones for a camera            |
+| `get_by_name(camera_id, name)`      | Find zone by camera and name          |
+| `get_enabled_zones(camera_id)`      | Get only enabled zones for a camera   |
+| `get_by_type(camera_id, zone_type)` | Get zones by type (entry_point, etc.) |
 
 ## `entity_repository.py` - Entity Repository (NEM-2450, NEM-2494, NEM-2671)
 

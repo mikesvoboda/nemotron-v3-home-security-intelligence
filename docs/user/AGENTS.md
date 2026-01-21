@@ -14,11 +14,16 @@ This directory is the **end-user documentation hub** for the Home Security Intel
 
 ## Directory Contents
 
+```
+user/
+  AGENTS.md   # This file - AI navigation for user docs hub
+  README.md   # Main user guide hub with learning paths and links
+```
+
 | File        | Purpose                                           |
 | ----------- | ------------------------------------------------- |
 | `AGENTS.md` | This file - AI navigation for user docs hub       |
 | `README.md` | Main user guide hub with learning paths and links |
-| `images/`   | Screenshots and visual assets for user guides     |
 
 ## Key File
 

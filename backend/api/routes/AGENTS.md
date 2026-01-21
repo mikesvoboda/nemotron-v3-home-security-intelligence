@@ -1163,6 +1163,118 @@ Routes use FastAPI dependencies for:
 
 - `_get_target_queue(dlq_name)` - Get target queue for requeuing
 
+### `alertmanager.py`
+
+Prometheus Alertmanager webhook receiver for real-time alert integration (NEM-3122).
+
+**Router prefix:** `/api/v1/alertmanager`
+
+**Endpoints:**
+
+| Method | Path                           | Purpose                                     |
+| ------ | ------------------------------ | ------------------------------------------- |
+| POST   | `/api/v1/alertmanager/webhook` | Receive alerts from Prometheus Alertmanager |
+
+**Key Features:**
+
+- Stores Prometheus alerts in database for history tracking
+- Broadcasts alerts via WebSocket for real-time frontend updates
+- Handles Alertmanager webhook payload format
+
+### `hierarchy.py`
+
+Household organizational hierarchy management endpoints (NEM-3131, NEM-3132, NEM-3133).
+
+**Router prefix:** `/api/v1` (multiple resource prefixes)
+
+**Endpoints:**
+
+| Method | Path                                     | Purpose                       |
+| ------ | ---------------------------------------- | ----------------------------- |
+| GET    | `/api/v1/households`                     | List all households           |
+| POST   | `/api/v1/households`                     | Create household              |
+| GET    | `/api/v1/households/{id}`                | Get household by ID           |
+| PATCH  | `/api/v1/households/{id}`                | Update household              |
+| DELETE | `/api/v1/households/{id}`                | Delete household              |
+| GET    | `/api/v1/households/{id}/properties`     | List properties for household |
+| POST   | `/api/v1/households/{id}/properties`     | Create property               |
+| GET    | `/api/v1/properties/{id}`                | Get property by ID            |
+| PATCH  | `/api/v1/properties/{id}`                | Update property               |
+| DELETE | `/api/v1/properties/{id}`                | Delete property               |
+| GET    | `/api/v1/properties/{id}/areas`          | List areas for property       |
+| POST   | `/api/v1/properties/{id}/areas`          | Create area                   |
+| GET    | `/api/v1/areas/{id}`                     | Get area by ID                |
+| PATCH  | `/api/v1/areas/{id}`                     | Update area                   |
+| DELETE | `/api/v1/areas/{id}`                     | Delete area                   |
+| GET    | `/api/v1/areas/{id}/cameras`             | List cameras in area          |
+| POST   | `/api/v1/areas/{id}/cameras`             | Link camera to area           |
+| DELETE | `/api/v1/areas/{id}/cameras/{camera_id}` | Unlink camera from area       |
+
+### `household.py`
+
+Household member and vehicle management for reducing false positives (NEM-3018).
+
+**Router prefix:** `/api/household`
+
+**Endpoints:**
+
+| Method | Path                                            | Purpose                      |
+| ------ | ----------------------------------------------- | ---------------------------- |
+| GET    | `/api/household/members`                        | List all household members   |
+| POST   | `/api/household/members`                        | Create new member            |
+| GET    | `/api/household/members/{member_id}`            | Get specific member          |
+| PATCH  | `/api/household/members/{member_id}`            | Update member                |
+| DELETE | `/api/household/members/{member_id}`            | Delete member                |
+| POST   | `/api/household/members/{member_id}/embeddings` | Add embedding from event     |
+| GET    | `/api/household/vehicles`                       | List all registered vehicles |
+| POST   | `/api/household/vehicles`                       | Create new vehicle           |
+| GET    | `/api/household/vehicles/{vehicle_id}`          | Get specific vehicle         |
+| PATCH  | `/api/household/vehicles/{vehicle_id}`          | Update vehicle               |
+| DELETE | `/api/household/vehicles/{vehicle_id}`          | Delete vehicle               |
+
+### `settings_api.py`
+
+User-configurable system settings endpoints (NEM-3119, NEM-3120).
+
+**Router prefix:** `/api/settings`
+
+**Endpoints:**
+
+| Method | Path            | Purpose                       |
+| ------ | --------------- | ----------------------------- |
+| GET    | `/api/settings` | Get all configurable settings |
+| PATCH  | `/api/settings` | Update settings               |
+
+**Settings Categories:**
+
+- Detection settings (confidence thresholds)
+- Batch settings (window, idle timeout)
+- Severity settings (risk level thresholds)
+- Retention settings (data retention periods)
+- Rate limiting settings
+- Queue settings
+- Feature flags
+
+### `summaries.py`
+
+Dashboard summaries for LLM-generated event overviews.
+
+**Router prefix:** `/api/summaries`
+
+**Endpoints:**
+
+| Method | Path                    | Purpose                             |
+| ------ | ----------------------- | ----------------------------------- |
+| GET    | `/api/summaries/latest` | Get both hourly and daily summaries |
+| GET    | `/api/summaries/hourly` | Get latest hourly summary only      |
+| GET    | `/api/summaries/daily`  | Get latest daily summary only       |
+
+**Key Features:**
+
+- Summaries generated every 5 minutes by background job
+- Caches responses for performance
+- Returns structured bullet points and risk scores
+
 ## Integration Points
 
 ### Database Models

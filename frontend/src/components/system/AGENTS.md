@@ -16,6 +16,8 @@ Contains React components for comprehensive system observability and monitoring 
 | `CircuitBreakerPanel.test.tsx`           | Test suite for CircuitBreakerPanel                 |
 | `CollapsibleSection.tsx`                 | Collapsible section wrapper component              |
 | `CollapsibleSection.test.tsx`            | Test suite for CollapsibleSection                  |
+| `DebugModeToggle.tsx`                    | Toggle for debug mode settings                     |
+| `DebugModeToggle.test.tsx`               | Test suite for DebugModeToggle                     |
 | `ContainersPanel.tsx`                    | Container status and metrics                       |
 | `ContainersPanel.test.tsx`               | Test suite for ContainersPanel                     |
 | `DatabasesPanel.tsx`                     | PostgreSQL and Redis metrics                       |

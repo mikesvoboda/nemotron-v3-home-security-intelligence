@@ -11,8 +11,22 @@ This directory contains static assets that are served directly at the root URL p
 | `.gitkeep`      | Empty placeholder to ensure directory exists in git       |
 | `favicon.svg`   | Application favicon (security shield icon with checkmark) |
 | `manifest.json` | PWA manifest with app metadata and icons                  |
+| `icons/`        | Subdirectory containing PWA icons                         |
 | `images/`       | Subdirectory containing brand images                      |
 | `AGENTS.md`     | This documentation file                                   |
+
+### icons/ Subdirectory
+
+| File                    | Purpose                                       |
+| ----------------------- | --------------------------------------------- |
+| `apple-touch-icon.png`  | iOS home screen icon (180x180)                |
+| `apple-touch-icon.svg`  | SVG source for Apple touch icon               |
+| `badge-72.png`          | PWA badge icon (72x72, monochrome)            |
+| `badge-72.svg`          | SVG source for badge icon                     |
+| `icon-192.png`          | PWA icon (192x192, standard + maskable)       |
+| `icon-192.svg`          | SVG source for 192px icon                     |
+| `icon-512.png`          | PWA icon (512x512, standard + maskable)       |
+| `icon-512.svg`          | SVG source for 512px icon                     |
 
 ### images/ Subdirectory
 
@@ -120,10 +134,9 @@ All files in this directory are publicly accessible:
 
 Based on project needs, consider adding:
 
-- **`apple-touch-icon.png`** - iOS home screen icon (180x180)
 - **`robots.txt`** - SEO crawler configuration
 
-**Note:** The `manifest.json` file is already present with PWA configuration.
+**Note:** The `manifest.json` and `apple-touch-icon.png` files are already present for PWA configuration.
 
 ## Notes for AI Agents
 

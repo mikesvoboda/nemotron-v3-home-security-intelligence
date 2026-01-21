@@ -17,28 +17,33 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 
 ## Directory Structure
 
-| Directory           | Purpose                                          | Key Components                                                                                                                                                                                                                      |
-| ------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **ai/**             | AI Performance and Audit page components         | AIPerformancePage, AIAuditPage, ModelStatusCards, LatencyPanel, PipelineHealthPanel, InsightsCharts, ModelZooSection, BatchAuditModal, PromptPlayground, PromptABTest, ABTestStats, QualityScoreTrends, RecommendationsPanel, ModelLeaderboard, SuggestionDiffView, SuggestionExplanation |
-| **ai-audit/**       | AI audit components (placeholder)                | index.ts barrel only (components live in ai/)                                                                                                                                                                                       |
-| **ai-performance/** | AI performance summary row component             | AIPerformanceSummaryRow                                                                                                                                                                                                             |
-| **alerts/**         | Alert management and rule configuration          | AlertsPage, AlertCard, AlertActions, AlertFilters, AlertForm, AlertRuleForm                                                                                                                                                         |
-| **analytics/**      | Analytics and baseline monitoring                | AnalyticsPage, ActivityHeatmap, ClassFrequencyChart, AnomalyConfigPanel, PipelineLatencyPanel, SceneChangePanel                                                                                                                     |
-| **audit/**          | Audit log viewing and filtering                  | AuditLogPage, AuditTable, AuditFilters, AuditDetailModal, AuditStatsCards, EventAuditDetail                                                                                                                                         |
-| **common/**         | Shared UI components used across the application | ErrorBoundary, ChunkLoadErrorBoundary, RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox, SecureContextWarning, ScheduleSelector, TruncatedText, EmptyState, LoadingSpinner, RouteLoadingFallback             |
-| **dashboard/**      | Main dashboard page and monitoring widgets       | DashboardPage, CameraGrid, ActivityFeed, GpuStats, StatsRow (with integrated risk sparkline), PipelineQueues, PipelineTelemetry                                                                                                     |
-| **detection/**      | Object detection visualization components        | BoundingBoxOverlay, DetectionImage, DetectionThumbnail                                                                                                                                                                              |
-| **entities/**       | Entity tracking and re-identification            | EntitiesPage, EntityCard, EntityTimeline, EntityDetailModal, ReidHistoryPanel                                                                                                                                                      |
-| **events/**         | Security event components                        | EventCard, EventTimeline, EventDetailModal, ThumbnailStrip, ExportPanel                                                                                                                                                             |
-| **layout/**         | Application shell components                     | Layout, Header, Sidebar                                                                                                                                                                                                             |
-| **logs/**           | Logging dashboard and viewer                     | LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal                                                                                                                                                                 |
-| **search/**         | Full-text search components                      | SearchBar, SearchResultCard, SearchResultsPanel                                                                                                                                                                                     |
-| **settings/**       | Configuration pages                              | SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings, DlqMonitor, NotificationSettings, StorageDashboard                                                                                                             |
-| **status/**         | AI service health status components              | AIServiceStatus                                                                                                                                                                                                                      |
-| **system/**         | System monitoring page                           | SystemMonitoringPage, SystemSummaryRow, PipelineFlowVisualization, InfrastructureStatusGrid, WorkerStatusPanel, AiModelsPanel, ContainersPanel, DatabasesPanel, HostSystemPanel, ModelZooPool, PipelineMetricsPanel, CircuitBreakerPanel, SeverityConfigPanel, PerformanceAlerts, TimeRangeSelector |
-| **tracing/**        | Distributed tracing visualization page           | TracingPage                                                                                                                                                                                                                         |
-| **video/**          | Video playback components                        | VideoPlayer                                                                                                                                                                                                                         |
-| **zones/**          | Zone management components                       | ZoneCanvas, ZoneEditor, ZoneForm, ZoneList                                                                                                                                                                                          |
+| Directory             | Purpose                                          | Key Components                                                                                                                                                                                                                      |
+| --------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ai/**               | AI Performance and Audit page components         | AIPerformancePage, AIAuditPage, ModelStatusCards, LatencyPanel, PipelineHealthPanel, InsightsCharts, ModelZooSection, BatchAuditModal, PromptPlayground, PromptABTest, ABTestStats, QualityScoreTrends, RecommendationsPanel, ModelLeaderboard, SuggestionDiffView, SuggestionExplanation |
+| **ai-audit/**         | AI audit components (placeholder)                | index.ts barrel only (components live in ai/)                                                                                                                                                                                       |
+| **ai-performance/**   | AI performance summary row component             | AIPerformanceSummaryRow                                                                                                                                                                                                             |
+| **alerts/**           | Alert management and rule configuration          | AlertsPage, AlertCard, AlertActions, AlertFilters, AlertForm, AlertRuleForm                                                                                                                                                         |
+| **analytics/**        | Analytics and baseline monitoring                | AnalyticsPage, ActivityHeatmap, ClassFrequencyChart, AnomalyConfigPanel, PipelineLatencyPanel, SceneChangePanel                                                                                                                     |
+| **audit/**            | Audit log viewing and filtering                  | AuditLogPage, AuditTable, AuditFilters, AuditDetailModal, AuditStatsCards, EventAuditDetail                                                                                                                                         |
+| **common/**           | Shared UI components used across the application | ErrorBoundary, ChunkLoadErrorBoundary, RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox, SecureContextWarning, ScheduleSelector, TruncatedText, EmptyState, LoadingSpinner, RouteLoadingFallback, AlertBadge, AlertDrawer, BottomSheet, IconButton, WorkerStatusIndicator |
+| **dashboard/**        | Main dashboard page and monitoring widgets       | DashboardPage, CameraGrid, ActivityFeed, GpuStats, StatsRow, PipelineQueues, PipelineTelemetry, DashboardConfigModal, DashboardLayout, ExpandableSummary, SeverityBadge, SummaryCards, SummaryBulletList, SummaryCardEmpty, SummaryCardError, SummaryCardSkeleton |
+| **detection/**        | Object detection visualization components        | BoundingBoxOverlay, DetectionImage, DetectionThumbnail                                                                                                                                                                              |
+| **developer-tools/**  | Developer tools page for debugging               | DeveloperToolsPage, ConfigInspectorPanel, LogLevelPanel, ProfilingPanel, RecordingDetailModal, RecordingReplayPanel, RecordingsList, ReplayResultsModal, TestDataPanel, CleanupRow, SeedRow, ConfirmWithTextDialog                  |
+| **entities/**         | Entity tracking and re-identification            | EntitiesPage, EntityCard, EntityTimeline, EntityDetailModal, ReidHistoryPanel                                                                                                                                                      |
+| **events/**           | Security event components                        | EventCard, EventTimeline, EventDetailModal, ThumbnailStrip, ExportPanel                                                                                                                                                             |
+| **exports/**          | Export functionality components                  | ExportModal, ExportProgress                                                                                                                                                                                                         |
+| **feedback/**         | User feedback components                         | FeedbackPanel                                                                                                                                                                                                                       |
+| **jobs/**             | Background job monitoring components             | JobsPage, JobsList, JobsListItem, JobsEmptyState, JobsSearchBar, JobActions, JobHeader, JobDetailPanel, JobHistoryTimeline, JobLogsViewer, JobMetadata, ConnectionIndicator, ConfirmDialog, LogLine, StatusDot, TimelineEntry       |
+| **layout/**           | Application shell components                     | Layout, Header, Sidebar                                                                                                                                                                                                             |
+| **logs/**             | Logging dashboard and viewer                     | LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal                                                                                                                                                                 |
+| **performance/**      | Performance monitoring dashboard                 | PerformanceDashboard, PerformanceCharts, PerformanceAlerts                                                                                                                                                                          |
+| **search/**           | Full-text search components                      | SearchBar, SearchResultCard, SearchResultsPanel                                                                                                                                                                                     |
+| **settings/**         | Configuration pages                              | SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings, DlqMonitor, NotificationSettings, StorageDashboard                                                                                                             |
+| **status/**           | AI service health status components              | AIServiceStatus                                                                                                                                                                                                                      |
+| **system/**           | System monitoring page                           | SystemMonitoringPage, SystemSummaryRow, PipelineFlowVisualization, InfrastructureStatusGrid, WorkerStatusPanel, AiModelsPanel, ContainersPanel, DatabasesPanel, HostSystemPanel, ModelZooPanel, PipelineMetricsPanel, CircuitBreakerPanel, SeverityConfigPanel, PerformanceAlerts, TimeRangeSelector |
+| **tracing/**          | Distributed tracing visualization page           | TracingPage                                                                                                                                                                                                                         |
+| **video/**            | Video playback components                        | VideoPlayer                                                                                                                                                                                                                         |
+| **zones/**            | Zone management components                       | ZoneCanvas, ZoneEditor, ZoneForm, ZoneList                                                                                                                                                                                          |
 
 ## Component Hierarchy
 
@@ -93,13 +98,26 @@ Routes:
 │ ├── WorkerStatusPanel
 │ ├── PerformanceAlerts
 │ └── TimeRangeSelector
-└── /settings -> SettingsPage (settings/)
-├── CamerasSettings
-├── AIModelsSettings
-├── ProcessingSettings
-├── DlqMonitor
-├── NotificationSettings
-└── StorageDashboard
+├── /settings -> SettingsPage (settings/)
+│ ├── CamerasSettings
+│ ├── AIModelsSettings
+│ ├── ProcessingSettings
+│ ├── DlqMonitor
+│ ├── NotificationSettings
+│ └── StorageDashboard
+├── /jobs -> JobsPage (jobs/)
+│ ├── JobsList
+│ ├── JobsSearchBar
+│ ├── JobDetailPanel
+│ └── JobLogsViewer
+├── /dev-tools -> DeveloperToolsPage (developer-tools/)
+│ ├── ConfigInspectorPanel
+│ ├── LogLevelPanel
+│ ├── ProfilingPanel
+│ └── TestDataPanel
+└── /performance -> PerformanceDashboard (performance/)
+    ├── PerformanceCharts
+    └── PerformanceAlerts
 \`\`\`
 
 ## Styling Approach
@@ -220,6 +238,10 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 - `DashboardPage.tsx` - Main dashboard page orchestrating all widgets
 - `DashboardPage.test.tsx` - Test suite for DashboardPage
+- `DashboardConfigModal.tsx` - Modal for dashboard configuration settings
+- `DashboardConfigModal.test.tsx` - Test suite for DashboardConfigModal
+- `DashboardLayout.tsx` - Responsive layout wrapper for dashboard widgets
+- `DashboardLayout.test.tsx` - Test suite for DashboardLayout
 - `CameraGrid.tsx` - Responsive camera thumbnail grid with status indicators
 - `CameraGrid.test.tsx` - Test suite for CameraGrid
 - `ActivityFeed.tsx` - Scrolling event feed with auto-scroll
@@ -232,6 +254,24 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 - `PipelineQueues.test.tsx` - Test suite for PipelineQueues
 - `PipelineTelemetry.tsx` - Pipeline latency and throughput metrics display
 - `PipelineTelemetry.test.tsx` - Test suite for PipelineTelemetry
+- `ExpandableSummary.tsx` - Expandable summary section component
+- `ExpandableSummary.test.tsx` - Test suite for ExpandableSummary
+- `SeverityBadge.tsx` - Severity level badge component
+- `SeverityBadge.test.tsx` - Test suite for SeverityBadge
+- `SummaryCards.tsx` - Summary cards container
+- `SummaryCards.test.tsx` - Test suite for SummaryCards
+- `SummaryCards.a11y.test.tsx` - Accessibility tests for SummaryCards
+- `SummaryCards.integration.test.tsx` - Integration tests for SummaryCards
+- `SummaryCardsIntegration.test.tsx` - Additional integration tests
+- `SummaryBulletList.tsx` - Bullet list component for summaries
+- `SummaryBulletList.test.tsx` - Test suite for SummaryBulletList
+- `SummaryCardEmpty.tsx` - Empty state for summary cards
+- `SummaryCardEmpty.test.tsx` - Test suite for SummaryCardEmpty
+- `SummaryCardError.tsx` - Error state for summary cards
+- `SummaryCardError.test.tsx` - Test suite for SummaryCardError
+- `SummaryCardSkeleton.tsx` - Loading skeleton for summary cards
+- `SummaryCardSkeleton.test.tsx` - Test suite for SummaryCardSkeleton
+- `index.ts` - Barrel exports
 
 ### detection/
 
@@ -351,6 +391,89 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 - `VideoPlayer.tsx` - HLS/MP4 video player with controls
 - `VideoPlayer.test.tsx` - Test suite for VideoPlayer
+- `index.ts` - Barrel exports
+
+### developer-tools/
+
+- `DeveloperToolsPage.tsx` - Main developer tools page
+- `DeveloperToolsPage.test.tsx` - Test suite for DeveloperToolsPage
+- `ConfigInspectorPanel.tsx` - Configuration inspector panel
+- `ConfigInspectorPanel.test.tsx` - Test suite for ConfigInspectorPanel
+- `LogLevelPanel.tsx` - Runtime log level control panel
+- `LogLevelPanel.test.tsx` - Test suite for LogLevelPanel
+- `ProfilingPanel.tsx` - Performance profiling panel
+- `ProfilingPanel.test.tsx` - Test suite for ProfilingPanel
+- `RecordingDetailModal.tsx` - Recording detail modal
+- `RecordingDetailModal.test.tsx` - Test suite for RecordingDetailModal
+- `RecordingReplayPanel.tsx` - Recording replay panel
+- `RecordingReplayPanel.test.tsx` - Test suite for RecordingReplayPanel
+- `RecordingsList.tsx` - List of recordings
+- `RecordingsList.test.tsx` - Test suite for RecordingsList
+- `ReplayResultsModal.tsx` - Replay results modal
+- `ReplayResultsModal.test.tsx` - Test suite for ReplayResultsModal
+- `TestDataPanel.tsx` - Test data seeding panel
+- `TestDataPanel.test.tsx` - Test suite for TestDataPanel
+- `CleanupRow.tsx` - Data cleanup row component
+- `CleanupRow.test.tsx` - Test suite for CleanupRow
+- `SeedRow.tsx` - Data seed row component
+- `SeedRow.test.tsx` - Test suite for SeedRow
+- `ConfirmWithTextDialog.tsx` - Confirmation dialog with text input
+- `ConfirmWithTextDialog.test.tsx` - Test suite for ConfirmWithTextDialog
+- `index.ts` - Barrel exports
+
+### exports/
+
+- `ExportModal.tsx` - Export modal component
+- `ExportProgress.tsx` - Export progress indicator
+- `index.ts` - Barrel exports
+- `__tests__/ExportProgress.test.tsx` - Test suite for ExportProgress
+
+### feedback/
+
+- `FeedbackPanel.tsx` - User feedback panel component
+- `FeedbackPanel.test.tsx` - Test suite for FeedbackPanel
+- `index.ts` - Barrel exports
+
+### jobs/
+
+- `JobsPage.tsx` - Main background jobs monitoring page
+- `JobsPage.test.tsx` - Test suite for JobsPage
+- `JobsList.tsx` - Jobs list container
+- `JobsListItem.tsx` - Individual job list item
+- `JobsEmptyState.tsx` - Empty state for jobs list
+- `JobsSearchBar.tsx` - Jobs search bar with filters
+- `JobsSearchBar.test.tsx` - Test suite for JobsSearchBar
+- `JobActions.tsx` - Job action buttons (cancel, retry, etc.)
+- `JobActions.test.tsx` - Test suite for JobActions
+- `JobHeader.tsx` - Job detail header
+- `JobHeader.test.tsx` - Test suite for JobHeader
+- `JobDetailPanel.tsx` - Job detail panel
+- `JobHistoryTimeline.tsx` - Job execution history timeline
+- `JobHistoryTimeline.test.tsx` - Test suite for JobHistoryTimeline
+- `JobLogsViewer.tsx` - Job logs viewer with streaming
+- `JobLogsViewer.test.tsx` - Test suite for JobLogsViewer
+- `JobMetadata.tsx` - Job metadata display
+- `JobMetadata.test.tsx` - Test suite for JobMetadata
+- `ConnectionIndicator.tsx` - WebSocket connection indicator
+- `ConnectionIndicator.test.tsx` - Test suite for ConnectionIndicator
+- `ConfirmDialog.tsx` - Confirmation dialog component
+- `ConfirmDialog.test.tsx` - Test suite for ConfirmDialog
+- `LogLine.tsx` - Individual log line component
+- `LogLine.test.tsx` - Test suite for LogLine
+- `StatusDot.tsx` - Job status indicator dot
+- `StatusDot.test.tsx` - Test suite for StatusDot
+- `TimelineEntry.tsx` - Timeline entry component
+- `TimelineEntry.test.tsx` - Test suite for TimelineEntry
+- `index.ts` - Barrel exports
+
+### performance/
+
+- `PerformanceDashboard.tsx` - Performance monitoring dashboard
+- `PerformanceDashboard.test.tsx` - Test suite for PerformanceDashboard
+- `PerformanceCharts.tsx` - Performance metric charts
+- `PerformanceCharts.test.tsx` - Test suite for PerformanceCharts
+- `PerformanceAlerts.tsx` - Performance alerts display
+- `PerformanceAlerts.test.tsx` - Test suite for PerformanceAlerts
 - `index.ts` - Barrel exports
 
 ## Navigation

@@ -22,67 +22,103 @@ docs/
 ├── README.md                    # Human navigation hub
 ├── AGENTS.md                    # This file - AI navigation
 ├── ROADMAP.md                   # Post-MVP features and direction
+├── openapi.json                 # OpenAPI specification
+├── nemotron-prompts-baseline.txt # Nemotron prompt baseline
 │
 ├── ai/                          # AI model zoo documentation
 │   ├── AGENTS.md                # AI docs navigation
 │   └── model-zoo.md             # Model zoo architecture
 │
-├── getting-started/             # Installation and setup
-│   ├── README.md                # Hub: Prerequisites → Install → First run
-│   ├── prerequisites.md
-│   ├── installation.md
-│   ├── first-run.md
-│   └── upgrading.md
+├── api/                         # API governance documentation
+│   ├── AGENTS.md                # API docs navigation
+│   └── migrations/              # Migration guides
+│
+├── architecture/                # System design documentation
+│   ├── AGENTS.md                # Architecture navigation
+│   ├── overview.md              # High-level architecture
+│   ├── ai-pipeline.md           # AI pipeline details
+│   ├── data-model.md            # Database schema
+│   ├── decisions.md             # Architecture decisions
+│   ├── frontend-hooks.md        # Frontend hooks architecture
+│   ├── real-time.md             # WebSocket and pub/sub
+│   ├── resilience.md            # Circuit breakers, retries
+│   └── system-page-pipeline-visualization.md
+│
+├── benchmarks/                  # Performance benchmarks
+│   ├── AGENTS.md                # Benchmarks navigation
+│   ├── README.md                # Benchmarks overview
+│   └── model-zoo-benchmark.md   # Model zoo benchmarks
+│
+├── decisions/                   # Architectural Decision Records
+│   ├── AGENTS.md                # Decisions navigation
+│   └── *.md                     # Individual ADRs
 │
 ├── developer/                   # Developer documentation
 │   ├── README.md                # Hub: Architecture, API, patterns
-│   ├── architecture/            # System design docs
-│   │   └── README.md
-│   ├── api/                     # Consolidated API guides
-│   │   ├── README.md            # API overview, auth, pagination
-│   │   ├── core-resources.md    # Cameras, Events, Detections, Zones
-│   │   ├── ai-pipeline.md       # Enrichment, Batches, AI Audit
-│   │   ├── system-ops.md        # System, Health, Alerts, Logs
-│   │   └── realtime.md          # WebSocket, SSE
-│   ├── patterns/                # Testing and code patterns
-│   │   └── README.md
-│   └── contributing/            # Git workflow, code quality
-│       └── README.md
+│   ├── AGENTS.md                # Developer docs navigation
+│   ├── api/                     # API guides
+│   ├── architecture/            # Architecture guides
+│   ├── contributing/            # Contribution guides
+│   ├── patterns/                # Code patterns
+│   └── *.md                     # Topic-specific docs
+│
+├── development/                 # Development workflow docs
+│   ├── AGENTS.md                # Development navigation
+│   ├── testing.md               # Testing guide
+│   ├── hooks.md                 # Git hooks
+│   ├── code-quality.md          # Code quality tools
+│   └── *.md                     # Other development docs
+│
+├── getting-started/             # Installation and setup
+│   ├── AGENTS.md                # Getting started navigation
+│   ├── prerequisites.md         # System requirements
+│   ├── installation.md          # Installation guide
+│   ├── first-run.md             # First run guide
+│   └── upgrading.md             # Upgrade guide
+│
+├── images/                      # Diagrams and screenshots
+│   ├── AGENTS.md                # Images navigation
+│   ├── style-guide.md           # SVG diagram style guide
+│   ├── SCREENSHOT_GUIDE.md      # Screenshot capture guide
+│   └── */                       # Organized subdirectories
 │
 ├── operator/                    # Operator documentation
 │   ├── README.md                # Hub: Deployment, monitoring, admin
-│   ├── deployment/              # Docker, GPU, AI setup
-│   │   └── README.md
-│   ├── monitoring/              # Health checks, SLOs, metrics
-│   │   └── README.md
-│   └── admin/                   # Configuration, secrets, security
-│       └── README.md
+│   ├── AGENTS.md                # Operator navigation
+│   ├── admin/                   # Administration guides
+│   ├── deployment/              # Deployment guides
+│   ├── monitoring/              # Monitoring guides
+│   └── *.md                     # Topic-specific docs
 │
-├── user/                        # End-user documentation hub
-│   └── README.md                # Hub: Dashboard, alerts, features
+├── performance/                 # Performance documentation
+│   ├── AGENTS.md                # Performance navigation
+│   └── LOAD_PROFILES.md         # Load testing profiles
+│
+├── plans/                       # Implementation plans
+│   ├── README.md                # Plans overview
+│   └── *.md                     # Individual design plans
+│
+├── reference/                   # Reference material
+│   ├── AGENTS.md                # Reference navigation
+│   ├── README.md                # Reference hub
+│   ├── glossary.md              # Terms and definitions
+│   ├── accessibility.md         # Accessibility guide
+│   ├── models.md                # Model reference
+│   ├── stability.md             # API stability
+│   ├── config/                  # Configuration reference
+│   └── troubleshooting/         # Troubleshooting guides
+│
+├── testing/                     # Testing documentation
+│   └── INTEGRATION_TEST_COVERAGE_ANALYSIS.md
 │
 ├── ui/                          # Page-by-page UI documentation
+│   ├── AGENTS.md                # UI docs navigation
 │   ├── README.md                # UI pages index
-│   ├── dashboard.md             # Dashboard page
-│   ├── timeline.md              # Event timeline page
-│   ├── alerts.md                # Alerts page
-│   ├── settings.md              # Settings page
-│   ├── analytics.md             # Analytics page
-│   ├── entities.md              # Entities page
-│   ├── operations.md            # System monitoring page
-│   ├── zones.md                 # Zones configuration
-│   └── ...                      # Other UI pages
+│   └── *.md                     # Page-specific docs
 │
-├── reference/                   # Shared reference material
-│   ├── README.md                # Hub: Env vars, glossary
-│   └── troubleshooting/         # Common issues and fixes
-│       └── README.md
-│
-├── architecture/                # System design
-├── benchmarks/                  # Performance benchmarks
-├── decisions/                   # Architectural Decision Records
-└── images/                      # Diagrams and screenshots
-    └── style-guide.md           # SVG diagram style guide
+└── user/                        # End-user documentation hub
+    ├── AGENTS.md                # User docs navigation
+    └── README.md                # Hub: Dashboard, alerts, features
 ```
 
 ## Key Entry Points
@@ -120,29 +156,47 @@ docs/
 
 Each major directory has its own AGENTS.md:
 
-| Path                        | Purpose                        |
-| --------------------------- | ------------------------------ |
-| `docs/AGENTS.md`            | This file - documentation root |
-| `ai/AGENTS.md`              | AI model zoo documentation     |
-| `getting-started/AGENTS.md` | Installation navigation        |
-| `developer/AGENTS.md`       | Developer documentation        |
-| `operator/AGENTS.md`        | Operator documentation         |
-| `reference/AGENTS.md`       | Reference material             |
-| `architecture/AGENTS.md`    | System design documents        |
-| `ui/AGENTS.md`              | UI page documentation          |
-| `images/AGENTS.md`          | Visual assets                  |
+| Path                                  | Purpose                        |
+| ------------------------------------- | ------------------------------ |
+| `docs/AGENTS.md`                      | This file - documentation root |
+| `ai/AGENTS.md`                        | AI model zoo documentation     |
+| `api/AGENTS.md`                       | API governance documentation   |
+| `architecture/AGENTS.md`              | System design documents        |
+| `benchmarks/AGENTS.md`                | Performance benchmarks         |
+| `decisions/AGENTS.md`                 | Architectural Decision Records |
+| `developer/AGENTS.md`                 | Developer documentation        |
+| `developer/api/AGENTS.md`             | API endpoint documentation     |
+| `developer/architecture/AGENTS.md`    | Developer architecture guides  |
+| `developer/contributing/AGENTS.md`    | Contribution guidelines        |
+| `developer/patterns/AGENTS.md`        | Code and testing patterns      |
+| `development/AGENTS.md`               | Development workflow           |
+| `getting-started/AGENTS.md`           | Installation navigation        |
+| `images/AGENTS.md`                    | Visual assets                  |
+| `operator/AGENTS.md`                  | Operator documentation         |
+| `operator/admin/AGENTS.md`            | Administration guides          |
+| `operator/deployment/AGENTS.md`       | Deployment guides              |
+| `operator/monitoring/AGENTS.md`       | Monitoring guides              |
+| `performance/AGENTS.md`               | Performance documentation      |
+| `reference/AGENTS.md`                 | Reference material             |
+| `reference/config/AGENTS.md`          | Configuration reference        |
+| `reference/troubleshooting/AGENTS.md` | Troubleshooting guides         |
+| `ui/AGENTS.md`                        | UI page documentation          |
+| `user/AGENTS.md`                      | End-user documentation         |
 
 ## Visual Assets
 
 SVG diagrams are organized by topic in `images/`:
 
+- `images/admin/` - Admin guide diagrams
 - `images/ai-pipeline/` - AI processing flow diagrams
 - `images/architecture/` - System architecture diagrams
 - `images/data-model/` - Entity relationship diagrams
 - `images/real-time/` - WebSocket and event flow diagrams
 - `images/resilience/` - Circuit breaker and recovery diagrams
+- `images/screenshots/` - Application screenshots
+- `images/user-guide/` - User guide images
 
-See `images/style-guide.md` for diagram creation guidelines.
+See `images/style-guide.md` for diagram creation guidelines and `images/SCREENSHOT_GUIDE.md` for screenshot capture instructions.
 
 ## Related Resources
 
