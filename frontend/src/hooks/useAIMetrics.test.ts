@@ -472,6 +472,67 @@ describe('useAIMetrics', () => {
       // No error set since Promise.allSettled handles failures gracefully
       expect(result.current.error).toBeNull();
     });
+    it('should fall back to telemetry latency when Prometheus metrics have no latency data', async () => {
+      // Mock Prometheus metrics with no latency data (histograms return null)
+      vi.mocked(metricsParser.fetchAIMetrics).mockResolvedValue({
+        ...mockMetricsResponse,
+        detection_latency: null, // No Prometheus latency data
+        analysis_latency: null, // No Prometheus latency data
+      });
+
+      // Mock telemetry with latency data
+      const telemetryWithLatency: api.TelemetryResponse = {
+        queues: {
+          detection_queue: 7,
+          analysis_queue: 3,
+        },
+        latencies: {
+          detect: {
+            avg_ms: 19100, // 19.1s as mentioned in bug report
+            p50_ms: 18000,
+            p95_ms: 25000,
+            p99_ms: 30000,
+            sample_count: 150,
+          },
+          analyze: {
+            avg_ms: 65400, // 65.4s as mentioned in bug report
+            p50_ms: 60000,
+            p95_ms: 85000,
+            p99_ms: 95000,
+            sample_count: 50,
+          },
+        },
+        timestamp: '2025-12-28T10:30:00Z',
+      } as api.TelemetryResponse;
+
+      vi.mocked(api.fetchTelemetry).mockResolvedValue(telemetryWithLatency);
+
+      const { result } = renderHook(() => useAIMetrics({ enablePolling: false }));
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Should fall back to telemetry latency data
+      expect(result.current.data.detectionLatency).toEqual({
+        avg_ms: 19100,
+        p50_ms: 18000,
+        p95_ms: 25000,
+        p99_ms: 30000,
+        sample_count: 150,
+      });
+
+      expect(result.current.data.analysisLatency).toEqual({
+        avg_ms: 65400,
+        p50_ms: 60000,
+        p95_ms: 85000,
+        p99_ms: 95000,
+        sample_count: 50,
+      });
+
+      // No error should be set
+      expect(result.current.error).toBeNull();
+    });
   });
 
   describe('AI model status extraction', () => {

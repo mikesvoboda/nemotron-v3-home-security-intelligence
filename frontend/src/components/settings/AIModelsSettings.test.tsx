@@ -14,6 +14,7 @@ const createDefaultState = (): AIPerformanceState => ({
   pipelineLatency: null,
   totalDetections: 0,
   totalEvents: 0,
+  eventsPerMinute: 0,
   detectionQueueDepth: 0,
   analysisQueueDepth: 0,
   pipelineErrors: {},

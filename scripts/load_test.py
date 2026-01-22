@@ -136,25 +136,28 @@ def get_backend_memory_mb() -> float | None:
     """Get backend uvicorn worker RSS memory in MB."""
     import subprocess
 
-    # Find the uvicorn worker process (the Python process, not the uv wrapper)
-    result = subprocess.run(
-        ["pgrep", "-f", "python.*uvicorn.*backend.main:app"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if not result.stdout.strip():
-        # Try alternative pattern
+    # Try multiple patterns to find the uvicorn process
+    patterns = [
+        "uvicorn.*backend.main:app",  # Most common: uv run uvicorn
+        "python.*uvicorn.*backend.main:app",  # Direct python invocation
+        "python.*backend.main",  # Direct module execution
+    ]
+
+    pids = []
+    for pattern in patterns:
         result = subprocess.run(
-            ["pgrep", "-f", "uvicorn.*backend.main:app"],
+            ["pgrep", "-f", pattern],
             check=False,
             capture_output=True,
             text=True,
         )
+        if result.stdout.strip():
+            pids = result.stdout.strip().split("\n")
+            break
 
-    if result.stdout.strip():
-        pids = result.stdout.strip().split("\n")
-        # Get the actual worker (highest PID, which is the child process)
+    if pids:
+        # Get the actual worker (highest PID, which is usually the child process)
+        # Try each PID in reverse order (highest first)
         for pid in sorted(pids, reverse=True):
             try:
                 # Reading /proc/{pid}/status is intentional for memory monitoring
@@ -166,6 +169,8 @@ def get_backend_memory_mb() -> float | None:
                             return rss_kb / 1024
             except (FileNotFoundError, ValueError, PermissionError):
                 continue
+
+    # Couldn't find process or read memory
     return None
 
 

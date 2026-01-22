@@ -7126,7 +7126,7 @@
         "type": "object"
       },
       "DetectionStatsResponse": {
-        "description": "Schema for detection statistics response.\n\nReturns aggregate statistics about detections including counts by object class.\nUsed by the AI Performance page to display detection class distribution.",
+        "description": "Schema for detection statistics response.\n\nReturns aggregate statistics about detections including counts by object class\nand detection trends over time. Used by the AI Performance page and Grafana\nAnalytics dashboard.",
         "example": {
           "average_confidence": 0.87,
           "detections_by_class": {
@@ -7153,7 +7153,37 @@
               "object_class": "bicycle"
             }
           ],
-          "total_detections": 107
+          "total_detections": 107,
+          "trends": [
+            {
+              "detection_count": 10,
+              "timestamp": "2026-01-16T00:00:00Z"
+            },
+            {
+              "detection_count": 15,
+              "timestamp": "2026-01-17T00:00:00Z"
+            },
+            {
+              "detection_count": 12,
+              "timestamp": "2026-01-18T00:00:00Z"
+            },
+            {
+              "detection_count": 8,
+              "timestamp": "2026-01-19T00:00:00Z"
+            },
+            {
+              "detection_count": 20,
+              "timestamp": "2026-01-20T00:00:00Z"
+            },
+            {
+              "detection_count": 25,
+              "timestamp": "2026-01-21T00:00:00Z"
+            },
+            {
+              "detection_count": 50,
+              "timestamp": "2026-01-22T00:00:00Z"
+            }
+          ]
         },
         "properties": {
           "average_confidence": {
@@ -7188,6 +7218,14 @@
             "description": "Total number of detections",
             "title": "Total Detections",
             "type": "integer"
+          },
+          "trends": {
+            "description": "Detection counts by day for the last 7 days (for Grafana time series)",
+            "items": {
+              "$ref": "#/components/schemas/DetectionTrendItem"
+            },
+            "title": "Trends",
+            "type": "array"
           }
         },
         "required": [
@@ -7309,6 +7347,31 @@
           "count"
         ],
         "title": "DetectionTrendDataPoint",
+        "type": "object"
+      },
+      "DetectionTrendItem": {
+        "description": "Schema for a single detection trend data point (for Grafana time series).\n\nUsed by the Grafana Analytics dashboard to display detection trends over time.\nThe timestamp field is Unix epoch milliseconds for Grafana JSON datasource compatibility.",
+        "example": {
+          "detection_count": 50,
+          "timestamp": 1737504000000
+        },
+        "properties": {
+          "detection_count": {
+            "description": "Number of detections on this date",
+            "title": "Detection Count",
+            "type": "integer"
+          },
+          "timestamp": {
+            "description": "Unix epoch milliseconds for the trend data point (start of day)",
+            "title": "Timestamp",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "timestamp",
+          "detection_count"
+        ],
+        "title": "DetectionTrendItem",
         "type": "object"
       },
       "DetectionTrendsResponse": {
@@ -27996,7 +28059,7 @@
     },
     "/api/detections/stats": {
       "get": {
-        "description": "Get aggregate detection statistics including class distribution.\n\nReturns:\n- Total detection count\n- Detection counts grouped by object class (person, car, truck, etc.)\n- Average confidence score across all detections\n\nUsed by the AI Performance page to display detection class distribution charts.\n\nOptimized to use a single query with window functions instead of 3 separate queries\n(NEM-1321). The query combines:\n- Per-class counts via GROUP BY\n- Total count via SUM(COUNT(*)) OVER() window function\n- Per-class avg confidence, then combined using weighted average formula\n\nArgs:\n    camera_id: Optional camera ID filter (for camera-specific stats)\n    db: Database session\n\nReturns:\n    DetectionStatsResponse with aggregate detection statistics",
+        "description": "Get aggregate detection statistics including class distribution and trends.\n\nReturns:\n- Total detection count\n- Detection counts grouped by object class (person, car, truck, etc.)\n- Average confidence score across all detections\n- Detection trends for the last 7 days (for Grafana time series)\n\nUsed by the AI Performance page to display detection class distribution charts\nand by the Grafana Analytics dashboard for detection trend visualization.\n\nOptimized to use a single query with window functions instead of 3 separate queries\n(NEM-1321). The query combines:\n- Per-class counts via GROUP BY\n- Total count via SUM(COUNT(*)) OVER() window function\n- Per-class avg confidence, then combined using weighted average formula\n\nArgs:\n    camera_id: Optional camera ID filter (for camera-specific stats)\n    db: Database session\n\nReturns:\n    DetectionStatsResponse with aggregate detection statistics and trends",
         "operationId": "get_detection_stats_api_detections_stats_get",
         "parameters": [
           {
@@ -34668,7 +34731,7 @@
     },
     "/api/system/model-zoo/status": {
       "get": {
-        "description": "Get status information for all Model Zoo models.\n\nReturns status information for all 18 Model Zoo models, including:\n- Current status (loaded, unloaded, disabled)\n- VRAM usage when loaded\n- Last usage timestamp\n- Category grouping for UI display\n\nThis endpoint is optimized for the compact status card display\nin the AI Performance page.\n\nReturns:\n    ModelZooStatusResponse with all model statuses",
+        "description": "Get status information for all Model Zoo models.\n\nReturns status information for all 18 Model Zoo models, including:\n- Current status (loaded, unloaded, disabled)\n- VRAM usage when loaded\n- Last usage timestamp (derived from EventAudit records, None if DB unavailable)\n- Category grouping for UI display\n\nThis endpoint is optimized for the compact status card display\nin the AI Performance page.\n\nArgs:\n    db: Optional database session for querying EventAudit last used timestamps\n\nReturns:\n    ModelZooStatusResponse with all model statuses",
         "operationId": "get_model_zoo_status_api_system_model_zoo_status_get",
         "responses": {
           "200": {

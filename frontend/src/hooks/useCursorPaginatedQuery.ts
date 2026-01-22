@@ -215,9 +215,12 @@ export function createInfiniteQueryHook<
     }, [query.data?.pages]);
 
     const totalCount = useMemo(() => {
-      if (!query.data?.pages?.[0]) {
+      if (!query.data?.pages?.length) {
         return 0;
       }
+      // Always use the first page's total count
+      // The first page should have include_total_count=true, so it has the accurate total
+      // Subsequent pages may have total=0 if they were fetched with a cursor
       return query.data.pages[0].pagination.total;
     }, [query.data?.pages]);
 

@@ -3396,6 +3396,11 @@ export interface AuditLogsQueryParams {
    * Recommended over offset pagination for better performance.
    */
   cursor?: string;
+  /**
+   * Include total count in response. Defaults to false for performance.
+   * Set to true when displaying "X of Y results" in UI.
+   */
+  include_total_count?: boolean;
 }
 
 /**
@@ -3424,6 +3429,10 @@ export async function fetchAuditLogs(
       queryParams.append('cursor', params.cursor);
     } else if (params.offset !== undefined) {
       queryParams.append('offset', String(params.offset));
+    }
+    // Include total count when requested (needed for "X of Y results" display)
+    if (params.include_total_count) {
+      queryParams.append('include_total_count', 'true');
     }
   }
 
@@ -6273,6 +6282,105 @@ export async function fetchWebSocketConnections(): Promise<WebSocketConnectionsR
 // ============================================================================
 
 /**
+ * Backend API response type for a single summary (snake_case).
+ * @internal
+ */
+interface BackendSummaryResponse {
+  id: number;
+  content: string;
+  event_count: number | null | undefined;
+  window_start: string;
+  window_end: string;
+  generated_at: string;
+  structured?: {
+    bullet_points?: Array<{ icon: string; text: string; severity?: string | null }>;
+    focus_areas?: string[];
+    dominant_patterns?: string[];
+    max_risk_score?: number | null;
+    weather_conditions?: string[];
+  } | null;
+}
+
+/**
+ * Backend API response type for latest summaries (snake_case).
+ * @internal
+ */
+interface BackendSummariesLatestResponse {
+  hourly: BackendSummaryResponse | null;
+  daily: BackendSummaryResponse | null;
+}
+
+/**
+ * Format a time range from ISO timestamps to human-readable format.
+ * @internal
+ * @example
+ * formatTimeRange('2026-01-18T14:00:00Z', '2026-01-18T15:00:00Z') => '2:00 PM - 3:00 PM'
+ */
+function formatTimeRange(startISO: string, endISO: string): string {
+  try {
+    const start = new Date(startISO);
+    const end = new Date(endISO);
+
+    // If times are invalid, return empty string
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return '';
+    }
+
+    // Format time as "h:mm AM/PM"
+    const formatTime = (date: Date): string => {
+      let hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours || 12; // 0 becomes 12
+      const minutesStr = minutes < 10 ? `0${minutes}` : `${minutes}`;
+      return `${hours}:${minutesStr} ${ampm}`;
+    };
+
+    const startFormatted = formatTime(start);
+    const endFormatted = formatTime(end);
+
+    // If start and end are the same, return single time
+    if (startFormatted === endFormatted) {
+      return startFormatted;
+    }
+
+    return `${startFormatted} - ${endFormatted}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Transform a backend summary response to frontend format (snake_case to camelCase).
+ * @internal
+ */
+function transformSummaryResponse(
+  backend: BackendSummaryResponse | null
+): SummariesLatestResponse['hourly'] {
+  if (!backend) return null;
+
+  return {
+    id: backend.id,
+    content: backend.content,
+    eventCount: backend.event_count ?? 0,
+    windowStart: backend.window_start,
+    windowEnd: backend.window_end,
+    generatedAt: backend.generated_at,
+    maxRiskScore: backend.structured?.max_risk_score ?? undefined,
+    bulletPoints: backend.structured?.bullet_points?.map((bp) => ({
+      icon: bp.icon as 'alert' | 'location' | 'pattern' | 'time' | 'weather',
+      text: bp.text,
+      severity: bp.severity ? parseInt(bp.severity, 10) || undefined : undefined,
+    })),
+    focusAreas: backend.structured?.focus_areas,
+    dominantPatterns: backend.structured?.dominant_patterns,
+    timeRangeFormatted: formatTimeRange(backend.window_start, backend.window_end),
+    weatherConditions: backend.structured?.weather_conditions?.join(', '),
+  };
+}
+
+/**
  * Fetch the latest hourly and daily summaries.
  *
  * Summaries are LLM-generated narrative descriptions of high/critical
@@ -6290,7 +6398,12 @@ export async function fetchWebSocketConnections(): Promise<WebSocketConnectionsR
  * ```
  */
 export async function fetchSummaries(): Promise<SummariesLatestResponse> {
-  return fetchApi<SummariesLatestResponse>('/api/summaries/latest');
+  const response = await fetchApi<BackendSummariesLatestResponse>('/api/summaries/latest');
+
+  return {
+    hourly: transformSummaryResponse(response.hourly),
+    daily: transformSummaryResponse(response.daily),
+  };
 }
 
 // ============================================================================
