@@ -5,6 +5,7 @@ apiVersion: 1
 
 datasources:
   - name: Prometheus
+    uid: PBFA97CFB590B2093
     type: prometheus
     access: proxy
     url: http://prometheus:9090
@@ -16,6 +17,7 @@ datasources:
 
   # Alertmanager datasource for alert integration
   - name: Alertmanager
+    uid: alertmanager
     type: alertmanager
     access: proxy
     url: http://alertmanager:9093
@@ -27,6 +29,7 @@ datasources:
 
   # JSON API datasource for direct backend API access
   - name: Backend-API
+    uid: Backend-API
     type: marcusolsson-json-datasource
     access: proxy
     url: http://backend:8000
@@ -37,6 +40,7 @@ datasources:
 
   # Jaeger datasource for distributed tracing with metric correlations
   - name: Jaeger
+    uid: PC9A941E8F2E49454
     type: jaeger
     access: proxy
     url: http://jaeger:16686
@@ -46,7 +50,7 @@ datasources:
       nodeGraph:
         enabled: true
       tracesToMetrics:
-        datasourceUid: 'prometheus'
+        datasourceUid: PBFA97CFB590B2093
         spanStartTimeShift: '-5m'
         spanEndTimeShift: '5m'
         tags:
@@ -206,11 +210,12 @@ datasources:
         - name: TraceID
           matcherRegex: 'trace_id=([a-f0-9]{32})'
           url: '${__value.raw}'
-          datasourceUid: jaeger
+          datasourceUid: PC9A941E8F2E49454
           urlDisplayLabel: 'View Trace'
 
   # Pyroscope datasource for continuous profiling
   - name: Pyroscope
+    uid: pyroscope
     type: grafana-pyroscope-datasource
     access: proxy
     url: http://pyroscope:4040
@@ -218,7 +223,7 @@ datasources:
     editable: false
     jsonData:
       tracesToProfiles:
-        datasourceUid: jaeger
+        datasourceUid: PC9A941E8F2E49454
         tags:
           - key: service.name
             value: service

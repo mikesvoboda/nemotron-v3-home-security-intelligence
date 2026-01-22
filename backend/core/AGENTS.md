@@ -1076,7 +1076,7 @@ Manages all application configuration using Pydantic Settings with environment v
 
 **Logging Settings:**
 
-- `log_level: str` - Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL (default: INFO)
+- `log_level: str` - Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL (default: WARNING)
 - `log_file_path: str` - Path for rotating log file (default: `data/logs/security.log`)
 - `log_file_max_bytes: int` - Maximum size of each log file (default: 10MB)
 - `log_file_backup_count: int` - Number of backup log files to keep (default: 7)
