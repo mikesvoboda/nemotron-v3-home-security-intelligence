@@ -81,7 +81,11 @@ class ExportJob(Base):
 
     # Job status
     status: Mapped[ExportJobStatus] = mapped_column(
-        Enum(ExportJobStatus, name="export_job_status"),
+        Enum(
+            ExportJobStatus,
+            name="export_job_status",
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         default=ExportJobStatus.PENDING,
     )
