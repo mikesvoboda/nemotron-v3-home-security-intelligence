@@ -56,6 +56,35 @@ services:
     #   - postgres_password
     # environment:
     #   - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    # PostgreSQL server-side query logging (NEM-3054)
+    # Logs slow queries (>1s) to container stdout, collected by Alloy -> Loki
+    # - log_min_duration_statement: Log queries exceeding 1000ms (1 second)
+    # - log_duration: Include query duration in all logged statements
+    # - log_line_prefix: Timestamp, PID, user@database for correlation
+    # - log_statement: 'ddl' logs only schema changes (not all queries)
+    # - log_checkpoints: Log checkpoint activity for performance analysis
+    # - log_connections/disconnections: Track connection lifecycle
+    # - log_lock_waits: Log queries waiting >1s for locks (deadlock detection)
+    command:
+      - postgres
+      - -c
+      - log_min_duration_statement=1000
+      - -c
+      - log_duration=on
+      - -c
+      - log_line_prefix=%t [%p] %u@%d
+      - -c
+      - log_statement=ddl
+      - -c
+      - log_checkpoints=on
+      - -c
+      - log_connections=on
+      - -c
+      - log_disconnections=on
+      - -c
+      - log_lock_waits=on
+      - -c
+      - deadlock_timeout=1s
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-security} -d ${POSTGRES_DB:-security}']
       interval: 10s
@@ -86,7 +115,7 @@ services:
       - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface:U
     environment:
       - SERVICE_NAME=ai-detector
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-false}
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}
       - RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}
@@ -158,7 +187,7 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
     environment:
       - SERVICE_NAME=ai-florence
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-false}
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - MODEL_PATH=/models/florence-2-large
     healthcheck:
@@ -192,7 +221,7 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
     environment:
       - SERVICE_NAME=ai-clip
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-false}
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - CLIP_MODEL_PATH=/models/clip-vit-l
     healthcheck:
@@ -237,7 +266,7 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
     environment:
       - SERVICE_NAME=ai-enrichment
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-false}
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       # Existing models (now on-demand)
       - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
@@ -297,8 +326,8 @@ services:
       # SECURITY: Redis password authentication (optional, for production use)
       # Must match REDIS_PASSWORD set in the redis service
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      # Pyroscope continuous profiling (set PYROSCOPE_ENABLED=true to enable)
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-false}
+      # Pyroscope continuous profiling (enabled by default, set PYROSCOPE_ENABLED=false to disable)
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - RTDETR_URL=http://ai-detector:8090
       - NEMOTRON_URL=http://ai-llm:8091
@@ -384,10 +413,10 @@ services:
       sh -c '
       if [ -n "$$REDIS_PASSWORD" ]; then
         echo "Starting Redis with password authentication"
-        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru --requirepass "$$REDIS_PASSWORD"
+        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128 --requirepass "$$REDIS_PASSWORD"
       else
         echo "Starting Redis without authentication (development mode)"
-        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru
+        redis-server --appendonly yes --appendfsync everysec --maxmemory 450mb --maxmemory-policy allkeys-lru --slowlog-log-slower-than 10000 --slowlog-max-len 128
       fi
       '
     environment:
@@ -562,7 +591,7 @@ services:
       - GF_SERVER_ROOT_URL=/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
       # Pin JSON API plugin to v1.3.0 for Grafana 10.x compatibility (v1.3.15+ requires Grafana 11.6.0+)
-      - GF_INSTALL_PLUGINS=marcusolsson-json-datasource 1.3.0
+      - GF_INSTALL_PLUGINS=marcusolsson-json-datasource 1.3.0,grafana-pyroscope-datasource
     depends_on:
       prometheus:
         condition: service_healthy

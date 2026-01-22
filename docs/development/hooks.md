@@ -24,6 +24,7 @@ This document provides comprehensive documentation for all pre-commit hooks conf
 | check-added-large-files    | pre-commit | Prevent large files (>1MB)             | <1s     |
 | check-merge-conflict       | pre-commit | Detect merge conflict markers          | <1s     |
 | detect-private-key         | pre-commit | Prevent committing private keys        | <1s     |
+| conventional-pre-commit    | commit-msg | Enforce conventional commit format     | <1s     |
 | hadolint                   | pre-commit | Lint Dockerfiles                       | 1-2s    |
 | semgrep                    | pre-commit | Security scanning (Python)             | 2-5s    |
 | ruff                       | pre-commit | Python linting                         | 1-2s    |
@@ -33,6 +34,8 @@ This document provides comprehensive documentation for all pre-commit hooks conf
 | prettier-frontend          | pre-commit | Format frontend files                  | 1-2s    |
 | eslint                     | pre-commit | Frontend linting                       | 2-5s    |
 | typescript-check           | pre-commit | Frontend type checking                 | 3-10s   |
+| uv-lock-check              | pre-commit | Verify uv lock file is up-to-date      | 1-2s    |
+| npm-install-check          | pre-commit | Verify npm dependencies are consistent | 1-3s    |
 | check-test-mocks           | pre-commit | Verify integration tests mock services | <1s     |
 | check-test-timeouts        | pre-commit | Verify tests mock slow operations      | <1s     |
 | check-validation-drift     | pre-commit | Detect Pydantic/Zod schema drift       | <1s     |
@@ -41,7 +44,7 @@ This document provides comprehensive documentation for all pre-commit hooks conf
 | generate-openapi           | pre-commit | Auto-regenerate OpenAPI spec           | 1-2s    |
 | auto-rebase                | pre-push   | Rebase on origin/main                  | 2-10s   |
 | check-new-files-have-tests | pre-push   | Verify new source files have tests     | <1s     |
-| parallel-tests             | pre-push   | Run unit tests, E2E, and API types     | 60-180s |
+| parallel-tests             | pre-push   | Run all test validations (5 jobs)      | 60-180s |
 
 ## Installation
 
@@ -55,6 +58,9 @@ pre-commit install
 
 # Install pre-push hooks
 pre-commit install --hook-type pre-push
+
+# Install commit-msg hooks (for commit message linting)
+pre-commit install --hook-type commit-msg
 
 # Verify installation
 pre-commit --version
@@ -135,6 +141,46 @@ SKIP=auto-rebase git push
 
 ```bash
 # Auto-fixed during pre-commit
+```
+
+---
+
+#### conventional-pre-commit
+
+**Purpose:** Enforces conventional commit message format.
+
+**What it checks:**
+
+- Commit messages must follow the pattern: `<type>: <description>`
+- Valid types: feat, fix, docs, chore, refactor, test, style, perf, build, ci, revert
+
+**Stage:** commit-msg (runs during `git commit`)
+
+**Common failures:**
+
+```
+Bad commit message:
+  "updated code"          # Missing type prefix
+  "Feature: new button"   # Wrong format (uppercase)
+  "random: changes"       # Invalid type
+
+Good commit messages:
+  "feat: add user authentication"
+  "fix: resolve login button crash"
+  "docs: update API documentation"
+  "chore: upgrade dependencies"
+  "refactor: simplify validation logic"
+  "test: add unit tests for auth service"
+```
+
+**Fix:**
+
+```bash
+# If commit fails, amend with correct format
+git commit --amend -m "feat: add new feature description"
+
+# Or skip validation (use sparingly!)
+git commit --no-verify -m "message"
 ```
 
 ---
@@ -736,6 +782,75 @@ npm run typecheck
 
 ---
 
+### Dependency Lock Consistency
+
+#### uv-lock-check
+
+**Purpose:** Ensures the uv lock file is up-to-date with pyproject.toml.
+
+**What it checks:**
+
+- Verifies `uv.lock` is synchronized with `pyproject.toml`
+- Detects manual changes to pyproject.toml without running `uv lock`
+
+**Triggered by:** Changes to `pyproject.toml` or `uv.lock`
+
+**Common failures:**
+
+```
+ERROR: lock file is out of date
+```
+
+**Fix:**
+
+```bash
+# Regenerate lock file
+uv lock
+
+# Stage the updated lock file
+git add uv.lock
+
+# Commit together with pyproject.toml
+git commit -m "chore: update dependencies"
+```
+
+---
+
+#### npm-install-check
+
+**Purpose:** Verifies npm dependencies are consistent with package-lock.json.
+
+**What it checks:**
+
+- Validates `package-lock.json` matches `package.json`
+- Ensures dependencies can be installed from lock file
+
+**Triggered by:** Changes to `frontend/package.json` or `frontend/package-lock.json`
+
+**Common failures:**
+
+```
+npm error Conflicting package versions
+npm error Lockfile is out of date
+```
+
+**Fix:**
+
+```bash
+cd frontend
+
+# Regenerate package-lock.json
+npm install
+
+# Stage the updated lock file
+git add package-lock.json
+
+# Commit together with package.json
+git commit -m "chore: update frontend dependencies"
+```
+
+---
+
 ### Validation Alignment
 
 #### check-validation-drift
@@ -946,19 +1061,31 @@ SKIP=auto-rebase git push
 
 **Purpose:** Run validation tests in parallel before push for faster feedback.
 
-**What it runs (3 parallel jobs):**
+**What it runs (5 parallel jobs):**
 
 1. **Job 1:** Backend unit tests with 85% coverage (pytest) - ~2-3 min
 2. **Job 2:** E2E + Accessibility tests (Playwright Chromium) - ~30-60s
 3. **Job 3:** API types contract check (openapi-typescript) - ~10-20s
+4. **Job 4:** Backend integration tests (subset for speed) - ~30-60s
+5. **Job 5:** Frontend unit tests (vitest with coverage) - ~10-30s
 
-**Total time:** max(job1, job2, job3) instead of sum (~60-70% faster than sequential)
+**Total time:** max(job1, job2, job3, job4, job5) instead of sum (~60-70% faster than sequential)
 
 **Script:** `scripts/pre-push-tests.sh`
 
-**Runtime:** 60-180 seconds (depends on longest job)
+**Runtime:** 60-180 seconds (depends on longest job, typically Job 1)
 
 **Why pre-push not pre-commit:** Full test suite takes ~2-3 minutes, too slow for every commit.
+
+**Job Details:**
+
+| Job | Type                | Command                                                                      | Timeout | Exit on First Failure |
+| --- | ------------------- | ---------------------------------------------------------------------------- | ------- | --------------------- |
+| 1   | Backend Unit        | `uv run pytest backend/tests/unit/ --cov --cov-fail-under=85 -n auto`        | None    | No                    |
+| 2   | E2E + Accessibility | `cd frontend && npm run test:e2e -- --project=chromium`                      | None    | No                    |
+| 3   | API Types           | `./scripts/generate-types.sh --check`                                        | None    | No                    |
+| 4   | Backend Integration | `uv run pytest backend/tests/integration/ -n0 --tb=short -q -x --timeout=60` | 60s     | Yes (-x)              |
+| 5   | Frontend Unit       | `cd frontend && npm test -- --coverage --run`                                | None    | No                    |
 
 **Skip:**
 

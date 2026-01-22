@@ -24,6 +24,11 @@ Models:
     - brisque-quality: Image quality assessment (CPU-based, 0 VRAM)
     - vehicle-segment-classification: Detailed vehicle type classification (11 types)
     - pet-classifier: Cat/dog classification for false positive reduction
+    - osnet-x0-25: OSNet for person re-identification embeddings (~100MB)
+    - threat-detection-yolov8n: Weapon/threat detection (~300MB)
+    - vit-age-classifier: Age estimation from face/person crops (~200MB)
+    - vit-gender-classifier: Gender classification from face/person crops (~200MB)
+    - yolov8n-pose: Alternative pose estimation model (~200MB)
 
 VRAM Budget:
     - Nemotron LLM: 21,700 MB (always loaded)
@@ -41,13 +46,17 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypedDict, TypeVar
 
 from backend.core.logging import get_logger
+from backend.services.age_classifier_loader import load_age_classifier_model
 from backend.services.clip_loader import load_clip_model
 from backend.services.depth_anything_loader import load_depth_model
 from backend.services.fashion_clip_loader import load_fashion_clip_model
 from backend.services.florence_loader import load_florence_model
+from backend.services.gender_classifier_loader import load_gender_classifier_model
 from backend.services.image_quality_loader import load_brisque_model
+from backend.services.osnet_loader import load_osnet_model
 from backend.services.pet_classifier_loader import load_pet_classifier_model
 from backend.services.segformer_loader import load_segformer_model
+from backend.services.threat_detection_loader import load_threat_detection_model
 from backend.services.vehicle_classifier_loader import load_vehicle_classifier
 from backend.services.vehicle_damage_loader import load_vehicle_damage_model
 from backend.services.violence_loader import load_violence_model
@@ -508,6 +517,67 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             category="classification",
             vram_mb=200,  # ~200MB (very lightweight ResNet-18)
             load_fn=load_pet_classifier_model,
+            enabled=True,
+            available=False,
+        ),
+        # OSNet-x0-25 for person re-identification embeddings
+        # Generates 512-dimensional embeddings for matching persons across cameras
+        # Lightweight variant optimized for real-time re-identification
+        "osnet-x0-25": ModelConfig(
+            name="osnet-x0-25",
+            path=f"{base_path}/osnet-x0-25",
+            category="embedding",
+            vram_mb=100,  # ~100MB (very lightweight)
+            load_fn=load_osnet_model,
+            enabled=True,
+            available=False,
+        ),
+        # YOLOv8n Threat/Weapon Detection
+        # Detects weapons and threatening objects (knives, guns, bats, etc.)
+        # Run on full frame when suspicious activity detected
+        # Triggers high-priority alerts for weapon detection
+        "threat-detection-yolov8n": ModelConfig(
+            name="threat-detection-yolov8n",
+            path=f"{base_path}/threat-detection-yolov8n",
+            category="detection",
+            vram_mb=300,  # ~300MB (YOLOv8n)
+            load_fn=load_threat_detection_model,
+            enabled=True,
+            available=False,
+        ),
+        # ViT Age Classifier for age estimation from face/person crops
+        # Classifies into age groups: child, teenager, young_adult, adult, middle_aged, senior
+        # Combined with gender for comprehensive person descriptions
+        "vit-age-classifier": ModelConfig(
+            name="vit-age-classifier",
+            path=f"{base_path}/vit-age-classifier",
+            category="classification",
+            vram_mb=200,  # ~200MB
+            load_fn=load_age_classifier_model,
+            enabled=True,
+            available=False,
+        ),
+        # ViT Gender Classifier for gender estimation from face/person crops
+        # Binary classification: male/female
+        # Supports generating detailed person descriptions for security reports
+        "vit-gender-classifier": ModelConfig(
+            name="vit-gender-classifier",
+            path=f"{base_path}/vit-gender-classifier",
+            category="classification",
+            vram_mb=200,  # ~200MB
+            load_fn=load_gender_classifier_model,
+            enabled=True,
+            available=False,
+        ),
+        # YOLOv8n Pose - Alternative pose estimation model
+        # Backup/alternative to vitpose-small for pose detection
+        # Can be used when ViTPose is unavailable or for faster inference
+        "yolov8n-pose": ModelConfig(
+            name="yolov8n-pose",
+            path=f"{base_path}/yolov8n-pose",
+            category="pose",
+            vram_mb=200,  # ~200MB (lightweight)
+            load_fn=load_yolo_model,  # Uses standard YOLO loading
             enabled=True,
             available=False,
         ),

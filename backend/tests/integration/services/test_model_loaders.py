@@ -13,10 +13,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from backend.services.age_classifier_loader import load_age_classifier_model
 from backend.services.clip_loader import CLIPLoader, load_clip_model
 from backend.services.florence_loader import load_florence_model
+from backend.services.gender_classifier_loader import load_gender_classifier_model
 from backend.services.model_zoo import get_model_zoo, reset_model_manager, reset_model_zoo
+from backend.services.osnet_loader import load_osnet_model
 from backend.services.pet_classifier_loader import load_pet_classifier_model
+from backend.services.threat_detection_loader import load_threat_detection_model
 from backend.services.violence_loader import load_violence_model
 
 # =============================================================================
@@ -587,3 +591,234 @@ class TestModelInferenceMocked:
         assert result is not None
         # Verify model has generate method (Florence-specific)
         assert hasattr(mock_model, "generate")
+
+
+# =============================================================================
+# Test Age Classifier Loader Integration
+# =============================================================================
+
+
+class TestAgeClassifierLoaderIntegration:
+    """Integration tests for age classifier model loader (functional API)."""
+
+    @pytest.mark.asyncio
+    async def test_age_classifier_load_success(self, mock_transformers):
+        """Test age classifier model loads successfully."""
+        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
+        mock_model = MagicMock()
+        mock_model.cuda = MagicMock(return_value=mock_model)
+        mock_model.half = MagicMock(return_value=mock_model)
+        mock_model.eval = MagicMock(return_value=mock_model)
+        mock_model.config.id2label = {0: "child", 1: "adult", 2: "senior"}
+        mock_transformers[
+            "transformers"
+        ].AutoModelForImageClassification.from_pretrained.return_value = mock_model
+        mock_transformers["transformers"].AutoImageProcessor = MagicMock()
+
+        result = await load_age_classifier_model("/path/to/model")
+
+        assert result is not None
+        assert "model" in result
+        assert "processor" in result
+        assert "labels" in result
+
+    @pytest.mark.asyncio
+    async def test_age_classifier_missing_weights_error(self, mock_transformers):
+        """Test age classifier loader raises error for missing weights."""
+        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
+        mock_transformers[
+            "transformers"
+        ].AutoModelForImageClassification.from_pretrained.side_effect = RuntimeError(
+            "Model weights not found"
+        )
+
+        with pytest.raises(RuntimeError, match="Failed to load age classifier"):
+            await load_age_classifier_model("/nonexistent/path")
+
+
+# =============================================================================
+# Test Gender Classifier Loader Integration
+# =============================================================================
+
+
+class TestGenderClassifierLoaderIntegration:
+    """Integration tests for gender classifier model loader (functional API)."""
+
+    @pytest.mark.asyncio
+    async def test_gender_classifier_load_success(self, mock_transformers):
+        """Test gender classifier model loads successfully."""
+        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
+        mock_model = MagicMock()
+        mock_model.cuda = MagicMock(return_value=mock_model)
+        mock_model.half = MagicMock(return_value=mock_model)
+        mock_model.eval = MagicMock(return_value=mock_model)
+        mock_model.config.id2label = {0: "male", 1: "female"}
+        mock_transformers[
+            "transformers"
+        ].AutoModelForImageClassification.from_pretrained.return_value = mock_model
+        mock_transformers["transformers"].AutoImageProcessor = MagicMock()
+
+        result = await load_gender_classifier_model("/path/to/model")
+
+        assert result is not None
+        assert "model" in result
+        assert "processor" in result
+        assert "labels" in result
+
+    @pytest.mark.asyncio
+    async def test_gender_classifier_missing_weights_error(self, mock_transformers):
+        """Test gender classifier loader raises error for missing weights."""
+        mock_transformers["transformers"].AutoModelForImageClassification = MagicMock()
+        mock_transformers[
+            "transformers"
+        ].AutoModelForImageClassification.from_pretrained.side_effect = RuntimeError(
+            "Model weights not found"
+        )
+
+        with pytest.raises(RuntimeError, match="Failed to load gender classifier"):
+            await load_gender_classifier_model("/nonexistent/path")
+
+
+# =============================================================================
+# Test OSNet Loader Integration
+# =============================================================================
+
+
+class TestOSNetLoaderIntegration:
+    """Integration tests for OSNet person re-ID model loader (functional API)."""
+
+    @pytest.mark.asyncio
+    async def test_osnet_load_success_with_torchreid(self, mock_transformers, monkeypatch):
+        """Test OSNet model loads successfully with torchreid."""
+        import sys
+
+        # Mock torchvision
+        mock_torchvision = MagicMock()
+        mock_transforms = MagicMock()
+        mock_torchvision.transforms = mock_transforms
+        monkeypatch.setitem(sys.modules, "torchvision", mock_torchvision)
+        monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
+
+        # Mock torchreid
+        mock_torchreid = MagicMock()
+        mock_model = MagicMock()
+        mock_model.parameters = MagicMock(return_value=iter([MagicMock()]))
+        mock_model.eval = MagicMock(return_value=mock_model)
+        mock_torchreid.models.build_model.return_value = mock_model
+
+        monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
+        monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
+
+        # Mock Path.glob to return a weights file
+        from unittest.mock import patch
+
+        with patch("pathlib.Path.exists", return_value=True):
+            result = await load_osnet_model("/path/to/model")
+
+        assert result is not None
+        assert "model" in result
+        assert "transform" in result
+
+    @pytest.mark.asyncio
+    async def test_osnet_missing_weights_error(self, mock_transformers, monkeypatch):
+        """Test OSNet loader raises error for missing weights."""
+        import sys
+
+        # Mock torchvision
+        mock_torchvision = MagicMock()
+        mock_transforms = MagicMock()
+        mock_torchvision.transforms = mock_transforms
+        monkeypatch.setitem(sys.modules, "torchvision", mock_torchvision)
+        monkeypatch.setitem(sys.modules, "torchvision.transforms", mock_transforms)
+
+        # Mock torchreid
+        mock_torchreid = MagicMock()
+        monkeypatch.setitem(sys.modules, "torchreid", mock_torchreid)
+        monkeypatch.setitem(sys.modules, "torchreid.models", mock_torchreid.models)
+
+        # Mock Path.glob to return no files and exists to return False
+        from unittest.mock import patch
+
+        with patch("pathlib.Path.exists", return_value=False):
+            with patch("pathlib.Path.glob", return_value=[]):
+                with pytest.raises(RuntimeError, match="Failed to load OSNet"):
+                    await load_osnet_model("/nonexistent/path")
+
+
+# =============================================================================
+# Test Threat Detection Loader Integration
+# =============================================================================
+
+
+class TestThreatDetectionLoaderIntegration:
+    """Integration tests for threat detection model loader (functional API)."""
+
+    @pytest.mark.asyncio
+    async def test_threat_detection_load_success(self, mock_transformers, monkeypatch):
+        """Test threat detection model loads successfully."""
+        import sys
+
+        # Mock ultralytics YOLO
+        mock_ultralytics = MagicMock()
+        mock_yolo_model = MagicMock()
+        mock_yolo_model.fuse = MagicMock()
+        mock_yolo_model.model.is_fused = MagicMock(return_value=False)
+        mock_ultralytics.YOLO.return_value = mock_yolo_model
+
+        monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
+
+        # Mock Path.exists to return True
+        from unittest.mock import patch
+
+        with patch("pathlib.Path.exists", return_value=True):
+            result = await load_threat_detection_model("/path/to/model")
+
+        assert result is not None
+        # YOLO loader returns the model directly
+        assert mock_yolo_model.fuse.called
+
+    @pytest.mark.asyncio
+    async def test_threat_detection_missing_weights_error(self, monkeypatch):
+        """Test threat detection loader raises error for missing weights."""
+        import sys
+
+        # Mock ultralytics
+        mock_ultralytics = MagicMock()
+        monkeypatch.setitem(sys.modules, "ultralytics", mock_ultralytics)
+
+        # Mock Path.glob and exists to return no files
+        from unittest.mock import patch
+
+        with patch("pathlib.Path.exists", return_value=False):
+            with patch("pathlib.Path.glob", return_value=[]):
+                with pytest.raises(RuntimeError, match="Failed to load threat detection"):
+                    await load_threat_detection_model("/nonexistent/path")
+
+    @pytest.mark.asyncio
+    async def test_threat_detection_import_error(self, monkeypatch):
+        """Test threat detection loader handles missing ultralytics."""
+        import builtins
+        import sys
+
+        # Hide ultralytics module
+        modules_to_hide = ["ultralytics"]
+        hidden_modules = {}
+        for mod in modules_to_hide:
+            for key in list(sys.modules.keys()):
+                if key == mod or key.startswith(f"{mod}."):
+                    hidden_modules[key] = sys.modules.pop(key)
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "ultralytics" or name.startswith("ultralytics."):
+                raise ImportError(f"No module named '{name}'")
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", mock_import)
+
+        try:
+            with pytest.raises(ImportError, match="Threat detection requires ultralytics"):
+                await load_threat_detection_model("/path/to/model")
+        finally:
+            sys.modules.update(hidden_modules)

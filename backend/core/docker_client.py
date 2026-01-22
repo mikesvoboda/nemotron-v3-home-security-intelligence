@@ -30,7 +30,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-from docker import DockerClient as BaseDockerClient
+from docker import DockerClient as BaseDockerClient  # type: ignore[attr-defined]
 from docker.errors import APIError, DockerException, ImageNotFound, NotFound
 
 from backend.core.logging import get_logger

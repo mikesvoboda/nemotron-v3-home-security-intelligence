@@ -538,6 +538,168 @@ POST http://ai-enrichment:8094/models/preload?model_name=threat_detector
 | `/object-distance`   | POST   | Object distance estimation  |
 | `/pose-analyze`      | POST   | Human pose keypoints        |
 
+## Enrichment Result Schema
+
+The enrichment pipeline returns structured results for each detection. These results are stored alongside detections and used by Nemotron for comprehensive risk analysis.
+
+### EnrichmentResult Structure
+
+The `EnrichmentResult` object aggregates all enrichment outputs for a batch of detections:
+
+```python
+class EnrichmentResult:
+    threat_detection: ThreatDetectionResult | None
+    age_classifications: dict[str, AgeClassificationResult]  # detection_id -> result
+    gender_classifications: dict[str, GenderClassificationResult]  # detection_id -> result
+    person_embeddings: dict[str, PersonEmbeddingResult]  # detection_id -> result
+```
+
+### ThreatDetectionResult
+
+Weapon and threat detection results from the YOLO threat detector model.
+
+```json
+{
+  "threat_type": "knife",
+  "confidence": 0.89,
+  "severity": "critical",
+  "bbox": [120, 80, 180, 200]
+}
+```
+
+| Field         | Type   | Description                                               |
+| ------------- | ------ | --------------------------------------------------------- |
+| `threat_type` | string | Type of threat detected: `knife`, `gun`, `weapon`, `none` |
+| `confidence`  | float  | Detection confidence score (0.0-1.0)                      |
+| `severity`    | string | Threat severity: `low`, `medium`, `high`, `critical`      |
+| `bbox`        | array  | Bounding box `[x1, y1, x2, y2]` of detected threat        |
+
+### AgeClassificationResult
+
+Age range estimation from ViT age classifier.
+
+```json
+{
+  "age_range": "25-35",
+  "confidence": 0.82,
+  "raw_prediction": 28.5
+}
+```
+
+| Field            | Type   | Description                                   |
+| ---------------- | ------ | --------------------------------------------- |
+| `age_range`      | string | Estimated age range bracket                   |
+| `confidence`     | float  | Classification confidence (0.0-1.0)           |
+| `raw_prediction` | float  | Raw model prediction (estimated age in years) |
+
+**Age Range Brackets:**
+
+- `0-12` (child)
+- `13-17` (teenager)
+- `18-24` (young adult)
+- `25-35` (adult)
+- `36-50` (middle-aged)
+- `51-65` (mature adult)
+- `65+` (senior)
+
+### GenderClassificationResult
+
+Gender classification from ViT gender classifier.
+
+```json
+{
+  "gender": "male",
+  "confidence": 0.94
+}
+```
+
+| Field        | Type   | Description                                   |
+| ------------ | ------ | --------------------------------------------- |
+| `gender`     | string | Predicted gender: `male`, `female`, `unknown` |
+| `confidence` | float  | Classification confidence (0.0-1.0)           |
+
+### PersonEmbeddingResult
+
+512-dimensional embedding vector from OSNet for person re-identification across cameras.
+
+```json
+{
+  "embedding": [0.123, -0.456, 0.789, ...],
+  "embedding_dimension": 512,
+  "model": "osnet_x0_25"
+}
+```
+
+| Field                 | Type   | Description                                  |
+| --------------------- | ------ | -------------------------------------------- |
+| `embedding`           | array  | 512-dimensional float vector (normalized L2) |
+| `embedding_dimension` | int    | Embedding vector length (always 512)         |
+| `model`               | string | Model used for embedding generation          |
+
+**Use Cases:**
+
+- Cross-camera person tracking
+- Person re-identification over time
+- Similarity search for matching individuals
+
+### Complete Enrichment Response Example
+
+Full response from the `/enrich` endpoint for a person detection:
+
+```json
+{
+  "threat_detection": {
+    "threat_type": "none",
+    "confidence": 0.0,
+    "severity": "low",
+    "bbox": null
+  },
+  "age_classifications": {
+    "det_abc123": {
+      "age_range": "25-35",
+      "confidence": 0.82,
+      "raw_prediction": 28.5
+    }
+  },
+  "gender_classifications": {
+    "det_abc123": {
+      "gender": "male",
+      "confidence": 0.94
+    }
+  },
+  "person_embeddings": {
+    "det_abc123": {
+      "embedding": [0.123, -0.456, ...],
+      "embedding_dimension": 512,
+      "model": "osnet_x0_25"
+    }
+  },
+  "pose": {
+    "keypoints": [...],
+    "posture": "standing",
+    "alerts": []
+  },
+  "clothing": {
+    "type": "casual",
+    "color": "blue",
+    "is_suspicious": false,
+    "is_service_uniform": false
+  },
+  "inference_time_ms": 312.5
+}
+```
+
+### Integration with Risk Analysis
+
+The enrichment results feed directly into Nemotron's risk analysis prompt:
+
+1. **Threat Detection**: Weapons trigger immediate critical risk elevation
+2. **Demographics**: Age/gender provide context for behavior analysis
+3. **Person Embeddings**: Enable tracking individuals across multiple cameras
+4. **Pose/Clothing**: Inform behavioral assessment (suspicious posture, face coverings)
+
+The backend stores enrichment results in the detection record and passes the complete context to Nemotron for comprehensive risk scoring.
+
 ## Environment Variables
 
 ### RT-DETRv2

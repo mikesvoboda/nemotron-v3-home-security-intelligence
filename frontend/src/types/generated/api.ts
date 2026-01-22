@@ -4443,6 +4443,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/logs/frontend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ingest single frontend log
+         * @description Receive a single log entry from the frontend for structured logging.
+         */
+        post: operations["ingest_frontend_log_api_logs_frontend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logs/frontend/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ingest batch of frontend logs
+         * @description Receive a batch of log entries from the frontend for structured logging.
+         */
+        post: operations["ingest_frontend_logs_batch_api_logs_frontend_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/media/cameras/{camera_id}/{filename}": {
         parameters: {
             query?: never;
@@ -14961,6 +15001,147 @@ export interface components {
             message: string;
             /** Queues Flushed */
             queues_flushed: string[];
+        };
+        /**
+         * FrontendLogBatchRequest
+         * @description Batch request for multiple frontend log entries.
+         *
+         *     The frontend batches log entries to reduce API calls. Each batch may
+         *     contain logs from different components or at different levels.
+         *
+         *     Attributes:
+         *         entries: List of log entries to ingest (1-100 entries)
+         * @example {
+         *       "entries": [
+         *         {
+         *           "component": "App",
+         *           "level": "INFO",
+         *           "message": "Page loaded successfully",
+         *           "timestamp": "2024-01-15T10:30:00Z"
+         *         },
+         *         {
+         *           "component": "API",
+         *           "extra": {
+         *             "endpoint": "/api/events",
+         *             "status": 500
+         *           },
+         *           "level": "ERROR",
+         *           "message": "API call failed",
+         *           "timestamp": "2024-01-15T10:30:01Z"
+         *         }
+         *       ]
+         *     }
+         */
+        FrontendLogBatchRequest: {
+            /**
+             * Entries
+             * @description List of log entries to ingest (1-100 entries)
+             */
+            entries: components["schemas"]["FrontendLogEntry"][];
+        };
+        /**
+         * FrontendLogEntry
+         * @description A single log entry from the frontend.
+         *
+         *     This schema matches the structure sent by the frontend logger.ts service.
+         *     All fields except level and message are optional to allow flexibility in
+         *     what context the frontend can provide.
+         *
+         *     Attributes:
+         *         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+         *         message: The log message content
+         *         timestamp: When the log was created (ISO 8601 format)
+         *         component: Frontend component name (e.g., "Dashboard", "AlertForm")
+         *         context: Additional structured context data (renamed from 'extra' in frontend)
+         *         url: Browser URL where the log was generated
+         *         user_agent: Browser user agent string
+         * @example {
+         *       "component": "Dashboard",
+         *       "extra": {
+         *         "error_code": "API_TIMEOUT",
+         *         "retry_count": 3,
+         *         "url": "https://example.com/dashboard"
+         *       },
+         *       "level": "ERROR",
+         *       "message": "Failed to load dashboard data",
+         *       "timestamp": "2024-01-15T10:30:00Z",
+         *       "url": "https://example.com/dashboard"
+         *     }
+         */
+        FrontendLogEntry: {
+            /**
+             * Component
+             * @description Frontend component name
+             */
+            component?: string | null;
+            /**
+             * Extra
+             * @description Additional structured context data
+             */
+            extra?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Log level */
+            level: components["schemas"]["FrontendLogLevel"];
+            /**
+             * Message
+             * @description Log message content
+             */
+            message: string;
+            /**
+             * Timestamp
+             * @description When the log was created (ISO 8601 format)
+             */
+            timestamp?: string | null;
+            /**
+             * Url
+             * @description Browser URL where log was generated
+             */
+            url?: string | null;
+            /**
+             * User Agent
+             * @description Browser user agent string
+             */
+            user_agent?: string | null;
+        };
+        /**
+         * FrontendLogLevel
+         * @description Supported frontend log levels.
+         *
+         *     These correspond to the log levels used by the frontend logger.ts service.
+         * @enum {string}
+         */
+        FrontendLogLevel: "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+        /**
+         * FrontendLogResponse
+         * @description Response from the frontend log ingestion endpoints.
+         *
+         *     Attributes:
+         *         success: Whether the ingestion was successful
+         *         count: Number of log entries successfully ingested
+         *         message: Human-readable status message
+         * @example {
+         *       "count": 5,
+         *       "message": "Successfully ingested 5 log entry(ies)",
+         *       "success": true
+         *     }
+         */
+        FrontendLogResponse: {
+            /**
+             * Count
+             * @description Number of entries successfully ingested
+             */
+            count: number;
+            /**
+             * Message
+             * @description Human-readable status message
+             */
+            message?: string | null;
+            /**
+             * Success
+             * @description Whether ingestion was successful
+             */
+            success: boolean;
         };
         /**
          * FullHealthResponse
@@ -30010,6 +30191,82 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    ingest_frontend_log_api_logs_frontend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FrontendLogEntry"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrontendLogResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ingest_frontend_logs_batch_api_logs_frontend_batch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FrontendLogBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrontendLogResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
