@@ -374,6 +374,7 @@ export default function DashboardPage() {
             totalDetections: aiMetrics.totalDetections,
             totalEvents: aiMetrics.totalEvents,
             totalErrors: Object.values(aiMetrics.pipelineErrors).reduce((sum, count) => sum + count, 0),
+            throughputPerMinute: aiMetrics.eventsPerMinute,
           },
           cameraGrid: {
             cameras: cameraStatuses,

@@ -2348,14 +2348,16 @@ export interface paths {
         };
         /**
          * Get Detection Stats
-         * @description Get aggregate detection statistics including class distribution.
+         * @description Get aggregate detection statistics including class distribution and trends.
          *
          *     Returns:
          *     - Total detection count
          *     - Detection counts grouped by object class (person, car, truck, etc.)
          *     - Average confidence score across all detections
+         *     - Detection trends for the last 7 days (for Grafana time series)
          *
-         *     Used by the AI Performance page to display detection class distribution charts.
+         *     Used by the AI Performance page to display detection class distribution charts
+         *     and by the Grafana Analytics dashboard for detection trend visualization.
          *
          *     Optimized to use a single query with window functions instead of 3 separate queries
          *     (NEM-1321). The query combines:
@@ -2368,7 +2370,7 @@ export interface paths {
          *         db: Database session
          *
          *     Returns:
-         *         DetectionStatsResponse with aggregate detection statistics
+         *         DetectionStatsResponse with aggregate detection statistics and trends
          */
         get: operations["get_detection_stats_api_detections_stats_get"];
         put?: never;
@@ -5794,11 +5796,14 @@ export interface paths {
          *     Returns status information for all 18 Model Zoo models, including:
          *     - Current status (loaded, unloaded, disabled)
          *     - VRAM usage when loaded
-         *     - Last usage timestamp
+         *     - Last usage timestamp (derived from EventAudit records, None if DB unavailable)
          *     - Category grouping for UI display
          *
          *     This endpoint is optimized for the compact status card display
          *     in the AI Performance page.
+         *
+         *     Args:
+         *         db: Optional database session for querying EventAudit last used timestamps
          *
          *     Returns:
          *         ModelZooStatusResponse with all model statuses
@@ -12497,8 +12502,9 @@ export interface components {
          * DetectionStatsResponse
          * @description Schema for detection statistics response.
          *
-         *     Returns aggregate statistics about detections including counts by object class.
-         *     Used by the AI Performance page to display detection class distribution.
+         *     Returns aggregate statistics about detections including counts by object class
+         *     and detection trends over time. Used by the AI Performance page and Grafana
+         *     Analytics dashboard.
          * @example {
          *       "average_confidence": 0.87,
          *       "detections_by_class": {
@@ -12525,7 +12531,37 @@ export interface components {
          *           "object_class": "bicycle"
          *         }
          *       ],
-         *       "total_detections": 107
+         *       "total_detections": 107,
+         *       "trends": [
+         *         {
+         *           "detection_count": 10,
+         *           "timestamp": "2026-01-16T00:00:00Z"
+         *         },
+         *         {
+         *           "detection_count": 15,
+         *           "timestamp": "2026-01-17T00:00:00Z"
+         *         },
+         *         {
+         *           "detection_count": 12,
+         *           "timestamp": "2026-01-18T00:00:00Z"
+         *         },
+         *         {
+         *           "detection_count": 8,
+         *           "timestamp": "2026-01-19T00:00:00Z"
+         *         },
+         *         {
+         *           "detection_count": 20,
+         *           "timestamp": "2026-01-20T00:00:00Z"
+         *         },
+         *         {
+         *           "detection_count": 25,
+         *           "timestamp": "2026-01-21T00:00:00Z"
+         *         },
+         *         {
+         *           "detection_count": 50,
+         *           "timestamp": "2026-01-22T00:00:00Z"
+         *         }
+         *       ]
          *     }
          */
         DetectionStatsResponse: {
@@ -12551,6 +12587,11 @@ export interface components {
              * @description Total number of detections
              */
             total_detections: number;
+            /**
+             * Trends
+             * @description Detection counts by day for the last 7 days (for Grafana time series)
+             */
+            trends?: components["schemas"]["DetectionTrendItem"][];
         };
         /**
          * DetectionSummary
@@ -12626,6 +12667,29 @@ export interface components {
              * @description Date of the data point
              */
             date: string;
+        };
+        /**
+         * DetectionTrendItem
+         * @description Schema for a single detection trend data point (for Grafana time series).
+         *
+         *     Used by the Grafana Analytics dashboard to display detection trends over time.
+         *     The timestamp field is Unix epoch milliseconds for Grafana JSON datasource compatibility.
+         * @example {
+         *       "detection_count": 50,
+         *       "timestamp": 1737504000000
+         *     }
+         */
+        DetectionTrendItem: {
+            /**
+             * Detection Count
+             * @description Number of detections on this date
+             */
+            detection_count: number;
+            /**
+             * Timestamp
+             * @description Unix epoch milliseconds for the trend data point (start of day)
+             */
+            timestamp: number;
         };
         /**
          * DetectionTrendsResponse

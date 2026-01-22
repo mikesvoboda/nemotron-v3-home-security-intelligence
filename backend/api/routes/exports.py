@@ -20,7 +20,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.dependencies import get_export_service_dep, get_job_tracker_dep
@@ -354,14 +354,14 @@ async def list_exports(
         db_status = ExportJobStatus(status_filter.value)
         query = query.where(ExportJob.status == db_status)
 
-    # Get total count
-    count_query = select(ExportJob)
+    # Get total count using efficient database COUNT
+    count_query = select(func.count()).select_from(ExportJob)
     if status_filter:
         db_status = ExportJobStatus(status_filter.value)
         count_query = count_query.where(ExportJob.status == db_status)
 
-    result = await db.execute(count_query)
-    total = len(result.scalars().all())
+    count_result = await db.execute(count_query)
+    total = count_result.scalar() or 0
 
     # Apply pagination
     query = query.offset(offset).limit(limit)

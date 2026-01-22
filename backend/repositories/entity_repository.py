@@ -196,8 +196,11 @@ class EntityRepository(Repository[Entity]):
                 offset=0,
             )
         """
+        from sqlalchemy.orm import selectinload
+
         # Build base query with filters
-        stmt = select(Entity)
+        # Eager load primary_detection to allow cameras_seen fallback
+        stmt = select(Entity).options(selectinload(Entity.primary_detection))
 
         if entity_type:
             stmt = stmt.where(Entity.entity_type == entity_type)

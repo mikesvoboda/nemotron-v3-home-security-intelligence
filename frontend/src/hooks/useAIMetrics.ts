@@ -50,6 +50,20 @@ interface PipelineStageLatency {
 }
 
 /**
+ * Performance response from /api/system/performance
+ * Contains real-time throughput metrics calculated from database
+ */
+interface PerformanceResponse {
+  timestamp: string;
+  inference?: {
+    throughput?: {
+      images_per_min?: number;
+      events_per_min?: number;
+    };
+  } | null;
+}
+
+/**
  * AI model status information
  */
 export interface AIModelStatus {
@@ -81,6 +95,8 @@ export interface AIPerformanceState {
   totalDetections: number;
   /** Total events created */
   totalEvents: number;
+  /** Events per minute throughput (from /api/system/performance) */
+  eventsPerMinute: number;
   /** Detection queue depth */
   detectionQueueDepth: number;
   /** Analysis queue depth */
@@ -132,6 +148,7 @@ const initialState: AIPerformanceState = {
   pipelineLatency: null,
   totalDetections: 0,
   totalEvents: 0,
+  eventsPerMinute: 0,
   detectionQueueDepth: 0,
   analysisQueueDepth: 0,
   pipelineErrors: {},
@@ -150,6 +167,18 @@ async function fetchPipelineLatency(windowMinutes: number = 60): Promise<Pipelin
     throw new Error(`Failed to fetch pipeline latency: ${response.status}`);
   }
   return response.json() as Promise<PipelineLatencyResponse>;
+}
+
+/**
+ * Fetch performance metrics from the API
+ * This provides real-time throughput calculated from database (events in last 60 seconds)
+ */
+async function fetchPerformanceMetrics(): Promise<PerformanceResponse> {
+  const response = await fetch('/api/system/performance');
+  if (!response.ok) {
+    throw new Error(`Failed to fetch performance metrics: ${response.status}`);
+  }
+  return response.json() as Promise<PerformanceResponse>;
 }
 
 /**
@@ -247,6 +276,7 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
         pipelineResult,
         dlqResult,
         detectionStatsResult,
+        performanceResult,
       ] = await Promise.allSettled([
         fetchAIMetrics(),
         fetchTelemetry(),
@@ -254,6 +284,7 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
         fetchPipelineLatency(60),
         fetchDlqStats(),
         fetchDetectionStats(),
+        fetchPerformanceMetrics(),
       ]);
 
       if (!mountedRef.current) return;
@@ -271,6 +302,8 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
         dlqResult.status === 'fulfilled' ? dlqResult.value : null;
       const detectionStats: DetectionStatsResponse | null =
         detectionStatsResult.status === 'fulfilled' ? detectionStatsResult.value : null;
+      const performance: PerformanceResponse | null =
+        performanceResult.status === 'fulfilled' ? performanceResult.value : null;
 
       // Extract AI model statuses
       const { rtdetr, nemotron } = extractAIStatuses(health);
@@ -291,15 +324,52 @@ export function useAIMetrics(options: UseAIMetricsOptions = {}): UseAIMetricsRes
         Object.assign(dlqItems, metrics.dlq_items);
       }
 
+      // Extract latency metrics with fallback to telemetry API
+      // Prometheus metrics (from /api/metrics) are preferred as they have histogram data
+      // Telemetry API (from /api/system/telemetry) is used as fallback when Prometheus data is unavailable
+
+      // RT-DETR detection latency
+      let detectionLatency: AILatencyMetrics | null = null;
+      if (metrics?.detection_latency) {
+        // Use Prometheus metrics if available (preferred - has histogram data)
+        detectionLatency = metrics.detection_latency;
+      } else if (telemetry?.latencies?.detect) {
+        // Fall back to telemetry API if Prometheus doesn't have data
+        detectionLatency = {
+          avg_ms: telemetry.latencies.detect.avg_ms ?? null,
+          p50_ms: telemetry.latencies.detect.p50_ms ?? null,
+          p95_ms: telemetry.latencies.detect.p95_ms ?? null,
+          p99_ms: telemetry.latencies.detect.p99_ms ?? null,
+          sample_count: telemetry.latencies.detect.sample_count ?? 0,
+        };
+      }
+
+      // Nemotron analysis latency
+      let analysisLatency: AILatencyMetrics | null = null;
+      if (metrics?.analysis_latency) {
+        // Use Prometheus metrics if available (preferred - has histogram data)
+        analysisLatency = metrics.analysis_latency;
+      } else if (telemetry?.latencies?.analyze) {
+        // Fall back to telemetry API if Prometheus doesn't have data
+        analysisLatency = {
+          avg_ms: telemetry.latencies.analyze.avg_ms ?? null,
+          p50_ms: telemetry.latencies.analyze.p50_ms ?? null,
+          p95_ms: telemetry.latencies.analyze.p95_ms ?? null,
+          p99_ms: telemetry.latencies.analyze.p99_ms ?? null,
+          sample_count: telemetry.latencies.analyze.sample_count ?? 0,
+        };
+      }
+
       // Combine all metrics into state
       setData({
         rtdetr,
         nemotron,
-        detectionLatency: metrics?.detection_latency ?? null,
-        analysisLatency: metrics?.analysis_latency ?? null,
+        detectionLatency,
+        analysisLatency,
         pipelineLatency,
         totalDetections: detectionStats?.total_detections ?? metrics?.total_detections ?? 0,
         totalEvents: metrics?.total_events ?? 0,
+        eventsPerMinute: performance?.inference?.throughput?.events_per_min ?? 0,
         detectionQueueDepth:
           telemetry?.queues?.detection_queue ?? metrics?.detection_queue_depth ?? 0,
         analysisQueueDepth: telemetry?.queues?.analysis_queue ?? metrics?.analysis_queue_depth ?? 0,

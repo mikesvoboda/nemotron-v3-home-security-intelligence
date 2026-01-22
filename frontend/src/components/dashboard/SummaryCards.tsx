@@ -10,7 +10,7 @@
 
 import { Card, Text } from '@tremor/react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
-import { ChevronRight, Clock, Calendar, RefreshCw } from 'lucide-react';
+import { ChevronRight, Clock, Calendar, RefreshCw, MapPin } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { SeverityBadge } from './SeverityBadge';
@@ -196,6 +196,40 @@ export function SummaryCard({
           <span>View Full Summary</span>
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </button>
+      )}
+
+      {/* Summary Metadata - Location and Time Range */}
+      {(summary.focusAreas?.length || summary.timeRangeFormatted) && (
+        <div
+          className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400"
+          data-testid={`summary-metadata-${type}`}
+        >
+          {/* Location/Focus Areas - ensure text is not over-truncated */}
+          {summary.focusAreas && summary.focusAreas.length > 0 && (
+            <div
+              className="flex min-w-0 items-center gap-1"
+              data-testid={`summary-location-${type}`}
+            >
+              <MapPin className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+              <span
+                className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
+                title={summary.focusAreas.join(', ')}
+              >
+                {summary.focusAreas.join(', ')}
+              </span>
+            </div>
+          )}
+          {/* Time Range - show full range, not single time */}
+          {summary.timeRangeFormatted && (
+            <div
+              className="flex flex-shrink-0 items-center gap-1"
+              data-testid={`summary-time-range-${type}`}
+            >
+              <Clock className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+              <span className="whitespace-nowrap">{summary.timeRangeFormatted}</span>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Footer */}

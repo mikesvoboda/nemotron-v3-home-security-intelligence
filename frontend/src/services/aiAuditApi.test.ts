@@ -22,8 +22,6 @@ import {
   exportPrompts,
   getModelPrompt,
   updateModelPrompt,
-  getPromptConfig,
-  updatePromptConfig,
   type EventAuditResponse,
   type AuditStatsResponse,
   type LeaderboardResponse,
@@ -36,7 +34,6 @@ import {
   type PromptExportResponse,
   type ModelPromptResponse,
   type PromptUpdateResponse,
-  type PromptConfigResponse,
   type ModelContributions,
   type QualityScores,
   type PromptImprovements,
@@ -235,14 +232,7 @@ const mockPromptUpdateResponse: PromptUpdateResponse = {
   config: { system_prompt: 'Updated...', temperature: 0.8 },
 };
 
-const mockPromptConfigResponse: PromptConfigResponse = {
-  model: 'nemotron',
-  systemPrompt: 'You are a home security AI assistant...',
-  temperature: 0.7,
-  maxTokens: 2048,
-  version: 3,
-  updatedAt: '2026-01-03T10:30:00Z',
-};
+// mockPromptConfigResponse removed - deprecated endpoints removed in NEM-3255
 
 // ============================================================================
 // Helper Functions
@@ -875,92 +865,12 @@ describe('updateModelPrompt', () => {
 });
 
 // ============================================================================
-// Endpoint 14: getPromptConfig Tests
+// Endpoints 14-15: getPromptConfig/updatePromptConfig - REMOVED (NEM-3255)
 // ============================================================================
-
-describe('getPromptConfig', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('fetches prompt config successfully', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockPromptConfigResponse));
-
-    const result = await getPromptConfig('nemotron');
-
-    expect(fetch).toHaveBeenCalledWith('/api/ai-audit/prompt-config/nemotron', {
-      headers: { 'Content-Type': 'application/json' },
-    });
-    expect(result.model).toBe('nemotron');
-    expect(result.temperature).toBe(0.7);
-    expect(result.maxTokens).toBe(2048);
-  });
-
-  it('throws on model not found', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(404, 'Not Found', "No configuration found for model 'invalid'")
-    );
-
-    await expect(getPromptConfig('nemotron')).rejects.toMatchObject({
-      status: 404,
-    });
-  });
-});
-
+// These endpoints were deprecated and removed in NEM-2695.
+// The backend endpoints /api/ai-audit/prompt-config/{model} no longer exist.
+// Use getModelPrompt and updateModelPrompt instead, which call /api/prompts/{model}.
 // ============================================================================
-// Endpoint 15: updatePromptConfig Tests
-// ============================================================================
-
-describe('updatePromptConfig', () => {
-  beforeEach(() => {
-    vi.stubGlobal('fetch', vi.fn());
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('updates prompt config successfully', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockPromptConfigResponse));
-
-    const result = await updatePromptConfig('nemotron', {
-      systemPrompt: 'You are a home security AI assistant...',
-      temperature: 0.7,
-      maxTokens: 2048,
-    });
-
-    expect(fetch).toHaveBeenCalledWith('/api/ai-audit/prompt-config/nemotron', {
-      method: 'PUT',
-      body: JSON.stringify({
-        systemPrompt: 'You are a home security AI assistant...',
-        temperature: 0.7,
-        maxTokens: 2048,
-      }),
-      headers: { 'Content-Type': 'application/json' },
-    });
-    expect(result.version).toBe(3);
-  });
-
-  it('creates new config if not exists', async () => {
-    const newConfig: PromptConfigResponse = {
-      ...mockPromptConfigResponse,
-      version: 1,
-    };
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(newConfig));
-
-    const result = await updatePromptConfig('florence-2', {
-      systemPrompt: 'New config...',
-      temperature: 0.5,
-      maxTokens: 1024,
-    });
-
-    expect(result.version).toBe(1);
-  });
-});
 
 // ============================================================================
 // Error Handling Tests

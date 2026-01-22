@@ -73,6 +73,10 @@ const useAuditLogsInfiniteQueryInternal = createInfiniteQueryHook<
       ...filters,
       limit,
       cursor,
+      // Only request total count on first page (no cursor) to display "X of Y results"
+      // Subsequent pages don't need total count recalculated for performance
+      // NEM-3275: Explicitly set to true (not just truthy) to ensure correct handling
+      include_total_count: cursor ? false : true,
     };
     return fetchAuditLogs(params);
   },

@@ -21,12 +21,9 @@ import type {
   AuditStatsResponse,
   BatchAuditRequest,
   BatchAuditResponse,
-  DbModelName,
   EventAuditResponse,
   LeaderboardResponse,
   ModelPromptResponse,
-  PromptConfigRequest,
-  PromptConfigResponse,
   PromptExportResponse,
   PromptImportRequest,
   PromptImportResponse,
@@ -122,6 +119,32 @@ async function handleResponse<T>(response: Response): Promise<T> {
  */
 async function fetchAiAuditApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}/api/ai-audit${endpoint}`;
+
+  const fetchOptions: RequestInit = {
+    ...options,
+    headers: buildHeaders(),
+  };
+
+  try {
+    const response = await fetch(url, fetchOptions);
+    return handleResponse<T>(response);
+  } catch (error) {
+    if (error instanceof AiAuditApiError) {
+      throw error;
+    }
+    throw new AiAuditApiError(0, error instanceof Error ? error.message : 'Network request failed');
+  }
+}
+
+/**
+ * Perform a fetch request to the Prompts API with error handling.
+ *
+ * @param endpoint - API endpoint path (relative to /api/prompts)
+ * @param options - Optional fetch options
+ * @returns Parsed JSON response
+ */
+async function fetchPromptsApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const url = `${BASE_URL}/api/prompts${endpoint}`;
 
   const fetchOptions: RequestInit = {
     ...options,
@@ -365,7 +388,7 @@ export async function triggerBatchAudit(request?: BatchAuditRequest): Promise<Ba
  * ```
  */
 export async function getAllPrompts(): Promise<AllPromptsResponse> {
-  return fetchAiAuditApi<AllPromptsResponse>('/prompts');
+  return fetchPromptsApi<AllPromptsResponse>('');
 }
 
 /**
@@ -390,7 +413,7 @@ export async function getAllPrompts(): Promise<AllPromptsResponse> {
  * ```
  */
 export async function testPrompt(request: PromptTestRequest): Promise<PromptTestResponse> {
-  return fetchAiAuditApi<PromptTestResponse>('/prompts/test', {
+  return fetchPromptsApi<PromptTestResponse>('/test', {
     method: 'POST',
     body: JSON.stringify(request),
   });
@@ -419,9 +442,9 @@ export async function getPromptsHistory(limit?: number): Promise<AllPromptsHisto
   }
 
   const queryString = queryParams.toString();
-  const endpoint = queryString ? `/prompts/history?${queryString}` : '/prompts/history';
+  const endpoint = queryString ? `/history?${queryString}` : '/history';
 
-  return fetchAiAuditApi<AllPromptsHistoryResponse>(endpoint);
+  return fetchPromptsApi<AllPromptsHistoryResponse>(endpoint);
 }
 
 /**
@@ -447,7 +470,7 @@ export async function getPromptsHistory(limit?: number): Promise<AllPromptsHisto
  * ```
  */
 export async function importPrompts(request: PromptImportRequest): Promise<PromptImportResponse> {
-  return fetchAiAuditApi<PromptImportResponse>('/prompts/import', {
+  return fetchPromptsApi<PromptImportResponse>('/import', {
     method: 'POST',
     body: JSON.stringify(request),
   });
@@ -470,7 +493,7 @@ export async function importPrompts(request: PromptImportRequest): Promise<Promp
  * ```
  */
 export async function exportPrompts(): Promise<PromptExportResponse> {
-  return fetchAiAuditApi<PromptExportResponse>('/prompts/export');
+  return fetchPromptsApi<PromptExportResponse>('/export');
 }
 
 /**
@@ -488,7 +511,7 @@ export async function exportPrompts(): Promise<PromptExportResponse> {
  * ```
  */
 export async function getModelPrompt(model: AiModelName): Promise<ModelPromptResponse> {
-  return fetchAiAuditApi<ModelPromptResponse>(`/prompts/${model}`);
+  return fetchPromptsApi<ModelPromptResponse>(`/${model}`);
 }
 
 /**
@@ -519,68 +542,19 @@ export async function updateModelPrompt(
   model: AiModelName,
   request: PromptUpdateRequest
 ): Promise<PromptUpdateResponse> {
-  return fetchAiAuditApi<PromptUpdateResponse>(`/prompts/${model}`, {
+  return fetchPromptsApi<PromptUpdateResponse>(`/${model}`, {
     method: 'PUT',
     body: JSON.stringify(request),
   });
 }
 
 // ============================================================================
-// Database-backed Prompt Config API Functions (Endpoints 14-15)
+// Database-backed Prompt Config API Functions (Deprecated - NEM-3255)
 // ============================================================================
-
-/**
- * Get current prompt configuration for a model (database-backed).
- *
- * Retrieves the prompt configuration from the database for the specified model.
- * Returns 404 if no configuration exists for the model.
- *
- * @param model - Model name (nemotron, florence-2, yolo-world, x-clip, fashion-clip)
- * @returns PromptConfigResponse with current configuration
- * @throws AiAuditApiError if model not found (404) or no configuration exists
- *
- * @example
- * ```typescript
- * const config = await getPromptConfig('nemotron');
- * console.log(`System prompt: ${config.systemPrompt}`);
- * console.log(`Temperature: ${config.temperature}`);
- * console.log(`Version: ${config.version}`);
- * ```
- */
-export async function getPromptConfig(model: DbModelName): Promise<PromptConfigResponse> {
-  return fetchAiAuditApi<PromptConfigResponse>(`/prompt-config/${model}`);
-}
-
-/**
- * Update prompt configuration for a model (database-backed).
- *
- * Creates or updates the prompt configuration in the database.
- * If updating an existing config, increments the version number.
- *
- * @param model - Model name (nemotron, florence-2, yolo-world, x-clip, fashion-clip)
- * @param request - New configuration with system_prompt, temperature, max_tokens
- * @returns PromptConfigResponse with updated configuration
- * @throws AiAuditApiError if model not found (404) or configuration invalid (400)
- *
- * @example
- * ```typescript
- * const config = await updatePromptConfig('nemotron', {
- *   systemPrompt: 'You are a home security AI assistant...',
- *   temperature: 0.7,
- *   maxTokens: 2048
- * });
- * console.log(`Updated to version ${config.version}`);
- * ```
- */
-export async function updatePromptConfig(
-  model: DbModelName,
-  request: PromptConfigRequest
-): Promise<PromptConfigResponse> {
-  return fetchAiAuditApi<PromptConfigResponse>(`/prompt-config/${model}`, {
-    method: 'PUT',
-    body: JSON.stringify(request),
-  });
-}
+// NOTE: The /api/ai-audit/prompt-config/{model} endpoints were removed in NEM-2695.
+// Use getModelPrompt() and updateModelPrompt() instead, which call /api/prompts/{model}.
+// These deprecated functions are retained only for backwards compatibility with existing tests.
+// ============================================================================
 
 // ============================================================================
 // Re-exports for convenience

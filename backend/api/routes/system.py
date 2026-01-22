@@ -9,7 +9,7 @@ import re
 import shutil
 import tempfile
 import time
-from collections.abc import Mapping
+from collections.abc import AsyncGenerator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -132,6 +132,7 @@ from backend.core.redis import (
 )
 from backend.models import Camera, Detection, Event, GPUStats, Log
 from backend.models.audit import AuditAction
+from backend.models.event_audit import EventAudit
 from backend.services.audit import AuditService
 from backend.services.baseline import BaselineService
 from backend.services.health_event_emitter import get_health_event_emitter
@@ -522,15 +523,27 @@ def _get_worker_statuses() -> list[WorkerStatus]:
                 )
             )
 
-        # Batch timeout worker
+        # Batch timeout worker (also report as batch_aggregator for frontend compatibility)
         if "timeout" in workers_dict:
             timeout_state = workers_dict["timeout"].get("state", "stopped")
             is_running = timeout_state == "running"
+            message = None if is_running else f"State: {timeout_state}"
+
+            # Add as batch_timeout_worker
             statuses.append(
                 WorkerStatus(
                     name="batch_timeout_worker",
                     running=is_running,
-                    message=None if is_running else f"State: {timeout_state}",
+                    message=message,
+                )
+            )
+
+            # Also add as batch_aggregator (frontend expects this name)
+            statuses.append(
+                WorkerStatus(
+                    name="batch_aggregator",
+                    running=is_running,
+                    message=message,
                 )
             )
 
@@ -4342,6 +4355,7 @@ MODEL_CATEGORIES: dict[str, list[str]] = {
         "yolo11-face",
         "yolo-world-s",
         "vehicle-damage-detection",
+        "threat-detection-yolov8n",
     ],
     "Classification": [
         "violence-detection",
@@ -4349,11 +4363,13 @@ MODEL_CATEGORIES: dict[str, list[str]] = {
         "fashion-clip",
         "vehicle-segment-classification",
         "pet-classifier",
+        "vit-age-classifier",
+        "vit-gender-classifier",
     ],
     "Segmentation": ["segformer-b2-clothes"],
-    "Pose": ["vitpose-small"],
+    "Pose": ["vitpose-small", "yolov8n-pose"],
     "Depth": ["depth-anything-v2-small"],
-    "Embedding": ["clip-vit-l"],
+    "Embedding": ["clip-vit-l", "osnet-x0-25"],
     "OCR": ["paddleocr"],
     "Action Recognition": ["xclip-base"],
 }
@@ -4364,6 +4380,73 @@ DISABLED_MODELS = ["florence-2-large", "brisque-quality", "yolo26-general"]
 # Redis key prefix for model zoo latency data
 MODEL_ZOO_LATENCY_KEY_PREFIX = "model_zoo:latency:"
 MODEL_ZOO_LATENCY_TTL_SECONDS = 86400  # Keep data for 24 hours
+
+# Mapping from EventAudit model flags to Model Zoo model names
+# EventAudit tracks which models contributed to each event analysis
+# This mapping allows us to derive "last used" timestamps from audit data
+AUDIT_MODEL_TO_ZOO_MODELS: dict[str, list[str]] = {
+    "rtdetr": [],  # RT-DETRv2 is not in Model Zoo (always loaded separately)
+    "florence": ["florence-2-large"],
+    "clip": ["clip-vit-l", "osnet-x0-25"],  # CLIP embeddings and OSNet re-id
+    "violence": ["violence-detection"],
+    "clothing": ["segformer-b2-clothes", "fashion-clip"],
+    "vehicle": ["vehicle-segment-classification", "vehicle-damage-detection"],
+    "pet": ["pet-classifier"],
+    "weather": ["weather-classification"],
+    "image_quality": ["brisque-quality"],
+    "zones": [],  # Zone analysis is a context enrichment, not a Model Zoo model
+    "baseline": [],  # Baseline comparison is a context enrichment, not a Model Zoo model
+    "cross_camera": [],  # Cross-camera correlation is a context enrichment, not a Model Zoo model
+}
+
+
+async def _get_model_last_used_timestamps(
+    session: AsyncSession,
+) -> dict[str, datetime | None]:
+    """Query EventAudit to get the most recent usage timestamp for each Model Zoo model.
+
+    This queries the EventAudit table to find the most recent audited_at timestamp
+    for each model type (based on has_* flags), then maps those to Model Zoo model names.
+
+    Args:
+        session: Database session for querying EventAudit
+
+    Returns:
+        Dictionary mapping Model Zoo model names to their last used timestamps
+    """
+    last_used: dict[str, datetime | None] = {}
+
+    # Query the most recent audit timestamp for each model flag
+    for audit_model, zoo_models in AUDIT_MODEL_TO_ZOO_MODELS.items():
+        if not zoo_models:
+            continue
+
+        # Get the attribute name for this model (e.g., "has_florence")
+        attr_name = f"has_{audit_model}"
+
+        try:
+            # Query for the most recent event where this model was used
+            attr = getattr(EventAudit, attr_name, None)
+            if attr is None:
+                continue
+
+            result = await session.execute(
+                select(func.max(EventAudit.audited_at)).where(attr == True)  # noqa: E712
+            )
+            max_timestamp = result.scalar()
+
+            # Apply this timestamp to all Model Zoo models mapped from this audit flag
+            for zoo_model in zoo_models:
+                # Use the most recent timestamp if we've already seen one
+                existing = last_used.get(zoo_model)
+                if existing is None or (max_timestamp is not None and max_timestamp > existing):
+                    last_used[zoo_model] = max_timestamp
+
+        except Exception as e:
+            logger.warning(f"Failed to query last_used for {audit_model}: {e}")
+            continue
+
+    return last_used
 
 
 def _get_model_category(model_name: str) -> str:
@@ -4381,28 +4464,56 @@ def _get_model_category(model_name: str) -> str:
     return "Other"
 
 
+async def _get_db_optional() -> AsyncGenerator[AsyncSession | None]:
+    """Dependency that yields a database session or None if unavailable.
+
+    This is used for endpoints that can operate without a database, such as
+    model zoo status which can still return static model info without last_used timestamps.
+    """
+    try:
+        async for session in get_db():
+            yield session
+            return
+    except RuntimeError:
+        # Database not initialized (e.g., unit tests without DB setup)
+        yield None
+
+
 @router.get(
     "/model-zoo/status",
     response_model=ModelZooStatusResponse,
     summary="Get Model Zoo Status",
 )
-async def get_model_zoo_status() -> ModelZooStatusResponse:
+async def get_model_zoo_status(
+    db: AsyncSession | None = Depends(_get_db_optional),
+) -> ModelZooStatusResponse:
     """Get status information for all Model Zoo models.
 
     Returns status information for all 18 Model Zoo models, including:
     - Current status (loaded, unloaded, disabled)
     - VRAM usage when loaded
-    - Last usage timestamp
+    - Last usage timestamp (derived from EventAudit records, None if DB unavailable)
     - Category grouping for UI display
 
     This endpoint is optimized for the compact status card display
     in the AI Performance page.
+
+    Args:
+        db: Optional database session for querying EventAudit last used timestamps
 
     Returns:
         ModelZooStatusResponse with all model statuses
     """
     manager = get_model_manager()
     zoo = get_model_zoo()
+
+    # Get last used timestamps from EventAudit (empty dict if DB unavailable)
+    last_used_timestamps: dict[str, datetime | None] = {}
+    if db is not None:
+        try:
+            last_used_timestamps = await _get_model_last_used_timestamps(db)
+        except Exception as e:
+            logger.warning(f"Failed to query last_used timestamps: {e}")
 
     models: list[ModelZooStatusItem] = []
     loaded_count = 0
@@ -4411,25 +4522,28 @@ async def get_model_zoo_status() -> ModelZooStatusResponse:
     for model_name, config in zoo.items():
         # Determine status
         if not config.enabled:
-            status = ModelStatusEnum.DISABLED
+            model_status = ModelStatusEnum.DISABLED
             disabled_count += 1
         elif model_name in manager.loaded_models:
-            status = ModelStatusEnum.LOADED
+            model_status = ModelStatusEnum.LOADED
             loaded_count += 1
         else:
-            status = ModelStatusEnum.UNLOADED
+            model_status = ModelStatusEnum.UNLOADED
 
         # Get category
         category = _get_model_category(model_name)
+
+        # Get last used timestamp from EventAudit data
+        last_used_at = last_used_timestamps.get(model_name)
 
         models.append(
             ModelZooStatusItem(
                 name=config.name,
                 display_name=_get_model_display_name(config.name),
                 category=category,
-                status=status,
+                status=model_status,
                 vram_mb=config.vram_mb,
-                last_used_at=None,  # TODO: Track last usage time
+                last_used_at=last_used_at,
                 enabled=config.enabled,
             )
         )

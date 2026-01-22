@@ -559,11 +559,15 @@ class TestListExports:
     @pytest.mark.asyncio
     async def test_list_exports_empty(self, mock_db: AsyncMock) -> None:
         """Should return empty list when no jobs exist."""
-        # Already imported
+        # First call: COUNT query using scalar()
+        count_result = MagicMock()
+        count_result.scalar.return_value = 0
 
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = []
-        mock_db.execute.return_value = mock_result
+        # Second call: jobs query using scalars().all()
+        jobs_result = MagicMock()
+        jobs_result.scalars.return_value.all.return_value = []
+
+        mock_db.execute.side_effect = [count_result, jobs_result]
 
         result = await list_exports(status_filter=None, limit=50, offset=0, db=mock_db)
 
@@ -577,11 +581,15 @@ class TestListExports:
         sample_export_job: ExportJob,
     ) -> None:
         """Should return list of export jobs."""
-        # Already imported
+        # First call: COUNT query using scalar()
+        count_result = MagicMock()
+        count_result.scalar.return_value = 1
 
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [sample_export_job]
-        mock_db.execute.return_value = mock_result
+        # Second call: jobs query using scalars().all()
+        jobs_result = MagicMock()
+        jobs_result.scalars.return_value.all.return_value = [sample_export_job]
+
+        mock_db.execute.side_effect = [count_result, jobs_result]
 
         result = await list_exports(status_filter=None, limit=50, offset=0, db=mock_db)
 
@@ -596,11 +604,15 @@ class TestListExports:
         completed_export_job: ExportJob,
     ) -> None:
         """Should filter by status."""
-        # Already imported
+        # First call: COUNT query using scalar()
+        count_result = MagicMock()
+        count_result.scalar.return_value = 1
 
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [completed_export_job]
-        mock_db.execute.return_value = mock_result
+        # Second call: jobs query using scalars().all()
+        jobs_result = MagicMock()
+        jobs_result.scalars.return_value.all.return_value = [completed_export_job]
+
+        mock_db.execute.side_effect = [count_result, jobs_result]
 
         result = await list_exports(
             status_filter=ExportJobStatusEnum.COMPLETED,
@@ -615,8 +627,6 @@ class TestListExports:
     @pytest.mark.asyncio
     async def test_list_exports_pagination(self, mock_db: AsyncMock) -> None:
         """Should support pagination with limit and offset."""
-        # Already imported
-
         jobs = [
             ExportJob(
                 id=str(uuid4()),
@@ -639,14 +649,15 @@ class TestListExports:
             for _ in range(5)
         ]
 
-        mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = jobs[:2]  # Return 2 of 5
-        mock_db.execute.return_value = mock_result
-
-        # First call returns all jobs for count
+        # First call: COUNT query using scalar() - returns total count of 5
         count_result = MagicMock()
-        count_result.scalars.return_value.all.return_value = jobs
-        mock_db.execute.side_effect = [count_result, mock_result]
+        count_result.scalar.return_value = 5
+
+        # Second call: jobs query using scalars().all() - returns 2 of 5
+        jobs_result = MagicMock()
+        jobs_result.scalars.return_value.all.return_value = jobs[:2]
+
+        mock_db.execute.side_effect = [count_result, jobs_result]
 
         result = await list_exports(status_filter=None, limit=2, offset=0, db=mock_db)
 

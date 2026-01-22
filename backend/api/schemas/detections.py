@@ -270,11 +270,29 @@ class ObjectClassDistributionItem(BaseModel):
     count: int = Field(..., description="Number of detections of this class")
 
 
+class DetectionTrendItem(BaseModel):
+    """Schema for a single detection trend data point (for Grafana time series).
+
+    Used by the Grafana Analytics dashboard to display detection trends over time.
+    The timestamp field is Unix epoch milliseconds for Grafana JSON datasource compatibility.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"timestamp": 1737504000000, "detection_count": 50}}
+    )
+
+    timestamp: int = Field(
+        ..., description="Unix epoch milliseconds for the trend data point (start of day)"
+    )
+    detection_count: int = Field(..., description="Number of detections on this date")
+
+
 class DetectionStatsResponse(BaseModel):
     """Schema for detection statistics response.
 
-    Returns aggregate statistics about detections including counts by object class.
-    Used by the AI Performance page to display detection class distribution.
+    Returns aggregate statistics about detections including counts by object class
+    and detection trends over time. Used by the AI Performance page and Grafana
+    Analytics dashboard.
     """
 
     model_config = ConfigDict(
@@ -294,6 +312,15 @@ class DetectionStatsResponse(BaseModel):
                     {"object_class": "bicycle", "count": 1},
                 ],
                 "average_confidence": 0.87,
+                "trends": [
+                    {"timestamp": "2026-01-16T00:00:00Z", "detection_count": 10},
+                    {"timestamp": "2026-01-17T00:00:00Z", "detection_count": 15},
+                    {"timestamp": "2026-01-18T00:00:00Z", "detection_count": 12},
+                    {"timestamp": "2026-01-19T00:00:00Z", "detection_count": 8},
+                    {"timestamp": "2026-01-20T00:00:00Z", "detection_count": 20},
+                    {"timestamp": "2026-01-21T00:00:00Z", "detection_count": 25},
+                    {"timestamp": "2026-01-22T00:00:00Z", "detection_count": 50},
+                ],
             }
         }
     )
@@ -308,6 +335,10 @@ class DetectionStatsResponse(BaseModel):
     )
     average_confidence: float | None = Field(
         None, description="Average confidence score across all detections"
+    )
+    trends: list[DetectionTrendItem] = Field(
+        default_factory=list,
+        description="Detection counts by day for the last 7 days (for Grafana time series)",
     )
 
 

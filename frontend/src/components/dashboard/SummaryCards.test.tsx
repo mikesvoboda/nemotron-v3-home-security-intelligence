@@ -310,6 +310,91 @@ describe('SummaryCard', () => {
       expect(footer).toHaveClass('mt-4', 'pt-3');
     });
   });
+
+  describe('metadata display (focusAreas and timeRangeFormatted)', () => {
+    const summaryWithMetadata: Summary = {
+      id: 1,
+      content: 'Test summary content.',
+      eventCount: 2,
+      windowStart: '2026-01-18T14:00:00Z',
+      windowEnd: '2026-01-18T15:00:00Z',
+      generatedAt: '2026-01-18T14:55:00Z',
+      focusAreas: ['Front Door', 'Driveway'],
+      timeRangeFormatted: '2:15 PM - 3:00 PM',
+    };
+
+    it('displays focusAreas location when provided', () => {
+      render(<SummaryCard type="hourly" summary={summaryWithMetadata} />);
+      const locationElement = screen.getByTestId('summary-location-hourly');
+      expect(locationElement).toBeInTheDocument();
+      expect(locationElement).toHaveTextContent('Front Door, Driveway');
+    });
+
+    it('displays full time range when timeRangeFormatted is provided', () => {
+      render(<SummaryCard type="hourly" summary={summaryWithMetadata} />);
+      const timeRangeElement = screen.getByTestId('summary-time-range-hourly');
+      expect(timeRangeElement).toBeInTheDocument();
+      expect(timeRangeElement).toHaveTextContent('2:15 PM - 3:00 PM');
+    });
+
+    it('displays metadata section for daily summary', () => {
+      render(<SummaryCard type="daily" summary={summaryWithMetadata} />);
+      expect(screen.getByTestId('summary-metadata-daily')).toBeInTheDocument();
+      expect(screen.getByTestId('summary-location-daily')).toHaveTextContent('Front Door, Driveway');
+      expect(screen.getByTestId('summary-time-range-daily')).toHaveTextContent('2:15 PM - 3:00 PM');
+    });
+
+    it('does not show metadata section when focusAreas and timeRangeFormatted are missing', () => {
+      render(<SummaryCard type="hourly" summary={mockHourlySummary} />);
+      expect(screen.queryByTestId('summary-metadata-hourly')).not.toBeInTheDocument();
+    });
+
+    it('shows only location when timeRangeFormatted is missing', () => {
+      const summaryWithOnlyLocation: Summary = {
+        ...mockHourlySummary,
+        focusAreas: ['Side Gate'],
+      };
+      render(<SummaryCard type="hourly" summary={summaryWithOnlyLocation} />);
+      expect(screen.getByTestId('summary-location-hourly')).toHaveTextContent('Side Gate');
+      expect(screen.queryByTestId('summary-time-range-hourly')).not.toBeInTheDocument();
+    });
+
+    it('shows only time range when focusAreas is empty', () => {
+      const summaryWithOnlyTime: Summary = {
+        ...mockHourlySummary,
+        focusAreas: [],
+        timeRangeFormatted: '10:30 AM - 11:00 AM',
+      };
+      render(<SummaryCard type="hourly" summary={summaryWithOnlyTime} />);
+      expect(screen.queryByTestId('summary-location-hourly')).not.toBeInTheDocument();
+      expect(screen.getByTestId('summary-time-range-hourly')).toHaveTextContent('10:30 AM - 11:00 AM');
+    });
+
+    it('location text has title attribute for full text on hover', () => {
+      render(<SummaryCard type="hourly" summary={summaryWithMetadata} />);
+      const locationElement = screen.getByTestId('summary-location-hourly');
+      const textSpan = locationElement.querySelector('span');
+      expect(textSpan).toHaveAttribute('title', 'Front Door, Driveway');
+    });
+
+    it('location displays single area correctly', () => {
+      const summaryWithSingleArea: Summary = {
+        ...mockHourlySummary,
+        focusAreas: ['Backyard'],
+      };
+      render(<SummaryCard type="hourly" summary={summaryWithSingleArea} />);
+      expect(screen.getByTestId('summary-location-hourly')).toHaveTextContent('Backyard');
+    });
+
+    it('time range displays single time correctly', () => {
+      const summaryWithSingleTime: Summary = {
+        ...mockHourlySummary,
+        timeRangeFormatted: '4:30 PM',
+      };
+      render(<SummaryCard type="hourly" summary={summaryWithSingleTime} />);
+      expect(screen.getByTestId('summary-time-range-hourly')).toHaveTextContent('4:30 PM');
+    });
+  });
 });
 
 describe('SummaryCards', () => {

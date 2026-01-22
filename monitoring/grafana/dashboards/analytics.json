@@ -181,7 +181,7 @@
           },
           "decimals": 1,
           "mappings": [],
-          "max": 100,
+          "max": 1,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -192,15 +192,15 @@
               },
               {
                 "color": "#FADE2A",
-                "value": 50
+                "value": 0.5
               },
               {
                 "color": "#76B900",
-                "value": 80
+                "value": 0.8
               }
             ]
           },
-          "unit": "percent"
+          "unit": "percentunit"
         },
         "overrides": []
       },
