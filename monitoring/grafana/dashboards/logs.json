@@ -239,7 +239,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum by (level) (count_over_time({container=~\"$service\"} | json | level=~\"$level\" |~ \"$search\" [$__interval]))",
+          "expr": "sum by (level) (count_over_time({container=~\"$service\", level=~\"$level\"} |~ \"$search\" [$__interval]))",
           "legendFormat": "{{level}}",
           "refId": "A"
         }
@@ -302,7 +302,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum by (level) (count_over_time({container=~\"$service\"} | json | level=~\"$level\" |~ \"$search\" [$__range]))",
+          "expr": "sum by (level) (count_over_time({container=~\"$service\", level=~\"$level\"} |~ \"$search\" [$__range]))",
           "legendFormat": "{{level}}",
           "refId": "A"
         }
@@ -357,7 +357,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "topk(10, sum by (msg) (count_over_time({container=~\"$service\"} | json | level=~\"ERROR|CRITICAL\" [$__range])))",
+          "expr": "topk(10, sum by (msg) (count_over_time({container=~\"$service\", level=~\"ERROR|CRITICAL\"} [$__range])))",
           "legendFormat": "{{msg}}",
           "refId": "A"
         }
@@ -428,7 +428,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "sum by (container) (count_over_time({container=~\"$service\"} | json | level=~\"ERROR|CRITICAL\" [$__range]))",
+          "expr": "sum by (container) (count_over_time({container=~\"$service\", level=~\"ERROR|CRITICAL\"} [$__range]))",
           "legendFormat": "{{container}}",
           "refId": "A"
         }
@@ -467,7 +467,7 @@
       "targets": [
         {
           "datasource": { "type": "loki", "uid": "loki" },
-          "expr": "{container=~\"$service\"} | json | level=~\"$level\" |~ \"$search\"",
+          "expr": "{container=~\"$service\", level=~\"$level\"} |~ \"$search\"",
           "legendFormat": "",
           "refId": "A"
         }
@@ -483,7 +483,7 @@
   "templating": {
     "list": [
       {
-        "allValue": ".*",
+        "allValue": ".+",
         "current": {},
         "datasource": { "type": "loki", "uid": "loki" },
         "definition": "label_values(container)",
@@ -501,7 +501,7 @@
         "type": "query"
       },
       {
-        "allValue": ".*",
+        "allValue": ".+",
         "current": {},
         "hide": 0,
         "includeAll": true,

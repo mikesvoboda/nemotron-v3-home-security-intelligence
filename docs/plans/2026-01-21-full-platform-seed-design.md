@@ -52,9 +52,11 @@ async def seed_properties(num_properties: int = 2) -> list[str]:
 ```
 
 **Fields:**
+
 - `id`, `name`, `address`, `timezone`, `created_at`
 
 **Sample data:**
+
 - "Main Residence" - 123 Oak Street
 - "Lake House" - 456 Lakeview Drive
 
@@ -67,9 +69,11 @@ async def seed_households(num_households: int = 3) -> list[str]:
 ```
 
 **Fields:**
+
 - `id`, `property_id`, `name`, `created_at`
 
 **Sample data:**
+
 - "Smith Family" → Main Residence
 - "Guest House" → Main Residence
 - "Johnson Family" → Lake House
@@ -83,11 +87,13 @@ async def seed_household_members(num_members: int = 8) -> list[str]:
 ```
 
 **Fields:**
+
 - `id`, `household_id`, `name`, `role`, `created_at`
 
 **Roles:** `owner`, `spouse`, `child`, `relative`, `caregiver`, `pet`
 
 **Sample data:**
+
 - John Smith (owner), Jane Smith (spouse), Tommy Smith (child), Max (pet)
 
 ### seed_registered_vehicles
@@ -99,9 +105,11 @@ async def seed_registered_vehicles(num_vehicles: int = 5) -> list[str]:
 ```
 
 **Fields:**
+
 - `id`, `household_id`, `plate_number`, `make`, `model`, `color`, `year`, `created_at`
 
 **Sample data:**
+
 - ABC-1234, Toyota Camry, Silver, 2022 → Smith Family
 
 ### seed_notification_preferences
@@ -113,6 +121,7 @@ async def seed_notification_preferences() -> int:
 ```
 
 **Fields:**
+
 - `id`, `household_member_id`, `push_enabled`, `email_enabled`, `min_severity`, `sound`, `created_at`
 
 ### seed_quiet_hours
@@ -124,9 +133,11 @@ async def seed_quiet_hours() -> int:
 ```
 
 **Fields:**
+
 - `id`, `notification_preference_id`, `start_time`, `end_time`, `days_of_week`, `enabled`
 
 **Sample data:**
+
 - 23:00-07:00, Mon-Fri (suppress non-critical overnight)
 - 14:00-15:00, Sat-Sun (nap time)
 
@@ -139,6 +150,7 @@ async def seed_camera_notification_settings() -> int:
 ```
 
 **Fields:**
+
 - `id`, `camera_id`, `notification_preference_id`, `override_enabled`, `min_severity_override`
 
 ---
@@ -155,9 +167,11 @@ async def seed_camera_zones(zones_per_camera: int = 3) -> list[str]:
 ```
 
 **Fields:**
+
 - `id`, `camera_id`, `name`, `zone_type`, `polygon_coords`, `sensitivity`, `detection_classes`, `enabled`
 
 **Realistic polygons:**
+
 - Driveway: `[[0.2,0.9], [0.4,0.5], [0.6,0.5], [0.8,0.9]]` (trapezoid receding)
 - Entrance: `[[0.3,0.3], [0.7,0.3], [0.7,0.7], [0.3,0.7]]` (rectangle around door)
 - Perimeter: `[[0.0,0.5], [0.1,0.5], [0.1,1.0], [0.0,1.0]]` (edge strip)
@@ -171,6 +185,7 @@ async def seed_areas() -> list[str]:
 ```
 
 **Fields:**
+
 - `id`, `property_id`, `name`, `description`, `created_at`
 
 ### seed_camera_areas
@@ -182,6 +197,7 @@ async def seed_camera_areas() -> int:
 ```
 
 **Fields:**
+
 - `id`, `camera_id`, `area_id`
 
 ### seed_camera_calibrations
@@ -193,6 +209,7 @@ async def seed_camera_calibrations() -> int:
 ```
 
 **Fields:**
+
 - `id`, `camera_id`, `focal_length_mm`, `mounting_height_m`, `tilt_angle_deg`, `reference_object_size`, `pixels_per_meter`, `calibrated_at`
 
 ### seed_user_calibration
@@ -204,6 +221,7 @@ async def seed_user_calibration() -> int:
 ```
 
 **Fields:**
+
 - `id`, `camera_id`, `point1`, `point2`, `real_world_distance_m`, `label`, `created_at`
 
 ### seed_zone_household_configs
@@ -215,6 +233,7 @@ async def seed_zone_household_configs() -> int:
 ```
 
 **Fields:**
+
 - `id`, `zone_id`, `household_id`, `suppress_known_members`, `suppress_known_vehicles`, `created_at`
 
 ---
@@ -230,9 +249,11 @@ async def seed_demographics_results() -> int:
 ```
 
 **Fields:**
+
 - `id`, `detection_id`, `age_min`, `age_max`, `gender`, `gender_confidence`, `created_at`
 
 **Distribution:**
+
 - Age ranges: 0-12 (10%), 13-25 (25%), 26-45 (35%), 46-65 (20%), 65+ (10%)
 - Gender: male (48%), female (48%), unknown (4%)
 
@@ -245,6 +266,7 @@ async def seed_pose_results() -> int:
 ```
 
 **Fields:**
+
 - `id`, `detection_id`, `keypoints` (JSON array of 17 points), `pose_class`, `confidence`, `created_at`
 
 **Pose classes:** `standing`, `walking`, `running`, `sitting`, `crouching`, `fallen`
@@ -257,6 +279,7 @@ async def seed_action_results() -> int:
 ```
 
 **Fields:**
+
 - `id`, `detection_id`, `action`, `confidence`, `duration_ms`, `created_at`
 
 **Actions:** `walking`, `running`, `loitering`, `climbing`, `carrying_object`, `using_phone`, `looking_around`, `approaching_door`
@@ -269,6 +292,7 @@ async def seed_threat_detections() -> int:
 ```
 
 **Fields:**
+
 - `id`, `detection_id`, `threat_type`, `severity`, `confidence`, `created_at`
 
 **Threat types:** `weapon_visible`, `aggressive_posture`, `face_covered`, `unusual_clothing`, `prowling_behavior`
@@ -281,6 +305,7 @@ async def seed_scene_changes() -> int:
 ```
 
 **Fields:**
+
 - `id`, `camera_id`, `event_id`, `change_type`, `before_embedding`, `after_embedding`, `similarity_score`, `detected_at`
 
 **Change types:** `object_left_behind`, `object_removed`, `door_opened`, `light_changed`, `camera_tampered`
@@ -294,6 +319,7 @@ async def seed_reid_embeddings() -> int:
 ```
 
 **Fields:**
+
 - `id`, `detection_id`, `embedding` (512-dim float array), `entity_id`, `created_at`
 
 ### seed_person_embeddings
@@ -305,6 +331,7 @@ async def seed_person_embeddings() -> int:
 ```
 
 **Fields:**
+
 - `id`, `household_member_id`, `embedding` (512-dim float array), `quality_score`, `source_image_path`, `created_at`
 
 ---
@@ -319,6 +346,7 @@ async def seed_jobs(num_jobs: int = 20) -> list[str]:
 ```
 
 **Fields:**
+
 - `id`, `job_type`, `status`, `payload`, `result`, `error`, `attempts`, `created_at`, `started_at`, `finished_at`
 
 **Job types:** `video_export`, `report_generation`, `batch_analysis`, `model_inference`, `cleanup`, `notification_digest`
@@ -333,6 +361,7 @@ async def seed_job_attempts(attempts_per_job: int = 2) -> int:
 ```
 
 **Fields:**
+
 - `id`, `job_id`, `attempt_number`, `status`, `worker_id`, `started_at`, `finished_at`, `error`
 
 ### seed_job_transitions
@@ -343,6 +372,7 @@ async def seed_job_transitions() -> int:
 ```
 
 **Fields:**
+
 - `id`, `job_id`, `from_status`, `to_status`, `trigger`, `triggered_by`, `transitioned_at`
 
 **Triggers:** `scheduler`, `worker`, `timeout`, `manual_retry`, `cancel`
@@ -355,9 +385,11 @@ async def seed_job_logs(logs_per_job: int = 5) -> int:
 ```
 
 **Fields:**
+
 - `id`, `job_id`, `level`, `message`, `context`, `logged_at`
 
 **Sample messages:**
+
 - INFO: "Starting export for camera front_door, 2h timerange"
 - DEBUG: "Processed 50/100 frames"
 - ERROR: "GPU OOM at frame 73, retrying with smaller batch"
@@ -370,6 +402,7 @@ async def seed_export_jobs(num_exports: int = 10) -> list[str]:
 ```
 
 **Fields:**
+
 - `id`, `job_id`, `export_type`, `camera_ids`, `time_range_start`, `time_range_end`, `format`, `file_size_bytes`, `download_url`, `expires_at`
 
 **Export types:** `video_clip`, `event_report`, `csv_export`, `timelapse`
@@ -386,9 +419,11 @@ async def seed_prompt_configs(num_configs: int = 3) -> list[str]:
 ```
 
 **Fields:**
+
 - `id`, `name`, `description`, `system_prompt`, `user_template`, `model`, `temperature`, `max_tokens`, `status`, `created_at`
 
 **Configs:**
+
 - `risk_analysis_v1` - Main threat assessment prompt
 - `scene_description` - Natural language scene summary
 - `threat_assessment` - Specialized threat-focused analysis
@@ -401,6 +436,7 @@ async def seed_prompt_versions(versions_per_config: int = 4) -> int:
 ```
 
 **Fields:**
+
 - `id`, `prompt_config_id`, `version`, `system_prompt`, `user_template`, `changelog`, `is_current`, `created_at`, `created_by`
 
 ### seed_experiment_results
@@ -411,6 +447,7 @@ async def seed_experiment_results(num_results: int = 50) -> int:
 ```
 
 **Fields:**
+
 - `id`, `prompt_version_id`, `event_id`, `latency_ms`, `token_count`, `user_rating`, `accuracy_score`, `created_at`
 
 ### seed_event_feedback
@@ -421,6 +458,7 @@ async def seed_event_feedback(feedback_per_event: float = 0.3) -> int:
 ```
 
 **Fields:**
+
 - `id`, `event_id`, `feedback_type`, `feedback_text`, `corrected_risk_level`, `corrected_labels`, `created_by`, `created_at`
 
 **Feedback types:** `correct`, `incorrect`, `partially_correct`
@@ -435,6 +473,7 @@ async def seed_prometheus_alerts(num_alerts: int = 25) -> int:
 ```
 
 **Fields:**
+
 - `id`, `alert_name`, `status`, `severity`, `labels`, `annotations`, `started_at`, `resolved_at`, `created_at`
 
 **Alert names:** `HighCPU`, `GPUMemoryPressure`, `DiskSpaceLow`, `AIServiceUnhealthy`, `HighLatency`, `ErrorRateSpike`
@@ -452,6 +491,7 @@ async def seed_zone_activity_baselines() -> int:
 ```
 
 **Fields:**
+
 - `id`, `zone_id`, `hour_of_day`, `day_of_week`, `avg_detections`, `std_dev`, `sample_count`, `updated_at`
 
 ### seed_zone_anomalies
@@ -462,6 +502,7 @@ async def seed_zone_anomalies(num_anomalies: int = 15) -> int:
 ```
 
 **Fields:**
+
 - `id`, `zone_id`, `anomaly_type`, `baseline_value`, `actual_value`, `deviation_score`, `event_id`, `detected_at`
 
 **Anomaly types:** `activity_spike`, `activity_drop`, `new_pattern`, `schedule_violation`
@@ -471,33 +512,40 @@ async def seed_zone_anomalies(num_anomalies: int = 15) -> int:
 ## Implementation Plan
 
 ### Phase 1: Foundation Layer
+
 1. Implement `seed_properties`, `seed_households`, `seed_household_members`
 2. Implement `seed_registered_vehicles`
 3. Implement `seed_notification_preferences`, `seed_quiet_hours`, `seed_camera_notification_settings`
 
 ### Phase 2: Zones & Spatial
+
 4. Implement `seed_camera_zones` with realistic polygon generation
 5. Implement `seed_areas`, `seed_camera_areas`
 6. Implement `seed_camera_calibrations`, `seed_user_calibration`
 7. Implement `seed_zone_household_configs`
 
 ### Phase 3: AI Enrichment
+
 8. Implement `seed_demographics_results`, `seed_pose_results`
 9. Implement `seed_action_results`, `seed_threat_detections`
 10. Implement `seed_scene_changes`, `seed_reid_embeddings`, `seed_person_embeddings`
 
 ### Phase 4: Jobs & Exports
+
 11. Implement `seed_jobs`, `seed_job_attempts`, `seed_job_transitions`, `seed_job_logs`
 12. Implement `seed_export_jobs`
 
 ### Phase 5: Experimentation & Feedback
+
 13. Implement `seed_prompt_configs`, `seed_prompt_versions`, `seed_experiment_results`
 14. Implement `seed_event_feedback`, `seed_prometheus_alerts`
 
 ### Phase 6: Zone Monitoring
+
 15. Implement `seed_zone_activity_baselines`, `seed_zone_anomalies`
 
 ### Phase 7: Integration
+
 16. Update CLI arguments (`--minimal`, `--config-only`)
 17. Update main() to call new functions in dependency order
 18. Update verification to report all 47 tables
