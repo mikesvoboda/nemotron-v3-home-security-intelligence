@@ -1028,16 +1028,17 @@ class TestThroughputCalculation:
             # Mock session with detection count
             mock_session = AsyncMock()
             mock_result = MagicMock()
-            mock_result.scalar.return_value = 30  # 30 detections in last minute
+            mock_result.scalar.return_value = 150  # 150 detections in last 5 minutes
             mock_session.execute.return_value = mock_result
 
             result = await collector._get_detections_per_minute(mock_session)
 
-            assert result == 30
+            # 150 detections / 5 minutes = 30.0 detections per minute
+            assert result == 30.0
 
     @pytest.mark.asyncio
     async def test_get_detections_per_minute_no_data(self) -> None:
-        """Test detections per minute returns 0 when no data."""
+        """Test detections per minute returns 0.0 when no data."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock()
 
@@ -1051,11 +1052,11 @@ class TestThroughputCalculation:
 
             result = await collector._get_detections_per_minute(mock_session)
 
-            assert result == 0
+            assert result == 0.0
 
     @pytest.mark.asyncio
     async def test_get_detections_per_minute_handles_error(self) -> None:
-        """Test detections per minute returns 0 on error."""
+        """Test detections per minute returns 0.0 on error."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock()
 
@@ -1067,7 +1068,7 @@ class TestThroughputCalculation:
 
             result = await collector._get_detections_per_minute(mock_session)
 
-            assert result == 0
+            assert result == 0.0
 
     @pytest.mark.asyncio
     async def test_get_events_per_minute_with_data(self) -> None:
@@ -1080,16 +1081,17 @@ class TestThroughputCalculation:
             # Mock session with event count
             mock_session = AsyncMock()
             mock_result = MagicMock()
-            mock_result.scalar.return_value = 5  # 5 events in last minute
+            mock_result.scalar.return_value = 25  # 25 events in last 5 minutes
             mock_session.execute.return_value = mock_result
 
             result = await collector._get_events_per_minute(mock_session)
 
-            assert result == 5
+            # 25 events / 5 minutes = 5.0 events per minute
+            assert result == 5.0
 
     @pytest.mark.asyncio
     async def test_get_events_per_minute_no_data(self) -> None:
-        """Test events per minute returns 0 when no data."""
+        """Test events per minute returns 0.0 when no data."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock()
 
@@ -1103,11 +1105,11 @@ class TestThroughputCalculation:
 
             result = await collector._get_events_per_minute(mock_session)
 
-            assert result == 0
+            assert result == 0.0
 
     @pytest.mark.asyncio
     async def test_get_events_per_minute_handles_error(self) -> None:
-        """Test events per minute returns 0 on error."""
+        """Test events per minute returns 0.0 on error."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock()
 
@@ -1119,7 +1121,7 @@ class TestThroughputCalculation:
 
             result = await collector._get_events_per_minute(mock_session)
 
-            assert result == 0
+            assert result == 0.0
 
     @pytest.mark.asyncio
     async def test_collect_inference_metrics_includes_throughput(self) -> None:

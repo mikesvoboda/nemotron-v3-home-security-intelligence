@@ -521,10 +521,13 @@ async def get_entity(
         for det in detections
     ]
 
-    # Extract cameras from entity metadata
-    cameras_seen = []
-    if entity.entity_metadata and "camera_id" in entity.entity_metadata:
-        cameras_seen = [entity.entity_metadata["camera_id"]]
+    # Compute cameras_seen from detections (unique camera IDs)
+    # This provides the actual list of cameras where the entity was detected
+    cameras_seen: list[str] = list({det.camera_id for det in detections if det.camera_id})
+
+    # If no detections found, fall back to entity_metadata or primary detection
+    if not cameras_seen:
+        cameras_seen = _extract_cameras_seen_from_entity(entity)
 
     thumbnail_url = None
     if entity.primary_detection_id:
@@ -733,6 +736,43 @@ async def get_entity_matches(
 # =============================================================================
 
 
+def _extract_cameras_seen_from_entity(entity: Entity) -> list[str]:
+    """Extract cameras_seen list from entity metadata with fallbacks.
+
+    Handles multiple sources of camera data:
+    1. cameras_seen list in entity_metadata (preferred)
+    2. camera_id in entity_metadata (legacy format)
+    3. primary_detection.camera_id (ultimate fallback)
+
+    Args:
+        entity: Entity model instance
+
+    Returns:
+        List of camera IDs where entity was seen
+    """
+    # Try cameras_seen from metadata first
+    if entity.entity_metadata:
+        cameras_seen_raw = entity.entity_metadata.get("cameras_seen")
+        if isinstance(cameras_seen_raw, list) and cameras_seen_raw:
+            return [cam for cam in cameras_seen_raw if cam]
+
+        # Fall back to single camera_id
+        camera_id = entity.entity_metadata.get("camera_id")
+        if camera_id:
+            return [camera_id]
+
+    # Ultimate fallback: try primary_detection
+    if entity.primary_detection is not None:
+        try:
+            camera_id = entity.primary_detection.camera_id
+            if camera_id:
+                return [camera_id]
+        except Exception:
+            logger.debug("Could not access primary_detection for entity %s", entity.id)
+
+    return []
+
+
 def _entity_model_to_summary(entity: Entity) -> EntitySummary:
     """Convert a PostgreSQL Entity model to EntitySummary.
 
@@ -744,20 +784,14 @@ def _entity_model_to_summary(entity: Entity) -> EntitySummary:
     """
     from datetime import datetime as dt
 
-    # Extract cameras from entity_metadata if available
-    cameras_seen = []
+    # Extract cameras using helper function
+    cameras_seen = _extract_cameras_seen_from_entity(entity)
+
+    # Extract trust fields from metadata
     trust_status = None
     trust_updated_at = None
 
     if entity.entity_metadata:
-        if "cameras_seen" in entity.entity_metadata:
-            # Use cameras_seen list if available (preferred)
-            cameras_seen = entity.entity_metadata["cameras_seen"]
-        elif "camera_id" in entity.entity_metadata:
-            # Fall back to single camera_id for backward compatibility
-            cameras_seen = [entity.entity_metadata["camera_id"]]
-
-        # Extract trust fields
         trust_status = entity.entity_metadata.get("trust_status")
         trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
         if trust_updated_at_str:
@@ -1029,20 +1063,14 @@ async def get_entity_by_uuid(
             detail=f"Entity with id '{entity_id}' not found",
         )
 
-    # Extract cameras and trust fields from metadata
-    cameras_seen = []
+    # Extract cameras using helper function
+    cameras_seen = _extract_cameras_seen_from_entity(entity)
+
+    # Extract trust fields from metadata
     trust_status = None
     trust_updated_at = None
 
     if entity.entity_metadata:
-        if "cameras_seen" in entity.entity_metadata:
-            # Use cameras_seen list if available (preferred)
-            cameras_seen = entity.entity_metadata["cameras_seen"]
-        elif "camera_id" in entity.entity_metadata:
-            # Fall back to single camera_id for backward compatibility
-            cameras_seen = [entity.entity_metadata["camera_id"]]
-
-        # Extract trust fields
         trust_status = entity.entity_metadata.get("trust_status")
         trust_updated_at_str = entity.entity_metadata.get("trust_updated_at")
         if trust_updated_at_str:

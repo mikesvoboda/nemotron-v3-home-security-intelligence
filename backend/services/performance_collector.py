@@ -547,14 +547,19 @@ class PerformanceCollector:
             logger.warning(f"Redis health check failed: {e}")
             return ContainerMetrics(name="redis", status="unknown", health="unhealthy")
 
-    async def _get_detections_per_minute(self, session: Any) -> int:
-        """Get count of detections in the last minute.
+    async def _get_detections_per_minute(self, session: Any) -> float:
+        """Get average detections per minute over the last 5 minutes.
+
+        Calculates throughput by counting detections in the last 5 minutes
+        and dividing by 5 to get detections per minute. This provides a more
+        stable metric than a 60-second window and aligns with other metrics
+        like latency calculations.
 
         Args:
             session: SQLAlchemy async session
 
         Returns:
-            Number of detections in the last 60 seconds
+            Average number of detections per minute over the last 5 minutes
         """
         try:
             from datetime import timedelta
@@ -563,23 +568,31 @@ class PerformanceCollector:
 
             from backend.models.detection import Detection
 
-            cutoff = datetime.now(UTC) - timedelta(seconds=60)
+            # Use 5-minute window to align with latency metrics
+            cutoff = datetime.now(UTC) - timedelta(minutes=5)
             result = await session.execute(
                 select(func.count(Detection.id)).where(Detection.detected_at >= cutoff)
             )
-            return result.scalar() or 0
+            detection_count = result.scalar() or 0
+            # Convert to detections per minute
+            return round(detection_count / 5.0, 1)
         except Exception as e:
             logger.warning(f"Failed to get detections per minute: {e}")
-            return 0
+            return 0.0
 
-    async def _get_events_per_minute(self, session: Any) -> int:
-        """Get count of events in the last minute.
+    async def _get_events_per_minute(self, session: Any) -> float:
+        """Get average events per minute over the last 5 minutes.
+
+        Calculates throughput by counting events in the last 5 minutes
+        and dividing by 5 to get events per minute. This provides a more
+        stable metric than a 60-second window and aligns with other metrics
+        like latency calculations.
 
         Args:
             session: SQLAlchemy async session
 
         Returns:
-            Number of events in the last 60 seconds
+            Average number of events per minute over the last 5 minutes
         """
         try:
             from datetime import timedelta
@@ -588,14 +601,17 @@ class PerformanceCollector:
 
             from backend.models.event import Event
 
-            cutoff = datetime.now(UTC) - timedelta(seconds=60)
+            # Use 5-minute window to align with latency metrics
+            cutoff = datetime.now(UTC) - timedelta(minutes=5)
             result = await session.execute(
                 select(func.count(Event.id)).where(Event.started_at >= cutoff)
             )
-            return result.scalar() or 0
+            event_count = result.scalar() or 0
+            # Convert to events per minute
+            return round(event_count / 5.0, 1)
         except Exception as e:
             logger.warning(f"Failed to get events per minute: {e}")
-            return 0
+            return 0.0
 
     async def collect_inference_metrics(self) -> InferenceMetrics | None:
         """Collect inference latency metrics from PipelineLatencyTracker."""
@@ -610,9 +626,9 @@ class PerformanceCollector:
             nemotron_stats = tracker.get_stage_stats("batch_to_analyze", window_minutes=5)
             pipeline_stats = tracker.get_stage_stats("total_pipeline", window_minutes=5)
 
-            # Calculate throughput from database
-            images_per_min = 0
-            events_per_min = 0
+            # Calculate throughput from database (5-minute window average)
+            images_per_min = 0.0
+            events_per_min = 0.0
             try:
                 async with get_session() as session:
                     images_per_min = await self._get_detections_per_minute(session)
@@ -728,6 +744,16 @@ class PerformanceCollector:
                     message=f"RAM critically high: {host.ram_percent:.1f}%",
                 )
             )
+        elif host.ram_percent >= t["host_ram"]["warning"]:
+            alerts.append(
+                PerformanceAlert(
+                    severity="warning",
+                    metric="host_ram",
+                    value=host.ram_percent,
+                    threshold=t["host_ram"]["warning"],
+                    message=f"RAM high: {host.ram_percent:.1f}%",
+                )
+            )
 
         if host.disk_percent >= t["host_disk"]["critical"]:
             alerts.append(
@@ -737,6 +763,16 @@ class PerformanceCollector:
                     value=host.disk_percent,
                     threshold=t["host_disk"]["critical"],
                     message=f"Disk critically full: {host.disk_percent:.1f}%",
+                )
+            )
+        elif host.disk_percent >= t["host_disk"]["warning"]:
+            alerts.append(
+                PerformanceAlert(
+                    severity="warning",
+                    metric="host_disk",
+                    value=host.disk_percent,
+                    threshold=t["host_disk"]["warning"],
+                    message=f"Disk high: {host.disk_percent:.1f}%",
                 )
             )
 

@@ -2,7 +2,8 @@
 
 import os
 from collections.abc import Generator
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
+from datetime import date as Date
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +43,7 @@ from backend.api.schemas.detections import (
     DetectionSearchResponse,
     DetectionSearchResult,
     DetectionStatsResponse,
+    DetectionTrendItem,
     EnrichmentDataSchema,
     PersonEnrichmentData,
     PetEnrichmentData,
@@ -363,14 +365,16 @@ async def get_detection_stats(
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     db: AsyncSession = Depends(get_db),
 ) -> DetectionStatsResponse:
-    """Get aggregate detection statistics including class distribution.
+    """Get aggregate detection statistics including class distribution and trends.
 
     Returns:
     - Total detection count
     - Detection counts grouped by object class (person, car, truck, etc.)
     - Average confidence score across all detections
+    - Detection trends for the last 7 days (for Grafana time series)
 
-    Used by the AI Performance page to display detection class distribution charts.
+    Used by the AI Performance page to display detection class distribution charts
+    and by the Grafana Analytics dashboard for detection trend visualization.
 
     Optimized to use a single query with window functions instead of 3 separate queries
     (NEM-1321). The query combines:
@@ -383,7 +387,7 @@ async def get_detection_stats(
         db: Database session
 
     Returns:
-        DetectionStatsResponse with aggregate detection statistics
+        DetectionStatsResponse with aggregate detection statistics and trends
     """
     # Use a single query with window functions to get all stats at once
     # This replaces 3 separate queries with 1 optimized query
@@ -419,6 +423,48 @@ async def get_detection_stats(
     result = await db.execute(combined_query)
     rows = result.all()
 
+    # Query detection trends for the last 7 days (NEM-3270)
+    # This provides data for the Grafana Detection Trend Over Time chart
+    today = Date.today()
+    start_date = today - timedelta(days=6)  # 7 days including today
+
+    # Build trend conditions (include all detections, not just typed ones)
+    trend_conditions: list[Any] = [
+        func.date(Detection.detected_at) >= start_date,
+        func.date(Detection.detected_at) <= today,
+    ]
+    if camera_id:
+        trend_conditions.append(Detection.camera_id == camera_id)
+
+    trend_query = (
+        select(
+            func.date(Detection.detected_at).label("detection_date"),
+            func.count(Detection.id).label("detection_count"),
+        )
+        .where(*trend_conditions)
+        .group_by(func.date(Detection.detected_at))
+        .order_by(func.date(Detection.detected_at))
+    )
+    trend_result = await db.execute(trend_query)
+    trend_rows = trend_result.all()
+
+    # Create a dictionary for fast lookup of trend data
+    counts_by_date: dict[Date, int] = {
+        row.detection_date: row.detection_count for row in trend_rows
+    }
+
+    # Generate trend data points for every day in the 7-day range (fill gaps with 0)
+    trends: list[DetectionTrendItem] = []
+    current_date = start_date
+    while current_date <= today:
+        count = counts_by_date.get(current_date, 0)
+        # Convert date to Unix epoch milliseconds for Grafana JSON datasource compatibility
+        # Grafana time series requires timestamps in milliseconds, not ISO 8601 strings
+        timestamp_dt = datetime.combine(current_date, datetime.min.time(), tzinfo=UTC)
+        timestamp_ms = int(timestamp_dt.timestamp() * 1000)
+        trends.append(DetectionTrendItem(timestamp=timestamp_ms, detection_count=count))
+        current_date += timedelta(days=1)
+
     # If no rows, there are no typed detections
     if not rows:
         return DetectionStatsResponse(
@@ -426,6 +472,7 @@ async def get_detection_stats(
             detections_by_class={},
             object_class_distribution=[],
             average_confidence=None,
+            trends=trends,
         )
 
     # Extract total count and average confidence from first row
@@ -451,6 +498,7 @@ async def get_detection_stats(
         detections_by_class=detections_by_class,
         object_class_distribution=object_class_distribution,
         average_confidence=float(avg_confidence) if avg_confidence else None,
+        trends=trends,
     )
 
 

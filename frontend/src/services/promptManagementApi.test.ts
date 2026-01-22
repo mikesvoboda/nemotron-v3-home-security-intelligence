@@ -94,14 +94,8 @@ const mockHistoryResponse: PromptHistoryResponse = {
   total_count: 3,
 };
 
-// Raw API response format (keyed by model name)
-const mockHistoryApiResponse = {
-  [AIModelEnum.NEMOTRON]: {
-    model_name: AIModelEnum.NEMOTRON,
-    versions: mockHistoryResponse.versions,
-    total_versions: mockHistoryResponse.total_count,
-  },
-};
+// Raw API response format - backend returns PromptHistoryResponse directly
+// (not keyed by model name as previously assumed)
 
 const mockRestoreResponse: PromptRestoreResponse = {
   restored_version: 4,
@@ -330,8 +324,8 @@ describe('updatePromptForModel', () => {
 
 describe('fetchPromptHistory', () => {
   it('should fetch version history with default pagination', async () => {
-    // API returns object keyed by model name, function transforms to {versions, total_count}
-    mockFetchSuccess(mockHistoryApiResponse);
+    // API returns PromptHistoryResponse directly with versions and total_count
+    mockFetchSuccess(mockHistoryResponse);
 
     const result = await fetchPromptHistory(AIModelEnum.NEMOTRON);
 
@@ -340,10 +334,14 @@ describe('fetchPromptHistory', () => {
       expect.stringContaining('/api/ai-audit/prompts/history?'),
       expect.any(Object)
     );
+    expect((globalThis as any).fetch).toHaveBeenCalledWith(
+      expect.stringContaining('model=nemotron'),
+      expect.any(Object)
+    );
   });
 
   it('should fetch version history with custom pagination', async () => {
-    mockFetchSuccess(mockHistoryApiResponse);
+    mockFetchSuccess(mockHistoryResponse);
 
     const result = await fetchPromptHistory(AIModelEnum.NEMOTRON, { limit: 10, offset: 20 });
 
@@ -359,7 +357,7 @@ describe('fetchPromptHistory', () => {
   });
 
   it('should fetch version history with cursor pagination', async () => {
-    mockFetchSuccess(mockHistoryApiResponse);
+    mockFetchSuccess(mockHistoryResponse);
 
     const result = await fetchPromptHistory(AIModelEnum.NEMOTRON, { limit: 10, cursor: 'abc123' });
 
@@ -375,21 +373,26 @@ describe('fetchPromptHistory', () => {
   });
 
   it('should fetch history for all models when model not specified', async () => {
-    // When no model specified, function aggregates all versions from all models
-    mockFetchSuccess(mockHistoryApiResponse);
+    // When no model specified, backend returns all versions directly
+    mockFetchSuccess(mockHistoryResponse);
 
     const result = await fetchPromptHistory();
 
-    // Should aggregate versions from all models (only nemotron in mock)
     expect(result).toEqual(mockHistoryResponse);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/ai-audit/prompts/history?'),
       expect.any(Object)
     );
+    // Should not include model parameter when not specified
+    expect((globalThis as any).fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining('model='),
+      expect.any(Object)
+    );
   });
 
-  it('should return empty versions when model not found in response', async () => {
-    mockFetchSuccess({}); // Empty response
+  it('should return empty response when backend returns empty result', async () => {
+    const emptyResponse: PromptHistoryResponse = { versions: [], total_count: 0 };
+    mockFetchSuccess(emptyResponse);
 
     const result = await fetchPromptHistory(AIModelEnum.NEMOTRON);
 

@@ -36,7 +36,11 @@ async def seeded_entities(db_session) -> list[Entity]:
             first_seen_at=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
             last_seen_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
             detection_count=5,
-            entity_metadata={"camera_id": "front_door", "clothing_color": "blue"},
+            entity_metadata={
+                "camera_id": "front_door",
+                "cameras_seen": ["front_door"],
+                "clothing_color": "blue",
+            },
         ),
         Entity(
             id=uuid4(),
@@ -44,7 +48,11 @@ async def seeded_entities(db_session) -> list[Entity]:
             first_seen_at=datetime(2025, 12, 23, 9, 0, 0, tzinfo=UTC),
             last_seen_at=datetime(2025, 12, 23, 9, 30, 0, tzinfo=UTC),
             detection_count=2,
-            entity_metadata={"camera_id": "driveway", "color": "silver"},
+            entity_metadata={
+                "camera_id": "driveway",
+                "cameras_seen": ["driveway"],
+                "color": "silver",
+            },
         ),
         Entity(
             id=uuid4(),
@@ -52,7 +60,10 @@ async def seeded_entities(db_session) -> list[Entity]:
             first_seen_at=datetime(2025, 12, 22, 15, 0, 0, tzinfo=UTC),
             last_seen_at=datetime(2025, 12, 22, 15, 30, 0, tzinfo=UTC),
             detection_count=3,
-            entity_metadata={"camera_id": "backyard"},
+            entity_metadata={
+                "camera_id": "backyard",
+                "cameras_seen": ["backyard"],
+            },
         ),
     ]
 
@@ -105,6 +116,25 @@ class TestListEntities:
             assert "last_seen" in item
             assert "appearance_count" in item
             assert "cameras_seen" in item
+
+    async def test_list_entities_cameras_seen_populated(self, async_client, seeded_entities):
+        """Test that cameras_seen field is properly populated (NEM-3262)."""
+        response = await async_client.get("/api/entities")
+        assert response.status_code == 200
+        data = response.json()
+
+        # All entities should have at least one camera in cameras_seen
+        for item in data["items"]:
+            assert "cameras_seen" in item, f"Entity {item['id']} missing cameras_seen field"
+            cameras = item["cameras_seen"]
+            assert isinstance(cameras, list), f"cameras_seen should be a list, got {type(cameras)}"
+            # Since each seeded entity has detection_count > 0, they should have been detected
+            # by at least one camera, so cameras_seen should not be empty
+            if item["appearance_count"] > 0:
+                assert len(cameras) > 0, (
+                    f"Entity {item['id']} has {item['appearance_count']} appearances "
+                    f"but cameras_seen is empty"
+                )
 
     async def test_list_entities_with_type_filter(self, async_client, seeded_entities):
         """Test filtering entities by type."""

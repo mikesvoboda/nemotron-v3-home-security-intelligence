@@ -19,6 +19,7 @@ export type AiModelName = 'nemotron' | 'florence2' | 'yolo_world' | 'xclip' | 'f
 /**
  * Supported AI models for database-backed prompt config.
  * Uses hyphen naming as specified in the API spec.
+ * @deprecated Use AiModelName instead (NEM-3255). DbModelName was for the deprecated /api/ai-audit/prompt-config endpoints.
  */
 export type DbModelName = 'nemotron' | 'florence-2' | 'yolo-world' | 'x-clip' | 'fashion-clip';
 
@@ -433,11 +434,16 @@ export interface PromptImportResponse {
 }
 
 // ============================================================================
-// Database-backed Prompt Config Types
+// Database-backed Prompt Config Types (Deprecated - NEM-3255)
+// ============================================================================
+// NOTE: These types are deprecated as of NEM-3255. The /api/ai-audit/prompt-config/{model}
+// endpoints were removed in NEM-2695. Use PromptUpdateRequest and ModelPromptResponse instead.
+// These types are retained only for backwards compatibility with existing tests.
 // ============================================================================
 
 /**
  * Request to update a model's prompt configuration (database-backed).
+ * @deprecated Use PromptUpdateRequest and updateModelPrompt() instead.
  */
 export interface PromptConfigRequest {
   /** Full system prompt text for the model */
@@ -450,6 +456,7 @@ export interface PromptConfigRequest {
 
 /**
  * Response containing a model's prompt configuration (database-backed).
+ * @deprecated Use ModelPromptResponse and getModelPrompt() instead.
  */
 export interface PromptConfigResponse {
   /** Model name */

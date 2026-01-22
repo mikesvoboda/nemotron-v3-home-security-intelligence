@@ -301,11 +301,39 @@ class TestGetDetectionStats:
         assert "total_detections" in data
         assert "detections_by_class" in data
         assert "average_confidence" in data
+        assert "trends" in data
 
         # Verify field types
         assert isinstance(data["total_detections"], int)
         assert isinstance(data["detections_by_class"], dict)
         assert data["average_confidence"] is None or isinstance(data["average_confidence"], float)
+        assert isinstance(data["trends"], list)
+
+    async def test_get_detection_stats_trends_structure(self, async_client, sample_detection):
+        """Test that trends data has correct structure for Grafana time series (NEM-3270)."""
+        response = await async_client.get("/api/detections/stats")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Trends should be a list of 7 data points (last 7 days)
+        trends = data["trends"]
+        assert isinstance(trends, list)
+        assert len(trends) == 7
+
+        # Each trend item should have timestamp and detection_count
+        for trend in trends:
+            assert "timestamp" in trend
+            assert "detection_count" in trend
+            # Timestamp must be Unix epoch milliseconds (integer) for Grafana JSON datasource
+            assert isinstance(trend["timestamp"], int)
+            # Verify timestamp is reasonable (between 2020 and 2030)
+            assert 1577836800000 <= trend["timestamp"] <= 1893456000000  # 2020-01-01 to 2030-01-01
+            assert isinstance(trend["detection_count"], int)
+            assert trend["detection_count"] >= 0
+
+        # Verify timestamps are in chronological order
+        timestamps = [trend["timestamp"] for trend in trends]
+        assert timestamps == sorted(timestamps)
 
 
 class TestGetDetectionEnrichment:
