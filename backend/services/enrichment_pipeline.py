@@ -562,6 +562,13 @@ class EnrichmentResult:
     image_quality: ImageQualityResult | None = None
     quality_change_detected: bool = False
     quality_change_description: str = ""
+    # New model outputs
+    threat_detection: Any | None = None  # ThreatDetectionResult
+    age_classifications: dict[str, Any] = field(default_factory=dict)  # AgeClassificationResult
+    gender_classifications: dict[str, Any] = field(
+        default_factory=dict
+    )  # GenderClassificationResult
+    person_embeddings: dict[str, Any] = field(default_factory=dict)  # PersonEmbeddingResult (OSNet)
     errors: list[str] = field(default_factory=list)
     structured_errors: list[EnrichmentError] = field(default_factory=list)
     processing_time_ms: float = 0.0
@@ -722,6 +729,51 @@ class EnrichmentResult:
     def has_close_objects(self) -> bool:
         """Check if any objects are in close proximity (very close or close)."""
         return self.depth_analysis is not None and self.depth_analysis.has_close_objects
+
+    @property
+    def has_threat_detection(self) -> bool:
+        """Check if threat detection results are available."""
+        return self.threat_detection is not None
+
+    @property
+    def has_threats(self) -> bool:
+        """Check if any threats/weapons were detected."""
+        return (
+            self.threat_detection is not None
+            and hasattr(self.threat_detection, "has_threats")
+            and self.threat_detection.has_threats
+        )
+
+    @property
+    def has_high_priority_threats(self) -> bool:
+        """Check if any high-priority threats (guns, knives) were detected."""
+        return (
+            self.threat_detection is not None
+            and hasattr(self.threat_detection, "has_high_priority")
+            and self.threat_detection.has_high_priority
+        )
+
+    @property
+    def has_age_classifications(self) -> bool:
+        """Check if any age classifications are available."""
+        return bool(self.age_classifications)
+
+    @property
+    def has_minors(self) -> bool:
+        """Check if any minors were detected."""
+        return any(
+            hasattr(age, "is_minor") and age.is_minor for age in self.age_classifications.values()
+        )
+
+    @property
+    def has_gender_classifications(self) -> bool:
+        """Check if any gender classifications are available."""
+        return bool(self.gender_classifications)
+
+    @property
+    def has_person_embeddings(self) -> bool:
+        """Check if any person embeddings (OSNet) are available."""
+        return bool(self.person_embeddings)
 
     @property
     def has_structured_errors(self) -> bool:
@@ -921,6 +973,57 @@ class EnrichmentResult:
             lines.append("## Spatial Depth Analysis")
             lines.append(self.depth_analysis.to_context_string())
 
+        # Threat/Weapon Detection (YOLOv8n)
+        if (
+            self.threat_detection
+            and hasattr(self.threat_detection, "has_threats")
+            and self.threat_detection.has_threats
+        ):
+            lines.append("## **THREAT DETECTION**")
+            if (
+                hasattr(self.threat_detection, "has_high_priority")
+                and self.threat_detection.has_high_priority
+            ):
+                lines.append("  **CRITICAL**: High-priority weapon detected!")
+            if hasattr(self.threat_detection, "threat_summary"):
+                lines.append(f"  Threats: {self.threat_detection.threat_summary}")
+            if hasattr(self.threat_detection, "threats"):
+                for threat in self.threat_detection.threats[:5]:
+                    priority = " **HIGH PRIORITY**" if threat.is_high_priority else ""
+                    lines.append(f"    - {threat.class_name} ({threat.confidence:.0%}){priority}")
+
+        # Age Classifications (ViT)
+        if self.age_classifications:
+            lines.append(f"## Age Estimation ({len(self.age_classifications)} persons)")
+            has_minors = False
+            for det_id, age in self.age_classifications.items():
+                display_name = (
+                    age.display_name
+                    if hasattr(age, "display_name")
+                    else getattr(age, "age_group", "unknown")
+                )
+                confidence = getattr(age, "confidence", 0.0)
+                is_minor = hasattr(age, "is_minor") and age.is_minor
+                if is_minor:
+                    has_minors = True
+                minor_marker = " **MINOR**" if is_minor else ""
+                lines.append(f"  Person {det_id}: {display_name} ({confidence:.0%}){minor_marker}")
+            if has_minors:
+                lines.append("  **NOTE**: Minor(s) detected - evaluate context carefully")
+
+        # Gender Classifications (ViT)
+        if self.gender_classifications:
+            lines.append(f"## Gender Estimation ({len(self.gender_classifications)} persons)")
+            for det_id, gender in self.gender_classifications.items():
+                gender_val = getattr(gender, "gender", "unknown")
+                confidence = getattr(gender, "confidence", 0.0)
+                lines.append(f"  Person {det_id}: {gender_val} ({confidence:.0%})")
+
+        # Person Embeddings (OSNet)
+        if self.person_embeddings:
+            lines.append(f"## Person Re-ID Embeddings ({len(self.person_embeddings)} persons)")
+            lines.append("  Embeddings extracted for person tracking across cameras")
+
         # Image Quality Assessment
         if self.image_quality:
             lines.append("## Image Quality Assessment")
@@ -975,6 +1078,23 @@ class EnrichmentResult:
             "depth_analysis": (self.depth_analysis.to_dict() if self.depth_analysis else None),
             "quality_change_detected": self.quality_change_detected,
             "quality_change_description": self.quality_change_description,
+            "threat_detection": (
+                self.threat_detection.to_dict()
+                if self.threat_detection and hasattr(self.threat_detection, "to_dict")
+                else None
+            ),
+            "age_classifications": {
+                det_id: result.to_dict() if hasattr(result, "to_dict") else {}
+                for det_id, result in self.age_classifications.items()
+            },
+            "gender_classifications": {
+                det_id: result.to_dict() if hasattr(result, "to_dict") else {}
+                for det_id, result in self.gender_classifications.items()
+            },
+            "person_embeddings": {
+                det_id: result.to_dict() if hasattr(result, "to_dict") else {}
+                for det_id, result in self.person_embeddings.items()
+            },
             "errors": self.errors,
             "processing_time_ms": self.processing_time_ms,
         }

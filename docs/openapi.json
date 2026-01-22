@@ -10757,6 +10757,196 @@
         "title": "FlushQueuesResponse",
         "type": "object"
       },
+      "FrontendLogBatchRequest": {
+        "description": "Batch request for multiple frontend log entries.\n\nThe frontend batches log entries to reduce API calls. Each batch may\ncontain logs from different components or at different levels.\n\nAttributes:\n    entries: List of log entries to ingest (1-100 entries)",
+        "example": {
+          "entries": [
+            {
+              "component": "App",
+              "level": "INFO",
+              "message": "Page loaded successfully",
+              "timestamp": "2024-01-15T10:30:00Z"
+            },
+            {
+              "component": "API",
+              "extra": {
+                "endpoint": "/api/events",
+                "status": 500
+              },
+              "level": "ERROR",
+              "message": "API call failed",
+              "timestamp": "2024-01-15T10:30:01Z"
+            }
+          ]
+        },
+        "properties": {
+          "entries": {
+            "description": "List of log entries to ingest (1-100 entries)",
+            "items": {
+              "$ref": "#/components/schemas/FrontendLogEntry"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Entries",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "title": "FrontendLogBatchRequest",
+        "type": "object"
+      },
+      "FrontendLogEntry": {
+        "description": "A single log entry from the frontend.\n\nThis schema matches the structure sent by the frontend logger.ts service.\nAll fields except level and message are optional to allow flexibility in\nwhat context the frontend can provide.\n\nAttributes:\n    level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)\n    message: The log message content\n    timestamp: When the log was created (ISO 8601 format)\n    component: Frontend component name (e.g., \"Dashboard\", \"AlertForm\")\n    context: Additional structured context data (renamed from 'extra' in frontend)\n    url: Browser URL where the log was generated\n    user_agent: Browser user agent string",
+        "example": {
+          "component": "Dashboard",
+          "extra": {
+            "error_code": "API_TIMEOUT",
+            "retry_count": 3,
+            "url": "https://example.com/dashboard"
+          },
+          "level": "ERROR",
+          "message": "Failed to load dashboard data",
+          "timestamp": "2024-01-15T10:30:00Z",
+          "url": "https://example.com/dashboard"
+        },
+        "properties": {
+          "component": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Frontend component name",
+            "title": "Component"
+          },
+          "extra": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional structured context data",
+            "title": "Extra"
+          },
+          "level": {
+            "$ref": "#/components/schemas/FrontendLogLevel",
+            "description": "Log level"
+          },
+          "message": {
+            "description": "Log message content",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the log was created (ISO 8601 format)",
+            "title": "Timestamp"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Browser URL where log was generated",
+            "title": "Url"
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Browser user agent string",
+            "title": "User Agent"
+          }
+        },
+        "required": [
+          "level",
+          "message"
+        ],
+        "title": "FrontendLogEntry",
+        "type": "object"
+      },
+      "FrontendLogLevel": {
+        "description": "Supported frontend log levels.\n\nThese correspond to the log levels used by the frontend logger.ts service.",
+        "enum": [
+          "DEBUG",
+          "INFO",
+          "WARNING",
+          "ERROR",
+          "CRITICAL"
+        ],
+        "title": "FrontendLogLevel",
+        "type": "string"
+      },
+      "FrontendLogResponse": {
+        "description": "Response from the frontend log ingestion endpoints.\n\nAttributes:\n    success: Whether the ingestion was successful\n    count: Number of log entries successfully ingested\n    message: Human-readable status message",
+        "example": {
+          "count": 5,
+          "message": "Successfully ingested 5 log entry(ies)",
+          "success": true
+        },
+        "properties": {
+          "count": {
+            "description": "Number of entries successfully ingested",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Human-readable status message",
+            "title": "Message"
+          },
+          "success": {
+            "description": "Whether ingestion was successful",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "count"
+        ],
+        "title": "FrontendLogResponse",
+        "type": "object"
+      },
       "FullHealthResponse": {
         "description": "Comprehensive health check response for GET /api/system/health/full.\n\nAggregates health status from all services:\n- Infrastructure (postgres, redis)\n- AI services (rtdetr, nemotron, florence, clip, enrichment)\n- Circuit breakers\n- Background workers\n\nHTTP Status Codes:\n- 200: System is healthy or degraded (can still serve traffic)\n- 503: Critical services are unhealthy (should not receive traffic)",
         "example": {
@@ -32503,6 +32693,82 @@
         "summary": "Get job logs",
         "tags": [
           "jobs"
+        ]
+      }
+    },
+    "/api/logs/frontend": {
+      "post": {
+        "description": "Receive a single log entry from the frontend for structured logging.",
+        "operationId": "ingest_frontend_log_api_logs_frontend_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrontendLogEntry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrontendLogResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Ingest single frontend log",
+        "tags": [
+          "logs"
+        ]
+      }
+    },
+    "/api/logs/frontend/batch": {
+      "post": {
+        "description": "Receive a batch of log entries from the frontend for structured logging.",
+        "operationId": "ingest_frontend_logs_batch_api_logs_frontend_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrontendLogBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrontendLogResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Ingest batch of frontend logs",
+        "tags": [
+          "logs"
         ]
       }
     },
