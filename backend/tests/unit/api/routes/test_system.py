@@ -16,12 +16,12 @@ from __future__ import annotations
 import tempfile
 from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI, HTTPException
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.routes.system import (
     CircuitBreaker,
@@ -44,10 +44,6 @@ from backend.api.schemas.system import (
 )
 from backend.core.config import Settings
 from backend.core.redis import get_redis
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
 
 # =============================================================================
 # Test Fixtures
@@ -1111,6 +1107,539 @@ class TestGetGPUStatsEndpoint:
             data = response.json()
             # Should have null values when no stats available
             assert data["gpu_name"] is None or isinstance(data["gpu_name"], str)
+
+
+class TestGetGPUStatsEndpointUnit:
+    """Unit tests for GET /api/system/gpu endpoint (with mocked database)."""
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_stats_with_data(
+        self,
+        test_app: FastAPI,
+        mock_settings: Settings,
+    ) -> None:
+        """Test GPU stats endpoint returns data when available."""
+        from datetime import UTC, datetime
+
+        from backend.core.database import get_db
+        from backend.models import GPUStats
+
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        # Create mock GPU stats
+        mock_gpu_stats = GPUStats(
+            id=1,
+            recorded_at=datetime(2025, 1, 23, 12, 0, 0, tzinfo=UTC),
+            gpu_name="RTX A5500",
+            gpu_utilization=75.5,
+            memory_used=20480,
+            memory_total=24564,
+            temperature=65,
+            power_usage=180,
+            inference_fps=15.2,
+            fan_speed=45,
+            sm_clock=1500,
+            memory_bandwidth_utilization=80.5,
+            pstate=2,
+            throttle_reasons=None,
+            power_limit=300,
+            sm_clock_max=1800,
+            compute_processes_count=2,
+            pcie_replay_counter=0,
+            temp_slowdown_threshold=84,
+            memory_clock=1215,
+            memory_clock_max=1215,
+            pcie_link_gen=4,
+            pcie_link_width=16,
+            pcie_tx_throughput=1500,
+            pcie_rx_throughput=1200,
+            encoder_utilization=0,
+            decoder_utilization=0,
+            bar1_used=256,
+        )
+
+        # Mock database query result
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_gpu_stats
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        async def mock_get_db():
+            yield mock_db
+
+        test_app.dependency_overrides[get_db] = mock_get_db
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:  # type: ignore[arg-type]
+            response = await client.get("/api/system/gpu")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["gpu_name"] == "RTX A5500"
+            assert data["utilization"] == 75.5
+            assert data["memory_used"] == 20480
+            assert data["memory_total"] == 24564
+            assert data["temperature"] == 65
+            assert data["power_usage"] == 180
+            assert data["inference_fps"] == 15.2
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_stats_no_data(
+        self,
+        test_app: FastAPI,
+        mock_settings: Settings,
+    ) -> None:
+        """Test GPU stats endpoint when no data available returns null values."""
+        from backend.core.database import get_db
+
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        # Mock database query result - no stats found
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        async def mock_get_db():
+            yield mock_db
+
+        # Clear cache to ensure we test the no-data scenario
+        import backend.api.routes.system as system_module
+
+        system_module._gpu_stats_cache = None
+
+        test_app.dependency_overrides[get_db] = mock_get_db
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:  # type: ignore[arg-type]
+            response = await client.get("/api/system/gpu")
+
+            assert response.status_code == 200
+            data = response.json()
+            # All fields should be null when no data available
+            assert data["gpu_name"] is None
+            assert data["utilization"] is None
+            assert data["memory_used"] is None
+            assert data["memory_total"] is None
+            assert data["temperature"] is None
+            assert data["power_usage"] is None
+
+        # Clean up
+        system_module._gpu_stats_cache = None
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_stats_uses_cache(
+        self,
+        test_app: FastAPI,
+        mock_settings: Settings,
+    ) -> None:
+        """Test GPU stats endpoint uses cache on subsequent requests."""
+        from datetime import UTC, datetime
+
+        from backend.core.database import get_db
+        from backend.models import GPUStats
+
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        # Create mock GPU stats
+        mock_gpu_stats = GPUStats(
+            id=1,
+            recorded_at=datetime(2025, 1, 23, 12, 0, 0, tzinfo=UTC),
+            gpu_name="RTX A5500",
+            gpu_utilization=75.5,
+            memory_used=20480,
+            memory_total=24564,
+            temperature=65,
+            power_usage=180,
+            inference_fps=15.2,
+        )
+
+        # Mock database query result
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_gpu_stats
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        async def mock_get_db():
+            yield mock_db
+
+        # Clear cache before test
+        import backend.api.routes.system as system_module
+
+        system_module._gpu_stats_cache = None
+
+        test_app.dependency_overrides[get_db] = mock_get_db
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:  # type: ignore[arg-type]
+            # First request - should hit database
+            response1 = await client.get("/api/system/gpu")
+            assert response1.status_code == 200
+            assert mock_db.execute.call_count == 1
+
+            # Second request - should use cache (within 5s TTL)
+            response2 = await client.get("/api/system/gpu")
+            assert response2.status_code == 200
+            # Database should not be queried again
+            assert mock_db.execute.call_count == 1
+            assert response2.json() == response1.json()
+
+        # Clean up cache after test
+        system_module._gpu_stats_cache = None
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_stats_cache_expiry(
+        self,
+        test_app: FastAPI,
+        mock_settings: Settings,
+    ) -> None:
+        """Test GPU stats cache expires after TTL."""
+        from datetime import UTC, datetime, timedelta
+
+        from backend.api.routes.system import GPUStatsCacheEntry
+        from backend.core.database import get_db
+        from backend.models import GPUStats
+
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        # Create mock GPU stats
+        mock_gpu_stats = GPUStats(
+            id=1,
+            recorded_at=datetime(2025, 1, 23, 12, 0, 0, tzinfo=UTC),
+            gpu_name="RTX A5500",
+            gpu_utilization=75.5,
+            memory_used=20480,
+            memory_total=24564,
+            temperature=65,
+            power_usage=180,
+            inference_fps=15.2,
+        )
+
+        # Mock database query result
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_gpu_stats
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        async def mock_get_db():
+            yield mock_db
+
+        import backend.api.routes.system as system_module
+
+        # Clear cache
+        system_module._gpu_stats_cache = None
+
+        test_app.dependency_overrides[get_db] = mock_get_db
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:  # type: ignore[arg-type]
+            # First request
+            response1 = await client.get("/api/system/gpu")
+            assert response1.status_code == 200
+            assert mock_db.execute.call_count == 1
+
+            # Manually expire the cache by creating a new cache entry with old timestamp
+            if system_module._gpu_stats_cache:
+                expired_response = system_module._gpu_stats_cache.response
+                system_module._gpu_stats_cache = GPUStatsCacheEntry(
+                    response=expired_response,
+                    timestamp=datetime.now(UTC) - timedelta(seconds=10),
+                )
+
+            # Second request - cache expired, should hit database again
+            response2 = await client.get("/api/system/gpu")
+            assert response2.status_code == 200
+            assert mock_db.execute.call_count == 2
+
+        # Clean up
+        system_module._gpu_stats_cache = None
+
+
+class TestGetGPUStatsHistoryEndpoint:
+    """Unit tests for GET /api/system/gpu/history endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_history_no_data(
+        self,
+        test_app: FastAPI,
+        mock_settings: Settings,
+    ) -> None:
+        """Test GPU history endpoint returns empty list when no data available."""
+        from backend.core.database import get_db
+
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        # Mock count query
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 0
+
+        # Mock samples query
+        mock_samples_result = MagicMock()
+        mock_samples_result.scalars.return_value.all.return_value = []
+
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_samples_result])
+
+        async def mock_get_db():
+            yield mock_db
+
+        test_app.dependency_overrides[get_db] = mock_get_db
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:  # type: ignore[arg-type]
+            response = await client.get("/api/system/gpu/history")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["items"] == []
+            assert data["pagination"]["total"] == 0
+            assert data["pagination"]["limit"] == 100
+            assert data["pagination"]["offset"] == 0
+            assert data["pagination"]["has_more"] is False
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_history_with_data(
+        self,
+        test_app: FastAPI,
+        mock_settings: Settings,
+    ) -> None:
+        """Test GPU history endpoint returns samples when data available."""
+        from datetime import UTC, datetime
+
+        from backend.core.database import get_db
+        from backend.models import GPUStats
+
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        # Create mock GPU stats samples
+        mock_samples = [
+            GPUStats(
+                id=i,
+                recorded_at=datetime(2025, 1, 23, 12, 0, i, tzinfo=UTC),
+                gpu_name="RTX A5500",
+                gpu_utilization=75.0 + i,
+                memory_used=20000 + i * 100,
+                memory_total=24564,
+                temperature=60 + i,
+                power_usage=180 + i,
+                inference_fps=15.0 + i * 0.1,
+            )
+            for i in range(5)
+        ]
+
+        # Mock count query
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 5
+
+        # Mock samples query
+        mock_samples_result = MagicMock()
+        mock_samples_result.scalars.return_value.all.return_value = mock_samples
+
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_samples_result])
+
+        async def mock_get_db():
+            yield mock_db
+
+        test_app.dependency_overrides[get_db] = mock_get_db
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:  # type: ignore[arg-type]
+            response = await client.get("/api/system/gpu/history")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["items"]) == 5
+            assert data["pagination"]["total"] == 5
+            assert data["items"][0]["gpu_name"] == "RTX A5500"
+            assert "utilization" in data["items"][0]
+            assert "memory_used" in data["items"][0]
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_history_with_limit(
+        self,
+        test_app: FastAPI,
+        mock_settings: Settings,
+    ) -> None:
+        """Test GPU history endpoint respects limit parameter."""
+        from datetime import UTC, datetime
+
+        from backend.core.database import get_db
+        from backend.models import GPUStats
+
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        # Create mock GPU stats samples (more than requested limit)
+        mock_samples = [
+            GPUStats(
+                id=i,
+                recorded_at=datetime(2025, 1, 23, 12, 0, i, tzinfo=UTC),
+                gpu_name="RTX A5500",
+                gpu_utilization=75.0,
+                memory_used=20000,
+                memory_total=24564,
+                temperature=60,
+                power_usage=180,
+                inference_fps=15.0,
+            )
+            for i in range(3)
+        ]
+
+        # Mock count query
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 10
+
+        # Mock samples query
+        mock_samples_result = MagicMock()
+        mock_samples_result.scalars.return_value.all.return_value = mock_samples
+
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_samples_result])
+
+        async def mock_get_db():
+            yield mock_db
+
+        test_app.dependency_overrides[get_db] = mock_get_db
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:  # type: ignore[arg-type]
+            response = await client.get("/api/system/gpu/history?limit=3")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["items"]) == 3
+            assert data["pagination"]["total"] == 10
+            assert data["pagination"]["limit"] == 3
+            assert data["pagination"]["has_more"] is True
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_history_with_since_filter(
+        self,
+        test_app: FastAPI,
+        mock_settings: Settings,
+    ) -> None:
+        """Test GPU history endpoint filters by since parameter."""
+        from datetime import UTC, datetime
+
+        from backend.core.database import get_db
+        from backend.models import GPUStats
+
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        # Create mock GPU stats samples after the since timestamp
+        mock_samples = [
+            GPUStats(
+                id=1,
+                recorded_at=datetime(2025, 1, 23, 12, 30, 0, tzinfo=UTC),
+                gpu_name="RTX A5500",
+                gpu_utilization=75.0,
+                memory_used=20000,
+                memory_total=24564,
+                temperature=60,
+                power_usage=180,
+                inference_fps=15.0,
+            )
+        ]
+
+        # Mock count query
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 1
+
+        # Mock samples query
+        mock_samples_result = MagicMock()
+        mock_samples_result.scalars.return_value.all.return_value = mock_samples
+
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_samples_result])
+
+        async def mock_get_db():
+            yield mock_db
+
+        test_app.dependency_overrides[get_db] = mock_get_db
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:  # type: ignore[arg-type]
+            # Query with since parameter
+            since_time = "2025-01-23T12:00:00Z"
+            response = await client.get(f"/api/system/gpu/history?since={since_time}")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["items"]) == 1
+            assert data["pagination"]["total"] == 1
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_history_pagination(
+        self,
+        test_app: FastAPI,
+        mock_settings: Settings,
+    ) -> None:
+        """Test GPU history endpoint pagination with offset."""
+        from datetime import UTC, datetime
+
+        from backend.core.database import get_db
+        from backend.models import GPUStats
+
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        # Create mock GPU stats samples
+        mock_samples = [
+            GPUStats(
+                id=i,
+                recorded_at=datetime(2025, 1, 23, 12, 0, i, tzinfo=UTC),
+                gpu_name="RTX A5500",
+                gpu_utilization=75.0,
+                memory_used=20000,
+                memory_total=24564,
+                temperature=60,
+                power_usage=180,
+                inference_fps=15.0,
+            )
+            for i in range(2)
+        ]
+
+        # Mock count query
+        mock_count_result = MagicMock()
+        mock_count_result.scalar_one.return_value = 10
+
+        # Mock samples query
+        mock_samples_result = MagicMock()
+        mock_samples_result.scalars.return_value.all.return_value = mock_samples
+
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_samples_result])
+
+        async def mock_get_db():
+            yield mock_db
+
+        test_app.dependency_overrides[get_db] = mock_get_db
+
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:  # type: ignore[arg-type]
+            response = await client.get("/api/system/gpu/history?limit=2&offset=5")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["items"]) == 2
+            assert data["pagination"]["total"] == 10
+            assert data["pagination"]["limit"] == 2
+            assert data["pagination"]["offset"] == 5
+            assert data["pagination"]["has_more"] is True
+
+    @pytest.mark.asyncio
+    async def test_get_gpu_history_invalid_since(
+        self,
+        test_app: FastAPI,
+        mock_settings: Settings,
+    ) -> None:
+        """Test GPU history endpoint handles invalid since parameter."""
+        async with AsyncClient(
+            transport=ASGITransport(app=test_app), base_url="http://test"
+        ) as client:  # type: ignore[arg-type]
+            response = await client.get("/api/system/gpu/history?since=invalid-date")
+
+            # FastAPI should return 422 for invalid query parameter format
+            assert response.status_code == 422
 
 
 class TestPerformanceMetricsEndpoint:
