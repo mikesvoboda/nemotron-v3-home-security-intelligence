@@ -526,7 +526,7 @@ RATE_LIMIT_SEARCH_REQUESTS_PER_MINUTE=30
 
 | Variable                | Default                  | Description                           |
 | ----------------------- | ------------------------ | ------------------------------------- |
-| `LOG_LEVEL`             | `INFO`                   | DEBUG, INFO, WARNING, ERROR, CRITICAL |
+| `LOG_LEVEL`             | `WARNING`                | DEBUG, INFO, WARNING, ERROR, CRITICAL |
 | `LOG_FILE_PATH`         | `data/logs/security.log` | Rotating log file                     |
 | `LOG_FILE_MAX_BYTES`    | `10485760`               | Max log file size (10MB)              |
 | `LOG_FILE_BACKUP_COUNT` | `7`                      | Number of backup files                |
@@ -616,7 +616,7 @@ REDIS_URL=redis://redis:6379
 RTDETR_URL=http://ai-detector:8090
 NEMOTRON_URL=http://ai-llm:8091
 DEBUG=false
-LOG_LEVEL=INFO
+LOG_LEVEL=WARNING
 RETENTION_DAYS=30
 DETECTION_CONFIDENCE_THRESHOLD=0.6
 API_KEY_ENABLED=true

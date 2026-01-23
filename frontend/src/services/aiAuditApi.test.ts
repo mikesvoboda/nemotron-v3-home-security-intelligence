@@ -618,7 +618,7 @@ describe('getAllPrompts', () => {
 
     const result = await getAllPrompts();
 
-    expect(fetch).toHaveBeenCalledWith('/api/ai-audit/prompts', {
+    expect(fetch).toHaveBeenCalledWith('/api/prompts', {
       headers: { 'Content-Type': 'application/json' },
     });
     expect(result).toEqual(mockAllPromptsResponse);
@@ -648,7 +648,7 @@ describe('testPrompt', () => {
       event_id: 12345,
     });
 
-    expect(fetch).toHaveBeenCalledWith('/api/ai-audit/prompts/test', {
+    expect(fetch).toHaveBeenCalledWith('/api/prompts/test', {
       method: 'POST',
       body: JSON.stringify({
         model: 'nemotron',
@@ -695,7 +695,7 @@ describe('getPromptsHistory', () => {
 
     const result = await getPromptsHistory();
 
-    expect(fetch).toHaveBeenCalledWith('/api/ai-audit/prompts/history', {
+    expect(fetch).toHaveBeenCalledWith('/api/prompts/history', {
       headers: { 'Content-Type': 'application/json' },
     });
     expect(result.nemotron.total_versions).toBe(3);
@@ -706,7 +706,7 @@ describe('getPromptsHistory', () => {
 
     await getPromptsHistory(20);
 
-    expect(fetch).toHaveBeenCalledWith('/api/ai-audit/prompts/history?limit=20', {
+    expect(fetch).toHaveBeenCalledWith('/api/prompts/history?limit=20', {
       headers: { 'Content-Type': 'application/json' },
     });
   });
@@ -735,7 +735,7 @@ describe('importPrompts', () => {
       overwrite: true,
     });
 
-    expect(fetch).toHaveBeenCalledWith('/api/ai-audit/prompts/import', {
+    expect(fetch).toHaveBeenCalledWith('/api/prompts/import', {
       method: 'POST',
       body: JSON.stringify({
         prompts: { nemotron: { system_prompt: '...', temperature: 0.7 } },
@@ -776,7 +776,7 @@ describe('exportPrompts', () => {
 
     const result = await exportPrompts();
 
-    expect(fetch).toHaveBeenCalledWith('/api/ai-audit/prompts/export', {
+    expect(fetch).toHaveBeenCalledWith('/api/prompts/export', {
       headers: { 'Content-Type': 'application/json' },
     });
     expect(result.version).toBe('1.0');
@@ -802,7 +802,7 @@ describe('getModelPrompt', () => {
 
     const result = await getModelPrompt('nemotron');
 
-    expect(fetch).toHaveBeenCalledWith('/api/ai-audit/prompts/nemotron', {
+    expect(fetch).toHaveBeenCalledWith('/api/prompts/nemotron', {
       headers: { 'Content-Type': 'application/json' },
     });
     expect(result.model_name).toBe('nemotron');
@@ -841,7 +841,7 @@ describe('updateModelPrompt', () => {
       description: 'Added weather context',
     });
 
-    expect(fetch).toHaveBeenCalledWith('/api/ai-audit/prompts/nemotron', {
+    expect(fetch).toHaveBeenCalledWith('/api/prompts/nemotron', {
       method: 'PUT',
       body: JSON.stringify({
         config: { system_prompt: 'Updated...', temperature: 0.8 },
