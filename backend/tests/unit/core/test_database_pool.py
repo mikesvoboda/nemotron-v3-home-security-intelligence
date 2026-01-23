@@ -80,6 +80,7 @@ class TestInitDbPoolConfiguration:
                 assert call_kwargs["pool_timeout"] == 30
                 assert call_kwargs["pool_recycle"] == 1800
                 assert call_kwargs["pool_pre_ping"] is True
+                assert call_kwargs["pool_use_lifo"] is True
 
         finally:
             db_module._engine = original_engine

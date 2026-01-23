@@ -470,6 +470,7 @@ class TestConnectionPoolSettings:
                     assert call_kwargs["pool_timeout"] == 45
                     assert call_kwargs["pool_recycle"] == 2400
                     assert call_kwargs["pool_pre_ping"] is True
+                    assert call_kwargs["pool_use_lifo"] is True
         finally:
             # Restore original state
             db_module._engine = original_engine
@@ -1147,7 +1148,7 @@ class TestSlowQueryLogging:
         result = _sanitize_query_parameters(params, max_string_length=100, max_items=10)
 
         assert result["user_id"] == 123
-        assert result["password"] == "[REDACTED]"  # noqa: S105
+        assert result["password"] == "[REDACTED]"
         assert result["email"] == "test@example.com"
 
     def test_sanitize_query_parameters_with_dict_max_items(self) -> None:

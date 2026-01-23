@@ -278,6 +278,7 @@ async def init_db() -> None:
         "pool_timeout": settings.database_pool_timeout,
         "pool_recycle": settings.database_pool_recycle,
         "pool_pre_ping": True,  # Verify connections before use (critical for health)
+        "pool_use_lifo": True,  # LIFO reuses recent connections for better cache locality
         "connect_args": connect_args,
     }
 

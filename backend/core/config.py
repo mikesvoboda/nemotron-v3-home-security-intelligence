@@ -15,7 +15,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
-from pydantic import AnyHttpUrl, Field, field_validator, model_validator
+from pydantic import AnyHttpUrl, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.core.sanitization import URLValidationError, validate_grafana_url
@@ -350,7 +350,7 @@ class Settings(BaseSettings):
         default="redis://localhost:6379/0",
         description="Redis connection URL. Development: redis://localhost:6379/0, Docker: redis://redis:6379/0",
     )
-    redis_password: str | None = Field(
+    redis_password: SecretStr | None = Field(
         default=None,
         description="Redis password for authentication. Optional for local development (no password). "
         "Set via REDIS_PASSWORD environment variable for production deployments. "
@@ -410,6 +410,50 @@ class Settings(BaseSettings):
         default=True,
         description="Verify that the Redis server's certificate hostname matches. "
         "Should be True for production. Set to False only for testing with self-signed certs.",
+    )
+
+    # Redis memory optimization settings (NEM-3416)
+    redis_memory_limit_mb: int = Field(
+        default=0,
+        ge=0,
+        le=131072,
+        description="Redis maximum memory limit in megabytes. "
+        "Set to 0 to disable memory limit (use Redis server defaults). "
+        "Development: 256MB recommended. Production: 1024-4096MB depending on workload. "
+        "When limit is reached, eviction policy determines behavior.",
+    )
+    redis_memory_policy: str = Field(
+        default="volatile-lru",
+        description="Redis eviction policy when memory limit is reached. Options: "
+        "'volatile-lru' (evict keys with TTL using LRU, default, protects persistent data), "
+        "'allkeys-lru' (evict any key using LRU), "
+        "'volatile-ttl' (evict keys with shortest TTL), "
+        "'volatile-random' (random eviction of keys with TTL), "
+        "'allkeys-random' (random eviction of any key), "
+        "'noeviction' (return errors when memory full). "
+        "Recommended: 'volatile-lru' for cache-heavy workloads with TTL-based expiration.",
+    )
+    redis_memory_apply_on_startup: bool = Field(
+        default=False,
+        description="Apply memory settings to Redis server on application startup. "
+        "When True, sends CONFIG SET commands to configure maxmemory and maxmemory-policy. "
+        "Requires Redis ACL permissions for CONFIG command. "
+        "Set to False if Redis is configured externally (e.g., via redis.conf).",
+    )
+
+    # HyperLogLog settings for unique entity counting (NEM-3414)
+    hll_ttl_seconds: int = Field(
+        default=86400,
+        ge=3600,
+        le=604800,
+        description="TTL in seconds for HyperLogLog keys used for unique counting. "
+        "Default: 86400 (24 hours). Max: 604800 (7 days). "
+        "Longer TTL provides better historical analysis but uses more memory (~12KB per HLL).",
+    )
+    hll_key_prefix: str = Field(
+        default="hll",
+        description="Prefix for HyperLogLog keys. Keys are formatted as {prefix}:{metric}:{time_window}. "
+        "Example: hll:unique_cameras:2024-01-15 for daily unique camera counts.",
     )
 
     # Cache TTL settings (NEM-2519)
@@ -507,7 +551,7 @@ class Settings(BaseSettings):
         "SECURITY: Must be explicitly enabled - provides protection against "
         "accidentally enabling admin endpoints in production.",
     )
-    admin_api_key: str | None = Field(
+    admin_api_key: SecretStr | None = Field(
         default=None,
         description="Optional API key required for admin endpoints. "
         "When set, all admin requests must include X-Admin-API-Key header.",
@@ -624,11 +668,11 @@ class Settings(BaseSettings):
 
     # AI service authentication
     # Security: API keys for authenticating with AI services
-    rtdetr_api_key: str | None = Field(
+    rtdetr_api_key: SecretStr | None = Field(
         default=None,
         description="API key for RT-DETRv2 service authentication (optional, sent via X-API-Key header)",
     )
-    nemotron_api_key: str | None = Field(
+    nemotron_api_key: SecretStr | None = Field(
         default=None,
         description="API key for Nemotron service authentication (optional, sent via X-API-Key header)",
     )
@@ -1051,7 +1095,7 @@ class Settings(BaseSettings):
         default=False,
         description="Enable API key authentication (default: False for development)",
     )
-    api_keys: list[str] = Field(
+    api_keys: list[SecretStr] = Field(
         default=[],
         description="List of valid API keys (plain text, hashed on startup)",
     )
@@ -1091,6 +1135,40 @@ class Settings(BaseSettings):
         le=1.0,
         description="Trace sampling rate (0.0-1.0). Set to 1.0 to trace all requests, "
         "lower values for high-traffic production environments to reduce overhead.",
+    )
+
+    # BatchSpanProcessor tuning for high-throughput scenarios (NEM-3433)
+    # These settings optimize trace export for production workloads (100+ spans/sec)
+    otel_batch_max_queue_size: int = Field(
+        default=8192,
+        ge=512,
+        le=65536,
+        description="Maximum number of spans queued before dropping. Higher values "
+        "allow more buffering during traffic spikes but use more memory. "
+        "Default: 8192 (suitable for 100+ spans/sec).",
+    )
+    otel_batch_max_export_batch_size: int = Field(
+        default=1024,
+        ge=64,
+        le=8192,
+        description="Maximum number of spans exported per batch. Larger batches "
+        "reduce export overhead but increase latency and memory usage. "
+        "Default: 1024 (balanced for high-throughput).",
+    )
+    otel_batch_schedule_delay_ms: int = Field(
+        default=2000,
+        ge=100,
+        le=30000,
+        description="Delay in milliseconds between batch exports. Lower values "
+        "reduce trace latency but increase export frequency. "
+        "Default: 2000ms (2 seconds).",
+    )
+    otel_batch_export_timeout_ms: int = Field(
+        default=30000,
+        ge=1000,
+        le=120000,
+        description="Timeout in milliseconds for exporting a batch of spans. "
+        "Default: 30000ms (30 seconds).",
     )
 
     # Logging settings
@@ -1398,7 +1476,7 @@ class Settings(BaseSettings):
         le=1048576,
         description="Maximum WebSocket message size in bytes (default: 64KB)",
     )
-    websocket_token: str | None = Field(
+    websocket_token: SecretStr | None = Field(
         default=None,
         description="Optional token for WebSocket authentication. When set, WebSocket "
         "connections must include this token as a query parameter (?token=<value>). "
@@ -1470,7 +1548,7 @@ class Settings(BaseSettings):
         default=None,
         description="SMTP authentication username",
     )
-    smtp_password: str | None = Field(
+    smtp_password: SecretStr | None = Field(
         default=None,
         description="SMTP authentication password",
     )
@@ -2032,6 +2110,36 @@ class Settings(BaseSettings):
                 f"redis_ssl_cert_reqs must be one of: {', '.join(valid_modes)}. Got: '{v}'"
             )
         return v_lower
+
+    @field_validator("redis_memory_policy")
+    @classmethod
+    def validate_redis_memory_policy(cls, v: str) -> str:
+        """Validate Redis memory eviction policy (NEM-3416)."""
+        valid_policies = {
+            "volatile-lru",
+            "allkeys-lru",
+            "volatile-ttl",
+            "volatile-random",
+            "allkeys-random",
+            "noeviction",
+            # Also support shorter aliases without volatile-/allkeys- prefix
+            "lru",
+            "ttl",
+            "random",
+        }
+        v_lower = v.lower()
+        if v_lower not in valid_policies:
+            raise ValueError(
+                f"redis_memory_policy must be one of: volatile-lru, allkeys-lru, "
+                f"volatile-ttl, volatile-random, allkeys-random, noeviction. Got: '{v}'"
+            )
+        # Map short aliases to full names (default to volatile- prefix for safety)
+        alias_map = {
+            "lru": "volatile-lru",
+            "ttl": "volatile-ttl",
+            "random": "volatile-random",
+        }
+        return alias_map.get(v_lower, v_lower)
 
     @field_validator("redis_ssl_certfile", "redis_ssl_keyfile", "redis_ssl_ca_certs")
     @classmethod

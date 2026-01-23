@@ -210,7 +210,7 @@ async def segment_clothing(
             inputs = {k: v.to(device) for k, v in inputs.items()}
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 outputs = model(**inputs)
 
             # Get segmentation logits and upsample to original image size

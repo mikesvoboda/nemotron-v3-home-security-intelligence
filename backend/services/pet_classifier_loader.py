@@ -166,7 +166,7 @@ async def classify_pet(
                 inputs = {k: v.cuda().to(model_dtype) for k, v in inputs.items()}
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 outputs = model(**inputs)
                 logits = outputs.logits
 

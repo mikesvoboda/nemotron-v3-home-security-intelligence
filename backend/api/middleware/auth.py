@@ -33,7 +33,12 @@ def _get_valid_key_hashes() -> set[str]:
         Set of SHA-256 hashes of valid API keys
     """
     settings = get_settings()
-    return {_hash_key(key) for key in settings.api_keys}
+    # Support both SecretStr and str for api_keys
+    hashes = set()
+    for key in settings.api_keys:
+        key_value = key.get_secret_value() if hasattr(key, "get_secret_value") else key
+        hashes.add(_hash_key(str(key_value)))
+    return hashes
 
 
 async def validate_websocket_api_key(websocket: WebSocket) -> bool:
@@ -142,7 +147,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
     def _load_key_hashes(self) -> set[str]:
         """Load and hash API keys from settings."""
         settings = get_settings()
-        return {self._hash_key(key) for key in settings.api_keys}
+        # Support both SecretStr and str for api_keys
+        hashes = set()
+        for key in settings.api_keys:
+            key_value = key.get_secret_value() if hasattr(key, "get_secret_value") else key
+            hashes.add(self._hash_key(str(key_value)))
+        return hashes
 
     @staticmethod
     def _hash_key(key: str) -> str:

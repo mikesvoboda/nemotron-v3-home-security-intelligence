@@ -105,7 +105,7 @@ IMAGE_MAGIC_BYTES: dict[bytes, str] = {
 }
 
 
-def validate_image_magic_bytes(image_bytes: bytes) -> tuple[bool, str]:  # noqa: PLR0911, PLR0912
+def validate_image_magic_bytes(image_bytes: bytes) -> tuple[bool, str]:  # noqa: PLR0911
     """Validate image data by checking magic bytes (file signature).
 
     This provides an early check before passing to PIL, catching obvious
@@ -267,7 +267,19 @@ class RTDETRv2Model:
 
             # Load image processor and model
             self.processor = AutoImageProcessor.from_pretrained(self.model_path)
-            self.model = AutoModelForObjectDetection.from_pretrained(self.model_path)
+
+            # Try to load with SDPA (Scaled Dot-Product Attention) for 15-40% faster inference
+            # SDPA requires PyTorch 2.0+ and compatible hardware
+            try:
+                self.model = AutoModelForObjectDetection.from_pretrained(
+                    self.model_path,
+                    attn_implementation="sdpa",
+                )
+                logger.info("RT-DETRv2 loaded with SDPA attention (optimized)")
+            except (ValueError, ImportError) as e:
+                # Fall back to default attention if SDPA is not supported
+                logger.warning(f"SDPA not available, falling back to default attention: {e}")
+                self.model = AutoModelForObjectDetection.from_pretrained(self.model_path)
 
             # Move model to device
             if "cuda" in self.device and torch.cuda.is_available():
@@ -350,7 +362,7 @@ class RTDETRv2Model:
                 inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 outputs = self.model(**inputs)
 
             # Post-process results
@@ -617,7 +629,7 @@ async def metrics() -> Response:
 
 
 @app.post("/detect", response_model=DetectionResponse)
-async def detect_objects(  # noqa: PLR0912
+async def detect_objects(
     file: UploadFile = File(None), image_base64: str | None = None
 ) -> DetectionResponse:
     """Detect objects in an image.

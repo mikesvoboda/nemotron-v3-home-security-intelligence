@@ -3,9 +3,15 @@
  *
  * Provides central state management for rate limit information across frontend components.
  * Uses Zustand for reactive state management with auto-clear behavior when rate limit resets.
+ *
+ * Enhancements (NEM-3399, NEM-3400):
+ * - DevTools middleware for debugging
+ * - useShallow hooks for selective subscriptions
  */
 
 import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
+import { useShallow } from 'zustand/shallow';
 
 // ============================================================================
 // Types
@@ -44,7 +50,7 @@ export interface RateLimitState {
 }
 
 // ============================================================================
-// Store
+// Store (NEM-3400: DevTools middleware)
 // ============================================================================
 
 /**
@@ -55,6 +61,7 @@ export interface RateLimitState {
  * - Provides `isLimited` flag when remaining = 0
  * - Calculates `secondsUntilReset` from reset timestamp
  * - Auto-clears `isLimited` when reset time passes
+ * - DevTools integration for debugging (NEM-3400)
  *
  * @example
  * ```tsx
@@ -75,58 +82,75 @@ export interface RateLimitState {
  * }
  * ```
  */
-export const useRateLimitStore = create<RateLimitState>((set, get) => ({
-  current: null,
-  isLimited: false,
-  secondsUntilReset: 0,
-  _timerId: null,
-
-  update: (info: RateLimitInfo) => {
-    // Clear any existing timer
-    const existingTimerId = get()._timerId;
-    if (existingTimerId !== null) {
-      clearTimeout(existingTimerId);
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    const secondsUntilReset = Math.max(0, info.reset - now);
-    const isLimited = info.remaining === 0;
-
-    // If rate limited and reset time is in the future, schedule auto-clear
-    let timerId: ReturnType<typeof setTimeout> | null = null;
-    if (isLimited && secondsUntilReset > 0) {
-      timerId = setTimeout(() => {
-        set({
-          isLimited: false,
-          secondsUntilReset: 0,
-          _timerId: null,
-        });
-      }, secondsUntilReset * 1000);
-    }
-
-    set({
-      current: info,
-      isLimited,
-      secondsUntilReset,
-      _timerId: timerId,
-    });
-  },
-
-  clear: () => {
-    // Clear any existing timer
-    const existingTimerId = get()._timerId;
-    if (existingTimerId !== null) {
-      clearTimeout(existingTimerId);
-    }
-
-    set({
+export const useRateLimitStore = create<RateLimitState>()(
+  devtools(
+    (set, get) => ({
       current: null,
       isLimited: false,
       secondsUntilReset: 0,
       _timerId: null,
-    });
-  },
-}));
+
+      update: (info: RateLimitInfo) => {
+        // Clear any existing timer
+        const existingTimerId = get()._timerId;
+        if (existingTimerId !== null) {
+          clearTimeout(existingTimerId);
+        }
+
+        const now = Math.floor(Date.now() / 1000);
+        const secondsUntilReset = Math.max(0, info.reset - now);
+        const isLimited = info.remaining === 0;
+
+        // If rate limited and reset time is in the future, schedule auto-clear
+        let timerId: ReturnType<typeof setTimeout> | null = null;
+        if (isLimited && secondsUntilReset > 0) {
+          timerId = setTimeout(() => {
+            set(
+              {
+                isLimited: false,
+                secondsUntilReset: 0,
+                _timerId: null,
+              },
+              undefined,
+              'update/auto-clear'
+            );
+          }, secondsUntilReset * 1000);
+        }
+
+        set(
+          {
+            current: info,
+            isLimited,
+            secondsUntilReset,
+            _timerId: timerId,
+          },
+          undefined,
+          'update'
+        );
+      },
+
+      clear: () => {
+        // Clear any existing timer
+        const existingTimerId = get()._timerId;
+        if (existingTimerId !== null) {
+          clearTimeout(existingTimerId);
+        }
+
+        set(
+          {
+            current: null,
+            isLimited: false,
+            secondsUntilReset: 0,
+            _timerId: null,
+          },
+          undefined,
+          'clear'
+        );
+      },
+    }),
+    { name: 'rate-limit-store', enabled: import.meta.env.DEV }
+  )
+);
 
 // ============================================================================
 // Selectors
@@ -150,3 +174,55 @@ export const selectRateLimitUsagePercent = (state: RateLimitState): number => {
 export const selectIsHighUsage = (state: RateLimitState): boolean => {
   return selectRateLimitUsagePercent(state) >= 80;
 };
+
+// ============================================================================
+// Shallow Hooks for Selective Subscriptions (NEM-3399)
+// ============================================================================
+
+/**
+ * Hook to select rate limit status flags with shallow equality.
+ * Prevents re-renders when only detailed info changes but status stays the same.
+ *
+ * @example
+ * ```tsx
+ * const { isLimited, secondsUntilReset } = useRateLimitStatus();
+ * ```
+ */
+export function useRateLimitStatus() {
+  return useRateLimitStore(
+    useShallow((state) => ({
+      isLimited: state.isLimited,
+      secondsUntilReset: state.secondsUntilReset,
+    }))
+  );
+}
+
+/**
+ * Hook to select the current rate limit info.
+ *
+ * @example
+ * ```tsx
+ * const current = useRateLimitCurrent();
+ * ```
+ */
+export function useRateLimitCurrent() {
+  return useRateLimitStore((state) => state.current);
+}
+
+/**
+ * Hook to select rate limit actions only.
+ * Actions are stable references and don't cause re-renders.
+ *
+ * @example
+ * ```tsx
+ * const { update, clear } = useRateLimitActions();
+ * ```
+ */
+export function useRateLimitActions() {
+  return useRateLimitStore(
+    useShallow((state) => ({
+      update: state.update,
+      clear: state.clear,
+    }))
+  );
+}

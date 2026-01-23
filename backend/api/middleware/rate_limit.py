@@ -6,6 +6,11 @@ using a sliding window counter algorithm implemented in Redis.
 The sliding window approach provides smoother rate limiting compared to
 fixed window counters, preventing request bursts at window boundaries.
 
+Rate limiting is implemented using an atomic Lua script to prevent race
+conditions. Unlike Redis pipelines which execute commands sequentially
+but non-atomically, the Lua script ensures that the check-and-increment
+operation happens as a single atomic operation.
+
 Usage:
     # As a FastAPI dependency
     @router.get("/endpoint")
@@ -25,6 +30,7 @@ from __future__ import annotations
 import ipaddress
 import time
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException, Request, WebSocket, status
@@ -37,6 +43,113 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
 logger = get_logger(__name__)
+
+# Path to the Lua script for atomic rate limiting
+_LUA_SCRIPT_PATH = Path(__file__).parent.parent.parent / "scripts" / "sliding_window_rate_limit.lua"
+
+# Cache for the loaded Lua script content
+_lua_script_content: str | None = None
+
+# Cache for the script SHA (set after SCRIPT LOAD)
+_lua_script_sha: str | None = None
+
+
+def _load_lua_script() -> str:
+    """Load the Lua script content from disk.
+
+    Returns:
+        The Lua script content as a string.
+
+    Raises:
+        FileNotFoundError: If the script file doesn't exist.
+    """
+    global _lua_script_content  # noqa: PLW0603
+    if _lua_script_content is None:
+        _lua_script_content = _LUA_SCRIPT_PATH.read_text()
+    return _lua_script_content
+
+
+async def _get_script_sha(redis_client: RedisClient) -> str:
+    """Get the SHA of the rate limiting Lua script, loading it if necessary.
+
+    This function caches the script SHA to avoid reloading the script on
+    every rate limit check. If the script is not loaded, it will be loaded
+    using SCRIPT LOAD.
+
+    Args:
+        redis_client: Redis client instance.
+
+    Returns:
+        The SHA1 hash of the loaded script.
+
+    Raises:
+        Exception: If script loading fails.
+    """
+    global _lua_script_sha  # noqa: PLW0603
+    if _lua_script_sha is None:
+        script_content = _load_lua_script()
+        client = redis_client._ensure_connected()
+        _lua_script_sha = await client.script_load(script_content)
+        logger.info("Loaded rate limiting Lua script", extra={"sha": _lua_script_sha})
+    return _lua_script_sha
+
+
+async def _execute_rate_limit_script(
+    redis_client: RedisClient,
+    key: str,
+    now: float,
+    window_seconds: int,
+    limit: int,
+) -> tuple[bool, int]:
+    """Execute the atomic rate limiting Lua script.
+
+    Args:
+        redis_client: Redis client instance.
+        key: The rate limit key.
+        now: Current timestamp.
+        window_seconds: Size of the sliding window in seconds.
+        limit: Maximum number of requests allowed in the window.
+
+    Returns:
+        Tuple of (is_allowed, current_count).
+    """
+    from typing import Any, cast
+
+    client = redis_client._ensure_connected()
+    sha = await _get_script_sha(redis_client)
+
+    try:
+        result = cast(
+            "list[Any]",
+            await client.evalsha(sha, 1, key, str(now), str(window_seconds), str(limit)),  # type: ignore[misc]
+        )
+        is_allowed = result[0] == 1
+        current_count = int(result[1])
+        return is_allowed, current_count
+    except Exception as e:
+        # If NOSCRIPT error (script was flushed), reload and retry
+        if "NOSCRIPT" in str(e):
+            global _lua_script_sha  # noqa: PLW0603
+            _lua_script_sha = None
+            sha = await _get_script_sha(redis_client)
+            result = cast(
+                "list[Any]",
+                await client.evalsha(sha, 1, key, str(now), str(window_seconds), str(limit)),  # type: ignore[misc]
+            )
+            is_allowed = result[0] == 1
+            current_count = int(result[1])
+            return is_allowed, current_count
+        raise
+
+
+def clear_lua_script_cache() -> None:
+    """Clear the cached Lua script SHA.
+
+    Useful for testing or when Redis is restarted and SCRIPT FLUSH occurs.
+    """
+    global _lua_script_sha, _lua_script_content  # noqa: PLW0603
+    _lua_script_sha = None
+    _lua_script_content = None
 
 
 # Cache for pre-compiled trusted proxy networks
@@ -332,6 +445,11 @@ class RateLimiter:
     ) -> tuple[bool, int, int]:
         """Check if request is within rate limits using sliding window.
 
+        Uses an atomic Lua script to ensure the check-and-increment operation
+        is performed atomically, preventing race conditions where multiple
+        concurrent requests might all pass the count check before any of them
+        increment the counter.
+
         Args:
             redis_client: Redis client instance
             client_ip: Client IP address
@@ -347,36 +465,19 @@ class RateLimiter:
 
         key = self._make_key(client_ip)
         now = time.time()
-        window_start = now - self.window_seconds
 
         # Total limit including burst
         total_limit = self.requests_per_minute + self.burst
 
         try:
-            client = redis_client._ensure_connected()
-
-            # Use Redis pipeline for atomic operations
-            pipe = client.pipeline()
-
-            # Remove expired entries (outside the sliding window)
-            pipe.zremrangebyscore(key, "-inf", window_start)
-
-            # Count current requests in window
-            pipe.zcard(key)
-
-            # Add current request with timestamp
-            pipe.zadd(key, {f"{now}": now})
-
-            # Set expiry on the key (slightly longer than window)
-            pipe.expire(key, self.window_seconds + 10)
-
-            results = await pipe.execute()
-
-            # Pipeline returns: removed count, current count, added count, expiry set
-            current_count = results[1]
-
-            # Check if over limit (count is before adding current request)
-            is_allowed = current_count < total_limit
+            # Use atomic Lua script for rate limiting
+            is_allowed, current_count = await _execute_rate_limit_script(
+                redis_client,
+                key,
+                now,
+                self.window_seconds,
+                total_limit,
+            )
 
             if not is_allowed:
                 logger.warning(

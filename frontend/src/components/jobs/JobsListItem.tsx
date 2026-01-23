@@ -2,10 +2,18 @@
  * JobsListItem - Individual job item in the jobs list
  *
  * Displays job summary information including status, type, and progress.
+ *
+ * Performance optimization: Uses React.memo with custom equality function
+ * that ignores callback props (onClick) since those typically have stable
+ * behavior even when references change. This prevents unnecessary re-renders
+ * when the parent component re-renders.
+ *
+ * @see NEM-3424 - Standardize React.memo usage with custom equality
  */
 
 import { formatDistanceToNow } from 'date-fns';
 import { CheckCircle, Loader2, XCircle, Circle } from 'lucide-react';
+import { memo } from 'react';
 
 import type { JobResponse, JobStatusEnum } from '../../services/api';
 
@@ -59,7 +67,41 @@ function formatJobType(jobType: string): string {
   return jobType.charAt(0).toUpperCase() + jobType.slice(1);
 }
 
-export default function JobsListItem({ job, isSelected = false, onClick }: JobsListItemProps) {
+/**
+ * Custom equality function for JobsListItem props.
+ *
+ * Compares job data properties that affect rendering while ignoring
+ * callback props that typically have stable behavior.
+ *
+ * This is more specific than listItemPropsComparator because we need
+ * to handle the nested `job` object.
+ */
+function jobsListItemPropsAreEqual(
+  prevProps: JobsListItemProps,
+  nextProps: JobsListItemProps
+): boolean {
+  // Compare isSelected directly
+  if (prevProps.isSelected !== nextProps.isSelected) {
+    return false;
+  }
+
+  // Compare job object properties that affect rendering
+  const prevJob = prevProps.job;
+  const nextJob = nextProps.job;
+
+  return (
+    prevJob.job_id === nextJob.job_id &&
+    prevJob.status === nextJob.status &&
+    prevJob.job_type === nextJob.job_type &&
+    prevJob.progress === nextJob.progress &&
+    prevJob.message === nextJob.message &&
+    prevJob.created_at === nextJob.created_at
+  );
+  // Note: onClick is intentionally ignored - it may have a new reference
+  // on each parent render but the behavior is typically stable
+}
+
+const JobsListItem = memo(function JobsListItem({ job, isSelected = false, onClick }: JobsListItemProps) {
   const handleClick = () => {
     onClick?.(job.job_id);
   };
@@ -118,4 +160,6 @@ export default function JobsListItem({ job, isSelected = false, onClick }: JobsL
       )}
     </div>
   );
-}
+}, jobsListItemPropsAreEqual);
+
+export default JobsListItem;

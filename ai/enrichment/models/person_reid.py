@@ -254,7 +254,7 @@ class PersonReID:
 
         img_tensor = self._preprocess(person_crop)
 
-        with torch.no_grad():
+        with torch.inference_mode():
             # Extract features
             embedding = self.model(img_tensor)
 

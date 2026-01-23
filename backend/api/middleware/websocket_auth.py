@@ -66,6 +66,13 @@ async def validate_websocket_token(
     if not settings.websocket_token:
         return True
 
+    # Extract token value, supporting both SecretStr and str
+    expected_token: str = (
+        settings.websocket_token.get_secret_value()
+        if hasattr(settings.websocket_token, "get_secret_value")
+        else str(settings.websocket_token)
+    )
+
     # Reject if token required but not provided or empty
     if not token:
         raise WebSocketException(
@@ -74,7 +81,7 @@ async def validate_websocket_token(
         )
 
     # Validate token using constant-time comparison to prevent timing attacks
-    if not hmac.compare_digest(token, settings.websocket_token):
+    if not hmac.compare_digest(token, expected_token):
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION,
             reason="Invalid authentication token",

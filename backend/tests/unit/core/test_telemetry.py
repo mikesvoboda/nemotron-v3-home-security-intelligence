@@ -984,3 +984,349 @@ class TestRecordExceptionWithoutSetStatus:
 
             # Should still record the exception
             mock_span.record_exception.assert_called_once_with(test_exception, attributes={})
+
+
+# =============================================================================
+# Span Events Tests (NEM-3434)
+# =============================================================================
+
+
+class TestAddSpanEvent:
+    """Tests for add_span_event function."""
+
+    def test_add_span_event_calls_span_add_event(self) -> None:
+        """Should call add_event on the current span."""
+        from backend.core.telemetry import add_span_event
+
+        mock_span = MagicMock()
+        mock_span.add_event = MagicMock()
+
+        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+            add_span_event("test.event", {"key": "value"})
+
+        mock_span.add_event.assert_called_once_with("test.event", attributes={"key": "value"})
+
+    def test_add_span_event_with_timestamp(self) -> None:
+        """Should pass timestamp to add_event when provided."""
+        from backend.core.telemetry import add_span_event
+
+        mock_span = MagicMock()
+        mock_span.add_event = MagicMock()
+
+        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+            add_span_event("test.event", {"key": "value"}, timestamp_ns=1234567890)
+
+        mock_span.add_event.assert_called_once_with(
+            "test.event", attributes={"key": "value"}, timestamp=1234567890
+        )
+
+    def test_add_span_event_handles_span_without_method(self) -> None:
+        """Should handle spans that don't have add_event method."""
+        from backend.core.telemetry import add_span_event
+
+        mock_span = MagicMock(spec=[])  # Empty spec - no methods
+
+        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+            # Should not raise
+            add_span_event("test.event")
+
+
+class TestRecordPipelineMilestone:
+    """Tests for record_pipeline_milestone function."""
+
+    def test_record_pipeline_milestone_with_all_attributes(self) -> None:
+        """Should record milestone with all provided attributes."""
+        from backend.core.telemetry import record_pipeline_milestone
+
+        mock_span = MagicMock()
+        mock_span.add_event = MagicMock()
+
+        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+            record_pipeline_milestone(
+                "detection_complete",
+                stage="detect",
+                camera_id="front_door",
+                batch_id="batch-123",
+                detection_count=5,
+                duration_ms=245.3,
+                custom_attr="custom_value",
+            )
+
+        mock_span.add_event.assert_called_once()
+        call_args = mock_span.add_event.call_args
+        assert call_args[0][0] == "pipeline.detection_complete"
+        attrs = call_args[1]["attributes"]
+        assert attrs["pipeline.stage"] == "detect"
+        assert attrs["camera.id"] == "front_door"
+        assert attrs["batch.id"] == "batch-123"
+        assert attrs["pipeline.detection_count"] == 5
+        assert attrs["pipeline.duration_ms"] == 245.3
+        assert attrs["custom_attr"] == "custom_value"
+
+    def test_record_pipeline_milestone_with_minimal_attributes(self) -> None:
+        """Should record milestone with minimal attributes."""
+        from backend.core.telemetry import record_pipeline_milestone
+
+        mock_span = MagicMock()
+        mock_span.add_event = MagicMock()
+
+        with patch("backend.core.telemetry.get_current_span", return_value=mock_span):
+            record_pipeline_milestone("started")
+
+        mock_span.add_event.assert_called_once()
+        call_args = mock_span.add_event.call_args
+        assert call_args[0][0] == "pipeline.started"
+        assert call_args[1]["attributes"] == {}
+
+
+# =============================================================================
+# Span Links Tests (NEM-3435)
+# =============================================================================
+
+
+class TestSpanLinkContext:
+    """Tests for SpanLinkContext class."""
+
+    def test_span_link_context_init(self) -> None:
+        """Should initialize with trace_id and span_id."""
+        from backend.core.telemetry import SpanLinkContext
+
+        ctx = SpanLinkContext("0123456789abcdef0123456789abcdef", "0123456789abcdef")
+        assert ctx.trace_id == "0123456789abcdef0123456789abcdef"
+        assert ctx.span_id == "0123456789abcdef"
+
+    def test_span_link_context_to_dict(self) -> None:
+        """Should convert to dictionary."""
+        from backend.core.telemetry import SpanLinkContext
+
+        ctx = SpanLinkContext("trace123", "span456")
+        result = ctx.to_dict()
+        assert result == {"trace_id": "trace123", "span_id": "span456"}
+
+    def test_span_link_context_from_dict(self) -> None:
+        """Should create from dictionary."""
+        from backend.core.telemetry import SpanLinkContext
+
+        data = {"trace_id": "trace123", "span_id": "span456"}
+        ctx = SpanLinkContext.from_dict(data)
+        assert ctx is not None
+        assert ctx.trace_id == "trace123"
+        assert ctx.span_id == "span456"
+
+    def test_span_link_context_from_dict_missing_keys(self) -> None:
+        """Should return None when keys are missing."""
+        from backend.core.telemetry import SpanLinkContext
+
+        assert SpanLinkContext.from_dict({}) is None
+        assert SpanLinkContext.from_dict({"trace_id": "trace123"}) is None
+        assert SpanLinkContext.from_dict({"span_id": "span456"}) is None
+
+
+class TestCaptureSpanContext:
+    """Tests for capture_span_context function."""
+
+    def test_capture_span_context_returns_context(self) -> None:
+        """Should return SpanLinkContext with trace_id and span_id."""
+        from backend.core.telemetry import capture_span_context
+
+        with (
+            patch("backend.core.telemetry.get_trace_id", return_value="trace123"),
+            patch("backend.core.telemetry.get_span_id", return_value="span456"),
+        ):
+            ctx = capture_span_context()
+
+        assert ctx is not None
+        assert ctx.trace_id == "trace123"
+        assert ctx.span_id == "span456"
+
+    def test_capture_span_context_returns_none_when_no_trace(self) -> None:
+        """Should return None when trace_id is not available."""
+        from backend.core.telemetry import capture_span_context
+
+        with (
+            patch("backend.core.telemetry.get_trace_id", return_value=None),
+            patch("backend.core.telemetry.get_span_id", return_value="span456"),
+        ):
+            ctx = capture_span_context()
+
+        assert ctx is None
+
+    def test_capture_span_context_returns_none_when_no_span(self) -> None:
+        """Should return None when span_id is not available."""
+        from backend.core.telemetry import capture_span_context
+
+        with (
+            patch("backend.core.telemetry.get_trace_id", return_value="trace123"),
+            patch("backend.core.telemetry.get_span_id", return_value=None),
+        ):
+            ctx = capture_span_context()
+
+        assert ctx is None
+
+
+class TestCreateSpanWithLinks:
+    """Tests for create_span_with_links function."""
+
+    def test_create_span_with_links_returns_span(self) -> None:
+        """Should create a span with links."""
+        from backend.core.telemetry import SpanLinkContext, create_span_with_links
+
+        links = [
+            SpanLinkContext("0123456789abcdef0123456789abcdef", "0123456789abcdef"),
+        ]
+
+        span = create_span_with_links("test_span", links=links, test_attr="value")
+        assert span is not None
+        # The span should have set_attribute method
+        assert hasattr(span, "set_attribute")
+
+    def test_create_span_with_links_handles_no_links(self) -> None:
+        """Should create span without links when none provided."""
+        from backend.core.telemetry import create_span_with_links
+
+        span = create_span_with_links("test_span", links=None)
+        assert span is not None
+
+    def test_create_span_with_links_handles_dict_links(self) -> None:
+        """Should handle links provided as dictionaries."""
+        from backend.core.telemetry import create_span_with_links
+
+        links = [
+            {"trace_id": "0123456789abcdef0123456789abcdef", "span_id": "0123456789abcdef"},
+        ]
+
+        span = create_span_with_links("test_span", links=links)
+        assert span is not None
+
+    def test_create_span_with_links_handles_invalid_links(self) -> None:
+        """Should skip invalid links gracefully."""
+        from backend.core.telemetry import create_span_with_links
+
+        links = [
+            None,  # None link
+            {"trace_id": "invalid"},  # Missing span_id
+            {"trace_id": "not-hex", "span_id": "also-not-hex"},  # Invalid hex
+        ]
+
+        # Should not raise
+        span = create_span_with_links("test_span", links=links)
+        assert span is not None
+
+
+class TestTraceSpanWithLinks:
+    """Tests for trace_span_with_links context manager."""
+
+    def test_trace_span_with_links_basic(self) -> None:
+        """Should work as a context manager."""
+        from backend.core.telemetry import trace_span_with_links
+
+        with trace_span_with_links("test_span", attr="value") as span:
+            assert span is not None
+
+    def test_trace_span_with_links_with_links(self) -> None:
+        """Should create span with links."""
+        from backend.core.telemetry import SpanLinkContext, trace_span_with_links
+
+        links = [
+            SpanLinkContext("0123456789abcdef0123456789abcdef", "0123456789abcdef"),
+        ]
+
+        with trace_span_with_links("test_span", links=links) as span:
+            assert span is not None
+
+    def test_trace_span_with_links_records_exception(self) -> None:
+        """Should record exception when error occurs."""
+        from backend.core.telemetry import trace_span_with_links
+
+        with (
+            patch("backend.core.telemetry.record_exception") as mock_record,
+            pytest.raises(ValueError),
+        ):
+            with trace_span_with_links("test_span"):
+                raise ValueError("Test error")
+
+        mock_record.assert_called_once()
+
+
+# =============================================================================
+# BatchSpanProcessor Configuration Tests (NEM-3433)
+# =============================================================================
+
+
+class TestBatchSpanProcessorSettings:
+    """Tests for BatchSpanProcessor configuration settings."""
+
+    def test_batch_settings_have_defaults(self) -> None:
+        """BatchSpanProcessor settings should have sensible defaults."""
+        from backend.core.config import Settings
+
+        with patch.dict(
+            "os.environ",
+            {
+                # pragma: allowlist nextline secret
+                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost/test"
+            },
+        ):
+            settings = Settings()
+
+        # Verify new settings exist with defaults
+        assert settings.otel_batch_max_queue_size == 8192
+        assert settings.otel_batch_max_export_batch_size == 1024
+        assert settings.otel_batch_schedule_delay_ms == 2000
+        assert settings.otel_batch_export_timeout_ms == 30000
+
+    def test_batch_settings_can_be_configured(self) -> None:
+        """BatchSpanProcessor settings should be configurable via environment."""
+        from backend.core.config import Settings
+
+        with patch.dict(
+            "os.environ",
+            {
+                # pragma: allowlist nextline secret
+                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost/test",
+                "OTEL_BATCH_MAX_QUEUE_SIZE": "16384",
+                "OTEL_BATCH_MAX_EXPORT_BATCH_SIZE": "2048",
+                "OTEL_BATCH_SCHEDULE_DELAY_MS": "5000",
+                "OTEL_BATCH_EXPORT_TIMEOUT_MS": "60000",
+            },
+        ):
+            settings = Settings()
+
+        assert settings.otel_batch_max_queue_size == 16384
+        assert settings.otel_batch_max_export_batch_size == 2048
+        assert settings.otel_batch_schedule_delay_ms == 5000
+        assert settings.otel_batch_export_timeout_ms == 60000
+
+    def test_batch_settings_validation(self) -> None:
+        """BatchSpanProcessor settings should validate bounds."""
+        from pydantic import ValidationError
+
+        from backend.core.config import Settings
+
+        # Test max_queue_size below minimum
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    # pragma: allowlist nextline secret
+                    "DATABASE_URL": "postgresql+asyncpg://test:test@localhost/test",
+                    "OTEL_BATCH_MAX_QUEUE_SIZE": "100",  # Below minimum (512)
+                },
+            ),
+            pytest.raises(ValidationError),
+        ):
+            Settings()
+
+        # Test max_export_batch_size above maximum
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    # pragma: allowlist nextline secret
+                    "DATABASE_URL": "postgresql+asyncpg://test:test@localhost/test",
+                    "OTEL_BATCH_MAX_EXPORT_BATCH_SIZE": "10000",  # Above maximum (8192)
+                },
+            ),
+            pytest.raises(ValidationError),
+        ):
+            Settings()

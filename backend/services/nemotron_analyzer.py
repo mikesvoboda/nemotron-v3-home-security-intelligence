@@ -1308,7 +1308,7 @@ class NemotronAnalyzer:
                 data=None,
             )
 
-    async def _run_enrichment_pipeline_from_data(  # noqa: PLR0912 - Complex enrichment orchestration
+    async def _run_enrichment_pipeline_from_data(
         self,
         detections_data: list[dict[str, Any]],
         camera_id: str | None = None,
@@ -1430,12 +1430,17 @@ class NemotronAnalyzer:
         # Add correlation and W3C trace context headers for distributed tracing (NEM-1729, NEM-XXXX)
         # get_correlation_headers() now includes traceparent/tracestate for OpenTelemetry
         headers.update(get_correlation_headers())
-        # Add API key if configured
+        # Add API key if configured (support SecretStr and str)
         if self._api_key:
-            headers["X-API-Key"] = self._api_key
+            api_key_value: str = (
+                self._api_key.get_secret_value()
+                if hasattr(self._api_key, "get_secret_value")
+                else str(self._api_key)
+            )
+            headers["X-API-Key"] = api_key_value
         return headers
 
-    async def analyze_batch(  # noqa: PLR0912 - Complex orchestration method
+    async def analyze_batch(
         self,
         batch_id: str,
         camera_id: str | None = None,
@@ -1741,19 +1746,22 @@ class NemotronAnalyzer:
             session.add(event)
             await session.flush()  # Persist event and get ID without committing
 
-            # Populate event_detections junction table (NEM-1592, NEM-1998)
-            # Uses ON CONFLICT DO NOTHING to prevent race conditions when
-            # concurrent requests try to create the same junction records.
+            # Populate event_detections junction table (NEM-1592, NEM-1998, NEM-3350)
+            # Uses bulk INSERT with ON CONFLICT DO NOTHING to prevent race conditions
+            # and improve performance by reducing round-trips to the database.
             # This is safe because the composite primary key (event_id, detection_id)
             # enforces uniqueness at the database level.
             from sqlalchemy.dialects.postgresql import insert as pg_insert
 
             from backend.models.event_detection import event_detections
 
-            for det_id in int_detection_ids:
+            if int_detection_ids:
+                values = [
+                    {"event_id": event.id, "detection_id": det_id} for det_id in int_detection_ids
+                ]
                 stmt = (
                     pg_insert(event_detections)
-                    .values(event_id=event.id, detection_id=det_id)
+                    .values(values)
                     .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
                 )
                 await session.execute(stmt)
@@ -1856,9 +1864,7 @@ class NemotronAnalyzer:
 
         return event
 
-    async def analyze_detection_fast_path(  # noqa: PLR0912 - Complex orchestration
-        self, camera_id: str, detection_id: int | str
-    ) -> Event:
+    async def analyze_detection_fast_path(self, camera_id: str, detection_id: int | str) -> Event:
         """Analyze a single detection via fast path (high-priority).
 
         This method is called for high-confidence critical detections that bypass
@@ -2321,7 +2327,7 @@ class NemotronAnalyzer:
 
         return tracking_result
 
-    async def _call_llm(  # noqa: PLR0912
+    async def _call_llm(
         self,
         camera_name: str,
         start_time: str,

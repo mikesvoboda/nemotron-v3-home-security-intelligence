@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, ORJSONResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -74,7 +74,11 @@ VideoProcessorDep = VideoProcessor
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/detections", tags=["detections"])
+router = APIRouter(
+    prefix="/api/detections",
+    tags=["detections"],
+    default_response_class=ORJSONResponse,
+)
 
 # Valid fields for sparse fieldsets on list_detections endpoint (NEM-1434)
 VALID_DETECTION_LIST_FIELDS = frozenset(
@@ -170,7 +174,7 @@ detection_media_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
 
 @router.get("", response_model=DetectionListResponse)
-async def list_detections(  # noqa: PLR0912
+async def list_detections(
     response: Response,
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     object_type: str | None = Query(None, description="Filter by object type"),
@@ -286,7 +290,7 @@ async def list_detections(  # noqa: PLR0912
 
     # Apply pagination - fetch one extra to determine if there are more results
     # Use explicit if/else for readability (clearer than ternary with complex expressions)
-    if cursor_data:  # noqa: SIM108
+    if cursor_data:
         # Cursor-based: fetch limit + 1 to check for more
         query = query.limit(limit + 1)
     else:

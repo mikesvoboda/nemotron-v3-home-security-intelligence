@@ -205,7 +205,7 @@ async def classify_gender(
             inputs = {k: v.to(device=device, dtype=dtype) for k, v in inputs.items()}
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 outputs = model(**inputs)
                 logits = outputs.logits
 
@@ -288,7 +288,7 @@ async def classify_genders_batch(
             inputs = {k: v.to(device=device, dtype=dtype) for k, v in inputs.items()}
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 outputs = model(**inputs)
                 all_logits = outputs.logits
 

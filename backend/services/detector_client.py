@@ -352,9 +352,14 @@ class DetectorClient:
         headers: dict[str, str] = {}
         # Add correlation headers for distributed tracing (NEM-1729)
         headers.update(get_correlation_headers())
-        # Add API key if configured
+        # Add API key if configured (support SecretStr and str)
         if self._api_key:
-            headers["X-API-Key"] = self._api_key
+            api_key_value: str = (
+                self._api_key.get_secret_value()
+                if hasattr(self._api_key, "get_secret_value")
+                else str(self._api_key)
+            )
+            headers["X-API-Key"] = api_key_value
         return headers
 
     async def health_check(self) -> bool:
@@ -538,7 +543,7 @@ class DetectorClient:
         finally:
             self._is_warming = False
 
-    async def _send_detection_request(  # noqa: PLR0912
+    async def _send_detection_request(
         self,
         image_data: bytes,
         image_name: str,
@@ -902,7 +907,7 @@ class DetectorClient:
         """
         return await asyncio.to_thread(self._validate_image_for_detection, image_path, camera_id)
 
-    async def detect_objects(  # noqa: PLR0912
+    async def detect_objects(
         self,
         image_path: str,
         camera_id: str,

@@ -97,8 +97,14 @@ class SummaryGenerator:
             Dictionary of headers including API key if configured.
         """
         headers: dict[str, str] = {"Content-Type": "application/json"}
+        # Support both SecretStr and str for api_key
         if self._api_key:
-            headers["X-API-Key"] = self._api_key
+            api_key_value: str = (
+                self._api_key.get_secret_value()
+                if hasattr(self._api_key, "get_secret_value")
+                else str(self._api_key)
+            )
+            headers["X-API-Key"] = api_key_value
         return headers
 
     async def generate_hourly_summary(

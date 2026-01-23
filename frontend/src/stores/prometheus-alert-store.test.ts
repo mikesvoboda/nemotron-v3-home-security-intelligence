@@ -10,6 +10,11 @@ import {
   selectAlertsByName,
   selectHasActiveAlerts,
   selectHasCriticalAlerts,
+  // Memoized selectors (NEM-3428)
+  selectCriticalAlertsMemoized,
+  selectWarningAlertsMemoized,
+  selectInfoAlertsMemoized,
+  selectAlertsSortedBySeverityMemoized,
 } from './prometheus-alert-store';
 
 import type { PrometheusAlertPayload } from '../types/websocket-events';
@@ -350,6 +355,71 @@ describe('prometheus-alert-store', () => {
 
       const state = usePrometheusAlertStore.getState();
       expect(selectHasCriticalAlerts(state)).toBe(false);
+    });
+  });
+
+  describe('memoized selectors (NEM-3428)', () => {
+    beforeEach(() => {
+      usePrometheusAlertStore.getState().clear();
+      const { handlePrometheusAlert } = usePrometheusAlertStore.getState();
+      handlePrometheusAlert(createAlertPayload({ fingerprint: 'c1', severity: 'critical' }));
+      handlePrometheusAlert(createAlertPayload({ fingerprint: 'w1', severity: 'warning' }));
+      handlePrometheusAlert(createAlertPayload({ fingerprint: 'i1', severity: 'info' }));
+    });
+
+    it('selectCriticalAlertsMemoized returns cached result on repeated calls', () => {
+      const state = usePrometheusAlertStore.getState();
+      const result1 = selectCriticalAlertsMemoized(state);
+      const result2 = selectCriticalAlertsMemoized(state);
+
+      expect(result1).toBe(result2); // Same reference
+      expect(result1).toHaveLength(1);
+    });
+
+    it('selectWarningAlertsMemoized returns cached result on repeated calls', () => {
+      const state = usePrometheusAlertStore.getState();
+      const result1 = selectWarningAlertsMemoized(state);
+      const result2 = selectWarningAlertsMemoized(state);
+
+      expect(result1).toBe(result2); // Same reference
+      expect(result1).toHaveLength(1);
+    });
+
+    it('selectInfoAlertsMemoized returns cached result on repeated calls', () => {
+      const state = usePrometheusAlertStore.getState();
+      const result1 = selectInfoAlertsMemoized(state);
+      const result2 = selectInfoAlertsMemoized(state);
+
+      expect(result1).toBe(result2); // Same reference
+      expect(result1).toHaveLength(1);
+    });
+
+    it('selectAlertsSortedBySeverityMemoized returns cached result on repeated calls', () => {
+      const state = usePrometheusAlertStore.getState();
+      const result1 = selectAlertsSortedBySeverityMemoized(state);
+      const result2 = selectAlertsSortedBySeverityMemoized(state);
+
+      expect(result1).toBe(result2); // Same reference
+      expect(result1).toHaveLength(3);
+      expect(result1[0].severity).toBe('critical');
+      expect(result1[1].severity).toBe('warning');
+      expect(result1[2].severity).toBe('info');
+    });
+
+    it('memoized selectors recompute when state changes', () => {
+      const state1 = usePrometheusAlertStore.getState();
+      const result1 = selectCriticalAlertsMemoized(state1);
+
+      // Add another alert to change the state
+      usePrometheusAlertStore.getState().handlePrometheusAlert(
+        createAlertPayload({ fingerprint: 'c2', severity: 'critical' })
+      );
+
+      const state2 = usePrometheusAlertStore.getState();
+      const result2 = selectCriticalAlertsMemoized(state2);
+
+      expect(result1).not.toBe(result2); // Different reference
+      expect(result2).toHaveLength(2);
     });
   });
 });

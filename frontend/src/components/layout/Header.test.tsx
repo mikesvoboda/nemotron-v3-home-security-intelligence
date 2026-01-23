@@ -165,6 +165,7 @@ describe('Header', () => {
       overallStatus: null,
       services: {},
       refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
     });
   });
 
@@ -231,6 +232,7 @@ describe('Header', () => {
       overallStatus: null,
       services: {},
       refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
     });
 
     renderHeader();
@@ -276,6 +278,7 @@ describe('Header', () => {
         database: { status: 'healthy', message: 'OK' },
       },
       refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
     });
 
     renderHeader();
@@ -363,6 +366,7 @@ describe('Header', () => {
       overallStatus: 'healthy',
       services: {},
       refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
     });
 
     renderHeader();
@@ -400,6 +404,7 @@ describe('Header', () => {
       overallStatus: 'healthy',
       services: {},
       refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
     });
 
     renderHeader();
@@ -437,6 +442,7 @@ describe('Header', () => {
       overallStatus: 'healthy',
       services: {},
       refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
     });
 
     renderHeader();
@@ -474,6 +480,7 @@ describe('Header', () => {
       overallStatus: 'degraded',
       services: {},
       refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
     });
 
     renderHeader();
@@ -511,6 +518,7 @@ describe('Header', () => {
       overallStatus: 'unhealthy',
       services: {},
       refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
     });
 
     renderHeader();
@@ -548,6 +556,7 @@ describe('Header', () => {
       overallStatus: 'degraded',
       services: {},
       refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
     });
 
     renderHeader();
@@ -586,6 +595,7 @@ describe('Header', () => {
       overallStatus: 'unhealthy',
       services: {},
       refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
     });
 
     renderHeader();
@@ -624,6 +634,7 @@ describe('Header', () => {
       overallStatus: 'healthy',
       services: {},
       refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
     });
 
     renderHeader();
@@ -675,6 +686,7 @@ describe('Header', () => {
           ai: { status: 'healthy', message: 'Running' },
         },
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -737,6 +749,7 @@ describe('Header', () => {
           database: { status: 'healthy', message: 'OK' },
         },
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -795,6 +808,7 @@ describe('Header', () => {
         overallStatus: 'healthy',
         services: {},
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -849,6 +863,7 @@ describe('Header', () => {
           ai: { status: 'degraded', message: 'High latency' },
         },
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -899,6 +914,7 @@ describe('Header', () => {
         overallStatus: 'healthy',
         services: {},
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -948,6 +964,7 @@ describe('Header', () => {
           database: { status: 'unhealthy', message: 'Error' },
         },
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -989,6 +1006,7 @@ describe('Header', () => {
         overallStatus: null, // API failed
         services: {},
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -1032,6 +1050,7 @@ describe('Header', () => {
         overallStatus: 'healthy',
         services: {},
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -1070,6 +1089,7 @@ describe('Header', () => {
         overallStatus: 'healthy',
         services: {},
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -1097,6 +1117,7 @@ describe('Header', () => {
         overallStatus: null,
         services: {},
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -1134,6 +1155,7 @@ describe('Header', () => {
         overallStatus: null,
         services: {},
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -1183,6 +1205,7 @@ describe('Header', () => {
           database: { status: 'healthy', message: 'OK' },
         },
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -1258,6 +1281,7 @@ describe('Header', () => {
           database: { status: 'healthy', message: 'OK' },
         },
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       const { unmount } = renderHeader();
@@ -1296,6 +1320,7 @@ describe('Header', () => {
         overallStatus: 'healthy',
         services: {},
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -1334,6 +1359,7 @@ describe('Header', () => {
         overallStatus: 'healthy',
         services: {},
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -1424,6 +1450,7 @@ describe('Header', () => {
           database: { status: 'healthy', message: 'OK' },
         },
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();
@@ -1478,6 +1505,7 @@ describe('Header', () => {
           database: { status: 'healthy', message: 'OK' },
         },
         refetch: vi.fn().mockResolvedValue({}),
+      isPlaceholderData: false,
       });
 
       renderHeader();

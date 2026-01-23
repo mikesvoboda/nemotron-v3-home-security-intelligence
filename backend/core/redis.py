@@ -564,8 +564,14 @@ class RedisClient:
 
                 # Add password if configured (non-empty string)
                 # Empty string is treated as no password for backward compatibility
+                # Support both str and SecretStr for password
                 if self._password:
-                    pool_kwargs["password"] = self._password
+                    password_value = (
+                        self._password.get_secret_value()
+                        if hasattr(self._password, "get_secret_value")
+                        else self._password
+                    )
+                    pool_kwargs["password"] = password_value
 
                 # Add SSL context if enabled
                 if ssl_context:
@@ -648,7 +654,7 @@ class RedisClient:
 
     # Queue operations
 
-    async def add_to_queue_safe(  # noqa: PLR0912
+    async def add_to_queue_safe(
         self,
         queue_name: str,
         data: Any,
@@ -1461,6 +1467,169 @@ class RedisClient:
         """
         client = self._ensure_connected()
         return cast("list[tuple[bytes | str, int]]", await client.pubsub_numsub(*channels))
+
+    # HyperLogLog operations (NEM-3414)
+    # HyperLogLog is a probabilistic data structure for cardinality estimation
+    # with ~0.81% standard error using only ~12KB of memory regardless of set size
+
+    async def pfadd(self, key: str, *values: str) -> int:
+        """Add elements to a HyperLogLog structure for unique counting.
+
+        HyperLogLog provides probabilistic cardinality estimation with:
+        - ~0.81% standard error (very accurate for analytics)
+        - Constant memory (~12KB) regardless of cardinality
+        - O(1) time complexity for both add and count
+
+        Use cases in this project:
+        - Count unique cameras that detected activity
+        - Count unique events in a time window
+        - Count unique detection types (person, vehicle, etc.)
+        - Count unique entity IDs for tracking
+
+        Args:
+            key: HyperLogLog key
+            *values: Elements to add (will be deduplicated internally)
+
+        Returns:
+            1 if the cardinality estimate changed, 0 otherwise
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.pfadd(key, *values))
+
+    async def pfcount(self, *keys: str) -> int:
+        """Get the approximate cardinality (unique count) of a HyperLogLog.
+
+        When called with a single key, returns the approximate cardinality.
+        When called with multiple keys, returns the cardinality of the union.
+
+        Args:
+            *keys: One or more HyperLogLog keys
+
+        Returns:
+            Approximate number of unique elements
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.pfcount(*keys))
+
+    async def pfmerge(self, dest_key: str, *source_keys: str) -> bool:
+        """Merge multiple HyperLogLogs into a single destination.
+
+        Creates a new HyperLogLog that represents the union of all source HLLs.
+        Useful for combining counts across time windows or partitions.
+
+        Args:
+            dest_key: Destination key for the merged HyperLogLog
+            *source_keys: Source HyperLogLog keys to merge
+
+        Returns:
+            True if successful
+        """
+        client = self._ensure_connected()
+        result = await client.pfmerge(dest_key, *source_keys)
+        return result is True or result == "OK"
+
+    # Memory management operations (NEM-3416)
+
+    async def config_get(self, pattern: str) -> dict[str, str]:
+        """Get Redis server configuration values.
+
+        Args:
+            pattern: Configuration parameter pattern (e.g., "maxmemory*")
+
+        Returns:
+            Dictionary of configuration key-value pairs
+        """
+        client = self._ensure_connected()
+        result = await client.config_get(pattern)
+        return cast("dict[str, str]", result)
+
+    async def config_set(self, name: str, value: str) -> bool:
+        """Set a Redis server configuration value at runtime.
+
+        Note: Not all configuration values can be changed at runtime.
+        Commonly used for:
+        - maxmemory: Maximum memory limit
+        - maxmemory-policy: Eviction policy when limit is reached
+
+        Args:
+            name: Configuration parameter name
+            value: Value to set
+
+        Returns:
+            True if successful
+        """
+        client = self._ensure_connected()
+        result = await client.config_set(name, value)
+        return result is True or result == "OK"
+
+    async def memory_stats(self) -> dict[str, Any]:
+        """Get detailed memory statistics from Redis.
+
+        Returns comprehensive memory information including:
+        - peak.allocated: Peak memory consumption
+        - total.allocated: Total allocated memory
+        - keys.count: Number of keys
+        - fragmentation.ratio: Memory fragmentation
+        - overhead.*: Memory overhead for various structures
+
+        Returns:
+            Dictionary containing memory statistics
+        """
+        client = self._ensure_connected()
+        result = await client.memory_stats()
+        return cast("dict[str, Any]", result)
+
+    async def memory_usage(self, key: str, samples: int = 5) -> int | None:
+        """Get memory usage of a specific key in bytes.
+
+        Args:
+            key: Key to check memory usage for
+            samples: Number of samples for aggregate types (default: 5)
+
+        Returns:
+            Memory usage in bytes, or None if key doesn't exist
+        """
+        client = self._ensure_connected()
+        result = await client.memory_usage(key, samples=samples)
+        return cast("int | None", result)
+
+    async def dbsize(self) -> int:
+        """Get the number of keys in the current database.
+
+        Returns:
+            Number of keys in the database
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.dbsize())
+
+    async def scan_keys(
+        self,
+        pattern: str = "*",
+        count: int = 100,
+        max_keys: int = 10000,
+    ) -> list[str]:
+        """Scan for keys matching a pattern without blocking.
+
+        Uses SCAN command for non-blocking iteration. Useful for:
+        - Finding keys to analyze memory usage
+        - Identifying keys for cleanup
+        - Pattern-based key discovery
+
+        Args:
+            pattern: Glob-style pattern to match keys
+            count: Hint for number of keys per iteration (default: 100)
+            max_keys: Maximum total keys to return (default: 10000)
+
+        Returns:
+            List of matching key names
+        """
+        client = self._ensure_connected()
+        keys: list[str] = []
+        async for key in client.scan_iter(match=pattern, count=count):
+            keys.append(key)
+            if len(keys) >= max_keys:
+                break
+        return keys
 
 
 # Global Redis client instance

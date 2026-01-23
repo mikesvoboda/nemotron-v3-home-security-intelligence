@@ -248,7 +248,7 @@ async def classify_clothing(
             text_tokens = tokenizer(prompts).to(device)
 
             # Get image and text features
-            with torch.no_grad():
+            with torch.inference_mode():
                 image_features = model.encode_image(image_tensor)
                 text_features = model.encode_text(text_tokens)
 
@@ -348,7 +348,7 @@ async def classify_clothing_batch(
             text_tokens = tokenizer(prompts).to(device)
 
             # Get text and image features
-            with torch.no_grad():
+            with torch.inference_mode():
                 text_features = model.encode_text(text_tokens)
                 image_features = model.encode_image(image_tensors)
 

@@ -112,8 +112,9 @@ repos:
         # Exclude mutants/, test_database_isolation.py (uses intentional raw SQL for advisory locks),
         # conftest.py (table names come from SQLAlchemy reflection, not user input),
         # helpers.py (migration DDL operations require raw SQL),
-        # and nemo_data_designer (synthetic test data generation intentionally uses random)
-        exclude: (^mutants/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/conftest\.py$|backend/alembic/helpers\.py$|^tools/nemo_data_designer/)
+        # nemo_data_designer (synthetic test data generation intentionally uses random),
+        # and vehicle_classifier_loader.py (file path is from internal model directory, not user input)
+        exclude: (^mutants/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/conftest\.py$|backend/alembic/helpers\.py$|^tools/nemo_data_designer/|backend/services/vehicle_classifier_loader\.py$)
 
   # Python - Ruff (fast linter + formatter)
   - repo: https://github.com/astral-sh/ruff-pre-commit
