@@ -82,9 +82,8 @@ class MaterializedViewService:
                 try:
                     # view from MANAGED_VIEWS constant - not user input
                     await self.session.execute(
-                        text(
-                            f"REFRESH MATERIALIZED VIEW {view}"
-                        )  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text, sqlalchemy-raw-text-injection
+                        # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text, sqlalchemy-raw-text-injection
+                        text(f"REFRESH MATERIALIZED VIEW {view}")
                     )
                     await self.session.commit()
                     results[view] = True
