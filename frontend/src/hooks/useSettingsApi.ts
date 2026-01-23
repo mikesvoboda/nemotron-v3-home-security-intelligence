@@ -303,6 +303,12 @@ export interface UseSettingsOptions {
    * @default STATIC_STALE_TIME (5 minutes)
    */
   staleTime?: number;
+
+  /**
+   * Number of retry attempts on failure.
+   * @default 1
+   */
+  retry?: number | false;
 }
 
 /**
@@ -377,7 +383,12 @@ export interface UseUpdateSettingsReturn {
  * ```
  */
 export function useSettingsQuery(options: UseSettingsOptions = {}): UseSettingsReturn {
-  const { enabled = true, refetchInterval = false, staleTime = STATIC_STALE_TIME } = options;
+  const {
+    enabled = true,
+    refetchInterval = false,
+    staleTime = STATIC_STALE_TIME,
+    retry = 1,
+  } = options;
 
   const query = useQuery({
     queryKey: settingsQueryKeys.current(),
@@ -386,7 +397,7 @@ export function useSettingsQuery(options: UseSettingsOptions = {}): UseSettingsR
     refetchInterval,
     staleTime,
     // Reduced retry for faster failure feedback
-    retry: 1,
+    retry,
   });
 
   return {
