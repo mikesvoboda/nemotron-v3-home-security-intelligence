@@ -45,7 +45,14 @@ jobs:
           # Remove torch packages with +cpu suffix (from PyTorch custom index, not on PyPI)
           # These packages are audited separately via their official security advisories
           grep -v '+cpu' requirements-audit.txt > requirements-audit-filtered.txt || true
-          pip-audit -r requirements-audit-filtered.txt --desc
+          # Run pip-audit with ignored CVEs
+          # CVE-2026-0994: protobuf DoS in json_format.ParseDict() with nested Any messages
+          #   - Severity: Moderate (DoS only, no data breach/RCE)
+          #   - Impact: We don't use ParseDict() with untrusted nested Any messages
+          #   - Status: Awaiting upstream fix from google/protobuf
+          #   - Review date: 2026-01-23
+          pip-audit -r requirements-audit-filtered.txt --desc \
+            --ignore-vuln CVE-2026-0994
         continue-on-error: false
 
   npm-audit:
