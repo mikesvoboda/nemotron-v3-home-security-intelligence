@@ -117,8 +117,9 @@ repos:
         exclude: (^mutants/|backend/tests/integration/test_database_isolation\.py$|backend/tests/integration/conftest\.py$|backend/alembic/helpers\.py$|^tools/nemo_data_designer/|backend/services/vehicle_classifier_loader\.py$)
 
   # Python - Ruff (fast linter + formatter)
+  # NOTE: Keep in sync with uv.lock ruff version for consistent behavior
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.10
+    rev: v0.12.3
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
