@@ -1,7 +1,7 @@
 """add gpu config tables
 
-Revision ID: e5f6g7h8i9j0
-Revises: d4e5f6g7h8i9
+Revision ID: e2492ad3a41c
+Revises: e5f6g7h8i9j0
 Create Date: 2026-01-23 12:00:00.000000
 
 This migration adds tables for GPU configuration management, enabling
@@ -24,8 +24,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "e5f6g7h8i9j0"  # pragma: allowlist secret
-down_revision: str | Sequence[str] | None = "d4e5f6g7h8i9"  # pragma: allowlist secret
+revision: str = "e2492ad3a41c"  # pragma: allowlist secret
+down_revision: str | Sequence[str] | None = "e5f6g7h8i9j0"  # pragma: allowlist secret
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
