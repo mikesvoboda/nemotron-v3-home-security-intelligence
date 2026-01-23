@@ -72,6 +72,46 @@ describe('CommandPalette', () => {
       expect(screen.getByText('Dashboard')).toBeInTheDocument();
     });
 
+    it('finds items by exact name match - settings', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<CommandPalette open={true} onOpenChange={() => {}} />);
+
+      const input = screen.getByPlaceholderText(/search|type/i);
+      await user.clear(input);
+      await user.type(input, 'settings');
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeInTheDocument();
+      });
+    });
+
+    it('finds items by keyword - cameras', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<CommandPalette open={true} onOpenChange={() => {}} />);
+
+      const input = screen.getByPlaceholderText(/search|type/i);
+      await user.clear(input);
+      await user.type(input, 'cameras');
+
+      await waitFor(() => {
+        // Dashboard has "cameras" as a keyword now
+        expect(screen.getByText('Dashboard')).toBeInTheDocument();
+      });
+    });
+
+    it('performs case-insensitive search', async () => {
+      const user = userEvent.setup();
+      renderWithRouter(<CommandPalette open={true} onOpenChange={() => {}} />);
+
+      const input = screen.getByPlaceholderText(/search|type/i);
+      await user.clear(input);
+      await user.type(input, 'SETTINGS');
+
+      await waitFor(() => {
+        expect(screen.getByText('Settings')).toBeInTheDocument();
+      });
+    });
+
     it('shows empty state when no results match', async () => {
       const user = userEvent.setup();
       renderWithRouter(<CommandPalette open={true} onOpenChange={() => {}} />);

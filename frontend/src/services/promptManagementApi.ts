@@ -104,7 +104,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
  * Perform a fetch request to the prompt management API with error handling.
  */
 async function fetchPromptApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const url = `${BASE_URL}/api/ai-audit/prompts${endpoint}`;
+  const url = `${BASE_URL}/api/prompts${endpoint}`;
 
   const fetchOptions: RequestInit = {
     ...options,

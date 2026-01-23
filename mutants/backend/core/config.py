@@ -483,7 +483,7 @@ class Settings(BaseSettings):
 
     # Logging settings
     log_level: str = Field(
-        default="INFO",
+        default="WARNING",
         description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
     )
     log_file_path: str = Field(

@@ -319,7 +319,7 @@ Risk score ranges for severity levels. See [Risk Levels Reference](risk-levels.m
 
 | Variable                | Required | Default                  | Description                           |
 | ----------------------- | -------- | ------------------------ | ------------------------------------- |
-| `LOG_LEVEL`             | No       | `INFO`                   | DEBUG, INFO, WARNING, ERROR, CRITICAL |
+| `LOG_LEVEL`             | No       | `WARNING`                | DEBUG, INFO, WARNING, ERROR, CRITICAL |
 | `LOG_FILE_PATH`         | No       | `data/logs/security.log` | Path for rotating log file            |
 | `LOG_FILE_MAX_BYTES`    | No       | `10485760`               | Max size per log file (10MB)          |
 | `LOG_FILE_BACKUP_COUNT` | No       | `7`                      | Number of backup files to keep        |

@@ -739,7 +739,8 @@ def init_profiling() -> None:
 
     Configuration is via environment variables:
     - PYROSCOPE_ENABLED: Enable/disable profiling (default: true)
-    - PYROSCOPE_SERVER: Pyroscope server address (default: http://pyroscope:4040)
+    - PYROSCOPE_URL: Pyroscope server address (default: http://pyroscope:4040)
+      (PYROSCOPE_SERVER is also accepted for backward compatibility)
     - ENVIRONMENT: Environment tag for profiles (default: production)
 
     The function gracefully handles:
@@ -760,7 +761,10 @@ def init_profiling() -> None:
     try:
         import pyroscope
 
-        pyroscope_server = os.getenv("PYROSCOPE_SERVER", "http://pyroscope:4040")
+        # Support both PYROSCOPE_URL (docker-compose standard) and PYROSCOPE_SERVER (legacy)
+        pyroscope_server = os.getenv("PYROSCOPE_URL") or os.getenv(
+            "PYROSCOPE_SERVER", "http://pyroscope:4040"
+        )
 
         pyroscope.configure(
             application_name="nemotron-backend",

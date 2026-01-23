@@ -91,6 +91,12 @@ describe('SummaryCard', () => {
       expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent('3 events analyzed');
     });
 
+    it('handles undefined eventCount gracefully by defaulting to 0', () => {
+      const undefinedEventCount: Summary = { ...mockHourlySummary, eventCount: undefined as any };
+      render(<SummaryCard type="hourly" summary={undefinedEventCount} />);
+      expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent('0 events analyzed');
+    });
+
     it('renders summary content container', () => {
       render(<SummaryCard type="hourly" summary={mockHourlySummary} />);
       // Content is parsed into bullet points
