@@ -350,7 +350,8 @@ class TestShadowModeMetricsRecording:
         from backend.config.shadow_mode_deployment import record_latency_warning
 
         # Should not raise and should record metric
-        with patch("backend.config.shadow_mode_deployment.record_prompt_latency") as mock_record:
+        # Patch at the import location in the function
+        with patch("backend.core.metrics.record_prompt_latency") as mock_record:
             record_latency_warning(
                 camera_id="front_door",
                 control_latency_ms=100.0,

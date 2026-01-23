@@ -57,9 +57,10 @@ suggested_scores = st.integers(min_value=0, max_value=100)
 optional_suggested_scores = st.one_of(st.none(), suggested_scores)
 
 # Strategy for actual_identity values (names)
+# Unicode categories: L=letters, N=numbers, Zs=space separator
 actual_identity_values = st.one_of(
     st.none(),
-    st.text(min_size=1, max_size=100, alphabet=st.characters(categories=["L", "N", " "])),
+    st.text(min_size=1, max_size=100, alphabet=st.characters(categories=["L", "N", "Zs"])),
 )
 
 # Strategy for model_failures list

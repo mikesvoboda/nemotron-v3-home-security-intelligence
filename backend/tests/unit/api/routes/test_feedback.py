@@ -447,6 +447,12 @@ class TestGetEventFeedback:
         mock_feedback.feedback_type = "false_positive"
         mock_feedback.notes = "Test notes"
         mock_feedback.created_at = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+        # Set optional calibration fields to None (NEM-3330)
+        mock_feedback.actual_threat_level = None
+        mock_feedback.suggested_score = None
+        mock_feedback.actual_identity = None
+        mock_feedback.what_was_wrong = None
+        mock_feedback.model_failures = None
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_feedback
