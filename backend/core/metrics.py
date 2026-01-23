@@ -364,7 +364,7 @@ PROMPT_TEMPLATE_USED = Counter(
 )
 
 # =============================================================================
-# LLM Context Utilization Metrics (NEM-1666)
+# LLM Context Utilization Metrics (NEM-1666, NEM-3288)
 # =============================================================================
 
 # Context utilization histogram tracks how much of the context window is used
@@ -375,6 +375,15 @@ LLM_CONTEXT_UTILIZATION = Histogram(
     "hsi_llm_context_utilization",
     "LLM context window utilization ratio (0.0 to 1.0+)",
     buckets=CONTEXT_UTILIZATION_BUCKETS,
+    registry=_registry,
+)
+
+# NEM-3288: Gauge for current LLM context utilization ratio (used by Grafana dashboard)
+# This gauge tracks the most recent context utilization value per model
+LLM_CONTEXT_UTILIZATION_RATIO = Gauge(
+    "hsi_llm_context_utilization_ratio",
+    "LLM context window utilization ratio (0-1)",
+    labelnames=["model"],  # e.g., nemotron-mini
     registry=_registry,
 )
 
@@ -477,6 +486,15 @@ EVENTS_BY_CAMERA_TOTAL = Counter(
 EVENTS_REVIEWED_TOTAL = Counter(
     "hsi_events_reviewed_total",
     "Events marked as reviewed",
+    registry=_registry,
+)
+
+# NEM-3288: Events acknowledged counter with labels for dashboard filtering
+# Tracks security events acknowledged by users with camera and risk level labels
+EVENTS_ACKNOWLEDGED_TOTAL = Counter(
+    "hsi_events_acknowledged_total",
+    "Total security events acknowledged by users",
+    labelnames=["camera_name", "risk_level"],  # risk_level: low, medium, high, critical
     registry=_registry,
 )
 
@@ -920,6 +938,42 @@ class MetricsService:
     def record_event_reviewed(self) -> None:
         """Increment the events reviewed counter."""
         EVENTS_REVIEWED_TOTAL.inc()
+
+    def record_event_acknowledged(self, camera_name: str, risk_level: str) -> None:
+        """Record an event acknowledgement with camera and risk level labels (NEM-3288).
+
+        This metric tracks security events that have been acknowledged/reviewed by users,
+        providing visibility into operator engagement and response patterns.
+
+        Args:
+            camera_name: Human-readable camera name where the event occurred
+            risk_level: Risk level of the acknowledged event (low, medium, high, critical)
+
+        Note:
+            Camera names and risk levels are sanitized to prevent cardinality explosion.
+        """
+        safe_camera_name = sanitize_metric_label(camera_name, max_length=64)
+        safe_risk_level = sanitize_risk_level(risk_level)
+        EVENTS_ACKNOWLEDGED_TOTAL.labels(
+            camera_name=safe_camera_name, risk_level=safe_risk_level
+        ).inc()
+
+    def set_llm_context_utilization_ratio(self, model: str, utilization: float) -> None:
+        """Set the LLM context utilization ratio gauge (NEM-3288).
+
+        This gauge tracks the most recent context window utilization ratio for the LLM,
+        used by Grafana dashboards to monitor AI container health.
+
+        Args:
+            model: Name of the LLM model (e.g., "nemotron-mini")
+            utilization: Context utilization ratio (0.0 to 1.0+)
+                Values > 1.0 indicate the prompt exceeded the context window
+
+        Note:
+            Model names are sanitized to prevent cardinality explosion.
+        """
+        safe_model = sanitize_metric_label(model, max_length=32)
+        LLM_CONTEXT_UTILIZATION_RATIO.labels(model=safe_model).set(utilization)
 
     # -------------------------------------------------------------------------
     # Cache Metrics (NEM-1682)
@@ -1429,6 +1483,42 @@ def record_event_by_camera(camera_id: str, camera_name: str) -> None:
 def record_event_reviewed() -> None:
     """Increment the events reviewed counter."""
     EVENTS_REVIEWED_TOTAL.inc()
+
+
+def record_event_acknowledged(camera_name: str, risk_level: str) -> None:
+    """Record an event acknowledgement with camera and risk level labels (NEM-3288).
+
+    This metric tracks security events that have been acknowledged/reviewed by users,
+    providing visibility into operator engagement and response patterns.
+
+    Args:
+        camera_name: Human-readable camera name where the event occurred
+        risk_level: Risk level of the acknowledged event (low, medium, high, critical)
+
+    Note:
+        Camera names and risk levels are sanitized to prevent cardinality explosion.
+    """
+    safe_camera_name = sanitize_metric_label(camera_name, max_length=64)
+    safe_risk_level = sanitize_risk_level(risk_level)
+    EVENTS_ACKNOWLEDGED_TOTAL.labels(camera_name=safe_camera_name, risk_level=safe_risk_level).inc()
+
+
+def set_llm_context_utilization_ratio(model: str, utilization: float) -> None:
+    """Set the LLM context utilization ratio gauge (NEM-3288).
+
+    This gauge tracks the most recent context window utilization ratio for the LLM,
+    used by Grafana dashboards to monitor AI container health.
+
+    Args:
+        model: Name of the LLM model (e.g., "nemotron-mini")
+        utilization: Context utilization ratio (0.0 to 1.0+)
+            Values > 1.0 indicate the prompt exceeded the context window
+
+    Note:
+        Model names are sanitized to prevent cardinality explosion.
+    """
+    safe_model = sanitize_metric_label(model, max_length=32)
+    LLM_CONTEXT_UTILIZATION_RATIO.labels(model=safe_model).set(utilization)
 
 
 def record_queue_overflow(queue_name: str, policy: str) -> None:

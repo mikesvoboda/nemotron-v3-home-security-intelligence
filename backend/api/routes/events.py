@@ -61,7 +61,7 @@ from backend.api.utils.field_filter import (
 from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
 from backend.core.logging import get_logger, sanitize_log_value
-from backend.core.metrics import record_event_reviewed
+from backend.core.metrics import record_event_acknowledged, record_event_reviewed
 from backend.core.sanitization import sanitize_error_for_response
 from backend.core.telemetry import get_trace_id
 from backend.models.audit import AuditAction
@@ -1652,6 +1652,18 @@ async def update_event(  # noqa: PLR0912  # Allow branches for audit logging log
         except Exception as e:
             # Log but don't fail the request - metrics are non-critical
             logger.warning(f"Failed to record event_reviewed metric: {e}")
+        # Record event acknowledged metric with labels (NEM-3288)
+        # Fetch camera name for the acknowledged event metric
+        try:
+            camera_result = await db.execute(
+                select(Camera.name).where(Camera.id == event.camera_id)
+            )
+            camera_name = camera_result.scalar_one_or_none() or "unknown"
+            risk_level = event.risk_level or "unknown"
+            record_event_acknowledged(camera_name=camera_name, risk_level=risk_level)
+        except Exception as e:
+            # Log but don't fail the request - metrics are non-critical
+            logger.warning(f"Failed to record event_acknowledged metric: {e}")
     elif changes.get("reviewed", {}).get("new") is False:
         action = AuditAction.EVENT_DISMISSED
     else:
