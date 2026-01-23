@@ -368,7 +368,6 @@ __all__ = [  # noqa: RUF022
     "EventBulkUpdateItem",
     "EventBulkUpdateRequest",
     "EventEnrichmentsResponse",
-    "ActualThreatLevel",
     "EventFeedbackCreate",
     "EventFeedbackResponse",
     "EventRegistryResponse",
