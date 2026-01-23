@@ -199,9 +199,10 @@ class TestReplayStatistics:
             scores_increased_count=20,
             scores_unchanged_count=20,
         )
-        assert stats.low_percentage == 55.0
-        assert stats.medium_percentage == 35.0
-        assert stats.high_percentage == 10.0
+        import pytest
+        assert stats.low_percentage == pytest.approx(55.0)
+        assert stats.medium_percentage == pytest.approx(35.0)
+        assert stats.high_percentage == pytest.approx(10.0)
 
     def test_zero_events(self):
         """Test percentages with zero total events."""
@@ -375,8 +376,9 @@ class TestValidateDistribution:
 
         # LOW 55% is in range, MEDIUM 35% is in range
         # HIGH 10% is below target minimum (15%), but not a failure in non-strict mode
+        # A warning message is added but is_valid stays True
         assert is_valid is True
-        assert "meets all target ranges" in messages[0]
+        assert any("HIGH" in m and "below target" in m for m in messages)
 
     def test_invalid_low_percentage(self):
         """Test validation fails when LOW is too low."""

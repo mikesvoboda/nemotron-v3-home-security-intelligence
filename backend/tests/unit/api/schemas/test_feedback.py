@@ -495,6 +495,12 @@ class TestEventFeedbackResponse:
         mock_model.feedback_type = "severity_wrong"
         mock_model.notes = "Severity too high"
         mock_model.created_at = datetime.now(UTC)
+        # Set optional calibration fields to None (NEM-3330)
+        mock_model.actual_threat_level = None
+        mock_model.suggested_score = None
+        mock_model.actual_identity = None
+        mock_model.what_was_wrong = None
+        mock_model.model_failures = None
 
         response = EventFeedbackResponse.model_validate(mock_model)
 

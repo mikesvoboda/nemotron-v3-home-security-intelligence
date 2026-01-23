@@ -1392,15 +1392,17 @@ class TestValidateAndCleanVQAOutput:
         result = validate_and_clean_vqa_output("  blue sedan  ")
         assert result == "blue sedan"
 
-    def test_cleans_loc_tokens_then_validates(self) -> None:
-        """Test cleaning of loc tokens followed by validation."""
+    def test_rejects_text_with_loc_tokens(self) -> None:
+        """Test that any text containing loc tokens is rejected (NEM-3304)."""
         from backend.services.vision_extractor import validate_and_clean_vqa_output
 
-        # Text with loc tokens - should be cleaned and validated
+        # Text with loc tokens - should be rejected entirely per NEM-3304
+        # Even valid text before loc tokens is rejected because loc tokens
+        # indicate a failed VQA response
         result = validate_and_clean_vqa_output("dark hoodie and jeans<loc_100><loc_200>")
-        assert result == "dark hoodie and jeans"
+        assert result is None
 
-        # Only loc tokens - should return None (invalid after cleaning)
+        # Only loc tokens - should return None
         result = validate_and_clean_vqa_output("<loc_95><loc_86><loc_901><loc_918>")
         assert result is None
 
@@ -1414,9 +1416,9 @@ class TestValidateAndCleanVQAOutput:
         )
         assert result is None
 
-        # VQA prefix with question and answer
+        # VQA prefix without loc tokens - rejected due to VQA> pattern
         result = validate_and_clean_vqa_output("VQA>What is the color?Blue sedan")
-        assert result == "Blue sedan"
+        assert result is None
 
     def test_returns_none_for_empty_after_cleaning(self) -> None:
         """Test that outputs that become empty after cleaning return None."""
