@@ -5,8 +5,8 @@ This migration adds:
 2. Partition management functions for time-series data
 3. Views and helper functions for partition maintenance
 
-Revision ID: g7h8i9j0k1l2
-Revises: f1231ed7e32d
+Revision ID: h8i9j0k1l2m3
+Revises: g7h8i9j0k1l2
 Create Date: 2026-01-23 12:00:00.000000
 
 """
@@ -18,8 +18,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "g7h8i9j0k1l2"
-down_revision: str | None = "f1231ed7e32d"
+revision: str = "h8i9j0k1l2m3"
+down_revision: str | None = "g7h8i9j0k1l2"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
