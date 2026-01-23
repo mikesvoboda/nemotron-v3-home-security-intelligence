@@ -7895,6 +7895,17 @@ export interface components {
             total_samples: number;
         };
         /**
+         * ActualThreatLevel
+         * @description User's assessment of the actual threat level.
+         *
+         *     Values:
+         *         NO_THREAT: No threat at all (e.g., household member, pet)
+         *         MINOR_CONCERN: Worth noting but not alarming
+         *         GENUINE_THREAT: Real security concern
+         * @enum {string}
+         */
+        ActualThreatLevel: "no_threat" | "minor_concern" | "genuine_threat";
+        /**
          * AddEmbeddingRequest
          * @description Schema for adding a person embedding from an event.
          * @example {
@@ -13903,13 +13914,28 @@ export interface components {
          * @description Schema for creating event feedback.
          *
          *     Used when submitting user feedback about an event's classification.
+         *     Enhanced with calibration fields for Nemotron prompt improvement (NEM-3330).
          * @example {
+         *       "actual_identity": "Mike (neighbor)",
+         *       "actual_threat_level": "no_threat",
          *       "event_id": 123,
          *       "feedback_type": "false_positive",
-         *       "notes": "This was my neighbor's car, not a threat."
+         *       "model_failures": [
+         *         "reid_model"
+         *       ],
+         *       "notes": "This was my neighbor's car, not a threat.",
+         *       "suggested_score": 10,
+         *       "what_was_wrong": "Re-ID should have matched this person"
          *     }
          */
         EventFeedbackCreate: {
+            /**
+             * Actual Identity
+             * @description Identity correction for household member learning (e.g., 'Mike (neighbor)')
+             */
+            actual_identity?: string | null;
+            /** @description User's assessment of true threat level (no_threat, minor_concern, genuine_threat) */
+            actual_threat_level?: components["schemas"]["ActualThreatLevel"] | null;
             /**
              * Event Id
              * @description ID of the event this feedback is for
@@ -13918,25 +13944,58 @@ export interface components {
             /** @description Type of feedback (accurate, false_positive, missed_threat, severity_wrong) */
             feedback_type: components["schemas"]["FeedbackType"];
             /**
+             * Model Failures
+             * @description List of specific AI models that failed (e.g., ['florence_vqa', 'pose_model'])
+             */
+            model_failures?: string[] | null;
+            /**
              * Notes
              * @description Optional notes explaining the feedback
              */
             notes?: string | null;
+            /**
+             * Suggested Score
+             * @description What the user thinks the risk score should have been (0-100)
+             */
+            suggested_score?: number | null;
+            /**
+             * What Was Wrong
+             * @description Detailed explanation of what the AI got wrong
+             */
+            what_was_wrong?: string | null;
         };
         /**
          * EventFeedbackResponse
          * @description Schema for event feedback response.
          *
          *     Returned when retrieving feedback for an event.
+         *     Enhanced with calibration fields for Nemotron prompt improvement (NEM-3330).
          * @example {
+         *       "actual_identity": "Mike (neighbor)",
+         *       "actual_threat_level": "no_threat",
          *       "created_at": "2025-01-01T12:00:00Z",
          *       "event_id": 123,
          *       "feedback_type": "false_positive",
          *       "id": 1,
-         *       "notes": "This was my neighbor's car, not a threat."
+         *       "model_failures": [
+         *         "reid_model"
+         *       ],
+         *       "notes": "This was my neighbor's car, not a threat.",
+         *       "suggested_score": 10,
+         *       "what_was_wrong": "Re-ID should have matched this person"
          *     }
          */
         EventFeedbackResponse: {
+            /**
+             * Actual Identity
+             * @description Identity correction for household member learning
+             */
+            actual_identity?: string | null;
+            /**
+             * Actual Threat Level
+             * @description User's assessment of true threat level
+             */
+            actual_threat_level?: components["schemas"]["ActualThreatLevel"] | string | null;
             /**
              * Created At
              * Format: date-time
@@ -13959,10 +14018,25 @@ export interface components {
              */
             id: number;
             /**
+             * Model Failures
+             * @description List of specific AI models that failed
+             */
+            model_failures?: string[] | null;
+            /**
              * Notes
              * @description Optional notes from user
              */
             notes?: string | null;
+            /**
+             * Suggested Score
+             * @description What user thinks score should have been (0-100)
+             */
+            suggested_score?: number | null;
+            /**
+             * What Was Wrong
+             * @description Detailed explanation of what AI got wrong
+             */
+            what_was_wrong?: string | null;
         };
         /**
          * EventListResponse
