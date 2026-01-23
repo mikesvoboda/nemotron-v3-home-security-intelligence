@@ -514,6 +514,16 @@
         "title": "ActivityBaselineResponse",
         "type": "object"
       },
+      "ActualThreatLevel": {
+        "description": "User's assessment of the actual threat level.\n\nValues:\n    NO_THREAT: No threat at all (e.g., household member, pet)\n    MINOR_CONCERN: Worth noting but not alarming\n    GENUINE_THREAT: Real security concern",
+        "enum": [
+          "no_threat",
+          "minor_concern",
+          "genuine_threat"
+        ],
+        "title": "ActualThreatLevel",
+        "type": "string"
+      },
       "AddEmbeddingRequest": {
         "description": "Schema for adding a person embedding from an event.",
         "example": {
@@ -9091,13 +9101,44 @@
         "type": "object"
       },
       "EventFeedbackCreate": {
-        "description": "Schema for creating event feedback.\n\nUsed when submitting user feedback about an event's classification.",
+        "description": "Schema for creating event feedback.\n\nUsed when submitting user feedback about an event's classification.\nEnhanced with calibration fields for Nemotron prompt improvement (NEM-3330).",
         "example": {
+          "actual_identity": "Mike (neighbor)",
+          "actual_threat_level": "no_threat",
           "event_id": 123,
           "feedback_type": "false_positive",
-          "notes": "This was my neighbor's car, not a threat."
+          "model_failures": [
+            "reid_model"
+          ],
+          "notes": "This was my neighbor's car, not a threat.",
+          "suggested_score": 10,
+          "what_was_wrong": "Re-ID should have matched this person"
         },
         "properties": {
+          "actual_identity": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Identity correction for household member learning (e.g., 'Mike (neighbor)')",
+            "title": "Actual Identity"
+          },
+          "actual_threat_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActualThreatLevel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "User's assessment of true threat level (no_threat, minor_concern, genuine_threat)"
+          },
           "event_id": {
             "description": "ID of the event this feedback is for",
             "exclusiveMinimum": 0.0,
@@ -9107,6 +9148,21 @@
           "feedback_type": {
             "$ref": "#/components/schemas/FeedbackType",
             "description": "Type of feedback (accurate, false_positive, missed_threat, severity_wrong)"
+          },
+          "model_failures": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "List of specific AI models that failed (e.g., ['florence_vqa', 'pose_model'])",
+            "title": "Model Failures"
           },
           "notes": {
             "anyOf": [
@@ -9120,6 +9176,33 @@
             ],
             "description": "Optional notes explaining the feedback",
             "title": "Notes"
+          },
+          "suggested_score": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the user thinks the risk score should have been (0-100)",
+            "title": "Suggested Score"
+          },
+          "what_was_wrong": {
+            "anyOf": [
+              {
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Detailed explanation of what the AI got wrong",
+            "title": "What Was Wrong"
           }
         },
         "required": [
@@ -9130,15 +9213,49 @@
         "type": "object"
       },
       "EventFeedbackResponse": {
-        "description": "Schema for event feedback response.\n\nReturned when retrieving feedback for an event.",
+        "description": "Schema for event feedback response.\n\nReturned when retrieving feedback for an event.\nEnhanced with calibration fields for Nemotron prompt improvement (NEM-3330).",
         "example": {
+          "actual_identity": "Mike (neighbor)",
+          "actual_threat_level": "no_threat",
           "created_at": "2025-01-01T12:00:00Z",
           "event_id": 123,
           "feedback_type": "false_positive",
           "id": 1,
-          "notes": "This was my neighbor's car, not a threat."
+          "model_failures": [
+            "reid_model"
+          ],
+          "notes": "This was my neighbor's car, not a threat.",
+          "suggested_score": 10,
+          "what_was_wrong": "Re-ID should have matched this person"
         },
         "properties": {
+          "actual_identity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Identity correction for household member learning",
+            "title": "Actual Identity"
+          },
+          "actual_threat_level": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActualThreatLevel"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "User's assessment of true threat level",
+            "title": "Actual Threat Level"
+          },
           "created_at": {
             "description": "When feedback was submitted",
             "format": "date-time",
@@ -9167,6 +9284,21 @@
             "title": "Id",
             "type": "integer"
           },
+          "model_failures": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "List of specific AI models that failed",
+            "title": "Model Failures"
+          },
           "notes": {
             "anyOf": [
               {
@@ -9178,6 +9310,30 @@
             ],
             "description": "Optional notes from user",
             "title": "Notes"
+          },
+          "suggested_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What user thinks score should have been (0-100)",
+            "title": "Suggested Score"
+          },
+          "what_was_wrong": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Detailed explanation of what AI got wrong",
+            "title": "What Was Wrong"
           }
         },
         "required": [

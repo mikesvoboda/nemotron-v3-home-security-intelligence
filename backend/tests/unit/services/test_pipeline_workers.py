@@ -22,7 +22,6 @@ import pytest
 
 from backend.core.redis import RedisClient
 from backend.services.batch_aggregator import BatchAggregator
-from backend.services.detector_client import DetectorClient
 from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.services.pipeline_workers import (
     AnalysisQueueWorker,
@@ -197,8 +196,13 @@ def mock_redis_client():
 
 @pytest.fixture
 def mock_detector_client():
-    """Create a mock detector client."""
-    client = MagicMock(spec=DetectorClient)
+    """Create a mock detector client.
+
+    Note: We don't use spec=DetectorClient because DetectorClient has
+    TYPE_CHECKING-only imports (FrameBuffer) that cause NameError when
+    Python 3.14's inspect.signature tries to resolve type annotations.
+    """
+    client = MagicMock()
     client.detect_objects = AsyncMock(return_value=[])
     client.health_check = AsyncMock(return_value=True)
     return client

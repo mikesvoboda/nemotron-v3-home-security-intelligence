@@ -88,7 +88,6 @@ from backend.services.enrichment_pipeline import (
     EnrichmentStatus,
     EnrichmentTrackingResult,
 )
-from backend.services.household_matcher import HouseholdMatch
 from backend.services.prompt_sanitizer import (
     sanitize_camera_name,
     sanitize_detection_description,
@@ -227,6 +226,9 @@ class NemotronAnalyzer:
 
         # Prompt Experiment support (NEM-3023)
         self._experiment_config: Any | None = None  # PromptExperimentConfig when configured
+
+        # A/B Rollout Manager support (NEM-3338)
+        self._rollout_manager: Any | None = None  # ABRolloutManager when configured
 
         logger.debug(
             f"NemotronAnalyzer initialized with max_retries={self._max_retries}, "
@@ -558,6 +560,201 @@ class NemotronAnalyzer:
                 "latency_ms": latency_ms,
             },
         )
+
+    # =========================================================================
+    # A/B Rollout Manager Support (NEM-3338)
+    # =========================================================================
+
+    def set_rollout_manager(self, manager: Any) -> None:
+        """Set the A/B rollout manager for experiment orchestration.
+
+        The rollout manager handles:
+        - Camera-to-group assignment (control vs treatment)
+        - Metrics collection per group
+        - Auto-rollback based on performance thresholds
+
+        Args:
+            manager: ABRolloutManager instance
+
+        Raises:
+            TypeError: If manager is not an ABRolloutManager instance
+        """
+        from backend.config.prompt_ab_rollout import ABRolloutManager
+
+        if not isinstance(manager, ABRolloutManager):
+            raise TypeError("manager must be an ABRolloutManager instance")
+
+        self._rollout_manager = manager
+        logger.info(
+            f"A/B rollout manager configured: "
+            f"experiment={manager.rollout_config.experiment_name}, "
+            f"treatment={manager.rollout_config.treatment_percentage:.0%}, "
+            f"active={manager.is_active}"
+        )
+
+    def get_rollout_manager(self) -> Any | None:
+        """Get the configured rollout manager.
+
+        Returns:
+            ABRolloutManager instance if configured, None otherwise
+        """
+        return self._rollout_manager
+
+    def get_experiment_group(self, camera_id: str) -> Any:
+        """Get the experiment group for a camera.
+
+        Uses the rollout manager to determine which group (control or treatment)
+        the camera belongs to. Assignment is consistent based on camera_id hash.
+
+        Args:
+            camera_id: Camera identifier
+
+        Returns:
+            ExperimentGroup.CONTROL or ExperimentGroup.TREATMENT
+
+        Raises:
+            RuntimeError: If no rollout manager is configured
+        """
+        if self._rollout_manager is None:
+            raise RuntimeError("No rollout manager configured")
+
+        return self._rollout_manager.get_group_for_camera(camera_id)
+
+    def get_prompt_version_for_rollout(self, camera_id: str) -> Any:
+        """Get the prompt version to use based on rollout experiment group.
+
+        Control group uses V1_ORIGINAL, treatment group uses V2_CALIBRATED.
+
+        Args:
+            camera_id: Camera identifier
+
+        Returns:
+            PromptVersion.V1_ORIGINAL or PromptVersion.V2_CALIBRATED
+        """
+        from backend.config.prompt_ab_rollout import ExperimentGroup
+        from backend.config.prompt_experiment import PromptVersion
+
+        if self._rollout_manager is None:
+            return PromptVersion.V1_ORIGINAL
+
+        group = self._rollout_manager.get_group_for_camera(camera_id)
+        if group == ExperimentGroup.TREATMENT:
+            return PromptVersion.V2_CALIBRATED
+        return PromptVersion.V1_ORIGINAL
+
+    def record_rollout_analysis(
+        self,
+        camera_id: str,
+        latency_ms: float | None = None,
+        risk_score: int | None = None,
+        has_error: bool = False,
+    ) -> None:
+        """Record analysis metrics for the rollout experiment.
+
+        Automatically routes metrics to the correct group based on camera_id.
+
+        Args:
+            camera_id: Camera identifier (determines group)
+            latency_ms: Optional analysis latency in milliseconds
+            risk_score: Optional risk score from analysis
+            has_error: Whether the analysis resulted in an error
+        """
+        if self._rollout_manager is None:
+            return
+
+        from backend.config.prompt_ab_rollout import ExperimentGroup
+
+        group = self._rollout_manager.get_group_for_camera(camera_id)
+        if group == ExperimentGroup.CONTROL:
+            self._rollout_manager.record_control_analysis(
+                latency_ms=latency_ms,
+                risk_score=risk_score,
+                has_error=has_error,
+            )
+        else:
+            self._rollout_manager.record_treatment_analysis(
+                latency_ms=latency_ms,
+                risk_score=risk_score,
+                has_error=has_error,
+            )
+
+    def record_rollout_feedback(
+        self,
+        camera_id: str,
+        is_false_positive: bool,
+    ) -> None:
+        """Record feedback for the rollout experiment.
+
+        Automatically routes feedback to the correct group based on camera_id.
+
+        Args:
+            camera_id: Camera identifier (determines group)
+            is_false_positive: Whether the feedback indicates a false positive
+        """
+        if self._rollout_manager is None:
+            return
+
+        from backend.config.prompt_ab_rollout import ExperimentGroup
+
+        group = self._rollout_manager.get_group_for_camera(camera_id)
+        if group == ExperimentGroup.CONTROL:
+            self._rollout_manager.record_control_feedback(is_false_positive)
+        else:
+            self._rollout_manager.record_treatment_feedback(is_false_positive)
+
+    def check_rollout_rollback(self) -> Any:
+        """Check if the rollout experiment should be rolled back.
+
+        Evaluates auto-rollback conditions based on:
+        - FP rate increase
+        - Latency increase
+        - Error rate increase
+
+        Returns:
+            RollbackCheckResult with should_rollback and reason
+
+        Raises:
+            RuntimeError: If no rollout manager is configured
+        """
+        if self._rollout_manager is None:
+            from backend.config.prompt_ab_rollout import RollbackCheckResult
+
+            return RollbackCheckResult(
+                should_rollback=False, reason="No rollout manager configured"
+            )
+
+        return self._rollout_manager.check_rollback_needed()
+
+    def execute_rollout_rollback(self) -> None:
+        """Execute rollback by stopping the experiment.
+
+        Should be called when check_rollout_rollback returns should_rollback=True.
+        Stops the experiment and logs the rollback event.
+        """
+        if self._rollout_manager is None:
+            return
+
+        from backend.core.metrics import record_prompt_rollback
+
+        self._rollout_manager.stop()
+        record_prompt_rollback("nemotron", "ab_rollout_failure")
+        logger.warning(
+            f"A/B rollout experiment stopped: "
+            f"{self._rollout_manager.rollout_config.experiment_name}"
+        )
+
+    def get_rollout_summary(self) -> dict[str, Any]:
+        """Get a summary of rollout experiment metrics.
+
+        Returns:
+            Dictionary with metrics for control and treatment groups,
+            or empty dict if no rollout manager configured
+        """
+        if self._rollout_manager is None:
+            return {}
+
+        result: dict[str, Any] = self._rollout_manager.get_metrics_summary()
+        return result
 
     def _get_facade(self) -> AnalyzerServiceFacade:
         """Get the service facade, creating global singleton if needed.
@@ -909,71 +1106,38 @@ class NemotronAnalyzer:
 
     async def _get_household_context(
         self,
-        detections_data: list[dict[str, Any]],  # noqa: ARG002 - Reserved for person embedding matching
+        detections_data: list[dict[str, Any]],  # noqa: ARG002 - Reserved for future expansion
         enrichment_result: EnrichmentResult | None,
     ) -> str:
-        """Match detections against household members and vehicles (NEM-3024).
+        """Format household matching results for prompt injection (NEM-3024, NEM-3314).
 
-        This method performs household matching to identify known persons
-        and vehicles in the current detections. Matches are formatted into
-        context that is injected into the Nemotron prompt to reduce risk
-        scores for recognized household members and registered vehicles.
+        This method retrieves pre-computed household matches from the enrichment
+        pipeline and formats them into context for the Nemotron prompt. Matching
+        is now performed during enrichment (NEM-3314) rather than here to avoid
+        duplicate database queries and to ensure matches are available earlier
+        in the pipeline.
 
-        Matching Logic:
-        - Vehicles: Uses license plate texts from enrichment_result.license_plates
-        - Persons: Currently uses a placeholder - full embedding matching will be
-          added when person re-ID embeddings are integrated into the enrichment flow
+        Matching is performed in EnrichmentPipeline._run_household_matching():
+        - Persons: Matched via embeddings from person_embeddings against HouseholdMember
+        - Vehicles: Matched via license plate text against registered vehicles
 
         Args:
-            detections_data: List of detection data dictionaries
-            enrichment_result: Results from enrichment pipeline (contains license plates)
+            detections_data: List of detection data dictionaries (reserved for future use)
+            enrichment_result: Results from enrichment pipeline (contains household matches)
 
         Returns:
             Formatted household context string, or empty string if no matches.
         """
         from datetime import UTC, datetime
 
-        person_matches: list[HouseholdMatch] = []
-        vehicle_matches: list[HouseholdMatch] = []
-
         # Early exit if no enrichment result
         if enrichment_result is None:
             return ""
 
-        # Get the household matcher via facade (NEM-3150)
-        matcher = self._get_facade().get_household_matcher()
-
-        # Use a new session for household matching queries
-        async with get_session() as session:
-            # Match vehicles by license plate
-            if enrichment_result.has_readable_plates:
-                for plate_result in enrichment_result.license_plates:
-                    if plate_result.text:
-                        # Try to match the plate against registered vehicles
-                        match = await matcher.match_vehicle(
-                            license_plate=plate_result.text,
-                            vehicle_embedding=None,  # No embedding matching for now
-                            vehicle_type="car",  # Default type
-                            color=None,
-                            session=session,
-                        )
-                        if match:
-                            vehicle_matches.append(match)
-                            logger.debug(
-                                "Vehicle matched by license plate",
-                                extra={
-                                    "plate": plate_result.text,
-                                    "vehicle_description": match.vehicle_description,
-                                },
-                            )
-
-            # TODO (NEM-3024): Add person embedding matching when re-ID embeddings
-            # are integrated into the enrichment pipeline. For now, this is a
-            # placeholder that can be expanded when embeddings are available.
-            # Person matching would involve:
-            # 1. Extract embeddings from person re-ID results
-            # 2. Call matcher.match_person(embedding, session) for each person
-            # 3. Append matches to person_matches list
+        # Get household matches from enrichment result (NEM-3314)
+        # Matching is now performed during enrichment to avoid duplicate DB queries
+        person_matches = enrichment_result.person_household_matches
+        vehicle_matches = enrichment_result.vehicle_household_matches
 
         # Format the household context if any matches were found
         if person_matches or vehicle_matches:
@@ -2441,22 +2605,54 @@ class NemotronAnalyzer:
                 detections_list=detections_list,
             )
 
-        # Inject household context if available (NEM-3024)
+        # Inject household context if available (NEM-3024, NEM-3315)
         # This provides known person/vehicle matches that should reduce risk scores
-        # Household context should come BEFORE auto-tuning since risk modifiers
-        # need to be applied first
+        # NEM-3315: Household context must appear at the TOP of the user prompt,
+        # right after the SCORING REFERENCE table, before EVENT CONTEXT/DETECTIONS
         if household_context:
-            # Insert before the assistant turn marker
-            # Prompts end with: <|im_end|>\n<|im_start|>assistant
-            assistant_marker = "<|im_start|>assistant"
-            if assistant_marker in prompt:
+            # Find the ## EVENT CONTEXT section and insert household context before it
+            event_context_marker = "## EVENT CONTEXT"
+            if event_context_marker in prompt:
                 prompt = prompt.replace(
-                    assistant_marker,
-                    f"\n{household_context}\n{assistant_marker}",
+                    event_context_marker,
+                    f"{household_context}\n\n{event_context_marker}",
                 )
             else:
-                # Fallback: append to end (shouldn't happen with standard prompts)
-                prompt = f"{prompt}\n{household_context}"
+                # Fallback: Insert after SCORING REFERENCE table if EVENT CONTEXT not found
+                scoring_ref_marker = "## SCORING REFERENCE"
+                if scoring_ref_marker in prompt:
+                    # Find the end of the SCORING REFERENCE section (look for next ## or newline gap)
+                    # Insert after the table ends
+                    idx = prompt.find(scoring_ref_marker)
+                    # Find the next double newline after the marker (end of table)
+                    table_end = prompt.find("\n\n", idx + len(scoring_ref_marker))
+                    if table_end != -1:
+                        prompt = (
+                            prompt[: table_end + 2]
+                            + household_context
+                            + "\n\n"
+                            + prompt[table_end + 2 :]
+                        )
+                    else:
+                        # Final fallback: append before assistant marker
+                        assistant_marker = "<|im_start|>assistant"
+                        if assistant_marker in prompt:
+                            prompt = prompt.replace(
+                                assistant_marker,
+                                f"\n{household_context}\n{assistant_marker}",
+                            )
+                        else:
+                            prompt = f"{prompt}\n{household_context}"
+                else:
+                    # Very last fallback: append before assistant marker
+                    assistant_marker = "<|im_start|>assistant"
+                    if assistant_marker in prompt:
+                        prompt = prompt.replace(
+                            assistant_marker,
+                            f"\n{household_context}\n{assistant_marker}",
+                        )
+                    else:
+                        prompt = f"{prompt}\n{household_context}"
 
         # Inject auto-tuning context if available (NEM-3015)
         # This provides historical recommendations from self-evaluation to improve analysis

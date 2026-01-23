@@ -56,6 +56,7 @@ from backend.core.redis import RedisClient
 from backend.core.telemetry import add_span_attributes, get_tracer, record_exception
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
+from backend.services.frame_buffer import FrameBuffer, get_frame_buffer
 from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.services.retry_handler import RetryConfig, RetryHandler
 from backend.services.video_processor import VideoProcessor
@@ -223,6 +224,7 @@ class DetectionQueueWorker:
         batch_aggregator: BatchAggregator | None = None,
         video_processor: VideoProcessor | None = None,
         retry_handler: RetryHandler | None = None,
+        frame_buffer: FrameBuffer | None = None,
         queue_name: str = DETECTION_QUEUE,
         poll_timeout: int = 5,
         stop_timeout: float = 10.0,
@@ -235,13 +237,17 @@ class DetectionQueueWorker:
             batch_aggregator: Aggregator for batching detections. If None, will be created.
             video_processor: Processor for video frame extraction. If None, will be created.
             retry_handler: Handler for retry logic and DLQ. If None, will be created.
+            frame_buffer: FrameBuffer for accumulating frames for X-CLIP temporal action
+                recognition. If None, will use the global singleton. Pass explicitly for testing.
             queue_name: Name of the Redis queue to consume from
             poll_timeout: Timeout in seconds for BLPOP (allows checking shutdown signal)
             stop_timeout: Timeout in seconds for graceful stop before force cancel
         """
         settings = get_settings()
         self._redis = redis_client
-        self._detector = detector_client or DetectorClient()
+        # Use provided frame_buffer or get the global singleton for X-CLIP integration
+        self._frame_buffer = frame_buffer if frame_buffer is not None else get_frame_buffer()
+        self._detector = detector_client or DetectorClient(frame_buffer=self._frame_buffer)
         self._aggregator = batch_aggregator or BatchAggregator(redis_client=redis_client)
         self._video_processor = video_processor or VideoProcessor(
             output_dir=settings.video_thumbnails_dir
@@ -1219,6 +1225,7 @@ class PipelineWorkerManager:
         redis_client: RedisClient,
         detector_client: DetectorClient | None = None,
         analyzer: NemotronAnalyzer | None = None,
+        frame_buffer: FrameBuffer | None = None,
         enable_detection_worker: bool = True,
         enable_analysis_worker: bool = True,
         enable_timeout_worker: bool = True,
@@ -1232,6 +1239,8 @@ class PipelineWorkerManager:
             redis_client: Redis client for queue operations
             detector_client: Optional DetectorClient instance
             analyzer: Optional NemotronAnalyzer instance
+            frame_buffer: FrameBuffer for accumulating frames for X-CLIP temporal action
+                recognition. If None, workers will use the global singleton.
             enable_detection_worker: Whether to start detection queue worker
             enable_analysis_worker: Whether to start analysis queue worker
             enable_timeout_worker: Whether to start batch timeout worker
@@ -1243,6 +1252,7 @@ class PipelineWorkerManager:
         """
         self._redis = redis_client
         self._websocket_emitter = websocket_emitter
+        self._frame_buffer = frame_buffer
         settings = get_settings()
 
         # Create shared batch aggregator for detection and timeout workers
@@ -1263,6 +1273,7 @@ class PipelineWorkerManager:
                     redis_client=redis_client,
                     detector_client=detector_client,
                     batch_aggregator=self._aggregator,
+                    frame_buffer=self._frame_buffer,
                     stop_timeout=worker_stop_timeout,
                 )
             else:
@@ -1270,6 +1281,7 @@ class PipelineWorkerManager:
                     redis_client=redis_client,
                     detector_client=detector_client,
                     batch_aggregator=self._aggregator,
+                    frame_buffer=self._frame_buffer,
                 )
 
         if enable_analysis_worker:

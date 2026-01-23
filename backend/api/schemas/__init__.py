@@ -131,6 +131,7 @@ from .export import (
     ExportTypeEnum,
 )
 from .feedback import (
+    ActualThreatLevel,
     EventFeedbackCreate,
     EventFeedbackResponse,
     FeedbackStatsResponse,
@@ -245,6 +246,7 @@ __all__ = [
     "AccessSchedule",
     "ActivityBaselineEntry",
     "ActivityBaselineResponse",
+    "ActualThreatLevel",
     "AlertCreate",
     "AlertListResponse",
     "AlertResponse",

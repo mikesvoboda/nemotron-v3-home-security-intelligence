@@ -18,6 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
+import pytest
+
 from backend.services.prompts import (
     CALIBRATED_SYSTEM_PROMPT,
     ENRICHED_RISK_ANALYSIS_PROMPT,
@@ -33,18 +35,27 @@ from backend.services.prompts import (
     VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
     ClassAnomalyResult,
     build_summary_prompt,
+    # Household context functions (NEM-3024, NEM-3315)
+    check_member_schedule,
+    # Other format functions
     format_action_recognition_context,
     format_class_anomaly_context,
     format_clothing_analysis_context,
     format_depth_context,
     format_detections_with_all_enrichment,
+    # VQA validation functions (NEM-3304)
+    format_florence_attributes,
+    format_household_context,
     format_image_quality_context,
     format_pet_classification_context,
     format_pose_analysis_context,
+    format_temporal_action_context,
     format_vehicle_classification_context,
     format_vehicle_damage_context,
     format_violence_context,
     format_weather_context,
+    is_valid_vqa_output,
+    validate_and_clean_vqa_output,
 )
 
 # =============================================================================
@@ -889,6 +900,223 @@ class TestFormatActionRecognitionContext:
         result = format_action_recognition_context(actions)
 
         assert "standing" in result
+
+
+# =============================================================================
+# Test Classes for Format Functions - Temporal Action Context (X-CLIP)
+# =============================================================================
+
+
+class TestFormatTemporalActionContext:
+    """Tests for format_temporal_action_context function (X-CLIP temporal action recognition)."""
+
+    def test_none_action_result_returns_empty_string(self) -> None:
+        """Test that None action result returns empty string."""
+        result = format_temporal_action_context(None)
+        assert result == ""
+
+    def test_empty_dict_returns_empty_string(self) -> None:
+        """Test that empty dict returns empty string (no detected_action)."""
+        result = format_temporal_action_context({})
+        assert result == ""
+
+    def test_low_confidence_returns_empty_string(self) -> None:
+        """Test that low confidence (< 50%) returns empty string."""
+        action_result = {"detected_action": "loitering", "confidence": 0.49}
+        result = format_temporal_action_context(action_result)
+        assert result == ""
+
+    def test_exactly_50_percent_confidence_included(self) -> None:
+        """Test that exactly 50% confidence is included (not excluded)."""
+        action_result = {"detected_action": "loitering", "confidence": 0.50}
+        result = format_temporal_action_context(action_result)
+        assert "loitering" in result
+        assert "50%" in result
+
+    def test_loitering_action_with_risk_modifier(self) -> None:
+        """Test formatting for loitering action with risk modifier."""
+        action_result = {"detected_action": "loitering", "confidence": 0.78}
+        result = format_temporal_action_context(action_result)
+
+        assert "## BEHAVIORAL ANALYSIS (Temporal)" in result
+        assert "loitering" in result
+        assert "78%" in result
+        assert "+15 points" in result
+        assert "suspicious lingering behavior" in result
+
+    def test_approaching_door_action(self) -> None:
+        """Test formatting for approaching_door action."""
+        action_result = {"detected_action": "approaching_door", "confidence": 0.85}
+        result = format_temporal_action_context(action_result)
+
+        assert "approaching_door" in result
+        assert "85%" in result
+        assert "+10 points" in result
+        assert "approach detected" in result
+
+    def test_running_away_action(self) -> None:
+        """Test formatting for running_away action with high risk modifier."""
+        action_result = {"detected_action": "running_away", "confidence": 0.72}
+        result = format_temporal_action_context(action_result)
+
+        assert "running_away" in result
+        assert "72%" in result
+        assert "+20 points" in result
+        assert "fleeing behavior" in result
+
+    def test_checking_car_doors_action(self) -> None:
+        """Test formatting for checking_car_doors action."""
+        action_result = {"detected_action": "checking_car_doors", "confidence": 0.81}
+        result = format_temporal_action_context(action_result)
+
+        assert "checking_car_doors" in result
+        assert "81%" in result
+        assert "+25 points" in result
+        assert "vehicle tampering indicator" in result
+
+    def test_suspicious_behavior_action(self) -> None:
+        """Test formatting for suspicious_behavior action."""
+        action_result = {"detected_action": "suspicious_behavior", "confidence": 0.67}
+        result = format_temporal_action_context(action_result)
+
+        assert "suspicious_behavior" in result
+        assert "67%" in result
+        assert "+20 points" in result
+        assert "unusual activity" in result
+
+    def test_breaking_in_action(self) -> None:
+        """Test formatting for breaking_in action with highest risk modifier."""
+        action_result = {"detected_action": "breaking_in", "confidence": 0.91}
+        result = format_temporal_action_context(action_result)
+
+        assert "breaking_in" in result
+        assert "91%" in result
+        assert "+40 points" in result
+        assert "intrusion indicator" in result
+
+    def test_vandalism_action(self) -> None:
+        """Test formatting for vandalism action."""
+        action_result = {"detected_action": "vandalism", "confidence": 0.74}
+        result = format_temporal_action_context(action_result)
+
+        assert "vandalism" in result
+        assert "74%" in result
+        assert "+35 points" in result
+        assert "property damage indicator" in result
+
+    def test_duration_formatting_when_provided(self) -> None:
+        """Test that duration is formatted when provided."""
+        action_result = {"detected_action": "loitering", "confidence": 0.78}
+        result = format_temporal_action_context(action_result, duration_seconds=25.0)
+
+        assert "Duration: ~25 seconds across frames" in result
+
+    def test_duration_not_shown_when_none(self) -> None:
+        """Test that duration line is not shown when None."""
+        action_result = {"detected_action": "loitering", "confidence": 0.78}
+        result = format_temporal_action_context(action_result, duration_seconds=None)
+
+        assert "Duration:" not in result
+
+    def test_action_alias_normalization_loitering(self) -> None:
+        """Test X-CLIP prompt variation alias for loitering."""
+        action_result = {"detected_action": "a person loitering", "confidence": 0.65}
+        result = format_temporal_action_context(action_result)
+
+        assert "a person loitering" in result
+        assert "+15 points" in result  # Maps to loitering risk modifier
+
+    def test_action_alias_normalization_approaching_door(self) -> None:
+        """Test X-CLIP prompt variation alias for approaching door."""
+        action_result = {"detected_action": "a person approaching a door", "confidence": 0.70}
+        result = format_temporal_action_context(action_result)
+
+        assert "a person approaching a door" in result
+        assert "+10 points" in result  # Maps to approaching_door risk modifier
+
+    def test_action_alias_normalization_running_away(self) -> None:
+        """Test X-CLIP prompt variation alias for running away."""
+        action_result = {"detected_action": "a person running away", "confidence": 0.88}
+        result = format_temporal_action_context(action_result)
+
+        assert "a person running away" in result
+        assert "+20 points" in result  # Maps to running_away risk modifier
+
+    def test_action_alias_normalization_suspicious(self) -> None:
+        """Test X-CLIP prompt variation alias for suspicious behavior."""
+        action_result = {
+            "detected_action": "a person looking around suspiciously",
+            "confidence": 0.60,
+        }
+        result = format_temporal_action_context(action_result)
+
+        assert "a person looking around suspiciously" in result
+        assert "+20 points" in result  # Maps to suspicious_behavior risk modifier
+
+    def test_action_alias_normalization_door_handle(self) -> None:
+        """Test X-CLIP prompt variation alias for trying door handle."""
+        action_result = {"detected_action": "a person trying a door handle", "confidence": 0.75}
+        result = format_temporal_action_context(action_result)
+
+        assert "a person trying a door handle" in result
+        assert "+25 points" in result  # Maps to checking_car_doors risk modifier
+
+    def test_action_alias_normalization_vandalism(self) -> None:
+        """Test X-CLIP prompt variation alias for vandalizing property."""
+        action_result = {"detected_action": "a person vandalizing property", "confidence": 0.82}
+        result = format_temporal_action_context(action_result)
+
+        assert "a person vandalizing property" in result
+        assert "+35 points" in result  # Maps to vandalism risk modifier
+
+    def test_action_alias_normalization_breaking_in(self) -> None:
+        """Test X-CLIP prompt variation alias for breaking in."""
+        action_result = {"detected_action": "a person breaking in", "confidence": 0.93}
+        result = format_temporal_action_context(action_result)
+
+        assert "a person breaking in" in result
+        assert "+40 points" in result  # Maps to breaking_in risk modifier
+
+    def test_unknown_action_no_risk_modifier(self) -> None:
+        """Test that unknown action types don't get risk modifiers."""
+        action_result = {"detected_action": "walking", "confidence": 0.95}
+        result = format_temporal_action_context(action_result)
+
+        assert "walking" in result
+        assert "95%" in result
+        assert "RISK MODIFIER" not in result
+
+    def test_confidence_display_format_percentage(self) -> None:
+        """Test confidence is displayed as percentage without decimals."""
+        action_result = {"detected_action": "loitering", "confidence": 0.789}
+        result = format_temporal_action_context(action_result)
+
+        # Should be "79%" not "78.9%" or "0.789"
+        assert "79%" in result
+
+    def test_missing_detected_action_returns_empty_string(self) -> None:
+        """Test that missing detected_action key returns empty string."""
+        action_result = {"confidence": 0.80}
+        result = format_temporal_action_context(action_result)
+        assert result == ""
+
+    def test_missing_confidence_defaults_to_zero(self) -> None:
+        """Test that missing confidence defaults to 0 (returns empty string)."""
+        action_result = {"detected_action": "loitering"}
+        result = format_temporal_action_context(action_result)
+        # With confidence defaulting to 0, it's below 0.5 threshold
+        assert result == ""
+
+    def test_full_output_format(self) -> None:
+        """Test the complete output format matches expected structure."""
+        action_result = {"detected_action": "loitering", "confidence": 0.78}
+        result = format_temporal_action_context(action_result, duration_seconds=25.0)
+
+        lines = result.split("\n")
+        assert lines[0] == "## BEHAVIORAL ANALYSIS (Temporal)"
+        assert "Action detected: loitering (78% confidence)" in lines[1]
+        assert "Duration: ~25 seconds across frames" in lines[2]
+        assert "RISK MODIFIER: +15 points (suspicious lingering behavior)" in lines[3]
 
 
 # =============================================================================
@@ -2830,6 +3058,76 @@ class TestFormatCameraHealthContext:
 
         assert callable(format_camera_health_context)
 
+    # =========================================================================
+    # Risk Modifier Tests (NEM-3307)
+    # =========================================================================
+
+    def test_view_blocked_includes_risk_modifier(self) -> None:
+        """Test that view_blocked change type includes risk modifier guidance.
+
+        Per NEM-3307: view_blocked during intrusion = +30 points risk modifier.
+        The LLM needs this guidance to properly escalate risk scores.
+        """
+        from backend.services.prompts import format_camera_health_context
+
+        scene_changes = [
+            MockSceneChange(similarity_score=0.3, change_type="view_blocked", acknowledged=False),
+        ]
+        result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+
+        # Should include risk modifier guidance for view_blocked
+        assert "RISK MODIFIER" in result
+        assert "+30" in result
+
+    def test_tampered_includes_critical_escalation(self) -> None:
+        """Test that view_tampered change type includes critical escalation guidance.
+
+        Per NEM-3307: tampered + unknown person = escalate to CRITICAL.
+        The output should guide the LLM to escalate appropriately.
+        """
+        from backend.services.prompts import format_camera_health_context
+
+        scene_changes = [
+            MockSceneChange(similarity_score=0.2, change_type="view_tampered", acknowledged=False),
+        ]
+        result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+
+        # Should include critical escalation guidance
+        assert "CRITICAL" in result
+        # Should mention escalation for unknown persons
+        assert "unknown" in result.lower() or "escalate" in result.lower()
+
+    def test_angle_changed_does_not_include_high_risk_modifier(self) -> None:
+        """Test that angle_changed does not include high risk modifiers.
+
+        angle_changed is less severe than view_blocked or tampered.
+        It should not include +30 risk modifier.
+        """
+        from backend.services.prompts import format_camera_health_context
+
+        scene_changes = [
+            MockSceneChange(similarity_score=0.65, change_type="angle_changed", acknowledged=False),
+        ]
+        result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+
+        # Should not have the +30 risk modifier (that's for view_blocked)
+        assert "+30" not in result
+
+    def test_unknown_change_type_minimal_risk_guidance(self) -> None:
+        """Test that unknown change type has minimal risk guidance.
+
+        Unknown changes should not trigger high risk modifiers.
+        """
+        from backend.services.prompts import format_camera_health_context
+
+        scene_changes = [
+            MockSceneChange(similarity_score=0.5, change_type="unknown", acknowledged=False),
+        ]
+        result = format_camera_health_context("camera_1", scene_changes)  # type: ignore[arg-type]
+
+        # Should not include +30 risk modifier for unknown
+        assert "+30" not in result
+
 
 # =============================================================================
 # Tests for Clothing Validation (NEM-3010)
@@ -2980,6 +3278,67 @@ class TestValidateClothingItems:
         # All items should be present since no conflicts
         assert len(result) == 5
         assert set(result) == {"hat", "sunglasses", "pants", "shoes", "belt"}
+
+    def test_logs_conflict_when_detected(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that conflicts are logged for monitoring (NEM-3305)."""
+        import logging
+
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["pants", "skirt", "dress", "shoes"]
+        confidences = {"pants": 0.8, "skirt": 0.6, "dress": 0.5, "shoes": 0.9}
+
+        # Capture log output at INFO level
+        with caplog.at_level(logging.INFO, logger="backend.services.prompts"):
+            validate_clothing_items(items, confidences)
+
+        # Verify conflict was logged
+        log_output = caplog.text.lower()
+        assert "clothing" in log_output or "conflict" in log_output
+        # Should mention the conflicting items
+        assert "pants" in log_output or "skirt" in log_output or "dress" in log_output
+
+    def test_no_log_when_no_conflict(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Test that no conflict is logged when there are no conflicts."""
+        import logging
+
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["pants", "shoes", "hat"]
+        confidences = {"pants": 0.8, "shoes": 0.9, "hat": 0.7}
+
+        # Capture log output at INFO level
+        with caplog.at_level(logging.INFO, logger="backend.services.prompts"):
+            result = validate_clothing_items(items, confidences)
+
+        # Should not have any conflict-related logs
+        assert len(result) == 3
+        # Check that there are no conflict logs
+        for record in caplog.records:
+            assert "conflict" not in record.message.lower()
+
+    def test_jeans_in_lower_body_exclusion(self) -> None:
+        """Test that jeans are part of lower body mutual exclusion."""
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["jeans", "pants", "shirt"]
+        confidences = {"jeans": 0.9, "pants": 0.6, "shirt": 0.85}
+        result = validate_clothing_items(items, confidences)
+
+        assert "jeans" in result
+        assert "pants" not in result
+        assert "shirt" in result  # Non-exclusive preserved
+
+    def test_leggings_in_lower_body_exclusion(self) -> None:
+        """Test that leggings are part of lower body mutual exclusion."""
+        from backend.services.prompts import validate_clothing_items
+
+        items = ["leggings", "skirt"]
+        confidences = {"leggings": 0.85, "skirt": 0.7}
+        result = validate_clothing_items(items, confidences)
+
+        assert "leggings" in result
+        assert "skirt" not in result
 
 
 class TestValidateClothingItemsIntegration:
@@ -4403,6 +4762,7 @@ class MockHouseholdMatch:
     """Mock HouseholdMatch for testing format_household_context.
 
     Mimics the HouseholdMatch dataclass from household_matcher service.
+    Extended with optional member_role and schedule_status for NEM-3315.
     """
 
     member_id: int | None = None
@@ -4411,6 +4771,9 @@ class MockHouseholdMatch:
     vehicle_description: str | None = None
     similarity: float = 0.0
     match_type: str = ""
+    # NEM-3315: Optional fields for schedule and role display
+    member_role: str | None = None
+    schedule_status: bool | None = None
 
 
 # =============================================================================
@@ -4430,8 +4793,6 @@ class TestFormatHouseholdContext:
         """Test that empty matches returns base risk 50 context."""
         from datetime import UTC, datetime
 
-        from backend.services.prompts import format_household_context
-
         result = format_household_context(
             person_matches=[],
             vehicle_matches=[],
@@ -4446,8 +4807,6 @@ class TestFormatHouseholdContext:
     def test_single_person_match_high_confidence(self) -> None:
         """Test formatting with high confidence person match."""
         from datetime import UTC, datetime
-
-        from backend.services.prompts import format_household_context
 
         person_match = MockHouseholdMatch(
             member_id=1,
@@ -4472,8 +4831,6 @@ class TestFormatHouseholdContext:
         """Test formatting with lower confidence person match (0.85-0.9)."""
         from datetime import UTC, datetime
 
-        from backend.services.prompts import format_household_context
-
         person_match = MockHouseholdMatch(
             member_id=2,
             member_name="Jane Smith",
@@ -4497,8 +4854,6 @@ class TestFormatHouseholdContext:
         """Test formatting with vehicle matched by license plate."""
         from datetime import UTC, datetime
 
-        from backend.services.prompts import format_household_context
-
         vehicle_match = MockHouseholdMatch(
             vehicle_id=1,
             vehicle_description="Silver Toyota Camry",
@@ -4521,8 +4876,6 @@ class TestFormatHouseholdContext:
         """Test formatting with vehicle matched visually."""
         from datetime import UTC, datetime
 
-        from backend.services.prompts import format_household_context
-
         vehicle_match = MockHouseholdMatch(
             vehicle_id=2,
             vehicle_description="Blue Honda Accord",
@@ -4542,8 +4895,6 @@ class TestFormatHouseholdContext:
     def test_combined_person_and_vehicle_match(self) -> None:
         """Test formatting with both person and vehicle matches."""
         from datetime import UTC, datetime
-
-        from backend.services.prompts import format_household_context
 
         person_match = MockHouseholdMatch(
             member_id=1,
@@ -4576,8 +4927,6 @@ class TestFormatHouseholdContext:
         """Test formatting with multiple person matches."""
         from datetime import UTC, datetime
 
-        from backend.services.prompts import format_household_context
-
         matches = [
             MockHouseholdMatch(
                 member_id=1, member_name="John Doe", similarity=0.92, match_type="person"
@@ -4601,8 +4950,6 @@ class TestFormatHouseholdContext:
         """Test that function always returns a string."""
         from datetime import UTC, datetime
 
-        from backend.services.prompts import format_household_context
-
         result = format_household_context(
             person_matches=[],
             vehicle_matches=[],
@@ -4614,8 +4961,6 @@ class TestFormatHouseholdContext:
     def test_has_section_header(self) -> None:
         """Test that output has proper section formatting."""
         from datetime import UTC, datetime
-
-        from backend.services.prompts import format_household_context
 
         result = format_household_context(
             person_matches=[],
@@ -4629,8 +4974,6 @@ class TestFormatHouseholdContext:
     def test_contains_calculated_base_risk(self) -> None:
         """Test that output contains calculated base risk."""
         from datetime import UTC, datetime
-
-        from backend.services.prompts import format_household_context
 
         person_match = MockHouseholdMatch(
             member_id=1, member_name="Test Person", similarity=0.95, match_type="person"
@@ -4647,6 +4990,533 @@ class TestFormatHouseholdContext:
 
     def test_importable(self) -> None:
         """Test that format_household_context is importable from prompts module."""
-        from backend.services.prompts import format_household_context
 
         assert callable(format_household_context)
+
+    def test_person_match_with_role_displayed(self) -> None:
+        """Test that member_role is displayed when available (NEM-3315)."""
+        from datetime import UTC, datetime
+
+        person_match = MockHouseholdMatch(
+            member_id=1,
+            member_name="Mike",
+            similarity=0.93,
+            match_type="person",
+            member_role="resident",
+        )
+
+        result = format_household_context(
+            person_matches=[person_match],  # type: ignore[list-item]
+            vehicle_matches=[],
+            current_time=datetime.now(UTC),
+        )
+
+        assert "KNOWN PERSON" in result
+        assert "Mike" in result
+        assert "resident" in result
+        assert "93%" in result
+
+    def test_person_match_within_schedule_risk_5(self) -> None:
+        """Test that person within schedule has base risk 5 (NEM-3315)."""
+        from datetime import UTC, datetime
+
+        person_match = MockHouseholdMatch(
+            member_id=1,
+            member_name="Mike",
+            similarity=0.93,
+            match_type="person",
+            member_role="resident",
+            schedule_status=True,  # Within schedule
+        )
+
+        result = format_household_context(
+            person_matches=[person_match],  # type: ignore[list-item]
+            vehicle_matches=[],
+            current_time=datetime.now(UTC),
+        )
+
+        assert "Within expected hours" in result
+        assert "base risk: 5" in result
+
+    def test_person_match_outside_schedule_risk_20(self) -> None:
+        """Test that person outside schedule has base risk 20 (NEM-3315)."""
+        from datetime import UTC, datetime
+
+        person_match = MockHouseholdMatch(
+            member_id=1,
+            member_name="John",
+            similarity=0.88,
+            match_type="person",
+            member_role="service_worker",
+            schedule_status=False,  # Outside schedule
+        )
+
+        result = format_household_context(
+            person_matches=[person_match],  # type: ignore[list-item]
+            vehicle_matches=[],
+            current_time=datetime.now(UTC),
+        )
+
+        assert "Outside normal hours" in result
+        assert "base risk: 20" in result
+
+    def test_vehicle_caps_risk_at_10(self) -> None:
+        """Test that registered vehicle caps risk at 10 (NEM-3315)."""
+        from datetime import UTC, datetime
+
+        # Person outside schedule (risk 20) + vehicle should cap at 10
+        person_match = MockHouseholdMatch(
+            member_id=1,
+            member_name="John",
+            similarity=0.88,
+            match_type="person",
+            schedule_status=False,  # Outside schedule -> risk 20
+        )
+        vehicle_match = MockHouseholdMatch(
+            vehicle_id=1,
+            vehicle_description="Silver Tesla Model 3",
+            similarity=1.0,
+            match_type="license_plate",
+        )
+
+        result = format_household_context(
+            person_matches=[person_match],  # type: ignore[list-item]
+            vehicle_matches=[vehicle_match],  # type: ignore[list-item]
+            current_time=datetime.now(UTC),
+        )
+
+        # Vehicle should cap the risk at 10
+        assert "base risk: 10" in result
+
+    def test_vehicle_alone_has_risk_10(self) -> None:
+        """Test that registered vehicle alone has base risk 10 (NEM-3315)."""
+        from datetime import UTC, datetime
+
+        vehicle_match = MockHouseholdMatch(
+            vehicle_id=1,
+            vehicle_description="Silver Tesla Model 3",
+            similarity=1.0,
+            match_type="license_plate",
+        )
+
+        result = format_household_context(
+            person_matches=[],
+            vehicle_matches=[vehicle_match],  # type: ignore[list-item]
+            current_time=datetime.now(UTC),
+        )
+
+        assert "REGISTERED VEHICLE" in result
+        assert "Silver Tesla Model 3" in result
+        assert "base risk: 10" in result
+
+
+# =============================================================================
+# Tests for check_member_schedule (NEM-3315)
+# =============================================================================
+
+
+class TestCheckMemberSchedule:
+    """Tests for check_member_schedule function.
+
+    NEM-3315: Schedule checking for household members to determine if their
+    presence at the current time is expected.
+    """
+
+    def test_no_schedule_returns_none(self) -> None:
+        """Test that None schedule returns None."""
+        from datetime import datetime
+
+        result = check_member_schedule(None, datetime(2024, 1, 15, 10, 0))
+        assert result is None
+
+    def test_empty_schedule_returns_none(self) -> None:
+        """Test that empty schedule dict returns None."""
+        from datetime import datetime
+
+        result = check_member_schedule({}, datetime(2024, 1, 15, 10, 0))
+        assert result is None
+
+    def test_weekday_schedule_within_hours(self) -> None:
+        """Test weekday schedule when within hours."""
+        from datetime import datetime
+
+        schedule = {"weekdays": "09:00-17:00", "weekends": "all_day"}
+        # Monday at 10:00 (within 09:00-17:00)
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 10, 0))
+        assert result is True
+
+    def test_weekday_schedule_outside_hours(self) -> None:
+        """Test weekday schedule when outside hours."""
+        from datetime import datetime
+
+        schedule = {"weekdays": "09:00-17:00", "weekends": "all_day"}
+        # Monday at 22:00 (outside 09:00-17:00)
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 22, 0))
+        assert result is False
+
+    def test_weekend_all_day_schedule(self) -> None:
+        """Test weekend all_day schedule."""
+        from datetime import datetime
+
+        schedule = {"weekdays": "09:00-17:00", "weekends": "all_day"}
+        # Saturday at any time
+        result = check_member_schedule(schedule, datetime(2024, 1, 20, 3, 30))
+        assert result is True
+
+    def test_daily_schedule_within_hours(self) -> None:
+        """Test daily schedule when within hours."""
+        from datetime import datetime
+
+        schedule = {"daily": "08:00-20:00"}
+        # Any day at 12:00
+        result = check_member_schedule(schedule, datetime(2024, 1, 17, 12, 0))
+        assert result is True
+
+    def test_daily_schedule_outside_hours(self) -> None:
+        """Test daily schedule when outside hours."""
+        from datetime import datetime
+
+        schedule = {"daily": "08:00-20:00"}
+        # Any day at 23:00
+        result = check_member_schedule(schedule, datetime(2024, 1, 17, 23, 0))
+        assert result is False
+
+    def test_day_specific_schedule_saturday(self) -> None:
+        """Test day-specific schedule for Saturday."""
+        from datetime import datetime
+
+        schedule = {"weekdays": "09:00-17:00", "saturday": "10:00-14:00"}
+        # Saturday at 11:00 (within 10:00-14:00)
+        result = check_member_schedule(schedule, datetime(2024, 1, 20, 11, 0))
+        assert result is True
+
+        # Saturday at 16:00 (outside 10:00-14:00)
+        result = check_member_schedule(schedule, datetime(2024, 1, 20, 16, 0))
+        assert result is False
+
+    def test_overnight_schedule(self) -> None:
+        """Test overnight schedule (e.g., 22:00-06:00)."""
+        from datetime import datetime
+
+        schedule = {"daily": "22:00-06:00"}
+
+        # At 23:00 (within overnight range)
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 23, 0))
+        assert result is True
+
+        # At 03:00 (within overnight range)
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 3, 0))
+        assert result is True
+
+        # At 12:00 (outside overnight range)
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 12, 0))
+        assert result is False
+
+    def test_boundary_times(self) -> None:
+        """Test boundary times for schedule ranges."""
+        from datetime import datetime
+
+        schedule = {"daily": "09:00-17:00"}
+
+        # Exactly at start time
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 9, 0))
+        assert result is True
+
+        # Exactly at end time
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 17, 0))
+        assert result is True
+
+        # One minute before start
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 8, 59))
+        assert result is False
+
+        # One minute after end
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 17, 1))
+        assert result is False
+
+    def test_invalid_schedule_format_returns_none(self) -> None:
+        """Test that invalid schedule format returns None."""
+        from datetime import datetime
+
+        # Invalid time format
+        schedule = {"daily": "invalid"}
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 10, 0))
+        assert result is None
+
+    def test_case_insensitive_all_day(self) -> None:
+        """Test that all_day is case insensitive."""
+        from datetime import datetime
+
+        schedule = {"daily": "ALL_DAY"}
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 15, 0))
+        assert result is True
+
+        schedule = {"daily": "All_Day"}
+        result = check_member_schedule(schedule, datetime(2024, 1, 15, 15, 0))
+        assert result is True
+
+    def test_importable(self) -> None:
+        """Test that check_member_schedule is importable from prompts module."""
+
+        assert callable(check_member_schedule)
+
+
+# =============================================================================
+# Tests for VQA Output Validation (NEM-3304)
+# =============================================================================
+
+
+class TestVQAOutputValidation:
+    """Tests for VQA output validation in prompts.
+
+    NEM-3304: Florence-2 VQA sometimes returns raw tokens instead of parsed answers.
+
+    CURRENT (broken):
+        "Wearing: VQA>person wearing<loc_95><loc_86><loc_901><loc_918>"
+
+    EXPECTED:
+        "Wearing: dark hoodie and jeans"
+
+    When VQA output contains <loc_> tokens, we should:
+    1. Log an error
+    2. Fall back to scene captioning description instead
+    """
+
+    def test_is_valid_vqa_output_detects_loc_tokens(self) -> None:
+        """Test that is_valid_vqa_output() detects garbage <loc_> tokens."""
+
+        # Invalid outputs with <loc_> tokens
+        assert not is_valid_vqa_output("VQA>person wearing<loc_95><loc_86><loc_901><loc_918>")
+        assert not is_valid_vqa_output("sedan<loc_1><loc_2>")
+        assert not is_valid_vqa_output("walking<loc_100>")
+        assert not is_valid_vqa_output("<loc_50><loc_60>blue shirt")
+
+        # Valid outputs without loc tokens
+        assert is_valid_vqa_output("dark hoodie and jeans")
+        assert is_valid_vqa_output("sedan")
+        assert is_valid_vqa_output("walking slowly")
+        assert is_valid_vqa_output("blue")
+        assert is_valid_vqa_output("")  # Empty is valid (handled elsewhere)
+        assert is_valid_vqa_output(None)  # None is valid (handled elsewhere)
+
+    def test_is_valid_vqa_output_detects_vqa_prefix(self) -> None:
+        """Test that is_valid_vqa_output() detects VQA> prefix garbage."""
+
+        # Invalid outputs with VQA> prefix (indicates unparsed response)
+        assert not is_valid_vqa_output("VQA>person wearing<loc_95>")
+        assert not is_valid_vqa_output("VQA>What is this person doing")
+
+        # Valid - no VQA prefix
+        assert is_valid_vqa_output("walking")
+        assert is_valid_vqa_output("dark clothing")
+
+    def test_validate_and_clean_vqa_output_returns_none_for_garbage(self) -> None:
+        """Test that validate_and_clean_vqa_output() returns None for garbage."""
+
+        # Should return None for garbage
+        assert validate_and_clean_vqa_output("VQA>person<loc_1><loc_2>") is None
+        assert validate_and_clean_vqa_output("sedan<loc_1>") is None
+        assert validate_and_clean_vqa_output("<loc_50>text") is None
+
+    def test_validate_and_clean_vqa_output_returns_value_for_valid(self) -> None:
+        """Test that validate_and_clean_vqa_output() returns cleaned value for valid."""
+
+        # Should return cleaned value for valid
+        assert validate_and_clean_vqa_output("dark hoodie") == "dark hoodie"
+        assert validate_and_clean_vqa_output("  sedan  ") == "sedan"  # Strips whitespace
+        assert validate_and_clean_vqa_output("BLUE SHIRT") == "blue shirt"  # Lowercase
+
+    def test_validate_and_clean_vqa_output_handles_empty(self) -> None:
+        """Test that validate_and_clean_vqa_output() handles empty inputs."""
+
+        assert validate_and_clean_vqa_output("") is None
+        assert validate_and_clean_vqa_output("   ") is None
+        assert validate_and_clean_vqa_output(None) is None
+
+    def test_validate_and_clean_vqa_output_logs_error_for_garbage(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that validate_and_clean_vqa_output() logs error for garbage."""
+        import logging
+
+        with caplog.at_level(logging.WARNING, logger="backend.services.prompts"):
+            result = validate_and_clean_vqa_output("VQA>test<loc_1><loc_2>")
+
+        assert result is None
+        # Should have logged the garbage detection
+        log_output = caplog.text.lower()
+        assert "loc_" in log_output or "vqa" in log_output or "garbage" in log_output
+
+    def test_format_florence_attributes_validates_vqa_nem3304(self) -> None:
+        """Test that format_florence_attributes() validates VQA outputs (NEM-3304).
+
+        When formatting Florence-2 attributes for prompts, any attribute containing
+        <loc_> tokens should be filtered out - not included in the result.
+        """
+
+        # Attributes with mixed valid and garbage VQA outputs
+        attributes = {
+            "color": "white",
+            "clothing": "VQA>person wearing<loc_95><loc_86><loc_901><loc_918>",
+            "carrying": "backpack",
+            "action": "walking<loc_100>",
+        }
+        caption = "Person in dark hoodie walking through driveway"
+
+        result = format_florence_attributes(attributes, caption)
+
+        # Valid attributes should be present
+        assert "white" in result
+        assert "backpack" in result
+
+        # Garbage VQA should NOT appear anywhere in the result
+        assert "<loc_" not in result
+        assert "VQA>" not in result
+
+        # The garbage attributes should be omitted entirely
+        # (clothing and action lines should not appear since values were invalid)
+        # Result should only contain color and carrying
+        lines = [line for line in result.split("\n") if line.strip()]
+        assert len(lines) == 2  # Only color and carrying
+
+    def test_format_florence_attributes_with_all_valid(self) -> None:
+        """Test format_florence_attributes() with all valid attributes."""
+
+        attributes = {
+            "color": "white",
+            "clothing": "dark hoodie and jeans",
+            "carrying": "backpack",
+        }
+        caption = "Person walking in driveway"
+
+        result = format_florence_attributes(attributes, caption)
+
+        # All attributes should be present
+        assert "white" in result
+        assert "dark hoodie and jeans" in result.lower()
+        assert "backpack" in result
+
+    def test_format_florence_attributes_with_all_garbage(self) -> None:
+        """Test format_florence_attributes() with all garbage attributes falls back to caption."""
+
+        attributes = {
+            "color": "<loc_1><loc_2>white",
+            "clothing": "VQA>person wearing<loc_95><loc_86>",
+            "action": "running<loc_100>",
+        }
+        caption = "Person in blue jacket near white car"
+
+        result = format_florence_attributes(attributes, caption)
+
+        # No garbage should appear
+        assert "<loc_" not in result
+        assert "VQA>" not in result
+
+        # Since all attributes are garbage, caption should be used as fallback
+        assert "Scene context:" in result
+        assert "blue jacket" in result.lower()
+
+    def test_format_florence_attributes_empty(self) -> None:
+        """Test format_florence_attributes() with empty attributes uses caption as fallback."""
+
+        result = format_florence_attributes({}, "Scene caption")
+        # Empty dict should return caption as fallback
+        assert "Scene context:" in result
+        assert "Scene caption" in result
+
+        result = format_florence_attributes(None, "Scene caption")
+        # None should also return caption as fallback
+        assert "Scene context:" in result
+        assert "Scene caption" in result
+
+    def test_format_florence_attributes_empty_no_caption(self) -> None:
+        """Test format_florence_attributes() with empty attributes and no caption."""
+
+        result = format_florence_attributes({}, "")
+        assert result == ""
+
+        result = format_florence_attributes(None, "")
+        assert result == ""
+
+
+class TestVQAValidationIntegration:
+    """Integration tests for VQA validation in the prompt formatting pipeline."""
+
+    def test_format_detections_validates_vqa_in_vision_extraction(self) -> None:
+        """Test that format_detections_with_all_enrichment validates VQA outputs.
+
+        Vision extraction results containing garbage VQA outputs should be
+        filtered/cleaned before being included in the formatted prompt.
+        """
+        # Create a mock vision extraction with garbage VQA
+        vision_extraction = MockBatchExtractionResult(
+            person_attributes={
+                "det_001": MockPersonAttributes(
+                    clothing="VQA>person wearing<loc_95><loc_86>",
+                    carrying="backpack",
+                    action="walking<loc_100>",
+                    is_service_worker=False,
+                    caption="Person in dark hoodie walking",
+                )
+            },
+            vehicle_attributes={},
+        )
+
+        detections = [
+            {
+                "detection_id": "det_001",
+                "class_name": "person",
+                "confidence": 0.95,
+                "bbox": [100, 150, 300, 450],
+            }
+        ]
+
+        result = format_detections_with_all_enrichment(
+            detections, vision_extraction=vision_extraction
+        )
+
+        # Result should NOT contain garbage VQA tokens
+        assert "<loc_" not in result
+        assert "VQA>" not in result
+
+        # Should still have useful information
+        # backpack is valid and should appear with "Carrying:"
+        assert "backpack" in result.lower()
+        # Caption should appear since it's always included
+        assert "dark hoodie" in result.lower()
+
+    def test_format_detections_validates_vqa_in_vehicle_attributes(self) -> None:
+        """Test that vehicle attributes with garbage VQA are validated."""
+        vision_extraction = MockBatchExtractionResult(
+            person_attributes={},
+            vehicle_attributes={
+                "det_v001": MockVehicleAttributes(
+                    color="VQA>vehicle color<loc_1><loc_2>",
+                    vehicle_type="sedan<loc_3>",
+                    is_commercial=False,
+                    caption="White sedan parked in driveway",
+                )
+            },
+        )
+
+        detections = [
+            {
+                "detection_id": "det_v001",
+                "class_name": "car",
+                "confidence": 0.92,
+                "bbox": [50, 100, 200, 300],
+            }
+        ]
+
+        result = format_detections_with_all_enrichment(
+            detections, vision_extraction=vision_extraction
+        )
+
+        # Result should NOT contain garbage VQA tokens
+        assert "<loc_" not in result
+        assert "VQA>" not in result
+
+        # Caption is always included and provides context
+        assert "White sedan" in result or "sedan" in result.lower()
+        # The garbage color and vehicle_type should NOT appear
+        # (they would have had loc tokens if included)

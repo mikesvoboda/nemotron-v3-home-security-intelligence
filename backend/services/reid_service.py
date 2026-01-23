@@ -39,7 +39,6 @@ from backend.services.bbox_validation import (
     is_valid_bbox,
 )
 from backend.services.clip_client import CLIPClient, CLIPUnavailableError, get_clip_client
-from backend.services.vision_extractor import validate_and_clean_vqa_output
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -68,10 +67,13 @@ _VQA_PREFIX_PATTERN = re.compile(r"VQA>[^<]*")
 def clean_vqa_output(text: str | None) -> str | None:
     """Clean raw Florence-2 VQA output by removing artifacts.
 
-    .. deprecated::
-        Use `validate_and_clean_vqa_output` from `backend.services.vision_extractor`
-        instead. That function provides additional validation to reject garbage
-        outputs containing location tokens and other artifacts (NEM-3009).
+    This function extracts meaningful content from VQA responses by removing
+    VQA prefixes and location tokens. Use this when you want to salvage content
+    from responses that may contain artifacts (e.g., in format_entity_match).
+
+    Note: For validation that rejects garbage outputs entirely, use
+    `validate_and_clean_vqa_output` from `backend.services.vision_extractor`
+    which returns None for any output containing location tokens (NEM-3304).
 
     Florence-2 VQA responses may contain artifacts like:
     - VQA> prefix followed by the query text
@@ -935,28 +937,30 @@ def format_entity_match(match: EntityMatch) -> str:
         f"  - Camera: {entity.camera_id}, Time: {time_str} (similarity: {similarity_pct:.0f}%)"
     ]
 
-    # Add attributes if available, cleaning and validating VQA output (NEM-3009)
+    # Add attributes if available, cleaning VQA artifacts (NEM-3009)
+    # Note: Use local clean_vqa_output which extracts content after <loc_> tokens,
+    # rather than validate_and_clean_vqa_output which rejects such output entirely.
     attrs = entity.attributes
     if attrs:
         attr_parts = []
-        # Clean and validate clothing attribute (may contain raw VQA output)
+        # Clean clothing attribute (may contain raw VQA output with artifacts)
         clothing_raw = attrs.get("clothing")
-        clothing = validate_and_clean_vqa_output(clothing_raw) if clothing_raw else None
+        clothing = clean_vqa_output(clothing_raw) if clothing_raw else None
         if clothing:
             attr_parts.append(f"wearing {clothing}")
-        # Clean and validate carrying attribute (may contain raw VQA output)
+        # Clean carrying attribute (may contain raw VQA output with artifacts)
         carrying_raw = attrs.get("carrying")
-        carrying = validate_and_clean_vqa_output(carrying_raw) if carrying_raw else None
+        carrying = clean_vqa_output(carrying_raw) if carrying_raw else None
         if carrying:
             attr_parts.append(f"carrying {carrying}")
-        # Clean and validate color attribute (may contain raw VQA output)
+        # Clean color attribute (may contain raw VQA output with artifacts)
         color_raw = attrs.get("color")
-        color = validate_and_clean_vqa_output(color_raw) if color_raw else None
+        color = clean_vqa_output(color_raw) if color_raw else None
         if color:
             attr_parts.append(color)
-        # Clean and validate vehicle_type attribute (may contain raw VQA output)
+        # Clean vehicle_type attribute (may contain raw VQA output with artifacts)
         vehicle_type_raw = attrs.get("vehicle_type")
-        vehicle_type = validate_and_clean_vqa_output(vehicle_type_raw) if vehicle_type_raw else None
+        vehicle_type = clean_vqa_output(vehicle_type_raw) if vehicle_type_raw else None
         if vehicle_type:
             attr_parts.append(vehicle_type)
         if attr_parts:

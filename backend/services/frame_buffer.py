@@ -115,6 +115,33 @@ class FrameBuffer:
         """
         return list(self._buffers.keys())
 
+    def get_oldest_timestamp(self, camera_id: str) -> datetime | None:
+        """Get timestamp of oldest frame in buffer.
+
+        Args:
+            camera_id: Camera identifier
+
+        Returns:
+            Timestamp of oldest frame, or None if camera has no frames
+        """
+        buffer = self._buffers.get(camera_id)
+        if buffer and len(buffer) > 0:
+            return buffer[0].timestamp
+        return None
+
+    def get_buffer_size(self, camera_id: str) -> int:
+        """Get number of frames buffered for a camera.
+
+        This is an alias for frame_count() to match the expected API.
+
+        Args:
+            camera_id: Camera identifier
+
+        Returns:
+            Number of frames in the buffer, or 0 if camera has no buffer
+        """
+        return self.frame_count(camera_id)
+
     async def add_frame(self, camera_id: str, frame: bytes, timestamp: datetime) -> None:
         """Add a frame to the buffer for a camera.
 
@@ -185,6 +212,18 @@ class FrameBuffer:
         else:
             self._buffers.clear()
             logger.debug("Cleared all frame buffers")
+
+    def clear_camera(self, camera_id: str) -> None:
+        """Clear buffer for a specific camera.
+
+        Args:
+            camera_id: Camera identifier
+        """
+        self.clear(camera_id)
+
+    def clear_all(self) -> None:
+        """Clear all buffers."""
+        self.clear()
 
 
 # Module-level singleton container (avoids PLW0603 global statement warnings)

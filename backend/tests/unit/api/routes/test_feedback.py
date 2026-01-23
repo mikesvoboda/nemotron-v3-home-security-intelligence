@@ -1,11 +1,12 @@
 """Unit tests for feedback API routes.
 
 Tests cover:
-- POST /api/feedback - Submit event feedback
+- POST /api/feedback - Submit event feedback (including enhanced fields)
 - GET /api/feedback/event/{event_id} - Get feedback for specific event
 - GET /api/feedback/stats - Get aggregate feedback statistics
 
 NEM-1908: Create EventFeedback API schemas and routes
+NEM-3330: Enhanced feedback fields for Nemotron prompt improvement
 """
 
 from datetime import UTC, datetime
@@ -251,6 +252,186 @@ class TestCreateFeedback:
 
 
 # =============================================================================
+# POST /api/feedback Enhanced Fields Tests (NEM-3330)
+# =============================================================================
+
+
+class TestCreateFeedbackEnhanced:
+    """Tests for POST /api/feedback endpoint with enhanced fields (NEM-3330)."""
+
+    def test_create_feedback_with_enhanced_fields(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating feedback with all enhanced fields."""
+        # Mock event exists
+        mock_event = MagicMock()
+        mock_event.id = 123
+        mock_event.camera_id = "front_door"
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_event
+
+        # Mock no existing feedback
+        mock_no_feedback = MagicMock()
+        mock_no_feedback.scalar_one_or_none.return_value = None
+
+        mock_db_session.execute.side_effect = [mock_result, mock_no_feedback]
+
+        def mock_refresh(feedback):
+            feedback.id = 1
+            feedback.created_at = datetime.now(UTC)
+
+        mock_db_session.refresh.side_effect = mock_refresh
+
+        response = client.post(
+            "/api/feedback",
+            json={
+                "event_id": 123,
+                "feedback_type": "false_positive",
+                "notes": "This was my neighbor.",
+                "actual_threat_level": "no_threat",
+                "suggested_score": 5,
+                "actual_identity": "Mike (neighbor)",
+                "what_was_wrong": "Re-ID should have matched this person",
+                "model_failures": ["reid_model", "clothing_model"],
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["event_id"] == 123
+        assert data["feedback_type"] == "false_positive"
+        assert data["actual_threat_level"] == "no_threat"
+        assert data["suggested_score"] == 5
+        assert data["actual_identity"] == "Mike (neighbor)"
+        assert data["what_was_wrong"] == "Re-ID should have matched this person"
+        assert data["model_failures"] == ["reid_model", "clothing_model"]
+
+    def test_create_feedback_with_partial_enhanced_fields(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating feedback with some enhanced fields."""
+        # Mock event exists
+        mock_event = MagicMock()
+        mock_event.id = 124
+        mock_event.camera_id = "back_yard"
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_event
+
+        # Mock no existing feedback
+        mock_no_feedback = MagicMock()
+        mock_no_feedback.scalar_one_or_none.return_value = None
+
+        mock_db_session.execute.side_effect = [mock_result, mock_no_feedback]
+
+        def mock_refresh(feedback):
+            feedback.id = 2
+            feedback.created_at = datetime.now(UTC)
+
+        mock_db_session.refresh.side_effect = mock_refresh
+
+        response = client.post(
+            "/api/feedback",
+            json={
+                "event_id": 124,
+                "feedback_type": "severity_wrong",
+                "actual_threat_level": "minor_concern",
+                "suggested_score": 35,
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["actual_threat_level"] == "minor_concern"
+        assert data["suggested_score"] == 35
+        assert data["actual_identity"] is None
+        assert data["what_was_wrong"] is None
+        assert data["model_failures"] is None
+
+    def test_create_feedback_invalid_threat_level(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating feedback with invalid actual_threat_level."""
+        response = client.post(
+            "/api/feedback",
+            json={
+                "event_id": 123,
+                "feedback_type": "false_positive",
+                "actual_threat_level": "invalid_level",
+            },
+        )
+
+        assert response.status_code == 422
+
+    def test_create_feedback_invalid_suggested_score_negative(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating feedback with negative suggested_score."""
+        response = client.post(
+            "/api/feedback",
+            json={
+                "event_id": 123,
+                "feedback_type": "false_positive",
+                "suggested_score": -1,
+            },
+        )
+
+        assert response.status_code == 422
+
+    def test_create_feedback_invalid_suggested_score_over_100(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating feedback with suggested_score over 100."""
+        response = client.post(
+            "/api/feedback",
+            json={
+                "event_id": 123,
+                "feedback_type": "false_positive",
+                "suggested_score": 101,
+            },
+        )
+
+        assert response.status_code == 422
+
+    def test_create_feedback_with_model_failures_only(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating feedback with only model_failures."""
+        # Mock event exists
+        mock_event = MagicMock()
+        mock_event.id = 125
+        mock_event.camera_id = "garage"
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_event
+
+        # Mock no existing feedback
+        mock_no_feedback = MagicMock()
+        mock_no_feedback.scalar_one_or_none.return_value = None
+
+        mock_db_session.execute.side_effect = [mock_result, mock_no_feedback]
+
+        def mock_refresh(feedback):
+            feedback.id = 3
+            feedback.created_at = datetime.now(UTC)
+
+        mock_db_session.refresh.side_effect = mock_refresh
+
+        response = client.post(
+            "/api/feedback",
+            json={
+                "event_id": 125,
+                "feedback_type": "false_positive",
+                "model_failures": ["florence_vqa", "pose_model"],
+                "what_was_wrong": "VQA returned garbage tokens",
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["model_failures"] == ["florence_vqa", "pose_model"]
+        assert data["what_was_wrong"] == "VQA returned garbage tokens"
+
+
+# =============================================================================
 # GET /api/feedback/event/{event_id} Tests
 # =============================================================================
 
@@ -266,6 +447,12 @@ class TestGetEventFeedback:
         mock_feedback.feedback_type = "false_positive"
         mock_feedback.notes = "Test notes"
         mock_feedback.created_at = datetime(2025, 1, 1, 12, 0, 0, tzinfo=UTC)
+        # Set optional calibration fields to None (NEM-3330)
+        mock_feedback.actual_threat_level = None
+        mock_feedback.suggested_score = None
+        mock_feedback.actual_identity = None
+        mock_feedback.what_was_wrong = None
+        mock_feedback.model_failures = None
 
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_feedback
@@ -301,6 +488,68 @@ class TestGetEventFeedback:
         response = client.get("/api/feedback/event/invalid")
 
         assert response.status_code == 422
+
+    def test_get_feedback_with_enhanced_fields(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test getting feedback includes enhanced fields (NEM-3330)."""
+        mock_feedback = MagicMock()
+        mock_feedback.id = 10
+        mock_feedback.event_id = 500
+        mock_feedback.feedback_type = "false_positive"
+        mock_feedback.notes = "Was my neighbor"
+        mock_feedback.actual_threat_level = "no_threat"
+        mock_feedback.suggested_score = 5
+        mock_feedback.actual_identity = "John Smith"
+        mock_feedback.what_was_wrong = "Re-ID failed to match"
+        mock_feedback.model_failures = ["reid_model"]
+        mock_feedback.created_at = datetime(2025, 1, 15, 14, 30, 0, tzinfo=UTC)
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_feedback
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get("/api/feedback/event/500")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == 10
+        assert data["event_id"] == 500
+        assert data["actual_threat_level"] == "no_threat"
+        assert data["suggested_score"] == 5
+        assert data["actual_identity"] == "John Smith"
+        assert data["what_was_wrong"] == "Re-ID failed to match"
+        assert data["model_failures"] == ["reid_model"]
+
+    def test_get_feedback_with_null_enhanced_fields(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test getting feedback with null enhanced fields returns None."""
+        mock_feedback = MagicMock()
+        mock_feedback.id = 11
+        mock_feedback.event_id = 501
+        mock_feedback.feedback_type = "accurate"
+        mock_feedback.notes = None
+        mock_feedback.actual_threat_level = None
+        mock_feedback.suggested_score = None
+        mock_feedback.actual_identity = None
+        mock_feedback.what_was_wrong = None
+        mock_feedback.model_failures = None
+        mock_feedback.created_at = datetime(2025, 1, 16, 10, 0, 0, tzinfo=UTC)
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_feedback
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get("/api/feedback/event/501")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["actual_threat_level"] is None
+        assert data["suggested_score"] is None
+        assert data["actual_identity"] is None
+        assert data["what_was_wrong"] is None
+        assert data["model_failures"] is None
 
 
 # =============================================================================
