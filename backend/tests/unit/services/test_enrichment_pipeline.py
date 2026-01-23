@@ -5628,3 +5628,644 @@ class TestEnrichmentResultPoseActionPromptContext:
         # Should indicate no data available (actual format from prompts.py)
         assert "Not available" in context["pose_analysis"]
         assert "Not available" in context["action_recognition"]
+
+
+# =============================================================================
+# X-CLIP Action Recognition Integration Tests (NEM-3335)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+class TestEnrichmentPipelineActionRecognition:
+    """Tests for X-CLIP action recognition integration in enrichment pipeline.
+
+    These tests verify the integration between the FrameBuffer service and
+    the EnrichmentPipeline for X-CLIP temporal action recognition.
+    """
+
+    @pytest.fixture
+    def mock_frame_buffer(self):
+        """Create a mock FrameBuffer with frames available."""
+        from unittest.mock import MagicMock
+
+        buffer = MagicMock()
+        buffer.get_sequence.return_value = [
+            b"frame_1",
+            b"frame_2",
+            b"frame_3",
+            b"frame_4",
+            b"frame_5",
+            b"frame_6",
+            b"frame_7",
+            b"frame_8",
+        ]
+        buffer.has_enough_frames.return_value = True
+        buffer.frame_count.return_value = 8
+        return buffer
+
+    @pytest.fixture
+    def mock_frame_buffer_insufficient(self):
+        """Create a mock FrameBuffer with insufficient frames."""
+        from unittest.mock import MagicMock
+
+        buffer = MagicMock()
+        buffer.get_sequence.return_value = None  # Not enough frames
+        buffer.has_enough_frames.return_value = False
+        buffer.frame_count.return_value = 3
+        return buffer
+
+    async def test_action_recognition_called_when_frames_available(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+        mock_frame_buffer,
+    ) -> None:
+        """Test action recognition is called when enough buffered frames exist."""
+        mock_action_result = {
+            "detected_action": "a person walking normally",
+            "confidence": 0.85,
+            "top_actions": [("a person walking normally", 0.85)],
+            "all_scores": {"a person walking normally": 0.85},
+        }
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_actions",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            mock_classify.return_value = mock_action_result
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                frame_buffer=mock_frame_buffer,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=True,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+                camera_id="front_door",
+            )
+
+            # X-CLIP classify_actions should have been called
+            mock_classify.assert_called_once()
+
+            # Result should have action_results populated
+            assert result.has_action_results
+            assert result.action_results is not None
+            assert result.action_results["detected_action"] == "a person walking normally"
+            assert result.action_results["confidence"] == 0.85
+
+    async def test_action_recognition_graceful_when_insufficient_frames(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+        mock_frame_buffer_insufficient,
+    ) -> None:
+        """Test action recognition handles insufficient frames gracefully."""
+        mock_action_result = {
+            "detected_action": "a person standing",
+            "confidence": 0.7,
+            "top_actions": [("a person standing", 0.7)],
+            "all_scores": {"a person standing": 0.7},
+        }
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_actions",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            mock_classify.return_value = mock_action_result
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                frame_buffer=mock_frame_buffer_insufficient,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=True,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+                camera_id="front_door",
+            )
+
+            # X-CLIP should still be called (with single frame fallback)
+            # The pipeline falls back to single current frame when buffer has insufficient frames
+            mock_classify.assert_called_once()
+
+            # Result should still have action_results from single-frame fallback
+            assert result.has_action_results
+            assert result.action_results is not None
+
+    async def test_action_recognition_disabled_when_flag_false(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+        mock_frame_buffer,
+    ) -> None:
+        """Test action recognition is not called when disabled."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_actions",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                frame_buffer=mock_frame_buffer,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=False,  # Disabled
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+                camera_id="front_door",
+            )
+
+            # X-CLIP should NOT be called
+            mock_classify.assert_not_called()
+
+            # Result should not have action_results
+            assert not result.has_action_results
+            assert result.action_results is None
+
+    async def test_action_recognition_error_handling(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+        mock_frame_buffer,
+    ) -> None:
+        """Test action recognition handles X-CLIP errors gracefully."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_actions",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            # Simulate X-CLIP failure
+            mock_classify.side_effect = RuntimeError("X-CLIP model loading failed")
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                frame_buffer=mock_frame_buffer,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=True,
+            )
+
+            # Should not raise - error should be handled gracefully
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+                camera_id="front_door",
+            )
+
+            # X-CLIP was called but failed
+            mock_classify.assert_called_once()
+
+            # Result should not have action_results due to error
+            assert not result.has_action_results
+            assert result.action_results is None
+
+            # Error should be recorded
+            assert len(result.errors) > 0
+            assert any("action" in e.lower() for e in result.errors)
+
+    async def test_action_recognition_only_runs_for_person_detections(
+        self,
+        test_image: Image.Image,
+        vehicle_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+        mock_frame_buffer,
+    ) -> None:
+        """Test action recognition only runs when persons are detected."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_actions",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                frame_buffer=mock_frame_buffer,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=True,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[vehicle_detection],  # Only vehicle, no person
+                images={None: test_image},
+                camera_id="front_door",
+            )
+
+            # X-CLIP should NOT be called for vehicle-only detections
+            mock_classify.assert_not_called()
+
+            # Result should not have action_results
+            assert not result.has_action_results
+
+    async def test_action_recognition_suspicious_action_flagged(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+        mock_frame_buffer,
+    ) -> None:
+        """Test suspicious actions are properly flagged in results."""
+        mock_action_result = {
+            "detected_action": "a person breaking in",
+            "confidence": 0.92,
+            "top_actions": [("a person breaking in", 0.92)],
+            "all_scores": {"a person breaking in": 0.92},
+        }
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_actions",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            mock_classify.return_value = mock_action_result
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                frame_buffer=mock_frame_buffer,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=True,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+                camera_id="front_door",
+            )
+
+            # Result should have action_results with suspicious action
+            assert result.has_action_results
+            assert result.has_suspicious_action
+            assert result.action_risk_weight >= 0.7  # High risk
+
+    async def test_action_recognition_without_camera_id_uses_fallback(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+        mock_frame_buffer,
+    ) -> None:
+        """Test action recognition falls back to single frame when no camera_id."""
+        mock_action_result = {
+            "detected_action": "a person walking normally",
+            "confidence": 0.75,
+            "top_actions": [("a person walking normally", 0.75)],
+            "all_scores": {"a person walking normally": 0.75},
+        }
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_actions",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            mock_classify.return_value = mock_action_result
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                frame_buffer=mock_frame_buffer,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+                depth_estimation_enabled=False,
+                pose_estimation_enabled=False,
+                action_recognition_enabled=True,
+            )
+
+            # No camera_id provided - should fall back to single frame
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+                camera_id=None,
+            )
+
+            # X-CLIP should still be called with single-frame fallback
+            mock_classify.assert_called_once()
+
+            # Result should have action_results
+            assert result.has_action_results
+
+
+@pytest.mark.asyncio
+class TestEnrichmentPipelineGetActionFrames:
+    """Tests for _get_action_frames method."""
+
+    async def test_get_action_frames_returns_buffered_frames(
+        self,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test _get_action_frames returns frames from buffer when available."""
+        from io import BytesIO
+
+        # Create mock frame buffer with valid JPEG data
+        mock_buffer = MagicMock()
+
+        # Create actual JPEG bytes for 8 frames
+        jpeg_frames = []
+        for i in range(8):
+            img = Image.new("RGB", (100, 100), color=(i * 30, i * 30, i * 30))
+            buffer = BytesIO()
+            img.save(buffer, format="JPEG")
+            jpeg_frames.append(buffer.getvalue())
+
+        mock_buffer.get_sequence.return_value = jpeg_frames
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                frame_buffer=mock_buffer,
+            )
+
+            frames = await pipeline._get_action_frames("front_door", test_image, num_frames=8)
+
+            # Should return 8 PIL Images from buffer
+            assert len(frames) == 8
+            for frame in frames:
+                assert isinstance(frame, Image.Image)
+
+    async def test_get_action_frames_falls_back_to_current_frame(
+        self,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test _get_action_frames falls back to current frame when buffer empty."""
+        mock_buffer = MagicMock()
+        mock_buffer.get_sequence.return_value = None  # No frames in buffer
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                frame_buffer=mock_buffer,
+            )
+
+            frames = await pipeline._get_action_frames("front_door", test_image, num_frames=8)
+
+            # Should return single current frame as fallback
+            assert len(frames) == 1
+            assert frames[0] is test_image
+
+    async def test_get_action_frames_no_buffer_returns_current_frame(
+        self,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test _get_action_frames returns current frame when no buffer configured."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                frame_buffer=None,  # No buffer
+            )
+
+            frames = await pipeline._get_action_frames("front_door", test_image, num_frames=8)
+
+            # Should return single current frame
+            assert len(frames) == 1
+            assert frames[0] is test_image
+
+    async def test_get_action_frames_no_camera_id_returns_current_frame(
+        self,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test _get_action_frames returns current frame when no camera_id."""
+        mock_buffer = MagicMock()
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                frame_buffer=mock_buffer,
+            )
+
+            # camera_id=None should skip buffer lookup
+            frames = await pipeline._get_action_frames(None, test_image, num_frames=8)
+
+            # Should return single current frame
+            assert len(frames) == 1
+            assert frames[0] is test_image
+
+            # Buffer should not be queried
+            mock_buffer.get_sequence.assert_not_called()
+
+
+@pytest.mark.asyncio
+class TestEnrichmentPipelineRecognizeActions:
+    """Tests for _recognize_actions method."""
+
+    async def test_recognize_actions_calls_xclip(
+        self,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test _recognize_actions calls X-CLIP classify_actions."""
+        mock_action_result = {
+            "detected_action": "a person loitering",
+            "confidence": 0.88,
+            "top_actions": [("a person loitering", 0.88)],
+            "all_scores": {"a person loitering": 0.88},
+        }
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_actions",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            mock_classify.return_value = mock_action_result
+
+            pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
+
+            # Create list of frames
+            frames = [test_image] * 8
+
+            result = await pipeline._recognize_actions(frames)
+
+            # classify_actions should be called
+            mock_classify.assert_called_once()
+
+            # Result should match mock
+            assert result == mock_action_result
+
+    async def test_recognize_actions_returns_none_for_empty_frames(
+        self,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test _recognize_actions returns None for empty frame list."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
+
+            result = await pipeline._recognize_actions([])
+
+            # Should return None for empty frames
+            assert result is None
+
+    async def test_recognize_actions_propagates_error(
+        self,
+        test_image: Image.Image,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test _recognize_actions propagates X-CLIP errors."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_actions",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            mock_classify.side_effect = RuntimeError("X-CLIP inference failed")
+
+            pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
+
+            frames = [test_image] * 8
+
+            # Should propagate the error
+            with pytest.raises(RuntimeError, match="X-CLIP"):
+                await pipeline._recognize_actions(frames)

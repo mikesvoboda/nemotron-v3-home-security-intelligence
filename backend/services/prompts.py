@@ -14,6 +14,8 @@ Security:
 
 from __future__ import annotations
 
+import logging
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -142,6 +144,12 @@ def validate_clothing_items(
             best_item = max(matches, key=lambda x: confidences.get(x, 0.0))
             validated.append(best_item)
             processed_groups.add(group_idx)
+            # Log the conflict for monitoring (NEM-3305)
+            _clothing_logger = logging.getLogger(__name__)
+            rejected = [m for m in matches if m != best_item]
+            _clothing_logger.info(
+                f"Clothing conflict resolved: kept {best_item!r}, rejected {rejected}"
+            )
         elif len(matches) == 1:
             # Single item from group - keep it
             validated.append(matches[0])
@@ -153,6 +161,169 @@ def validate_clothing_items(
             validated.append(item)
 
     return validated
+
+
+# ==============================================================================
+# VQA Output Validation (NEM-3304)
+# ==============================================================================
+# Florence-2 VQA sometimes returns raw tokens instead of parsed answers.
+# These functions validate VQA output and provide fallback behavior.
+#
+# Example garbage output:
+#   "Wearing: VQA>person wearing<loc_95><loc_86><loc_901><loc_918>"
+#
+# Expected clean output:
+#   "Wearing: dark hoodie and jeans"
+
+_prompts_logger = logging.getLogger(__name__)
+
+# Regex patterns for detecting garbage VQA output
+_LOC_TOKEN_PATTERN = re.compile(r"<loc_\d+>")
+_VQA_PREFIX_PATTERN = re.compile(r"VQA>", re.IGNORECASE)
+_POLY_TOKEN_PATTERN = re.compile(r"<poly>", re.IGNORECASE)
+_PAD_TOKEN_PATTERN = re.compile(r"<pad>", re.IGNORECASE)
+
+
+def is_valid_vqa_output(text: str | None) -> bool:
+    """Check if VQA output is valid (not garbage tokens).
+
+    Florence-2 VQA can return garbage outputs containing location tokens,
+    prompt artifacts, or other invalid patterns instead of actual text answers.
+
+    NEM-3304: VQA outputs like "VQA>person wearing<loc_95><loc_86><loc_901><loc_918>"
+    should be rejected so the system can fall back to scene captioning.
+
+    Args:
+        text: VQA output text to validate
+
+    Returns:
+        True if the output appears to be valid text, False if it contains
+        garbage patterns that indicate a failed VQA response.
+
+    Examples:
+        >>> is_valid_vqa_output("dark hoodie and jeans")
+        True
+        >>> is_valid_vqa_output("<loc_95><loc_86><loc_901><loc_918>")
+        False
+        >>> is_valid_vqa_output("VQA>person wearing<loc_95>")
+        False
+        >>> is_valid_vqa_output(None)
+        True  # None is handled elsewhere
+        >>> is_valid_vqa_output("")
+        True  # Empty is handled elsewhere
+    """
+    if text is None or text == "":
+        return True  # Empty/None is valid (handled elsewhere)
+
+    # Check for garbage token patterns
+    if _LOC_TOKEN_PATTERN.search(text):
+        return False
+    if _VQA_PREFIX_PATTERN.search(text):
+        return False
+    if _POLY_TOKEN_PATTERN.search(text):
+        return False
+    if _PAD_TOKEN_PATTERN.search(text):
+        return False
+
+    return True
+
+
+def validate_and_clean_vqa_output(text: str | None) -> str | None:
+    """Clean and validate Florence-2 VQA output, returning None if invalid.
+
+    This function validates VQA output and returns a cleaned version if valid,
+    or None if the output contains garbage tokens. When None is returned,
+    callers should fall back to scene captioning.
+
+    NEM-3304: When VQA returns garbage like "VQA>person wearing<loc_95><loc_86>",
+    this function returns None and logs a warning to signal that the caller
+    should use fallback behavior (scene captioning).
+
+    Args:
+        text: Raw VQA output text from Florence-2
+
+    Returns:
+        Cleaned text (lowercase, stripped) if valid, or None if garbage.
+
+    Examples:
+        >>> validate_and_clean_vqa_output("Dark Hoodie")
+        'dark hoodie'
+        >>> validate_and_clean_vqa_output("VQA>person wearing<loc_95>")
+        None
+        >>> validate_and_clean_vqa_output("<loc_1><loc_2>")
+        None
+        >>> validate_and_clean_vqa_output("")
+        None
+        >>> validate_and_clean_vqa_output(None)
+        None
+    """
+    if text is None:
+        return None
+
+    # Strip whitespace first
+    stripped = text.strip()
+    if not stripped:
+        return None
+
+    # Check for garbage patterns
+    if not is_valid_vqa_output(stripped):
+        _prompts_logger.warning(
+            f"VQA output contains garbage tokens, using fallback: {stripped[:100]!r}"
+        )
+        return None
+
+    # Return cleaned (lowercase, stripped) text
+    return stripped.lower()
+
+
+def format_florence_attributes(
+    attributes: dict[str, Any] | None,
+    caption: str,
+) -> str:
+    """Format Florence-2 extracted attributes for prompt inclusion.
+
+    Validates each attribute to filter out garbage VQA outputs and uses
+    the caption as fallback context when VQA fails.
+
+    NEM-3304: Attributes containing <loc_> tokens are filtered out and
+    replaced with caption-derived context.
+
+    Args:
+        attributes: Dict of attribute name to value (may contain garbage)
+        caption: Scene caption to use as fallback context
+
+    Returns:
+        Formatted string for prompt inclusion, or empty string if no valid data.
+
+    Examples:
+        >>> attrs = {"clothing": "dark hoodie", "action": "walking<loc_100>"}
+        >>> format_florence_attributes(attrs, "Person in blue jacket")
+        'clothing: dark hoodie'  # action filtered out, caption not needed
+    """
+    if not attributes:
+        # No attributes - use caption if available
+        if caption:
+            return f"Scene context: {caption}"
+        return ""
+
+    lines: list[str] = []
+    valid_count = 0
+
+    for attr_name, attr_value in attributes.items():
+        if attr_value is None:
+            continue
+
+        # Validate and clean the value
+        clean_value = validate_and_clean_vqa_output(str(attr_value))
+        if clean_value:
+            lines.append(f"{attr_name}: {clean_value}")
+            valid_count += 1
+
+    # If no valid attributes, fall back to caption
+    if valid_count == 0 and caption:
+        return f"Scene context: {caption}"
+
+    return "\n".join(lines)
 
 
 if TYPE_CHECKING:
@@ -955,6 +1126,83 @@ def format_action_recognition_context(
     return "\n".join(lines)
 
 
+def format_temporal_action_context(
+    action_result: dict[str, Any] | None,
+    duration_seconds: float | None = None,
+) -> str:
+    """Format X-CLIP temporal action recognition results for prompt inclusion.
+
+    This function formats the output from X-CLIP temporal action recognition
+    for inclusion in Nemotron risk assessment prompts. It includes the detected
+    action, confidence level, optional duration, and applicable risk modifiers.
+
+    Args:
+        action_result: Dictionary containing X-CLIP classification results with:
+            - detected_action: The classified action string
+            - confidence: Float 0-1 representing model confidence
+        duration_seconds: Optional duration in seconds the action was observed
+
+    Returns:
+        Formatted string for prompt inclusion, or empty string if:
+            - action_result is None or empty
+            - No detected_action is present
+            - Confidence is below 50% threshold
+
+    Example:
+        >>> result = format_temporal_action_context(
+        ...     {"detected_action": "loitering", "confidence": 0.78},
+        ...     duration_seconds=25.0
+        ... )
+        >>> "loitering" in result
+        True
+        >>> "+15 points" in result
+        True
+    """
+    if not action_result:
+        return ""
+
+    detected_action = action_result.get("detected_action")
+    confidence = action_result.get("confidence", 0)
+
+    if not detected_action or confidence < 0.5:
+        return ""  # Low confidence, don't include
+
+    lines = ["## BEHAVIORAL ANALYSIS (Temporal)"]
+    lines.append(f"Action detected: {detected_action} ({confidence:.0%} confidence)")
+
+    if duration_seconds:
+        lines.append(f"Duration: ~{duration_seconds:.0f} seconds across frames")
+
+    # Risk modifiers based on action type
+    RISK_MODIFIERS = {
+        "loitering": "+15 points (suspicious lingering behavior)",
+        "approaching_door": "+10 points (approach detected)",
+        "running_away": "+20 points (fleeing behavior)",
+        "checking_car_doors": "+25 points (vehicle tampering indicator)",
+        "suspicious_behavior": "+20 points (unusual activity)",
+        "breaking_in": "+40 points (intrusion indicator)",
+        "vandalism": "+35 points (property damage indicator)",
+    }
+
+    # Also check for X-CLIP prompt variations
+    ACTION_ALIASES = {
+        "a person loitering": "loitering",
+        "a person approaching a door": "approaching_door",
+        "a person running away": "running_away",
+        "a person looking around suspiciously": "suspicious_behavior",
+        "a person trying a door handle": "checking_car_doors",
+        "a person vandalizing property": "vandalism",
+        "a person breaking in": "breaking_in",
+    }
+
+    normalized_action = ACTION_ALIASES.get(detected_action, detected_action)
+    modifier = RISK_MODIFIERS.get(normalized_action)
+    if modifier:
+        lines.append(f"\u2192 RISK MODIFIER: {modifier}")
+
+    return "\n".join(lines)
+
+
 def format_vehicle_classification_context(
     vehicle_classifications: dict[str, VehicleClassificationResult],
 ) -> str:
@@ -1188,12 +1436,14 @@ def format_camera_health_context(
     if change_type == "view_blocked":
         lines.append(f"Camera view may be BLOCKED (similarity: {similarity_score:.0%})")
         lines.append("Detection confidence is DEGRADED")
+        lines.append("RISK MODIFIER: +30 points if intrusion detected during blocked view")
     elif change_type == "angle_changed":
         lines.append(f"Camera angle has CHANGED (similarity: {similarity_score:.0%})")
         lines.append("Baseline patterns may not apply")
     elif change_type == "view_tampered":
         lines.append(f"Possible TAMPERING detected (similarity: {similarity_score:.0%})")
         lines.append("CRITICAL: Verify camera integrity")
+        lines.append("ESCALATION: If unknown person detected, escalate to CRITICAL priority")
     else:
         # Unknown or other change types
         lines.append(f"Scene change detected (similarity: {similarity_score:.0%})")
@@ -1539,17 +1789,19 @@ def format_detections_with_all_enrichment(  # noqa: PLR0912
         lines.append(f"Confidence: {confidence:.0%}, Location: {bbox_str}")
 
         # Add Florence-2 vision attributes if available
+        # NEM-3304: Validate VQA outputs to filter garbage tokens
         if vision_extraction:
             if det_id in vision_extraction.vehicle_attributes:
                 v_attrs = vision_extraction.vehicle_attributes[det_id]
                 attr_parts = []
-                if v_attrs.color:
+                # Validate each VQA attribute before including (NEM-3304)
+                if v_attrs.color and is_valid_vqa_output(v_attrs.color):
                     attr_parts.append(f"Color: {v_attrs.color}")
-                if v_attrs.vehicle_type:
+                if v_attrs.vehicle_type and is_valid_vqa_output(v_attrs.vehicle_type):
                     attr_parts.append(f"Type: {v_attrs.vehicle_type}")
                 if v_attrs.is_commercial:
                     commercial = "Commercial vehicle"
-                    if v_attrs.commercial_text:
+                    if v_attrs.commercial_text and is_valid_vqa_output(v_attrs.commercial_text):
                         commercial += f" ({v_attrs.commercial_text})"
                     attr_parts.append(commercial)
                 if attr_parts:
@@ -1560,11 +1812,12 @@ def format_detections_with_all_enrichment(  # noqa: PLR0912
             elif det_id in vision_extraction.person_attributes:
                 p_attrs = vision_extraction.person_attributes[det_id]
                 attr_parts = []
-                if p_attrs.clothing:
+                # Validate each VQA attribute before including (NEM-3304)
+                if p_attrs.clothing and is_valid_vqa_output(p_attrs.clothing):
                     attr_parts.append(f"Wearing: {p_attrs.clothing}")
-                if p_attrs.carrying:
+                if p_attrs.carrying and is_valid_vqa_output(p_attrs.carrying):
                     attr_parts.append(f"Carrying: {p_attrs.carrying}")
-                if p_attrs.action:
+                if p_attrs.action and is_valid_vqa_output(p_attrs.action):
                     attr_parts.append(f"Action: {p_attrs.action}")
                 if p_attrs.is_service_worker:
                     attr_parts.append("Service worker")
@@ -1910,7 +2163,7 @@ def format_enhanced_reid_context(
 
 
 # ==============================================================================
-# Household Context Formatting (NEM-3024)
+# Household Context Formatting (NEM-3024, NEM-3315)
 # ==============================================================================
 
 
@@ -1919,6 +2172,17 @@ class HouseholdMatchLike(Protocol):
 
     This protocol allows the function to work with both the actual HouseholdMatch
     dataclass and mock objects in tests.
+
+    Attributes:
+        member_id: ID of the matched household member (for person matches)
+        member_name: Name of the matched household member
+        member_role: Role of the member (resident, family, service_worker, frequent_visitor)
+        vehicle_id: ID of the matched registered vehicle
+        vehicle_description: Description of the matched vehicle
+        similarity: Cosine similarity score (0-1, or 1.0 for exact plate match)
+        match_type: Type of match ("person", "license_plate", "vehicle_visual")
+        schedule_status: Optional schedule check result (True=within schedule,
+                        False=outside schedule, None=no schedule defined)
     """
 
     member_id: int | None
@@ -1929,10 +2193,133 @@ class HouseholdMatchLike(Protocol):
     match_type: str
 
 
+def _get_member_role(match: HouseholdMatchLike) -> str | None:
+    """Extract member_role from a HouseholdMatchLike object if available.
+
+    Args:
+        match: HouseholdMatchLike object that may have member_role attribute
+
+    Returns:
+        The member_role string if present, None otherwise
+    """
+    return getattr(match, "member_role", None)
+
+
+def _get_schedule_status(match: HouseholdMatchLike) -> bool | None:
+    """Extract schedule_status from a HouseholdMatchLike object if available.
+
+    Args:
+        match: HouseholdMatchLike object that may have schedule_status attribute
+
+    Returns:
+        The schedule_status (True/False/None) if present, None otherwise
+    """
+    return getattr(match, "schedule_status", None)
+
+
+def check_member_schedule(
+    typical_schedule: dict[str, str] | None,
+    current_time: datetime,
+) -> bool | None:
+    """Check if current time falls within a household member's typical schedule.
+
+    This function interprets the typical_schedule JSONB field from HouseholdMember
+    and determines if the current time falls within expected hours.
+
+    Schedule format examples:
+        - {"weekdays": "17:00-23:00", "weekends": "all_day"}
+        - {"daily": "09:00-18:00"}
+        - {"weekdays": "08:00-17:00", "saturday": "10:00-14:00"}
+
+    Time range formats:
+        - "HH:MM-HH:MM" - specific time range
+        - "all_day" - entire day (00:00-23:59)
+        - Empty or None - no schedule constraint
+
+    Args:
+        typical_schedule: JSONB dict with schedule specification, or None
+        current_time: Current timestamp to check against schedule
+
+    Returns:
+        True if within schedule, False if outside schedule, None if no schedule defined
+
+    Example:
+        >>> schedule = {"weekdays": "09:00-17:00", "weekends": "all_day"}
+        >>> # Monday at 10:00
+        >>> check_member_schedule(schedule, datetime(2024, 1, 15, 10, 0))
+        True
+        >>> # Monday at 22:00
+        >>> check_member_schedule(schedule, datetime(2024, 1, 15, 22, 0))
+        False
+    """
+    if not typical_schedule:
+        return None
+
+    weekday = current_time.weekday()  # Monday=0, Sunday=6
+    current_hour = current_time.hour
+    current_minute = current_time.minute
+    current_minutes = current_hour * 60 + current_minute
+
+    # Determine which schedule key to use
+    is_weekend = weekday >= 5  # Saturday=5, Sunday=6
+    is_saturday = weekday == 5
+    is_sunday = weekday == 6
+
+    # Try to find applicable schedule in order of specificity
+    schedule_value = None
+
+    # Day-specific schedules (most specific)
+    day_names = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    if day_names[weekday] in typical_schedule:
+        schedule_value = typical_schedule[day_names[weekday]]
+    # Weekend/weekday schedules
+    elif is_saturday and "saturday" in typical_schedule:
+        schedule_value = typical_schedule["saturday"]
+    elif is_sunday and "sunday" in typical_schedule:
+        schedule_value = typical_schedule["sunday"]
+    elif is_weekend and "weekends" in typical_schedule:
+        schedule_value = typical_schedule["weekends"]
+    elif not is_weekend and "weekdays" in typical_schedule:
+        schedule_value = typical_schedule["weekdays"]
+    # Daily schedule (least specific)
+    elif "daily" in typical_schedule:
+        schedule_value = typical_schedule["daily"]
+
+    if schedule_value is None:
+        return None
+
+    # Parse the schedule value
+    schedule_value = schedule_value.lower().strip()
+
+    if schedule_value == "all_day":
+        return True
+
+    # Parse "HH:MM-HH:MM" format
+    if "-" in schedule_value:
+        try:
+            start_str, end_str = schedule_value.split("-")
+            start_parts = start_str.strip().split(":")
+            end_parts = end_str.strip().split(":")
+
+            start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
+            end_minutes = int(end_parts[0]) * 60 + int(end_parts[1])
+
+            # Handle overnight schedules (e.g., "22:00-06:00")
+            if end_minutes < start_minutes:
+                return current_minutes >= start_minutes or current_minutes <= end_minutes
+            else:
+                return start_minutes <= current_minutes <= end_minutes
+        except (ValueError, IndexError):
+            _prompts_logger.warning(f"Invalid schedule time format: {schedule_value!r}")
+            return None
+
+    return None
+
+
 def format_household_context(
     person_matches: Sequence[HouseholdMatchLike],
     vehicle_matches: Sequence[HouseholdMatchLike],
-    current_time: datetime,  # noqa: ARG001 - Reserved for future time-based logic
+    current_time: datetime,
 ) -> str:
     """Format household matching results for prompt injection.
 
@@ -1940,30 +2327,42 @@ def format_household_context(
     persons and vehicles are recognized as household members/vehicles.
     Known individuals and vehicles receive reduced base risk scores.
 
-    Risk Calculation Rules (NEM-3024):
-    - High confidence person match (>90% similarity): Base risk 5
-    - Lower confidence person match (85-90%): Base risk 15
-    - Vehicle match (any): Base risk 10 (min with person risk)
-    - No matches: Base risk 50 (unknown individual/vehicle)
+    NEM-3315: Uses Unicode box-drawing characters for visual clarity and
+    includes schedule status for known persons.
+
+    Risk Calculation Rules (NEM-3315):
+    - Known person within schedule: Base risk 5
+    - Known person outside schedule: Base risk 20
+    - Registered vehicle: Cap risk at 10 (min with person risk)
+    - Unknown person: Base risk 50
 
     Args:
-        person_matches: List of HouseholdMatch objects for matched persons
+        person_matches: List of HouseholdMatch objects for matched persons.
+                       Objects may optionally have member_role and schedule_status
+                       attributes for enhanced context display.
         vehicle_matches: List of HouseholdMatch objects for matched vehicles
-        current_time: Current timestamp (reserved for future time-based logic)
+        current_time: Current timestamp for display in output
 
     Returns:
         Formatted string for prompt inclusion with risk modifiers clearly stated.
 
     Example output:
         ## RISK MODIFIERS (Apply These First)
-        +------------------------------------------------------------+
-        | KNOWN PERSON: John Doe (95% match)
-        | REGISTERED VEHICLE: Silver Toyota Camry
-        +------------------------------------------------------------+
+        +----------------------------------------------------------------+
+        | KNOWN PERSON: Mike (resident, 93% match)                       |
+        |   Schedule: Within expected hours                              |
+        | REGISTERED VEHICLE: Silver Tesla Model 3                       |
+        +----------------------------------------------------------------+
         -> Calculated base risk: 5
     """
+    # Box-drawing characters for visual formatting
+    # Using ASCII characters for broad terminal compatibility
+    box_width = 64
+    top_border = "+" + "-" * box_width + "+"
+    bottom_border = "+" + "-" * box_width + "+"
+
     lines = ["## RISK MODIFIERS (Apply These First)"]
-    lines.append("+" + "-" * 60 + "+")
+    lines.append(top_border)
 
     base_risk = 50  # Default for unknown
 
@@ -1971,9 +2370,30 @@ def format_household_context(
     if person_matches:
         for match in person_matches:
             similarity_pct = int(match.similarity * 100)
-            lines.append(f"| KNOWN PERSON: {match.member_name} ({similarity_pct}% match)")
-            # High confidence (>90%) = very low risk, otherwise low risk
-            base_risk = 5 if match.similarity > 0.9 else 15
+
+            # Get optional attributes
+            member_role = _get_member_role(match)
+            schedule_status = _get_schedule_status(match)
+
+            # Format person line with role if available
+            if member_role:
+                person_line = (
+                    f"| KNOWN PERSON: {match.member_name} ({member_role}, {similarity_pct}% match)"
+                )
+            else:
+                person_line = f"| KNOWN PERSON: {match.member_name} ({similarity_pct}% match)"
+            lines.append(person_line)
+
+            # Format schedule status if available (NEM-3315)
+            if schedule_status is True:
+                lines.append("|   Schedule: Within expected hours")
+                base_risk = 5
+            elif schedule_status is False:
+                lines.append("|   Schedule: Outside normal hours")
+                base_risk = 20
+            else:
+                # No schedule defined - use similarity-based risk (legacy behavior)
+                base_risk = 5 if match.similarity > 0.9 else 15
     else:
         lines.append("| KNOWN PERSON MATCH: None (unknown individual)")
 
@@ -1981,10 +2401,10 @@ def format_household_context(
     if vehicle_matches:
         for match in vehicle_matches:
             lines.append(f"| REGISTERED VEHICLE: {match.vehicle_description}")
-            # Vehicle match sets base risk to min of current and 10
+            # Vehicle match caps base risk at 10 (takes minimum)
             base_risk = min(base_risk, 10)
 
-    lines.append("+" + "-" * 60 + "+")
+    lines.append(bottom_border)
     lines.append(f"-> Calculated base risk: {base_risk}")
 
     return "\n".join(lines)

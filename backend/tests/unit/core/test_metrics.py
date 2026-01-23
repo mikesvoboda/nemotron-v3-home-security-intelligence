@@ -1538,6 +1538,129 @@ class TestPromptABTestingMetrics:
         record_prompt_rollback("nemotron", "variance")
 
 
+# =============================================================================
+# Shadow Mode Risk Distribution Metrics Tests (NEM-3337)
+# =============================================================================
+
+
+class TestShadowModeRiskDistributionMetrics:
+    """Test shadow mode risk distribution comparison metrics."""
+
+    def test_shadow_risk_score_distribution_metric_exists(self) -> None:
+        """SHADOW_RISK_SCORE_DISTRIBUTION histogram should be defined."""
+        from backend.core.metrics import SHADOW_RISK_SCORE_DISTRIBUTION
+
+        assert SHADOW_RISK_SCORE_DISTRIBUTION is not None
+        assert SHADOW_RISK_SCORE_DISTRIBUTION._name == "hsi_shadow_risk_score_distribution"
+        assert "prompt_version" in SHADOW_RISK_SCORE_DISTRIBUTION._labelnames
+
+    def test_record_shadow_risk_score(self) -> None:
+        """record_shadow_risk_score should record histogram observation."""
+        from backend.core.metrics import record_shadow_risk_score
+
+        record_shadow_risk_score("control", 50)
+        record_shadow_risk_score("treatment", 35)
+
+    def test_shadow_risk_score_diff_metric_exists(self) -> None:
+        """SHADOW_RISK_SCORE_DIFF histogram should be defined."""
+        from backend.core.metrics import SHADOW_RISK_SCORE_DIFF
+
+        assert SHADOW_RISK_SCORE_DIFF is not None
+        assert SHADOW_RISK_SCORE_DIFF._name == "hsi_shadow_risk_score_diff"
+
+    def test_record_shadow_risk_score_diff(self) -> None:
+        """record_shadow_risk_score_diff should record histogram observation."""
+        from backend.core.metrics import record_shadow_risk_score_diff
+
+        record_shadow_risk_score_diff(15)
+        record_shadow_risk_score_diff(0)
+        record_shadow_risk_score_diff(30)
+
+    def test_shadow_avg_risk_score_gauge_exists(self) -> None:
+        """SHADOW_AVG_RISK_SCORE gauge should be defined."""
+        from backend.core.metrics import SHADOW_AVG_RISK_SCORE
+
+        assert SHADOW_AVG_RISK_SCORE is not None
+        assert SHADOW_AVG_RISK_SCORE._name == "hsi_shadow_avg_risk_score"
+        assert "prompt_version" in SHADOW_AVG_RISK_SCORE._labelnames
+
+    def test_update_shadow_avg_risk_score(self) -> None:
+        """update_shadow_avg_risk_score should set gauge value."""
+        from backend.core.metrics import update_shadow_avg_risk_score
+
+        update_shadow_avg_risk_score("control", 55.5)
+        update_shadow_avg_risk_score("treatment", 42.3)
+
+    def test_shadow_risk_level_shift_metric_exists(self) -> None:
+        """SHADOW_RISK_LEVEL_SHIFT_TOTAL counter should be defined."""
+        from backend.core.metrics import SHADOW_RISK_LEVEL_SHIFT_TOTAL
+
+        assert SHADOW_RISK_LEVEL_SHIFT_TOTAL is not None
+        assert SHADOW_RISK_LEVEL_SHIFT_TOTAL._name == "hsi_shadow_risk_level_shift"
+        assert "direction" in SHADOW_RISK_LEVEL_SHIFT_TOTAL._labelnames
+
+    def test_record_shadow_risk_level_shift(self) -> None:
+        """record_shadow_risk_level_shift should increment counter."""
+        from backend.core.metrics import record_shadow_risk_level_shift
+
+        record_shadow_risk_level_shift("lower")
+        record_shadow_risk_level_shift("same")
+        record_shadow_risk_level_shift("higher")
+
+
+class TestShadowModeLatencyMetrics:
+    """Test shadow mode latency comparison metrics."""
+
+    def test_shadow_latency_diff_metric_exists(self) -> None:
+        """SHADOW_LATENCY_DIFF histogram should be defined."""
+        from backend.core.metrics import SHADOW_LATENCY_DIFF
+
+        assert SHADOW_LATENCY_DIFF is not None
+        assert SHADOW_LATENCY_DIFF._name == "hsi_shadow_latency_diff_seconds"
+
+    def test_record_shadow_latency_diff(self) -> None:
+        """record_shadow_latency_diff should record histogram observation."""
+        from backend.core.metrics import record_shadow_latency_diff
+
+        record_shadow_latency_diff(0.5)  # Treatment 500ms slower
+        record_shadow_latency_diff(-0.2)  # Treatment 200ms faster
+        record_shadow_latency_diff(0.0)  # Same latency
+
+    def test_shadow_latency_warning_metric_exists(self) -> None:
+        """SHADOW_LATENCY_WARNING_TOTAL counter should be defined."""
+        from backend.core.metrics import SHADOW_LATENCY_WARNING_TOTAL
+
+        assert SHADOW_LATENCY_WARNING_TOTAL is not None
+        assert SHADOW_LATENCY_WARNING_TOTAL._name == "hsi_shadow_latency_warning"
+        assert "model" in SHADOW_LATENCY_WARNING_TOTAL._labelnames
+
+    def test_record_shadow_latency_warning(self) -> None:
+        """record_shadow_latency_warning should increment counter."""
+        from backend.core.metrics import record_shadow_latency_warning
+
+        record_shadow_latency_warning("nemotron")
+
+
+class TestShadowModeErrorMetrics:
+    """Test shadow mode comparison error metrics."""
+
+    def test_shadow_comparison_errors_metric_exists(self) -> None:
+        """SHADOW_COMPARISON_ERRORS_TOTAL counter should be defined."""
+        from backend.core.metrics import SHADOW_COMPARISON_ERRORS_TOTAL
+
+        assert SHADOW_COMPARISON_ERRORS_TOTAL is not None
+        assert SHADOW_COMPARISON_ERRORS_TOTAL._name == "hsi_shadow_comparison_errors"
+        assert "error_type" in SHADOW_COMPARISON_ERRORS_TOTAL._labelnames
+
+    def test_record_shadow_comparison_error(self) -> None:
+        """record_shadow_comparison_error should increment counter."""
+        from backend.core.metrics import record_shadow_comparison_error
+
+        record_shadow_comparison_error("control_failed")
+        record_shadow_comparison_error("treatment_failed")
+        record_shadow_comparison_error("both_failed")
+
+
 class TestPipelineLatencyHistoryMethods:
     """Test pipeline latency history methods."""
 

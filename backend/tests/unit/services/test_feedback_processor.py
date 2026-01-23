@@ -2,14 +2,17 @@
 
 Tests cover:
 - FeedbackProcessor initialization
-- process_feedback method
+- process_feedback method with enhanced fields (NEM-3332)
 - _update_camera_calibration method
 - _get_or_create_calibration method
 - Auto-adjustment logic based on FP rate
 - Risk offset boundaries
 - Singleton behavior
+- Household member creation/update from actual_identity
+- Model failure recording for analysis
+- Event loading with detections
 
-Related Linear issues: NEM-3022
+Related Linear issues: NEM-3022, NEM-3332
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ import pytest
 from backend.models.camera_calibration import CameraCalibration
 from backend.models.event import Event
 from backend.models.event_feedback import EventFeedback, FeedbackType
+from backend.models.household import HouseholdMember, MemberRole, TrustLevel
 from backend.services.feedback_processor import (
     AUTO_ADJUST_MIN_FEEDBACK,
     HIGH_FP_RATE_THRESHOLD,
@@ -185,6 +189,7 @@ class TestUpdateCameraCalibration:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.CORRECT
+        mock_feedback.suggested_score = None
 
         await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
 
@@ -211,6 +216,7 @@ class TestUpdateCameraCalibration:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.suggested_score = None
 
         await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
 
@@ -238,6 +244,7 @@ class TestUpdateCameraCalibration:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.CORRECT
+        mock_feedback.suggested_score = None
 
         await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
 
@@ -264,12 +271,72 @@ class TestUpdateCameraCalibration:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.suggested_score = None
 
         await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
 
         assert calibration.total_feedback_count == 10
         assert calibration.false_positive_count == 5
         assert calibration.false_positive_rate == 0.5
+
+    @pytest.mark.asyncio
+    async def test_updates_avg_user_suggested_score(self) -> None:
+        """Test that avg_user_suggested_score is updated when suggested_score is provided."""
+        processor = FeedbackProcessor()
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=9,
+            false_positive_count=2,
+            false_positive_rate=0.222,
+            risk_offset=0,
+            avg_user_suggested_score=None,
+        )
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = calibration
+        mock_session.execute.return_value = mock_result
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.feedback_type = FeedbackType.SEVERITY_WRONG
+        mock_feedback.suggested_score = 45
+
+        await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
+
+        # First suggested score sets the average
+        assert calibration.avg_user_suggested_score == 45.0
+
+    @pytest.mark.asyncio
+    async def test_updates_avg_user_suggested_score_running_average(self) -> None:
+        """Test that avg_user_suggested_score computes running average."""
+        processor = FeedbackProcessor()
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=10,  # Already had 10 feedback items
+            false_positive_count=2,
+            false_positive_rate=0.2,
+            risk_offset=0,
+            avg_user_suggested_score=50.0,  # Previous average
+        )
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = calibration
+        mock_session.execute.return_value = mock_result
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.feedback_type = FeedbackType.SEVERITY_WRONG
+        mock_feedback.suggested_score = 30
+
+        await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
+
+        # Running average: (50 * 10 + 30) / 11 = 530 / 11 = 48.18...
+        assert calibration.avg_user_suggested_score is not None
+        assert 48.0 <= calibration.avg_user_suggested_score <= 49.0
 
 
 # =============================================================================
@@ -301,6 +368,7 @@ class TestAutoAdjustment:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.suggested_score = None
 
         await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
 
@@ -329,6 +397,7 @@ class TestAutoAdjustment:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.CORRECT
+        mock_feedback.suggested_score = None
 
         await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
 
@@ -357,6 +426,7 @@ class TestAutoAdjustment:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.suggested_score = None
 
         await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
 
@@ -384,6 +454,7 @@ class TestAutoAdjustment:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.suggested_score = None
 
         await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
 
@@ -412,6 +483,7 @@ class TestAutoAdjustment:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.CORRECT
+        mock_feedback.suggested_score = None
 
         await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
 
@@ -440,6 +512,7 @@ class TestAutoAdjustment:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.suggested_score = None
 
         await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
 
@@ -475,17 +548,20 @@ class TestProcessFeedback:
         mock_event.id = 1
         mock_event.camera_id = "front_door"
         mock_event.risk_score = 75
+        mock_event.detections = []
 
         # Mock feedback
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.event_id = 1
         mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
         mock_feedback.actual_identity = None
+        mock_feedback.model_failures = None
+        mock_feedback.suggested_score = None
 
         # Setup mock session
         mock_session = AsyncMock()
 
-        # First call: get event
+        # First call: get event with detections
         mock_event_result = MagicMock()
         mock_event_result.scalar_one_or_none.return_value = mock_event
 
@@ -522,6 +598,487 @@ class TestProcessFeedback:
 
         # Only one call (get_event), no calibration update
         assert mock_session.execute.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_process_feedback_returns_event_with_detections(self) -> None:
+        """Test that process_feedback returns event with loaded detections."""
+        processor = FeedbackProcessor()
+
+        # Create mock detections
+        mock_detection1 = MagicMock()
+        mock_detection1.id = 1
+        mock_detection1.object_type = "person"
+
+        mock_detection2 = MagicMock()
+        mock_detection2.id = 2
+        mock_detection2.object_type = "car"
+
+        # Mock event with detections
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = 75
+        mock_event.detections = [mock_detection1, mock_detection2]
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=5,
+            false_positive_count=2,
+            false_positive_rate=0.4,
+            risk_offset=0,
+        )
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.CORRECT
+        mock_feedback.actual_identity = None
+        mock_feedback.model_failures = None
+        mock_feedback.suggested_score = None
+
+        mock_session = AsyncMock()
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+        mock_session.execute.side_effect = [mock_event_result, mock_cal_result]
+
+        result = await processor.process_feedback(mock_feedback, mock_session)
+
+        # Verify the event is returned with detections accessible
+        assert result is not None
+        assert result.id == 1
+        assert len(result.detections) == 2
+
+
+# =============================================================================
+# Household Member Tests (NEM-3332)
+# =============================================================================
+
+
+class TestHouseholdMemberProcessing:
+    """Tests for household member creation/update from actual_identity."""
+
+    @pytest.mark.asyncio
+    async def test_creates_household_member_when_actual_identity_provided(self) -> None:
+        """Test that a new household member is created when actual_identity is provided."""
+        processor = FeedbackProcessor()
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = 75
+        mock_event.detections = []
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=5,
+            false_positive_count=2,
+            false_positive_rate=0.4,
+            risk_offset=0,
+        )
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.actual_identity = "Mike (neighbor)"
+        mock_feedback.model_failures = None
+        mock_feedback.suggested_score = None
+
+        mock_session = AsyncMock()
+
+        # Event query result
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+
+        # Calibration query result
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+
+        # Household member query result (none exists)
+        mock_member_result = MagicMock()
+        mock_member_result.scalar_one_or_none.return_value = None
+
+        mock_session.execute.side_effect = [
+            mock_event_result,
+            mock_cal_result,
+            mock_member_result,
+        ]
+
+        await processor.process_feedback(mock_feedback, mock_session)
+
+        # Verify session.add was called to create new household member
+        add_calls = mock_session.add.call_args_list
+        # At least one call should be for HouseholdMember
+        household_member_added = any(isinstance(call[0][0], HouseholdMember) for call in add_calls)
+        assert household_member_added
+
+    @pytest.mark.asyncio
+    async def test_updates_existing_household_member(self) -> None:
+        """Test that existing household member is found and not duplicated."""
+        processor = FeedbackProcessor()
+
+        existing_member = HouseholdMember(
+            id=1,
+            name="Mike",
+            role=MemberRole.FREQUENT_VISITOR,
+            trusted_level=TrustLevel.PARTIAL,
+        )
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = 75
+        mock_event.detections = []
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=5,
+            false_positive_count=2,
+            false_positive_rate=0.4,
+            risk_offset=0,
+        )
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.actual_identity = "Mike"
+        mock_feedback.model_failures = None
+        mock_feedback.suggested_score = None
+
+        mock_session = AsyncMock()
+
+        # Event query result
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+
+        # Calibration query result
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+
+        # Household member query result (member exists)
+        mock_member_result = MagicMock()
+        mock_member_result.scalar_one_or_none.return_value = existing_member
+
+        mock_session.execute.side_effect = [
+            mock_event_result,
+            mock_cal_result,
+            mock_member_result,
+        ]
+
+        await processor.process_feedback(mock_feedback, mock_session)
+
+        # Verify no new household member was added (member already exists)
+        add_calls = mock_session.add.call_args_list
+        household_member_added = any(isinstance(call[0][0], HouseholdMember) for call in add_calls)
+        assert not household_member_added
+
+    @pytest.mark.asyncio
+    async def test_skips_household_member_when_actual_identity_is_none(self) -> None:
+        """Test that household member processing is skipped when actual_identity is None."""
+        processor = FeedbackProcessor()
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = 75
+        mock_event.detections = []
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=5,
+            false_positive_count=2,
+            false_positive_rate=0.4,
+            risk_offset=0,
+        )
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.CORRECT
+        mock_feedback.actual_identity = None
+        mock_feedback.model_failures = None
+        mock_feedback.suggested_score = None
+
+        mock_session = AsyncMock()
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+
+        mock_session.execute.side_effect = [mock_event_result, mock_cal_result]
+
+        await processor.process_feedback(mock_feedback, mock_session)
+
+        # Only 2 execute calls: event and calibration (no household member query)
+        assert mock_session.execute.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_skips_household_member_when_actual_identity_is_empty(self) -> None:
+        """Test that household member processing is skipped for empty string."""
+        processor = FeedbackProcessor()
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = 75
+        mock_event.detections = []
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=5,
+            false_positive_count=2,
+            false_positive_rate=0.4,
+            risk_offset=0,
+        )
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.CORRECT
+        mock_feedback.actual_identity = "   "  # Whitespace only
+        mock_feedback.model_failures = None
+        mock_feedback.suggested_score = None
+
+        mock_session = AsyncMock()
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+
+        mock_session.execute.side_effect = [mock_event_result, mock_cal_result]
+
+        await processor.process_feedback(mock_feedback, mock_session)
+
+        # Only 2 execute calls: event and calibration (no household member query)
+        assert mock_session.execute.call_count == 2
+
+
+# =============================================================================
+# Model Failures Tests (NEM-3332)
+# =============================================================================
+
+
+class TestModelFailuresRecording:
+    """Tests for recording model failures from feedback."""
+
+    @pytest.mark.asyncio
+    async def test_records_model_failures_in_calibration(self) -> None:
+        """Test that model failures are recorded in camera calibration."""
+        processor = FeedbackProcessor()
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=5,
+            false_positive_count=2,
+            false_positive_rate=0.4,
+            risk_offset=0,
+            model_weights={},
+        )
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = 75
+        mock_event.detections = []
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.actual_identity = None
+        mock_feedback.model_failures = ["florence_vqa", "pose_model"]
+        mock_feedback.suggested_score = None
+
+        mock_session = AsyncMock()
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+
+        mock_session.execute.side_effect = [mock_event_result, mock_cal_result]
+
+        await processor.process_feedback(mock_feedback, mock_session)
+
+        # Verify model weights were decreased for failing models
+        assert "florence_vqa" in calibration.model_weights
+        assert "pose_model" in calibration.model_weights
+        # Weights should be less than 1.0 (reduced confidence in those models)
+        assert calibration.model_weights["florence_vqa"] < 1.0
+        assert calibration.model_weights["pose_model"] < 1.0
+
+    @pytest.mark.asyncio
+    async def test_accumulates_model_failure_weights(self) -> None:
+        """Test that model failure weights accumulate over multiple feedbacks."""
+        processor = FeedbackProcessor()
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=5,
+            false_positive_count=2,
+            false_positive_rate=0.4,
+            risk_offset=0,
+            model_weights={"florence_vqa": 0.9},  # Already had one failure
+        )
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = 75
+        mock_event.detections = []
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.actual_identity = None
+        mock_feedback.model_failures = ["florence_vqa"]  # Same model failing again
+        mock_feedback.suggested_score = None
+
+        mock_session = AsyncMock()
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+
+        mock_session.execute.side_effect = [mock_event_result, mock_cal_result]
+
+        await processor.process_feedback(mock_feedback, mock_session)
+
+        # Weight should be further reduced
+        assert calibration.model_weights["florence_vqa"] < 0.9
+
+    @pytest.mark.asyncio
+    async def test_model_weight_minimum_bound(self) -> None:
+        """Test that model weights don't go below minimum threshold."""
+        processor = FeedbackProcessor()
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=100,
+            false_positive_count=50,
+            false_positive_rate=0.5,
+            risk_offset=0,
+            model_weights={"florence_vqa": 0.15},  # Already very low
+        )
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = 75
+        mock_event.detections = []
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.actual_identity = None
+        mock_feedback.model_failures = ["florence_vqa"]
+        mock_feedback.suggested_score = None
+
+        mock_session = AsyncMock()
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+
+        mock_session.execute.side_effect = [mock_event_result, mock_cal_result]
+
+        await processor.process_feedback(mock_feedback, mock_session)
+
+        # Weight should not go below minimum (0.1)
+        assert calibration.model_weights["florence_vqa"] >= 0.1
+
+    @pytest.mark.asyncio
+    async def test_skips_model_failures_when_none(self) -> None:
+        """Test that model failures processing is skipped when None."""
+        processor = FeedbackProcessor()
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=5,
+            false_positive_count=2,
+            false_positive_rate=0.4,
+            risk_offset=0,
+            model_weights={},
+        )
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = 75
+        mock_event.detections = []
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.CORRECT
+        mock_feedback.actual_identity = None
+        mock_feedback.model_failures = None
+        mock_feedback.suggested_score = None
+
+        mock_session = AsyncMock()
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+
+        mock_session.execute.side_effect = [mock_event_result, mock_cal_result]
+
+        await processor.process_feedback(mock_feedback, mock_session)
+
+        # model_weights should remain unchanged
+        assert calibration.model_weights == {}
+
+    @pytest.mark.asyncio
+    async def test_skips_model_failures_when_empty_list(self) -> None:
+        """Test that model failures processing is skipped for empty list."""
+        processor = FeedbackProcessor()
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=5,
+            false_positive_count=2,
+            false_positive_rate=0.4,
+            risk_offset=0,
+            model_weights={},
+        )
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = 75
+        mock_event.detections = []
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.CORRECT
+        mock_feedback.actual_identity = None
+        mock_feedback.model_failures = []
+        mock_feedback.suggested_score = None
+
+        mock_session = AsyncMock()
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+
+        mock_session.execute.side_effect = [mock_event_result, mock_cal_result]
+
+        await processor.process_feedback(mock_feedback, mock_session)
+
+        # model_weights should remain unchanged
+        assert calibration.model_weights == {}
 
 
 # =============================================================================
@@ -571,6 +1128,7 @@ class TestFeedbackProcessorEdgeCases:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.suggested_score = None
 
         calibration = await processor._get_or_create_calibration(mock_session, "new_camera")
         await processor._update_camera_calibration("new_camera", mock_feedback, mock_session)
@@ -599,6 +1157,7 @@ class TestFeedbackProcessorEdgeCases:
 
         mock_feedback = MagicMock(spec=EventFeedback)
         mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.suggested_score = None
 
         await processor._update_camera_calibration("front_door", mock_feedback, mock_session)
 
@@ -633,6 +1192,7 @@ class TestFeedbackProcessorEdgeCases:
 
             mock_feedback = MagicMock(spec=EventFeedback)
             mock_feedback.feedback_type = feedback_type
+            mock_feedback.suggested_score = None
 
             await processor._update_camera_calibration("test_camera", mock_feedback, mock_session)
 
@@ -669,9 +1229,124 @@ class TestFeedbackProcessorEdgeCases:
 
             mock_feedback = MagicMock(spec=EventFeedback)
             mock_feedback.feedback_type = feedback_type
+            mock_feedback.suggested_score = None
 
             await processor._update_camera_calibration("test_camera", mock_feedback, mock_session)
 
             assert calibration.false_positive_count == 2, (
                 f"FP count changed for {feedback_type}: {calibration.false_positive_count}"
             )
+
+
+# =============================================================================
+# Integration Tests for Full Feedback Processing
+# =============================================================================
+
+
+class TestFullFeedbackProcessing:
+    """Integration tests for complete feedback processing workflow."""
+
+    @pytest.mark.asyncio
+    async def test_full_feedback_with_all_fields(self) -> None:
+        """Test processing feedback with all enhanced fields populated."""
+        processor = FeedbackProcessor()
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = 75
+        mock_event.detections = []
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=19,  # Will be 20 after this
+            false_positive_count=10,  # Will be 11 after this
+            false_positive_rate=0.526,
+            risk_offset=0,
+            model_weights={},
+            avg_user_suggested_score=50.0,
+        )
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.actual_identity = "Mike (neighbor)"
+        mock_feedback.model_failures = ["florence_vqa", "pose_model"]
+        mock_feedback.suggested_score = 20
+        mock_feedback.actual_threat_level = "no_threat"
+        mock_feedback.what_was_wrong = "This was my neighbor Mike, not a threat"
+
+        mock_session = AsyncMock()
+
+        # Event query result
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+
+        # Calibration query result
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+
+        # Household member query result (none exists)
+        mock_member_result = MagicMock()
+        mock_member_result.scalar_one_or_none.return_value = None
+
+        mock_session.execute.side_effect = [
+            mock_event_result,
+            mock_cal_result,
+            mock_member_result,
+        ]
+
+        result = await processor.process_feedback(mock_feedback, mock_session)
+
+        # Verify all updates happened
+        assert result is not None
+        assert calibration.total_feedback_count == 20
+        assert calibration.false_positive_count == 11
+        assert calibration.risk_offset == -OFFSET_DECREASE_STEP  # High FP rate
+        assert "florence_vqa" in calibration.model_weights
+        assert "pose_model" in calibration.model_weights
+        assert calibration.avg_user_suggested_score is not None
+
+    @pytest.mark.asyncio
+    async def test_feedback_with_none_risk_score_event(self) -> None:
+        """Test processing feedback when event has no risk score."""
+        processor = FeedbackProcessor()
+
+        mock_event = MagicMock(spec=Event)
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.risk_score = None  # No risk score assigned
+        mock_event.detections = []
+
+        calibration = CameraCalibration(
+            id=1,
+            camera_id="front_door",
+            total_feedback_count=5,
+            false_positive_count=2,
+            false_positive_rate=0.4,
+            risk_offset=0,
+            model_weights={},
+        )
+
+        mock_feedback = MagicMock(spec=EventFeedback)
+        mock_feedback.event_id = 1
+        mock_feedback.feedback_type = FeedbackType.FALSE_POSITIVE
+        mock_feedback.actual_identity = None
+        mock_feedback.model_failures = None
+        mock_feedback.suggested_score = None
+
+        mock_session = AsyncMock()
+
+        mock_event_result = MagicMock()
+        mock_event_result.scalar_one_or_none.return_value = mock_event
+        mock_cal_result = MagicMock()
+        mock_cal_result.scalar_one_or_none.return_value = calibration
+
+        mock_session.execute.side_effect = [mock_event_result, mock_cal_result]
+
+        # Should not raise, should still process the feedback
+        result = await processor.process_feedback(mock_feedback, mock_session)
+
+        assert result is not None
+        assert calibration.total_feedback_count == 6

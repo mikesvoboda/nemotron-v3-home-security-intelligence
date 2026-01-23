@@ -252,6 +252,43 @@ class TestFrameBufferClear:
         # Should not raise
         buffer.clear("nonexistent_camera")
 
+    @pytest.mark.anyio
+    async def test_clear_camera_removes_only_specified_camera(self) -> None:
+        """clear_camera should only clear the specified camera's buffer."""
+        from backend.services.frame_buffer import FrameBuffer
+
+        buffer = FrameBuffer()
+        now = datetime.now(UTC)
+
+        await buffer.add_frame("camera_1", b"frame_1", now)
+        await buffer.add_frame("camera_2", b"frame_2", now)
+        await buffer.add_frame("camera_3", b"frame_3", now)
+
+        buffer.clear_camera("camera_1")
+
+        assert buffer.frame_count("camera_1") == 0
+        assert buffer.frame_count("camera_2") == 1
+        assert buffer.frame_count("camera_3") == 1
+
+    @pytest.mark.anyio
+    async def test_clear_all_removes_all_buffers(self) -> None:
+        """clear_all should remove all camera buffers."""
+        from backend.services.frame_buffer import FrameBuffer
+
+        buffer = FrameBuffer()
+        now = datetime.now(UTC)
+
+        await buffer.add_frame("camera_1", b"frame_1", now)
+        await buffer.add_frame("camera_2", b"frame_2", now)
+        await buffer.add_frame("camera_3", b"frame_3", now)
+
+        buffer.clear_all()
+
+        assert buffer.camera_count == 0
+        assert buffer.frame_count("camera_1") == 0
+        assert buffer.frame_count("camera_2") == 0
+        assert buffer.frame_count("camera_3") == 0
+
 
 class TestFrameBufferHelpers:
     """Tests for helper methods."""
@@ -302,6 +339,59 @@ class TestFrameBufferHelpers:
 
         camera_ids = buffer.get_camera_ids()
         assert set(camera_ids) == {"camera_1", "camera_2"}
+
+    @pytest.mark.anyio
+    async def test_get_oldest_timestamp_returns_correct_value(self) -> None:
+        """get_oldest_timestamp should return timestamp of oldest frame."""
+        from backend.services.frame_buffer import FrameBuffer
+
+        buffer = FrameBuffer()
+        now = datetime.now(UTC)
+        oldest_time = now - timedelta(seconds=10)
+
+        await buffer.add_frame("camera_1", b"frame_1", oldest_time)
+        await buffer.add_frame("camera_1", b"frame_2", now - timedelta(seconds=5))
+        await buffer.add_frame("camera_1", b"frame_3", now)
+
+        result = buffer.get_oldest_timestamp("camera_1")
+        assert result == oldest_time
+
+    def test_get_oldest_timestamp_returns_none_for_unknown_camera(self) -> None:
+        """get_oldest_timestamp should return None for cameras with no buffer."""
+        from backend.services.frame_buffer import FrameBuffer
+
+        buffer = FrameBuffer()
+        assert buffer.get_oldest_timestamp("unknown") is None
+
+    @pytest.mark.anyio
+    async def test_get_oldest_timestamp_returns_none_after_clear(self) -> None:
+        """get_oldest_timestamp should return None after buffer is cleared."""
+        from backend.services.frame_buffer import FrameBuffer
+
+        buffer = FrameBuffer()
+        now = datetime.now(UTC)
+
+        await buffer.add_frame("camera_1", b"frame_1", now)
+        buffer.clear("camera_1")
+
+        assert buffer.get_oldest_timestamp("camera_1") is None
+
+    @pytest.mark.anyio
+    async def test_get_buffer_size_returns_correct_count(self) -> None:
+        """get_buffer_size should return correct count of frames."""
+        from backend.services.frame_buffer import FrameBuffer
+
+        buffer = FrameBuffer()
+        now = datetime.now(UTC)
+
+        assert buffer.get_buffer_size("camera_1") == 0
+
+        await buffer.add_frame("camera_1", b"frame_1", now)
+        assert buffer.get_buffer_size("camera_1") == 1
+
+        await buffer.add_frame("camera_1", b"frame_2", now + timedelta(seconds=1))
+        await buffer.add_frame("camera_1", b"frame_3", now + timedelta(seconds=2))
+        assert buffer.get_buffer_size("camera_1") == 3
 
 
 class TestFrameData:

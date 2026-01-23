@@ -8,8 +8,14 @@ Tests cover:
 - expected_severity field for severity_wrong feedback
 - Table indexes and constraints
 - Property-based tests for field values
+- Enhanced feedback fields (NEM-3330):
+  - actual_threat_level for calibration
+  - suggested_score for user-suggested risk score
+  - actual_identity for household member identification
+  - what_was_wrong for learning data
+  - model_failures for tracking which AI models failed
 
-Related Linear issues: NEM-2348, NEM-2352
+Related Linear issues: NEM-2348, NEM-2352, NEM-3330
 """
 
 from datetime import UTC, datetime
@@ -37,6 +43,33 @@ severity_values = st.sampled_from(["low", "medium", "high", "critical"])
 
 # Strategy for optional severity values (including None)
 optional_severity_values = st.one_of(st.none(), severity_values)
+
+# Strategy for valid actual_threat_level values
+threat_level_values = st.sampled_from(["no_threat", "minor_concern", "genuine_threat"])
+
+# Strategy for optional threat level values (including None)
+optional_threat_level_values = st.one_of(st.none(), threat_level_values)
+
+# Strategy for valid suggested_score values (0-100)
+suggested_scores = st.integers(min_value=0, max_value=100)
+
+# Strategy for optional suggested scores (including None)
+optional_suggested_scores = st.one_of(st.none(), suggested_scores)
+
+# Strategy for actual_identity values (names)
+actual_identity_values = st.one_of(
+    st.none(),
+    st.text(min_size=1, max_size=100, alphabet=st.characters(categories=["L", "N", " "])),
+)
+
+# Strategy for model_failures list
+model_failure_options = st.sampled_from(
+    ["clothing_model", "pose_model", "florence_vqa", "reid_model", "action_model"]
+)
+model_failures_list = st.one_of(
+    st.none(),
+    st.lists(model_failure_options, min_size=0, max_size=5, unique=True),
+)
 
 # Strategy for valid event IDs
 event_ids = st.integers(min_value=1, max_value=2**31 - 1)
@@ -115,6 +148,55 @@ def feedback_with_timestamp():
         feedback_type=FeedbackType.MISSED_THREAT,
         notes="Suspicious person not detected.",
         created_at=datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC),
+    )
+
+
+@pytest.fixture
+def enhanced_feedback():
+    """Create an EventFeedback with all enhanced fields populated."""
+    return EventFeedback(
+        id=10,
+        event_id=200,
+        feedback_type=FeedbackType.FALSE_POSITIVE,
+        notes="This was my neighbor Mike.",
+        actual_threat_level="no_threat",
+        suggested_score=5,
+        actual_identity="Mike (neighbor)",
+        what_was_wrong="Person was incorrectly flagged as unknown intruder",
+        model_failures=["reid_model", "clothing_model"],
+    )
+
+
+@pytest.fixture
+def feedback_with_threat_level():
+    """Create an EventFeedback with actual_threat_level set."""
+    return EventFeedback(
+        event_id=201,
+        feedback_type=FeedbackType.SEVERITY_WRONG,
+        actual_threat_level="minor_concern",
+        suggested_score=25,
+    )
+
+
+@pytest.fixture
+def feedback_with_identity():
+    """Create an EventFeedback with actual_identity for household learning."""
+    return EventFeedback(
+        event_id=202,
+        feedback_type=FeedbackType.FALSE_POSITIVE,
+        actual_identity="Sarah (daughter)",
+        what_was_wrong="Daughter coming home after school",
+    )
+
+
+@pytest.fixture
+def feedback_with_model_failures():
+    """Create an EventFeedback tracking specific model failures."""
+    return EventFeedback(
+        event_id=203,
+        feedback_type=FeedbackType.FALSE_POSITIVE,
+        model_failures=["florence_vqa", "pose_model", "clothing_model"],
+        what_was_wrong="VQA returned garbage tokens, pose detection said running while sitting",
     )
 
 
@@ -748,3 +830,494 @@ class TestFeedbackTypeSemantics:
             notes="Package delivery marked as critical threat.",
         )
         assert feedback.feedback_type == FeedbackType.SEVERITY_WRONG
+
+
+# =============================================================================
+# Enhanced Feedback Fields Tests (NEM-3330)
+# =============================================================================
+
+
+class TestEventFeedbackActualThreatLevel:
+    """Tests for EventFeedback actual_threat_level field."""
+
+    def test_actual_threat_level_none_by_default(self, minimal_feedback):
+        """Test actual_threat_level is None by default."""
+        assert minimal_feedback.actual_threat_level is None
+
+    def test_actual_threat_level_no_threat(self):
+        """Test actual_threat_level with no_threat value."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            actual_threat_level="no_threat",
+        )
+        assert feedback.actual_threat_level == "no_threat"
+
+    def test_actual_threat_level_minor_concern(self):
+        """Test actual_threat_level with minor_concern value."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            actual_threat_level="minor_concern",
+        )
+        assert feedback.actual_threat_level == "minor_concern"
+
+    def test_actual_threat_level_genuine_threat(self):
+        """Test actual_threat_level with genuine_threat value."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.MISSED_THREAT,
+            actual_threat_level="genuine_threat",
+        )
+        assert feedback.actual_threat_level == "genuine_threat"
+
+    def test_actual_threat_level_with_fixture(self, feedback_with_threat_level):
+        """Test actual_threat_level from fixture."""
+        assert feedback_with_threat_level.actual_threat_level == "minor_concern"
+
+    def test_actual_threat_level_in_enhanced_feedback(self, enhanced_feedback):
+        """Test actual_threat_level in fully enhanced feedback."""
+        assert enhanced_feedback.actual_threat_level == "no_threat"
+
+
+class TestEventFeedbackSuggestedScore:
+    """Tests for EventFeedback suggested_score field."""
+
+    def test_suggested_score_none_by_default(self, minimal_feedback):
+        """Test suggested_score is None by default."""
+        assert minimal_feedback.suggested_score is None
+
+    def test_suggested_score_low_value(self):
+        """Test suggested_score with low value (normal activity)."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            suggested_score=5,
+        )
+        assert feedback.suggested_score == 5
+
+    def test_suggested_score_medium_value(self):
+        """Test suggested_score with medium value."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            suggested_score=45,
+        )
+        assert feedback.suggested_score == 45
+
+    def test_suggested_score_high_value(self):
+        """Test suggested_score with high value."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.MISSED_THREAT,
+            suggested_score=85,
+        )
+        assert feedback.suggested_score == 85
+
+    def test_suggested_score_max_value(self):
+        """Test suggested_score with maximum value (100)."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.MISSED_THREAT,
+            suggested_score=100,
+        )
+        assert feedback.suggested_score == 100
+
+    def test_suggested_score_min_value(self):
+        """Test suggested_score with minimum value (0)."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            suggested_score=0,
+        )
+        assert feedback.suggested_score == 0
+
+    def test_suggested_score_with_fixture(self, feedback_with_threat_level):
+        """Test suggested_score from fixture."""
+        assert feedback_with_threat_level.suggested_score == 25
+
+    def test_suggested_score_in_enhanced_feedback(self, enhanced_feedback):
+        """Test suggested_score in fully enhanced feedback."""
+        assert enhanced_feedback.suggested_score == 5
+
+
+class TestEventFeedbackActualIdentity:
+    """Tests for EventFeedback actual_identity field."""
+
+    def test_actual_identity_none_by_default(self, minimal_feedback):
+        """Test actual_identity is None by default."""
+        assert minimal_feedback.actual_identity is None
+
+    def test_actual_identity_simple_name(self):
+        """Test actual_identity with simple name."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            actual_identity="Mike",
+        )
+        assert feedback.actual_identity == "Mike"
+
+    def test_actual_identity_name_with_role(self):
+        """Test actual_identity with name and role."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            actual_identity="John (gardener)",
+        )
+        assert feedback.actual_identity == "John (gardener)"
+
+    def test_actual_identity_full_description(self):
+        """Test actual_identity with full description."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            actual_identity="Sarah - daughter, comes home at 3pm daily",
+        )
+        assert feedback.actual_identity == "Sarah - daughter, comes home at 3pm daily"
+
+    def test_actual_identity_with_fixture(self, feedback_with_identity):
+        """Test actual_identity from fixture."""
+        assert feedback_with_identity.actual_identity == "Sarah (daughter)"
+
+    def test_actual_identity_in_enhanced_feedback(self, enhanced_feedback):
+        """Test actual_identity in fully enhanced feedback."""
+        assert enhanced_feedback.actual_identity == "Mike (neighbor)"
+
+    def test_actual_identity_max_length(self):
+        """Test actual_identity with maximum length (100 chars)."""
+        long_identity = "A" * 100
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            actual_identity=long_identity,
+        )
+        assert feedback.actual_identity == long_identity
+        assert len(feedback.actual_identity) == 100
+
+
+class TestEventFeedbackWhatWasWrong:
+    """Tests for EventFeedback what_was_wrong field."""
+
+    def test_what_was_wrong_none_by_default(self, minimal_feedback):
+        """Test what_was_wrong is None by default."""
+        assert minimal_feedback.what_was_wrong is None
+
+    def test_what_was_wrong_simple_description(self):
+        """Test what_was_wrong with simple description."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            what_was_wrong="Person was my neighbor",
+        )
+        assert feedback.what_was_wrong == "Person was my neighbor"
+
+    def test_what_was_wrong_detailed_analysis(self):
+        """Test what_was_wrong with detailed analysis."""
+        description = (
+            "The VQA model returned garbage tokens instead of clothing description. "
+            "Pose detection said 'running' but scene clearly shows person sitting. "
+            "Re-ID should have matched against known household member."
+        )
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            what_was_wrong=description,
+        )
+        assert feedback.what_was_wrong == description
+
+    def test_what_was_wrong_with_fixture(self, feedback_with_identity):
+        """Test what_was_wrong from fixture."""
+        assert feedback_with_identity.what_was_wrong == "Daughter coming home after school"
+
+    def test_what_was_wrong_in_enhanced_feedback(self, enhanced_feedback):
+        """Test what_was_wrong in fully enhanced feedback."""
+        assert (
+            enhanced_feedback.what_was_wrong == "Person was incorrectly flagged as unknown intruder"
+        )
+
+    def test_what_was_wrong_long_text(self):
+        """Test what_was_wrong can contain long text (Text field)."""
+        long_text = "A" * 5000  # Text field should allow longer content than String
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            what_was_wrong=long_text,
+        )
+        assert feedback.what_was_wrong == long_text
+        assert len(feedback.what_was_wrong) == 5000
+
+
+class TestEventFeedbackModelFailures:
+    """Tests for EventFeedback model_failures field."""
+
+    def test_model_failures_none_by_default(self, minimal_feedback):
+        """Test model_failures is None by default."""
+        assert minimal_feedback.model_failures is None
+
+    def test_model_failures_empty_list(self):
+        """Test model_failures with empty list."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.ACCURATE,
+            model_failures=[],
+        )
+        assert feedback.model_failures == []
+
+    def test_model_failures_single_model(self):
+        """Test model_failures with single model."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            model_failures=["florence_vqa"],
+        )
+        assert feedback.model_failures == ["florence_vqa"]
+        assert len(feedback.model_failures) == 1
+
+    def test_model_failures_multiple_models(self):
+        """Test model_failures with multiple models."""
+        failures = ["clothing_model", "pose_model", "reid_model"]
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            model_failures=failures,
+        )
+        assert feedback.model_failures == failures
+        assert len(feedback.model_failures) == 3
+
+    def test_model_failures_with_fixture(self, feedback_with_model_failures):
+        """Test model_failures from fixture."""
+        expected = ["florence_vqa", "pose_model", "clothing_model"]
+        assert feedback_with_model_failures.model_failures == expected
+
+    def test_model_failures_in_enhanced_feedback(self, enhanced_feedback):
+        """Test model_failures in fully enhanced feedback."""
+        assert enhanced_feedback.model_failures == ["reid_model", "clothing_model"]
+
+    def test_model_failures_known_model_types(self):
+        """Test model_failures with all known model types."""
+        known_models = [
+            "clothing_model",
+            "pose_model",
+            "florence_vqa",
+            "reid_model",
+            "action_model",
+        ]
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            model_failures=known_models,
+        )
+        assert feedback.model_failures == known_models
+        assert all(model in feedback.model_failures for model in known_models)
+
+
+class TestEventFeedbackEnhancedColumnDefinitions:
+    """Tests for enhanced EventFeedback column definitions."""
+
+    def test_feedback_has_actual_threat_level_column(self):
+        """Test EventFeedback has actual_threat_level column defined."""
+        mapper = inspect(EventFeedback)
+        assert "actual_threat_level" in mapper.columns
+
+    def test_actual_threat_level_is_nullable(self):
+        """Test actual_threat_level column is nullable."""
+        mapper = inspect(EventFeedback)
+        col = mapper.columns["actual_threat_level"]
+        assert col.nullable is True
+
+    def test_feedback_has_suggested_score_column(self):
+        """Test EventFeedback has suggested_score column defined."""
+        mapper = inspect(EventFeedback)
+        assert "suggested_score" in mapper.columns
+
+    def test_suggested_score_is_nullable(self):
+        """Test suggested_score column is nullable."""
+        mapper = inspect(EventFeedback)
+        col = mapper.columns["suggested_score"]
+        assert col.nullable is True
+
+    def test_feedback_has_actual_identity_column(self):
+        """Test EventFeedback has actual_identity column defined."""
+        mapper = inspect(EventFeedback)
+        assert "actual_identity" in mapper.columns
+
+    def test_actual_identity_is_nullable(self):
+        """Test actual_identity column is nullable."""
+        mapper = inspect(EventFeedback)
+        col = mapper.columns["actual_identity"]
+        assert col.nullable is True
+
+    def test_feedback_has_what_was_wrong_column(self):
+        """Test EventFeedback has what_was_wrong column defined."""
+        mapper = inspect(EventFeedback)
+        assert "what_was_wrong" in mapper.columns
+
+    def test_what_was_wrong_is_nullable(self):
+        """Test what_was_wrong column is nullable."""
+        mapper = inspect(EventFeedback)
+        col = mapper.columns["what_was_wrong"]
+        assert col.nullable is True
+
+    def test_feedback_has_model_failures_column(self):
+        """Test EventFeedback has model_failures column defined."""
+        mapper = inspect(EventFeedback)
+        assert "model_failures" in mapper.columns
+
+    def test_model_failures_is_nullable(self):
+        """Test model_failures column is nullable."""
+        mapper = inspect(EventFeedback)
+        col = mapper.columns["model_failures"]
+        assert col.nullable is True
+
+
+class TestEventFeedbackEnhancedConstraints:
+    """Tests for enhanced EventFeedback constraints."""
+
+    def test_has_actual_threat_level_constraint(self):
+        """Test EventFeedback has actual_threat_level CHECK constraint defined."""
+        constraints = [
+            arg for arg in EventFeedback.__table_args__ if isinstance(arg, CheckConstraint)
+        ]
+        constraint_names = [c.name for c in constraints if c.name]
+        assert "ck_event_feedback_actual_threat_level" in constraint_names
+
+    def test_actual_threat_level_constraint_includes_no_threat(self):
+        """Test CHECK constraint includes 'no_threat' value."""
+        constraints = [
+            arg for arg in EventFeedback.__table_args__ if isinstance(arg, CheckConstraint)
+        ]
+        constraint = next(
+            (c for c in constraints if c.name == "ck_event_feedback_actual_threat_level"), None
+        )
+        assert constraint is not None
+        constraint_text = str(constraint.sqltext)
+        assert "no_threat" in constraint_text
+
+    def test_actual_threat_level_constraint_includes_minor_concern(self):
+        """Test CHECK constraint includes 'minor_concern' value."""
+        constraints = [
+            arg for arg in EventFeedback.__table_args__ if isinstance(arg, CheckConstraint)
+        ]
+        constraint = next(
+            (c for c in constraints if c.name == "ck_event_feedback_actual_threat_level"), None
+        )
+        assert constraint is not None
+        constraint_text = str(constraint.sqltext)
+        assert "minor_concern" in constraint_text
+
+    def test_actual_threat_level_constraint_includes_genuine_threat(self):
+        """Test CHECK constraint includes 'genuine_threat' value."""
+        constraints = [
+            arg for arg in EventFeedback.__table_args__ if isinstance(arg, CheckConstraint)
+        ]
+        constraint = next(
+            (c for c in constraints if c.name == "ck_event_feedback_actual_threat_level"), None
+        )
+        assert constraint is not None
+        constraint_text = str(constraint.sqltext)
+        assert "genuine_threat" in constraint_text
+
+    def test_has_suggested_score_constraint(self):
+        """Test EventFeedback has suggested_score CHECK constraint defined."""
+        constraints = [
+            arg for arg in EventFeedback.__table_args__ if isinstance(arg, CheckConstraint)
+        ]
+        constraint_names = [c.name for c in constraints if c.name]
+        assert "ck_event_feedback_suggested_score" in constraint_names
+
+    def test_suggested_score_constraint_range(self):
+        """Test CHECK constraint enforces 0-100 range."""
+        constraints = [
+            arg for arg in EventFeedback.__table_args__ if isinstance(arg, CheckConstraint)
+        ]
+        constraint = next(
+            (c for c in constraints if c.name == "ck_event_feedback_suggested_score"), None
+        )
+        assert constraint is not None
+        constraint_text = str(constraint.sqltext)
+        # Should reference suggested_score and have range bounds
+        assert "suggested_score" in constraint_text
+
+
+# =============================================================================
+# Enhanced Property-based Tests
+# =============================================================================
+
+
+class TestEventFeedbackEnhancedProperties:
+    """Property-based tests for enhanced EventFeedback fields."""
+
+    @given(threat_level=optional_threat_level_values)
+    @settings(max_examples=20)
+    def test_actual_threat_level_roundtrip(self, threat_level: str | None):
+        """Property: Actual threat level values roundtrip correctly."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            actual_threat_level=threat_level,
+        )
+        assert feedback.actual_threat_level == threat_level
+
+    @given(score=optional_suggested_scores)
+    @settings(max_examples=50)
+    def test_suggested_score_roundtrip(self, score: int | None):
+        """Property: Suggested score values roundtrip correctly."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.SEVERITY_WRONG,
+            suggested_score=score,
+        )
+        assert feedback.suggested_score == score
+
+    @given(identity=actual_identity_values)
+    @settings(max_examples=50)
+    def test_actual_identity_roundtrip(self, identity: str | None):
+        """Property: Actual identity values roundtrip correctly."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            actual_identity=identity,
+        )
+        assert feedback.actual_identity == identity
+
+    @given(failures=model_failures_list)
+    @settings(max_examples=50)
+    def test_model_failures_roundtrip(self, failures: list[str] | None):
+        """Property: Model failures list values roundtrip correctly."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=FeedbackType.FALSE_POSITIVE,
+            model_failures=failures,
+        )
+        assert feedback.model_failures == failures
+
+    @given(
+        feedback_type=feedback_types,
+        threat_level=optional_threat_level_values,
+        score=optional_suggested_scores,
+        identity=actual_identity_values,
+        failures=model_failures_list,
+    )
+    @settings(max_examples=50)
+    def test_all_enhanced_fields_roundtrip(
+        self,
+        feedback_type: FeedbackType,
+        threat_level: str | None,
+        score: int | None,
+        identity: str | None,
+        failures: list[str] | None,
+    ):
+        """Property: All enhanced field values roundtrip correctly together."""
+        feedback = EventFeedback(
+            event_id=1,
+            feedback_type=feedback_type,
+            actual_threat_level=threat_level,
+            suggested_score=score,
+            actual_identity=identity,
+            model_failures=failures,
+        )
+        assert feedback.feedback_type == feedback_type
+        assert feedback.actual_threat_level == threat_level
+        assert feedback.suggested_score == score
+        assert feedback.actual_identity == identity
+        assert feedback.model_failures == failures

@@ -1544,3 +1544,141 @@ class TestVisionExtractorWithVQAValidation:
         assert result.abandoned_items == []
         # But the scene description should still be valid
         assert "driveway" in result.scene_description.lower()
+
+    @pytest.mark.asyncio
+    async def test_extract_vehicle_internal_validates_vqa_output_nem3304(self) -> None:
+        """Test that _extract_vehicle_internal validates VQA responses (NEM-3304).
+
+        The internal methods used by batch extraction should validate VQA output
+        just like the public methods do. Garbage VQA output with <loc_> tokens
+        should result in None for that attribute, not raw garbage in the prompt.
+        """
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        query_responses = {
+            "What color is this vehicle?": "VQA>vehicle color<loc_95><loc_86>",
+            "What type of vehicle is this? (sedan, SUV, pickup, van, truck, motorcycle)": "sedan<loc_1><loc_2>",
+            "Is this a commercial vehicle? Answer yes or no.": "No",
+        }
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "A silver sedan parked in the driveway"
+            return query_responses.get(text_input, "")
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+        # Call the internal method directly
+        result = await extractor._extract_vehicle_internal(img)
+
+        # Color should be None (garbage VQA output with loc tokens)
+        assert result.color is None, f"Expected None, got: {result.color}"
+        # Vehicle type should also be None (has loc tokens)
+        assert result.vehicle_type is None, f"Expected None, got: {result.vehicle_type}"
+        # Caption should still be valid
+        assert "sedan" in result.caption.lower()
+
+    @pytest.mark.asyncio
+    async def test_extract_person_internal_validates_vqa_output_nem3304(self) -> None:
+        """Test that _extract_person_internal validates VQA responses (NEM-3304).
+
+        The internal methods used by batch extraction should validate VQA output
+        just like the public methods do. Garbage VQA output like
+        "Wearing: VQA>person wearing<loc_95><loc_86><loc_901><loc_918>"
+        should be rejected and return None instead of raw garbage.
+        """
+        from PIL import Image
+
+        extractor = VisionExtractor()
+        query_responses = {
+            "What is this person wearing?": "VQA>person wearing<loc_95><loc_86><loc_901><loc_918>",
+            "Is this person carrying anything? If yes, what?": "backpack",
+            "Does this person appear to be a delivery worker or service worker? Answer yes or no.": "No",
+            "What is this person doing?": "walking<loc_100>",
+        }
+
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "A person in dark hoodie walking in the driveway"
+            return query_responses.get(text_input, "")
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (200, 200), color="black")
+        # Call the internal method directly
+        result = await extractor._extract_person_internal(img)
+
+        # Clothing should be None (garbage VQA output with loc tokens)
+        assert result.clothing is None, f"Expected None, got: {result.clothing}"
+        # Carrying should be valid (no loc tokens)
+        assert result.carrying == "backpack"
+        # Action should be None (has loc tokens)
+        assert result.action is None, f"Expected None, got: {result.action}"
+        # Caption provides fallback context
+        assert "dark hoodie" in result.caption.lower()
+
+    @pytest.mark.asyncio
+    async def test_batch_extraction_validates_all_vqa_outputs_nem3304(self) -> None:
+        """Test batch extraction validates VQA outputs (NEM-3304).
+
+        When extracting attributes for multiple detections via extract_batch_attributes,
+        all VQA outputs should be validated. Garbage outputs should result in None
+        for those attributes while caption provides fallback context.
+        """
+        from PIL import Image
+
+        extractor = VisionExtractor()
+
+        # Mock responses with garbage VQA for person attributes
+        async def mock_query(image, task, text_input=""):
+            if task == "<CAPTION>":
+                return "Person in blue jacket near white car"
+            if "wearing" in text_input.lower():
+                return "VQA>person wearing<loc_95><loc_86><loc_901><loc_918>"
+            if "color" in text_input.lower():
+                return "white"
+            if "type" in text_input.lower():
+                return "sedan"
+            if "commercial" in text_input.lower():
+                return "No"
+            if "carrying" in text_input.lower():
+                return "nothing"
+            if "service worker" in text_input.lower():
+                return "No"
+            if "doing" in text_input.lower():
+                return "walking"
+            # Scene and environment queries
+            if "unusual" in text_input.lower() or "tools" in text_input.lower():
+                return "No"
+            if "abandoned" in text_input.lower():
+                return "No"
+            if "time of day" in text_input.lower():
+                return "day"
+            if "flashlight" in text_input.lower():
+                return "No"
+            if "weather" in text_input.lower():
+                return "clear"
+            return ""
+
+        extractor._query_florence = mock_query
+
+        img = Image.new("RGB", (400, 400), color="gray")
+        detections = [
+            {"class_name": "car", "bbox": [10, 10, 100, 100], "detection_id": "v1"},
+            {"class_name": "person", "bbox": [200, 200, 300, 400], "detection_id": "p1"},
+        ]
+
+        result = await extractor.extract_batch_attributes(img, detections)
+
+        # Person's clothing should be None (garbage VQA rejected)
+        person_attrs = result.person_attributes.get("p1")
+        assert person_attrs is not None
+        assert person_attrs.clothing is None, f"Expected None, got: {person_attrs.clothing}"
+
+        # Vehicle attributes should be valid (no garbage in responses)
+        vehicle_attrs = result.vehicle_attributes.get("v1")
+        assert vehicle_attrs is not None
+        assert vehicle_attrs.color == "white"
+        assert vehicle_attrs.vehicle_type == "sedan"

@@ -131,6 +131,7 @@ from .export import (
     ExportTypeEnum,
 )
 from .feedback import (
+    ActualThreatLevel,
     EventFeedbackCreate,
     EventFeedbackResponse,
     FeedbackStatsResponse,
@@ -322,6 +323,7 @@ __all__ = [
     "EventBulkUpdateItem",
     "EventBulkUpdateRequest",
     "EventEnrichmentsResponse",
+    "ActualThreatLevel",
     "EventFeedbackCreate",
     "EventFeedbackResponse",
     "EventRegistryResponse",

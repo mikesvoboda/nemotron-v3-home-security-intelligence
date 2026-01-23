@@ -1,10 +1,19 @@
-"""EventFeedback model for user feedback on security events."""
+"""EventFeedback model for user feedback on security events.
+
+Enhanced with calibration fields for Nemotron prompt improvement (NEM-3330):
+- actual_threat_level: User's assessment of true threat level
+- suggested_score: What the user thinks the score should have been
+- actual_identity: Identity correction for household member learning
+- what_was_wrong: Detailed explanation of AI failure
+- model_failures: List of specific AI models that failed
+"""
 
 from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .camera import Base
@@ -47,10 +56,19 @@ class EventFeedback(Base):
     For severity_wrong feedback, the expected_severity field stores what the
     user believes the correct severity should have been.
 
+    Enhanced fields for Nemotron prompt improvement (NEM-3330):
+    - actual_threat_level: User's assessment ("no_threat", "minor_concern", "genuine_threat")
+    - suggested_score: What the user thinks the risk score should have been (0-100)
+    - actual_identity: Identity correction ("That was Mike") for household learning
+    - what_was_wrong: Detailed text explanation of what the AI got wrong
+    - model_failures: List of specific AI models that failed (e.g., ["florence_vqa", "pose_model"])
+
     Database constraints:
     - UNIQUE(event_id): One feedback per event maximum
     - Foreign key to events table with CASCADE delete
     - CHECK constraint on expected_severity values
+    - CHECK constraint on actual_threat_level values
+    - CHECK constraint on suggested_score range (0-100)
     """
 
     __tablename__ = "event_feedback"
@@ -67,6 +85,18 @@ class EventFeedback(Base):
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
     )
 
+    # Enhanced feedback fields (NEM-3330: Nemotron prompt improvements)
+    # User's assessment of true threat level
+    actual_threat_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # What the user thinks the score should have been (0-100)
+    suggested_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Identity correction for household member learning (e.g., "Mike (neighbor)")
+    actual_identity: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Detailed explanation of what was wrong
+    what_was_wrong: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # List of specific AI models that failed (e.g., ["florence_vqa", "pose_model"])
+    model_failures: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+
     # Relationship
     event: Mapped[Event] = relationship("Event", back_populates="feedback")
 
@@ -77,6 +107,8 @@ class EventFeedback(Base):
         Index("idx_event_feedback_type", "feedback_type"),
         # Index for time-based queries
         Index("idx_event_feedback_created_at", "created_at"),
+        # Index for filtering by actual_threat_level (calibration queries)
+        Index("idx_event_feedback_actual_threat_level", "actual_threat_level"),
         # CHECK constraint for valid feedback types
         CheckConstraint(
             "feedback_type IN ('accurate', 'correct', 'false_positive', 'missed_threat', 'severity_wrong')",
@@ -86,6 +118,16 @@ class EventFeedback(Base):
         CheckConstraint(
             "expected_severity IS NULL OR expected_severity IN ('low', 'medium', 'high', 'critical')",
             name="ck_event_feedback_expected_severity",
+        ),
+        # CHECK constraint for actual_threat_level values (NEM-3330)
+        CheckConstraint(
+            "actual_threat_level IS NULL OR actual_threat_level IN ('no_threat', 'minor_concern', 'genuine_threat')",
+            name="ck_event_feedback_actual_threat_level",
+        ),
+        # CHECK constraint for suggested_score range 0-100 (NEM-3330)
+        CheckConstraint(
+            "suggested_score IS NULL OR (suggested_score >= 0 AND suggested_score <= 100)",
+            name="ck_event_feedback_suggested_score",
         ),
     )
 

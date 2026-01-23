@@ -79,6 +79,10 @@ from backend.services.fashion_clip_loader import (
     classify_clothing,
     format_clothing_context,
 )
+from backend.services.household_matcher import (
+    HouseholdMatch,
+    get_household_matcher,
+)
 from backend.services.image_quality_loader import (
     ImageQualityResult,
     assess_image_quality,
@@ -537,6 +541,8 @@ class EnrichmentResult:
         vision_extraction: Florence-2 attribute extraction results
         person_reid_matches: Re-identification matches for persons
         vehicle_reid_matches: Re-identification matches for vehicles
+        person_household_matches: Household member matches for persons (NEM-3314)
+        vehicle_household_matches: Registered vehicle matches (NEM-3314)
         scene_change: Scene change detection result
         errors: List of error messages during processing (deprecated, use structured_errors)
         structured_errors: List of structured error objects with category and reason
@@ -548,6 +554,9 @@ class EnrichmentResult:
     vision_extraction: BatchExtractionResult | None = None
     person_reid_matches: dict[str, list[EntityMatch]] = field(default_factory=dict)
     vehicle_reid_matches: dict[str, list[EntityMatch]] = field(default_factory=dict)
+    # Household matching results (NEM-3314)
+    person_household_matches: list[HouseholdMatch] = field(default_factory=list)
+    vehicle_household_matches: list[HouseholdMatch] = field(default_factory=list)
     scene_change: SceneChangeResult | None = None
     violence_detection: ViolenceDetectionResult | None = None
     weather_classification: WeatherResult | None = None
@@ -607,6 +616,21 @@ class EnrichmentResult:
     def has_reid_matches(self) -> bool:
         """Check if any re-identification matches were found."""
         return bool(self.person_reid_matches) or bool(self.vehicle_reid_matches)
+
+    @property
+    def has_person_household_matches(self) -> bool:
+        """Check if any persons matched household members (NEM-3314)."""
+        return bool(self.person_household_matches)
+
+    @property
+    def has_vehicle_household_matches(self) -> bool:
+        """Check if any vehicles matched registered vehicles (NEM-3314)."""
+        return bool(self.vehicle_household_matches)
+
+    @property
+    def has_household_matches(self) -> bool:
+        """Check if any household matches were found (persons or vehicles) (NEM-3314)."""
+        return self.has_person_household_matches or self.has_vehicle_household_matches
 
     @property
     def has_scene_change(self) -> bool:
@@ -1095,6 +1119,25 @@ class EnrichmentResult:
                 det_id: result.to_dict() if hasattr(result, "to_dict") else {}
                 for det_id, result in self.person_embeddings.items()
             },
+            # Household matching results (NEM-3314)
+            "person_household_matches": [
+                {
+                    "member_id": match.member_id,
+                    "member_name": match.member_name,
+                    "similarity": match.similarity,
+                    "match_type": match.match_type,
+                }
+                for match in self.person_household_matches
+            ],
+            "vehicle_household_matches": [
+                {
+                    "vehicle_id": match.vehicle_id,
+                    "vehicle_description": match.vehicle_description,
+                    "similarity": match.similarity,
+                    "match_type": match.match_type,
+                }
+                for match in self.vehicle_household_matches
+            ],
             "errors": self.errors,
             "processing_time_ms": self.processing_time_ms,
         }
@@ -1609,6 +1652,7 @@ class EnrichmentPipeline:
         depth_estimation_enabled: bool = True,
         pose_estimation_enabled: bool = True,
         action_recognition_enabled: bool = True,
+        household_matching_enabled: bool = False,
         frame_buffer: FrameBuffer | None = None,
         redis_client: Any | None = None,
         use_enrichment_service: bool = False,
@@ -1639,6 +1683,8 @@ class EnrichmentPipeline:
             depth_estimation_enabled: Enable Depth Anything V2 depth estimation for spatial context
             pose_estimation_enabled: Enable ViTPose pose estimation for person detections
             action_recognition_enabled: Enable X-CLIP action recognition from frame sequences
+            household_matching_enabled: Enable matching persons/vehicles against household database (NEM-3314).
+                                       Disabled by default for backward compatibility.
             frame_buffer: FrameBuffer for accumulating frames for X-CLIP temporal action recognition.
                          If provided, frames are buffered per camera and X-CLIP runs on frame sequences
                          (8 frames) for better action recognition. If None, falls back to single-frame.
@@ -1677,6 +1723,7 @@ class EnrichmentPipeline:
         self.depth_estimation_enabled = depth_estimation_enabled
         self.pose_estimation_enabled = pose_estimation_enabled
         self.action_recognition_enabled = action_recognition_enabled
+        self.household_matching_enabled = household_matching_enabled
         self._previous_quality_results: dict[str, ImageQualityResult] = {}
         self.redis_client = redis_client
 
@@ -1701,6 +1748,7 @@ class EnrichmentPipeline:
             f"vision_extraction={vision_extraction_enabled}, "
             f"reid={reid_enabled}, "
             f"scene_change={scene_change_enabled}, "
+            f"household_matching={household_matching_enabled}, "
             f"use_enrichment_service={use_enrichment_service}"
         )
 
@@ -2719,6 +2767,13 @@ class EnrichmentPipeline:
                 except Exception as e:
                     self._handle_enrichment_error("action_recognition", e, result)
 
+        # Run household matching against known persons and vehicles (NEM-3314)
+        if self.household_matching_enabled:
+            try:
+                await self._run_household_matching(high_conf_detections, result)
+            except Exception as e:
+                self._handle_enrichment_error("household_matching", e, result)
+
         result.processing_time_ms = (time.monotonic() - start_time) * 1000
         logger.info(
             f"Enrichment complete: {len(result.license_plates)} plates, "
@@ -2734,7 +2789,9 @@ class EnrichmentPipeline:
             f"depth={'yes' if result.depth_analysis else 'no'}, "
             f"pose={len(result.pose_results)}, "
             f"action={'yes' if result.action_results else 'no'}, "
-            f"quality={'yes' if result.image_quality else 'no'} "
+            f"quality={'yes' if result.image_quality else 'no'}, "
+            f"household_persons={len(result.person_household_matches)}, "
+            f"household_vehicles={len(result.vehicle_household_matches)} "
             f"in {result.processing_time_ms:.1f}ms"
         )
 
@@ -2884,6 +2941,116 @@ class EnrichmentPipeline:
                         },
                         exc_info=True,
                     )
+
+    async def _run_household_matching(
+        self,
+        detections: list[DetectionInput],
+        result: EnrichmentResult,
+    ) -> None:
+        """Match persons and vehicles against known household members and vehicles (NEM-3314).
+
+        This method performs household matching to identify known persons and
+        registered vehicles in the current detections. Matches are stored in
+        the EnrichmentResult for use by the NemotronAnalyzer to reduce risk
+        scores for recognized household members.
+
+        Matching Flow:
+        1. For person detections: Extract embeddings from person_embeddings field
+           and match against HouseholdMember embeddings via cosine similarity
+        2. For vehicles: Match by license plate text from detected plates
+
+        Args:
+            detections: List of high-confidence detections
+            result: EnrichmentResult to update with household matches
+
+        Note:
+            This method accesses the database via a session and should not fail
+            the entire enrichment pipeline if matching fails.
+        """
+        import numpy as np
+
+        from backend.core.database import get_session
+
+        matcher = get_household_matcher()
+
+        # Extract persons and vehicles for matching
+        persons = [d for d in detections if d.class_name == PERSON_CLASS]
+        vehicles = [d for d in detections if d.class_name in VEHICLE_CLASSES]
+
+        async with get_session() as session:
+            # Match persons by embedding similarity
+            for i, person in enumerate(persons):
+                det_id = str(person.id) if person.id else str(i)
+
+                # Get person embedding from the result if available
+                # Person embeddings come from OSNet or other re-ID models
+                if det_id in result.person_embeddings:
+                    embedding_result = result.person_embeddings[det_id]
+                    # Extract the actual embedding array from the result
+                    if hasattr(embedding_result, "embedding"):
+                        embedding = embedding_result.embedding
+                    elif isinstance(embedding_result, dict) and "embedding" in embedding_result:
+                        embedding = embedding_result["embedding"]
+                    else:
+                        continue
+
+                    # Convert to numpy array if needed
+                    if not isinstance(embedding, np.ndarray):
+                        try:
+                            embedding = np.array(embedding, dtype=np.float32)
+                        except (ValueError, TypeError):
+                            logger.warning(
+                                f"Could not convert embedding to numpy array for person {det_id}"
+                            )
+                            continue
+
+                    try:
+                        match = await matcher.match_person(embedding, session)
+                        if match:
+                            result.person_household_matches.append(match)
+                            logger.debug(
+                                "Person matched to household member",
+                                extra={
+                                    "detection_id": det_id,
+                                    "member_name": match.member_name,
+                                    "similarity": match.similarity,
+                                },
+                            )
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to match person {det_id} against household: {sanitize_error(e)}",
+                            extra={"detection_id": det_id, "error_type": type(e).__name__},
+                        )
+
+            # Match vehicles by license plate
+            if result.has_readable_plates:
+                for plate_result in result.license_plates:
+                    if plate_result.text:
+                        try:
+                            match = await matcher.match_vehicle(
+                                license_plate=plate_result.text,
+                                vehicle_embedding=None,  # Visual matching not yet implemented
+                                vehicle_type="car",  # Default type
+                                color=None,
+                                session=session,
+                            )
+                            if match:
+                                result.vehicle_household_matches.append(match)
+                                logger.debug(
+                                    "Vehicle matched by license plate",
+                                    extra={
+                                        "plate": plate_result.text,
+                                        "vehicle_description": match.vehicle_description,
+                                    },
+                                )
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to match vehicle plate {plate_result.text}: {sanitize_error(e)}",
+                                extra={
+                                    "plate": plate_result.text,
+                                    "error_type": type(e).__name__,
+                                },
+                            )
 
     async def _detect_license_plates(
         self,
