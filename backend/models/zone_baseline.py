@@ -28,6 +28,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -81,7 +82,7 @@ class ZoneActivityBaseline(Base):
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),
         primary_key=True,
-        server_default="gen_random_uuid()",
+        server_default=text("gen_random_uuid()"),
     )
     zone_id: Mapped[str] = mapped_column(
         String,
