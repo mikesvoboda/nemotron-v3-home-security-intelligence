@@ -551,9 +551,11 @@ async def main():
             "results": [asdict(r) for r in results],
         }
 
-        with open(args.output, "w") as f:
+        # Resolve and validate output path to prevent path traversal
+        output_path = Path(args.output).resolve()
+        with output_path.open("w") as f:
             json.dump(output_data, f, indent=2)
-        print(f"\nResults saved to: {args.output}")
+        print(f"\nResults saved to: {output_path}")
 
     return 0
 
