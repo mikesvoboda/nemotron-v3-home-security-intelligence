@@ -5973,6 +5973,32 @@
     },
     {
       "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "description": "Documentation for Risk Analysis metrics",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 341
+      },
+      "id": 316,
+      "options": {
+        "code": {
+          "language": "markdown",
+          "showLineNumbers": false
+        },
+        "content": "### Risk Analysis Metrics\n\n**What these metrics track:**\n- **Events Acknowledged**: Security events marked as reviewed by operators\n- **Risk Distribution**: Breakdown of events by risk level\n\n**Why these matter:**\n- Acknowledgement rate shows operator engagement\n- Unacknowledged high-risk events need immediate attention\n- Risk trends reveal security patterns\n\n**Criticality:** HIGH - Security monitoring effectiveness depends on operator response.\n\n**SLA targets:** High/Critical events acknowledged within 15 minutes",
+        "mode": "markdown"
+      },
+      "pluginVersion": "10.2.3",
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
@@ -6767,6 +6793,31 @@
       "panels": [],
       "title": "Queue Health",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 406
+      },
+      "id": 313,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false
+        },
+        "content": "### Queue Health Metrics\n\n**What these metrics track:**\n- **Overflow Events**: Queue at max capacity, backpressure applied\n- **Items Dropped**: Data loss due to overflow, TTL expiry, or validation\n- **Items Rejected**: Validation failures at queue entry\n- **DLQ Moves**: Failed items requiring manual investigation\n\n**Why these matter:**\n- Overflow = pipeline can't keep up with incoming load\n- Drops = data loss, investigate root cause immediately\n- Rejections = upstream sending malformed data\n- DLQ = processing failures needing operator attention\n\n**Criticality:** CRITICAL - Queue issues cause data loss and pipeline stalls.\n\n**Alert thresholds:** Any drops > 0 = investigate, DLQ > 100 items = manual review required",
+        "mode": "markdown"
+      },
+      "pluginVersion": "10.2.3",
+      "title": "About Queue Health",
+      "transparent": false,
+      "type": "text"
     },
     {
       "datasource": {
@@ -7725,6 +7776,33 @@
       "panels": [],
       "title": "Worker Health",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 477
+      },
+      "id": 314,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "### Worker Health Metrics\n\n**What these metrics track:**\n- **Worker Crashes** (`hsi_worker_crashes_total`): Unexpected worker failures requiring automatic recovery\n- **Worker Restarts** (`hsi_worker_restarts_total`): All restart events (crash recovery, scheduled, manual)\n- **Circuit Breaker Trips** (`hsi_circuit_breaker_trips_total`): Protection activations when downstream services fail\n\n**Why these matter:**\n- High crash rates indicate code bugs or resource exhaustion\n- Restart patterns reveal system stability issues\n- Circuit breaker trips prevent cascade failures\n\n**Criticality:** HIGH - Worker health directly impacts pipeline throughput and reliability.\n\n**Alert thresholds:** Crashes > 5/hr = investigate, Circuit trips > 10/hr = service degradation",
+        "mode": "markdown"
+      },
+      "pluginVersion": "10.0.0",
+      "title": "",
+      "transparent": true,
+      "type": "text"
     },
     {
       "datasource": {
@@ -10048,6 +10126,31 @@
     },
     {
       "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 4,
+        "y": 628
+      },
+      "id": 317,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false
+        },
+        "content": "### Cost & Efficiency Metrics\n\n**What these metrics track:**\n- **Budget Utilization**: Percentage of daily/monthly budget consumed\n- **Token Cost Rate**: USD spent on LLM inference per camera\n\n**Why these matter:**\n- Budget tracking prevents unexpected bills\n- Per-camera costs reveal optimization opportunities\n- Trend analysis helps capacity planning\n\n**Criticality:** MEDIUM - Financial visibility, not immediate operational impact.\n\n**Healthy ranges:** Daily budget < 80% by EOD, Monthly < 90%, Cost/camera stable over time",
+        "mode": "markdown"
+      },
+      "pluginVersion": "10.2.3",
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
@@ -11518,6 +11621,33 @@
     },
     {
       "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 701
+      },
+      "id": 313,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "### Real User Monitoring (RUM) Metrics\n\n**What these metrics measure:**\n- **FCP (First Contentful Paint)**: Time until first content renders - indicates initial load speed\n- **LCP (Largest Contentful Paint)**: Time until largest content element renders - key Core Web Vital\n- **Page Load Time**: Total time to fully load the page\n- **CLS (Cumulative Layout Shift)**: Visual stability score - measures unexpected layout shifts\n\n**Criticality:** HIGH - These are Core Web Vitals that directly impact user experience and SEO rankings.\n\n**Healthy thresholds:** FCP < 1.8s (good), LCP < 2.5s (good), Page Load < 3s (good), CLS < 0.1 (good)",
+        "mode": "markdown"
+      },
+      "pluginVersion": "10.0.0",
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
@@ -11537,15 +11667,15 @@
               },
               {
                 "color": "#FF9830",
-                "value": 2500
+                "value": 3
               },
               {
                 "color": "#F2495C",
-                "value": 4000
+                "value": 6
               }
             ]
           },
-          "unit": "ms"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -11553,7 +11683,7 @@
         "h": 6,
         "w": 6,
         "x": 0,
-        "y": 695
+        "y": 706
       },
       "id": 151,
       "options": {
@@ -11575,7 +11705,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.75, sum(rate(hsi_rum_page_load_time_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.75, sum(rate(hsi_rum_page_load_time_seconds_bucket[5m])) by (le))",
           "legendFormat": "P75 Load Time",
           "refId": "A"
         }
@@ -11604,15 +11734,15 @@
               },
               {
                 "color": "#FF9830",
-                "value": 1800
+                "value": 1.8
               },
               {
                 "color": "#F2495C",
-                "value": 3000
+                "value": 3
               }
             ]
           },
-          "unit": "ms"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -11620,7 +11750,7 @@
         "h": 6,
         "w": 6,
         "x": 6,
-        "y": 701
+        "y": 706
       },
       "id": 152,
       "options": {
@@ -11642,7 +11772,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.75, sum(rate(hsi_rum_fcp_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.75, sum(rate(hsi_rum_fcp_seconds_bucket[5m])) by (le))",
           "legendFormat": "P75 FCP",
           "refId": "A"
         }
@@ -11671,15 +11801,15 @@
               },
               {
                 "color": "#FF9830",
-                "value": 2500
+                "value": 2.5
               },
               {
                 "color": "#F2495C",
-                "value": 4000
+                "value": 4
               }
             ]
           },
-          "unit": "ms"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -11687,7 +11817,7 @@
         "h": 6,
         "w": 6,
         "x": 12,
-        "y": 707
+        "y": 706
       },
       "id": 153,
       "options": {
@@ -11709,7 +11839,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "histogram_quantile(0.75, sum(rate(hsi_rum_lcp_bucket[5m])) by (le))",
+          "expr": "histogram_quantile(0.75, sum(rate(hsi_rum_lcp_seconds_bucket[5m])) by (le))",
           "legendFormat": "P75 LCP",
           "refId": "A"
         }
@@ -11754,7 +11884,7 @@
         "h": 6,
         "w": 6,
         "x": 18,
-        "y": 713
+        "y": 706
       },
       "id": 154,
       "options": {
@@ -11790,12 +11920,39 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 719
+        "y": 712
       },
       "id": 200,
       "panels": [],
       "title": "SLI/SLO Overview",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 713
+      },
+      "id": 318,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "### SLI/SLO Latency Metrics\n\n**Service Level Indicators (SLIs):**\n- **Analysis Latency P95/P99**: Time for LLM analysis of detection batches (Nemotron)\n- **Detection Latency P95/P99**: Time for RT-DETR object detection\n\n**Why these matter:**\n- P95 = 95% of requests complete within this time (typical user experience)\n- P99 = 99% of requests (catches outliers affecting 1% of users)\n\n**Criticality:** CRITICAL - These define system reliability and directly impact SLO compliance.\n\n**SLO Targets:** Analysis P95 < 2s, Detection P95 < 500ms, P99 within 2x P95",
+        "mode": "markdown"
+      },
+      "pluginVersion": "10.0.0",
+      "title": "",
+      "transparent": true,
+      "type": "text"
     },
     {
       "datasource": {
@@ -12686,6 +12843,32 @@
       "panels": [],
       "title": "AI Container Health",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "description": "Documentation for AI Container Health metrics",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 789
+      },
+      "id": 315,
+      "options": {
+        "code": {
+          "language": "markdown",
+          "showLineNumbers": false
+        },
+        "content": "### AI Container Health Metrics\n\n**What these metrics track:**\n- **LLM Context Utilization**: How much of the model's context window is used per request\n- **AI Container CPU/Memory**: Resource usage of AI inference containers\n\n**Why these matter:**\n- High context utilization may cause truncation or degraded responses\n- Resource usage indicates scaling needs\n\n**Criticality:** MEDIUM - Impacts analysis quality and container stability.\n\n**Healthy ranges:** Context utilization < 80%, Container memory < 90%",
+        "mode": "markdown"
+      },
+      "pluginVersion": "10.2.3",
+      "title": "",
+      "transparent": true,
+      "type": "text"
     },
     {
       "datasource": {
@@ -14201,6 +14384,31 @@
     },
     {
       "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 866
+      },
+      "id": 229,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false
+        },
+        "content": "### Synthetic Monitoring Metrics\n\n**What these metrics track:**\n- **Probe Success Rate**: Whether synthetic checks pass/fail\n- **Estimated Uptime**: Percentage availability based on probe results (1h window)\n- **Probe Duration**: Time taken for synthetic checks to complete\n\n**Why these matter:**\n- Synthetic monitoring detects outages before users report them\n- Uptime calculation provides SLA compliance data\n- Duration trends reveal performance degradation\n\n**Criticality:** HIGH - Early warning system for service availability.\n\n**Healthy thresholds:** Uptime > 99.9%, Probe duration < 2s",
+        "mode": "markdown"
+      },
+      "pluginVersion": "10.2.3",
+      "title": "About Synthetic Monitoring",
+      "transparent": false,
+      "type": "text"
+    },
+    {
+      "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
@@ -14454,7 +14662,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "avg_over_time(probe_success{job=\"blackbox-http-ready\"}[$__range]) * 100",
+          "expr": "avg_over_time(probe_success{job=\"blackbox-http-ready\"}[1h]) * 100",
           "legendFormat": "Uptime %",
           "refId": "A"
         }
