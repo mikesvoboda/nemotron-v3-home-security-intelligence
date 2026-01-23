@@ -66,7 +66,7 @@ class GpuDevice(Base):
     last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
-        server_default="now()",
+        server_default=text("now()"),
         nullable=False,
     )
 
@@ -109,13 +109,13 @@ class GpuConfiguration(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
-        server_default="now()",
+        server_default=text("now()"),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
-        server_default="now()",
+        server_default=text("now()"),
         onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
@@ -143,7 +143,7 @@ class SystemSetting(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
-        server_default="now()",
+        server_default=text("now()"),
         onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )

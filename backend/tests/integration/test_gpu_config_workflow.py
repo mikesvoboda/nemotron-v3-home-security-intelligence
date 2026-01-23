@@ -147,10 +147,10 @@ def mock_pynvml():
     # Mock power
     mock_pynvml.nvmlDeviceGetPowerUsage.return_value = 150000  # 150W in milliwatts
 
-    with patch("backend.services.gpu_detection_service.pynvml", mock_pynvml):
-        # Also patch the import in __init__
-        with patch.dict("sys.modules", {"pynvml": mock_pynvml}):
-            yield mock_pynvml
+    # Patch sys.modules to intercept the dynamic import of pynvml
+    # (pynvml is not imported at module level in gpu_detection_service.py)
+    with patch.dict("sys.modules", {"pynvml": mock_pynvml}):
+        yield mock_pynvml
 
 
 @pytest.fixture

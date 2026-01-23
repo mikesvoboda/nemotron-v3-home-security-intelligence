@@ -100,6 +100,75 @@ check_command() {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Container Discovery (Worktree-Aware)
+# ─────────────────────────────────────────────────────────────────────────────
+# Discovers running PostgreSQL/Redis containers from any worktree and configures
+# environment variables for integration tests.
+
+discover_containers() {
+    print_step "Discovering running containers..."
+
+    # Determine container runtime (podman or docker)
+    if check_command podman; then
+        CONTAINER_CMD="podman"
+    elif check_command docker; then
+        CONTAINER_CMD="docker"
+    else
+        print_warning "No container runtime found (podman/docker)"
+        print_warning "Integration tests will be skipped if DATABASE_URL is not set"
+        return 1
+    fi
+
+    # Find PostgreSQL container (may be from any worktree)
+    POSTGRES_CONTAINER=$($CONTAINER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -E '_postgres_' | head -1)
+
+    if [ -z "$POSTGRES_CONTAINER" ]; then
+        print_warning "No PostgreSQL container found running"
+        print_warning "Integration tests will be skipped"
+        return 1
+    fi
+
+    print_success "Found PostgreSQL container: $POSTGRES_CONTAINER"
+
+    # Extract credentials from the running container
+    POSTGRES_USER=$($CONTAINER_CMD exec "$POSTGRES_CONTAINER" printenv POSTGRES_USER 2>/dev/null)
+    POSTGRES_PASSWORD=$($CONTAINER_CMD exec "$POSTGRES_CONTAINER" printenv POSTGRES_PASSWORD 2>/dev/null)
+    POSTGRES_DB=$($CONTAINER_CMD exec "$POSTGRES_CONTAINER" printenv POSTGRES_DB 2>/dev/null)
+
+    if [ -z "$POSTGRES_USER" ] || [ -z "$POSTGRES_PASSWORD" ]; then
+        print_warning "Could not extract PostgreSQL credentials from container"
+        return 1
+    fi
+
+    # Set TEST_DATABASE_URL for integration tests (conftest.py checks this first)
+    if [ -z "$TEST_DATABASE_URL" ]; then
+        export TEST_DATABASE_URL="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB:-$POSTGRES_USER}"
+        print_success "Configured TEST_DATABASE_URL from container"
+    else
+        print_success "Using existing TEST_DATABASE_URL"
+    fi
+
+    # Also set DATABASE_URL for other tools that may use it
+    if [ -z "$DATABASE_URL" ]; then
+        export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB:-$POSTGRES_USER}"
+    fi
+
+    # Find Redis container
+    REDIS_CONTAINER=$($CONTAINER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -E '_redis_' | head -1)
+
+    if [ -n "$REDIS_CONTAINER" ]; then
+        if [ -z "$REDIS_URL" ]; then
+            export REDIS_URL="redis://localhost:6379/0"
+            print_success "Found Redis container: $REDIS_CONTAINER"
+        fi
+    else
+        print_warning "No Redis container found - some tests may be skipped"
+    fi
+
+    return 0
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Parse Arguments
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -189,6 +258,14 @@ run_backend_validation() {
         exit 1
     fi
     print_success "MyPy type checking passed"
+
+    # Discover running containers for integration tests
+    # This is worktree-aware - finds containers from any worktree
+    if discover_containers; then
+        print_success "Container environment configured for integration tests"
+    else
+        print_warning "Running without containers - integration tests may be skipped"
+    fi
 
     # Run tests
     # Local validation uses 80% combined coverage (unit + integration)
