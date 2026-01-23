@@ -212,6 +212,7 @@ dev = [
     {include-group = "security"},
     {include-group = "mutation"},
     {include-group = "quality"},
+    "types-pyyaml>=6.0.12.20250915",
 ]
 
 [tool.ruff]

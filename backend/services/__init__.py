@@ -142,6 +142,7 @@ from .florence_extractor import (
     reset_florence_extractor,
 )
 from .florence_loader import load_florence_model
+from .gpu_config_service import GpuAssignment, GpuConfigService
 from .gpu_monitor import GPUMonitor
 from .household_matcher import (
     HouseholdMatch,
@@ -410,6 +411,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "FaceResult",
     "FileWatcher",
     "FlorenceExtractor",
+    "GpuAssignment",
+    "GpuConfigService",
     "GPUMonitor",
     "HouseholdMatch",
     "HouseholdMatcher",
