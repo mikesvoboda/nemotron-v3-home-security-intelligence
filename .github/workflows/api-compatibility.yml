@@ -84,6 +84,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/security # pragma: allowlist secret
           REDIS_URL: redis://localhost:6379/0
+          ENVIRONMENT: test # Avoid production password validation in CI
         run: |
           echo "Generating OpenAPI spec from current branch..."
           uv run python -c "
@@ -100,6 +101,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://user:password@localhost:5432/security # pragma: allowlist secret
           REDIS_URL: redis://localhost:6379/0
+          ENVIRONMENT: test # Avoid production password validation in CI
         run: |
           echo "Fetching OpenAPI spec from main branch..."
           # Stash any uncommitted changes

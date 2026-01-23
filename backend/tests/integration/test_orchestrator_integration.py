@@ -53,18 +53,31 @@ async def slow_wait_for_container(seconds: float = 1.0) -> None:
 def _docker_available() -> bool:
     """Check if Docker/Podman is available for integration tests.
 
-    Returns:
-        True if Docker is reachable and responsive.
-    """
-    try:
-        from docker import DockerClient as BaseDockerClient
-        from docker.errors import DockerException
+    Uses a timeout to prevent hanging if Docker daemon is unresponsive.
 
-        client = BaseDockerClient.from_env()
-        client.ping()
-        client.close()
-        return True
-    except (DockerException, Exception):
+    Returns:
+        True if Docker is reachable and responsive within timeout.
+    """
+    import concurrent.futures
+
+    def _check_docker() -> bool:
+        try:
+            from docker import DockerClient as BaseDockerClient
+            from docker.errors import DockerException
+
+            client = BaseDockerClient.from_env(timeout=5)
+            client.ping()
+            client.close()
+            return True
+        except (DockerException, Exception):
+            return False
+
+    # Use a thread with timeout to prevent hanging on unresponsive Docker
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_check_docker)
+            return future.result(timeout=10)  # 10 second timeout
+    except (concurrent.futures.TimeoutError, Exception):
         return False
 
 
