@@ -12,7 +12,7 @@ Tests cover:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -522,10 +522,12 @@ class TestListLogs:
         """Test has_more is True when there are more results."""
         # Create mock logs (return limit+1 to indicate more results)
         mock_logs = []
+        base_timestamp = datetime(2026, 1, 15, 10, 30, 0, tzinfo=UTC)
         for i in range(101):  # Default limit is 100, so 101 indicates more
             mock_log = MagicMock()
             mock_log.id = i + 1
-            mock_log.timestamp = datetime(2026, 1, 15, 10, 30, i, tzinfo=UTC)
+            # Use timedelta to add seconds safely (avoids second=60 issue)
+            mock_log.timestamp = base_timestamp + timedelta(seconds=i)
             mock_log.level = "INFO"
             mock_log.component = "test"
             mock_log.message = f"Log {i}"
