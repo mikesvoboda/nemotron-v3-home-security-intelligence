@@ -168,12 +168,6 @@ def validate_clothing_items(
 # ==============================================================================
 # Florence-2 VQA sometimes returns raw tokens instead of parsed answers.
 # These functions validate VQA output and provide fallback behavior.
-#
-# Example garbage output:
-#   "Wearing: VQA>person wearing<loc_95><loc_86><loc_901><loc_918>"
-#
-# Expected clean output:
-#   "Wearing: dark hoodie and jeans"
 
 _prompts_logger = logging.getLogger(__name__)
 
@@ -222,10 +216,8 @@ def is_valid_vqa_output(text: str | None) -> bool:
         return False
     if _POLY_TOKEN_PATTERN.search(text):
         return False
-    if _PAD_TOKEN_PATTERN.search(text):
-        return False
 
-    return True
+    return not _PAD_TOKEN_PATTERN.search(text)
 
 
 def validate_and_clean_vqa_output(text: str | None) -> str | None:
@@ -2217,7 +2209,7 @@ def _get_schedule_status(match: HouseholdMatchLike) -> bool | None:
     return getattr(match, "schedule_status", None)
 
 
-def check_member_schedule(
+def check_member_schedule(  # noqa: PLR0911, PLR0912
     typical_schedule: dict[str, str] | None,
     current_time: datetime,
 ) -> bool | None:
@@ -2319,7 +2311,7 @@ def check_member_schedule(
 def format_household_context(
     person_matches: Sequence[HouseholdMatchLike],
     vehicle_matches: Sequence[HouseholdMatchLike],
-    current_time: datetime,
+    current_time: datetime,  # noqa: ARG001  # Reserved for future schedule-based formatting
 ) -> str:
     """Format household matching results for prompt injection.
 

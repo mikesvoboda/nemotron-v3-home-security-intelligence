@@ -2942,7 +2942,7 @@ class EnrichmentPipeline:
                         exc_info=True,
                     )
 
-    async def _run_household_matching(
+    async def _run_household_matching(  # noqa: PLR0912
         self,
         detections: list[DetectionInput],
         result: EnrichmentResult,
@@ -2973,9 +2973,8 @@ class EnrichmentPipeline:
 
         matcher = get_household_matcher()
 
-        # Extract persons and vehicles for matching
+        # Extract persons for matching (vehicles matched by plate below)
         persons = [d for d in detections if d.class_name == PERSON_CLASS]
-        vehicles = [d for d in detections if d.class_name in VEHICLE_CLASSES]
 
         async with get_session() as session:
             # Match persons by embedding similarity
