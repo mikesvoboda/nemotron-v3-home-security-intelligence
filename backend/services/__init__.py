@@ -234,6 +234,13 @@ from .partition_manager import (
     PartitionInfo,
     PartitionManager,
 )
+from .pg_notify_listener import (
+    PgNotifyChannel,
+    PgNotifyListener,
+    PgNotifyPayload,
+    get_pg_notify_listener,
+    stop_pg_notify_listener,
+)
 from .pipeline_quality_audit_service import (
     PipelineQualityAuditService,
     get_audit_service,
@@ -435,6 +442,9 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "PartitionConfig",
     "PartitionInfo",
     "PartitionManager",
+    "PgNotifyChannel",
+    "PgNotifyListener",
+    "PgNotifyPayload",
     "PersonAttributes",
     "PersonDetection",
     "PlateDetection",
@@ -520,6 +530,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_model_manager",
     "get_model_zoo",
     "get_notification_service",
+    "get_pg_notify_listener",
     "get_reid_service",
     "get_retry_handler",
     "get_scene_change_detector",
@@ -579,6 +590,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "severity_lt",
     "severity_lte",
     "stop_broadcaster",
+    "stop_pg_notify_listener",
     "update_event_object_types",
     "zones_to_context",
 ]

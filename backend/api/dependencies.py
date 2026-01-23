@@ -1186,3 +1186,116 @@ if TYPE_CHECKING:
     from backend.services.job_service import JobService
     from backend.services.job_tracker import JobTracker
     from backend.services.transcoding_service import TranscodingService
+
+
+# =============================================================================
+# Transaction Management Utilities (NEM-3346)
+# =============================================================================
+#
+# These utilities provide proper transaction management and scoping for
+# database operations, ensuring correct commit/rollback timing.
+# =============================================================================
+
+
+async def get_db_readonly() -> AsyncGenerator[AsyncSession]:
+    """FastAPI dependency for read-only database sessions.
+
+    This dependency provides a session intended for read-only operations.
+    Use this for endpoints that only read data to make the intent clear.
+
+    Yields:
+        AsyncSession: A session intended for read-only operations
+    """
+    from backend.core.database import get_session_factory
+
+    factory = get_session_factory()
+    async with factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+class TransactionContext:
+    """Helper class for explicit transaction control.
+
+    Provides methods for explicit transaction management within a request.
+    Use this when you need fine-grained control over commit/rollback points.
+
+    NEM-3346: Proper transaction timing for complex operations.
+
+    Attributes:
+        session: The underlying database session
+
+    Example:
+        @router.post("/transfer")
+        async def transfer_funds(
+            request: TransferRequest,
+            db: AsyncSession = Depends(get_db)
+        ):
+            tx = TransactionContext(db)
+
+            # Debit source account
+            await debit_account(request.source_id, request.amount, db)
+            await tx.flush()  # Ensure debit is visible within transaction
+
+            # Credit destination account
+            await credit_account(request.dest_id, request.amount, db)
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        """Initialize transaction context with a session.
+
+        Args:
+            session: The database session from get_db()
+        """
+        self.session = session
+
+    async def flush(self) -> None:
+        """Flush pending changes to the database.
+
+        This sends pending INSERT/UPDATE/DELETE statements to the database
+        but does NOT commit the transaction.
+        """
+        await self.session.flush()
+
+    async def refresh(self, instance: object, attribute_names: list[str] | None = None) -> None:
+        """Refresh an instance from the database.
+
+        Args:
+            instance: The model instance to refresh
+            attribute_names: Optional list of specific attributes to refresh
+        """
+        await self.session.refresh(instance, attribute_names=attribute_names)
+
+
+def get_transaction_context(session: AsyncSession) -> TransactionContext:
+    """Factory function to create a TransactionContext.
+
+    Args:
+        session: The database session from get_db()
+
+    Returns:
+        TransactionContext for explicit transaction management
+    """
+    return TransactionContext(session)
+
+
+async def nested_transaction(session: AsyncSession) -> AsyncGenerator[None]:
+    """Context manager for nested transactions (savepoints).
+
+    Use this within a request to create a savepoint that can be
+    independently rolled back without affecting the outer transaction.
+
+    Args:
+        session: The database session from get_db()
+
+    Yields:
+        None - the session is used directly within the context
+    """
+    async with session.begin_nested():
+        yield
