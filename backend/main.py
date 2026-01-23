@@ -48,6 +48,7 @@ from backend.api.routes import (
     events,
     exports,
     feedback,
+    gpu_config,
     health_ai_services,
     hierarchy,
     household,
@@ -1086,6 +1087,7 @@ app.include_router(entities.router)
 app.include_router(events.router)
 app.include_router(exports.router)
 app.include_router(feedback.router)
+app.include_router(gpu_config.router)
 app.include_router(health_ai_services.router)
 app.include_router(hierarchy.router)
 app.include_router(hierarchy.property_router)

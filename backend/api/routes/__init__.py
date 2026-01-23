@@ -8,6 +8,7 @@ from .calibration import router as calibration_router
 from .entities import router as entities_router
 from .exports import router as exports_router
 from .feedback import router as feedback_router
+from .gpu_config import router as gpu_config_router
 from .hierarchy import area_router as area_router
 from .hierarchy import property_router as property_router
 from .hierarchy import router as hierarchy_router
@@ -32,6 +33,7 @@ __all__ = [
     "entities_router",
     "exports_router",
     "feedback_router",
+    "gpu_config_router",
     "hierarchy_router",
     "household_router",
     "jobs_router",
