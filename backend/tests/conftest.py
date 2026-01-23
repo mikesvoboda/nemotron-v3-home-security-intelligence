@@ -227,7 +227,9 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 # Default development PostgreSQL URL (matches docker-compose.yml)
-DEFAULT_DEV_POSTGRES_URL = "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"  # pragma: allowlist secret
+# Use POSTGRES_PASSWORD from environment if set, otherwise fall back to default
+_POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "security_dev_password")
+DEFAULT_DEV_POSTGRES_URL = f"postgresql+asyncpg://security:{_POSTGRES_PASSWORD}@localhost:5432/security"  # pragma: allowlist secret
 
 # Default development Redis URL (matches docker-compose.yml, using DB 15 for test isolation)
 DEFAULT_DEV_REDIS_URL = "redis://localhost:6379/15"

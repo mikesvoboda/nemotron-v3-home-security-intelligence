@@ -1,24 +1,26 @@
 """initial_schema
 
-Revision ID: e36700c35af6
+Revision ID: 0001
 Revises:
-Create Date: 2026-01-18 23:06:57.700345
+Create Date: 2026-01-23 13:30:00.000000
 
-This migration creates the complete initial schema for the home security
-intelligence system. All tables are created from scratch based on the
-SQLAlchemy models.
+This is the complete consolidated schema for the home security intelligence system.
+All tables and relationships are created from scratch in dependency order.
 
-Tables created (in dependency order):
+Tables created:
 - Base tables: cameras, alert_rules, audit_logs, logs, gpu_stats, jobs,
   job_attempts, job_logs, job_transitions, export_jobs, notification_preferences,
   quiet_hours_periods, prompt_configs, user_calibration, entities, summaries,
-  household_members, registered_vehicles
-- Dependent tables: zones, detections, events, event_detections, event_audits,
-  event_feedback, alerts, activity_baselines, class_baselines, scene_changes,
-  camera_notification_settings, camera_calibrations, person_embeddings,
-  experiment_results
-- Enrichment result tables: pose_results, threat_detections, demographics_results,
-  reid_embeddings, action_results (for on-demand AI model outputs)
+  households, household_members, registered_vehicles
+- Organization tables: properties, areas, camera_areas
+- Camera tables: camera_zones, camera_notification_settings, camera_calibrations
+- Detection tables: detections, events, event_detections, event_audits,
+  event_feedback, alerts, activity_baselines, class_baselines, scene_changes
+- Zone monitoring: zone_household_configs, zone_activity_baselines, zone_anomalies
+- GPU management: gpu_devices, gpu_configurations, system_settings
+- Person/entity: person_embeddings, experiment_results
+- Enrichment results: pose_results, threat_detections, demographics_results,
+  reid_embeddings, action_results
 """
 
 from collections.abc import Sequence
@@ -29,7 +31,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "e36700c35af6"  # pragma: allowlist secret
+revision: str = "0001"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -42,7 +44,6 @@ def upgrade() -> None:
     # ENUM TYPES
     # =========================================================================
 
-    # Create enum types
     op.execute("CREATE TYPE alert_severity AS ENUM ('low', 'medium', 'high', 'critical')")
     op.execute(
         "CREATE TYPE alert_status AS ENUM ('pending', 'delivered', 'acknowledged', 'dismissed')"
@@ -51,9 +52,9 @@ def upgrade() -> None:
         "CREATE TYPE export_job_status AS ENUM ('pending', 'running', 'completed', 'failed')"
     )
     op.execute(
-        "CREATE TYPE zone_type_enum AS ENUM ('entry_point', 'driveway', 'sidewalk', 'yard', 'other')"
+        "CREATE TYPE camera_zone_type_enum AS ENUM ('entry_point', 'driveway', 'sidewalk', 'yard', 'other')"
     )
-    op.execute("CREATE TYPE zone_shape_enum AS ENUM ('rectangle', 'polygon')")
+    op.execute("CREATE TYPE camera_zone_shape_enum AS ENUM ('rectangle', 'polygon')")
     op.execute(
         "CREATE TYPE scene_change_type_enum AS ENUM ('view_blocked', 'angle_changed', 'view_tampered', 'unknown')"
     )
@@ -76,6 +77,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("folder_path", sa.String(), nullable=False),
         sa.Column("status", sa.String(), nullable=False, server_default="online"),
+        sa.Column("property_id", sa.Integer(), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -91,6 +93,7 @@ def upgrade() -> None:
     )
     op.create_index("idx_cameras_name_unique", "cameras", ["name"], unique=True)
     op.create_index("idx_cameras_folder_path_unique", "cameras", ["folder_path"], unique=True)
+    op.create_index("idx_cameras_property_id", "cameras", ["property_id"])
 
     # alert_rules
     op.create_table(
@@ -446,7 +449,7 @@ def upgrade() -> None:
     op.create_index("idx_export_jobs_created_at", "export_jobs", ["created_at"])
     op.create_index("idx_export_jobs_status_created_at", "export_jobs", ["status", "created_at"])
 
-    # Notification preferences - singleton table with id=1 constraint
+    # notification_preferences
     op.create_table(
         "notification_preferences",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -598,7 +601,7 @@ def upgrade() -> None:
         postgresql_ops={"entity_metadata": "jsonb_path_ops"},
     )
 
-    # summaries (NEW - dashboard summary cards)
+    # summaries
     op.create_table(
         "summaries",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -621,10 +624,25 @@ def upgrade() -> None:
     op.create_index("idx_summaries_type_created", "summaries", ["summary_type", "created_at"])
     op.create_index("idx_summaries_created_at", "summaries", ["created_at"])
 
+    # households
+    op.create_table(
+        "households",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("name", sa.String(100), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+
     # household_members
     op.create_table(
         "household_members",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("household_id", sa.Integer(), nullable=True),
         sa.Column("name", sa.String(100), nullable=False),
         sa.Column(
             "role",
@@ -660,17 +678,25 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
         ),
         sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["household_id"],
+            ["households.id"],
+            name="fk_household_members_household_id",
+            ondelete="CASCADE",
+        ),
     )
     op.create_index("idx_household_members_role", "household_members", ["role"])
     op.create_index("idx_household_members_trusted_level", "household_members", ["trusted_level"])
     op.create_index(
         "idx_household_members_role_trust", "household_members", ["role", "trusted_level"]
     )
+    op.create_index("idx_household_members_household_id", "household_members", ["household_id"])
 
     # registered_vehicles
     op.create_table(
         "registered_vehicles",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("household_id", sa.Integer(), nullable=True),
         sa.Column("description", sa.String(200), nullable=False),
         sa.Column("license_plate", sa.String(20), nullable=True),
         sa.Column(
@@ -699,6 +725,12 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["owner_id"], ["household_members.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(
+            ["household_id"],
+            ["households.id"],
+            name="fk_registered_vehicles_household_id",
+            ondelete="CASCADE",
+        ),
     )
     op.create_index("idx_registered_vehicles_owner_id", "registered_vehicles", ["owner_id"])
     op.create_index(
@@ -706,14 +738,100 @@ def upgrade() -> None:
     )
     op.create_index("idx_registered_vehicles_trusted", "registered_vehicles", ["trusted"])
     op.create_index("idx_registered_vehicles_vehicle_type", "registered_vehicles", ["vehicle_type"])
+    op.create_index("idx_registered_vehicles_household_id", "registered_vehicles", ["household_id"])
+
+    # =========================================================================
+    # ORGANIZATION TABLES (properties, areas)
+    # =========================================================================
+
+    # properties
+    op.create_table(
+        "properties",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("household_id", sa.Integer(), nullable=False),
+        sa.Column("name", sa.String(100), nullable=False),
+        sa.Column("address", sa.String(500), nullable=True),
+        sa.Column("timezone", sa.String(50), nullable=False, server_default="UTC"),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["household_id"],
+            ["households.id"],
+            name="fk_properties_household_id",
+            ondelete="CASCADE",
+        ),
+    )
+    op.create_index("idx_properties_household_id", "properties", ["household_id"])
+    op.create_index("idx_properties_name", "properties", ["name"])
+
+    # Add property_id FK to cameras
+    op.create_foreign_key(
+        "fk_cameras_property_id",
+        "cameras",
+        "properties",
+        ["property_id"],
+        ["id"],
+        ondelete="SET NULL",
+    )
+
+    # areas
+    op.create_table(
+        "areas",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("property_id", sa.Integer(), nullable=False),
+        sa.Column("name", sa.String(100), nullable=False),
+        sa.Column("description", sa.Text(), nullable=True),
+        sa.Column("color", sa.String(7), nullable=False, server_default="#76B900"),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["property_id"],
+            ["properties.id"],
+            name="fk_areas_property_id",
+            ondelete="CASCADE",
+        ),
+    )
+    op.create_index("idx_areas_property_id", "areas", ["property_id"])
+    op.create_index("idx_areas_name", "areas", ["name"])
+
+    # Table: camera_areas - many-to-many association
+    op.create_table(
+        "camera_areas",
+        sa.Column("camera_id", sa.String(), nullable=False),
+        sa.Column("area_id", sa.Integer(), nullable=False),
+        sa.PrimaryKeyConstraint("camera_id", "area_id"),
+        sa.ForeignKeyConstraint(
+            ["camera_id"],
+            ["cameras.id"],
+            name="fk_camera_areas_camera_id",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["area_id"],
+            ["areas.id"],
+            name="fk_camera_areas_area_id",
+            ondelete="CASCADE",
+        ),
+    )
+    op.create_index("idx_camera_areas_area_id", "camera_areas", ["area_id"])
 
     # =========================================================================
     # TABLES WITH FOREIGN KEYS TO cameras
     # =========================================================================
 
-    # zones
+    # camera_zones (formerly zones)
     op.create_table(
-        "zones",
+        "camera_zones",
         sa.Column("id", sa.String(), nullable=False),
         sa.Column("camera_id", sa.String(), nullable=False),
         sa.Column("name", sa.String(255), nullable=False),
@@ -725,7 +843,7 @@ def upgrade() -> None:
                 "sidewalk",
                 "yard",
                 "other",
-                name="zone_type_enum",
+                name="camera_zone_type_enum",
                 create_type=False,
             ),
             nullable=False,
@@ -734,7 +852,9 @@ def upgrade() -> None:
         sa.Column("coordinates", postgresql.JSONB(), nullable=False),
         sa.Column(
             "shape",
-            postgresql.ENUM("rectangle", "polygon", name="zone_shape_enum", create_type=False),
+            postgresql.ENUM(
+                "rectangle", "polygon", name="camera_zone_shape_enum", create_type=False
+            ),
             nullable=False,
             server_default="rectangle",
         ),
@@ -755,12 +875,12 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["camera_id"], ["cameras.id"], ondelete="CASCADE"),
-        sa.CheckConstraint("priority >= 0", name="ck_zones_priority_non_negative"),
-        sa.CheckConstraint("color ~ '^#[0-9A-Fa-f]{6}$'", name="ck_zones_color_hex"),
+        sa.CheckConstraint("priority >= 0", name="ck_camera_zones_priority_non_negative"),
+        sa.CheckConstraint("color ~ '^#[0-9A-Fa-f]{6}$'", name="ck_camera_zones_color_hex"),
     )
-    op.create_index("idx_zones_camera_id", "zones", ["camera_id"])
-    op.create_index("idx_zones_enabled", "zones", ["enabled"])
-    op.create_index("idx_zones_camera_enabled", "zones", ["camera_id", "enabled"])
+    op.create_index("idx_camera_zones_camera_id", "camera_zones", ["camera_id"])
+    op.create_index("idx_camera_zones_enabled", "camera_zones", ["enabled"])
+    op.create_index("idx_camera_zones_camera_enabled", "camera_zones", ["camera_id", "enabled"])
 
     # detections
     op.create_table(
@@ -1057,6 +1177,244 @@ def upgrade() -> None:
     op.create_index("idx_camera_calibrations_camera_id", "camera_calibrations", ["camera_id"])
 
     # =========================================================================
+    # ZONE MONITORING TABLES
+    # =========================================================================
+
+    # zone_household_configs
+    op.create_table(
+        "zone_household_configs",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("zone_id", sa.String(), nullable=False),
+        sa.Column("owner_id", sa.Integer(), nullable=True),
+        sa.Column(
+            "allowed_member_ids",
+            postgresql.ARRAY(sa.Integer()),
+            nullable=False,
+            server_default="{}",
+        ),
+        sa.Column(
+            "allowed_vehicle_ids",
+            postgresql.ARRAY(sa.Integer()),
+            nullable=False,
+            server_default="{}",
+        ),
+        sa.Column(
+            "access_schedules",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default="[]",
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["zone_id"],
+            ["camera_zones.id"],
+            name="fk_zone_household_configs_zone_id",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["owner_id"],
+            ["household_members.id"],
+            name="fk_zone_household_configs_owner_id",
+            ondelete="SET NULL",
+        ),
+        sa.UniqueConstraint("zone_id", name="uq_zone_household_configs_zone_id"),
+    )
+    op.create_index(
+        "idx_zone_household_configs_owner_id",
+        "zone_household_configs",
+        ["owner_id"],
+    )
+    op.create_index(
+        "idx_zone_household_configs_allowed_member_ids",
+        "zone_household_configs",
+        ["allowed_member_ids"],
+        postgresql_using="gin",
+    )
+    op.create_index(
+        "idx_zone_household_configs_allowed_vehicle_ids",
+        "zone_household_configs",
+        ["allowed_vehicle_ids"],
+        postgresql_using="gin",
+    )
+
+    # zone_activity_baselines
+    op.create_table(
+        "zone_activity_baselines",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=False),
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("zone_id", sa.String(), nullable=False),
+        sa.Column("camera_id", sa.String(255), nullable=False),
+        sa.Column(
+            "hourly_pattern",
+            postgresql.ARRAY(sa.Float()),
+            nullable=False,
+            server_default="{}",
+        ),
+        sa.Column(
+            "hourly_std",
+            postgresql.ARRAY(sa.Float()),
+            nullable=False,
+            server_default="{}",
+        ),
+        sa.Column(
+            "daily_pattern",
+            postgresql.ARRAY(sa.Float()),
+            nullable=False,
+            server_default="{}",
+        ),
+        sa.Column(
+            "daily_std",
+            postgresql.ARRAY(sa.Float()),
+            nullable=False,
+            server_default="{}",
+        ),
+        sa.Column(
+            "entity_class_distribution",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default="{}",
+        ),
+        sa.Column("mean_daily_count", sa.Float(), nullable=False, server_default="0.0"),
+        sa.Column("std_daily_count", sa.Float(), nullable=False, server_default="0.0"),
+        sa.Column("min_daily_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("max_daily_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("typical_crossing_rate", sa.Float(), nullable=False, server_default="10.0"),
+        sa.Column("typical_crossing_std", sa.Float(), nullable=False, server_default="5.0"),
+        sa.Column("typical_dwell_time", sa.Float(), nullable=False, server_default="30.0"),
+        sa.Column("typical_dwell_std", sa.Float(), nullable=False, server_default="10.0"),
+        sa.Column("sample_count", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("last_updated", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["zone_id"],
+            ["camera_zones.id"],
+            name="fk_zone_activity_baselines_zone_id",
+            ondelete="CASCADE",
+        ),
+        sa.UniqueConstraint("zone_id", name="uq_zone_activity_baselines_zone_id"),
+        sa.CheckConstraint("sample_count >= 0", name="ck_baseline_sample_count"),
+        sa.CheckConstraint("std_daily_count >= 0", name="ck_baseline_std_daily_count"),
+        sa.CheckConstraint("min_daily_count >= 0", name="ck_baseline_min_daily_count"),
+        sa.CheckConstraint(
+            "max_daily_count >= min_daily_count", name="ck_baseline_max_gte_min_daily"
+        ),
+        sa.CheckConstraint("typical_crossing_std >= 0", name="ck_baseline_crossing_std"),
+        sa.CheckConstraint("typical_dwell_std >= 0", name="ck_baseline_dwell_std"),
+    )
+    op.create_index(
+        "idx_zone_activity_baselines_zone_id",
+        "zone_activity_baselines",
+        ["zone_id"],
+    )
+    op.create_index(
+        "idx_zone_activity_baselines_camera_id",
+        "zone_activity_baselines",
+        ["camera_id"],
+    )
+    op.create_index(
+        "idx_zone_activity_baselines_last_updated",
+        "zone_activity_baselines",
+        ["last_updated"],
+    )
+
+    # zone_anomalies
+    op.create_table(
+        "zone_anomalies",
+        sa.Column("id", sa.String(), nullable=False),
+        sa.Column("zone_id", sa.String(), nullable=False),
+        sa.Column("camera_id", sa.String(255), nullable=False),
+        sa.Column("anomaly_type", sa.String(50), nullable=False),
+        sa.Column("severity", sa.String(20), nullable=False, server_default="info"),
+        sa.Column("title", sa.String(255), nullable=False),
+        sa.Column("description", sa.Text(), nullable=True),
+        sa.Column("expected_value", sa.Float(), nullable=True),
+        sa.Column("actual_value", sa.Float(), nullable=True),
+        sa.Column("deviation", sa.Float(), nullable=True),
+        sa.Column("detection_id", sa.Integer(), nullable=True),
+        sa.Column("thumbnail_url", sa.String(500), nullable=True),
+        sa.Column("acknowledged", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("acknowledged_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("acknowledged_by", sa.String(255), nullable=True),
+        sa.Column(
+            "timestamp",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(
+            ["zone_id"],
+            ["camera_zones.id"],
+            name="fk_zone_anomalies_zone_id",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["detection_id"],
+            ["detections.id"],
+            name="fk_zone_anomalies_detection_id",
+            ondelete="SET NULL",
+        ),
+        sa.CheckConstraint(
+            "anomaly_type IN ('unusual_time', 'unusual_frequency', 'unusual_dwell', 'unusual_entity')",
+            name="ck_zone_anomalies_anomaly_type",
+        ),
+        sa.CheckConstraint(
+            "severity IN ('info', 'warning', 'critical')",
+            name="ck_zone_anomalies_severity",
+        ),
+        sa.CheckConstraint(
+            "deviation IS NULL OR deviation >= 0",
+            name="ck_zone_anomalies_deviation_non_negative",
+        ),
+    )
+    op.create_index("idx_zone_anomalies_zone_id", "zone_anomalies", ["zone_id"])
+    op.create_index("idx_zone_anomalies_camera_id", "zone_anomalies", ["camera_id"])
+    op.create_index("idx_zone_anomalies_timestamp", "zone_anomalies", ["timestamp"])
+    op.create_index("idx_zone_anomalies_severity", "zone_anomalies", ["severity"])
+    op.create_index("idx_zone_anomalies_acknowledged", "zone_anomalies", ["acknowledged"])
+    op.create_index("idx_zone_anomalies_zone_timestamp", "zone_anomalies", ["zone_id", "timestamp"])
+    op.create_index(
+        "idx_zone_anomalies_unacknowledged",
+        "zone_anomalies",
+        ["acknowledged", "severity", "timestamp"],
+    )
+
+    # =========================================================================
     # TABLES WITH FOREIGN KEYS TO events
     # =========================================================================
 
@@ -1197,7 +1555,7 @@ def upgrade() -> None:
     op.create_index("idx_event_audits_audited_at", "event_audits", ["audited_at"])
     op.create_index("idx_event_audits_overall_score", "event_audits", ["overall_quality_score"])
 
-    # event_feedback
+    # event_feedback (with enhanced fields)
     op.create_table(
         "event_feedback",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -1205,6 +1563,11 @@ def upgrade() -> None:
         sa.Column("feedback_type", sa.String(), nullable=False),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("expected_severity", sa.String(), nullable=True),
+        sa.Column("actual_threat_level", sa.String(20), nullable=True),
+        sa.Column("suggested_score", sa.Integer(), nullable=True),
+        sa.Column("actual_identity", sa.String(100), nullable=True),
+        sa.Column("what_was_wrong", sa.Text(), nullable=True),
+        sa.Column("model_failures", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -1222,10 +1585,21 @@ def upgrade() -> None:
             "expected_severity IS NULL OR expected_severity IN ('low', 'medium', 'high', 'critical')",
             name="ck_event_feedback_expected_severity",
         ),
+        sa.CheckConstraint(
+            "actual_threat_level IS NULL OR actual_threat_level IN ('no_threat', 'minor_concern', 'genuine_threat')",
+            name="ck_event_feedback_actual_threat_level",
+        ),
+        sa.CheckConstraint(
+            "suggested_score IS NULL OR (suggested_score >= 0 AND suggested_score <= 100)",
+            name="ck_event_feedback_suggested_score",
+        ),
     )
     op.create_index("idx_event_feedback_event_id", "event_feedback", ["event_id"])
     op.create_index("idx_event_feedback_type", "event_feedback", ["feedback_type"])
     op.create_index("idx_event_feedback_created_at", "event_feedback", ["created_at"])
+    op.create_index(
+        "idx_event_feedback_actual_threat_level", "event_feedback", ["actual_threat_level"]
+    )
 
     # person_embeddings
     op.create_table(
@@ -1285,17 +1659,13 @@ def upgrade() -> None:
         "experiment_results",
         ["camera_id", "created_at"],
     )
-    op.create_index(
-        "ix_experiment_results_created_at",
-        "experiment_results",
-        ["created_at"],
-    )
+    op.create_index("ix_experiment_results_created_at", "experiment_results", ["created_at"])
 
     # =========================================================================
     # JUNCTION TABLES
     # =========================================================================
 
-    # event_detections (junction table for events <-> detections)
+    # event_detections
     op.create_table(
         "event_detections",
         sa.Column("event_id", sa.Integer(), nullable=False),
@@ -1315,26 +1685,16 @@ def upgrade() -> None:
     op.create_index("idx_event_detections_created_at", "event_detections", ["created_at"])
 
     # =========================================================================
-    # ENRICHMENT RESULT TABLES (FK to detections)
+    # ENRICHMENT RESULT TABLES
     # =========================================================================
 
-    # pose_results - YOLOv8n-pose body posture detection
+    # pose_results
     op.create_table(
         "pose_results",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("detection_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "keypoints",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=True,
-            comment="17 COCO keypoints as [[x, y, conf], ...]",
-        ),
-        sa.Column(
-            "pose_class",
-            sa.String(50),
-            nullable=True,
-            comment="Classified pose: standing, crouching, etc.",
-        ),
+        sa.Column("keypoints", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("pose_class", sa.String(50), nullable=True),
         sa.Column("confidence", sa.Float(), nullable=True),
         sa.Column("is_suspicious", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column(
@@ -1365,30 +1725,15 @@ def upgrade() -> None:
     op.create_index("idx_pose_results_created_at", "pose_results", ["created_at"])
     op.create_index("idx_pose_results_is_suspicious", "pose_results", ["is_suspicious"])
 
-    # threat_detections - Threat-Detection-YOLOv8n weapon detection
+    # threat_detections
     op.create_table(
         "threat_detections",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("detection_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "threat_type",
-            sa.String(50),
-            nullable=False,
-            comment="Type of threat: gun, knife, etc.",
-        ),
+        sa.Column("threat_type", sa.String(50), nullable=False),
         sa.Column("confidence", sa.Float(), nullable=False),
-        sa.Column(
-            "severity",
-            sa.String(20),
-            nullable=False,
-            comment="Severity: critical, high, medium",
-        ),
-        sa.Column(
-            "bbox",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=True,
-            comment="Bounding box as [x1, y1, x2, y2]",
-        ),
+        sa.Column("severity", sa.String(20), nullable=False),
+        sa.Column("bbox", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -1420,29 +1765,17 @@ def upgrade() -> None:
     op.create_index("idx_threat_detections_threat_type", "threat_detections", ["threat_type"])
     op.create_index("idx_threat_detections_severity", "threat_detections", ["severity"])
     op.create_index(
-        "idx_threat_detections_type_severity",
-        "threat_detections",
-        ["threat_type", "severity"],
+        "idx_threat_detections_type_severity", "threat_detections", ["threat_type", "severity"]
     )
 
-    # demographics_results - Age-Gender prediction
+    # demographics_results
     op.create_table(
         "demographics_results",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("detection_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "age_range",
-            sa.String(20),
-            nullable=True,
-            comment="Age range: 0-10, 11-20, etc.",
-        ),
+        sa.Column("age_range", sa.String(20), nullable=True),
         sa.Column("age_confidence", sa.Float(), nullable=True),
-        sa.Column(
-            "gender",
-            sa.String(20),
-            nullable=True,
-            comment="Gender: male, female, unknown",
-        ),
+        sa.Column("gender", sa.String(20), nullable=True),
         sa.Column("gender_confidence", sa.Float(), nullable=True),
         sa.Column(
             "created_at",
@@ -1481,23 +1814,13 @@ def upgrade() -> None:
     )
     op.create_index("idx_demographics_results_created_at", "demographics_results", ["created_at"])
 
-    # reid_embeddings - OSNet person re-identification embeddings
+    # reid_embeddings
     op.create_table(
         "reid_embeddings",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("detection_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "embedding",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=True,
-            comment="512-dim feature vector as JSON array",
-        ),
-        sa.Column(
-            "embedding_hash",
-            sa.String(64),
-            nullable=True,
-            comment="SHA256 hash for quick lookup",
-        ),
+        sa.Column("embedding", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("embedding_hash", sa.String(64), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -1517,25 +1840,15 @@ def upgrade() -> None:
     op.create_index("idx_reid_embeddings_created_at", "reid_embeddings", ["created_at"])
     op.create_index("idx_reid_embeddings_embedding_hash", "reid_embeddings", ["embedding_hash"])
 
-    # action_results - X-CLIP action recognition
+    # action_results
     op.create_table(
         "action_results",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("detection_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "action",
-            sa.String(100),
-            nullable=True,
-            comment="Recognized action: walking, running, etc.",
-        ),
+        sa.Column("action", sa.String(100), nullable=True),
         sa.Column("confidence", sa.Float(), nullable=True),
         sa.Column("is_suspicious", sa.Boolean(), nullable=False, server_default=sa.text("false")),
-        sa.Column(
-            "all_scores",
-            postgresql.JSONB(astext_type=sa.Text()),
-            nullable=True,
-            comment="Dict of action -> score for all candidates",
-        ),
+        sa.Column("all_scores", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -1560,9 +1873,111 @@ def upgrade() -> None:
     op.create_index("idx_action_results_action", "action_results", ["action"])
     op.create_index("idx_action_results_is_suspicious", "action_results", ["is_suspicious"])
 
+    # =========================================================================
+    # GPU MANAGEMENT TABLES
+    # =========================================================================
+
+    # gpu_devices
+    op.create_table(
+        "gpu_devices",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=False),
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("gpu_index", sa.Integer(), nullable=False),
+        sa.Column("name", sa.String(128), nullable=True),
+        sa.Column("vram_total_mb", sa.Integer(), nullable=True),
+        sa.Column("vram_available_mb", sa.Integer(), nullable=True),
+        sa.Column("compute_capability", sa.String(16), nullable=True),
+        sa.Column(
+            "last_seen_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("gpu_index", name="uq_gpu_devices_gpu_index"),
+        sa.CheckConstraint("gpu_index >= 0", name="ck_gpu_devices_gpu_index_non_negative"),
+        sa.CheckConstraint(
+            "vram_total_mb IS NULL OR vram_total_mb >= 0",
+            name="ck_gpu_devices_vram_total_non_negative",
+        ),
+        sa.CheckConstraint(
+            "vram_available_mb IS NULL OR vram_available_mb >= 0",
+            name="ck_gpu_devices_vram_available_non_negative",
+        ),
+    )
+    op.create_index("ix_gpu_devices_gpu_index", "gpu_devices", ["gpu_index"])
+
+    # gpu_configurations
+    op.create_table(
+        "gpu_configurations",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=False),
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("service_name", sa.String(64), nullable=False),
+        sa.Column("gpu_index", sa.Integer(), nullable=True),
+        sa.Column("strategy", sa.String(32), nullable=False, server_default="manual"),
+        sa.Column("vram_budget_override", sa.Float(), nullable=True),
+        sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("service_name", name="uq_gpu_configurations_service_name"),
+        sa.CheckConstraint(
+            "gpu_index IS NULL OR gpu_index >= 0",
+            name="ck_gpu_configurations_gpu_index_non_negative",
+        ),
+        sa.CheckConstraint(
+            "strategy IN ('manual', 'vram_based', 'latency_optimized', 'isolation_first', 'balanced')",
+            name="ck_gpu_configurations_strategy_valid",
+        ),
+        sa.CheckConstraint(
+            "vram_budget_override IS NULL OR vram_budget_override > 0",
+            name="ck_gpu_configurations_vram_budget_positive",
+        ),
+    )
+    op.create_index("ix_gpu_configurations_service_name", "gpu_configurations", ["service_name"])
+    op.create_index("idx_gpu_configurations_enabled", "gpu_configurations", ["enabled"])
+
+    # system_settings
+    op.create_table(
+        "system_settings",
+        sa.Column("key", sa.String(64), nullable=False),
+        sa.Column("value", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.PrimaryKeyConstraint("key"),
+    )
+    op.create_index("idx_system_settings_updated_at", "system_settings", ["updated_at"])
+
 
 def downgrade() -> None:
     """Drop all tables in reverse order."""
+
+    # GPU management tables
+    op.drop_table("system_settings")
+    op.drop_table("gpu_configurations")
+    op.drop_table("gpu_devices")
 
     # Enrichment result tables
     op.drop_table("action_results")
@@ -1581,6 +1996,11 @@ def downgrade() -> None:
     op.drop_table("event_audits")
     op.drop_table("alerts")
 
+    # Zone monitoring tables
+    op.drop_table("zone_anomalies")
+    op.drop_table("zone_activity_baselines")
+    op.drop_table("zone_household_configs")
+
     # Tables with FK to cameras
     op.drop_table("camera_calibrations")
     op.drop_table("camera_notification_settings")
@@ -1589,11 +2009,18 @@ def downgrade() -> None:
     op.drop_table("activity_baselines")
     op.drop_table("events")
     op.drop_table("detections")
-    op.drop_table("zones")
+    op.drop_table("camera_zones")
+
+    # Organization tables
+    op.drop_table("camera_areas")
+    op.drop_table("areas")
+    op.drop_constraint("fk_cameras_property_id", "cameras", type_="foreignkey")
+    op.drop_table("properties")
 
     # Base tables
     op.drop_table("registered_vehicles")
     op.drop_table("household_members")
+    op.drop_table("households")
     op.drop_table("summaries")
     op.drop_table("entities")
     op.drop_table("user_calibration")
@@ -1616,8 +2043,8 @@ def downgrade() -> None:
     op.execute("DROP TYPE IF EXISTS trust_level_enum")
     op.execute("DROP TYPE IF EXISTS member_role_enum")
     op.execute("DROP TYPE IF EXISTS scene_change_type_enum")
-    op.execute("DROP TYPE IF EXISTS zone_shape_enum")
-    op.execute("DROP TYPE IF EXISTS zone_type_enum")
+    op.execute("DROP TYPE IF EXISTS camera_zone_shape_enum")
+    op.execute("DROP TYPE IF EXISTS camera_zone_type_enum")
     op.execute("DROP TYPE IF EXISTS export_job_status")
     op.execute("DROP TYPE IF EXISTS alert_status")
     op.execute("DROP TYPE IF EXISTS alert_severity")

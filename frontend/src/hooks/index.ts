@@ -656,3 +656,37 @@ export type {
   UseCircuitBreakerDebugQueryOptions,
   UseCircuitBreakerDebugQueryReturn,
 } from './useCircuitBreakerDebugQuery';
+
+// GPU configuration hooks (Multi-GPU Support - NEM-3300)
+export {
+  useGpus,
+  useGpuConfig,
+  useGpuStatus,
+  useUpdateGpuConfig,
+  useApplyGpuConfig,
+  useDetectGpus,
+  usePreviewStrategy,
+  GPU_QUERY_KEYS,
+} from './useGpuConfig';
+export type {
+  GpuDevice,
+  GpuListResponse,
+  GpuConfig,
+  GpuConfigUpdateRequest,
+  GpuConfigUpdateResponse,
+  GpuApplyResult,
+  GpuStatusResponse,
+  StrategyPreviewResponse,
+  GpuAssignment,
+  ServiceStatus as GpuServiceStatus,
+  UseGpusOptions,
+  UseGpusReturn,
+  UseGpuConfigOptions,
+  UseGpuConfigReturn,
+  UseGpuStatusOptions,
+  UseGpuStatusReturn,
+  UseUpdateGpuConfigReturn,
+  UseApplyGpuConfigReturn,
+  UseDetectGpusReturn,
+  UsePreviewStrategyReturn,
+} from './useGpuConfig';

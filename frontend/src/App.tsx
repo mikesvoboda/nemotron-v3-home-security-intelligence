@@ -93,6 +93,9 @@ const DataManagementPage = lazy(() => import('./pages/DataManagementPage'));
 // Zone Intelligence Dashboard
 const ZonesPage = lazy(() => import('./pages/ZonesPage'));
 
+// GPU Settings Page
+const GpuSettingsPage = lazy(() => import('./pages/GpuSettingsPage'));
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -134,6 +137,7 @@ export default function App() {
                             <Route path="/trash" element={<TrashPage />} />
                             <Route path="/data" element={<DataManagementPage />} />
                             <Route path="/zones" element={<ZonesPage />} />
+                            <Route path="/settings/gpu" element={<GpuSettingsPage />} />
                           </Routes>
                         </PageTransition>
                       </Suspense>

@@ -913,6 +913,7 @@ describe('Camera API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(mockCameras);
     });
@@ -994,6 +995,8 @@ describe('Camera API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(mockCamera);
     });
@@ -1035,6 +1038,8 @@ describe('Camera API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.name).toBe(createData.name);
       expect(result.folder_path).toBe(createData.folder_path);
@@ -1084,6 +1089,8 @@ describe('Camera API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.name).toBe(updateData.name);
       expect(result.status).toBe(updateData.status);
@@ -1120,6 +1127,8 @@ describe('Camera API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result).toBeUndefined();
     });
@@ -1169,6 +1178,8 @@ describe('System API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(mockHealth);
       expect(result.status).toBe('healthy');
@@ -1204,6 +1215,8 @@ describe('System API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(mockGPUStats);
       expect(result.utilization).toBe(45.5);
@@ -1264,6 +1277,8 @@ describe('System API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.items).toHaveLength(2);
       expect(result.pagination.total).toBe(2);
@@ -1298,6 +1313,8 @@ describe('System API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.items).toHaveLength(1);
     });
@@ -1384,6 +1401,8 @@ describe('System API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(mockConfig);
       expect(result.retention_days).toBe(30);
@@ -1413,6 +1432,8 @@ describe('System API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.retention_days).toBe(60);
       expect(result.batch_window_seconds).toBe(120);
@@ -1446,6 +1467,8 @@ describe('System API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(mockStats);
       expect(result.total_cameras).toBe(2);
@@ -1479,6 +1502,8 @@ describe('System API', () => {
         headers: {
           'Content-Type': 'application/json',
         },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(mockTelemetry);
       expect(result.queues.detection_queue).toBe(5);
@@ -1585,6 +1610,8 @@ describe('Events API', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/events', {
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.items).toEqual([mockEvent]);
     });
@@ -1645,6 +1672,8 @@ describe('Events API', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/events/1', {
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(mockEvent);
     });
@@ -1666,6 +1695,8 @@ describe('Events API', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/events/stats', {
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(mockEventStatsResponse);
       expect(result.total_events).toBe(44);
@@ -1757,6 +1788,8 @@ describe('Events API', () => {
         method: 'PATCH',
         body: JSON.stringify(updateData),
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.reviewed).toBe(true);
     });
@@ -1859,6 +1892,8 @@ describe('Detections API', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/events/1/detections', {
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.items).toEqual([mockDetection]);
     });
@@ -2817,6 +2852,8 @@ describe('Storage API', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/system/storage', {
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.disk_total_bytes).toBe(536870912000);
       expect(result.disk_used_bytes).toBe(268435456000);
@@ -2866,6 +2903,8 @@ describe('Storage API', () => {
       expect(fetch).toHaveBeenCalledWith('/api/system/cleanup?dry_run=true', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.events_deleted).toBe(15);
       expect(result.space_reclaimed).toBe(524288000);
@@ -2941,6 +2980,8 @@ describe('Notification API', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/notification/config', {
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.notification_enabled).toBe(true);
       expect(result.email_configured).toBe(true);
@@ -2982,6 +3023,8 @@ describe('Notification API', () => {
         method: 'POST',
         body: JSON.stringify({ channel: 'email', email_recipients: ['test@example.com'] }),
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.success).toBe(true);
       expect(result.channel).toBe('email');
@@ -3002,6 +3045,8 @@ describe('Notification API', () => {
         method: 'POST',
         body: JSON.stringify({ channel: 'webhook', webhook_url: 'https://hook.example.com' }),
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.channel).toBe('webhook');
     });
@@ -3015,6 +3060,8 @@ describe('Notification API', () => {
         method: 'POST',
         body: JSON.stringify({ channel: 'push' }),
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
     });
 
@@ -3085,6 +3132,8 @@ describe('Audit Log API', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/audit', {
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.items).toHaveLength(1);
     });
@@ -3151,6 +3200,8 @@ describe('Audit Log API', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/audit/stats', {
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.total_logs).toBe(1000);
     });
@@ -3165,6 +3216,8 @@ describe('Audit Log API', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/audit/1', {
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.id).toBe(1);
       expect(result.action).toBe('create');
@@ -3228,6 +3281,8 @@ describe('Audit Log API', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/system/circuit-breakers', {
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.circuit_breakers).toBeDefined();
       expect(result.total_count).toBe(2);
@@ -3280,6 +3335,8 @@ describe('Audit Log API', () => {
       expect(fetch).toHaveBeenCalledWith('/api/system/circuit-breakers/nemotron_analysis/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.name).toBe('nemotron_analysis');
       expect(result.previous_state).toBe('open');
@@ -3375,6 +3432,8 @@ describe('Audit Log API', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/system/severity', {
         headers: { 'Content-Type': 'application/json' },
+
+        signal: expect.any(AbortSignal),
       });
       expect(result.definitions).toHaveLength(4);
       expect(result.thresholds.low_max).toBe(29);
