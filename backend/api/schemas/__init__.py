@@ -221,8 +221,11 @@ from .websocket import (
     WebSocketErrorResponse,
     WebSocketEventData,
     WebSocketEventMessage,
+    # Discriminated unions (NEM-3394)
+    WebSocketIncomingMessage,
     WebSocketMessage,
     WebSocketMessageType,
+    WebSocketOutgoingMessage,
     WebSocketPingMessage,
     WebSocketPongResponse,
     WebSocketSceneChangeData,
@@ -431,8 +434,11 @@ __all__ = [
     "WebSocketErrorResponse",
     "WebSocketEventData",
     "WebSocketEventMessage",
+    # Discriminated unions (NEM-3394)
+    "WebSocketIncomingMessage",
     "WebSocketMessage",
     "WebSocketMessageType",
+    "WebSocketOutgoingMessage",
     "WebSocketPingMessage",
     "WebSocketPongResponse",
     "WebSocketSceneChangeData",

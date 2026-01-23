@@ -14388,9 +14388,19 @@ export interface components {
             reviewed: boolean;
             /**
              * Risk Level
-             * @description Risk level (low, medium, high, critical)
+             * @description Compute risk level from risk_score (NEM-3398).
+             *
+             *     This computed field derives risk_level from risk_score using
+             *     the backend severity taxonomy thresholds:
+             *     - LOW: 0-29
+             *     - MEDIUM: 30-59
+             *     - HIGH: 60-84
+             *     - CRITICAL: 85-100
+             *
+             *     Returns:
+             *         Risk level string or None if risk_score is None
              */
-            risk_level?: string | null;
+            readonly risk_level: string | null;
             /**
              * Risk Score
              * @description Risk score (0-100)
@@ -22471,9 +22481,19 @@ export interface components {
             reviewed: boolean;
             /**
              * Risk Level
-             * @description Risk level (low, medium, high, critical)
+             * @description Compute risk level from risk_score (NEM-3398).
+             *
+             *     This computed field derives risk_level from risk_score using
+             *     the backend severity taxonomy thresholds:
+             *     - LOW: 0-29
+             *     - MEDIUM: 30-59
+             *     - HIGH: 60-84
+             *     - CRITICAL: 85-100
+             *
+             *     Returns:
+             *         Risk level string or None if risk_score is None
              */
-            risk_level?: string | null;
+            readonly risk_level: string | null;
             /**
              * Risk Score
              * @description Risk score (0-100)

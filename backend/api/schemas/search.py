@@ -1,8 +1,11 @@
 """Pydantic schemas for event search API endpoints."""
 
 from datetime import datetime
+from functools import cached_property
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
+
+from backend.api.schemas.events import _compute_risk_level
 
 
 class SearchResult(BaseModel):
@@ -36,8 +39,25 @@ class SearchResult(BaseModel):
     started_at: datetime = Field(..., description="Event start timestamp")
     ended_at: datetime | None = Field(None, description="Event end timestamp")
     risk_score: int | None = Field(None, description="Risk score (0-100)")
-    risk_level: str | None = Field(None, description="Risk level (low, medium, high, critical)")
     summary: str | None = Field(None, description="LLM-generated event summary")
+
+    @computed_field  # type: ignore[prop-decorator]
+    @cached_property
+    def risk_level(self) -> str | None:
+        """Compute risk level from risk_score (NEM-3398).
+
+        This computed field derives risk_level from risk_score using
+        the backend severity taxonomy thresholds:
+        - LOW: 0-29
+        - MEDIUM: 30-59
+        - HIGH: 60-84
+        - CRITICAL: 85-100
+
+        Returns:
+            Risk level string or None if risk_score is None
+        """
+        return _compute_risk_level(self.risk_score)
+
     reasoning: str | None = Field(None, description="LLM reasoning for risk score")
     reviewed: bool = Field(False, description="Whether event has been reviewed")
     detection_count: int = Field(0, description="Number of detections in this event")

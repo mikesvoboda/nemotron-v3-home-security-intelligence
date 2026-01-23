@@ -9611,7 +9611,8 @@
                 "type": "null"
               }
             ],
-            "description": "Risk level (low, medium, high, critical)",
+            "description": "Compute risk level from risk_score (NEM-3398).\n\nThis computed field derives risk_level from risk_score using\nthe backend severity taxonomy thresholds:\n- LOW: 0-29\n- MEDIUM: 30-59\n- HIGH: 60-84\n- CRITICAL: 85-100\n\nReturns:\n    Risk level string or None if risk_score is None",
+            "readOnly": true,
             "title": "Risk Level"
           },
           "risk_score": {
@@ -9673,7 +9674,8 @@
         "required": [
           "id",
           "camera_id",
-          "started_at"
+          "started_at",
+          "risk_level"
         ],
         "title": "EventResponse",
         "type": "object"
@@ -21419,7 +21421,8 @@
                 "type": "null"
               }
             ],
-            "description": "Risk level (low, medium, high, critical)",
+            "description": "Compute risk level from risk_score (NEM-3398).\n\nThis computed field derives risk_level from risk_score using\nthe backend severity taxonomy thresholds:\n- LOW: 0-29\n- MEDIUM: 30-59\n- HIGH: 60-84\n- CRITICAL: 85-100\n\nReturns:\n    Risk level string or None if risk_score is None",
+            "readOnly": true,
             "title": "Risk Level"
           },
           "risk_score": {
@@ -21456,7 +21459,8 @@
         "required": [
           "id",
           "camera_id",
-          "started_at"
+          "started_at",
+          "risk_level"
         ],
         "title": "SearchResult",
         "type": "object"
