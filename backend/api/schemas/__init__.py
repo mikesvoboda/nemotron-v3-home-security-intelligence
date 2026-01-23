@@ -192,6 +192,20 @@ from .problem_details import (
     ProblemDetail,
     get_status_phrase,
 )
+
+# Query parameter models (NEM-3345)
+from .query_params import (
+    CommonQueryParams,
+    DateRangeParams,
+    FieldSelectionParams,
+    FilterParams,
+    PaginationParams,
+    SortOrder,
+    SortParams,
+)
+from .query_params import (
+    RiskLevel as FilterRiskLevel,
+)
 from .scene_change import (
     SceneChangeAcknowledgeResponse,
     SceneChangeListResponse,
@@ -249,7 +263,7 @@ from .zone_household import (
     ZoneHouseholdConfigUpdate,
 )
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # Constants (sorted separately)
     "COMMON_ERROR_RESPONSES",
     "EVENT_REGISTRY",
@@ -293,6 +307,8 @@ __all__ = [
     "CategorySummary",
     "CheckResult",
     "ClassBaselineEntry",
+    # Query parameter models (NEM-3345)
+    "CommonQueryParams",
     "ClassBaselineResponse",
     "ClipGenerateRequest",
     "ClipGenerateResponse",
@@ -302,6 +318,7 @@ __all__ = [
     "ContainerServiceStatus",
     "CurrentDeviation",
     "DailyPattern",
+    "DateRangeParams",
     "DedupCheckRequest",
     "DedupCheckResponse",
     "DeliveryResultResponse",
@@ -362,6 +379,9 @@ __all__ = [
     "FaceEnrichment",
     "FeedbackStatsResponse",
     "FeedbackType",
+    "FieldSelectionParams",
+    "FilterParams",
+    "FilterRiskLevel",
     "FlatErrorResponse",
     # GPU configuration schemas (NEM-3294)
     "GpuApplyResponse",
@@ -391,6 +411,7 @@ __all__ = [
     "NotificationHistoryEntry",
     "NotificationHistoryResponse",
     "ObjectBaseline",
+    "PaginationParams",
     "PersonEnrichmentData",
     "PetEnrichment",
     "PetEnrichmentData",
@@ -414,6 +435,8 @@ __all__ = [
     "ServiceUnavailableResponse",
     "ServicesResponse",
     "SimpleReadinessResponse",
+    "SortOrder",
+    "SortParams",
     "TestNotificationRequest",
     "TestNotificationResponse",
     "TrustCheckResponse",

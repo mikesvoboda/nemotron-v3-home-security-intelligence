@@ -35,7 +35,7 @@ Usage:
 import asyncio
 import functools
 from collections.abc import Awaitable, Callable
-from typing import Any, ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar, cast
 
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import RedisError
@@ -259,6 +259,172 @@ class CacheService:
         except Exception as e:
             logger.error(f"Factory failed for cache key {key}: {e}")
             raise
+
+    # ==========================================================================
+    # Stale-While-Revalidate (SWR) Pattern (NEM-3367)
+    # ==========================================================================
+
+    async def get_or_set_swr(
+        self,
+        key: str,
+        factory: Callable[[], Any],
+        ttl: int = DEFAULT_TTL,
+        stale_ttl: int | None = None,
+        cache_type: str | None = None,
+    ) -> Any:
+        """Get value from cache with Stale-While-Revalidate pattern.
+
+        Implements the SWR pattern for zero-latency cache refresh:
+        1. If data is fresh (within TTL), return immediately
+        2. If data is stale (beyond TTL but within stale_ttl), return immediately
+           AND trigger background refresh
+        3. If data is missing or expired, compute and cache synchronously
+
+        This eliminates cache stampede and ensures users never wait for cache refresh.
+
+        Args:
+            key: Cache key (will be prefixed with 'cache:')
+            factory: Callable that returns the value if not cached.
+            ttl: Time to live in seconds (default: 5 minutes).
+            stale_ttl: Additional time in seconds after TTL that stale data
+                      can be served while refreshing. If None, uses settings.
+            cache_type: Optional cache type for metrics.
+
+        Returns:
+            Cached or computed value
+        """
+        import time
+
+        settings = get_settings()
+        if stale_ttl is None:
+            stale_ttl = settings.cache_swr_stale_ttl
+
+        metric_type = cache_type or self._infer_cache_type(key)
+        full_key = f"{CACHE_PREFIX}{key}"
+        freshness_key = f"{full_key}:fresh_until"
+
+        try:
+            # Try to get cached value and freshness timestamp
+            cached_value = await self.get(key, cache_type=cache_type)
+
+            if cached_value is not None:
+                # Check if data is still fresh
+                fresh_until_str = await self._redis.get(freshness_key)
+                now = time.time()
+
+                if fresh_until_str:
+                    fresh_until = float(fresh_until_str)
+                    if now < fresh_until:
+                        # Data is fresh - return immediately
+                        return cached_value
+                    else:
+                        # Data is stale - return and refresh in background
+                        from backend.core.metrics import record_cache_stale_hit
+
+                        record_cache_stale_hit(metric_type)
+                        logger.debug(
+                            f"SWR: Serving stale data for key: {key}, triggering background refresh"
+                        )
+                        asyncio.create_task(
+                            self._background_refresh(key, factory, ttl, stale_ttl, metric_type)
+                        )
+                        return cached_value
+                else:
+                    # No freshness marker but value exists - treat as stale
+                    from backend.core.metrics import record_cache_stale_hit
+
+                    record_cache_stale_hit(metric_type)
+                    asyncio.create_task(
+                        self._background_refresh(key, factory, ttl, stale_ttl, metric_type)
+                    )
+                    return cached_value
+
+            # Cache miss - compute synchronously
+            logger.debug(f"SWR: Cache miss for key: {key}, computing value")
+            return await self._fetch_and_cache_swr(key, factory, ttl, stale_ttl)
+
+        except (RedisConnectionError, RedisTimeoutError, RedisError) as e:
+            logger.warning(
+                f"SWR cache operation failed for key {key}: {e}, "
+                "falling back to direct computation",
+                extra={"key": key, "error": str(e)},
+            )
+            # Fall back to direct computation
+            result = factory()
+            if asyncio.iscoroutine(result):
+                result = await result
+            return result
+
+    async def _fetch_and_cache_swr(
+        self,
+        key: str,
+        factory: Callable[[], Any],
+        ttl: int,
+        stale_ttl: int,
+    ) -> Any:
+        """Fetch data using factory and cache with SWR metadata."""
+        import time
+
+        result = factory()
+        if asyncio.iscoroutine(result):
+            result = await result
+
+        full_key = f"{CACHE_PREFIX}{key}"
+        freshness_key = f"{full_key}:fresh_until"
+
+        # Set the value with total TTL (fresh + stale)
+        total_ttl = ttl + stale_ttl
+        await self.set(key, result, ttl=total_ttl)
+
+        # Set the freshness marker
+        fresh_until = time.time() + ttl
+        try:
+            await self._redis.set(freshness_key, str(fresh_until), expire=total_ttl)
+        except Exception as e:
+            logger.warning(f"Failed to set freshness marker for {key}: {e}")
+
+        return result
+
+    async def _background_refresh(
+        self,
+        key: str,
+        factory: Callable[[], Any],
+        ttl: int,
+        stale_ttl: int,
+        cache_type: str,
+    ) -> None:
+        """Refresh cache in background (SWR pattern)."""
+        from backend.core.metrics import record_cache_background_refresh
+
+        full_key = f"{CACHE_PREFIX}{key}"
+        lock_key = f"{full_key}:refreshing"
+
+        try:
+            # Use a simple lock to prevent multiple concurrent refreshes
+            lock_acquired = await self._redis.set(lock_key, "1", expire=60, nx=True)
+
+            if not lock_acquired:
+                record_cache_background_refresh(cache_type, success=False)
+                logger.debug(f"SWR: Skipping refresh for {key}, already in progress")
+                return
+
+            logger.debug(f"SWR: Starting background refresh for key: {key}")
+            await self._fetch_and_cache_swr(key, factory, ttl, stale_ttl)
+            record_cache_background_refresh(cache_type, success=True)
+            logger.debug(f"SWR: Background refresh completed for key: {key}")
+
+        except Exception as e:
+            record_cache_background_refresh(cache_type, success=False)
+            logger.error(
+                f"SWR: Background refresh failed for key {key}: {e}",
+                extra={"key": key, "error": str(e)},
+            )
+        finally:
+            # Release the lock
+            try:
+                await self._redis.delete(lock_key)
+            except Exception:  # noqa: S110
+                pass  # Ignore errors during lock cleanup - intentionally silent
 
     async def invalidate(self, key: str) -> bool:
         """Invalidate a single cache key.
@@ -800,6 +966,87 @@ def cached(
                 logger.warning(
                     f"Cache service unavailable for key {key}: {e}, falling back to uncached",
                     extra={"key": key, "cache_type": cache_type, "error_type": "runtime_error"},
+                )
+                return await func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+# =============================================================================
+# SWR Caching Decorator (NEM-3367)
+# =============================================================================
+
+
+def cached_swr(
+    cache_key: str | Callable[..., str],
+    ttl: int = DEFAULT_TTL,
+    stale_ttl: int | None = None,
+    cache_type: str = "other",
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
+    """Decorator for caching with Stale-While-Revalidate pattern.
+
+    Provides zero-latency cache refresh:
+    1. Fresh data is returned immediately
+    2. Stale data is returned immediately AND triggers background refresh
+    3. Missing data is computed synchronously
+
+    Args:
+        cache_key: Static cache key string, or a callable returning the cache key.
+        ttl: Time to live in seconds (default: 5 minutes).
+        stale_ttl: Additional stale time in seconds. If None, uses settings.
+        cache_type: Cache type for metrics.
+
+    Returns:
+        Decorated function with SWR caching behavior
+
+    Example:
+        @cached_swr("dashboard:stats", ttl=60, stale_ttl=30, cache_type="system")
+        async def get_dashboard_stats():
+            return await compute_heavy_stats()
+    """
+
+    def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
+        @functools.wraps(func)
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            key = cache_key(*args, **kwargs) if callable(cache_key) else cache_key
+
+            settings = get_settings()
+            if not settings.cache_swr_enabled:
+                # Fall back to regular caching when SWR disabled
+                try:
+                    cache = await get_cache_service()
+                    cached_value = await cache.get(key, cache_type=cache_type)
+                    if cached_value is not None:
+                        return cast("T", cached_value)
+
+                    result = await func(*args, **kwargs)
+                    await cache.set(key, result, ttl=ttl)
+                    return result
+                except (RedisConnectionError, RedisTimeoutError, RedisError, RuntimeError):
+                    return await func(*args, **kwargs)
+
+            try:
+                cache = await get_cache_service()
+
+                async def factory() -> T:
+                    return await func(*args, **kwargs)
+
+                return cast(
+                    "T",
+                    await cache.get_or_set_swr(
+                        key=key,
+                        factory=factory,
+                        ttl=ttl,
+                        stale_ttl=stale_ttl,
+                        cache_type=cache_type,
+                    ),
+                )
+            except (RedisConnectionError, RedisTimeoutError, RedisError, RuntimeError) as e:
+                logger.warning(
+                    f"SWR cache failed for key {key}: {e}, falling back to uncached",
+                    extra={"key": key, "cache_type": cache_type},
                 )
                 return await func(*args, **kwargs)
 

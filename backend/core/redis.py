@@ -2,6 +2,7 @@
 
 __all__ = [
     # Classes
+    "PoolType",
     "QueueAddResult",
     "QueueOverflowPolicy",
     "QueuePressureMetrics",
@@ -44,6 +45,25 @@ from backend.core.metrics import (
 logger = get_logger(__name__)
 
 T = TypeVar("T")
+
+
+class PoolType(str, Enum):
+    """Redis connection pool types for workload isolation (NEM-3368)."""
+
+    CACHE = "cache"
+    """Pool for cache operations (get/set/delete) - fast, high availability."""
+
+    QUEUE = "queue"
+    """Pool for queue operations (BLPOP/RPUSH) - can block."""
+
+    PUBSUB = "pubsub"
+    """Pool for pub/sub operations - long-lived connections."""
+
+    RATELIMIT = "ratelimit"
+    """Pool for rate limiting operations - high frequency."""
+
+    DEFAULT = "default"
+    """Fallback pool when dedicated pools are disabled."""
 
 
 class QueueOverflowPolicy(str, Enum):
@@ -175,6 +195,7 @@ class RedisClient:
         ssl_certfile: str | None = None,
         ssl_keyfile: str | None = None,
         ssl_check_hostname: bool | None = None,
+        dedicated_pools: bool | None = None,
     ):
         """Initialize Redis client with connection pool and optional SSL/TLS.
 
@@ -190,6 +211,8 @@ class RedisClient:
             ssl_certfile: Path to client certificate file for mTLS. If None, uses settings.
             ssl_keyfile: Path to client key file for mTLS. If None, uses settings.
             ssl_check_hostname: Verify server certificate hostname. If None, uses settings.
+            dedicated_pools: Enable dedicated connection pools by workload type (NEM-3368).
+                If None, uses settings.redis_pool_dedicated_enabled.
         """
         settings = get_settings()
         self._redis_url = redis_url or settings.redis_url
@@ -223,6 +246,22 @@ class RedisClient:
             if ssl_check_hostname is not None
             else settings.redis_ssl_check_hostname
         )
+
+        # Dedicated connection pools by workload type (NEM-3368)
+        self._dedicated_pools_enabled = (
+            dedicated_pools
+            if dedicated_pools is not None
+            else settings.redis_pool_dedicated_enabled
+        )
+        self._pools: dict[PoolType, ConnectionPool] = {}
+        self._clients: dict[PoolType, Redis] = {}
+        self._pool_sizes = {
+            PoolType.CACHE: settings.redis_pool_size_cache,
+            PoolType.QUEUE: settings.redis_pool_size_queue,
+            PoolType.PUBSUB: settings.redis_pool_size_pubsub,
+            PoolType.RATELIMIT: settings.redis_pool_size_ratelimit,
+            PoolType.DEFAULT: settings.redis_pool_size,
+        }
 
     def _create_ssl_context(self) -> ssl.SSLContext | None:
         """Create an SSL context for Redis connection if SSL is enabled.
@@ -1131,21 +1170,25 @@ class RedisClient:
                 return value
         return None
 
-    async def set(self, key: str, value: Any, expire: int | None = None) -> bool:
+    async def set(
+        self, key: str, value: Any, expire: int | None = None, *, nx: bool = False
+    ) -> bool:
         """Set a value in Redis cache.
 
         Args:
             key: Cache key
             value: Value to store (will be JSON-serialized)
             expire: Expiration time in seconds (optional)
+            nx: Only set the key if it does not already exist (SET NX)
 
         Returns:
-            True if successful
+            True if successful (or False if nx=True and key exists)
         """
         client = self._ensure_connected()
         # Always JSON-serialize for consistent deserialization in get()
         serialized = json.dumps(value)
-        return cast("bool", await client.set(key, serialized, ex=expire))
+        result = await client.set(key, serialized, ex=expire, nx=nx)
+        return result is not None if nx else cast("bool", result)
 
     async def delete(self, *keys: str) -> int:
         """Delete one or more keys from Redis.

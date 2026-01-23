@@ -2,6 +2,8 @@
 
 NEM-1629: Tests for the telemetry module that provides OpenTelemetry
 instrumentation for distributed tracing across services.
+NEM-3380: Tests for ParentBased composite sampler.
+NEM-3382: Tests for Baggage cross-service context propagation.
 """
 
 from unittest.mock import MagicMock, Mock, patch
@@ -12,6 +14,10 @@ from backend.core.telemetry import (
     _NoOpSpan,
     _NoOpTracer,
     add_span_attributes,
+    clear_baggage,
+    extract_context_from_headers,
+    get_all_baggage,
+    get_baggage,
     get_current_span,
     get_span_id,
     get_trace_context,
@@ -19,6 +25,8 @@ from backend.core.telemetry import (
     get_tracer,
     is_telemetry_enabled,
     record_exception,
+    set_baggage,
+    set_request_baggage,
     setup_telemetry,
     shutdown_telemetry,
     trace_function,
@@ -984,3 +992,397 @@ class TestRecordExceptionWithoutSetStatus:
 
             # Should still record the exception
             mock_span.record_exception.assert_called_once_with(test_exception, attributes={})
+
+
+# =============================================================================
+# NEM-3380: ParentBased Composite Sampler Tests
+# =============================================================================
+
+
+class TestParentBasedSampler:
+    """Tests for ParentBased composite sampler configuration."""
+
+    def test_setup_telemetry_configures_parent_based_sampler(self) -> None:
+        """Should configure ParentBased sampler with correct parameters."""
+        import backend.core.telemetry as telemetry_module
+
+        # Reset module state
+        telemetry_module._is_initialized = False
+        telemetry_module._tracer_provider = None
+
+        mock_app = MagicMock()
+        mock_settings = MagicMock()
+        mock_settings.otel_enabled = True
+        mock_settings.otel_service_name = "test-service"
+        mock_settings.otel_exporter_otlp_endpoint = "http://localhost:4317"
+        mock_settings.otel_exporter_otlp_insecure = True
+        mock_settings.otel_trace_sample_rate = 0.1  # 10% sampling
+        mock_settings.app_version = "1.0.0"
+        mock_settings.debug = False
+
+        with (
+            patch("opentelemetry.sdk.resources.Resource") as mock_resource,
+            patch("opentelemetry.sdk.trace.TracerProvider") as mock_tracer_provider,
+            patch(
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"
+            ) as mock_exporter,
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor") as mock_processor,
+            patch("opentelemetry.sdk.trace.sampling.TraceIdRatioBased") as mock_ratio_sampler,
+            patch("opentelemetry.sdk.trace.sampling.ParentBased") as mock_parent_based,
+            patch("opentelemetry.sdk.trace.sampling.ALWAYS_ON") as mock_always_on,
+            patch("opentelemetry.sdk.trace.sampling.ALWAYS_OFF") as mock_always_off,
+            patch("opentelemetry.trace") as mock_trace,
+            patch("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor") as mock_fastapi,
+            patch("opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor") as mock_httpx,
+            patch(
+                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
+            ) as mock_sqlalchemy,
+            patch("opentelemetry.instrumentation.redis.RedisInstrumentor") as mock_redis,
+            patch("opentelemetry.propagate.set_global_textmap") as mock_set_textmap,
+            patch("opentelemetry.propagators.composite.CompositePropagator") as mock_composite,
+            patch(
+                "opentelemetry.trace.propagation.tracecontext.TraceContextTextMapPropagator"
+            ) as mock_trace_prop,
+            patch("opentelemetry.baggage.propagation.W3CBaggagePropagator") as mock_baggage_prop,
+        ):
+            # Setup mocks
+            mock_resource.create.return_value = MagicMock()
+            mock_ratio_sampler.return_value = MagicMock()
+            mock_parent_based.return_value = MagicMock()
+            mock_provider = MagicMock()
+            mock_tracer_provider.return_value = mock_provider
+
+            result = setup_telemetry(mock_app, mock_settings)
+
+            # Verify successful initialization
+            assert result is True
+
+            # Verify TraceIdRatioBased sampler was created with correct rate
+            mock_ratio_sampler.assert_called_once_with(0.1)
+
+            # Verify ParentBased sampler was created with correct parameters
+            mock_parent_based.assert_called_once_with(
+                root=mock_ratio_sampler.return_value,
+                local_parent_sampled=mock_always_on,
+                local_parent_not_sampled=mock_always_off,
+                remote_parent_sampled=mock_always_on,
+                remote_parent_not_sampled=mock_always_off,
+            )
+
+            # Cleanup
+            telemetry_module._is_initialized = False
+            telemetry_module._tracer_provider = None
+
+
+# =============================================================================
+# NEM-3382: Baggage Cross-Service Context Tests
+# =============================================================================
+
+
+class TestSetBaggage:
+    """Tests for set_baggage function."""
+
+    def test_set_baggage_calls_otel_baggage(self) -> None:
+        """Should call OpenTelemetry baggage.set_baggage with correct parameters."""
+        mock_ctx = MagicMock()
+
+        with (
+            patch("opentelemetry.baggage.set_baggage", return_value=mock_ctx) as mock_set,
+            patch("opentelemetry.context.attach") as mock_attach,
+        ):
+            set_baggage("camera_id", "front_door")
+
+            mock_set.assert_called_once_with("camera_id", "front_door")
+            mock_attach.assert_called_once_with(mock_ctx)
+
+    def test_set_baggage_handles_import_error(self) -> None:
+        """Should handle ImportError gracefully when OpenTelemetry is not available."""
+        import builtins
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "opentelemetry" or name.startswith("opentelemetry."):
+                raise ImportError("Module not found")
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            # Should not raise
+            set_baggage("key", "value")
+
+    def test_set_baggage_handles_exception(self) -> None:
+        """Should handle exceptions gracefully."""
+        with (
+            patch("opentelemetry.baggage.set_baggage", side_effect=Exception("Test error")),
+            patch("backend.core.telemetry.logger") as mock_logger,
+        ):
+            set_baggage("key", "value")
+
+            mock_logger.debug.assert_called_once()
+
+
+class TestGetBaggage:
+    """Tests for get_baggage function."""
+
+    def test_get_baggage_returns_value(self) -> None:
+        """Should return baggage value from OpenTelemetry context."""
+        with patch("opentelemetry.baggage.get_baggage", return_value="front_door") as mock_get:
+            result = get_baggage("camera_id")
+
+            assert result == "front_door"
+            mock_get.assert_called_once_with("camera_id")
+
+    def test_get_baggage_returns_none_when_not_set(self) -> None:
+        """Should return None when baggage is not set."""
+        with patch("opentelemetry.baggage.get_baggage", return_value=None):
+            result = get_baggage("nonexistent_key")
+
+            assert result is None
+
+    def test_get_baggage_handles_import_error(self) -> None:
+        """Should return None when OpenTelemetry is not available."""
+        import builtins
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "opentelemetry" or name.startswith("opentelemetry."):
+                raise ImportError("Module not found")
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            result = get_baggage("key")
+
+            assert result is None
+
+    def test_get_baggage_handles_exception(self) -> None:
+        """Should return None and log on exception."""
+        with (
+            patch("opentelemetry.baggage.get_baggage", side_effect=Exception("Test error")),
+            patch("backend.core.telemetry.logger") as mock_logger,
+        ):
+            result = get_baggage("key")
+
+            assert result is None
+            mock_logger.debug.assert_called_once()
+
+
+class TestGetAllBaggage:
+    """Tests for get_all_baggage function."""
+
+    def test_get_all_baggage_returns_dict(self) -> None:
+        """Should return dictionary of all baggage entries."""
+        mock_baggage = {"camera_id": "front_door", "batch_id": "batch-123"}
+
+        with patch("opentelemetry.baggage.get_all", return_value=mock_baggage):
+            result = get_all_baggage()
+
+            assert result == {"camera_id": "front_door", "batch_id": "batch-123"}
+
+    def test_get_all_baggage_returns_empty_dict_when_no_baggage(self) -> None:
+        """Should return empty dict when no baggage is set."""
+        with patch("opentelemetry.baggage.get_all", return_value={}):
+            result = get_all_baggage()
+
+            assert result == {}
+
+    def test_get_all_baggage_handles_import_error(self) -> None:
+        """Should return empty dict when OpenTelemetry is not available."""
+        import builtins
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "opentelemetry" or name.startswith("opentelemetry."):
+                raise ImportError("Module not found")
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            result = get_all_baggage()
+
+            assert result == {}
+
+
+class TestClearBaggage:
+    """Tests for clear_baggage function."""
+
+    def test_clear_baggage_removes_entry(self) -> None:
+        """Should remove baggage entry from context."""
+        mock_ctx = MagicMock()
+
+        with (
+            patch("opentelemetry.baggage.remove_baggage", return_value=mock_ctx) as mock_remove,
+            patch("opentelemetry.context.attach") as mock_attach,
+        ):
+            clear_baggage("camera_id")
+
+            mock_remove.assert_called_once_with("camera_id")
+            mock_attach.assert_called_once_with(mock_ctx)
+
+    def test_clear_baggage_handles_import_error(self) -> None:
+        """Should handle ImportError gracefully."""
+        import builtins
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "opentelemetry" or name.startswith("opentelemetry."):
+                raise ImportError("Module not found")
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            # Should not raise
+            clear_baggage("key")
+
+
+class TestSetRequestBaggage:
+    """Tests for set_request_baggage convenience function."""
+
+    def test_set_request_baggage_sets_all_provided_entries(self) -> None:
+        """Should set all provided baggage entries."""
+        with patch("backend.core.telemetry.set_baggage") as mock_set:
+            set_request_baggage(
+                request_id="req-123",
+                correlation_id="corr-456",
+                camera_id="front_door",
+                batch_id="batch-789",
+            )
+
+            assert mock_set.call_count == 4
+            mock_set.assert_any_call("request_id", "req-123")
+            mock_set.assert_any_call("correlation_id", "corr-456")
+            mock_set.assert_any_call("camera_id", "front_door")
+            mock_set.assert_any_call("batch_id", "batch-789")
+
+    def test_set_request_baggage_skips_none_values(self) -> None:
+        """Should skip None values."""
+        with patch("backend.core.telemetry.set_baggage") as mock_set:
+            set_request_baggage(camera_id="front_door")
+
+            mock_set.assert_called_once_with("camera_id", "front_door")
+
+    def test_set_request_baggage_with_no_values(self) -> None:
+        """Should not set any baggage when no values provided."""
+        with patch("backend.core.telemetry.set_baggage") as mock_set:
+            set_request_baggage()
+
+            mock_set.assert_not_called()
+
+
+class TestExtractContextFromHeaders:
+    """Tests for extract_context_from_headers function."""
+
+    def test_extract_context_from_headers_calls_propagate(self) -> None:
+        """Should call OpenTelemetry propagate.extract with headers."""
+        mock_ctx = MagicMock()
+        headers = {"traceparent": "00-trace-span-01", "baggage": "camera_id=front_door"}
+
+        with (
+            patch("opentelemetry.propagate.extract", return_value=mock_ctx) as mock_extract,
+            patch("opentelemetry.context.attach") as mock_attach,
+        ):
+            extract_context_from_headers(headers)
+
+            mock_extract.assert_called_once_with(headers)
+            mock_attach.assert_called_once_with(mock_ctx)
+
+    def test_extract_context_from_headers_handles_import_error(self) -> None:
+        """Should handle ImportError gracefully."""
+        import builtins
+
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "opentelemetry" or name.startswith("opentelemetry."):
+                raise ImportError("Module not found")
+            return original_import(name, *args, **kwargs)
+
+        headers = {"traceparent": "00-trace-span-01"}
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            # Should not raise
+            extract_context_from_headers(headers)
+
+    def test_extract_context_from_headers_handles_exception(self) -> None:
+        """Should handle exceptions gracefully."""
+        headers = {"traceparent": "00-trace-span-01"}
+
+        with (
+            patch("opentelemetry.propagate.extract", side_effect=Exception("Test error")),
+            patch("backend.core.telemetry.logger") as mock_logger,
+        ):
+            extract_context_from_headers(headers)
+
+            mock_logger.debug.assert_called_once()
+
+
+class TestCompositePropagatorConfiguration:
+    """Tests for composite propagator configuration with W3C Trace Context and Baggage."""
+
+    def test_setup_telemetry_configures_composite_propagator(self) -> None:
+        """Should configure composite propagator with both trace context and baggage."""
+        import backend.core.telemetry as telemetry_module
+
+        # Reset module state
+        telemetry_module._is_initialized = False
+        telemetry_module._tracer_provider = None
+
+        mock_app = MagicMock()
+        mock_settings = MagicMock()
+        mock_settings.otel_enabled = True
+        mock_settings.otel_service_name = "test-service"
+        mock_settings.otel_exporter_otlp_endpoint = "http://localhost:4317"
+        mock_settings.otel_exporter_otlp_insecure = True
+        mock_settings.otel_trace_sample_rate = 1.0
+        mock_settings.app_version = "1.0.0"
+        mock_settings.debug = False
+
+        with (
+            patch("opentelemetry.sdk.resources.Resource") as mock_resource,
+            patch("opentelemetry.sdk.trace.TracerProvider") as mock_tracer_provider,
+            patch(
+                "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"
+            ) as mock_exporter,
+            patch("opentelemetry.sdk.trace.export.BatchSpanProcessor") as mock_processor,
+            patch("opentelemetry.sdk.trace.sampling.TraceIdRatioBased") as mock_sampler,
+            patch("opentelemetry.sdk.trace.sampling.ParentBased") as mock_parent_based,
+            patch("opentelemetry.sdk.trace.sampling.ALWAYS_ON"),
+            patch("opentelemetry.sdk.trace.sampling.ALWAYS_OFF"),
+            patch("opentelemetry.trace") as mock_trace,
+            patch("opentelemetry.instrumentation.fastapi.FastAPIInstrumentor") as mock_fastapi,
+            patch("opentelemetry.instrumentation.httpx.HTTPXClientInstrumentor") as mock_httpx,
+            patch(
+                "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
+            ) as mock_sqlalchemy,
+            patch("opentelemetry.instrumentation.redis.RedisInstrumentor") as mock_redis,
+            patch("opentelemetry.propagate.set_global_textmap") as mock_set_textmap,
+            patch("opentelemetry.propagators.composite.CompositePropagator") as mock_composite,
+            patch(
+                "opentelemetry.trace.propagation.tracecontext.TraceContextTextMapPropagator"
+            ) as mock_trace_prop,
+            patch("opentelemetry.baggage.propagation.W3CBaggagePropagator") as mock_baggage_prop,
+        ):
+            # Setup mocks
+            mock_resource.create.return_value = MagicMock()
+            mock_provider = MagicMock()
+            mock_tracer_provider.return_value = mock_provider
+            mock_composite_instance = MagicMock()
+            mock_composite.return_value = mock_composite_instance
+
+            result = setup_telemetry(mock_app, mock_settings)
+
+            # Verify successful initialization
+            assert result is True
+
+            # Verify CompositePropagator was created with both propagators
+            mock_composite.assert_called_once()
+            call_args = mock_composite.call_args
+            propagators = call_args[0][0]
+            assert len(propagators) == 2
+
+            # Verify set_global_textmap was called with composite propagator
+            mock_set_textmap.assert_called_once_with(mock_composite_instance)
+
+            # Cleanup
+            telemetry_module._is_initialized = False
+            telemetry_module._tracer_provider = None
