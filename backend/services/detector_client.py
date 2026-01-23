@@ -52,11 +52,14 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from backend.services.frame_buffer import FrameBuffer
 
 from backend.api.middleware.correlation import get_correlation_headers
 from backend.core.config import get_settings
@@ -237,13 +240,21 @@ class DetectorClient:
 
         return cls._preprocess_executor
 
-    def __init__(self, max_retries: int | None = None) -> None:
+    def __init__(
+        self,
+        max_retries: int | None = None,
+        frame_buffer: FrameBuffer | None = None,
+    ) -> None:
         """Initialize detector client with configuration.
 
         Args:
             max_retries: Maximum retry attempts for transient failures.
                 If not provided, uses DETECTOR_MAX_RETRIES from settings (default: 3).
+            frame_buffer: Optional FrameBuffer instance for buffering frames during
+                detection. If provided, frames are buffered with their camera_id and
+                timestamp for later use by X-CLIP temporal action recognition.
         """
+        self._frame_buffer = frame_buffer
         settings = get_settings()
         self._detector_url = settings.rtdetr_url
         self._confidence_threshold = settings.detection_confidence_threshold
@@ -971,6 +982,21 @@ class DetectorClient:
 
             # Read image file asynchronously to avoid blocking the event loop
             image_data = await asyncio.to_thread(image_file.read_bytes)
+
+            # Buffer frame for X-CLIP temporal action recognition (NEM-3334)
+            # This enables the enrichment pipeline to access recent frames for
+            # action classification (e.g., loitering, approaching_door, running_away)
+            if self._frame_buffer is not None:
+                frame_timestamp = datetime.now(UTC)
+                await self._frame_buffer.add_frame(camera_id, image_data, frame_timestamp)
+                logger.debug(
+                    f"Buffered frame for camera {camera_id}",
+                    extra={
+                        "camera_id": camera_id,
+                        "frame_size_bytes": len(image_data),
+                        "buffer_count": self._frame_buffer.frame_count(camera_id),
+                    },
+                )
 
             # Track AI request time separately
             ai_start_time = time.time()

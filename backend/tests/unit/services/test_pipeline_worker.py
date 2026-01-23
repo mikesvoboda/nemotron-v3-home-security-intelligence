@@ -32,7 +32,6 @@ fakeredis = pytest.importorskip("fakeredis")
 
 from backend.core.redis import QueueAddResult, RedisClient  # noqa: E402
 from backend.services.batch_aggregator import BatchAggregator  # noqa: E402
-from backend.services.detector_client import DetectorClient  # noqa: E402
 from backend.services.health_monitor import ServiceHealthMonitor  # noqa: E402
 from backend.services.nemotron_analyzer import NemotronAnalyzer  # noqa: E402
 from backend.services.service_managers import ServiceConfig, ShellServiceManager  # noqa: E402
@@ -120,7 +119,10 @@ def mock_detector():
     Returns:
         AsyncMock: Mocked DetectorClient
     """
-    detector = AsyncMock(spec=DetectorClient)
+    # Note: We don't use spec=DetectorClient because DetectorClient has
+    # TYPE_CHECKING-only imports (FrameBuffer) that cause NameError when
+    # Python 3.14's inspect.signature tries to resolve type annotations.
+    detector = AsyncMock()
     detector.detect_objects = AsyncMock(return_value=[])
     detector.health_check = AsyncMock(return_value=True)
     return detector

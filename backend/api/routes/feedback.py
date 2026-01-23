@@ -1,11 +1,19 @@
 """API routes for event feedback management.
 
 NEM-1908: Create EventFeedback API schemas and routes
+NEM-3330: Enhanced feedback fields for Nemotron prompt improvement
 
 Provides endpoints for:
 - Submitting user feedback on events (false positives, missed detections, etc.)
 - Retrieving feedback for specific events
 - Getting aggregate feedback statistics for model calibration
+
+Enhanced fields (NEM-3330):
+- actual_threat_level: User's assessment of true threat level
+- suggested_score: What the user thinks the score should have been
+- actual_identity: Identity correction for household member learning
+- what_was_wrong: Detailed explanation of AI failure
+- model_failures: List of specific AI models that failed
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -84,11 +92,19 @@ async def create_feedback(
             detail=f"Feedback already exists for event {feedback_data.event_id}",
         )
 
-    # Create feedback record
+    # Create feedback record with enhanced fields (NEM-3330)
     feedback = EventFeedback(
         event_id=feedback_data.event_id,
         feedback_type=feedback_data.feedback_type,
         notes=feedback_data.notes,
+        # Enhanced fields for Nemotron prompt improvement
+        actual_threat_level=(
+            feedback_data.actual_threat_level.value if feedback_data.actual_threat_level else None
+        ),
+        suggested_score=feedback_data.suggested_score,
+        actual_identity=feedback_data.actual_identity,
+        what_was_wrong=feedback_data.what_was_wrong,
+        model_failures=feedback_data.model_failures,
     )
     db.add(feedback)
     await db.commit()
@@ -100,6 +116,9 @@ async def create_feedback(
             "event_id": feedback_data.event_id,
             "feedback_type": feedback_data.feedback_type.value,
             "camera_id": event.camera_id,
+            "actual_threat_level": feedback.actual_threat_level,
+            "suggested_score": feedback.suggested_score,
+            "actual_identity": feedback.actual_identity,
         },
     )
 
@@ -108,6 +127,11 @@ async def create_feedback(
         event_id=feedback.event_id,
         feedback_type=feedback.feedback_type,
         notes=feedback.notes,
+        actual_threat_level=feedback.actual_threat_level,
+        suggested_score=feedback.suggested_score,
+        actual_identity=feedback.actual_identity,
+        what_was_wrong=feedback.what_was_wrong,
+        model_failures=feedback.model_failures,
         created_at=feedback.created_at,
     )
 
@@ -153,6 +177,11 @@ async def get_event_feedback(
         event_id=feedback.event_id,
         feedback_type=feedback.feedback_type,
         notes=feedback.notes,
+        actual_threat_level=feedback.actual_threat_level,
+        suggested_score=feedback.suggested_score,
+        actual_identity=feedback.actual_identity,
+        what_was_wrong=feedback.what_was_wrong,
+        model_failures=feedback.model_failures,
         created_at=feedback.created_at,
     )
 

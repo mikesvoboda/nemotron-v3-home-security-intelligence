@@ -2553,6 +2553,83 @@ PROMPT_SHADOW_COMPARISONS_TOTAL = Counter(
     registry=_registry,
 )
 
+# =============================================================================
+# Shadow Mode Risk Distribution Comparison Metrics (NEM-3337)
+# =============================================================================
+
+# Risk score histogram for shadow mode comparison (control vs treatment)
+# Uses same buckets as RISK_SCORE for consistency
+SHADOW_RISK_SCORE_DISTRIBUTION = Histogram(
+    "hsi_shadow_risk_score_distribution",
+    "Risk score distribution from shadow mode prompt comparison",
+    labelnames=["prompt_version"],  # "control" or "treatment"
+    buckets=RISK_SCORE_BUCKETS,
+    registry=_registry,
+)
+
+# Risk score difference histogram for shadow mode
+# Tracks the absolute difference between control and treatment scores
+SHADOW_RISK_SCORE_DIFF_BUCKETS = (0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100)
+
+SHADOW_RISK_SCORE_DIFF = Histogram(
+    "hsi_shadow_risk_score_diff",
+    "Absolute difference in risk scores between control and treatment prompts",
+    buckets=SHADOW_RISK_SCORE_DIFF_BUCKETS,
+    registry=_registry,
+)
+
+# Gauge for average risk score per prompt version in shadow mode
+SHADOW_AVG_RISK_SCORE = Gauge(
+    "hsi_shadow_avg_risk_score",
+    "Rolling average risk score for shadow mode prompts",
+    labelnames=["prompt_version"],  # "control" or "treatment"
+    registry=_registry,
+)
+
+# Counter for shadow mode comparisons by risk level change direction
+SHADOW_RISK_LEVEL_SHIFT_TOTAL = Counter(
+    "hsi_shadow_risk_level_shift_total",
+    "Count of risk level shifts in shadow mode (treatment vs control)",
+    labelnames=["direction"],  # "lower", "same", "higher"
+    registry=_registry,
+)
+
+# Histogram for shadow mode latency comparison
+SHADOW_LATENCY_DIFF_BUCKETS = (
+    -1.0,  # Treatment faster by >1s
+    -0.5,  # Treatment faster by 500ms
+    -0.1,  # Treatment faster by 100ms
+    0.0,  # Same
+    0.1,  # Treatment slower by 100ms
+    0.5,  # Treatment slower by 500ms
+    1.0,  # Treatment slower by 1s
+    2.0,  # Treatment slower by 2s
+    5.0,  # Treatment slower by 5s
+)
+
+SHADOW_LATENCY_DIFF = Histogram(
+    "hsi_shadow_latency_diff_seconds",
+    "Latency difference (treatment - control) in shadow mode comparisons",
+    buckets=SHADOW_LATENCY_DIFF_BUCKETS,
+    registry=_registry,
+)
+
+# Counter for shadow mode latency warnings
+SHADOW_LATENCY_WARNING_TOTAL = Counter(
+    "hsi_shadow_latency_warning_total",
+    "Total shadow mode latency warnings when treatment exceeds threshold",
+    labelnames=["model"],
+    registry=_registry,
+)
+
+# Counter for shadow mode comparison errors
+SHADOW_COMPARISON_ERRORS_TOTAL = Counter(
+    "hsi_shadow_comparison_errors_total",
+    "Total shadow mode comparison errors by error type",
+    labelnames=["error_type"],  # "control_failed", "treatment_failed", "both_failed"
+    registry=_registry,
+)
+
 # Rollback events counter
 PROMPT_ROLLBACKS_TOTAL = Counter(
     "hsi_prompt_rollbacks_total",
@@ -2617,6 +2694,79 @@ def record_shadow_comparison(model: str) -> None:
     PROMPT_SHADOW_COMPARISONS_TOTAL.labels(model=safe_model).inc()
 
 
+def record_shadow_risk_score(prompt_version: str, risk_score: int) -> None:
+    """Record a risk score for shadow mode distribution tracking.
+
+    Args:
+        prompt_version: Prompt version ("control" or "treatment")
+        risk_score: Risk score from analysis (0-100)
+    """
+    safe_version = sanitize_metric_label(prompt_version, max_length=16)
+    SHADOW_RISK_SCORE_DISTRIBUTION.labels(prompt_version=safe_version).observe(risk_score)
+
+
+def record_shadow_risk_score_diff(diff: int) -> None:
+    """Record the absolute risk score difference in shadow mode.
+
+    Args:
+        diff: Absolute difference between control and treatment risk scores
+    """
+    SHADOW_RISK_SCORE_DIFF.observe(abs(diff))
+
+
+def update_shadow_avg_risk_score(prompt_version: str, avg_score: float) -> None:
+    """Update the rolling average risk score for a prompt version.
+
+    Args:
+        prompt_version: Prompt version ("control" or "treatment")
+        avg_score: Rolling average risk score
+    """
+    safe_version = sanitize_metric_label(prompt_version, max_length=16)
+    SHADOW_AVG_RISK_SCORE.labels(prompt_version=safe_version).set(avg_score)
+
+
+def record_shadow_risk_level_shift(direction: str) -> None:
+    """Record a risk level shift in shadow mode comparison.
+
+    Args:
+        direction: Shift direction ("lower", "same", "higher")
+            - "lower": treatment produced lower risk than control
+            - "same": treatment produced same risk level as control
+            - "higher": treatment produced higher risk than control
+    """
+    safe_direction = sanitize_metric_label(direction, max_length=16)
+    SHADOW_RISK_LEVEL_SHIFT_TOTAL.labels(direction=safe_direction).inc()
+
+
+def record_shadow_latency_diff(diff_seconds: float) -> None:
+    """Record the latency difference in shadow mode (treatment - control).
+
+    Args:
+        diff_seconds: Latency difference in seconds (positive = treatment slower)
+    """
+    SHADOW_LATENCY_DIFF.observe(diff_seconds)
+
+
+def record_shadow_latency_warning(model: str) -> None:
+    """Record a shadow mode latency warning event.
+
+    Args:
+        model: Model name (e.g., "nemotron")
+    """
+    safe_model = sanitize_metric_label(model, max_length=32)
+    SHADOW_LATENCY_WARNING_TOTAL.labels(model=safe_model).inc()
+
+
+def record_shadow_comparison_error(error_type: str) -> None:
+    """Record a shadow mode comparison error.
+
+    Args:
+        error_type: Type of error ("control_failed", "treatment_failed", "both_failed")
+    """
+    safe_type = sanitize_metric_label(error_type, max_length=32)
+    SHADOW_COMPARISON_ERRORS_TOTAL.labels(error_type=safe_type).inc()
+
+
 def record_prompt_rollback(model: str, reason: str) -> None:
     """Record a prompt rollback event.
 
@@ -2627,6 +2777,106 @@ def record_prompt_rollback(model: str, reason: str) -> None:
     safe_model = sanitize_metric_label(model, max_length=32)
     safe_reason = sanitize_metric_label(reason, max_length=32)
     PROMPT_ROLLBACKS_TOTAL.labels(model=safe_model, reason=safe_reason).inc()
+
+
+# =============================================================================
+# A/B Rollout Experiment Metrics (NEM-3338)
+# =============================================================================
+
+# Counter for A/B rollout analysis by group
+AB_ROLLOUT_ANALYSIS_TOTAL = Counter(
+    "hsi_ab_rollout_analysis_total",
+    "Total A/B rollout experiment analyses by group",
+    labelnames=["group"],  # control, treatment
+    registry=_registry,
+)
+
+# Gauge for A/B rollout FP rate by group
+AB_ROLLOUT_FP_RATE = Gauge(
+    "hsi_ab_rollout_fp_rate",
+    "A/B rollout experiment false positive rate by group",
+    labelnames=["group"],  # control, treatment
+    registry=_registry,
+)
+
+# Gauge for A/B rollout average latency by group
+AB_ROLLOUT_AVG_LATENCY_MS = Gauge(
+    "hsi_ab_rollout_avg_latency_ms",
+    "A/B rollout experiment average latency in milliseconds by group",
+    labelnames=["group"],  # control, treatment
+    registry=_registry,
+)
+
+# Gauge for A/B rollout average risk score by group
+AB_ROLLOUT_AVG_RISK_SCORE = Gauge(
+    "hsi_ab_rollout_avg_risk_score",
+    "A/B rollout experiment average risk score by group",
+    labelnames=["group"],  # control, treatment
+    registry=_registry,
+)
+
+# Counter for A/B rollout feedback by group
+AB_ROLLOUT_FEEDBACK_TOTAL = Counter(
+    "hsi_ab_rollout_feedback_total",
+    "Total A/B rollout experiment feedback submissions by group and type",
+    labelnames=["group", "feedback_type"],  # group: control/treatment, type: fp/correct
+    registry=_registry,
+)
+
+
+def record_ab_rollout_analysis(group: str) -> None:
+    """Record an A/B rollout analysis.
+
+    Args:
+        group: Experiment group ("control" or "treatment")
+    """
+    safe_group = sanitize_metric_label(group, max_length=16)
+    AB_ROLLOUT_ANALYSIS_TOTAL.labels(group=safe_group).inc()
+
+
+def update_ab_rollout_fp_rate(group: str, fp_rate: float) -> None:
+    """Update the A/B rollout FP rate gauge.
+
+    Args:
+        group: Experiment group ("control" or "treatment")
+        fp_rate: False positive rate (0.0 to 1.0)
+    """
+    safe_group = sanitize_metric_label(group, max_length=16)
+    AB_ROLLOUT_FP_RATE.labels(group=safe_group).set(fp_rate)
+
+
+def update_ab_rollout_avg_latency(group: str, latency_ms: float) -> None:
+    """Update the A/B rollout average latency gauge.
+
+    Args:
+        group: Experiment group ("control" or "treatment")
+        latency_ms: Average latency in milliseconds
+    """
+    safe_group = sanitize_metric_label(group, max_length=16)
+    AB_ROLLOUT_AVG_LATENCY_MS.labels(group=safe_group).set(latency_ms)
+
+
+def update_ab_rollout_avg_risk_score(group: str, avg_score: float) -> None:
+    """Update the A/B rollout average risk score gauge.
+
+    Args:
+        group: Experiment group ("control" or "treatment")
+        avg_score: Average risk score
+    """
+    safe_group = sanitize_metric_label(group, max_length=16)
+    AB_ROLLOUT_AVG_RISK_SCORE.labels(group=safe_group).set(avg_score)
+
+
+def record_ab_rollout_feedback(group: str, is_false_positive: bool) -> None:
+    """Record an A/B rollout feedback submission.
+
+    Args:
+        group: Experiment group ("control" or "treatment")
+        is_false_positive: Whether the feedback indicates a false positive
+    """
+    safe_group = sanitize_metric_label(group, max_length=16)
+    feedback_type = "false_positive" if is_false_positive else "correct"
+    AB_ROLLOUT_FEEDBACK_TOTAL.labels(group=safe_group, feedback_type=feedback_type).inc()
 
 
 # =============================================================================

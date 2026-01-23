@@ -77,6 +77,22 @@ from backend.tests.utils.async_helpers import (
 )
 
 # =============================================================================
+# Replay Helpers (from replay_helpers.py) - NEM-3339
+# =============================================================================
+from backend.tests.utils.replay_helpers import (
+    DEFAULT_TARGETS,
+    DistributionTargets,
+    ReplayResult,
+    ReplayStatistics,
+    calculate_replay_statistics,
+    classify_risk_level,
+    create_mock_replay_result,
+    generate_replay_report,
+    generate_sample_results,
+    validate_distribution,
+)
+
+# =============================================================================
 # Hypothesis Strategies (from strategies.py)
 # =============================================================================
 from backend.tests.utils.strategies import (
@@ -151,10 +167,14 @@ from backend.tests.utils.strategies import (
 )
 
 __all__ = [
+    "DEFAULT_TARGETS",
     # Async helpers
     "AsyncClientMock",
     "AsyncTimeoutError",
     "ConcurrentResult",
+    "DistributionTargets",
+    "ReplayResult",
+    "ReplayStatistics",
     # Alert strategies
     "alert_rule_dict_strategy",
     # Batch/Analysis strategies
@@ -181,11 +201,14 @@ __all__ = [
     "bbox_and_image_strategy",
     "bbox_strategy",
     "bbox_tuple_strategy",
+    # Replay helpers (NEM-3339)
+    "calculate_replay_statistics",
     # Camera strategies
     "camera_folder_paths",
     "camera_ids",
     "camera_names",
     "channel_lists",
+    "classify_risk_level",
     # Hypothesis strategies - basic types
     "confidence_scores",
     "cooldown_seconds",
@@ -193,6 +216,7 @@ __all__ = [
     "create_async_session_mock",
     "create_mock_db_context",
     "create_mock_redis_client",
+    "create_mock_replay_result",
     "create_mock_response",
     "dedup_key_strategy",
     # Detection strategies
@@ -203,6 +227,8 @@ __all__ = [
     "event_dict_strategy",
     # File hash strategies
     "file_paths",
+    "generate_replay_report",
+    "generate_sample_results",
     "image_dimensions_strategy",
     "invalid_bbox_xyxy_strategy",
     "invalid_confidence_scores",
@@ -244,6 +270,7 @@ __all__ = [
     "time_string_strategy",
     "utc_timestamps",
     "valid_bbox_xyxy_strategy",
+    "validate_distribution",
     "variable_formats",
     "variable_names",
     "with_timeout",

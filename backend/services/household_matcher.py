@@ -45,6 +45,11 @@ class HouseholdMatch:
         vehicle_description: Description of the matched vehicle
         similarity: Cosine similarity score (0-1, or 1.0 for exact plate match)
         match_type: Type of match ("person", "license_plate", "vehicle_visual")
+        member_role: Role of the member (resident, family, service_worker, frequent_visitor)
+                    Optional, used for enhanced prompt context display (NEM-3315)
+        schedule_status: Schedule check result (True=within schedule, False=outside,
+                        None=no schedule defined). Optional, used for risk calculation
+                        in format_household_context (NEM-3315)
     """
 
     member_id: int | None = None
@@ -53,6 +58,9 @@ class HouseholdMatch:
     vehicle_description: str | None = None
     similarity: float = 0.0
     match_type: str = ""
+    # NEM-3315: Optional fields for schedule and role display
+    member_role: str | None = None
+    schedule_status: bool | None = None
 
 
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
