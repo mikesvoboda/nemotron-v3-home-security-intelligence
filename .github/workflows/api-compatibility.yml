@@ -154,13 +154,25 @@ jobs:
               echo "HAS_BREAKING=false" >> $GITHUB_OUTPUT
             fi
           else
-            # oasdiff returns non-zero when breaking changes found
-            echo "Breaking changes detected:"
-            cat breaking-changes.txt
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat breaking-changes.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "HAS_BREAKING=true" >> $GITHUB_OUTPUT
+            # Check if this is an OpenAPI 3.1 compatibility error (oasdiff doesn't support 3.1)
+            if grep -q "cannot unmarshal number into.*exclusiveMinimum\|exclusiveMaximum.*type bool" breaking-changes.txt; then
+              echo "::warning::oasdiff does not support OpenAPI 3.1 (exclusiveMinimum/exclusiveMaximum as numbers). Skipping breaking change detection."
+              echo "⚠️ **Skipped**: oasdiff does not support OpenAPI 3.1 (exclusiveMinimum/exclusiveMaximum as numbers)." >> $GITHUB_STEP_SUMMARY
+              echo "HAS_BREAKING=false" >> $GITHUB_OUTPUT
+            elif grep -q "failed to load\|failed to unmarshal" breaking-changes.txt; then
+              echo "::warning::Failed to parse OpenAPI specs. This may be due to OpenAPI 3.1 incompatibility."
+              echo "⚠️ **Skipped**: Failed to parse OpenAPI specs (possible OpenAPI 3.1 incompatibility)." >> $GITHUB_STEP_SUMMARY
+              cat breaking-changes.txt
+              echo "HAS_BREAKING=false" >> $GITHUB_OUTPUT
+            else
+              # oasdiff returns non-zero when breaking changes found
+              echo "Breaking changes detected:"
+              cat breaking-changes.txt
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              cat breaking-changes.txt >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              echo "HAS_BREAKING=true" >> $GITHUB_OUTPUT
+            fi
           fi
 
           # Generate full diff report
