@@ -67,11 +67,17 @@ HARDCODED_TABLE_DELETION_ORDER = [
     "events",
     "scene_changes",
     "camera_notification_settings",  # FK to cameras
-    "zones",  # FK to cameras - must be deleted before cameras
+    "zone_household_configs",  # FK to camera_zones - must be deleted before camera_zones
+    "zone_activity_baselines",  # FK to camera_zones - must be deleted before camera_zones
+    "zone_anomalies",  # FK to camera_zones - must be deleted before camera_zones
+    "camera_zones",  # FK to cameras - must be deleted before cameras
     # Second: Delete tables without FK references (standalone)
     "alert_rules",
     "audit_logs",
     "gpu_stats",
+    "gpu_devices",  # GPU device tracking
+    "gpu_configurations",  # GPU service assignments
+    "system_settings",  # System-wide settings
     "logs",
     "prompt_configs",
     "quiet_hours_periods",
