@@ -511,8 +511,10 @@ def test_get_worker_statuses_includes_pipeline_workers() -> None:
 
         statuses = system_routes._get_worker_statuses()
 
-        # Should have 4 workers from pipeline manager
-        assert len(statuses) == 4
+        # Should have 5 workers from pipeline manager
+        # (detection, analysis, batch_timeout_worker, batch_aggregator, metrics)
+        # Note: timeout worker creates both batch_timeout_worker and batch_aggregator for frontend compat
+        assert len(statuses) == 5
 
         detection_status = next(s for s in statuses if s.name == "detection_worker")
         assert detection_status.running is True
@@ -525,6 +527,11 @@ def test_get_worker_statuses_includes_pipeline_workers() -> None:
         timeout_status = next(s for s in statuses if s.name == "batch_timeout_worker")
         assert timeout_status.running is True
         assert timeout_status.message is None
+
+        # batch_aggregator is also added for frontend compatibility
+        aggregator_status = next(s for s in statuses if s.name == "batch_aggregator")
+        assert aggregator_status.running is True
+        assert aggregator_status.message is None
 
         metrics_status = next(s for s in statuses if s.name == "metrics_worker")
         assert metrics_status.running is True

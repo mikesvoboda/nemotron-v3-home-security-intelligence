@@ -743,9 +743,26 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     engine = get_engine()
     async with engine.begin() as conn:
         # Acquire advisory lock to serialize DDL operations across pytest-xdist workers
-        # Using pg_advisory_lock (blocking) to ensure all workers wait rather than skip
-        lock_sql = text(f"SELECT pg_advisory_lock({_INTEGRATION_SCHEMA_LOCK_KEY})")  # nosemgrep
-        await conn.execute(lock_sql)
+        # Using pg_try_advisory_lock with retry to prevent hanging if lock is held by dead worker
+        # Set a statement timeout to prevent indefinite blocking
+        await conn.execute(text("SET statement_timeout = '20s'"))
+
+        lock_acquired = False
+        max_attempts = 30  # 30 attempts * 1s = 30s max wait
+        for attempt in range(max_attempts):
+            result = await conn.execute(
+                text(f"SELECT pg_try_advisory_lock({_INTEGRATION_SCHEMA_LOCK_KEY})")  # nosemgrep
+            )
+            lock_acquired = result.scalar()
+            if lock_acquired:
+                break
+            # Wait before retry (use asyncio.sleep for async context)
+            await asyncio.sleep(1.0)
+
+        if not lock_acquired:
+            logger.warning(
+                f"Failed to acquire advisory lock after {max_attempts} attempts, proceeding anyway"
+            )
 
         try:
             # Create all tables
@@ -821,10 +838,13 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
                 )
             )
         finally:
-            # Always release the advisory lock
-            # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text, sqlalchemy-raw-text-injection
-            unlock_sql = text(f"SELECT pg_advisory_unlock({_INTEGRATION_SCHEMA_LOCK_KEY})")
-            await conn.execute(unlock_sql)
+            # Release the advisory lock only if we acquired it
+            if lock_acquired:
+                # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text, sqlalchemy-raw-text-injection
+                unlock_sql = text(f"SELECT pg_advisory_unlock({_INTEGRATION_SCHEMA_LOCK_KEY})")
+                await conn.execute(unlock_sql)
+            # Reset statement timeout
+            await conn.execute(text("RESET statement_timeout"))
 
     try:
         yield integration_env
