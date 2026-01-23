@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { act } from 'react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import {
   useWorkerStatusStore,
@@ -475,6 +476,188 @@ describe('worker-status-store', () => {
 
       expect(detectionWorkers.length).toBe(2);
       expect(detectionWorkers.every((w) => w.type === 'detection')).toBe(true);
+    });
+  });
+
+  describe('subscribeWithSelector', () => {
+    it('allows subscribing to pipelineHealth changes', () => {
+      const callback = vi.fn();
+
+      const unsub = (useWorkerStatusStore.subscribe as any)(
+        (state: { pipelineHealth: string }) => state.pipelineHealth,
+        callback
+      );
+
+      // Start a worker - health should change to 'healthy'
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      expect(callback).toHaveBeenCalledWith('healthy', 'unknown');
+
+      // Trigger an error - health should change to 'error'
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerError({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          error: 'Test error',
+          timestamp: new Date().toISOString(),
+          recoverable: true,
+        });
+      });
+
+      expect(callback).toHaveBeenCalledWith('error', 'healthy');
+
+      unsub();
+    });
+
+    it('allows subscribing to specific worker changes', () => {
+      const callback = vi.fn();
+
+      // First create the worker
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'detection-worker-1',
+          worker_type: 'detection',
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      // Subscribe to specific worker
+      const unsub = (useWorkerStatusStore.subscribe as any)(
+        (state: { workers: Record<string, { state: string }> }) => state.workers['detection-worker-1']?.state,
+        callback
+      );
+
+      // Trigger error on subscribed worker
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerError({
+          worker_name: 'detection-worker-1',
+          worker_type: 'detection',
+          error: 'Connection failed',
+          timestamp: new Date().toISOString(),
+          recoverable: true,
+        });
+      });
+
+      expect(callback).toHaveBeenCalledWith('error', 'running');
+
+      unsub();
+    });
+
+    it('does not fire callback for unrelated worker changes', () => {
+      const callback = vi.fn();
+
+      // Create two workers
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          timestamp: new Date().toISOString(),
+        });
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'worker-2',
+          worker_type: 'analysis',
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      // Subscribe to worker-1's state
+      const unsub = (useWorkerStatusStore.subscribe as any)(
+        (state: { workers: Record<string, { state: string }> }) => state.workers['worker-1']?.state,
+        callback
+      );
+
+      // Change worker-2 - callback should not fire
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerError({
+          worker_name: 'worker-2',
+          worker_type: 'analysis',
+          error: 'Test error',
+          timestamp: new Date().toISOString(),
+          recoverable: true,
+        });
+      });
+
+      expect(callback).not.toHaveBeenCalled();
+
+      // Change worker-1 - callback should fire
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerError({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          error: 'Test error',
+          timestamp: new Date().toISOString(),
+          recoverable: true,
+        });
+      });
+
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      unsub();
+    });
+  });
+
+  describe('Immer mutations', () => {
+    it('produces immutable state updates', () => {
+      const initialState = useWorkerStatusStore.getState();
+      const initialWorkers = initialState.workers;
+
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      const newState = useWorkerStatusStore.getState();
+
+      // States should be different references
+      expect(newState).not.toBe(initialState);
+      expect(newState.workers).not.toBe(initialWorkers);
+
+      // Original object should be unchanged
+      expect(Object.keys(initialWorkers)).toHaveLength(0);
+      expect(Object.keys(newState.workers)).toHaveLength(1);
+    });
+
+    it('maintains immutability on worker updates', () => {
+      // Create initial worker
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      const stateAfterStart = useWorkerStatusStore.getState();
+      const workerAfterStart = stateAfterStart.workers['worker-1'];
+
+      // Update the worker
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerError({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          error: 'Test error',
+          timestamp: new Date().toISOString(),
+          recoverable: true,
+        });
+      });
+
+      const stateAfterError = useWorkerStatusStore.getState();
+      const workerAfterError = stateAfterError.workers['worker-1'];
+
+      // Worker objects should be different references
+      expect(workerAfterError).not.toBe(workerAfterStart);
+      // But original should be unchanged
+      expect(workerAfterStart.state).toBe('running');
+      expect(workerAfterError.state).toBe('error');
     });
   });
 });

@@ -1,9 +1,9 @@
 /**
- * Worker Status State Management Store (NEM-3127)
+ * Worker Status State Management Store (NEM-3127, NEM-3402, NEM-3403, NEM-3426)
  *
  * Provides central state management for pipeline worker health status across frontend components.
- * Uses Zustand for reactive state management, allowing components to subscribe to worker events
- * and display pipeline health indicators.
+ * Uses Zustand with Immer middleware for immutable updates and subscribeWithSelector for
+ * fine-grained subscriptions to prevent unnecessary re-renders during high-frequency updates.
  *
  * Worker events are received via WebSocket and update the store state:
  * - WORKER_STARTED: Worker is running (healthy/green)
@@ -14,7 +14,10 @@
  * - WORKER_RECOVERED: Worker recovered from error (healthy/green)
  */
 
-import { create } from 'zustand';
+import {
+  createImmerSelectorStore,
+  type ImmerSetState,
+} from './middleware';
 
 import type {
   WorkerType,
@@ -26,6 +29,7 @@ import type {
   WorkerRestartingPayload,
   WorkerRecoveredPayload,
 } from '../types/websocket-events';
+
 
 // ============================================================================
 // Types
@@ -150,6 +154,20 @@ function calculateDerivedState(workers: Record<string, WorkerStatus>): {
   };
 }
 
+/**
+ * Apply derived state to the Immer draft.
+ */
+function applyDerivedState(
+  state: WorkerStatusState,
+  derived: ReturnType<typeof calculateDerivedState>
+): void {
+  state.pipelineHealth = derived.pipelineHealth;
+  state.hasError = derived.hasError;
+  state.hasWarning = derived.hasWarning;
+  state.runningCount = derived.runningCount;
+  state.totalCount = derived.totalCount;
+}
+
 // ============================================================================
 // Store
 // ============================================================================
@@ -162,169 +180,168 @@ function calculateDerivedState(workers: Record<string, WorkerStatus>): {
  * - Calculates overall pipeline health
  * - Provides flags for error/warning states
  * - Shared across components for consistent health display
+ * - Uses Immer for immutable state updates with mutable syntax
+ * - Uses subscribeWithSelector for fine-grained subscriptions
  *
  * @example
  * ```tsx
  * import { useWorkerStatusStore } from '@/stores/worker-status-store';
  *
- * // In a component
- * const { pipelineHealth, workers, hasError } = useWorkerStatusStore();
+ * // In a component - subscribe only to pipeline health
+ * const pipelineHealth = useWorkerStatusStore((state) => state.pipelineHealth);
  *
- * // Display health indicator
- * if (pipelineHealth === 'healthy') {
- *   return <Badge color="green">Pipeline Healthy</Badge>;
- * }
+ * // Subscribe to specific worker
+ * const worker = useWorkerStatusStore((state) =>
+ *   state.workers['detection-worker-1']
+ * );
+ *
+ * // Subscribe to health changes programmatically
+ * const unsubscribe = useWorkerStatusStore.subscribe(
+ *   (state) => state.pipelineHealth,
+ *   (newHealth, prevHealth) => {
+ *     if (newHealth === 'error' && prevHealth !== 'error') {
+ *       showErrorNotification('Pipeline error detected');
+ *     }
+ *   }
+ * );
  * ```
  */
-export const useWorkerStatusStore = create<WorkerStatusState>((set, get) => ({
-  workers: {},
-  pipelineHealth: 'unknown',
-  hasError: false,
-  hasWarning: false,
-  runningCount: 0,
-  totalCount: 0,
+export const useWorkerStatusStore = createImmerSelectorStore<WorkerStatusState>(
+  (set: ImmerSetState<WorkerStatusState>) => ({
+    workers: {},
+    pipelineHealth: 'unknown',
+    hasError: false,
+    hasWarning: false,
+    runningCount: 0,
+    totalCount: 0,
 
-  handleWorkerStarted: (payload: WorkerStartedPayload) => {
-    const workers = {
-      ...get().workers,
-      [payload.worker_name]: {
-        name: payload.worker_name,
-        type: payload.worker_type,
-        state: 'running' as WorkerState,
-        lastUpdated: payload.timestamp,
-        lastError: undefined,
-        lastErrorType: undefined,
-        failureCount: undefined,
-        restartAttempt: undefined,
-        maxRestartAttempts: undefined,
-        recoverable: undefined,
-      },
-    };
+    handleWorkerStarted: (payload: WorkerStartedPayload) => {
+      set((state) => {
+        // Update worker to running state, clearing any error info
+        state.workers[payload.worker_name] = {
+          name: payload.worker_name,
+          type: payload.worker_type,
+          state: 'running' as WorkerState,
+          lastUpdated: payload.timestamp,
+          lastError: undefined,
+          lastErrorType: undefined,
+          failureCount: undefined,
+          restartAttempt: undefined,
+          maxRestartAttempts: undefined,
+          recoverable: undefined,
+        };
 
-    set({
-      workers,
-      ...calculateDerivedState(workers),
-    });
-  },
+        // Recalculate derived state
+        applyDerivedState(state, calculateDerivedState(state.workers));
+      });
+    },
 
-  handleWorkerStopped: (payload: WorkerStoppedPayload) => {
-    const workers = {
-      ...get().workers,
-      [payload.worker_name]: {
-        ...get().workers[payload.worker_name],
-        name: payload.worker_name,
-        type: payload.worker_type,
-        state: 'stopped' as WorkerState,
-        lastUpdated: payload.timestamp,
-        lastError: payload.reason,
-      },
-    };
+    handleWorkerStopped: (payload: WorkerStoppedPayload) => {
+      set((state) => {
+        const existingWorker = state.workers[payload.worker_name];
+        state.workers[payload.worker_name] = {
+          ...(existingWorker || {}),
+          name: payload.worker_name,
+          type: payload.worker_type,
+          state: 'stopped' as WorkerState,
+          lastUpdated: payload.timestamp,
+          lastError: payload.reason,
+        };
 
-    set({
-      workers,
-      ...calculateDerivedState(workers),
-    });
-  },
+        applyDerivedState(state, calculateDerivedState(state.workers));
+      });
+    },
 
-  handleWorkerError: (payload: WorkerErrorPayload) => {
-    const workers = {
-      ...get().workers,
-      [payload.worker_name]: {
-        ...get().workers[payload.worker_name],
-        name: payload.worker_name,
-        type: payload.worker_type,
-        state: 'error' as WorkerState,
-        lastError: payload.error,
-        lastErrorType: payload.error_type,
-        lastUpdated: payload.timestamp,
-        recoverable: payload.recoverable,
-      },
-    };
+    handleWorkerError: (payload: WorkerErrorPayload) => {
+      set((state) => {
+        const existingWorker = state.workers[payload.worker_name];
+        state.workers[payload.worker_name] = {
+          ...(existingWorker || {}),
+          name: payload.worker_name,
+          type: payload.worker_type,
+          state: 'error' as WorkerState,
+          lastError: payload.error,
+          lastErrorType: payload.error_type,
+          lastUpdated: payload.timestamp,
+          recoverable: payload.recoverable,
+        };
 
-    set({
-      workers,
-      ...calculateDerivedState(workers),
-    });
-  },
+        applyDerivedState(state, calculateDerivedState(state.workers));
+      });
+    },
 
-  handleWorkerHealthCheckFailed: (payload: WorkerHealthCheckFailedPayload) => {
-    const currentWorker = get().workers[payload.worker_name];
-    const workers = {
-      ...get().workers,
-      [payload.worker_name]: {
-        ...currentWorker,
-        name: payload.worker_name,
-        type: payload.worker_type,
+    handleWorkerHealthCheckFailed: (payload: WorkerHealthCheckFailedPayload) => {
+      set((state) => {
+        const currentWorker = state.workers[payload.worker_name];
         // Only change to error state if enough failures
-        state: payload.failure_count >= 3 ? ('error' as WorkerState) : (currentWorker?.state ?? 'running'),
-        lastError: payload.error,
-        lastErrorType: payload.error_type,
-        failureCount: payload.failure_count,
-        lastUpdated: payload.timestamp,
-      },
-    };
+        const newState: WorkerState =
+          payload.failure_count >= 3 ? 'error' : (currentWorker?.state ?? 'running');
 
-    set({
-      workers,
-      ...calculateDerivedState(workers),
-    });
-  },
+        state.workers[payload.worker_name] = {
+          ...(currentWorker || {}),
+          name: payload.worker_name,
+          type: payload.worker_type,
+          state: newState,
+          lastError: payload.error,
+          lastErrorType: payload.error_type,
+          failureCount: payload.failure_count,
+          lastUpdated: payload.timestamp,
+        };
 
-  handleWorkerRestarting: (payload: WorkerRestartingPayload) => {
-    const workers = {
-      ...get().workers,
-      [payload.worker_name]: {
-        ...get().workers[payload.worker_name],
-        name: payload.worker_name,
-        type: payload.worker_type,
-        state: 'starting' as WorkerState,
-        restartAttempt: payload.attempt,
-        maxRestartAttempts: payload.max_attempts,
-        lastError: payload.reason,
-        lastUpdated: payload.timestamp,
-      },
-    };
+        applyDerivedState(state, calculateDerivedState(state.workers));
+      });
+    },
 
-    set({
-      workers,
-      ...calculateDerivedState(workers),
-    });
-  },
+    handleWorkerRestarting: (payload: WorkerRestartingPayload) => {
+      set((state) => {
+        const existingWorker = state.workers[payload.worker_name];
+        state.workers[payload.worker_name] = {
+          ...(existingWorker || {}),
+          name: payload.worker_name,
+          type: payload.worker_type,
+          state: 'starting' as WorkerState,
+          restartAttempt: payload.attempt,
+          maxRestartAttempts: payload.max_attempts,
+          lastError: payload.reason,
+          lastUpdated: payload.timestamp,
+        };
 
-  handleWorkerRecovered: (payload: WorkerRecoveredPayload) => {
-    const workers = {
-      ...get().workers,
-      [payload.worker_name]: {
-        name: payload.worker_name,
-        type: payload.worker_type,
-        state: 'running' as WorkerState,
-        lastUpdated: payload.timestamp,
-        lastError: undefined,
-        lastErrorType: undefined,
-        failureCount: undefined,
-        restartAttempt: undefined,
-        maxRestartAttempts: undefined,
-        recoverable: undefined,
-      },
-    };
+        applyDerivedState(state, calculateDerivedState(state.workers));
+      });
+    },
 
-    set({
-      workers,
-      ...calculateDerivedState(workers),
-    });
-  },
+    handleWorkerRecovered: (payload: WorkerRecoveredPayload) => {
+      set((state) => {
+        // Worker recovered - set to running and clear all error info
+        state.workers[payload.worker_name] = {
+          name: payload.worker_name,
+          type: payload.worker_type,
+          state: 'running' as WorkerState,
+          lastUpdated: payload.timestamp,
+          lastError: undefined,
+          lastErrorType: undefined,
+          failureCount: undefined,
+          restartAttempt: undefined,
+          maxRestartAttempts: undefined,
+          recoverable: undefined,
+        };
 
-  clear: () => {
-    set({
-      workers: {},
-      pipelineHealth: 'unknown',
-      hasError: false,
-      hasWarning: false,
-      runningCount: 0,
-      totalCount: 0,
-    });
-  },
-}));
+        applyDerivedState(state, calculateDerivedState(state.workers));
+      });
+    },
+
+    clear: () => {
+      set((state) => {
+        state.workers = {};
+        state.pipelineHealth = 'unknown';
+        state.hasError = false;
+        state.hasWarning = false;
+        state.runningCount = 0;
+        state.totalCount = 0;
+      });
+    },
+  })
+);
 
 // ============================================================================
 // Selectors

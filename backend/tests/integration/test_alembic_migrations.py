@@ -17,11 +17,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-
-from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
+
+from alembic import command
 
 if TYPE_CHECKING:
     from collections.abc import Generator

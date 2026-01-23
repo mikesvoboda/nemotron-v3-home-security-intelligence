@@ -4,6 +4,9 @@ HTTP server wrapping RT-DETRv2 object detection model for home security monitori
 Runs on NVIDIA CUDA for efficient inference on security camera images.
 
 Uses HuggingFace Transformers for model loading and inference.
+Supports torch.compile() for optimized inference (NEM-3375).
+Supports Accelerate device_map for automatic device placement (NEM-3378).
+Implements true batch inference for vision models (NEM-3377).
 
 Port: 8090 (configurable via PORT env var)
 Expected VRAM: ~3GB
@@ -14,6 +17,7 @@ import binascii
 import io
 import logging
 import os
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -26,6 +30,20 @@ from PIL import Image, UnidentifiedImageError
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, ConfigDict, Field
 from transformers import AutoImageProcessor, AutoModelForObjectDetection
+
+# Add parent directory to path for shared utilities
+_ai_dir = Path(__file__).parent.parent
+if str(_ai_dir) not in sys.path:
+    sys.path.insert(0, str(_ai_dir))
+
+from torch_optimizations import (  # noqa: E402
+    BatchConfig,
+    BatchProcessor,
+    compile_model,
+    get_optimal_device_map,
+    get_torch_dtype_for_device,
+    is_compile_supported,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -229,7 +247,13 @@ class HealthResponse(BaseModel):
 
 
 class RTDETRv2Model:
-    """RT-DETRv2 model wrapper using HuggingFace Transformers."""
+    """RT-DETRv2 model wrapper using HuggingFace Transformers.
+
+    Supports:
+    - torch.compile() for optimized inference (NEM-3375)
+    - Accelerate device_map for automatic device placement (NEM-3378)
+    - True batch inference with optimal batching (NEM-3377)
+    """
 
     def __init__(
         self,
@@ -237,6 +261,9 @@ class RTDETRv2Model:
         confidence_threshold: float = 0.5,
         device: str = "cuda:0",
         cache_clear_frequency: int = 1,
+        use_compile: bool = True,
+        use_accelerate: bool = True,
+        max_batch_size: int = 8,
     ):
         """Initialize RT-DETRv2 model.
 
@@ -247,6 +274,9 @@ class RTDETRv2Model:
             cache_clear_frequency: Clear CUDA cache every N detections.
                                    Set to 0 to disable cache clearing.
                                    Default is 1 (clear after every detection).
+            use_compile: Whether to use torch.compile() for optimization (NEM-3375).
+            use_accelerate: Whether to use Accelerate device_map (NEM-3378).
+            max_batch_size: Maximum batch size for batch inference (NEM-3377).
         """
         self.model_path = str(model_path)
         self.confidence_threshold = confidence_threshold
@@ -255,32 +285,66 @@ class RTDETRv2Model:
         self.cache_clear_count = 0  # Metric: total number of cache clears
         self.model = None
         self.processor = None
+        self.use_compile = use_compile
+        self.use_accelerate = use_accelerate
+        self.is_compiled = False
+
+        # Batch processing configuration (NEM-3377)
+        self.batch_processor = BatchProcessor(BatchConfig(max_batch_size=max_batch_size))
 
         logger.info(f"Initializing RT-DETRv2 model from {self.model_path}")
         logger.info(f"Device: {device}, Confidence threshold: {confidence_threshold}")
         logger.info(f"CUDA cache clear frequency: {cache_clear_frequency}")
+        logger.info(f"torch.compile enabled: {use_compile}, Accelerate enabled: {use_accelerate}")
 
     def load_model(self) -> None:
-        """Load the model into memory using HuggingFace Transformers."""
+        """Load the model into memory using HuggingFace Transformers.
+
+        Supports:
+        - Accelerate device_map for automatic device placement (NEM-3378)
+        - torch.compile() for optimized inference (NEM-3375)
+        """
         try:
             logger.info("Loading RT-DETRv2 model with HuggingFace Transformers...")
 
-            # Load image processor and model
+            # Load image processor
             self.processor = AutoImageProcessor.from_pretrained(self.model_path)
-            self.model = AutoModelForObjectDetection.from_pretrained(self.model_path)
 
-            # Move model to device
+            # Determine device and dtype
             if "cuda" in self.device and torch.cuda.is_available():
-                self.model = self.model.to(self.device)
-                logger.info(f"Model loaded on {self.device}")
+                torch_dtype = get_torch_dtype_for_device(self.device)
             else:
                 self.device = "cpu"
-                logger.info("CUDA not available, using CPU")
+                torch_dtype = torch.float32
+
+            # Load model with Accelerate device_map if enabled (NEM-3378)
+            if self.use_accelerate and "cuda" in self.device:
+                device_map = get_optimal_device_map(self.model_path)
+                logger.info(f"Loading model with device_map='{device_map}'")
+                self.model = AutoModelForObjectDetection.from_pretrained(
+                    self.model_path,
+                    device_map=device_map,
+                    torch_dtype=torch_dtype,
+                )
+            else:
+                # Traditional loading with manual device placement
+                self.model = AutoModelForObjectDetection.from_pretrained(self.model_path)
+                if "cuda" in self.device:
+                    self.model = self.model.to(self.device)
+                logger.info(f"Model loaded on {self.device}")
 
             # Set model to evaluation mode
             self.model.eval()
 
-            # Warmup inference
+            # Apply torch.compile() for optimized inference (NEM-3375)
+            if self.use_compile and is_compile_supported():
+                logger.info("Applying torch.compile() for optimized inference...")
+                self.model = compile_model(self.model, mode="reduce-overhead")
+                self.is_compiled = True
+            else:
+                logger.info("torch.compile() not applied (disabled or not supported)")
+
+            # Warmup inference (important for compiled models)
             self._warmup()
             logger.info("Model loaded and warmed up successfully")
 
@@ -401,6 +465,9 @@ class RTDETRv2Model:
     def detect_batch(self, images: list[Image.Image]) -> tuple[list[list[dict[str, Any]]], float]:
         """Run batch object detection on multiple images.
 
+        Implements true batch inference for improved GPU utilization (NEM-3377).
+        Images are processed in optimal batch sizes determined by available VRAM.
+
         Args:
             images: List of PIL Images
 
@@ -409,37 +476,121 @@ class RTDETRv2Model:
 
         Note:
             CUDA cache is cleared every N images based on cache_clear_frequency.
-            Individual detect() calls have their cache clearing disabled during batch
-            processing to allow for batch-level cache management.
         """
-        start_time = time.perf_counter()
-        all_detections = []
+        if self.model is None or self.processor is None:
+            raise RuntimeError("Model not loaded")
 
-        # Store original frequency and temporarily disable per-detection cache clearing
-        # to manage cache clearing at batch level
+        start_time = time.perf_counter()
+        all_detections: list[list[dict[str, Any]]] = []
+
+        # Store original frequency for batch-level cache management
         original_frequency = self.cache_clear_frequency
-        self.cache_clear_frequency = 0  # Disable per-detection cache clearing
 
         try:
-            # Process each image
-            for i, image in enumerate(images):
-                detections, _ = self.detect(image)
-                all_detections.append(detections)
+            # Process images in optimal batches (NEM-3377)
+            for batch_idx, batch in enumerate(self.batch_processor.create_batches(images), start=1):
+                batch_detections = self._detect_batch_internal(batch)
+                all_detections.extend(batch_detections)
 
-                # Clear cache every N images based on original frequency setting
-                # Skip if cache clearing is disabled (original_frequency == 0)
-                if original_frequency > 0 and (i + 1) % original_frequency == 0:
-                    # Temporarily restore frequency to allow _clear_cuda_cache to work
-                    self.cache_clear_frequency = original_frequency
+                # Clear cache every N batches based on frequency setting
+                if original_frequency > 0 and batch_idx % original_frequency == 0:
                     self._clear_cuda_cache()
-                    self.cache_clear_frequency = 0  # Re-disable for next iteration
+
         finally:
-            # Restore original frequency
-            self.cache_clear_frequency = original_frequency
+            # Ensure cache is cleared at end if needed
+            if original_frequency > 0:
+                self._clear_cuda_cache()
 
         total_time_ms = (time.perf_counter() - start_time) * 1000
 
         return all_detections, total_time_ms
+
+    def _detect_batch_internal(self, images: list[Image.Image]) -> list[list[dict[str, Any]]]:
+        """Internal method for true batch inference on a batch of images.
+
+        This method processes multiple images in a single forward pass through
+        the model for improved GPU utilization (NEM-3377).
+
+        Args:
+            images: List of PIL Images to process as a batch
+
+        Returns:
+            List of detection lists, one per image
+        """
+        if not images:
+            return []
+
+        # Convert all images to RGB if needed
+        rgb_images = []
+        original_sizes = []
+        for img in images:
+            converted_img = img.convert("RGB") if img.mode != "RGB" else img
+            rgb_images.append(converted_img)
+            original_sizes.append(converted_img.size)  # (width, height)
+
+        # Batch preprocess all images
+        inputs = self.processor(images=rgb_images, return_tensors="pt")
+
+        # Move inputs to device
+        if "cuda" in self.device:
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+        # Run batch inference
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+
+        # Post-process results for each image in the batch
+        batch_detections: list[list[dict[str, Any]]] = []
+
+        for idx, (width, height) in enumerate(original_sizes):
+            # Target size for this image (height, width)
+            target_sizes = torch.tensor([[height, width]])
+            if "cuda" in self.device:
+                target_sizes = target_sizes.to(self.device)
+
+            # Extract outputs for this image
+            # We need to slice the batch outputs for post-processing
+            single_outputs = type(outputs)(
+                logits=outputs.logits[idx : idx + 1],
+                pred_boxes=outputs.pred_boxes[idx : idx + 1],
+            )
+
+            results = self.processor.post_process_object_detection(
+                single_outputs,
+                target_sizes=target_sizes,
+                threshold=self.confidence_threshold,
+            )[0]
+
+            # Convert to detection format
+            detections: list[dict[str, Any]] = []
+            for score, label, box in zip(
+                results["scores"], results["labels"], results["boxes"], strict=False
+            ):
+                # Get class name from model config
+                class_name = self.model.config.id2label[label.item()]
+
+                # Filter to security-relevant classes
+                if class_name not in SECURITY_CLASSES:
+                    continue
+
+                # Convert box coordinates
+                x1, y1, x2, y2 = box.tolist()
+                detections.append(
+                    {
+                        "class": class_name,
+                        "confidence": float(score),
+                        "bbox": {
+                            "x": int(x1),
+                            "y": int(y1),
+                            "width": int(x2 - x1),
+                            "height": int(y2 - y1),
+                        },
+                    }
+                )
+
+            batch_detections.append(detections)
+
+        return batch_detections
 
 
 # Global model instance
@@ -529,15 +680,27 @@ async def lifespan(_app: FastAPI):
     # Cache clear frequency: default 1 (every detection), 0 to disable
     cache_clear_frequency = int(os.environ.get("RTDETR_CACHE_CLEAR_FREQUENCY", "1"))
 
+    # torch.compile settings (NEM-3375)
+    use_compile = os.environ.get("RTDETR_USE_COMPILE", "1").lower() in ("1", "true", "yes")
+    # Accelerate device_map settings (NEM-3378)
+    use_accelerate = os.environ.get("RTDETR_USE_ACCELERATE", "1").lower() in ("1", "true", "yes")
+    # Batch inference settings (NEM-3377)
+    max_batch_size = int(os.environ.get("RTDETR_MAX_BATCH_SIZE", "8"))
+
     try:
         model = RTDETRv2Model(
             model_path=model_path,
             confidence_threshold=confidence_threshold,
             device=device,
             cache_clear_frequency=cache_clear_frequency,
+            use_compile=use_compile,
+            use_accelerate=use_accelerate,
+            max_batch_size=max_batch_size,
         )
         model.load_model()
         logger.info("Model loaded successfully")
+        if model.is_compiled:
+            logger.info("Model is using torch.compile() optimization")
     except FileNotFoundError:
         logger.warning(f"Model not found at {model_path}")
         logger.warning(

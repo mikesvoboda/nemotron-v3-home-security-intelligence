@@ -4,6 +4,10 @@ This module provides the ActionRecognizer class for video-based action recogniti
 using Microsoft's X-CLIP model. It analyzes sequences of frames to understand
 what people are doing over time.
 
+Supports torch.compile() for optimized inference (NEM-3375).
+Supports Accelerate device_map for automatic device placement (NEM-3378).
+Implements true batch inference for vision models (NEM-3377).
+
 Model Details:
 - Model: microsoft/xclip-base-patch32
 - VRAM: ~1.5GB
@@ -24,7 +28,9 @@ Design Doc: docs/plans/2026-01-19-model-zoo-prompt-improvements-design.md Sectio
 from __future__ import annotations
 
 import logging
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -33,6 +39,18 @@ from PIL import Image
 
 if TYPE_CHECKING:
     from transformers import XCLIPModel, XCLIPProcessor
+
+# Add parent directory to path for shared utilities
+_ai_dir = Path(__file__).parent.parent.parent
+if str(_ai_dir) not in sys.path:
+    sys.path.insert(0, str(_ai_dir))
+
+from torch_optimizations import (  # noqa: E402
+    compile_model,
+    get_optimal_device_map,
+    get_torch_dtype_for_device,
+    is_compile_supported,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +115,11 @@ class ActionRecognizer:
     The model analyzes sequences of frames to understand temporal patterns
     and classify activities.
 
+    Supports:
+    - torch.compile() for optimized inference (NEM-3375)
+    - Accelerate device_map for automatic device placement (NEM-3378)
+    - True batch inference with optimal batching (NEM-3377)
+
     VRAM Usage: ~1.5GB
     Typical Inference Time: ~200-500ms for 8 frames
 
@@ -113,24 +136,40 @@ class ActionRecognizer:
             print("ALERT: Suspicious activity detected!")
     """
 
-    def __init__(self, model_path: str, device: str = "cuda:0"):
+    def __init__(
+        self,
+        model_path: str,
+        device: str = "cuda:0",
+        use_compile: bool = True,
+        use_accelerate: bool = True,
+    ):
         """Initialize action recognizer.
 
         Args:
             model_path: Path to X-CLIP model directory or HuggingFace model ID
                        (e.g., "microsoft/xclip-base-patch32" or "/models/xclip")
             device: Device to run inference on (e.g., "cuda:0" or "cpu")
+            use_compile: Whether to use torch.compile() for optimization (NEM-3375).
+            use_accelerate: Whether to use Accelerate device_map (NEM-3378).
         """
         self.model_path = model_path
         self.device = device
         self.model: XCLIPModel | None = None
         self.processor: XCLIPProcessor | None = None
         self.num_frames = 8  # X-CLIP typically uses 8 frames
+        self.use_compile = use_compile
+        self.use_accelerate = use_accelerate
+        self.is_compiled = False
 
         logger.info(f"Initializing ActionRecognizer from {self.model_path}")
+        logger.info(f"torch.compile enabled: {use_compile}, Accelerate enabled: {use_accelerate}")
 
     def load_model(self) -> ActionRecognizer:
         """Load the X-CLIP model into memory.
+
+        Supports:
+        - Accelerate device_map for automatic device placement (NEM-3378)
+        - torch.compile() for optimized inference (NEM-3375)
 
         Returns:
             Self for method chaining.
@@ -144,17 +183,42 @@ class ActionRecognizer:
         logger.info("Loading X-CLIP model...")
 
         self.processor = XCLIPProcessor.from_pretrained(self.model_path)
-        self.model = XCLIPModel.from_pretrained(self.model_path)
 
-        # Move to device
+        # Determine device and dtype
         if "cuda" in self.device and torch.cuda.is_available():
-            self.model = self.model.to(self.device)  # type: ignore[arg-type]
-            logger.info(f"ActionRecognizer loaded on {self.device}")
+            torch_dtype = get_torch_dtype_for_device(self.device)
         else:
             self.device = "cpu"
-            logger.info("ActionRecognizer using CPU (CUDA not available)")
+            torch_dtype = torch.float32
+
+        # Load model with Accelerate device_map if enabled (NEM-3378)
+        if self.use_accelerate and "cuda" in self.device:
+            device_map = get_optimal_device_map(self.model_path)
+            logger.info(f"Loading model with device_map='{device_map}'")
+            self.model = XCLIPModel.from_pretrained(
+                self.model_path,
+                device_map=device_map,
+                torch_dtype=torch_dtype,
+            )
+        else:
+            # Traditional loading with manual device placement
+            self.model = XCLIPModel.from_pretrained(self.model_path)
+            if "cuda" in self.device:
+                self.model = self.model.to(self.device)  # type: ignore[arg-type]
+                logger.info(f"ActionRecognizer loaded on {self.device}")
+            else:
+                logger.info("ActionRecognizer using CPU (CUDA not available)")
 
         self.model.eval()
+
+        # Apply torch.compile() for optimized inference (NEM-3375)
+        if self.use_compile and is_compile_supported():
+            logger.info("Applying torch.compile() for optimized inference...")
+            self.model = compile_model(self.model, mode="reduce-overhead")
+            self.is_compiled = True
+        else:
+            logger.info("torch.compile() not applied (disabled or not supported)")
+
         logger.info("ActionRecognizer loaded successfully")
 
         return self
@@ -394,7 +458,12 @@ class ActionRecognizer:
         return results
 
 
-def load_action_recognizer(model_path: str, device: str = "cuda:0") -> ActionRecognizer:
+def load_action_recognizer(
+    model_path: str,
+    device: str = "cuda:0",
+    use_compile: bool = True,
+    use_accelerate: bool = True,
+) -> ActionRecognizer:
     """Factory function for model registry integration.
 
     Creates and loads an ActionRecognizer instance. This function is designed
@@ -403,6 +472,8 @@ def load_action_recognizer(model_path: str, device: str = "cuda:0") -> ActionRec
     Args:
         model_path: Path to X-CLIP model directory or HuggingFace model ID
         device: Device to run inference on
+        use_compile: Whether to use torch.compile() for optimization (NEM-3375).
+        use_accelerate: Whether to use Accelerate device_map (NEM-3378).
 
     Returns:
         Loaded ActionRecognizer instance ready for inference.
@@ -418,6 +489,11 @@ def load_action_recognizer(model_path: str, device: str = "cuda:0") -> ActionRec
             unloader_fn=lambda m: m.unload_model(),
         )
     """
-    recognizer = ActionRecognizer(model_path=model_path, device=device)
+    recognizer = ActionRecognizer(
+        model_path=model_path,
+        device=device,
+        use_compile=use_compile,
+        use_accelerate=use_accelerate,
+    )
     recognizer.load_model()
     return recognizer

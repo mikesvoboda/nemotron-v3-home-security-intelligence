@@ -252,6 +252,26 @@ from .plate_detector import (
     detect_plates,
     is_vehicle_class,
 )
+from .redis_json import (
+    BATCH_META_PREFIX,
+    DEFAULT_BATCH_META_TTL,
+    BatchMetadata,
+    BatchMetadataService,
+    get_batch_metadata_service,
+)
+from .redis_streams import (
+    DEFAULT_BLOCK_MS,
+    DEFAULT_CLAIM_MIN_IDLE_MS,
+    DEFAULT_MAX_DELIVERY_COUNT,
+    DEFAULT_STREAM_MAXLEN,
+    DETECTION_CONSUMER_GROUP,
+    DETECTION_DLQ_STREAM_KEY,
+    DETECTION_STREAM_KEY,
+    DetectionStreamMessage,
+    DetectionStreamService,
+    StreamConsumerInfo,
+    get_detection_stream_service,
+)
 from .reid_service import (
     DEFAULT_SIMILARITY_THRESHOLD,
     EMBEDDING_DIMENSION,
@@ -328,6 +348,15 @@ from .zone_service import (
 
 __all__ = [  # noqa: RUF022  # Intentionally organized by category
     # Constants
+    "BATCH_META_PREFIX",
+    "DEFAULT_BATCH_META_TTL",
+    "DEFAULT_BLOCK_MS",
+    "DEFAULT_CLAIM_MIN_IDLE_MS",
+    "DEFAULT_MAX_DELIVERY_COUNT",
+    "DEFAULT_STREAM_MAXLEN",
+    "DETECTION_CONSUMER_GROUP",
+    "DETECTION_DLQ_STREAM_KEY",
+    "DETECTION_STREAM_KEY",
     "DEFAULT_JOB_TIMEOUT",
     "DEFAULT_MAX_RETRY_ATTEMPTS",
     "DEFAULT_SIMILARITY_THRESHOLD",
@@ -366,6 +395,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "BaselineContext",
     "BaselineService",
     "BatchAggregator",
+    "BatchMetadata",
+    "BatchMetadataService",
     "BoundingBox",
     "BroadcastCallback",
     "CacheKeys",
@@ -399,6 +430,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "DegradationMode",
     "DeliveryResult",
     "DetectionInput",
+    "DetectionStreamMessage",
+    "DetectionStreamService",
     "DetectorClient",
     "DetectorUnavailableError",
     "EnrichedContext",
@@ -467,6 +500,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "DegradationServiceStatus",
     "SeverityDefinition",
     "SeverityService",
+    "StreamConsumerInfo",
     "ThumbnailGenerator",
     # Transcode Cache
     "CacheEntry",
@@ -506,6 +540,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_available_models",
     "get_background_evaluator",
     "get_baseline_service",
+    "get_batch_metadata_service",
     "get_broadcaster",
     "get_cache_service",
     "get_circuit_breaker",
@@ -515,6 +550,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_db_audit_service",
     "get_dedupe_service",
     "get_degradation_manager",
+    "get_detection_stream_service",
     "get_enabled_models",
     "get_enrichment_pipeline",
     "get_evaluation_queue",

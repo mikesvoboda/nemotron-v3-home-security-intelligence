@@ -3,6 +3,10 @@
 HTTP server wrapping CLIP ViT-L model for generating embeddings
 used in entity re-identification across cameras.
 
+Supports torch.compile() for optimized inference (NEM-3375).
+Supports Accelerate device_map for automatic device placement (NEM-3378).
+Implements true batch inference for vision models (NEM-3377).
+
 Port: 8093 (configurable via PORT env var)
 Expected VRAM: ~800MB
 """
@@ -12,10 +16,12 @@ import binascii
 import io
 import logging
 import os
+import sys
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -25,6 +31,20 @@ from PIL import Image
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, Field, field_validator
 from transformers import CLIPModel, CLIPProcessor
+
+# Add parent directory to path for shared utilities
+_ai_dir = Path(__file__).parent.parent
+if str(_ai_dir) not in sys.path:
+    sys.path.insert(0, str(_ai_dir))
+
+from torch_optimizations import (  # noqa: E402
+    BatchConfig,
+    BatchProcessor,
+    compile_model,
+    get_optimal_device_map,
+    get_torch_dtype_for_device,
+    is_compile_supported,
+)
 
 # =============================================================================
 # Surveillance-Specific Prompt Templates for Ensembling (NEM-3029)
@@ -364,35 +384,59 @@ class HealthResponse(BaseModel):
 
 
 class CLIPEmbeddingModel:
-    """CLIP ViT-L model wrapper for generating embeddings."""
+    """CLIP ViT-L model wrapper for generating embeddings.
+
+    Supports:
+    - torch.compile() for optimized inference (NEM-3375)
+    - Accelerate device_map for automatic device placement (NEM-3378)
+    - True batch inference with optimal batching (NEM-3377)
+    """
 
     def __init__(
         self,
         model_path: str,
         device: str = "cuda:0",
+        use_compile: bool = True,
+        use_accelerate: bool = True,
+        max_batch_size: int = 16,
     ):
         """Initialize CLIP model.
 
         Args:
             model_path: Path to HuggingFace model directory or model name
             device: Device to run inference on (cuda:0, cpu)
+            use_compile: Whether to use torch.compile() for optimization (NEM-3375).
+            use_accelerate: Whether to use Accelerate device_map (NEM-3378).
+            max_batch_size: Maximum batch size for batch inference (NEM-3377).
         """
         self.model_path = model_path
         self.device = device
         self.model: Any = None
         self.processor: Any = None
+        self.use_compile = use_compile
+        self.use_accelerate = use_accelerate
+        self.is_compiled = False
+
+        # Batch processing configuration (NEM-3377)
+        self.batch_processor = BatchProcessor(BatchConfig(max_batch_size=max_batch_size))
 
         logger.info(f"Initializing CLIP model from {self.model_path}")
         logger.info(f"Device: {device}")
+        logger.info(f"torch.compile enabled: {use_compile}, Accelerate enabled: {use_accelerate}")
 
     def load_model(self) -> None:
-        """Load the model into memory using HuggingFace Transformers."""
+        """Load the model into memory using HuggingFace Transformers.
+
+        Supports:
+        - Accelerate device_map for automatic device placement (NEM-3378)
+        - torch.compile() for optimized inference (NEM-3375)
+        """
         try:
             logger.info("Loading CLIP model with HuggingFace Transformers...")
 
             # Determine device and dtype
             if "cuda" in self.device and torch.cuda.is_available():
-                dtype = torch.float16
+                dtype = get_torch_dtype_for_device(self.device)
             else:
                 self.device = "cpu"
                 dtype = torch.float32
@@ -400,23 +444,40 @@ class CLIPEmbeddingModel:
             # Load processor
             self.processor = CLIPProcessor.from_pretrained(self.model_path)
 
-            # Load model with appropriate settings
-            self.model = CLIPModel.from_pretrained(
-                self.model_path,
-                torch_dtype=dtype,
-            )
-
-            # Move model to device
-            if "cuda" in self.device:
-                self.model = self.model.to(self.device)
-                logger.info(f"Model loaded on {self.device}")
+            # Load model with Accelerate device_map if enabled (NEM-3378)
+            if self.use_accelerate and "cuda" in self.device:
+                device_map = get_optimal_device_map(self.model_path)
+                logger.info(f"Loading model with device_map='{device_map}'")
+                self.model = CLIPModel.from_pretrained(
+                    self.model_path,
+                    device_map=device_map,
+                    torch_dtype=dtype,
+                )
             else:
-                logger.info("CUDA not available, using CPU")
+                # Traditional loading with manual device placement
+                self.model = CLIPModel.from_pretrained(
+                    self.model_path,
+                    torch_dtype=dtype,
+                )
+                # Move model to device
+                if "cuda" in self.device:
+                    self.model = self.model.to(self.device)
+                    logger.info(f"Model loaded on {self.device}")
+                else:
+                    logger.info("CUDA not available, using CPU")
 
             # Set model to evaluation mode
             self.model.eval()
 
-            # Warmup inference
+            # Apply torch.compile() for optimized inference (NEM-3375)
+            if self.use_compile and is_compile_supported():
+                logger.info("Applying torch.compile() for optimized inference...")
+                self.model = compile_model(self.model, mode="reduce-overhead")
+                self.is_compiled = True
+            else:
+                logger.info("torch.compile() not applied (disabled or not supported)")
+
+            # Warmup inference (important for compiled models)
             self._warmup()
             logger.info("Model loaded and warmed up successfully")
 
@@ -851,13 +912,25 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     model_path = os.environ.get("CLIP_MODEL_PATH", "/models/clip-vit-l")
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
+    # torch.compile settings (NEM-3375)
+    use_compile = os.environ.get("CLIP_USE_COMPILE", "1").lower() in ("1", "true", "yes")
+    # Accelerate device_map settings (NEM-3378)
+    use_accelerate = os.environ.get("CLIP_USE_ACCELERATE", "1").lower() in ("1", "true", "yes")
+    # Batch inference settings (NEM-3377)
+    max_batch_size = int(os.environ.get("CLIP_MAX_BATCH_SIZE", "16"))
+
     try:
         model = CLIPEmbeddingModel(
             model_path=model_path,
             device=device,
+            use_compile=use_compile,
+            use_accelerate=use_accelerate,
+            max_batch_size=max_batch_size,
         )
         model.load_model()
         logger.info("Model loaded successfully")
+        if model.is_compiled:
+            logger.info("Model is using torch.compile() optimization")
     except FileNotFoundError:
         logger.warning(f"Model not found at {model_path}")
         logger.warning("Server will start but embed endpoints will fail until model is available")
