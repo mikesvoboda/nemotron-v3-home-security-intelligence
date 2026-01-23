@@ -1483,10 +1483,19 @@ async def test_detect_objects_file_not_found_returns_empty_gracefully(
 async def test_detect_objects_empty_detection_list_returned_gracefully(
     detector_client, mock_session
 ):
-    """Test empty detection list from detector is handled gracefully."""
+    """Test empty detection list from detector is handled gracefully.
+
+    Even with no detections, the camera's last_seen_at should be updated (NEM-3268),
+    so commit is still called but no detections are added.
+    """
     image_path = "/export/foscam/front_door/empty.jpg"
     camera_id = "front_door"
     mock_image_data = b"fake_image_data"
+
+    # Create a mock camera to verify last_seen_at is updated
+    mock_camera = MagicMock()
+    mock_camera.last_seen_at = None
+    mock_session.get = AsyncMock(return_value=mock_camera)
 
     with (
         patch("pathlib.Path.exists", return_value=True),
@@ -1503,9 +1512,13 @@ async def test_detect_objects_empty_detection_list_returned_gracefully(
 
         # Should return empty list without error
         assert len(detections) == 0
-        # No database operations for empty detections
+        # No detections added to session
         assert not mock_session.add.called
-        assert not mock_session.commit.called
+        # Commit IS called to save camera.last_seen_at update (NEM-3268)
+        assert mock_session.commit.called
+        # Verify camera was fetched and last_seen_at was updated
+        mock_session.get.assert_called_once_with(Camera, camera_id)
+        assert mock_camera.last_seen_at is not None
 
 
 @pytest.mark.asyncio

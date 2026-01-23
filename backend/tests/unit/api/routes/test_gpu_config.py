@@ -377,9 +377,20 @@ class TestUpdateGpuConfig:
         mock_assignments_result = MagicMock()
         mock_assignments_result.scalars.return_value.all.return_value = []
 
+        mock_existing_configs_result = MagicMock()
+        mock_existing_configs_result.scalars.return_value.all.return_value = []
+
+        # update_gpu_config flow:
+        # 1. Get current strategy (line 583-585)
+        # 2. Get current assignments (line 587-590)
+        # 3. Detect GPUs for validation (mocked via get_gpu_detection_service)
+        # 4. Set current strategy (line 599) - calls db.execute in _set_current_strategy
+        # 5. Save assignments (line 602) - calls db.execute in _save_assignments_to_db
         mock_db_session.execute.side_effect = [
-            mock_strategy_result,
-            mock_assignments_result,
+            mock_strategy_result,  # Get current strategy
+            mock_assignments_result,  # Get current assignments
+            mock_strategy_result,  # Set current strategy - check if exists
+            mock_existing_configs_result,  # Save assignments - get existing configs
         ]
 
         mock_service = AsyncMock()
