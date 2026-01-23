@@ -46,6 +46,22 @@ def clear_health_caches_fixture() -> None:
     system_routes.clear_health_cache()
 
 
+@pytest.fixture(autouse=True)
+def mock_ai_health_settings():
+    """Mock get_settings for AI health checks to prevent environment validation issues.
+
+    Tests that call check_ai_services_health() will fail if the environment
+    has ENVIRONMENT=production with weak passwords. This fixture mocks
+    get_settings() to return valid settings without environment validation.
+    """
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.nemotron_url = "http://localhost:8002"
+
+    with patch.object(system_routes, "get_settings", return_value=mock_settings):
+        yield mock_settings
+
+
 @pytest.mark.asyncio
 async def test_check_database_health_unhealthy_on_exception() -> None:
     db = AsyncMock(spec=AsyncSession)
