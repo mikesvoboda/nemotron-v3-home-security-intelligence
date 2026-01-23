@@ -259,11 +259,22 @@ async def detect_vehicle_damage(
         loop = asyncio.get_event_loop()
 
         def _detect() -> VehicleDamageResult:
-            # Run inference
+            # Determine target device
+            try:
+                import torch
+
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+            except ImportError:
+                device = "cpu"
+
+            # Run inference with explicit device parameter to avoid meta tensor issues
+            # The device parameter ensures proper tensor initialization and avoids
+            # "Cannot copy out of meta tensor" errors when using .to(device)
             results = model.predict(
                 source=image,
                 conf=confidence_threshold,
                 iou=iou_threshold,
+                device=device,
                 verbose=False,
             )
 

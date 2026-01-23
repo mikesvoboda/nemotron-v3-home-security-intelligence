@@ -14,6 +14,7 @@ Related Linear issue: NEM-2610
 """
 
 import logging
+import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -50,7 +51,12 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # Default database URL for development (PostgreSQL only - no SQLite support)
-DEFAULT_DATABASE_URL = "postgresql://security:password@localhost:5432/security"
+# This fallback should never be used in production; the centralized config should always provide the URL
+# Convert async URL to sync for Alembic
+DEFAULT_DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://security:password@localhost:5432/security",
+).replace("+asyncpg", "")
 
 
 class MigrationFailedError(Exception):

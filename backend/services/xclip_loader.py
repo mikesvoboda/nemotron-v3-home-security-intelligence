@@ -329,11 +329,13 @@ async def classify_actions(
                 validated_frames.append(validated_frames[-1])
 
             # Prepare inputs for X-CLIP
-            # X-CLIP expects videos as list of frames
+            # X-CLIP processor expects videos as List[List[PIL.Image]]
+            # where outer list is batch of videos, inner list is frames per video
+            # We have a single video with multiple frames
             try:
                 inputs = processor(
                     text=prompts,
-                    videos=validated_frames,  # List of PIL images
+                    videos=[validated_frames],  # Wrap in list - single video with multiple frames
                     return_tensors="pt",
                     padding=True,
                 )

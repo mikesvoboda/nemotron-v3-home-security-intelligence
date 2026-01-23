@@ -10,7 +10,7 @@ The job:
 4. Logs success/failure metrics
 
 Safety features:
-    - 60-second timeout to prevent hanging if LLM is unresponsive
+    - 180-second timeout to accommodate LLM inference time (Nemotron can take up to 130s)
     - Graceful error handling with logging
     - Circuit breaker integration (via SummaryGenerator)
 
@@ -38,7 +38,9 @@ logger = get_logger(__name__)
 
 # Default configuration values
 DEFAULT_INTERVAL_MINUTES = 5
-DEFAULT_TIMEOUT_SECONDS = 60
+# Timeout must be longer than max LLM timeout (nemotron_read_timeout=120s + ai_connect_timeout=10s)
+# Set to 180s (3 minutes) to allow for LLM inference + DB queries + broadcasting overhead
+DEFAULT_TIMEOUT_SECONDS = 180
 
 # Job type constant for job system integration
 JOB_TYPE_GENERATE_SUMMARIES = "generate_summaries"
@@ -163,7 +165,7 @@ class SummaryJob:
                 uses the singleton instance.
             redis_client: Optional Redis client for cache invalidation.
             broadcaster: Optional EventBroadcaster for WebSocket updates.
-            timeout: Timeout in seconds for summary generation. Default: 60s.
+            timeout: Timeout in seconds for summary generation. Default: 180s.
         """
         self._generator = generator or get_summary_generator()
         self._redis_client = redis_client
@@ -300,7 +302,7 @@ class SummaryJobScheduler:
             interval_minutes: Minutes between job runs. Default: 5 minutes.
             redis_client: Optional Redis client for cache invalidation.
             broadcaster: Optional EventBroadcaster for WebSocket updates.
-            timeout: Timeout in seconds for each job run. Default: 60s.
+            timeout: Timeout in seconds for each job run. Default: 180s.
         """
         self.interval_minutes = interval_minutes
         self._redis_client = redis_client
@@ -310,7 +312,8 @@ class SummaryJobScheduler:
         self._running = False
 
         logger.info(
-            f"SummaryJobScheduler initialized: interval={interval_minutes}min, timeout={timeout}s"
+            f"SummaryJobScheduler initialized: interval={interval_minutes}min, timeout={timeout}s",
+            extra={"interval_minutes": interval_minutes, "timeout_seconds": timeout},
         )
 
     @property

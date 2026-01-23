@@ -703,6 +703,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
 
     # Initialize summary job scheduler for automatic dashboard summary generation (NEM-2891)
     # Generates hourly and daily summaries of high/critical events every 5 minutes
+    # Uses DEFAULT_TIMEOUT_SECONDS (180s) to accommodate Nemotron LLM inference time
     summary_job_scheduler: SummaryJobScheduler | None = None
     if redis_client is not None:
         event_broadcaster = await get_broadcaster(redis_client)
@@ -710,7 +711,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
             interval_minutes=5,
             redis_client=redis_client,
             broadcaster=event_broadcaster,
-            timeout=60.0,
         )
         await summary_job_scheduler.start()
         lifespan_logger.info("Summary job scheduler started (5-minute interval)")
