@@ -161,6 +161,8 @@ def create_mock_model_manager() -> MagicMock:
         "yolo11-face": MagicMock(),
         "paddleocr": MagicMock(),
         "depth-anything-v2-small": mock_depth_pipeline,
+        # X-CLIP for action recognition (NEM-3335)
+        "xclip-base": {"model": MagicMock(), "processor": MagicMock()},
     }
 
     def mock_load(model_name: str) -> MockAsyncContextManager:
