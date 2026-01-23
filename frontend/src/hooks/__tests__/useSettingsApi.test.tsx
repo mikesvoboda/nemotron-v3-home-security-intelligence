@@ -162,7 +162,7 @@ describe('useSettingsQuery', () => {
       json: () => Promise.resolve({ detail: errorMessage }),
     } as Response);
 
-    const { result } = renderHook(() => useSettingsQuery(), {
+    const { result } = renderHook(() => useSettingsQuery({ retry: false }), {
       wrapper: createTestWrapper(),
     });
 
@@ -239,9 +239,27 @@ describe('useSettingsQuery', () => {
   });
 
   it('tracks fetching state correctly', async () => {
+    // Use a slow mock to make the fetching state observable
+    mockFetch.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                ok: true,
+                json: () => Promise.resolve(mockSettingsResponse),
+              } as Response),
+            100
+          )
+        )
+    );
+
     const { result } = renderHook(() => useSettingsQuery(), {
       wrapper: createTestWrapper(),
     });
+
+    // Initial fetch should show isFetching=true
+    expect(result.current.isFetching).toBe(true);
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -249,8 +267,10 @@ describe('useSettingsQuery', () => {
 
     expect(result.current.isFetching).toBe(false);
 
+    // Trigger refetch
     const refetchPromise = result.current.refetch();
 
+    // Wait for isFetching to become true
     await waitFor(() => {
       expect(result.current.isFetching).toBe(true);
     });
@@ -286,7 +306,7 @@ describe('useSettingsQuery', () => {
       json: () => Promise.resolve({ detail: errorDetail }),
     } as Response);
 
-    const { result } = renderHook(() => useSettingsQuery(), {
+    const { result } = renderHook(() => useSettingsQuery({ retry: false }), {
       wrapper: createTestWrapper(),
     });
 
@@ -305,7 +325,7 @@ describe('useSettingsQuery', () => {
       json: () => Promise.reject(new Error('Invalid JSON')),
     } as unknown as Response);
 
-    const { result } = renderHook(() => useSettingsQuery(), {
+    const { result } = renderHook(() => useSettingsQuery({ retry: false }), {
       wrapper: createTestWrapper(),
     });
 
@@ -460,7 +480,10 @@ describe('useUpdateSettings', () => {
     });
 
     expect(response).toEqual(mockSettingsResponse);
-    expect(result.current.isSuccess).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
   });
 
   it('resets mutation state', async () => {
@@ -478,7 +501,9 @@ describe('useUpdateSettings', () => {
 
     result.current.reset();
 
-    expect(result.current.isSuccess).toBe(false);
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(false);
+    });
     expect(result.current.data).toBeUndefined();
   });
 
@@ -689,7 +714,7 @@ describe('useSettingsApi', () => {
       json: () => Promise.resolve({ detail: errorMessage }),
     } as Response);
 
-    const { result } = renderHook(() => useSettingsApi(), {
+    const { result } = renderHook(() => useSettingsApi({ retry: false }), {
       wrapper: createTestWrapper(),
     });
 
