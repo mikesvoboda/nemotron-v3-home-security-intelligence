@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String
+from sqlalchemy import Boolean, DateTime, Float, Index, Integer, String, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -56,7 +56,7 @@ class GpuDevice(Base):
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),
         primary_key=True,
-        server_default="gen_random_uuid()",
+        server_default=text("gen_random_uuid()"),
     )
     gpu_index: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
     name: Mapped[str | None] = mapped_column(String(128), nullable=True)
@@ -95,7 +95,7 @@ class GpuConfiguration(Base):
     id: Mapped[str] = mapped_column(
         UUID(as_uuid=False),
         primary_key=True,
-        server_default="gen_random_uuid()",
+        server_default=text("gen_random_uuid()"),
     )
     service_name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     gpu_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
