@@ -137,6 +137,7 @@ repos:
           - sqlalchemy
           - fastapi
           - redis
+          - types-PyYAML
         args: [--ignore-missing-imports]
         files: ^backend/
 
