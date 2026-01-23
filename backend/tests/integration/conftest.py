@@ -887,9 +887,20 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
             # Delete data in order (respecting foreign key constraints)
             for table_name in deletion_order:
                 try:
+                    # Use SAVEPOINT so failures don't abort the transaction
+                    # This handles missing tables (not yet migrated) gracefully
+                    await session.execute(text(f"SAVEPOINT sp_{table_name}"))  # nosemgrep
                     # Safe: table_name comes from SQLAlchemy inspector (trusted source), not user input
                     await session.execute(text(f"DELETE FROM {table_name}"))  # noqa: S608 nosemgrep
+                    await session.execute(text(f"RELEASE SAVEPOINT sp_{table_name}"))  # nosemgrep
                 except Exception as e:
+                    # Rollback to savepoint and continue - table may not exist yet
+                    try:
+                        await session.execute(
+                            text(f"ROLLBACK TO SAVEPOINT sp_{table_name}")
+                        )  # nosemgrep
+                    except Exception as rb_err:
+                        logger.debug(f"Savepoint rollback failed for {table_name}: {rb_err}")
                     # Skip tables that don't exist
                     logger.debug(f"Skipping table {table_name}: {e}")
             await session.commit()
