@@ -43,16 +43,6 @@ CVE-2025-27516
 # Add specific CVEs here if they have no fix and are accepted risk
 
 # =============================================================================
-# Python Dependencies
-# =============================================================================
-
-# CVE-2026-0994 - protobuf JSON recursion depth bypass (REVIEW BY: 2026-04-23)
-# HIGH severity DoS via deeply nested JSON messages
-# Not applicable: We use protobuf for internal gRPC communication only
-# No user-controlled JSON deserialization to protobuf occurs in our system
-CVE-2026-0994
-
-# =============================================================================
 # Alpine Linux Base Image
 # =============================================================================
 # Alpine-specific CVEs that are false positives or have no fix
@@ -236,25 +226,6 @@ CVE-2026-23949
 #   4. Build process runs in controlled CI environment with trusted inputs
 CVE-2026-24049
 
-# CVE-2026-0994 - protobuf JSON recursion depth bypass (REVIEW BY: 2026-04-23)
-# HIGH severity, no fix available for protobuf 6.33.2
-# Not exploitable in our context:
-#   1. We don't parse untrusted JSON with protobuf
-#   2. Protobuf is used for internal serialization between AI services
-#   3. All protobuf inputs come from trusted internal services (RT-DETR, Nemotron)
-#   4. The vulnerability requires attacker-controlled deeply nested JSON
-# Reference: https://avd.aquasec.com/nvd/cve-2026-0994
-CVE-2026-0994
-
-# CVE-2026-0994 - protobuf JSON recursion depth bypass (REVIEW BY: 2026-04-23)
-# HIGH severity, no fix available yet (protobuf 6.33.2)
-# Affects nested JSON parsing with deeply recursive structures
-# Not exploitable in our context:
-#   1. We don't expose protobuf JSON parsing to untrusted input
-#   2. Used only for internal gRPC communication with AI services
-#   3. Input validation at API layer prevents malicious payloads
-CVE-2026-0994
-
 # =============================================================================
 # Dockerfile Misconfigurations - Accepted Risks
 # =============================================================================
@@ -278,5 +249,5 @@ AVD-DS-0002
 #
 # Remove entries when fixes become available.
 #
-# Last reviewed: 2026-01-24 (NEM-3447)
-# Next review: 2026-04-24
+# Last reviewed: 2026-01-23 (NEM-3342)
+# Next review: 2026-04-23
