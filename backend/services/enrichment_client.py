@@ -932,7 +932,7 @@ class EnrichmentClient:
         health = await self.check_health()
         return health.get("status") in ("healthy", "degraded")
 
-    async def classify_vehicle(  # noqa: PLR0912
+    async def classify_vehicle(
         self,
         image: Image.Image,
         bbox: tuple[float, float, float, float] | None = None,
@@ -1119,7 +1119,7 @@ class EnrichmentClient:
             original_error=last_error,
         )
 
-    async def classify_pet(  # noqa: PLR0912
+    async def classify_pet(
         self,
         image: Image.Image,
         bbox: tuple[float, float, float, float] | None = None,
@@ -1305,7 +1305,7 @@ class EnrichmentClient:
             original_error=last_error,
         )
 
-    async def classify_clothing(  # noqa: PLR0912
+    async def classify_clothing(
         self,
         image: Image.Image,
         bbox: tuple[float, float, float, float] | None = None,
@@ -1492,7 +1492,7 @@ class EnrichmentClient:
             original_error=last_error,
         )
 
-    async def estimate_depth(  # noqa: PLR0912
+    async def estimate_depth(
         self,
         image: Image.Image,
     ) -> DepthEstimationResult | None:
@@ -1674,7 +1674,7 @@ class EnrichmentClient:
             original_error=last_error,
         )
 
-    async def estimate_object_distance(  # noqa: PLR0912
+    async def estimate_object_distance(
         self,
         image: Image.Image,
         bbox: tuple[float, float, float, float],
@@ -1894,7 +1894,7 @@ class EnrichmentClient:
             original_error=last_error,
         )
 
-    async def analyze_pose(  # noqa: PLR0912
+    async def analyze_pose(
         self,
         image: Image.Image,
         bbox: tuple[float, float, float, float] | None = None,
@@ -2095,7 +2095,7 @@ class EnrichmentClient:
             original_error=last_error,
         )
 
-    async def classify_action(  # noqa: PLR0912
+    async def classify_action(
         self,
         frames: list[Image.Image],
         labels: list[str] | None = None,

@@ -74,7 +74,7 @@ def mock_settings():
     settings.smtp_host = "smtp.example.com"
     settings.smtp_port = 587
     settings.smtp_user = "user@example.com"
-    settings.smtp_password = "test-password"  # noqa: S105  # pragma: allowlist secret
+    settings.smtp_password = "test-password"  # pragma: allowlist secret
     settings.smtp_from_address = "alerts@example.com"
     settings.smtp_use_tls = True
     settings.default_email_recipients = ["recipient@example.com"]

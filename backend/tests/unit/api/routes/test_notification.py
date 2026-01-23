@@ -66,7 +66,7 @@ def mock_settings() -> MagicMock:
     settings.smtp_from_address = "alerts@example.com"
     settings.smtp_use_tls = True
     settings.smtp_username = "user@example.com"
-    settings.smtp_password = "password123"  # noqa: S105  # pragma: allowlist secret
+    settings.smtp_password = "password123"  # pragma: allowlist secret
     settings.default_webhook_url = "https://example.com/webhook"
     settings.webhook_timeout_seconds = 30
     settings.default_email_recipients = ["admin@example.com"]

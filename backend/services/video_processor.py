@@ -460,7 +460,7 @@ class VideoProcessor:
             )
             return None
 
-    async def extract_frames_for_detection(  # noqa: PLR0911, PLR0912
+    async def extract_frames_for_detection(  # noqa: PLR0911
         self,
         video_path: str,
         interval_seconds: float = 2.0,
@@ -629,7 +629,7 @@ class VideoProcessor:
             )
             return []
 
-    async def extract_frames_for_detection_batch(  # noqa: PLR0911, PLR0912
+    async def extract_frames_for_detection_batch(  # noqa: PLR0911
         self,
         video_path: str,
         interval_seconds: float = 2.0,

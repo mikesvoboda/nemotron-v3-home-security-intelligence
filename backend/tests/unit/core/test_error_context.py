@@ -232,14 +232,14 @@ class TestLogWithContext:
                 "debug",
                 "Request received",
                 api_key="secret-key-12345",  # pragma: allowlist secret
-                password="user_password",  # pragma: allowlist secret  # noqa: S106
+                password="user_password",  # pragma: allowlist secret
             )
 
             call_args = mock_logger.debug.call_args
             extra = call_args[1]["extra"]
             # Sensitive fields should be redacted
             assert extra["api_key"] == "[REDACTED]"
-            assert extra["password"] == "[REDACTED]"  # noqa: S105
+            assert extra["password"] == "[REDACTED]"
 
 
 # =============================================================================

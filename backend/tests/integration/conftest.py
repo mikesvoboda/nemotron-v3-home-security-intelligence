@@ -336,7 +336,7 @@ def postgres_container() -> Generator[PostgresContainer | LocalPostgresService]:
     container = PostgresContainer(
         "postgres:16-alpine",
         username="postgres",
-        password="postgres",  # noqa: S106  # pragma: allowlist secret
+        password="postgres",  # pragma: allowlist secret
         dbname="security_test",
         driver="asyncpg",
     )

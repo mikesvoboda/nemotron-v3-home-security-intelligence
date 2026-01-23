@@ -7,13 +7,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import ProgrammingError
 
 from alembic import command
-from alembic.config import Config
-from alembic.runtime.migration import MigrationContext
-from alembic.script import ScriptDirectory
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -33,7 +33,7 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(scope="function")
-def clean_db_config(integration_env: None) -> Generator[Config]:  # noqa: PLR0912
+def clean_db_config(integration_env: None) -> Generator[Config]:
     """Create Alembic config with clean database state for each test.
 
     This fixture ensures that each test starts with a completely clean
