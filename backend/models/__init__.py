@@ -30,6 +30,12 @@ from .event_detection import EventDetection, event_detections
 from .event_feedback import EventFeedback, FeedbackType
 from .experiment_result import ExperimentResult
 from .export_job import ExportJob, ExportJobStatus, ExportType
+from .gpu_config import (
+    GpuAssignmentStrategy,
+    GpuConfiguration,
+    GpuDevice,
+    SystemSetting,
+)
 from .gpu_stats import GPUStats
 from .household import (
     HouseholdMember,
@@ -100,6 +106,9 @@ __all__ = [
     "ExportType",
     "FeedbackType",
     "GPUStats",
+    "GpuAssignmentStrategy",
+    "GpuConfiguration",
+    "GpuDevice",
     "Household",
     "HouseholdMember",
     "Job",
@@ -129,6 +138,7 @@ __all__ = [
     "Severity",
     "Summary",
     "SummaryType",
+    "SystemSetting",
     "ThreatDetection",
     "TrustLevel",
     "TrustStatus",
