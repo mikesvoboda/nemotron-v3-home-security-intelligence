@@ -425,6 +425,11 @@ class TestRollbackCheckLogic:
         """Test rollback triggered when treatment latency exceeds threshold."""
         manager = manager_with_metrics
 
+        # Need feedback for minimum samples check
+        for _ in range(15):
+            manager.record_control_feedback(is_false_positive=False)
+            manager.record_treatment_feedback(is_false_positive=False)
+
         # Control: avg 100ms latency
         for _ in range(15):
             manager.record_control_analysis(latency_ms=100.0)
@@ -441,6 +446,11 @@ class TestRollbackCheckLogic:
     def test_rollback_triggered_by_error_rate_increase(self, manager_with_metrics):
         """Test rollback triggered when treatment error rate exceeds control."""
         manager = manager_with_metrics
+
+        # Need feedback for minimum samples check
+        for _ in range(15):
+            manager.record_control_feedback(is_false_positive=False)
+            manager.record_treatment_feedback(is_false_positive=False)
 
         # Control: 0% error rate
         for _ in range(15):
