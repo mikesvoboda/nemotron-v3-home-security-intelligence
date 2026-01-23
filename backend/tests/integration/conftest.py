@@ -67,7 +67,7 @@ HARDCODED_TABLE_DELETION_ORDER = [
     "events",
     "scene_changes",
     "camera_notification_settings",  # FK to cameras
-    "zones",  # FK to cameras - must be deleted before cameras
+    "camera_zones",  # FK to cameras - must be deleted before cameras (renamed from "zones" in f1231ed7e32d)
     # Second: Delete tables without FK references (standalone)
     "alert_rules",
     "audit_logs",
