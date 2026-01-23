@@ -24,6 +24,7 @@ import CamerasSettings from './CamerasSettings';
 import NotificationSettings from './NotificationSettings';
 import ProcessingSettings from './ProcessingSettings';
 import { PromptManagementPage } from './prompts';
+import { DebugModeProvider } from '../../contexts/DebugModeContext';
 import FileOperationsPanel from '../system/FileOperationsPanel';
 
 /**
@@ -133,65 +134,67 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#121212] p-8" data-testid="settings-page">
-      <div className="mx-auto max-w-[1920px]">
-        {/* Header */}
-        <div className="mb-8 flex items-start justify-between">
-          <div>
-            <h1 className="text-page-title">Settings</h1>
-            <p className="text-body-sm mt-2">Configure your security monitoring system</p>
+    <DebugModeProvider>
+      <div className="min-h-screen bg-[#121212] p-8" data-testid="settings-page">
+        <div className="mx-auto max-w-[1920px]">
+          {/* Header */}
+          <div className="mb-8 flex items-start justify-between">
+            <div>
+              <h1 className="text-page-title">Settings</h1>
+              <p className="text-body-sm mt-2">Configure your security monitoring system</p>
+            </div>
+
           </div>
 
+          {/* Secure Context Warning - shown when not using HTTPS */}
+          <SecureContextWarning className="mb-6" />
+
+          {/* Tabs */}
+          <Tab.Group>
+            <Tab.List className="mb-8 flex space-x-2 rounded-lg border border-gray-800 bg-[#1A1A1A] p-1">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <Tab
+                    key={tab.id}
+                    title={tabDescriptions[tab.id]}
+                    className={({ selected }) =>
+                      clsx(
+                        'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
+                        'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
+                        selected
+                          ? 'bg-[#76B900] text-gray-950 shadow-md'
+                          : 'text-gray-200 hover:bg-gray-800 hover:text-white'
+                      )
+                    }
+                  >
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                    <span>{tab.name}</span>
+                  </Tab>
+                );
+              })}
+            </Tab.List>
+
+            <Tab.Panels>
+              {tabs.map((tab) => {
+                const Component = tab.component;
+                return (
+                  <Tab.Panel
+                    key={tab.id}
+                    className={clsx(
+                      'rounded-lg border border-gray-800 bg-[#1A1A1A] p-6',
+                      'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]'
+                    )}
+                  >
+                    <Component />
+                  </Tab.Panel>
+                );
+              })}
+            </Tab.Panels>
+          </Tab.Group>
         </div>
-
-        {/* Secure Context Warning - shown when not using HTTPS */}
-        <SecureContextWarning className="mb-6" />
-
-        {/* Tabs */}
-        <Tab.Group>
-          <Tab.List className="mb-8 flex space-x-2 rounded-lg border border-gray-800 bg-[#1A1A1A] p-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <Tab
-                  key={tab.id}
-                  title={tabDescriptions[tab.id]}
-                  className={({ selected }) =>
-                    clsx(
-                      'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
-                      'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
-                      selected
-                        ? 'bg-[#76B900] text-gray-950 shadow-md'
-                        : 'text-gray-200 hover:bg-gray-800 hover:text-white'
-                    )
-                  }
-                >
-                  <Icon className="h-5 w-5" aria-hidden="true" />
-                  <span>{tab.name}</span>
-                </Tab>
-              );
-            })}
-          </Tab.List>
-
-          <Tab.Panels>
-            {tabs.map((tab) => {
-              const Component = tab.component;
-              return (
-                <Tab.Panel
-                  key={tab.id}
-                  className={clsx(
-                    'rounded-lg border border-gray-800 bg-[#1A1A1A] p-6',
-                    'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#121212]'
-                  )}
-                >
-                  <Component />
-                </Tab.Panel>
-              );
-            })}
-          </Tab.Panels>
-        </Tab.Group>
       </div>
-    </div>
+    </DebugModeProvider>
   );
 }
 

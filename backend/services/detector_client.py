@@ -1098,18 +1098,18 @@ class DetectorClient:
                     record_pipeline_error("detection_processing_error")
                     continue
 
+            # Update camera's last_seen_at timestamp when image is processed (NEM-3268)
+            # This reflects when the camera last sent an image, regardless of detections
+            camera = await session.get(Camera, camera_id)
+            if camera:
+                camera.last_seen_at = detected_at
+                logger.debug(
+                    f"Updated camera {camera_id} last_seen_at to {detected_at}",
+                    extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+                )
+
             # Commit to database
             if detections:
-                # Update camera's last_seen_at timestamp when detections are stored
-                # This ensures the camera shows activity only when actual detections occur
-                camera = await session.get(Camera, camera_id)
-                if camera:
-                    camera.last_seen_at = detected_at
-                    logger.debug(
-                        f"Updated camera {camera_id} last_seen_at to {detected_at}",
-                        extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
-                    )
-
                 # Update baseline for analytics (NEM-1259)
                 # This populates ActivityBaseline and ClassBaseline tables for the Analytics page
                 # Only update once per unique object_type to avoid duplicate updates in same transaction
@@ -1132,8 +1132,11 @@ class DetectorClient:
                     # update_baseline call sees the previous INSERT
                     await session.flush()
 
-                await session.commit()
-                duration_ms = int((time.time() - start_time) * 1000)
+            # Commit camera.last_seen_at update and any detections (NEM-3268)
+            await session.commit()
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            if detections:
                 # Record detection metrics
                 record_detection_processed(count=len(detections))
                 # NEM-1503: Include trace_id for distributed tracing correlation
@@ -1147,7 +1150,6 @@ class DetectorClient:
                     log_extra["trace_id"] = trace_id
                 logger.info("Stored detections", extra=log_extra)
             else:
-                duration_ms = int((time.time() - start_time) * 1000)
                 logger.debug(
                     f"No detections above threshold for {image_path}",
                     extra={

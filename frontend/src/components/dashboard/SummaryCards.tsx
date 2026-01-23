@@ -73,11 +73,11 @@ export function SummaryCard({
   const title = isHourly ? 'Hourly Summary' : 'Daily Summary';
   const Icon = isHourly ? Clock : Calendar;
 
-  // Calculate severity based on content, risk score, and event count
+  // Calculate severity based on content, risk score, and event count (with defensive fallback to 0)
   const severity: SeverityResult = summary
     ? calculateSeverity({
         content: summary.content,
-        eventCount: summary.eventCount,
+        eventCount: summary.eventCount ?? 0,
         maxRiskScore: summary.maxRiskScore,
       })
     : calculateSeverity({ content: '', eventCount: 0 });
@@ -90,9 +90,9 @@ export function SummaryCard({
     ? `Generated ${formatDistanceToNow(parseISO(summary.generatedAt), { addSuffix: false })} ago`
     : '';
 
-  // Format event count for footer
+  // Format event count for footer (with defensive fallback to 0)
   const eventCountText = summary
-    ? `${summary.eventCount} ${summary.eventCount === 1 ? 'event' : 'events'} analyzed`
+    ? `${summary.eventCount ?? 0} ${(summary.eventCount ?? 0) === 1 ? 'event' : 'events'} analyzed`
     : '';
 
   // Get bullet points: use backend-provided data or extract from content
@@ -156,7 +156,7 @@ export function SummaryCard({
         <div className="mb-2 flex items-center justify-between">
           <SeverityBadge
             level={severity.level}
-            count={summary.eventCount}
+            count={summary.eventCount ?? 0}
             pulsing={showCriticalAnimation ?? undefined}
             size="sm"
             data-testid={`summary-badge-${type}`}
