@@ -43,6 +43,16 @@ CVE-2025-27516
 # Add specific CVEs here if they have no fix and are accepted risk
 
 # =============================================================================
+# Python Dependencies
+# =============================================================================
+
+# CVE-2026-0994 - protobuf JSON recursion depth bypass (REVIEW BY: 2026-04-23)
+# HIGH severity DoS via deeply nested JSON messages
+# Not applicable: We use protobuf for internal gRPC communication only
+# No user-controlled JSON deserialization to protobuf occurs in our system
+CVE-2026-0994
+
+# =============================================================================
 # Alpine Linux Base Image
 # =============================================================================
 # Alpine-specific CVEs that are false positives or have no fix
