@@ -351,6 +351,9 @@ class TestSetupTelemetrySuccess:
         # Mock all the imports inside setup_telemetry
         with (
             patch("opentelemetry.sdk.resources.Resource") as mock_resource,
+            patch("opentelemetry.sdk.resources.get_aggregated_resources") as mock_get_aggregated,
+            patch("opentelemetry.sdk.resources.ProcessResourceDetector"),
+            patch("opentelemetry.sdk.resources.OsResourceDetector"),
             patch("opentelemetry.sdk.trace.TracerProvider") as mock_tracer_provider,
             patch(
                 "opentelemetry.exporter.otlp.proto.grpc.trace_exporter.OTLPSpanExporter"
@@ -366,7 +369,10 @@ class TestSetupTelemetrySuccess:
             patch("opentelemetry.instrumentation.redis.RedisInstrumentor") as mock_redis,
         ):
             # Setup mocks
-            mock_resource.create.return_value = MagicMock()
+            mock_service_resource = MagicMock()
+            mock_resource.create.return_value = mock_service_resource
+            mock_detected_resource = MagicMock()
+            mock_get_aggregated.return_value = mock_detected_resource
             mock_provider = MagicMock()
             mock_tracer_provider.return_value = mock_provider
 
@@ -377,7 +383,8 @@ class TestSetupTelemetrySuccess:
             assert telemetry_module._is_initialized is True
 
             # Verify resource was created with correct attributes
-            mock_resource.create.assert_called_with(
+            # Use assert_any_call because resource detectors may also call create()
+            mock_resource.create.assert_any_call(
                 {
                     "service.name": "test-service",
                     "service.version": "1.0.0",

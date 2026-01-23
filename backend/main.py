@@ -459,7 +459,7 @@ async def validate_camera_paths_on_startup() -> tuple[int, int]:
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Complex lifecycle requires many branches
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events.
 
     This lifespan context manager handles:

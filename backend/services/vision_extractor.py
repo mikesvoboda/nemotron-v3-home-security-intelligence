@@ -1234,7 +1234,7 @@ def format_batch_extraction_result(
     return "\n\n".join(sections)
 
 
-def format_detections_with_attributes(  # noqa: PLR0912
+def format_detections_with_attributes(
     detections: list[dict[str, Any]],
     result: BatchExtractionResult,
 ) -> str:

@@ -349,7 +349,7 @@ class TranscodingService:
             logger.error(f"Failed to get video info: {e}")
             return None
 
-    async def transcode_to_mp4(  # noqa: PLR0912
+    async def transcode_to_mp4(
         self,
         input_path: str | Path,
         output_filename: str | None = None,

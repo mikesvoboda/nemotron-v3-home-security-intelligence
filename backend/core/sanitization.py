@@ -356,7 +356,7 @@ KNOWN_PIPELINE_STAGES = frozenset(
 )
 
 
-def sanitize_metric_label(  # noqa: PLR0912
+def sanitize_metric_label(
     value: str,
     label_name: str = "",
     allowlist: frozenset[str] | None = None,
@@ -551,7 +551,7 @@ class URLValidationError(Exception):
     pass
 
 
-def validate_monitoring_url(  # noqa: PLR0912
+def validate_monitoring_url(
     url: str,
     *,
     allow_internal: bool = True,

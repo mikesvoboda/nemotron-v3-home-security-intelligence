@@ -36,7 +36,7 @@ router = APIRouter(prefix="/api/audit", tags=["audit"])
         500: {"description": "Internal server error"},
     },
 )
-async def list_audit_logs(  # noqa: PLR0912
+async def list_audit_logs(
     response: Response,
     action: str | None = Query(None, description="Filter by action type"),
     resource_type: str | None = Query(None, description="Filter by resource type"),
@@ -151,7 +151,7 @@ async def list_audit_logs(  # noqa: PLR0912
     query = query.order_by(AuditLog.timestamp.desc(), AuditLog.id.desc())
 
     # Apply pagination - fetch one extra to determine if there are more results
-    if cursor_data:  # noqa: SIM108
+    if cursor_data:
         # Cursor-based: fetch limit + 1 to check for more
         query = query.limit(limit + 1)
     else:
