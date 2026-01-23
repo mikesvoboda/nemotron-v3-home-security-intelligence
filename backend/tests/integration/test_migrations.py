@@ -21,11 +21,11 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlparse, urlunparse
 
 import pytest
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, text
 
 from alembic import command
-from alembic.config import Config
-from alembic.script import ScriptDirectory
 
 if TYPE_CHECKING:
     from collections.abc import Generator
