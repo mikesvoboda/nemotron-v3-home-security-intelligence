@@ -80,7 +80,10 @@ class MaterializedViewService:
             # Refresh each view individually (blocks reads during refresh)
             for view in self.MANAGED_VIEWS:
                 try:
-                    await self.session.execute(text(f"REFRESH MATERIALIZED VIEW {view}"))
+                    # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text, sqlalchemy-raw-text-injection
+                    await self.session.execute(
+                        text(f"REFRESH MATERIALIZED VIEW {view}")
+                    )  # view from MANAGED_VIEWS constant
                     await self.session.commit()
                     results[view] = True
                     logger.info(f"Refreshed materialized view: {view}")
@@ -108,8 +111,11 @@ class MaterializedViewService:
         concurrent_clause = "CONCURRENTLY" if concurrently else ""
 
         try:
+            # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text, sqlalchemy-raw-text-injection
             await self.session.execute(
-                text(f"REFRESH MATERIALIZED VIEW {concurrent_clause} {view_name}")
+                text(
+                    f"REFRESH MATERIALIZED VIEW {concurrent_clause} {view_name}"
+                )  # view_name from MANAGED_VIEWS constant
             )
             await self.session.commit()
             logger.info(f"Refreshed materialized view: {view_name}")
@@ -505,12 +511,14 @@ class MaterializedViewService:
                     continue
 
                 # Get row count - view_name is from MANAGED_VIEWS constant, not user input
+                # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text, sqlalchemy-raw-text-injection
                 count_result = await self.session.execute(
                     text(f"SELECT COUNT(*) FROM {view_name}")  # noqa: S608
                 )
                 row_count = count_result.scalar() or 0
 
                 # Get size - view_name is from MANAGED_VIEWS constant, not user input
+                # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text, sqlalchemy-raw-text-injection
                 size_result = await self.session.execute(
                     text(f"SELECT pg_relation_size('{view_name}')")
                 )
