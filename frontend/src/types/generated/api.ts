@@ -5622,6 +5622,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/gpu-config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get GPU configuration
+         * @description Returns current GPU assignment strategy and service-to-GPU mappings.
+         */
+        get: operations["get_gpu_config_api_system_gpu_config_get"];
+        /**
+         * Update GPU configuration
+         * @description Updates GPU assignments. Does not apply changes - use /apply endpoint.
+         */
+        put: operations["update_gpu_config_api_system_gpu_config_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/gpu-config/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply GPU configuration
+         * @description Applies current config and restarts affected services.
+         */
+        post: operations["apply_gpu_config_api_system_gpu_config_apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/gpu-config/detect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Re-detect GPUs
+         * @description Triggers a fresh GPU scan and updates the database.
+         */
+        post: operations["detect_gpus_api_system_gpu_config_detect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/gpu-config/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview auto-assignment
+         * @description Preview what assignments would result from a given strategy.
+         */
+        get: operations["preview_gpu_config_api_system_gpu_config_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/gpu-config/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get apply operation status
+         * @description Returns current status of GPU configuration apply operation.
+         */
+        get: operations["get_gpu_config_status_api_system_gpu_config_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/gpu/history": {
         parameters: {
             query?: never;
@@ -5643,6 +5747,26 @@ export interface paths {
          *         db: Database session
          */
         get: operations["get_gpu_stats_history_api_system_gpu_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/gpus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List detected GPUs
+         * @description Returns all GPUs detected on the system with hardware specs and utilization.
+         */
+        get: operations["list_gpus_api_system_gpus_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -15693,6 +15817,337 @@ export interface components {
             utilization?: number | null;
         };
         /**
+         * GpuApplyResponse
+         * @description Response schema for applying GPU configuration.
+         *
+         *     Returns the result of applying GPU configuration changes,
+         *     including which services were restarted and any warnings.
+         * @example {
+         *       "restarted_services": [
+         *         "ai-enrichment"
+         *       ],
+         *       "service_statuses": [
+         *         {
+         *           "service": "ai-enrichment",
+         *           "status": "starting"
+         *         }
+         *       ],
+         *       "success": true,
+         *       "warnings": []
+         *     }
+         */
+        GpuApplyResponse: {
+            /**
+             * Restarted Services
+             * @description Services that were restarted to apply changes
+             */
+            restarted_services?: string[];
+            /**
+             * Service Statuses
+             * @description Status of each affected service after apply
+             */
+            service_statuses?: components["schemas"]["ServiceStatus"][];
+            /**
+             * Success
+             * @description Whether the configuration was applied successfully
+             */
+            success: boolean;
+            /**
+             * Warnings
+             * @description Warnings about the configuration
+             */
+            warnings?: string[];
+        };
+        /**
+         * GpuAssignment
+         * @description Schema for a single service-to-GPU assignment.
+         *
+         *     Maps an AI service to a specific GPU with optional VRAM budget override.
+         * @example {
+         *       "gpu_index": 1,
+         *       "service": "ai-enrichment",
+         *       "vram_budget_override": 3.5
+         *     }
+         */
+        GpuAssignment: {
+            /**
+             * Gpu Index
+             * @description Target GPU index (null for auto-assign)
+             */
+            gpu_index?: number | null;
+            /**
+             * Service
+             * @description Service name (e.g., 'ai-llm', 'ai-detector')
+             */
+            service: string;
+            /**
+             * Vram Budget Override
+             * @description Override VRAM budget in GB (for services with dynamic VRAM needs)
+             */
+            vram_budget_override?: number | null;
+        };
+        /**
+         * GpuAssignmentStrategy
+         * @description GPU assignment strategies for AI services.
+         *
+         *     Strategies determine how models are distributed across GPUs:
+         *     - MANUAL: User controls each assignment explicitly
+         *     - VRAM_BASED: Largest models assigned to GPU with most VRAM
+         *     - LATENCY_OPTIMIZED: Critical path models on fastest GPU
+         *     - ISOLATION_FIRST: LLM gets dedicated GPU, others share
+         *     - BALANCED: Distribute VRAM evenly across GPUs
+         * @enum {string}
+         */
+        GpuAssignmentStrategy: "manual" | "vram_based" | "latency_optimized" | "isolation_first" | "balanced";
+        /**
+         * GpuConfigPreviewResponse
+         * @description Response schema for previewing auto-assignment.
+         *
+         *     Returns the proposed assignments for a given strategy without applying.
+         * @example {
+         *       "proposed_assignments": [
+         *         {
+         *           "gpu_index": 0,
+         *           "service": "ai-llm"
+         *         },
+         *         {
+         *           "gpu_index": 0,
+         *           "service": "ai-detector"
+         *         },
+         *         {
+         *           "gpu_index": 1,
+         *           "service": "ai-enrichment",
+         *           "vram_budget_override": 3.5
+         *         }
+         *       ],
+         *       "strategy": "vram_based",
+         *       "warnings": [
+         *         "ai-enrichment VRAM budget (6.8 GB) exceeds GPU 1 (4 GB). Suggested budget: 3.5 GB."
+         *       ]
+         *     }
+         */
+        GpuConfigPreviewResponse: {
+            /**
+             * Proposed Assignments
+             * @description Proposed service-to-GPU assignments
+             */
+            proposed_assignments: components["schemas"]["GpuAssignment"][];
+            /** @description Strategy used for preview */
+            strategy: components["schemas"]["GpuAssignmentStrategy"];
+            /**
+             * Warnings
+             * @description Warnings about the proposed configuration
+             */
+            warnings?: string[];
+        };
+        /**
+         * GpuConfigResponse
+         * @description Response schema for current GPU configuration.
+         *
+         *     Returns the current assignment strategy and all service-to-GPU mappings.
+         * @example {
+         *       "assignments": [
+         *         {
+         *           "gpu_index": 0,
+         *           "service": "ai-llm"
+         *         },
+         *         {
+         *           "gpu_index": 0,
+         *           "service": "ai-detector"
+         *         },
+         *         {
+         *           "gpu_index": 1,
+         *           "service": "ai-enrichment",
+         *           "vram_budget_override": 3.5
+         *         }
+         *       ],
+         *       "strategy": "manual",
+         *       "updated_at": "2026-01-23T10:30:00Z"
+         *     }
+         */
+        GpuConfigResponse: {
+            /**
+             * Assignments
+             * @description List of service-to-GPU assignments
+             */
+            assignments: components["schemas"]["GpuAssignment"][];
+            /** @description Current GPU assignment strategy */
+            strategy: components["schemas"]["GpuAssignmentStrategy"];
+            /**
+             * Updated At
+             * @description Timestamp of last configuration update
+             */
+            updated_at?: string | null;
+        };
+        /**
+         * GpuConfigStatusResponse
+         * @description Response schema for GPU configuration apply status.
+         *
+         *     Returns the current status of a GPU configuration apply operation.
+         * @example {
+         *       "in_progress": false,
+         *       "service_statuses": [
+         *         {
+         *           "service": "ai-enrichment",
+         *           "status": "running"
+         *         }
+         *       ],
+         *       "services_completed": [
+         *         "ai-enrichment"
+         *       ],
+         *       "services_pending": []
+         *     }
+         */
+        GpuConfigStatusResponse: {
+            /**
+             * In Progress
+             * @description Whether an apply operation is currently in progress
+             */
+            in_progress: boolean;
+            /**
+             * Service Statuses
+             * @description Current status of all affected services
+             */
+            service_statuses?: components["schemas"]["ServiceStatus"][];
+            /**
+             * Services Completed
+             * @description Services that have completed restart
+             */
+            services_completed?: string[];
+            /**
+             * Services Pending
+             * @description Services still pending restart
+             */
+            services_pending?: string[];
+        };
+        /**
+         * GpuConfigUpdateRequest
+         * @description Request schema for updating GPU configuration.
+         *
+         *     Allows updating the assignment strategy and/or individual assignments.
+         * @example {
+         *       "assignments": [
+         *         {
+         *           "gpu_index": 0,
+         *           "service": "ai-llm"
+         *         },
+         *         {
+         *           "gpu_index": 0,
+         *           "service": "ai-detector"
+         *         },
+         *         {
+         *           "gpu_index": 1,
+         *           "service": "ai-enrichment",
+         *           "vram_budget_override": 3.5
+         *         }
+         *       ],
+         *       "strategy": "manual"
+         *     }
+         */
+        GpuConfigUpdateRequest: {
+            /**
+             * Assignments
+             * @description Service-to-GPU assignments (null to keep current)
+             */
+            assignments?: components["schemas"]["GpuAssignment"][] | null;
+            /** @description GPU assignment strategy (null to keep current) */
+            strategy?: components["schemas"]["GpuAssignmentStrategy"] | null;
+        };
+        /**
+         * GpuConfigUpdateResponse
+         * @description Response schema for GPU configuration update.
+         *
+         *     Returns success status and any warnings about the configuration.
+         * @example {
+         *       "success": true,
+         *       "warnings": [
+         *         "ai-enrichment VRAM budget (6.8 GB) exceeds GPU 1 (4 GB). Auto-adjusted to 3.5 GB."
+         *       ]
+         *     }
+         */
+        GpuConfigUpdateResponse: {
+            /**
+             * Success
+             * @description Whether the configuration was saved successfully
+             */
+            success: boolean;
+            /**
+             * Warnings
+             * @description Warnings about the configuration (e.g., VRAM overages)
+             */
+            warnings?: string[];
+        };
+        /**
+         * GpuDeviceResponse
+         * @description Response schema for a detected GPU device.
+         *
+         *     Contains metadata about a GPU including VRAM capacity
+         *     and current utilization.
+         * @example {
+         *       "compute_capability": "8.6",
+         *       "index": 0,
+         *       "name": "RTX A5500",
+         *       "vram_total_mb": 24564,
+         *       "vram_used_mb": 19304
+         *     }
+         */
+        GpuDeviceResponse: {
+            /**
+             * Compute Capability
+             * @description CUDA compute capability (e.g., '8.6')
+             */
+            compute_capability?: string | null;
+            /**
+             * Index
+             * @description GPU index (0-based)
+             */
+            index: number;
+            /**
+             * Name
+             * @description GPU name (e.g., 'NVIDIA RTX A5500')
+             */
+            name: string;
+            /**
+             * Vram Total Mb
+             * @description Total VRAM in megabytes
+             */
+            vram_total_mb: number;
+            /**
+             * Vram Used Mb
+             * @description Currently used VRAM in megabytes
+             */
+            vram_used_mb: number;
+        };
+        /**
+         * GpuDevicesResponse
+         * @description Response schema for listing detected GPUs.
+         * @example {
+         *       "gpus": [
+         *         {
+         *           "compute_capability": "8.6",
+         *           "index": 0,
+         *           "name": "RTX A5500",
+         *           "vram_total_mb": 24564,
+         *           "vram_used_mb": 19304
+         *         },
+         *         {
+         *           "compute_capability": "8.6",
+         *           "index": 1,
+         *           "name": "RTX A400",
+         *           "vram_total_mb": 4094,
+         *           "vram_used_mb": 329
+         *         }
+         *       ]
+         *     }
+         */
+        GpuDevicesResponse: {
+            /**
+             * Gpus
+             * @description List of detected GPU devices
+             */
+            gpus: components["schemas"]["GpuDeviceResponse"][];
+        };
+        /**
          * GpuMetrics
          * @description GPU metrics from nvidia-smi / pynvml.
          * @example {
@@ -22234,6 +22689,33 @@ export interface components {
              * @description Seconds since container started (null if not running)
              */
             uptime_seconds?: number | null;
+        };
+        /**
+         * ServiceStatus
+         * @description Schema for service status after GPU config apply.
+         *
+         *     Reports the status of a service after applying GPU configuration changes.
+         * @example {
+         *       "service": "ai-llm",
+         *       "status": "running"
+         *     }
+         */
+        ServiceStatus: {
+            /**
+             * Message
+             * @description Optional status message or error details
+             */
+            message?: string | null;
+            /**
+             * Service
+             * @description Service name
+             */
+            service: string;
+            /**
+             * Status
+             * @description Service status (running, starting, stopped, error)
+             */
+            status: string;
         };
         /**
          * ServicesResponse
@@ -32192,6 +32674,207 @@ export interface operations {
             };
         };
     };
+    get_gpu_config_api_system_gpu_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuConfigResponse"];
+                };
+            };
+            /** @description Failed to load configuration */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_gpu_config_api_system_gpu_config_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GpuConfigUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuConfigUpdateResponse"];
+                };
+            };
+            /** @description Invalid configuration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Failed to save configuration */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    apply_gpu_config_api_system_gpu_config_apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuApplyResponse"];
+                };
+            };
+            /** @description Apply operation already in progress */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to apply configuration */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    detect_gpus_api_system_gpu_config_detect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuDevicesResponse"];
+                };
+            };
+            /** @description GPU detection failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    preview_gpu_config_api_system_gpu_config_preview_get: {
+        parameters: {
+            query: {
+                /** @description Assignment strategy to preview */
+                strategy: components["schemas"]["GpuAssignmentStrategy"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuConfigPreviewResponse"];
+                };
+            };
+            /** @description Invalid strategy */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Preview generation failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_gpu_config_status_api_system_gpu_config_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuConfigStatusResponse"];
+                };
+            };
+        };
+    };
     get_gpu_stats_history_api_system_gpu_history_get: {
         parameters: {
             query?: {
@@ -32221,6 +32904,33 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    list_gpus_api_system_gpus_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GpuDevicesResponse"];
+                };
+            };
+            /** @description GPU detection failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -25,15 +25,15 @@ Enable multi-GPU support for AI services, allowing users to pin specific models 
 
 ## Design Decisions
 
-| Decision               | Choice                                         | Rationale                                       |
-| ---------------------- | ---------------------------------------------- | ----------------------------------------------- |
-| Configuration approach | Hybrid (auto + manual)                         | Sensible defaults with user override capability |
-| Configuration location | UI settings panel                              | User-friendly, no CLI required                  |
-| Assignment strategies  | 4 options (VRAM, latency, isolation, balanced) | Different users have different priorities       |
-| When changes apply     | Container restart via UI                       | Reliable, atomic, user-controlled               |
-| Storage                | Database + config file                         | DB for runtime, file for inspection/recovery    |
-| Validation             | Warn but allow                                 | Informative, not restrictive                    |
-| Runtime errors         | Fallback to available GPU                      | Graceful degradation                            |
+| Decision               | Choice                                                 | Rationale                                       |
+| ---------------------- | ------------------------------------------------------ | ----------------------------------------------- |
+| Configuration approach | Hybrid (auto + manual)                                 | Sensible defaults with user override capability |
+| Configuration location | UI settings panel                                      | User-friendly, no CLI required                  |
+| Assignment strategies  | 5 options (manual, VRAM, latency, isolation, balanced) | Different users have different priorities       |
+| When changes apply     | Container restart via UI                               | Reliable, atomic, user-controlled               |
+| Storage                | Database + config file                                 | DB for runtime, file for inspection/recovery    |
+| Validation             | Warn but allow                                         | Informative, not restrictive                    |
+| Runtime errors         | Fallback to available GPU                              | Graceful degradation                            |
 
 ## Architecture
 
