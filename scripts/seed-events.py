@@ -2484,8 +2484,8 @@ async def seed_jobs(num_jobs: int = 20) -> tuple[int, list[str]]:
                 completed_at = started_at + timedelta(minutes=random.randint(5, 15))  # noqa: S311
                 progress = random.randint(10, 90)  # noqa: S311
                 result = None
-                error_message = random.choice(
-                    [  # noqa: S311
+                error_message = random.choice(  # noqa: S311
+                    [
                         "GPU OOM at frame 73",
                         "Connection timeout to AI service",
                         "Invalid input file format",
@@ -2835,8 +2835,8 @@ async def seed_export_jobs(num_exports: int = 10) -> int:
                 status = ExportJobStatus.FAILED
                 progress = random.randint(10, 80)  # noqa: S311
                 completed_at = datetime.now(UTC) - timedelta(hours=random.randint(1, 12))  # noqa: S311
-                error = random.choice(
-                    [  # noqa: S311
+                error = random.choice(  # noqa: S311
+                    [
                         "Disk space exceeded",
                         "Invalid time range",
                         "Camera not available",
@@ -3300,8 +3300,8 @@ async def seed_event_feedback(feedback_rate: float = 0.3) -> int:
                 expected_severity = random.choice(other_severities)  # noqa: S311
                 notes = f"Should have been {expected_severity}, not {current_severity}"
             elif feedback_type == FeedbackType.FALSE_POSITIVE:
-                notes = random.choice(
-                    [  # noqa: S311
+                notes = random.choice(  # noqa: S311
+                    [
                         "This was just my neighbor",
                         "Regular delivery person",
                         "Family member coming home",
@@ -3309,8 +3309,8 @@ async def seed_event_feedback(feedback_rate: float = 0.3) -> int:
                     ]
                 )
             elif feedback_type == FeedbackType.MISSED_THREAT:
-                notes = random.choice(
-                    [  # noqa: S311
+                notes = random.choice(  # noqa: S311
+                    [
                         "Someone was lurking in background",
                         "Suspicious vehicle was parked",
                         "Person was checking doors",
@@ -3569,7 +3569,9 @@ async def seed_experimentation_feedback_layer() -> dict[str, int]:
 async def seed_zone_activity_baselines() -> int:
     """Create per-zone activity baseline statistics.
 
-    Generates historical activity patterns for each zone by hour and day of week.
+    Generates one baseline per zone with aggregated hourly/daily patterns.
+    The new schema stores arrays of hourly (24 values) and daily (7 values)
+    patterns instead of individual rows per hour/day/class.
 
     Returns:
         Number of zone activity baselines created
@@ -3600,69 +3602,79 @@ async def seed_zone_activity_baselines() -> int:
         print("  Warning: No camera zones found.")
         return 0
 
-    detection_classes = ["person", "vehicle", "animal", "all"]
     created = 0
 
     async with get_session() as session:
         for zone in zones:
-            for detection_class in detection_classes:
-                for day_of_week in range(7):  # 0=Monday to 6=Sunday
-                    for hour in range(24):
-                        # Generate unique ID
-                        baseline_id = f"{zone.id}_{detection_class}_{day_of_week}_{hour}"
+            # Check if baseline already exists for this zone
+            existing = await session.execute(
+                select(ZoneActivityBaseline).where(ZoneActivityBaseline.zone_id == zone.id)
+            )
+            if existing.scalar_one_or_none():
+                continue
 
-                        # Check if baseline already exists
-                        existing = await session.execute(
-                            select(ZoneActivityBaseline).where(
-                                ZoneActivityBaseline.id == baseline_id
-                            )
-                        )
-                        if existing.scalar_one_or_none():
-                            continue
+            # Generate hourly activity pattern (24 values)
+            # Higher activity during day (6am-6pm), lower at night
+            hourly_pattern = []
+            hourly_std = []
+            for hour in range(24):
+                if 6 <= hour < 9 or 17 <= hour < 20:  # Rush hours
+                    base = 5.0 * random.uniform(0.8, 1.2)  # noqa: S311
+                elif 9 <= hour < 17:  # Daytime
+                    base = 3.0 * random.uniform(0.8, 1.2)  # noqa: S311
+                elif hour >= 20 or hour < 6:  # Night
+                    base = 0.5 * random.uniform(0.8, 1.2)  # noqa: S311
+                else:
+                    base = 1.5 * random.uniform(0.8, 1.2)  # noqa: S311
+                hourly_pattern.append(round(base, 2))
+                hourly_std.append(round(base * random.uniform(0.2, 0.4), 2))  # noqa: S311
 
-                        # Generate realistic activity patterns
-                        # Higher activity during day, lower at night
-                        base_activity = 2.0 if detection_class == "person" else 1.0
-                        if detection_class == "vehicle":
-                            base_activity = 1.5
-                        elif detection_class == "animal":
-                            base_activity = 0.3
+            # Generate daily activity pattern (7 values, Monday=0 to Sunday=6)
+            # Slightly less activity on weekends
+            daily_pattern = []
+            daily_std = []
+            for day in range(7):
+                if day >= 5:  # Weekend
+                    base = 8.0 * random.uniform(0.8, 1.0)  # noqa: S311
+                else:  # Weekday
+                    base = 10.0 * random.uniform(0.9, 1.1)  # noqa: S311
+                daily_pattern.append(round(base, 2))
+                daily_std.append(round(base * random.uniform(0.15, 0.3), 2))  # noqa: S311
 
-                        # Time-based modifiers
-                        if 6 <= hour < 9 or 17 <= hour < 20:  # Rush hours
-                            time_modifier = 1.5
-                        elif 9 <= hour < 17:  # Daytime
-                            time_modifier = 1.0
-                        elif hour >= 20 or hour < 6:  # Night
-                            time_modifier = 0.3
-                        else:
-                            time_modifier = 0.5
+            # Entity class distribution
+            entity_class_distribution = {
+                "person": random.randint(40, 60),  # noqa: S311
+                "vehicle": random.randint(20, 35),  # noqa: S311
+                "animal": random.randint(5, 15),  # noqa: S311
+            }
 
-                        # Weekend modifier
-                        if day_of_week >= 5:  # Weekend
-                            time_modifier *= 0.8
+            # Calculate daily count statistics
+            mean_daily = sum(hourly_pattern) * random.uniform(0.9, 1.1)  # noqa: S311
+            std_daily = mean_daily * random.uniform(0.2, 0.35)  # noqa: S311
+            min_daily = max(0, int(mean_daily - 2 * std_daily))
+            max_daily = int(mean_daily + 3 * std_daily)
 
-                        mean_count = base_activity * time_modifier * random.uniform(0.8, 1.2)  # noqa: S311
-                        std_dev = mean_count * random.uniform(0.2, 0.4)  # noqa: S311
-                        min_count = max(0, int(mean_count - 2 * std_dev))
-                        max_count = int(mean_count + 3 * std_dev)
-
-                        baseline = ZoneActivityBaseline(
-                            id=baseline_id,
-                            zone_id=zone.id,
-                            camera_id=zone.camera_id,
-                            hour_of_day=hour,
-                            day_of_week=day_of_week,
-                            detection_class=detection_class,
-                            sample_count=random.randint(15, 50),  # noqa: S311
-                            mean_count=round(mean_count, 2),
-                            std_dev=round(std_dev, 2),
-                            min_count=min_count,
-                            max_count=max_count,
-                            last_updated=datetime.now(UTC) - timedelta(hours=random.randint(1, 48)),  # noqa: S311
-                        )
-                        session.add(baseline)
-                        created += 1
+            baseline = ZoneActivityBaseline(
+                zone_id=zone.id,
+                camera_id=zone.camera_id,
+                hourly_pattern=hourly_pattern,
+                hourly_std=hourly_std,
+                daily_pattern=daily_pattern,
+                daily_std=daily_std,
+                entity_class_distribution=entity_class_distribution,
+                mean_daily_count=round(mean_daily, 2),
+                std_daily_count=round(std_daily, 2),
+                min_daily_count=min_daily,
+                max_daily_count=max_daily,
+                typical_crossing_rate=round(random.uniform(5.0, 15.0), 2),  # noqa: S311
+                typical_crossing_std=round(random.uniform(2.0, 5.0), 2),  # noqa: S311
+                typical_dwell_time=round(random.uniform(20.0, 60.0), 2),  # noqa: S311
+                typical_dwell_std=round(random.uniform(8.0, 20.0), 2),  # noqa: S311
+                sample_count=random.randint(30, 90),  # noqa: S311
+                last_updated=datetime.now(UTC) - timedelta(hours=random.randint(1, 48)),  # noqa: S311
+            )
+            session.add(baseline)
+            created += 1
 
         await session.commit()
 

@@ -60,17 +60,23 @@ async def sample_zone(db_session, sample_camera) -> CameraZone:
 async def sample_baseline(db_session, sample_zone) -> ZoneActivityBaseline:
     """Create a sample baseline for testing."""
     baseline = ZoneActivityBaseline(
-        zone_id=uuid.UUID(sample_zone.id),
+        zone_id=sample_zone.id,
+        camera_id=sample_zone.camera_id,
         sample_count=100,
         hourly_pattern=[0.0] * 6 + [5.0] * 12 + [0.0] * 6,  # Activity 6am-6pm
         hourly_std=[0.0] * 6 + [1.0] * 12 + [0.0] * 6,
-        dow_pattern=[10.0] * 5 + [5.0] * 2,  # Less on weekends
-        dow_std=[2.0] * 7,
+        daily_pattern=[10.0] * 5 + [5.0] * 2,  # Less on weekends
+        daily_std=[2.0] * 7,
+        entity_class_distribution={"person": 50, "vehicle": 30},
+        mean_daily_count=30.0,
+        std_daily_count=8.0,
+        min_daily_count=10,
+        max_daily_count=60,
         typical_dwell_time=30.0,
         typical_dwell_std=10.0,
         typical_crossing_rate=5.0,
         typical_crossing_std=2.0,
-        last_computed=datetime.now(UTC),
+        last_updated=datetime.now(UTC),
     )
     db_session.add(baseline)
     await db_session.flush()
