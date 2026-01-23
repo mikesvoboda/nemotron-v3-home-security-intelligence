@@ -2942,7 +2942,7 @@ class EnrichmentPipeline:
                         exc_info=True,
                     )
 
-    async def _run_household_matching(  # noqa: PLR0912
+    async def _run_household_matching(
         self,
         detections: list[DetectionInput],
         result: EnrichmentResult,
