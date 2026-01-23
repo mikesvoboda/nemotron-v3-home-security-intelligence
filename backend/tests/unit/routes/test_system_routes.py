@@ -1340,8 +1340,14 @@ async def test_get_health_all_healthy() -> None:
     redis = AsyncMock()
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
+    # Mock settings to avoid environment validation issues
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.nemotron_url = "http://localhost:8002"
+
     # Patch AI health check to avoid network calls
     with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
             "_check_rtdetr_health_with_circuit_breaker",
@@ -1381,8 +1387,14 @@ async def test_get_health_degraded_when_redis_unhealthy() -> None:
         return_value={"status": "unhealthy", "error": "connection refused"}
     )
 
+    # Mock settings to avoid environment validation issues
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.nemotron_url = "http://localhost:8002"
+
     # Patch AI health check to avoid network calls
     with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
             "_check_rtdetr_health_with_circuit_breaker",
@@ -1416,8 +1428,14 @@ async def test_get_health_unhealthy_when_database_down() -> None:
     redis = AsyncMock()
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
+    # Mock settings to avoid environment validation issues
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.nemotron_url = "http://localhost:8002"
+
     # Patch AI health check to avoid network calls
     with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
             "_check_rtdetr_health_with_circuit_breaker",
@@ -1450,8 +1468,14 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
     redis = AsyncMock()
     redis.health_check = AsyncMock(return_value={"status": "unhealthy", "error": "redis error"})
 
+    # Mock settings to avoid environment validation issues
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.nemotron_url = "http://localhost:8002"
+
     # Patch AI health check to avoid network calls
     with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
             "_check_rtdetr_health_with_circuit_breaker",
@@ -1484,8 +1508,14 @@ async def test_get_health_redis_none() -> None:
     mock_result.scalar_one.return_value = 5
     db.execute = AsyncMock(return_value=mock_result)
 
+    # Mock settings to avoid environment validation issues
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.nemotron_url = "http://localhost:8002"
+
     # Patch AI health check to avoid network calls
     with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
             "_check_rtdetr_health_with_circuit_breaker",
@@ -2718,7 +2748,13 @@ async def test_check_nemotron_health_unexpected_error() -> None:
 @pytest.mark.asyncio
 async def test_check_ai_services_health_both_healthy() -> None:
     """Test AI services health check when both services are healthy."""
+    # Mock settings to avoid environment validation issues
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.nemotron_url = "http://localhost:8002"
+
     with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
             "_check_rtdetr_health_with_circuit_breaker",
@@ -2742,7 +2778,13 @@ async def test_check_ai_services_health_both_healthy() -> None:
 @pytest.mark.asyncio
 async def test_check_ai_services_health_rtdetr_down() -> None:
     """Test AI services health check when RT-DETR is down but Nemotron is up."""
+    # Mock settings to avoid environment validation issues
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.nemotron_url = "http://localhost:8002"
+
     with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
             "_check_rtdetr_health_with_circuit_breaker",
@@ -2769,7 +2811,13 @@ async def test_check_ai_services_health_rtdetr_down() -> None:
 @pytest.mark.asyncio
 async def test_check_ai_services_health_nemotron_down() -> None:
     """Test AI services health check when Nemotron is down but RT-DETR is up."""
+    # Mock settings to avoid environment validation issues
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.nemotron_url = "http://localhost:8002"
+
     with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
             "_check_rtdetr_health_with_circuit_breaker",
@@ -2796,7 +2844,13 @@ async def test_check_ai_services_health_nemotron_down() -> None:
 @pytest.mark.asyncio
 async def test_check_ai_services_health_both_down() -> None:
     """Test AI services health check when both services are down."""
+    # Mock settings to avoid environment validation issues
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.nemotron_url = "http://localhost:8002"
+
     with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
             "_check_rtdetr_health_with_circuit_breaker",
@@ -2829,8 +2883,14 @@ async def test_ai_health_check_timeout_constant_is_reasonable() -> None:
 @pytest.mark.asyncio
 async def test_check_ai_services_health_returns_details() -> None:
     """Test that AI services health check always returns details dict."""
+    # Mock settings to avoid environment validation issues
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.nemotron_url = "http://localhost:8002"
+
     # Both services down should still populate details
     with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
             "_check_rtdetr_health_with_circuit_breaker",
