@@ -118,6 +118,7 @@ class TokenCounter:
         context_window: Maximum context window size in tokens
         max_output_tokens: Tokens reserved for LLM output
         warning_threshold: Utilization threshold for warnings (0.0 to 1.0)
+        model_name: Name of the LLM model (for metrics labeling)
     """
 
     def __init__(
@@ -126,6 +127,7 @@ class TokenCounter:
         context_window: int | None = None,
         max_output_tokens: int | None = None,
         warning_threshold: float | None = None,
+        model_name: str | None = None,
     ):
         """Initialize the token counter.
 
@@ -134,6 +136,7 @@ class TokenCounter:
             context_window: Max context window. Defaults to settings.nemotron_context_window
             max_output_tokens: Output tokens. Defaults to settings.nemotron_max_output_tokens
             warning_threshold: Warning threshold. Defaults to settings.context_utilization_warning_threshold
+            model_name: Name of the LLM model. Defaults to settings.nemotron_model_name or "nemotron-mini"
         """
         settings = get_settings()
 
@@ -141,6 +144,12 @@ class TokenCounter:
         self.context_window = context_window or settings.nemotron_context_window
         self.max_output_tokens = max_output_tokens or settings.nemotron_max_output_tokens
         self.warning_threshold = warning_threshold or settings.context_utilization_warning_threshold
+        # NEM-3288: Model name for context utilization metrics
+        # Ensure model_name is always a string (never None)
+        _model_name = (
+            model_name or getattr(settings, "nemotron_model_name", None) or "nemotron-mini"
+        )
+        self.model_name: str = _model_name
 
         # Validate max_output_tokens fits in context window
         if self.max_output_tokens >= self.context_window:
@@ -198,9 +207,15 @@ class TokenCounter:
         utilization = prompt_tokens / available_tokens if available_tokens > 0 else 1.0
 
         # Record metrics
-        from backend.core.metrics import observe_context_utilization
+        from backend.core.metrics import (
+            observe_context_utilization,
+            set_llm_context_utilization_ratio,
+        )
 
         observe_context_utilization(utilization)
+        # NEM-3288: Also set the gauge metric for current context utilization
+        # This enables Grafana dashboards to show real-time utilization
+        set_llm_context_utilization_ratio(model=self.model_name, utilization=utilization)
 
         is_valid = prompt_tokens <= available_tokens
         warning = None
