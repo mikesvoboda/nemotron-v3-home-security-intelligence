@@ -82,6 +82,7 @@ const useAuditLogsInfiniteQueryInternal = createInfiniteQueryHook<
   },
   getFilters: (options) => options.filters,
   defaultRetry: 1, // Default to 1 retry for faster failure feedback in list views
+  defaultMaxPages: 10, // Limit stored pages for bounded memory (NEM-3362)
 });
 
 /**

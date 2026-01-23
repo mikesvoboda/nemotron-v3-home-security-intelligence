@@ -16,6 +16,19 @@ import path from 'path';
  *
  * Run `npm run analyze` to generate a visual bundle analysis report.
  * The report will be written to stats.html in the project root.
+ *
+ * Advanced Build Optimizations:
+ * - Module Preloading (NEM-3387): Configures modulepreload polyfill and strategy
+ * - CSS Build Optimization (NEM-3388): PostCSS/Tailwind with esbuild minification
+ * - Dynamic Import Chunk Naming (NEM-3438): Consistent [name]-[hash].js pattern
+ * - Framer Motion Optimization (NEM-3439): Separate chunk for tree-shaking
+ *
+ * Vite Build Optimizations (NEM-3384 to NEM-3437):
+ * - Manual Chunks (NEM-3384): Function-based chunk splitting for better caching
+ * - Build Target (NEM-3385): Explicit ES2020 target with esbuild options
+ * - Dependency Optimization (NEM-3386): Pre-bundles common dependencies
+ * - Barrel File Tree Shaking (NEM-3436): Configures proper tree shaking
+ * - Dev Server Warmup (NEM-3437): Warms up critical entry points
  */
 
 export default defineConfig(({ mode }) => {
@@ -158,8 +171,81 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
       },
+      // NEM-3437: Dev server warmup configuration
+      // Pre-transform critical entry points for faster initial page loads
+      warmup: {
+        // Client-side files to pre-transform on dev server start
+        clientFiles: [
+          // Main entry point
+          './src/main.tsx',
+          // Core app structure
+          './src/App.tsx',
+          // Critical components loaded on first page
+          './src/components/dashboard/DashboardPage.tsx',
+          './src/components/layout/Layout.tsx',
+          './src/components/layout/Sidebar.tsx',
+          // Core hooks and services
+          './src/hooks/useEvents.ts',
+          './src/hooks/useWebSocket.ts',
+          './src/services/api.ts',
+          // Style entry point
+          './src/styles/index.css',
+        ],
+      },
+    },
+    // NEM-3386: Dependency pre-bundling optimization for faster dev server
+    optimizeDeps: {
+      // Explicitly include commonly used dependencies for pre-bundling
+      // This improves dev server cold start time by preparing these upfront
+      include: [
+        // React ecosystem
+        'react',
+        'react-dom',
+        'react-dom/client',
+        'react-router-dom',
+        // UI libraries
+        '@tremor/react',
+        '@headlessui/react',
+        'lucide-react',
+        'framer-motion',
+        // State management
+        'zustand',
+        '@tanstack/react-query',
+        // Form handling
+        'react-hook-form',
+        '@hookform/resolvers',
+        'zod',
+        // Utilities
+        'clsx',
+        'date-fns',
+        'sonner',
+        // Data compression
+        'pako',
+        'lru-cache',
+      ],
+      // Exclude packages that should not be pre-bundled
+      // (e.g., packages with special ESM handling requirements)
+      exclude: [
+        // PWA-related packages work better when not pre-bundled
+        'workbox-window',
+      ],
+      // Force re-optimization when these change
+      // This ensures pre-bundled deps stay in sync with actual usage
+      entries: ['./src/main.tsx', './index.html'],
+      // Enable esbuild optimization for pre-bundling
+      esbuildOptions: {
+        // Target modern browsers for better tree shaking
+        target: 'es2020',
+        // Enable JSX automatic runtime
+        jsx: 'automatic',
+      },
     },
     build: {
+      // NEM-3385: Explicit build target for consistent output
+      // ES2020 provides good browser support while enabling modern features
+      target: 'es2020',
+      // Minification options via esbuild
+      minify: 'esbuild',
       // Generate hidden source maps for production debugging
       // 'hidden' generates .map files but doesn't add //# sourceMappingURL= comment to bundles
       // This allows debugging via browser DevTools source map upload or error tracking services
@@ -167,17 +253,117 @@ export default defineConfig(({ mode }) => {
       sourcemap: 'hidden',
       // Chunk size warning limit (in KB)
       chunkSizeWarningLimit: 500,
-      rollupOptions: {
-        output: {
-          // Manual chunk splitting for optimal caching
-          manualChunks: {
-            // Vendor chunks - split large dependencies for better caching
-            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-ui': ['@tremor/react', '@headlessui/react', 'lucide-react'],
-            'vendor-utils': ['clsx', 'tailwind-merge'],
-          },
+      // Module preloading configuration (NEM-3387)
+      // Polyfill ensures modulepreload works in older browsers
+      // resolveDependencies enables selective preloading of critical chunks
+      modulePreload: {
+        polyfill: true,
+        resolveDependencies: (filename, deps) => {
+          // Preload critical vendor chunks when main bundle loads
+          // This improves perceived performance by loading dependencies early
+          const criticalChunks = ['vendor-react', 'vendor-ui'];
+          return deps.filter((dep) => criticalChunks.some((chunk) => dep.includes(chunk)));
         },
       },
+      // CSS Minification (NEM-3388): Using esbuild (default) for Tailwind compatibility
+      // Note: lightningcss is incompatible with Tailwind's @apply/@tailwind directives
+      // and arbitrary selector syntax (e.g., [appearance:textfield])
+      rollupOptions: {
+        output: {
+          // Dynamic import chunk naming convention (NEM-3438)
+          // Consistent [name]-[hash].js pattern for better cache management
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash][extname]',
+          // NEM-3384: Function-based manual chunk splitting for optimal caching
+          // Separates vendor code into logical groups that change at different rates
+          manualChunks: (id: string) => {
+            // React core - changes rarely, cache aggressively
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+              return 'vendor-react';
+            }
+
+            // React Router - changes independently from React core
+            if (id.includes('node_modules/react-router')) {
+              return 'vendor-router';
+            }
+
+            // UI component libraries - @tremor, @headlessui
+            if (id.includes('node_modules/@tremor/') || id.includes('node_modules/@headlessui/')) {
+              return 'vendor-ui-components';
+            }
+
+            // Icon library - large but rarely changes
+            if (id.includes('node_modules/lucide-react')) {
+              return 'vendor-icons';
+            }
+
+            // State management - zustand, tanstack-query
+            if (id.includes('node_modules/zustand') || id.includes('node_modules/@tanstack/')) {
+              return 'vendor-state';
+            }
+
+            // Animation library - framer-motion is large (NEM-3439)
+            if (id.includes('node_modules/framer-motion')) {
+              return 'vendor-animation';
+            }
+
+            // Form handling - react-hook-form, zod, hookform/resolvers
+            if (
+              id.includes('node_modules/react-hook-form') ||
+              id.includes('node_modules/@hookform/') ||
+              id.includes('node_modules/zod')
+            ) {
+              return 'vendor-forms';
+            }
+
+            // Date utilities
+            if (id.includes('node_modules/date-fns')) {
+              return 'vendor-date';
+            }
+
+            // General utilities - clsx, other small utils
+            if (
+              id.includes('node_modules/clsx') ||
+              id.includes('node_modules/tailwind-merge') ||
+              id.includes('node_modules/pako') ||
+              id.includes('node_modules/lru-cache') ||
+              id.includes('node_modules/dompurify')
+            ) {
+              return 'vendor-utils';
+            }
+
+            // Remaining node_modules go to a general vendor chunk
+            if (id.includes('node_modules')) {
+              return 'vendor-misc';
+            }
+
+            // NEM-3436: Barrel file tree shaking optimization
+            // Let application code be split naturally by Rollup for better tree shaking
+            // Return undefined to let Rollup decide based on import graph
+            return undefined;
+          },
+        },
+        // NEM-3436: Tree shaking configuration for barrel files
+        // Enables aggressive dead code elimination for barrel exports
+        treeshake: {
+          // Enable aggressive tree shaking - external modules not assumed to have side effects
+          moduleSideEffects: 'no-external',
+          // Treat property access as side-effect free for better elimination
+          propertyReadSideEffects: false,
+          // Remove unused exports from chunks
+          tryCatchDeoptimization: false,
+        },
+      },
+    },
+    // CSS Configuration (NEM-3388)
+    // Using PostCSS with Tailwind (defined in postcss.config.js)
+    // Note: lightningcss incompatible with Tailwind's @apply/@tailwind directives
+    // esbuild handles CSS minification (default) for best compatibility
+    css: {
+      // PostCSS config is auto-detected from postcss.config.js
+      // Includes Tailwind CSS and Autoprefixer
+      devSourcemap: true, // Source maps for dev debugging
     },
     test: {
       globals: true,

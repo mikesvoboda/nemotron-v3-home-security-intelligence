@@ -394,21 +394,24 @@ class TestExportRateLimiting:
     @pytest.mark.asyncio
     async def test_export_rate_limit_under_limit_allowed(self, mock_redis, mock_request):
         """Test that export requests under limit are allowed."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_EXPORT_REQUESTS_PER_MINUTE": "10",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_EXPORT_REQUESTS_PER_MINUTE": "10",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(True, 5),  # allowed, count=5
+            ),
         ):
             from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # Mock Redis returning count under limit (5 requests, limit is 10)
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 5, 1, True])
 
             limiter = RateLimiter(tier=RateLimitTier.EXPORT)
             is_allowed, count, limit = await limiter._check_rate_limit(mock_redis, "192.168.1.100")
@@ -421,21 +424,24 @@ class TestExportRateLimiting:
     @pytest.mark.asyncio
     async def test_export_rate_limit_at_limit_denied(self, mock_redis, mock_request):
         """Test that export requests at the limit are denied."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_EXPORT_REQUESTS_PER_MINUTE": "10",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_EXPORT_REQUESTS_PER_MINUTE": "10",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(False, 10),  # denied, count=10 (at limit)
+            ),
         ):
             from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # Mock Redis returning count at limit (10 requests, limit is 10 with no burst)
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 10, 1, True])
 
             limiter = RateLimiter(tier=RateLimitTier.EXPORT)
             is_allowed, count, limit = await limiter._check_rate_limit(mock_redis, "192.168.1.100")
@@ -459,14 +465,16 @@ class TestExportRateLimiting:
 
             get_settings.cache_clear()
 
-            # Mock Redis returning count over limit
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 15, 1, True])
+            # Mock the Lua script to return denied (count over limit)
+            with patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(False, 15),  # denied, count=15
+            ):
+                limiter = RateLimiter(tier=RateLimitTier.EXPORT)
 
-            limiter = RateLimiter(tier=RateLimitTier.EXPORT)
-
-            with pytest.raises(HTTPException) as exc_info:
-                await limiter(mock_request, mock_redis)
+                with pytest.raises(HTTPException) as exc_info:
+                    await limiter(mock_request, mock_redis)
 
             assert exc_info.value.status_code == status.HTTP_429_TOO_MANY_REQUESTS
             assert "Too many requests" in exc_info.value.detail["error"]
@@ -487,13 +495,16 @@ class TestExportRateLimiting:
 
             get_settings.cache_clear()
 
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 15, 1, True])
+            # Mock the Lua script to return denied (count over limit)
+            with patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(False, 15),  # denied, count=15
+            ):
+                limiter = RateLimiter(tier=RateLimitTier.EXPORT)
 
-            limiter = RateLimiter(tier=RateLimitTier.EXPORT)
-
-            with pytest.raises(HTTPException) as exc_info:
-                await limiter(mock_request, mock_redis)
+                with pytest.raises(HTTPException) as exc_info:
+                    await limiter(mock_request, mock_redis)
 
             headers = exc_info.value.headers
             assert "Retry-After" in headers
@@ -514,13 +525,16 @@ class TestExportRateLimiting:
 
             get_settings.cache_clear()
 
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 15, 1, True])
+            # Mock the Lua script to return denied (count over limit)
+            with patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(False, 15),  # denied, count=15
+            ):
+                limiter = RateLimiter(tier=RateLimitTier.EXPORT)
 
-            limiter = RateLimiter(tier=RateLimitTier.EXPORT)
-
-            with pytest.raises(HTTPException) as exc_info:
-                await limiter(mock_request, mock_redis)
+                with pytest.raises(HTTPException) as exc_info:
+                    await limiter(mock_request, mock_redis)
 
             headers = exc_info.value.headers
             assert "X-RateLimit-Limit" in headers
@@ -546,20 +560,24 @@ class TestExportRateLimiting:
     @pytest.mark.asyncio
     async def test_export_rate_limit_redis_error_fails_open(self, mock_redis, mock_request):
         """Test that Redis errors result in allowing requests (fail-open)."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_EXPORT_REQUESTS_PER_MINUTE": "10",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_EXPORT_REQUESTS_PER_MINUTE": "10",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                side_effect=Exception("Redis connection failed"),
+            ),
         ):
             from backend.api.middleware.rate_limit import RateLimiter, RateLimitTier
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # Mock Redis error
-            mock_redis._ensure_connected.side_effect = Exception("Redis connection failed")
 
             limiter = RateLimiter(tier=RateLimitTier.EXPORT)
             is_allowed, count, _limit = await limiter._check_rate_limit(mock_redis, "192.168.1.100")

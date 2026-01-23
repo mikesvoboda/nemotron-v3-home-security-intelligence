@@ -469,6 +469,8 @@ services:
       # Custom certificate paths (relative to /etc/nginx/certs mount)
       - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}
       - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}
+      # HTTPS port for redirect (must match external port mapping)
+      - FRONTEND_HTTPS_PORT=${FRONTEND_HTTPS_PORT:-8443}
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.

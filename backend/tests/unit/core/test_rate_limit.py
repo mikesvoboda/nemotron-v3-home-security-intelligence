@@ -7,6 +7,7 @@ Tests cover:
 - Client IP extraction
 - Redis failure handling (fail-open)
 - CIDR network caching for performance
+- Atomic Lua script execution for rate limiting
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from backend.api.middleware.rate_limit import (
     _is_ip_trusted,
     _trusted_proxy_cache,
     check_websocket_rate_limit,
+    clear_lua_script_cache,
     clear_trusted_proxy_cache,
     get_client_ip,
     get_tier_limits,
@@ -44,32 +46,21 @@ def reset_settings_cache():
     from backend.core.config import get_settings
 
     get_settings.cache_clear()
-    # Also clear the trusted proxy cache
+    # Also clear the trusted proxy cache and Lua script cache
     clear_trusted_proxy_cache()
+    clear_lua_script_cache()
     yield
     get_settings.cache_clear()
     clear_trusted_proxy_cache()
+    clear_lua_script_cache()
 
 
 @pytest.fixture
 def mock_redis():
-    """Create a mock Redis client with properly mocked pipeline."""
+    """Create a mock Redis client for rate limiting tests."""
     mock = MagicMock()
     mock._client = MagicMock()
-
-    # Create a mock pipeline that supports async context
-    mock_pipe = MagicMock()
-    mock_pipe.zremrangebyscore = MagicMock()
-    mock_pipe.zcard = MagicMock()
-    mock_pipe.zadd = MagicMock()
-    mock_pipe.expire = MagicMock()
-    mock_pipe.execute = AsyncMock(return_value=[0, 5, 1, True])
-
-    # _ensure_connected is a sync method that returns a Redis client
-    mock_redis_client = MagicMock()
-    mock_redis_client.pipeline = MagicMock(return_value=mock_pipe)
-    mock._ensure_connected = MagicMock(return_value=mock_redis_client)
-
+    mock._ensure_connected = MagicMock(return_value=MagicMock())
     return mock
 
 
@@ -618,17 +609,20 @@ class TestRateLimiter:
     @pytest.mark.asyncio
     async def test_check_rate_limit_under_limit(self, mock_redis):
         """Test request allowed when under limit."""
-        with patch.dict(
-            os.environ,
-            {"RATE_LIMIT_ENABLED": "true", "RATE_LIMIT_REQUESTS_PER_MINUTE": "60"},
+        with (
+            patch.dict(
+                os.environ,
+                {"RATE_LIMIT_ENABLED": "true", "RATE_LIMIT_REQUESTS_PER_MINUTE": "60"},
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(True, 5),  # allowed, count=5
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # Update the mock pipeline execute return value (5 current requests)
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 5, 1, True])
 
             limiter = RateLimiter(tier=RateLimitTier.DEFAULT)
             is_allowed, count, _limit = await limiter._check_rate_limit(mock_redis, "192.168.1.1")
@@ -639,21 +633,24 @@ class TestRateLimiter:
     @pytest.mark.asyncio
     async def test_check_rate_limit_over_limit(self, mock_redis):
         """Test request denied when over limit."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_REQUESTS_PER_MINUTE": "60",
-                "RATE_LIMIT_BURST": "10",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_REQUESTS_PER_MINUTE": "60",
+                    "RATE_LIMIT_BURST": "10",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(False, 70),  # denied, count=70
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # Mock Redis returning count at limit (60 + 10 = 70)
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 70, 1, True])
 
             limiter = RateLimiter(tier=RateLimitTier.DEFAULT)
             is_allowed, count, limit = await limiter._check_rate_limit(mock_redis, "192.168.1.1")
@@ -665,13 +662,17 @@ class TestRateLimiter:
     @pytest.mark.asyncio
     async def test_check_rate_limit_redis_error_fails_open(self, mock_redis):
         """Test that Redis errors result in allowing the request (fail-open)."""
-        with patch.dict(os.environ, {"RATE_LIMIT_ENABLED": "true"}):
+        with (
+            patch.dict(os.environ, {"RATE_LIMIT_ENABLED": "true"}),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                side_effect=Exception("Redis connection failed"),
+            ),
+        ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # Mock Redis error
-            mock_redis._ensure_connected.side_effect = Exception("Redis connection failed")
 
             limiter = RateLimiter()
             is_allowed, count, _limit = await limiter._check_rate_limit(mock_redis, "192.168.1.1")
@@ -683,21 +684,24 @@ class TestRateLimiter:
     @pytest.mark.asyncio
     async def test_call_raises_429_when_limited(self, mock_request, mock_redis):
         """Test that __call__ raises HTTPException with 429 status."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_REQUESTS_PER_MINUTE": "10",
-                "RATE_LIMIT_BURST": "1",  # Minimum valid burst
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_REQUESTS_PER_MINUTE": "10",
+                    "RATE_LIMIT_BURST": "1",  # Minimum valid burst
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(False, 15),  # denied, count=15 (over limit of 11)
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # Mock Redis returning count over limit (10 + 1 burst = 11)
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 15, 1, True])
 
             limiter = RateLimiter()
 
@@ -711,20 +715,24 @@ class TestRateLimiter:
     @pytest.mark.asyncio
     async def test_call_includes_rate_limit_headers(self, mock_request, mock_redis):
         """Test that 429 response includes rate limit headers."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_REQUESTS_PER_MINUTE": "10",
-                "RATE_LIMIT_BURST": "5",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_REQUESTS_PER_MINUTE": "10",
+                    "RATE_LIMIT_BURST": "5",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(False, 20),  # denied, count=20 (over limit of 15)
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 20, 1, True])
 
             limiter = RateLimiter()
 
@@ -749,19 +757,23 @@ class TestWebSocketRateLimiting:
     @pytest.mark.asyncio
     async def test_websocket_rate_limit_allowed(self, mock_websocket, mock_redis):
         """Test WebSocket connection allowed when under limit."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "10",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "10",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(True, 3),  # allowed, count=3
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 3, 1, True])
 
             result = await check_websocket_rate_limit(mock_websocket, mock_redis)
 
@@ -770,20 +782,23 @@ class TestWebSocketRateLimiting:
     @pytest.mark.asyncio
     async def test_websocket_rate_limit_denied(self, mock_websocket, mock_redis):
         """Test WebSocket connection denied when over limit."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "10",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "10",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(False, 15),  # denied, count=15 (over limit of 12)
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # WebSocket tier has burst of 2, so limit is 12
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 15, 1, True])
 
             result = await check_websocket_rate_limit(mock_websocket, mock_redis)
 
@@ -800,8 +815,6 @@ class TestWebSocketRateLimiting:
             result = await check_websocket_rate_limit(mock_websocket, mock_redis)
 
             assert result is True
-            # Redis should not be called
-            mock_redis._ensure_connected.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_websocket_rapid_connection_attempts_rejected(self, mock_websocket, mock_redis):
@@ -811,30 +824,36 @@ class TestWebSocketRateLimiting:
         verifying that once the threshold is exceeded, subsequent connections
         are rejected.
         """
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "5",
-            },
+        # WebSocket tier has burst of 2, so limit is 5 + 2 = 7
+        # Simulate increasing connection count - first 6 allowed, then denied
+        call_count = 0
+
+        async def mock_script(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            # First 6 calls (count 1-6, limit is 7) are allowed
+            if call_count <= 6:
+                return (True, call_count)
+            else:
+                return (False, call_count)
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "5",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                side_effect=mock_script,
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # WebSocket tier has burst of 2, so limit is 5 + 2 = 7
-            # Simulate increasing connection count
-            counts = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-            call_count = 0
-
-            async def mock_execute():
-                nonlocal call_count
-                count = counts[min(call_count, len(counts) - 1)]
-                call_count += 1
-                return [0, count, 1, True]
-
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = mock_execute
 
             # First few connections should be allowed
             results = []
@@ -854,12 +873,19 @@ class TestWebSocketRateLimiting:
         Each client should have their own counter, so one client hitting
         the limit should not affect other clients.
         """
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "5",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "5",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(True, 2),  # allowed, count=2 (under limit)
+            ),
         ):
             from backend.core.config import get_settings
 
@@ -876,24 +902,6 @@ class TestWebSocketRateLimiting:
             client_b.client.host = "192.168.1.200"
             client_b.headers = {}
 
-            def mock_pipeline():
-                pipe = MagicMock()
-                pipe.zremrangebyscore = MagicMock()
-                pipe.zcard = MagicMock()
-                pipe.zadd = MagicMock()
-                pipe.expire = MagicMock()
-
-                # Return different counts based on the key (simulating per-client tracking)
-                async def execute():
-                    # Get the last key used (from zadd call)
-                    # For simplicity, return low count for all (under limit)
-                    return [0, 2, 1, True]
-
-                pipe.execute = execute
-                return pipe
-
-            mock_redis._ensure_connected.return_value.pipeline = mock_pipeline
-
             # Both clients should be allowed (independent limits)
             result_a = await check_websocket_rate_limit(client_a, mock_redis)
             result_b = await check_websocket_rate_limit(client_b, mock_redis)
@@ -904,27 +912,41 @@ class TestWebSocketRateLimiting:
     @pytest.mark.asyncio
     async def test_websocket_rate_limit_uses_correct_tier(self, mock_websocket, mock_redis):
         """Test that WebSocket rate limiting uses the WEBSOCKET tier settings."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "20",
-            },
+        call_count = 0
+
+        async def mock_script(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            # First call: count=21 (under limit of 22) - allowed
+            # Second call: count=22 (at limit) - denied
+            if call_count == 1:
+                return (True, 21)
+            else:
+                return (False, 22)
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "20",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                side_effect=mock_script,
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # WebSocket tier limit is 20 + 2 burst = 22
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 21, 1, True])
 
             # 21 < 22, so should be allowed
             result = await check_websocket_rate_limit(mock_websocket, mock_redis)
             assert result is True
 
             # Now at limit
-            mock_pipe.execute = AsyncMock(return_value=[0, 22, 1, True])
             result = await check_websocket_rate_limit(mock_websocket, mock_redis)
             assert result is False
 
@@ -933,44 +955,54 @@ class TestWebSocketRateLimiting:
         self, mock_websocket, mock_redis
     ):
         """Test that rate limit creates correct Redis key for WebSocket tier."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "10",
-            },
+        mock_script = AsyncMock(return_value=(True, 1))
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "10",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                mock_script,
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
 
             mock_websocket.client.host = "10.0.0.5"
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 1, 1, True])
 
             await check_websocket_rate_limit(mock_websocket, mock_redis)
 
             # Verify the key includes the websocket tier and client IP
-            # The key format is: rate_limit:websocket:10.0.0.5
-            # We can verify by checking that zadd was called
-            mock_pipe.zadd.assert_called_once()
+            mock_script.assert_called_once()
+            call_args = mock_script.call_args
+            assert call_args[0][1] == "rate_limit:websocket:10.0.0.5"
 
     @pytest.mark.asyncio
     async def test_websocket_rate_limit_redis_error_fails_open(self, mock_websocket, mock_redis):
         """Test that Redis errors result in allowing WebSocket connections (fail-open)."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "10",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "10",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                side_effect=Exception("Redis unavailable"),
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # Simulate Redis connection error
-            mock_redis._ensure_connected.side_effect = Exception("Redis unavailable")
 
             result = await check_websocket_rate_limit(mock_websocket, mock_redis)
 
@@ -1165,21 +1197,24 @@ class TestAIInferenceTier:
     @pytest.mark.asyncio
     async def test_ai_inference_rate_limit_enforced(self, mock_redis):
         """Test that AI inference rate limit is properly enforced."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_AI_INFERENCE_REQUESTS_PER_MINUTE": "10",
-                "RATE_LIMIT_AI_INFERENCE_BURST": "3",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_AI_INFERENCE_REQUESTS_PER_MINUTE": "10",
+                    "RATE_LIMIT_AI_INFERENCE_BURST": "3",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(False, 15),  # denied, count=15 (over limit of 13)
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # Mock Redis returning count over limit (15 > 13 = 10 + 3)
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 15, 1, True])
 
             limiter = RateLimiter(tier=RateLimitTier.AI_INFERENCE)
             is_allowed, count, limit = await limiter._check_rate_limit(mock_redis, "192.168.1.1")
@@ -1193,21 +1228,24 @@ class TestAIInferenceTier:
     @pytest.mark.asyncio
     async def test_ai_inference_allows_burst(self, mock_redis):
         """Test that AI inference tier allows burst requests."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_AI_INFERENCE_REQUESTS_PER_MINUTE": "10",
-                "RATE_LIMIT_AI_INFERENCE_BURST": "3",
-            },
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_AI_INFERENCE_REQUESTS_PER_MINUTE": "10",
+                    "RATE_LIMIT_AI_INFERENCE_BURST": "3",
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                return_value=(True, 11),  # allowed, count=11 (within burst: 10 + 3 = 13)
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # Mock Redis returning count at 11 (within burst: 10 + 3 = 13)
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = AsyncMock(return_value=[0, 11, 1, True])
 
             limiter = RateLimiter(tier=RateLimitTier.AI_INFERENCE)
             is_allowed, count, _limit = await limiter._check_rate_limit(mock_redis, "192.168.1.1")
@@ -1256,32 +1294,37 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_concurrent_requests_same_ip(self, mock_redis):
         """Test that concurrent requests from same IP are tracked."""
-        with patch.dict(
-            os.environ,
-            {
-                "RATE_LIMIT_ENABLED": "true",
-                "RATE_LIMIT_REQUESTS_PER_MINUTE": "10",
-                "RATE_LIMIT_BURST": "1",
-                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
-            },
+        # Simulate increasing count for concurrent requests
+        # Limit is 10 + 1 burst = 11
+        counts = [5, 6, 7, 8, 9, 10, 11, 12]
+        call_count = 0
+
+        async def mock_script(*args, **kwargs):
+            nonlocal call_count
+            count = counts[min(call_count, len(counts) - 1)]
+            call_count += 1
+            # Allowed if count < 11
+            return (count < 11, count)
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "RATE_LIMIT_ENABLED": "true",
+                    "RATE_LIMIT_REQUESTS_PER_MINUTE": "10",
+                    "RATE_LIMIT_BURST": "1",
+                    "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",  # pragma: allowlist secret
+                },
+            ),
+            patch(
+                "backend.api.middleware.rate_limit._execute_rate_limit_script",
+                new_callable=AsyncMock,
+                side_effect=mock_script,
+            ),
         ):
             from backend.core.config import get_settings
 
             get_settings.cache_clear()
-
-            # Simulate increasing count for concurrent requests
-            # Limit is 10 + 1 burst = 11
-            counts = [5, 6, 7, 8, 9, 10, 11, 12]
-            call_count = 0
-
-            async def mock_execute():
-                nonlocal call_count
-                count = counts[min(call_count, len(counts) - 1)]
-                call_count += 1
-                return [0, count, 1, True]
-
-            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-            mock_pipe.execute = mock_execute
 
             limiter = RateLimiter()
 

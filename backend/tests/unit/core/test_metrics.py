@@ -1796,3 +1796,252 @@ class TestEnrichmentMetricsInResponse:
 
         response = get_metrics_response().decode("utf-8")
         assert "hsi_enrichment_model_errors_total" in response
+
+
+# =============================================================================
+# Workload-Specific AI Model Histogram Tests (NEM-3381)
+# =============================================================================
+
+
+class TestWorkloadSpecificHistograms:
+    """Test workload-specific AI model histogram definitions and helpers."""
+
+    def test_rtdetr_inference_histogram_exists(self) -> None:
+        """RTDETR_INFERENCE_DURATION histogram should be defined with optimized buckets."""
+        from backend.core.metrics import RTDETR_INFERENCE_DURATION
+
+        assert RTDETR_INFERENCE_DURATION is not None
+        assert RTDETR_INFERENCE_DURATION._name == "hsi_rtdetr_inference_seconds"
+        # Verify buckets are optimized for fast inference (10ms - 500ms range)
+        buckets = RTDETR_INFERENCE_DURATION._upper_bounds
+        assert 0.01 in buckets  # 10ms minimum
+        assert 0.05 in buckets  # 50ms typical
+        assert 0.1 in buckets  # 100ms P95
+        assert 0.5 in buckets  # 500ms timeout
+
+    def test_nemotron_inference_histogram_exists(self) -> None:
+        """NEMOTRON_INFERENCE_DURATION histogram should be defined with optimized buckets."""
+        from backend.core.metrics import NEMOTRON_INFERENCE_DURATION
+
+        assert NEMOTRON_INFERENCE_DURATION is not None
+        assert NEMOTRON_INFERENCE_DURATION._name == "hsi_nemotron_inference_seconds"
+        # Verify buckets are optimized for LLM inference (500ms - 30s range)
+        buckets = NEMOTRON_INFERENCE_DURATION._upper_bounds
+        assert 0.5 in buckets  # 500ms fast
+        assert 1.0 in buckets  # 1s typical P50
+        assert 3.0 in buckets  # 3s P95
+        assert 10.0 in buckets  # 10s extended
+
+    def test_florence_inference_histogram_exists(self) -> None:
+        """FLORENCE_INFERENCE_DURATION histogram should be defined with optimized buckets."""
+        from backend.core.metrics import FLORENCE_INFERENCE_DURATION
+
+        assert FLORENCE_INFERENCE_DURATION is not None
+        assert FLORENCE_INFERENCE_DURATION._name == "hsi_florence_inference_seconds"
+        # Verify buckets are optimized for vision-language (100ms - 3s range)
+        buckets = FLORENCE_INFERENCE_DURATION._upper_bounds
+        assert 0.1 in buckets  # 100ms fast
+        assert 0.3 in buckets  # 300ms P50
+        assert 1.0 in buckets  # 1s P95
+        assert 2.0 in buckets  # 2s P99
+
+    def test_observe_rtdetr_inference(self) -> None:
+        """observe_rtdetr_inference should record to workload-specific histogram."""
+        from backend.core.metrics import observe_rtdetr_inference
+
+        observe_rtdetr_inference(0.05)  # 50ms
+        observe_rtdetr_inference(0.1)  # 100ms
+        observe_rtdetr_inference(0.03)  # 30ms
+        # No assertion needed - no exception means success
+
+    def test_observe_nemotron_inference(self) -> None:
+        """observe_nemotron_inference should record to workload-specific histogram."""
+        from backend.core.metrics import observe_nemotron_inference
+
+        observe_nemotron_inference(1.0)  # 1s
+        observe_nemotron_inference(2.5)  # 2.5s
+        observe_nemotron_inference(5.0)  # 5s
+        # No assertion needed - no exception means success
+
+    def test_observe_florence_inference(self) -> None:
+        """observe_florence_inference should record to workload-specific histogram."""
+        from backend.core.metrics import observe_florence_inference
+
+        observe_florence_inference(0.3)  # 300ms
+        observe_florence_inference(0.8)  # 800ms
+        observe_florence_inference(1.5)  # 1.5s
+        # No assertion needed - no exception means success
+
+    def test_workload_histograms_in_metrics_response(self) -> None:
+        """Workload-specific histograms should appear in metrics response."""
+        from backend.core.metrics import (
+            get_metrics_response,
+            observe_florence_inference,
+            observe_nemotron_inference,
+            observe_rtdetr_inference,
+        )
+
+        # Record metrics to ensure they appear
+        observe_rtdetr_inference(0.05)
+        observe_nemotron_inference(1.0)
+        observe_florence_inference(0.3)
+
+        response = get_metrics_response().decode("utf-8")
+        assert "hsi_rtdetr_inference_seconds" in response
+        assert "hsi_nemotron_inference_seconds" in response
+        assert "hsi_florence_inference_seconds" in response
+
+
+class TestMetricsServiceWorkloadMethods:
+    """Test MetricsService workload-specific methods."""
+
+    def test_observe_rtdetr_inference(self) -> None:
+        """MetricsService should observe RT-DETR inference duration."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_rtdetr_inference(0.05)
+        metrics.observe_rtdetr_inference(0.1)
+
+    def test_observe_nemotron_inference(self) -> None:
+        """MetricsService should observe Nemotron inference duration."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_nemotron_inference(1.0)
+        metrics.observe_nemotron_inference(3.0)
+
+    def test_observe_florence_inference(self) -> None:
+        """MetricsService should observe Florence inference duration."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_florence_inference(0.3)
+        metrics.observe_florence_inference(0.8)
+
+
+# =============================================================================
+# Exemplar Support Tests (NEM-3379)
+# =============================================================================
+
+
+class TestExemplarSupport:
+    """Test exemplar support for trace-metric correlation."""
+
+    def test_get_trace_exemplar_returns_none_without_trace(self) -> None:
+        """_get_trace_exemplar should return None when no trace is active."""
+        from backend.core.metrics import _get_trace_exemplar
+
+        # Without an active trace, should return None
+        result = _get_trace_exemplar()
+        assert result is None
+
+    def test_observe_with_exemplar_without_trace(self) -> None:
+        """observe_with_exemplar should work without active trace."""
+        from backend.core.metrics import RTDETR_INFERENCE_DURATION, observe_with_exemplar
+
+        # Should not raise even without a trace
+        observe_with_exemplar(RTDETR_INFERENCE_DURATION, 0.05)
+
+    def test_observe_rtdetr_with_exemplar(self) -> None:
+        """observe_rtdetr_with_exemplar should record to histogram."""
+        from backend.core.metrics import observe_rtdetr_with_exemplar
+
+        observe_rtdetr_with_exemplar(0.05)
+        observe_rtdetr_with_exemplar(0.1)
+        # No assertion needed - no exception means success
+
+    def test_observe_nemotron_with_exemplar(self) -> None:
+        """observe_nemotron_with_exemplar should record to histogram."""
+        from backend.core.metrics import observe_nemotron_with_exemplar
+
+        observe_nemotron_with_exemplar(1.0)
+        observe_nemotron_with_exemplar(2.5)
+        # No assertion needed - no exception means success
+
+    def test_observe_florence_with_exemplar(self) -> None:
+        """observe_florence_with_exemplar should record to histogram."""
+        from backend.core.metrics import observe_florence_with_exemplar
+
+        observe_florence_with_exemplar(0.3)
+        observe_florence_with_exemplar(0.8)
+        # No assertion needed - no exception means success
+
+    def test_observe_ai_request_with_exemplar(self) -> None:
+        """observe_ai_request_with_exemplar should record to histogram with service label."""
+        from backend.core.metrics import observe_ai_request_with_exemplar
+
+        observe_ai_request_with_exemplar("rtdetr", 0.05)
+        observe_ai_request_with_exemplar("nemotron", 1.5)
+        observe_ai_request_with_exemplar("florence", 0.5)
+        # No assertion needed - no exception means success
+
+    def test_get_trace_exemplar_with_mock_span(self) -> None:
+        """_get_trace_exemplar should return trace_id when span is recording."""
+        from unittest.mock import MagicMock, patch
+
+        from backend.core.metrics import _get_trace_exemplar
+
+        mock_span = MagicMock()
+        mock_span.is_recording.return_value = True
+        mock_span_context = MagicMock()
+        mock_span_context.is_valid = True
+        mock_span_context.trace_id = 12345678901234567890123456789012
+        mock_span.get_span_context.return_value = mock_span_context
+
+        with patch("opentelemetry.trace.get_current_span", return_value=mock_span):
+            result = _get_trace_exemplar()
+
+        assert result is not None
+        assert "trace_id" in result
+        assert len(result["trace_id"]) == 32  # 32 hex chars
+
+    def test_get_trace_exemplar_with_non_recording_span(self) -> None:
+        """_get_trace_exemplar should return None when span is not recording."""
+        from unittest.mock import MagicMock, patch
+
+        from backend.core.metrics import _get_trace_exemplar
+
+        mock_span = MagicMock()
+        mock_span.is_recording.return_value = False
+
+        with patch("opentelemetry.trace.get_current_span", return_value=mock_span):
+            result = _get_trace_exemplar()
+
+        assert result is None
+
+
+class TestMetricsServiceExemplarMethods:
+    """Test MetricsService exemplar methods."""
+
+    def test_observe_rtdetr_with_exemplar(self) -> None:
+        """MetricsService should observe RT-DETR with exemplar."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_rtdetr_with_exemplar(0.05)
+        metrics.observe_rtdetr_with_exemplar(0.1)
+
+    def test_observe_nemotron_with_exemplar(self) -> None:
+        """MetricsService should observe Nemotron with exemplar."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_nemotron_with_exemplar(1.0)
+        metrics.observe_nemotron_with_exemplar(3.0)
+
+    def test_observe_florence_with_exemplar(self) -> None:
+        """MetricsService should observe Florence with exemplar."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_florence_with_exemplar(0.3)
+        metrics.observe_florence_with_exemplar(0.8)
+
+    def test_observe_ai_request_with_exemplar(self) -> None:
+        """MetricsService should observe AI request with exemplar."""
+        from backend.core.metrics import get_metrics_service
+
+        metrics = get_metrics_service()
+        metrics.observe_ai_request_with_exemplar("rtdetr", 0.05)
+        metrics.observe_ai_request_with_exemplar("nemotron", 1.5)

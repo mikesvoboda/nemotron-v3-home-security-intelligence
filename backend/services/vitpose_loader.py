@@ -270,7 +270,7 @@ def extract_keypoints_from_output(
         return []
 
 
-def classify_pose(keypoints: dict[str, Keypoint]) -> tuple[str, float]:  # noqa: PLR0912
+def classify_pose(keypoints: dict[str, Keypoint]) -> tuple[str, float]:
     """Classify pose based on keypoint positions.
 
     Analyzes the spatial relationships between keypoints to determine
@@ -489,7 +489,7 @@ async def extract_pose_from_crop(
         dataset_index = torch.tensor([0], device=device)
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = model(**inputs, dataset_index=dataset_index)
 
         # Extract keypoints
@@ -601,7 +601,7 @@ async def extract_poses_batch(
         dataset_index = torch.zeros(batch_size, dtype=torch.long, device=device)
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = model(**inputs, dataset_index=dataset_index)
 
         # Extract keypoints for all valid images

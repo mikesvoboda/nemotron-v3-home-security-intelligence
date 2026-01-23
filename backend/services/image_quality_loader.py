@@ -191,7 +191,7 @@ async def assess_image_quality(
             img_tensor = transform(rgb_image).unsqueeze(0)  # Add batch dimension
 
             # Compute BRISQUE score using piq
-            with torch.no_grad():
+            with torch.inference_mode():
                 brisque_score = brisque_fn(img_tensor, data_range=1.0, reduction="mean").item()
 
             # Clamp BRISQUE score to reasonable range

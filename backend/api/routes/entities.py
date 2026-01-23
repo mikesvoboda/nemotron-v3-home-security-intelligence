@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
 
 from backend.api.schemas.entities import (
@@ -55,7 +56,11 @@ if TYPE_CHECKING:
     from backend.repositories.entity_repository import EntityRepository
     from backend.services.hybrid_entity_storage import HybridEntityStorage
 
-router = APIRouter(prefix="/api/entities", tags=["entities"])
+router = APIRouter(
+    prefix="/api/entities",
+    tags=["entities"],
+    default_response_class=ORJSONResponse,
+)
 
 logger = get_logger(__name__)
 

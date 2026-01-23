@@ -56,6 +56,15 @@ export interface UseAlertsInfiniteQueryOptions {
    * @default DEFAULT_STALE_TIME
    */
   staleTime?: number;
+
+  /**
+   * Maximum number of pages to store in memory per risk level query.
+   * When this limit is reached, older pages are removed when new pages are fetched.
+   * This bounds memory usage regardless of scroll depth.
+   * TanStack Query v5 feature for memory optimization.
+   * @default 10
+   */
+  maxPages?: number;
 }
 
 /**
@@ -113,6 +122,7 @@ interface UseSingleRiskQueryOptions {
   enabled: boolean;
   refetchInterval: number | false;
   staleTime: number;
+  maxPages?: number;
 }
 
 interface UseSingleRiskQueryReturn {
@@ -129,7 +139,7 @@ interface UseSingleRiskQueryReturn {
 }
 
 function useSingleRiskQuery(options: UseSingleRiskQueryOptions): UseSingleRiskQueryReturn {
-  const { riskLevel, limit, enabled, refetchInterval, staleTime } = options;
+  const { riskLevel, limit, enabled, refetchInterval, staleTime, maxPages } = options;
 
   const queryKey = alertsQueryKeys.infinite(riskLevel, limit);
 
@@ -158,6 +168,7 @@ function useSingleRiskQuery(options: UseSingleRiskQueryOptions): UseSingleRiskQu
     enabled,
     refetchInterval,
     staleTime,
+    ...(maxPages !== undefined && { maxPages }),
   });
 
   const events = useMemo(() => {
@@ -225,6 +236,7 @@ export function useAlertsInfiniteQuery(
     enabled = true,
     refetchInterval = false,
     staleTime = DEFAULT_STALE_TIME,
+    maxPages = 10, // Default to 10 pages for bounded memory (NEM-3362)
   } = options;
 
   // Determine which queries to run based on filter
@@ -238,6 +250,7 @@ export function useAlertsInfiniteQuery(
     enabled: enabled && fetchHigh,
     refetchInterval,
     staleTime,
+    maxPages,
   });
 
   // Fetch critical risk alerts
@@ -247,6 +260,7 @@ export function useAlertsInfiniteQuery(
     enabled: enabled && fetchCritical,
     refetchInterval,
     staleTime,
+    maxPages,
   });
 
   // Merge and sort alerts from both queries

@@ -158,7 +158,7 @@ IMAGE_MAGIC_BYTES: dict[bytes, str] = {
 }
 
 
-def validate_image_magic_bytes(image_bytes: bytes) -> tuple[bool, str]:  # noqa: PLR0911, PLR0912
+def validate_image_magic_bytes(image_bytes: bytes) -> tuple[bool, str]:  # noqa: PLR0911
     """Validate image data by checking magic bytes (file signature).
 
     This provides an early check before passing to PIL, catching obvious
@@ -371,7 +371,7 @@ class VehicleClassifier:
         input_tensor = input_tensor.to(self.device, model_dtype)
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.model(input_tensor)
             probs = torch.nn.functional.softmax(outputs, dim=-1)[0]
 
@@ -470,7 +470,7 @@ class PetClassifier:
             inputs = {k: v.to(self.device, model_dtype) for k, v in inputs.items()}
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.model(**inputs)
             logits = outputs.logits
 
@@ -746,7 +746,7 @@ class ClothingClassifier:
         text_tokens = self.tokenizer(prompts).to(self.device)
 
         # Get image and text features
-        with torch.no_grad():
+        with torch.inference_mode():
             image_features = self.model.encode_image(image_tensor)
             text_features = self.model.encode_text(text_tokens)
 
@@ -838,7 +838,7 @@ class ClothingClassifier:
         text_tokens = self.tokenizer(all_prompts).to(self.device)
 
         # Get image and text features
-        with torch.no_grad():
+        with torch.inference_mode():
             image_features = self.model.encode_image(image_tensor)
             text_features = self.model.encode_text(text_tokens)
 
@@ -1046,7 +1046,7 @@ class DepthEstimator:
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.model(**inputs)
             predicted_depth = outputs.predicted_depth
 
@@ -2386,7 +2386,7 @@ async def _run_depth_estimation(full_image: Image.Image, bbox: list[float]) -> D
 
 
 @app.post("/enrich", response_model=EnrichmentResponse)
-async def enrich_detection(request: EnrichmentRequest) -> EnrichmentResponse:  # noqa: PLR0912
+async def enrich_detection(request: EnrichmentRequest) -> EnrichmentResponse:
     """Unified endpoint that runs appropriate models based on detection type.
 
     This endpoint accepts detection context and returns all relevant enrichments

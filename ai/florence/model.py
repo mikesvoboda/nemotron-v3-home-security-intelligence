@@ -370,7 +370,7 @@ class Florence2Model:
         # Run inference using greedy decoding with cache disabled
         # The Florence-2 model's prepare_inputs_for_generation has a bug with past_key_values
         # Disabling cache avoids the issue
-        with torch.no_grad():
+        with torch.inference_mode():
             generated_ids = self.model.generate(
                 input_ids=inputs["input_ids"],
                 pixel_values=inputs["pixel_values"],
@@ -445,7 +445,7 @@ class Florence2Model:
         inputs = inputs.to(self.device, model_dtype)
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             generated_ids = self.model.generate(
                 input_ids=inputs["input_ids"],
                 pixel_values=inputs["pixel_values"],

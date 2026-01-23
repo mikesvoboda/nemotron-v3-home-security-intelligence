@@ -106,7 +106,7 @@ async def call_llm_streaming(
                         logger.warning(f"Malformed SSE data: {data_str[:100]}")
 
 
-async def analyze_batch_streaming(  # noqa: PLR0911, PLR0912
+async def analyze_batch_streaming(  # noqa: PLR0911
     analyzer: Any,
     batch_id: str,
     camera_id: str | None = None,
@@ -268,17 +268,21 @@ async def analyze_batch_streaming(  # noqa: PLR0911, PLR0912
         await session.commit()
         await session.refresh(event)
 
-        # Populate event_detections junction table (NEM-1592, NEM-2012)
-        # Uses ON CONFLICT DO NOTHING to prevent race conditions when
-        # concurrent requests try to create the same junction records.
+        # Populate event_detections junction table (NEM-1592, NEM-2012, NEM-3350)
+        # Uses bulk INSERT with ON CONFLICT DO NOTHING to prevent race conditions
+        # and improve performance by reducing round-trips to the database.
         # This is safe because the composite primary key (event_id, detection_id)
         # enforces uniqueness at the database level.
         from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-        for detection_id in int_detection_ids:
+        if int_detection_ids:
+            values = [
+                {"event_id": event.id, "detection_id": detection_id}
+                for detection_id in int_detection_ids
+            ]
             stmt = (
                 pg_insert(event_detections)
-                .values(event_id=event.id, detection_id=detection_id)
+                .values(values)
                 .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
             )
             await session.execute(stmt)

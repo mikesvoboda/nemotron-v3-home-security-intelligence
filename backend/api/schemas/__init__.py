@@ -172,6 +172,10 @@ from .notification import (
     TestNotificationRequest,
     TestNotificationResponse,
 )
+from .pagination import (
+    PaginatedResponse,
+    create_paginated_response,
+)
 from .problem_details import (
     HTTP_STATUS_PHRASES,
     ProblemDetail,
@@ -206,6 +210,11 @@ from .services import (
     ServiceInfo,
     ServicesResponse,
     ServiceStatusEvent,
+)
+from .trusted import (
+    from_db_record,
+    from_db_records,
+    from_dict,
 )
 from .websocket import (
     EVENT_REGISTRY,
@@ -381,6 +390,8 @@ __all__ = [  # noqa: RUF022
     "NotificationHistoryEntry",
     "NotificationHistoryResponse",
     "ObjectBaseline",
+    # Pagination schemas (NEM-3431)
+    "PaginatedResponse",
     "PaginationParams",
     "PersonEnrichmentData",
     "PetEnrichment",
@@ -451,6 +462,10 @@ __all__ = [  # noqa: RUF022
     "build_detection_video_links",
     "build_event_links",
     "build_link",
+    "create_paginated_response",
+    "from_db_record",
+    "from_db_records",
+    "from_dict",
     "get_event_registry_response",
     "get_status_phrase",
     "raise_http_error",
