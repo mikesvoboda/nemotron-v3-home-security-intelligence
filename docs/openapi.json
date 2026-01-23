@@ -14321,6 +14321,144 @@
         "title": "LicensePlateEnrichment",
         "type": "object"
       },
+      "LogEntryResponse": {
+        "description": "Schema for a single log entry in query responses.\n\nThis schema is used for GET /api/logs responses and represents\na log record from the database.\n\nAttributes:\n    id: Unique log entry identifier\n    timestamp: When the log was created (UTC)\n    level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)\n    component: Component that generated the log (e.g., \"backend.api.routes.events\")\n    message: The log message content\n    camera_id: Optional camera ID associated with this log\n    event_id: Optional event ID associated with this log\n    request_id: Optional request ID for correlation\n    detection_id: Optional detection ID associated with this log\n    duration_ms: Optional duration in milliseconds (for timing logs)\n    extra: Additional structured context data (JSON)\n    source: Log source (backend or frontend)",
+        "example": {
+          "camera_id": "front_door",
+          "component": "backend.services.detector",
+          "detection_id": 789,
+          "duration_ms": 30000,
+          "event_id": 456,
+          "extra": {
+            "error_code": "TIMEOUT",
+            "retry_count": 3
+          },
+          "id": 12345,
+          "level": "ERROR",
+          "message": "Detection failed: timeout after 30s",
+          "request_id": "req-abc123",
+          "source": "backend",
+          "timestamp": "2026-01-15T10:30:00Z"
+        },
+        "properties": {
+          "camera_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Associated camera ID",
+            "title": "Camera Id"
+          },
+          "component": {
+            "description": "Component that generated the log",
+            "maxLength": 100,
+            "title": "Component",
+            "type": "string"
+          },
+          "detection_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Associated detection ID",
+            "title": "Detection Id"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Duration in milliseconds",
+            "title": "Duration Ms"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Associated event ID",
+            "title": "Event Id"
+          },
+          "extra": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional structured context",
+            "title": "Extra"
+          },
+          "id": {
+            "description": "Unique log entry ID",
+            "minimum": 1.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "level": {
+            "description": "Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "description": "Log message content",
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Request ID for correlation",
+            "title": "Request Id"
+          },
+          "source": {
+            "default": "backend",
+            "description": "Log source (backend or frontend)",
+            "title": "Source",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "When the log was created (UTC)",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "timestamp",
+          "level",
+          "component",
+          "message"
+        ],
+        "title": "LogEntryResponse",
+        "type": "object"
+      },
       "LogLevelRequest": {
         "description": "Request to change log level.",
         "properties": {
@@ -14367,6 +14505,124 @@
           "timestamp"
         ],
         "title": "LogLevelResponse",
+        "type": "object"
+      },
+      "LogStats": {
+        "description": "Schema for log statistics dashboard.\n\nProvides aggregated statistics about logs for the dashboard,\nincluding counts by level and component.\n\nAttributes:\n    errors_today: Number of ERROR logs today\n    warnings_today: Number of WARNING logs today\n    total_today: Total number of logs today\n    top_component: The component with the most logs today (if any)\n    by_component: Breakdown of log counts by component",
+        "example": {
+          "by_component": {
+            "backend.api.routes.events": 280,
+            "backend.services.analyzer": 150,
+            "backend.services.detector": 350,
+            "frontend": 200
+          },
+          "errors_today": 15,
+          "top_component": "backend.services.detector",
+          "total_today": 1500,
+          "warnings_today": 42
+        },
+        "properties": {
+          "by_component": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Log counts by component",
+            "title": "By Component",
+            "type": "object"
+          },
+          "errors_today": {
+            "description": "Number of errors today",
+            "minimum": 0.0,
+            "title": "Errors Today",
+            "type": "integer"
+          },
+          "top_component": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Component with most logs today",
+            "title": "Top Component"
+          },
+          "total_today": {
+            "description": "Total logs today",
+            "minimum": 0.0,
+            "title": "Total Today",
+            "type": "integer"
+          },
+          "warnings_today": {
+            "description": "Number of warnings today",
+            "minimum": 0.0,
+            "title": "Warnings Today",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "errors_today",
+          "warnings_today",
+          "total_today"
+        ],
+        "title": "LogStats",
+        "type": "object"
+      },
+      "LogsListResponse": {
+        "description": "Schema for paginated log query response.\n\nSupports both cursor-based pagination (recommended) and offset pagination.\nCursor-based pagination offers better performance for large datasets.",
+        "example": {
+          "items": [
+            {
+              "camera_id": "front_door",
+              "component": "backend.services.detector",
+              "id": 12345,
+              "level": "ERROR",
+              "message": "Detection failed",
+              "request_id": "req-abc123",
+              "source": "backend",
+              "timestamp": "2026-01-15T10:30:00Z"
+            }
+          ],
+          "pagination": {
+            "has_more": true,
+            "limit": 50,
+            "next_cursor": "eyJpZCI6IDEyMzQ1fQ==",
+            "offset": 0,
+            "total": 1500
+          }
+        },
+        "properties": {
+          "deprecation_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Warning when using deprecated offset pagination",
+            "title": "Deprecation Warning"
+          },
+          "items": {
+            "description": "List of log entries",
+            "items": {
+              "$ref": "#/components/schemas/LogEntryResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "LogsListResponse",
         "type": "object"
       },
       "MediaErrorResponse": {
@@ -32759,6 +33015,224 @@
         ]
       }
     },
+    "/api/logs": {
+      "get": {
+        "description": "Query logs with optional filtering by level, component, source, and date range.",
+        "operationId": "list_logs_api_logs_get",
+        "parameters": [
+          {
+            "description": "Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+              "title": "Level"
+            }
+          },
+          {
+            "description": "Filter by component (partial match)",
+            "in": "query",
+            "name": "component",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by component (partial match)",
+              "title": "Component"
+            }
+          },
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
+            }
+          },
+          {
+            "description": "Filter by source (backend, frontend)",
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by source (backend, frontend)",
+              "title": "Source"
+            }
+          },
+          {
+            "description": "Full-text search on message content",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Full-text search on message content",
+              "title": "Search"
+            }
+          },
+          {
+            "description": "Filter from date (ISO format)",
+            "in": "query",
+            "name": "start_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter from date (ISO format)",
+              "title": "Start Date"
+            }
+          },
+          {
+            "description": "Filter to date (ISO format)",
+            "in": "query",
+            "name": "end_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to date (ISO format)",
+              "title": "End Date"
+            }
+          },
+          {
+            "description": "Page size",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "Page size",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of results to skip (deprecated, use cursor)",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of results to skip (deprecated, use cursor)",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Pagination cursor from previous response",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor from previous response",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Include total count in response. Defaults to False for performance.",
+            "in": "query",
+            "name": "include_total_count",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include total count in response. Defaults to False for performance.",
+              "title": "Include Total Count",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogsListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid date range or cursor"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List logs with optional filtering",
+        "tags": [
+          "logs"
+        ]
+      }
+    },
     "/api/logs/frontend": {
       "post": {
         "description": "Receive a single log entry from the frontend for structured logging.",
@@ -32830,6 +33304,31 @@
           }
         },
         "summary": "Ingest batch of frontend logs",
+        "tags": [
+          "logs"
+        ]
+      }
+    },
+    "/api/logs/stats": {
+      "get": {
+        "description": "Get aggregated log statistics for the dashboard.",
+        "operationId": "get_log_stats_api_logs_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogStats"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get log statistics",
         "tags": [
           "logs"
         ]

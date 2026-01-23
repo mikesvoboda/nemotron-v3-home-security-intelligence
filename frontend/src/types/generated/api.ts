@@ -4445,6 +4445,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List logs with optional filtering
+         * @description Query logs with optional filtering by level, component, source, and date range.
+         */
+        get: operations["list_logs_api_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/logs/frontend": {
         parameters: {
             query?: never;
@@ -4479,6 +4499,26 @@ export interface paths {
          * @description Receive a batch of log entries from the frontend for structured logging.
          */
         post: operations["ingest_frontend_logs_batch_api_logs_frontend_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/logs/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get log statistics
+         * @description Get aggregated log statistics for the dashboard.
+         */
+        get: operations["get_log_stats_api_logs_stats_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -17338,6 +17378,110 @@ export interface components {
             text?: string | null;
         };
         /**
+         * LogEntryResponse
+         * @description Schema for a single log entry in query responses.
+         *
+         *     This schema is used for GET /api/logs responses and represents
+         *     a log record from the database.
+         *
+         *     Attributes:
+         *         id: Unique log entry identifier
+         *         timestamp: When the log was created (UTC)
+         *         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+         *         component: Component that generated the log (e.g., "backend.api.routes.events")
+         *         message: The log message content
+         *         camera_id: Optional camera ID associated with this log
+         *         event_id: Optional event ID associated with this log
+         *         request_id: Optional request ID for correlation
+         *         detection_id: Optional detection ID associated with this log
+         *         duration_ms: Optional duration in milliseconds (for timing logs)
+         *         extra: Additional structured context data (JSON)
+         *         source: Log source (backend or frontend)
+         * @example {
+         *       "camera_id": "front_door",
+         *       "component": "backend.services.detector",
+         *       "detection_id": 789,
+         *       "duration_ms": 30000,
+         *       "event_id": 456,
+         *       "extra": {
+         *         "error_code": "TIMEOUT",
+         *         "retry_count": 3
+         *       },
+         *       "id": 12345,
+         *       "level": "ERROR",
+         *       "message": "Detection failed: timeout after 30s",
+         *       "request_id": "req-abc123",
+         *       "source": "backend",
+         *       "timestamp": "2026-01-15T10:30:00Z"
+         *     }
+         */
+        LogEntryResponse: {
+            /**
+             * Camera Id
+             * @description Associated camera ID
+             */
+            camera_id?: string | null;
+            /**
+             * Component
+             * @description Component that generated the log
+             */
+            component: string;
+            /**
+             * Detection Id
+             * @description Associated detection ID
+             */
+            detection_id?: number | null;
+            /**
+             * Duration Ms
+             * @description Duration in milliseconds
+             */
+            duration_ms?: number | null;
+            /**
+             * Event Id
+             * @description Associated event ID
+             */
+            event_id?: number | null;
+            /**
+             * Extra
+             * @description Additional structured context
+             */
+            extra?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Id
+             * @description Unique log entry ID
+             */
+            id: number;
+            /**
+             * Level
+             * @description Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+             */
+            level: string;
+            /**
+             * Message
+             * @description Log message content
+             */
+            message: string;
+            /**
+             * Request Id
+             * @description Request ID for correlation
+             */
+            request_id?: string | null;
+            /**
+             * Source
+             * @description Log source (backend or frontend)
+             * @default backend
+             */
+            source: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the log was created (UTC)
+             */
+            timestamp: string;
+        };
+        /**
          * LogLevelRequest
          * @description Request to change log level.
          */
@@ -17368,6 +17512,103 @@ export interface components {
              * @description ISO timestamp of response
              */
             timestamp: string;
+        };
+        /**
+         * LogStats
+         * @description Schema for log statistics dashboard.
+         *
+         *     Provides aggregated statistics about logs for the dashboard,
+         *     including counts by level and component.
+         *
+         *     Attributes:
+         *         errors_today: Number of ERROR logs today
+         *         warnings_today: Number of WARNING logs today
+         *         total_today: Total number of logs today
+         *         top_component: The component with the most logs today (if any)
+         *         by_component: Breakdown of log counts by component
+         * @example {
+         *       "by_component": {
+         *         "backend.api.routes.events": 280,
+         *         "backend.services.analyzer": 150,
+         *         "backend.services.detector": 350,
+         *         "frontend": 200
+         *       },
+         *       "errors_today": 15,
+         *       "top_component": "backend.services.detector",
+         *       "total_today": 1500,
+         *       "warnings_today": 42
+         *     }
+         */
+        LogStats: {
+            /**
+             * By Component
+             * @description Log counts by component
+             */
+            by_component?: {
+                [key: string]: number;
+            };
+            /**
+             * Errors Today
+             * @description Number of errors today
+             */
+            errors_today: number;
+            /**
+             * Top Component
+             * @description Component with most logs today
+             */
+            top_component?: string | null;
+            /**
+             * Total Today
+             * @description Total logs today
+             */
+            total_today: number;
+            /**
+             * Warnings Today
+             * @description Number of warnings today
+             */
+            warnings_today: number;
+        };
+        /**
+         * LogsListResponse
+         * @description Schema for paginated log query response.
+         *
+         *     Supports both cursor-based pagination (recommended) and offset pagination.
+         *     Cursor-based pagination offers better performance for large datasets.
+         * @example {
+         *       "items": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "component": "backend.services.detector",
+         *           "id": 12345,
+         *           "level": "ERROR",
+         *           "message": "Detection failed",
+         *           "request_id": "req-abc123",
+         *           "source": "backend",
+         *           "timestamp": "2026-01-15T10:30:00Z"
+         *         }
+         *       ],
+         *       "pagination": {
+         *         "has_more": true,
+         *         "limit": 50,
+         *         "next_cursor": "eyJpZCI6IDEyMzQ1fQ==", // pragma: allowlist secret
+         *         "offset": 0,
+         *         "total": 1500
+         *       }
+         *     }
+         */
+        LogsListResponse: {
+            /**
+             * Deprecation Warning
+             * @description Warning when using deprecated offset pagination
+             */
+            deprecation_warning?: string | null;
+            /**
+             * Items
+             * @description List of log entries
+             */
+            items: components["schemas"]["LogEntryResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
         };
         /**
          * MediaErrorResponse
@@ -30258,6 +30499,70 @@ export interface operations {
             };
         };
     };
+    list_logs_api_logs_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) */
+                level?: string | null;
+                /** @description Filter by component (partial match) */
+                component?: string | null;
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter by source (backend, frontend) */
+                source?: string | null;
+                /** @description Full-text search on message content */
+                search?: string | null;
+                /** @description Filter from date (ISO format) */
+                start_date?: string | null;
+                /** @description Filter to date (ISO format) */
+                end_date?: string | null;
+                /** @description Page size */
+                limit?: number;
+                /** @description Number of results to skip (deprecated, use cursor) */
+                offset?: number;
+                /** @description Pagination cursor from previous response */
+                cursor?: string | null;
+                /** @description Include total count in response. Defaults to False for performance. */
+                include_total_count?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogsListResponse"];
+                };
+            };
+            /** @description Invalid date range or cursor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     ingest_frontend_log_api_logs_frontend_post: {
         parameters: {
             query?: never;
@@ -30324,6 +30629,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    get_log_stats_api_logs_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogStats"];
+                };
             };
             /** @description Internal server error */
             500: {
