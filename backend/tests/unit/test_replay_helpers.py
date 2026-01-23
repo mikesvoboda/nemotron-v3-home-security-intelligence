@@ -200,6 +200,7 @@ class TestReplayStatistics:
             scores_unchanged_count=20,
         )
         import pytest
+
         assert stats.low_percentage == pytest.approx(55.0)
         assert stats.medium_percentage == pytest.approx(35.0)
         assert stats.high_percentage == pytest.approx(10.0)
