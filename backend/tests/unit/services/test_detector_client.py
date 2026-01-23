@@ -7,6 +7,7 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.models.camera import Camera
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 
 # Fixtures
@@ -940,15 +941,24 @@ async def test_detect_objects_updates_camera_last_seen_at(detector_client, mock_
 
 
 @pytest.mark.asyncio
-async def test_detect_objects_no_camera_update_when_no_detections(detector_client, mock_session):
-    """Test that camera's last_seen_at is NOT updated when no detections are found."""
+async def test_detect_objects_updates_camera_last_seen_even_without_detections(
+    detector_client, mock_session
+):
+    """Test that camera's last_seen_at IS updated even when no detections are found (NEM-3268).
+
+    This ensures cameras that upload images but have no detections (empty frames or
+    filtered objects) show accurate last seen timestamps in the UI.
+    """
     image_path = "/export/foscam/front_door/image_empty.jpg"
     camera_id = "front_door"
 
     mock_image_data = b"fake_image_data"
     empty_response = {"detections": [], "processing_time_ms": 50.0, "image_size": [1920, 1080]}
 
-    mock_session.get = AsyncMock()
+    # Create a mock camera to verify last_seen_at is updated
+    mock_camera = MagicMock()
+    mock_camera.last_seen_at = None
+    mock_session.get = AsyncMock(return_value=mock_camera)
 
     with (
         patch("pathlib.Path.exists", return_value=True),
@@ -964,8 +974,9 @@ async def test_detect_objects_no_camera_update_when_no_detections(detector_clien
         detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
 
         assert len(detections) == 0
-        # Verify camera was NOT fetched (no detections = no update)
-        mock_session.get.assert_not_called()
+        # Verify camera was fetched and last_seen_at was updated (NEM-3268)
+        mock_session.get.assert_called_once_with(Camera, camera_id)
+        assert mock_camera.last_seen_at is not None
 
 
 @pytest.mark.asyncio

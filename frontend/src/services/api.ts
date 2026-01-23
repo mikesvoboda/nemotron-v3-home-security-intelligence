@@ -1193,8 +1193,15 @@ async function fetchWithRetry<T>(
   const startTime = Date.now();
   const method = options.method || 'GET';
 
+  // Convert RequestInit to FetchWithTimeoutOptions (null signal becomes undefined)
+  const { signal, ...restOptions } = options;
+  const timeoutOptions: FetchWithTimeoutOptions = {
+    ...restOptions,
+    ...(signal && { signal }),
+  };
+
   try {
-    const response = await fetch(url, options);
+    const response = await fetchWithTimeout(url, timeoutOptions);
     const duration = Date.now() - startTime;
 
     // Add Sentry breadcrumb for the request
@@ -1217,6 +1224,19 @@ async function fetchWithRetry<T>(
     }
     if (error instanceof Error && error.name === 'AbortError') {
       throw error;
+    }
+
+    // For TimeoutErrors, retry if we have retries left
+    if (isTimeoutError(error)) {
+      addSentryBreadcrumb(method, url, 0, duration);
+
+      if (retriesLeft > 0) {
+        const delay = getRetryDelay(MAX_RETRIES - retriesLeft);
+        await sleep(delay);
+        return fetchWithRetry<T>(url, options, retriesLeft - 1);
+      }
+      // After all retries, throw as ApiError for consistent error handling
+      throw new ApiError(0, error instanceof Error ? error.message : 'Request timed out');
     }
 
     // For ApiErrors that are retryable, retry
@@ -4363,7 +4383,7 @@ export interface PromptImportResponse {
  * @returns AllPromptsResponse containing all model configurations
  */
 export async function fetchAllPrompts(): Promise<AllPromptsResponse> {
-  return fetchApi<AllPromptsResponse>('/api/ai-audit/prompts');
+  return fetchApi<AllPromptsResponse>('/api/prompts');
 }
 
 /**
@@ -4373,7 +4393,7 @@ export async function fetchAllPrompts(): Promise<AllPromptsResponse> {
  * @returns ModelPromptResponse with current configuration
  */
 export async function fetchModelPrompt(model: PromptModelName): Promise<ModelPromptResponse> {
-  return fetchApi<ModelPromptResponse>(`/api/ai-audit/prompts/${model}`);
+  return fetchApi<ModelPromptResponse>(`/api/prompts/${model}`);
 }
 
 /**
@@ -4389,7 +4409,7 @@ export async function updateModelPrompt(
   config: Record<string, unknown>,
   description?: string
 ): Promise<PromptUpdateResponse> {
-  return fetchApi<PromptUpdateResponse>(`/api/ai-audit/prompts/${model}`, {
+  return fetchApi<PromptUpdateResponse>(`/api/prompts/${model}`, {
     method: 'PUT',
     body: JSON.stringify({ config, description }),
   });
@@ -4408,7 +4428,7 @@ export async function testPrompt(
   config: Record<string, unknown>,
   eventId: number
 ): Promise<PromptTestResponse> {
-  return fetchApi<PromptTestResponse>('/api/ai-audit/prompts/test', {
+  return fetchApi<PromptTestResponse>('/api/prompts/test', {
     method: 'POST',
     body: JSON.stringify({ model, config, event_id: eventId }),
   });
@@ -4426,7 +4446,7 @@ export async function fetchAllPromptsHistory(
   const queryParams = new URLSearchParams();
   queryParams.append('limit', String(limit));
   return fetchApi<Record<string, PromptHistoryResponse>>(
-    `/api/ai-audit/prompts/history?${queryParams.toString()}`
+    `/api/prompts/history?${queryParams.toString()}`
   );
 }
 
@@ -4447,7 +4467,7 @@ export async function fetchModelHistory(
   queryParams.append('limit', String(limit));
   queryParams.append('offset', String(offset));
   return fetchApi<PromptHistoryResponse>(
-    `/api/ai-audit/prompts/history/${model}?${queryParams.toString()}`
+    `/api/prompts/history/${model}?${queryParams.toString()}`
   );
 }
 
@@ -4466,7 +4486,7 @@ export async function restorePromptVersion(
 ): Promise<PromptRestoreResponse> {
   const body = description ? { description } : {};
   return fetchApi<PromptRestoreResponse>(
-    `/api/ai-audit/prompts/history/${version}?model=${model}`,
+    `/api/prompts/history/${version}?model=${model}`,
     {
       method: 'POST',
       body: JSON.stringify(body),
@@ -4480,7 +4500,7 @@ export async function restorePromptVersion(
  * @returns PromptExportResponse with all configurations
  */
 export async function exportPrompts(): Promise<PromptExportResponse> {
-  return fetchApi<PromptExportResponse>('/api/ai-audit/prompts/export');
+  return fetchApi<PromptExportResponse>('/api/prompts/export');
 }
 
 /**
@@ -4494,7 +4514,7 @@ export async function importPrompts(
   prompts: Record<string, Record<string, unknown>>,
   overwrite: boolean = false
 ): Promise<PromptImportResponse> {
-  return fetchApi<PromptImportResponse>('/api/ai-audit/prompts/import', {
+  return fetchApi<PromptImportResponse>('/api/prompts/import', {
     method: 'POST',
     body: JSON.stringify({ prompts, overwrite }),
   });

@@ -216,7 +216,7 @@ describe('fetchAllPrompts', () => {
 
     expect(result).toEqual(mockAllPromptsResponse);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
-      '/api/ai-audit/prompts',
+      '/api/prompts',
       expect.objectContaining({
         headers: expect.objectContaining({
           'Content-Type': 'application/json',
@@ -258,7 +258,7 @@ describe('fetchPromptForModel', () => {
 
     expect(result).toEqual(mockNemotronConfig);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
-      '/api/ai-audit/prompts/nemotron',
+      '/api/prompts/nemotron',
       expect.any(Object)
     );
   });
@@ -296,7 +296,7 @@ describe('updatePromptForModel', () => {
 
     expect(result).toEqual(updatedConfig);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
-      '/api/ai-audit/prompts/nemotron',
+      '/api/prompts/nemotron',
       expect.objectContaining({
         method: 'PUT',
         body: JSON.stringify(updateRequest),
@@ -331,7 +331,7 @@ describe('fetchPromptHistory', () => {
 
     expect(result).toEqual(mockHistoryResponse);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/ai-audit/prompts/history?'),
+      expect.stringContaining('/api/prompts/history?'),
       expect.any(Object)
     );
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
@@ -380,7 +380,7 @@ describe('fetchPromptHistory', () => {
 
     expect(result).toEqual(mockHistoryResponse);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/ai-audit/prompts/history?'),
+      expect.stringContaining('/api/prompts/history?'),
       expect.any(Object)
     );
     // Should not include model parameter when not specified
@@ -412,7 +412,7 @@ describe('restorePromptVersion', () => {
 
     expect(result).toEqual(mockRestoreResponse);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
-      '/api/ai-audit/prompts/history/9',
+      '/api/prompts/history/9',
       expect.objectContaining({
         method: 'POST',
       })
@@ -446,7 +446,7 @@ describe('testPrompt', () => {
 
     expect(result).toEqual(mockTestResult);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
-      '/api/ai-audit/prompts/test',
+      '/api/prompts/test',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(testRequest),
@@ -489,7 +489,7 @@ describe('exportPrompts', () => {
 
     expect(result).toEqual(mockExportResponse);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
-      '/api/ai-audit/prompts/export',
+      '/api/prompts/export',
       expect.any(Object)
     );
   });
@@ -568,7 +568,7 @@ describe('importPrompts', () => {
     expect(result).toEqual(mockImportResponse);
     expect(result.imported_models).toHaveLength(2);
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
-      '/api/ai-audit/prompts/import',
+      '/api/prompts/import',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(importRequest),

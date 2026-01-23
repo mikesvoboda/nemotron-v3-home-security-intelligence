@@ -51,7 +51,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
     path: '/',
     shortcut: 'g d',
     icon: LayoutDashboard,
-    keywords: ['home', 'main', 'overview'],
+    keywords: ['home', 'main', 'overview', 'cameras'],
   },
   {
     name: 'Timeline',
@@ -187,6 +187,24 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
         className="relative w-full max-w-lg overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] shadow-2xl"
         onKeyDown={handleKeyDown}
         loop
+        filter={(value, search) => {
+          // Custom filter for case-insensitive fuzzy matching
+          const normalizedValue = value.toLowerCase();
+          const normalizedSearch = search.toLowerCase();
+
+          // Check if any word in the value starts with the search term
+          const words = normalizedValue.split(' ');
+          if (words.some(word => word.startsWith(normalizedSearch))) {
+            return 1;
+          }
+
+          // Check if the value contains the search term
+          if (normalizedValue.includes(normalizedSearch)) {
+            return 0.5;
+          }
+
+          return 0;
+        }}
       >
         {/* Search input */}
         <div className="flex items-center border-b border-[#2a2a2a] px-4">
@@ -222,24 +240,29 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
             heading="Navigation"
             className="px-2 [&_[cmdk-group-heading]]:mb-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-[#666]"
           >
-            {NAVIGATION_ITEMS.map((item) => (
-              <Command.Item
-                key={item.path}
-                value={`${item.name} ${item.keywords?.join(' ') || ''}`}
-                onSelect={() => handleSelect(item.path)}
-                className="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-[#999] transition-colors hover:bg-[#2a2a2a] hover:text-white aria-selected:bg-[#2a2a2a] aria-selected:text-white"
-              >
-                <div className="flex items-center gap-3">
-                  <item.icon className="h-4 w-4" aria-hidden="true" />
-                  <span>{item.name}</span>
-                </div>
-                {item.shortcut && (
-                  <kbd className="rounded bg-[#333] px-2 py-0.5 text-xs text-[#ccc]">
-                    {item.shortcut}
-                  </kbd>
-                )}
-              </Command.Item>
-            ))}
+            {NAVIGATION_ITEMS.map((item) => {
+              // Build search value with name and keywords, avoiding extra spaces
+              const searchValue = [item.name, ...(item.keywords || [])].join(' ').trim();
+
+              return (
+                <Command.Item
+                  key={item.path}
+                  value={searchValue}
+                  onSelect={() => handleSelect(item.path)}
+                  className="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-[#999] transition-colors hover:bg-[#2a2a2a] hover:text-white aria-selected:bg-[#2a2a2a] aria-selected:text-white"
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon className="h-4 w-4" aria-hidden="true" />
+                    <span>{item.name}</span>
+                  </div>
+                  {item.shortcut && (
+                    <kbd className="rounded bg-[#333] px-2 py-0.5 text-xs text-[#ccc]">
+                      {item.shortcut}
+                    </kbd>
+                  )}
+                </Command.Item>
+              );
+            })}
           </Command.Group>
         </Command.List>
 

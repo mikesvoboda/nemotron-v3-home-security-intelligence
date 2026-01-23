@@ -43,8 +43,8 @@ done
 # Return to app directory
 cd /app
 
-# Start Pyroscope profiler in background if PYROSCOPE_ENABLED is set
-if [ "${PYROSCOPE_ENABLED:-false}" = "true" ]; then
+# Start Pyroscope profiler in background if PYROSCOPE_ENABLED is set (default: true)
+if [ "${PYROSCOPE_ENABLED:-true}" = "true" ]; then
     echo "Starting Pyroscope profiler in background..."
     nohup /usr/local/bin/pyroscope-profiler.sh "backend" "${PYROSCOPE_URL:-http://pyroscope:4040}" "${PROFILE_INTERVAL:-30}" \
         >> /app/data/logs/profiler.log 2>&1 &
