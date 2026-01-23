@@ -306,6 +306,48 @@ cd frontend && npx playwright test  # E2E tests (multi-browser)
 
 **CRITICAL:** Do not close an issue if any validation fails. Fix the issue first.
 
+## Multi-GPU Configuration
+
+The system supports multi-GPU configurations for distributing AI workloads. For the complete user guide, see **[Multi-GPU Support](docs/development/multi-gpu.md)**.
+
+### Key Files
+
+| Component        | Location                                             |
+| ---------------- | ---------------------------------------------------- |
+| API Schemas      | `backend/api/schemas/gpu_config.py`                  |
+| Database Models  | `backend/models/gpu_config.py`                       |
+| Config Service   | `backend/services/gpu_config_service.py`             |
+| Frontend Hook    | `frontend/src/hooks/useGpuConfig.ts`                 |
+| API Client       | `frontend/src/services/gpuConfigApi.ts`              |
+| Override File    | `config/docker-compose.gpu-override.yml` (generated) |
+| Assignments File | `config/gpu-assignments.yml` (generated)             |
+| Design Document  | `docs/plans/2025-01-23-multi-gpu-support-design.md`  |
+
+### Testing GPU Features Locally
+
+```bash
+# Run GPU-related tests
+uv run pytest backend/tests/unit/services/test_gpu_config_service.py -v
+uv run pytest backend/tests/unit/api/schemas/test_gpu_config.py -v
+uv run pytest backend/tests/unit/models/test_gpu_config.py -v
+
+# Frontend tests
+cd frontend && npm test -- --testPathPattern=useGpuConfig
+cd frontend && npm test -- --testPathPattern=gpuConfigApi
+```
+
+### API Endpoints
+
+| Method | Endpoint                         | Purpose                                |
+| ------ | -------------------------------- | -------------------------------------- |
+| GET    | `/api/system/gpus`               | List detected GPUs with utilization    |
+| GET    | `/api/system/gpu-config`         | Get current assignments and strategies |
+| PUT    | `/api/system/gpu-config`         | Update assignments                     |
+| POST   | `/api/system/gpu-config/apply`   | Apply config and restart services      |
+| GET    | `/api/system/gpu-config/status`  | Get restart progress and health        |
+| POST   | `/api/system/gpu-config/detect`  | Re-scan for GPUs                       |
+| GET    | `/api/system/gpu-config/preview` | Preview auto-assignment for strategy   |
+
 ## Development Documentation Index
 
 | Document                                                     | Purpose                                             |
@@ -317,3 +359,4 @@ cd frontend && npx playwright test  # E2E tests (multi-browser)
 | [Code Quality](docs/development/code-quality.md)             | Linting, formatting, static analysis                |
 | [Linear Integration](docs/development/linear-integration.md) | MCP tools, workflow states, usage examples          |
 | [Contributing](docs/development/contributing.md)             | PR process and code standards                       |
+| [Multi-GPU Support](docs/development/multi-gpu.md)           | GPU configuration and assignment strategies         |

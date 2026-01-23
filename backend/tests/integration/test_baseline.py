@@ -521,175 +521,173 @@ class TestCameraBaselineSummary:
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_baseline_service_with_database(test_db):
+async def test_baseline_service_with_database(session):
     """Integration test: update and query baselines with real database."""
     from backend.models.camera import Camera
 
     service = BaselineService()
 
-    async with test_db() as session:
-        # Create a test camera
-        camera = Camera(
-            id="test_camera_1",
-            name="Test Camera",
-            folder_path="/test/path",
-            status="online",
-        )
-        session.add(camera)
-        await session.commit()
+    # Use the provided session directly
+    # Create a test camera
+    camera = Camera(
+        id="test_camera_1",
+        name="Test Camera",
+        folder_path="/test/path",
+        status="online",
+    )
+    session.add(camera)
+    await session.commit()
 
-        # Update baselines
-        timestamp = datetime.now(UTC)
-        await service.update_baseline(
-            camera_id="test_camera_1",
-            detection_class="person",
-            timestamp=timestamp,
-            session=session,
-        )
-        await session.commit()
+    # Update baselines
+    timestamp = datetime.now(UTC)
+    await service.update_baseline(
+        camera_id="test_camera_1",
+        detection_class="person",
+        timestamp=timestamp,
+        session=session,
+    )
+    await session.commit()
 
-        # Query activity rate
-        hour = timestamp.hour
-        day_of_week = timestamp.weekday()
-        rate = await service.get_activity_rate(
-            camera_id="test_camera_1",
-            hour=hour,
-            day_of_week=day_of_week,
-            session=session,
-        )
+    # Query activity rate
+    hour = timestamp.hour
+    day_of_week = timestamp.weekday()
+    rate = await service.get_activity_rate(
+        camera_id="test_camera_1",
+        hour=hour,
+        day_of_week=day_of_week,
+        session=session,
+    )
 
-        assert rate > 0
+    assert rate > 0
 
-        # Query class frequency
-        freq = await service.get_class_frequency(
-            camera_id="test_camera_1",
-            detection_class="person",
-            hour=hour,
-            session=session,
-        )
+    # Query class frequency
+    freq = await service.get_class_frequency(
+        camera_id="test_camera_1",
+        detection_class="person",
+        hour=hour,
+        session=session,
+    )
 
-        assert freq > 0
+    assert freq > 0
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_baseline_multiple_updates(test_db):
+async def test_baseline_multiple_updates(session):
     """Integration test: multiple updates to the same baseline."""
     from backend.models.camera import Camera
 
     service = BaselineService(decay_factor=0.5)  # Higher decay for visible changes
 
-    async with test_db() as session:
-        # Create a test camera
-        camera = Camera(
-            id="test_camera_2",
-            name="Test Camera 2",
-            folder_path="/test/path2",
-            status="online",
-        )
-        session.add(camera)
-        await session.commit()
+    # Create a test camera
+    camera = Camera(
+        id="test_camera_2",
+        name="Test Camera 2",
+        folder_path="/test/path2",
+        status="online",
+    )
+    session.add(camera)
+    await session.commit()
 
-        # First update
-        timestamp = datetime.now(UTC)
-        await service.update_baseline(
-            camera_id="test_camera_2",
-            detection_class="person",
-            timestamp=timestamp,
-            session=session,
-        )
-        await session.commit()
+    # First update
+    timestamp = datetime.now(UTC)
+    await service.update_baseline(
+        camera_id="test_camera_2",
+        detection_class="person",
+        timestamp=timestamp,
+        session=session,
+    )
+    await session.commit()
 
-        rate1 = await service.get_activity_rate(
-            camera_id="test_camera_2",
-            hour=timestamp.hour,
-            day_of_week=timestamp.weekday(),
-            session=session,
-        )
+    rate1 = await service.get_activity_rate(
+        camera_id="test_camera_2",
+        hour=timestamp.hour,
+        day_of_week=timestamp.weekday(),
+        session=session,
+    )
 
-        # Second update (same time slot)
-        await service.update_baseline(
-            camera_id="test_camera_2",
-            detection_class="person",
-            timestamp=timestamp,
-            session=session,
-        )
-        await session.commit()
+    # Second update (same time slot)
+    await service.update_baseline(
+        camera_id="test_camera_2",
+        detection_class="person",
+        timestamp=timestamp,
+        session=session,
+    )
+    await session.commit()
 
-        rate2 = await service.get_activity_rate(
-            camera_id="test_camera_2",
-            hour=timestamp.hour,
-            day_of_week=timestamp.weekday(),
-            session=session,
-        )
+    rate2 = await service.get_activity_rate(
+        camera_id="test_camera_2",
+        hour=timestamp.hour,
+        day_of_week=timestamp.weekday(),
+        session=session,
+    )
 
-        # Rate should have increased with more observations
-        # (EWMA should blend the values)
-        assert rate2 >= rate1 * 0.9  # Allow for decay effects
+    # Rate should have increased with more observations
+    # (EWMA should blend the values)
+    assert rate2 >= rate1 * 0.9  # Allow for decay effects
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-async def test_baseline_different_classes(test_db):
+async def test_baseline_different_classes(session):
     """Integration test: track different classes at the same hour."""
     from backend.models.camera import Camera
 
     service = BaselineService()
 
-    async with test_db() as session:
-        # Create a test camera
-        camera = Camera(
-            id="test_camera_3",
-            name="Test Camera 3",
-            folder_path="/test/path3",
-            status="online",
-        )
-        session.add(camera)
-        await session.commit()
+    # Create a test camera
+    camera = Camera(
+        id="test_camera_3",
+        name="Test Camera 3",
+        folder_path="/test/path3",
+        status="online",
+    )
+    session.add(camera)
+    await session.commit()
 
-        timestamp = datetime.now(UTC)
+    timestamp = datetime.now(UTC)
 
-        # Update person baseline
-        await service.update_baseline(
-            camera_id="test_camera_3",
-            detection_class="person",
-            timestamp=timestamp,
-            session=session,
-        )
-        await session.commit()
+    # Update person baseline
+    await service.update_baseline(
+        camera_id="test_camera_3",
+        detection_class="person",
+        timestamp=timestamp,
+        session=session,
+    )
+    await session.commit()
 
-        # Update vehicle baseline
-        await service.update_baseline(
-            camera_id="test_camera_3",
-            detection_class="vehicle",
-            timestamp=timestamp,
-            session=session,
-        )
-        await session.commit()
+    # Update vehicle baseline
+    await service.update_baseline(
+        camera_id="test_camera_3",
+        detection_class="vehicle",
+        timestamp=timestamp,
+        session=session,
+    )
+    await session.commit()
 
-        # Check frequencies
-        person_freq = await service.get_class_frequency(
-            camera_id="test_camera_3",
-            detection_class="person",
-            hour=timestamp.hour,
-            session=session,
-        )
+    # Check frequencies
+    person_freq = await service.get_class_frequency(
+        camera_id="test_camera_3",
+        detection_class="person",
+        hour=timestamp.hour,
+        session=session,
+    )
 
-        vehicle_freq = await service.get_class_frequency(
-            camera_id="test_camera_3",
-            detection_class="vehicle",
-            hour=timestamp.hour,
-            session=session,
-        )
+    vehicle_freq = await service.get_class_frequency(
+        camera_id="test_camera_3",
+        detection_class="vehicle",
+        hour=timestamp.hour,
+        session=session,
+    )
 
-        # Both should be tracked
-        assert person_freq > 0
-        assert vehicle_freq > 0
+    # Both should be tracked
+    assert person_freq > 0
+    assert vehicle_freq > 0
 
-        # Get summary
-        summary = await service.get_camera_baseline_summary(
-            camera_id="test_camera_3",
-            session=session,
-        )
+    # Get summary
+    summary = await service.get_camera_baseline_summary(
+        camera_id="test_camera_3",
+        session=session,
+    )
 
-        assert summary["unique_classes"] == 2
+    assert summary["unique_classes"] == 2

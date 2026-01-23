@@ -1,4 +1,4 @@
-"""Unit tests for frontend logs API routes.
+"""Unit tests for logs API routes.
 
 Tests cover:
 - Single log entry ingestion via POST /api/logs/frontend
@@ -6,28 +6,35 @@ Tests cover:
 - Log level validation
 - Context data handling
 - Error handling scenarios
+- Log query via GET /api/logs
+- Log statistics via GET /api/logs/stats
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import Request
+from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
 
 from backend.api.routes.logs import (
     _LOG_LEVEL_MAP,
     _log_frontend_entry,
     ingest_frontend_log,
     ingest_frontend_logs_batch,
+    router,
 )
 from backend.api.schemas.logs import (
     FrontendLogBatchRequest,
     FrontendLogEntry,
     FrontendLogLevel,
     FrontendLogResponse,
+    LogEntryResponse,
+    LogStats,
 )
+from backend.core.database import get_db
 
 
 class TestLogLevelMapping:
@@ -320,3 +327,463 @@ class TestFrontendLogSchemas:
         assert data["success"] is True
         assert data["count"] == 5
         assert data["message"] == "Test message"
+
+
+# =============================================================================
+# Fixtures for Log Query Tests
+# =============================================================================
+
+
+@pytest.fixture
+def mock_db_session() -> AsyncMock:
+    """Create a mock database session."""
+    session = AsyncMock()
+    session.execute = AsyncMock()
+    return session
+
+
+@pytest.fixture
+def client(mock_db_session: AsyncMock) -> TestClient:
+    """Create a test client with mocked dependencies."""
+    app = FastAPI()
+    app.include_router(router)
+
+    async def override_get_db():
+        yield mock_db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+# =============================================================================
+# GET /api/logs Tests
+# =============================================================================
+
+
+class TestListLogs:
+    """Tests for GET /api/logs endpoint."""
+
+    def test_list_logs_returns_expected_structure(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that list logs returns expected response structure."""
+        # Mock empty result
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get("/api/logs")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify expected fields
+        assert "items" in data
+        assert "pagination" in data
+        assert isinstance(data["items"], list)
+        assert isinstance(data["pagination"], dict)
+        assert "total" in data["pagination"]
+        assert "limit" in data["pagination"]
+        assert "has_more" in data["pagination"]
+
+    def test_list_logs_with_level_filter(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test filtering logs by level."""
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get("/api/logs?level=ERROR")
+
+        assert response.status_code == 200
+
+    def test_list_logs_with_component_filter(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test filtering logs by component."""
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get("/api/logs?component=backend")
+
+        assert response.status_code == 200
+
+    def test_list_logs_with_source_filter(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test filtering logs by source."""
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get("/api/logs?source=backend")
+
+        assert response.status_code == 200
+
+    def test_list_logs_with_date_range_filter(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test filtering logs by date range."""
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get(
+            "/api/logs?start_date=2026-01-01T00:00:00Z&end_date=2026-01-31T23:59:59Z"
+        )
+
+        assert response.status_code == 200
+
+    def test_list_logs_invalid_date_range(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that invalid date range returns 400."""
+        response = client.get(
+            "/api/logs?start_date=2026-01-31T00:00:00Z&end_date=2026-01-01T23:59:59Z"
+        )
+
+        assert response.status_code == 400
+        assert "start_date cannot be after end_date" in response.json()["detail"]
+
+    def test_list_logs_with_limit(self, client: TestClient, mock_db_session: AsyncMock) -> None:
+        """Test pagination limit parameter."""
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get("/api/logs?limit=50")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["pagination"]["limit"] == 50
+
+    def test_list_logs_with_include_total_count(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test including total count in response."""
+        # Mock count result
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 150
+
+        # Mock logs result
+        mock_logs_result = MagicMock()
+        mock_logs_result.scalars.return_value.all.return_value = []
+
+        mock_db_session.execute.side_effect = [mock_count_result, mock_logs_result]
+
+        response = client.get("/api/logs?include_total_count=true")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["pagination"]["total"] == 150
+
+    def test_list_logs_returns_log_entries(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that log entries are returned correctly."""
+        # Create a mock log entry
+        mock_log = MagicMock()
+        mock_log.id = 12345
+        mock_log.timestamp = datetime(2026, 1, 15, 10, 30, 0, tzinfo=UTC)
+        mock_log.level = "ERROR"
+        mock_log.component = "backend.services.detector"
+        mock_log.message = "Detection failed"
+        mock_log.camera_id = "front_door"
+        mock_log.event_id = None
+        mock_log.request_id = "req-abc123"
+        mock_log.detection_id = None
+        mock_log.duration_ms = None
+        mock_log.extra = None
+        mock_log.source = "backend"
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = [mock_log]
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get("/api/logs")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) == 1
+        assert data["items"][0]["id"] == 12345
+        assert data["items"][0]["level"] == "ERROR"
+        assert data["items"][0]["component"] == "backend.services.detector"
+        assert data["items"][0]["message"] == "Detection failed"
+        assert data["items"][0]["camera_id"] == "front_door"
+        assert data["items"][0]["source"] == "backend"
+
+    def test_list_logs_has_more_pagination(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test has_more is True when there are more results."""
+        # Create mock logs (return limit+1 to indicate more results)
+        mock_logs = []
+        base_timestamp = datetime(2026, 1, 15, 10, 30, 0, tzinfo=UTC)
+        for i in range(101):  # Default limit is 100, so 101 indicates more
+            mock_log = MagicMock()
+            mock_log.id = i + 1
+            # Use timedelta to add seconds safely (avoids second=60 issue)
+            mock_log.timestamp = base_timestamp + timedelta(seconds=i)
+            mock_log.level = "INFO"
+            mock_log.component = "test"
+            mock_log.message = f"Log {i}"
+            mock_log.camera_id = None
+            mock_log.event_id = None
+            mock_log.request_id = None
+            mock_log.detection_id = None
+            mock_log.duration_ms = None
+            mock_log.extra = None
+            mock_log.source = "backend"
+            mock_logs.append(mock_log)
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = mock_logs
+        mock_db_session.execute.return_value = mock_result
+
+        response = client.get("/api/logs")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["pagination"]["has_more"] is True
+        assert data["pagination"]["next_cursor"] is not None
+        # Should trim to limit
+        assert len(data["items"]) == 100
+
+
+# =============================================================================
+# GET /api/logs/stats Tests
+# =============================================================================
+
+
+class TestGetLogStats:
+    """Tests for GET /api/logs/stats endpoint."""
+
+    def test_log_stats_returns_expected_structure(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that log stats returns all expected fields."""
+        # Mock UNION ALL result (category, key, count) tuples
+        union_result = MagicMock()
+        union_result.fetchall.return_value = [
+            ("total", "all", 1500),
+            ("errors", "all", 15),
+            ("warnings", "all", 42),
+            ("component", "backend.services.detector", 350),
+            ("component", "backend.api.routes.events", 280),
+        ]
+
+        mock_db_session.execute.return_value = union_result
+
+        response = client.get("/api/logs/stats")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify all expected fields are present
+        assert "errors_today" in data
+        assert "warnings_today" in data
+        assert "total_today" in data
+        assert "top_component" in data
+        assert "by_component" in data
+
+        # Verify data types
+        assert isinstance(data["errors_today"], int)
+        assert isinstance(data["warnings_today"], int)
+        assert isinstance(data["total_today"], int)
+        assert isinstance(data["by_component"], dict)
+
+    def test_log_stats_values_correctly_aggregated(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that aggregated values are correctly parsed and returned."""
+        # Mock UNION ALL result (category, key, count) tuples
+        union_result = MagicMock()
+        union_result.fetchall.return_value = [
+            ("total", "all", 1500),
+            ("errors", "all", 15),
+            ("warnings", "all", 42),
+            ("component", "backend.services.detector", 350),
+            ("component", "backend.api.routes.events", 280),
+            ("component", "frontend", 200),
+        ]
+
+        mock_db_session.execute.return_value = union_result
+
+        response = client.get("/api/logs/stats")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify counts
+        assert data["total_today"] == 1500
+        assert data["errors_today"] == 15
+        assert data["warnings_today"] == 42
+
+        # Verify by_component breakdown
+        assert data["by_component"]["backend.services.detector"] == 350
+        assert data["by_component"]["backend.api.routes.events"] == 280
+        assert data["by_component"]["frontend"] == 200
+
+        # Verify top_component
+        assert data["top_component"] == "backend.services.detector"
+
+    def test_log_stats_empty_database(self, client: TestClient, mock_db_session: AsyncMock) -> None:
+        """Test log stats with no logs in database."""
+        # Mock empty result
+        union_result = MagicMock()
+        union_result.fetchall.return_value = [
+            ("total", "all", 0),
+            ("errors", "all", 0),
+            ("warnings", "all", 0),
+        ]
+
+        mock_db_session.execute.return_value = union_result
+
+        response = client.get("/api/logs/stats")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_today"] == 0
+        assert data["errors_today"] == 0
+        assert data["warnings_today"] == 0
+        assert data["top_component"] is None
+        assert data["by_component"] == {}
+
+    def test_log_stats_one_query_execution(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that the endpoint uses only 1 database query.
+
+        The optimized endpoint should make only 1 query using UNION ALL.
+        """
+        union_result = MagicMock()
+        union_result.fetchall.return_value = [
+            ("total", "all", 100),
+            ("errors", "all", 5),
+            ("warnings", "all", 10),
+        ]
+
+        mock_db_session.execute.return_value = union_result
+
+        response = client.get("/api/logs/stats")
+
+        assert response.status_code == 200
+        # Verify only 1 query was executed
+        assert mock_db_session.execute.call_count == 1
+
+    def test_log_stats_backwards_compatible_response(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test that response matches LogStats schema for backwards compatibility."""
+        union_result = MagicMock()
+        union_result.fetchall.return_value = [
+            ("total", "all", 1500),
+            ("errors", "all", 15),
+            ("warnings", "all", 42),
+            ("component", "backend", 500),
+        ]
+
+        mock_db_session.execute.return_value = union_result
+
+        response = client.get("/api/logs/stats")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Validate against expected schema structure
+        validated = LogStats(**data)
+        assert validated.total_today == 1500
+        assert validated.errors_today == 15
+        assert validated.warnings_today == 42
+        assert validated.by_component == {"backend": 500}
+        assert validated.top_component == "backend"
+
+
+# =============================================================================
+# Log Entry Response Schema Tests
+# =============================================================================
+
+
+class TestLogEntryResponseSchema:
+    """Tests for LogEntryResponse schema."""
+
+    def test_log_entry_response_from_attributes(self):
+        """Test that LogEntryResponse can be created from ORM model."""
+        mock_log = MagicMock()
+        mock_log.id = 1
+        mock_log.timestamp = datetime(2026, 1, 15, 10, 30, 0, tzinfo=UTC)
+        mock_log.level = "INFO"
+        mock_log.component = "test"
+        mock_log.message = "Test message"
+        mock_log.camera_id = None
+        mock_log.event_id = None
+        mock_log.request_id = None
+        mock_log.detection_id = None
+        mock_log.duration_ms = None
+        mock_log.extra = None
+        mock_log.source = "backend"
+
+        # This should not raise
+        entry = LogEntryResponse.model_validate(mock_log)
+        assert entry.id == 1
+        assert entry.level == "INFO"
+        assert entry.message == "Test message"
+
+    def test_log_entry_response_with_all_fields(self):
+        """Test LogEntryResponse with all optional fields populated."""
+        entry = LogEntryResponse(
+            id=1,
+            timestamp=datetime(2026, 1, 15, 10, 30, 0, tzinfo=UTC),
+            level="ERROR",
+            component="backend.services.detector",
+            message="Detection failed",
+            camera_id="front_door",
+            event_id=123,
+            request_id="req-abc",
+            detection_id=456,
+            duration_ms=5000,
+            extra={"key": "value"},
+            source="backend",
+        )
+
+        data = entry.model_dump()
+        assert data["id"] == 1
+        assert data["level"] == "ERROR"
+        assert data["camera_id"] == "front_door"
+        assert data["event_id"] == 123
+        assert data["duration_ms"] == 5000
+        assert data["extra"] == {"key": "value"}
+
+
+class TestLogStatsSchema:
+    """Tests for LogStats schema."""
+
+    def test_log_stats_with_defaults(self):
+        """Test LogStats with minimal fields."""
+        stats = LogStats(
+            errors_today=0,
+            warnings_today=0,
+            total_today=0,
+        )
+        assert stats.top_component is None
+        assert stats.by_component == {}
+
+    def test_log_stats_with_all_fields(self):
+        """Test LogStats with all fields populated."""
+        stats = LogStats(
+            errors_today=15,
+            warnings_today=42,
+            total_today=1500,
+            top_component="backend",
+            by_component={"backend": 500, "frontend": 200},
+        )
+        data = stats.model_dump()
+        assert data["errors_today"] == 15
+        assert data["warnings_today"] == 42
+        assert data["total_today"] == 1500
+        assert data["top_component"] == "backend"
+        assert data["by_component"] == {"backend": 500, "frontend": 200}
