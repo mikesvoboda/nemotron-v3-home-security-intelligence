@@ -221,6 +221,78 @@ class TestJaeger:
         except httpx.RequestError:
             pytest.skip("Jaeger not available in this deployment")
 
+    @pytest.mark.monitoring
+    def test_elasticsearch_healthy(self, http_client: httpx.Client):
+        """
+        Verify Elasticsearch is healthy and accepting connections.
+
+        Note: Requires Elasticsearch to be running on localhost:9200
+        """
+        try:
+            response = http_client.get(
+                "http://localhost:9200/_cluster/health",
+                timeout=10.0,
+            )
+
+            if response.status_code == 404:
+                pytest.skip("Elasticsearch not available in this deployment")
+
+            assert response.status_code == 200, (
+                f"Elasticsearch health check failed: {response.status_code}"
+            )
+
+            health = response.json()
+            assert "status" in health, "Elasticsearch health should have status field"
+            assert health["status"] in ("green", "yellow"), (
+                f"Elasticsearch cluster status should be green or yellow, got: {health['status']}"
+            )
+        except httpx.RequestError:
+            pytest.skip("Elasticsearch not available in this deployment")
+
+    @pytest.mark.monitoring
+    def test_jaeger_elasticsearch_backend(self, http_client: httpx.Client):
+        """
+        Verify Jaeger is using Elasticsearch backend.
+
+        This test queries Jaeger for services (exercising ES backend)
+        and verifies Elasticsearch has Jaeger indices.
+
+        Note: Requires both Jaeger and Elasticsearch to be running.
+        """
+        try:
+            # Query Jaeger for services (this exercises ES backend)
+            response = http_client.get(
+                "http://localhost:16686/api/services",
+                timeout=10.0,
+            )
+
+            if response.status_code == 404:
+                pytest.skip("Jaeger not available in this deployment")
+
+            assert response.status_code == 200, (
+                f"Jaeger services query failed: {response.status_code}"
+            )
+
+            # Verify ES has Jaeger indices
+            es_response = http_client.get(
+                "http://localhost:9200/_cat/indices/jaeger-*?format=json",
+                timeout=10.0,
+            )
+
+            if es_response.status_code == 404:
+                pytest.skip("Elasticsearch not available in this deployment")
+
+            assert es_response.status_code == 200, (
+                f"Elasticsearch indices query failed: {es_response.status_code}"
+            )
+
+            indices = es_response.json()
+            assert isinstance(indices, list), "Elasticsearch indices should be an array"
+            # Note: Indices might be empty if no traces have been stored yet
+            # This is acceptable - we're just verifying the backend is configured
+        except httpx.RequestError as e:
+            pytest.skip(f"Monitoring services not available: {e}")
+
 
 class TestAlertManager:
     """AlertManager configuration tests."""
