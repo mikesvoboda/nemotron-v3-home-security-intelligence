@@ -180,7 +180,7 @@ Integration tests use fixtures from `backend/tests/integration/conftest.py`:
 | `isolated_db_session` | AsyncSession with savepoint rollback               |
 | `session`             | Alias for `isolated_db_session` (compatibility)    |
 | `client`              | httpx AsyncClient with ASGITransport               |
-| `clean_tables`        | TRUNCATE all tables after test (explicit request)  |
+| `clean_tables`        | TRUNCATE all tables after test (autouse)           |
 
 ## Parallel Execution Architecture (NEM-1363)
 

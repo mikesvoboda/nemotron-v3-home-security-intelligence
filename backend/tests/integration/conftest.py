@@ -875,20 +875,16 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
 # =============================================================================
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
     """Truncate all tables between tests for fast, proper isolation.
 
-    This fixture uses TRUNCATE ... CASCADE which is faster than DELETE because
-    it doesn't scan rows - it just removes all data at once.
+    This fixture automatically runs for all integration tests. It uses
+    TRUNCATE ... CASCADE which is faster than DELETE because it doesn't
+    scan rows - it just removes all data at once.
 
     With database-per-worker isolation (each pytest-xdist worker gets its own
     database), TRUNCATE is safe to use without AccessExclusiveLock deadlocks.
-
-    NOTE: This fixture is NOT autouse. Tests that need database cleanup should
-    explicitly request `db_session` or `isolated_db_session` fixtures, which
-    handle cleanup appropriately. This prevents failures in tests that don't
-    use the database (e.g., WebSocket tests with mocks).
 
     The table order is automatically determined using SQLAlchemy's reflection
     API to inspect foreign key relationships. Tables are truncated in reverse
