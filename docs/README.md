@@ -57,13 +57,15 @@ Every directory contains an `AGENTS.md` file for AI assistant navigation. Start 
 
 ## Technical Documentation
 
-| Category                | Location                                                   | Description                                  |
-| ----------------------- | ---------------------------------------------------------- | -------------------------------------------- |
-| **System Architecture** | [architecture/overview.md](architecture/overview.md)       | High-level system design and components      |
-| **AI Pipeline**         | [architecture/ai-pipeline.md](architecture/ai-pipeline.md) | Detection and analysis pipeline architecture |
-| **Data Model**          | [architecture/data-model.md](architecture/data-model.md)   | Database schema and relationships            |
-| **Real-time System**    | [architecture/real-time.md](architecture/real-time.md)     | WebSocket and event streaming                |
-| **Decision Records**    | [decisions/README.md](decisions/README.md)                 | Architectural Decision Records (ADRs)        |
+| Category                | Location                                                             | Description                                         |
+| ----------------------- | -------------------------------------------------------------------- | --------------------------------------------------- |
+| **System Architecture** | [architecture/overview.md](architecture/overview.md)                 | High-level system design and components             |
+| **AI Pipeline**         | [architecture/ai-pipeline.md](architecture/ai-pipeline.md)           | Detection and analysis pipeline architecture        |
+| **Data Model**          | [architecture/data-model.md](architecture/data-model.md)             | Database schema and relationships                   |
+| **Real-time System**    | [architecture/real-time.md](architecture/real-time.md)               | WebSocket and event streaming                       |
+| **Security**            | [architecture/security/README.md](architecture/security/README.md)   | Input validation, data protection, network security |
+| **Dataflows**           | [architecture/dataflows/README.md](architecture/dataflows/README.md) | End-to-end data traces, pipeline timing             |
+| **Decision Records**    | [decisions/README.md](decisions/README.md)                           | Architectural Decision Records (ADRs)               |
 
 ### AI Pipeline Quality Assurance
 
