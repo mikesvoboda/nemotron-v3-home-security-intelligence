@@ -41,10 +41,17 @@ Usage:
     from backend.core.telemetry import get_trace_id, get_span_id
     logger.info("Processing", extra={"trace_id": get_trace_id()})
 
+    # Using baggage for cross-service context (NEM-3382)
+    from backend.core.telemetry import set_baggage, get_baggage
+    set_baggage("camera_id", "front_door")
+    camera_id = get_baggage("camera_id")
+
     # In app shutdown
     shutdown_telemetry()
 
 NEM-1503: Added trace_span context manager, trace_function decorator, and trace ID utilities.
+NEM-3380: Added ParentBased composite sampler for smarter trace sampling.
+NEM-3382: Added Baggage for cross-service context propagation.
 """
 
 from __future__ import annotations
@@ -130,11 +137,13 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
 
     This function sets up:
     1. TracerProvider with service name and resource attributes
-    2. OTLP exporter for sending traces to a collector (Jaeger, Tempo, etc.)
-    3. FastAPI auto-instrumentation for HTTP request/response tracing
-    4. HTTPX auto-instrumentation for outgoing HTTP requests (AI services)
-    5. SQLAlchemy instrumentation for database query tracing
-    6. Redis instrumentation for cache operation tracing
+    2. ParentBased composite sampler for smarter sampling (NEM-3380)
+    3. OTLP exporter for sending traces to a collector (Jaeger, Tempo, etc.)
+    4. FastAPI auto-instrumentation for HTTP request/response tracing
+    5. HTTPX auto-instrumentation for outgoing HTTP requests (AI services)
+    6. SQLAlchemy instrumentation for database query tracing
+    7. Redis instrumentation for cache operation tracing
+    8. Composite propagator with W3C Trace Context and Baggage (NEM-3382)
 
     Args:
         app: FastAPI application instance to instrument
@@ -156,15 +165,26 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
     try:
         # Import OpenTelemetry modules only when needed
         from opentelemetry import trace
+        from opentelemetry.baggage.propagation import W3CBaggagePropagator
         from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
         from opentelemetry.instrumentation.redis import RedisInstrumentor
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+        from opentelemetry.propagate import set_global_textmap
+        from opentelemetry.propagators.composite import CompositePropagator
         from opentelemetry.sdk.resources import SERVICE_NAME, Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
-        from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
+        from opentelemetry.sdk.trace.sampling import (
+            ALWAYS_OFF,
+            ALWAYS_ON,
+            ParentBased,
+            TraceIdRatioBased,
+        )
+        from opentelemetry.trace.propagation.tracecontext import (
+            TraceContextTextMapPropagator,
+        )
 
         # Create resource with service information
         resource = Resource.create(
@@ -175,8 +195,21 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
             }
         )
 
-        # Configure sampler based on sample rate
-        sampler = TraceIdRatioBased(settings.otel_trace_sample_rate)
+        # Configure ParentBased composite sampler (NEM-3380)
+        # This provides smarter sampling decisions based on parent span:
+        # - Root spans: Sample based on configured rate (default 10% in production)
+        # - Local parent sampled: Always sample to maintain complete traces
+        # - Local parent not sampled: Always drop to maintain decision consistency
+        # - Remote parent sampled: Always sample to honor upstream decision
+        # - Remote parent not sampled: Always drop to honor upstream decision
+        root_sampler = TraceIdRatioBased(settings.otel_trace_sample_rate)
+        sampler = ParentBased(
+            root=root_sampler,
+            local_parent_sampled=ALWAYS_ON,
+            local_parent_not_sampled=ALWAYS_OFF,
+            remote_parent_sampled=ALWAYS_ON,
+            remote_parent_not_sampled=ALWAYS_OFF,
+        )
 
         # Create tracer provider
         provider = TracerProvider(resource=resource, sampler=sampler)
@@ -193,6 +226,14 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
         # Set as global tracer provider
         trace.set_tracer_provider(provider)
         _tracer_provider = provider
+
+        # Configure composite propagator with W3C Trace Context and Baggage (NEM-3382)
+        # This enables propagation of both trace context and baggage across services
+        composite_propagator = CompositePropagator(
+            [TraceContextTextMapPropagator(), W3CBaggagePropagator()]
+        )
+        set_global_textmap(composite_propagator)
+        logger.debug("Configured composite propagator with W3C Trace Context and Baggage")
 
         # Instrument FastAPI
         FastAPIInstrumentor.instrument_app(app)
@@ -467,30 +508,210 @@ def get_trace_context() -> dict[str, str | None]:
 
 
 # =============================================================================
+# OpenTelemetry Baggage for Cross-Service Context (NEM-3382)
+# =============================================================================
+
+
+def set_baggage(key: str, value: str) -> None:
+    """Set a baggage entry in the current context.
+
+    Baggage is used to propagate application-specific context across service
+    boundaries. Unlike span attributes (which are per-span), baggage entries
+    are propagated to all downstream services automatically.
+
+    Common use cases:
+    - request_id: Correlate requests across services
+    - camera_id: Track which camera originated a detection
+    - user_id: Track user context for debugging (if applicable)
+    - batch_id: Correlate detections within a batch
+
+    Args:
+        key: The baggage key (e.g., "request_id", "camera_id")
+        value: The baggage value (must be a string)
+
+    Example:
+        >>> from backend.core.telemetry import set_baggage
+        >>> set_baggage("camera_id", "front_door")
+        >>> set_baggage("batch_id", "batch-12345")
+    """
+    try:
+        from opentelemetry import baggage, context
+
+        ctx = baggage.set_baggage(key, value)
+        context.attach(ctx)
+    except ImportError:
+        # OpenTelemetry not installed, silently ignore
+        pass
+    except Exception as e:
+        logger.debug("Failed to set baggage %s: %s", key, e)
+
+
+def get_baggage(key: str) -> str | None:
+    """Get a baggage entry from the current context.
+
+    Args:
+        key: The baggage key to retrieve
+
+    Returns:
+        The baggage value if set, None otherwise.
+
+    Example:
+        >>> from backend.core.telemetry import get_baggage
+        >>> camera_id = get_baggage("camera_id")
+    """
+    try:
+        from opentelemetry import baggage
+
+        value = baggage.get_baggage(key)
+        # OpenTelemetry baggage values are always strings when set
+        return str(value) if value is not None else None
+    except ImportError:
+        return None
+    except Exception as e:
+        logger.debug("Failed to get baggage %s: %s", key, e)
+        return None
+
+
+def get_all_baggage() -> dict[str, str]:
+    """Get all baggage entries from the current context.
+
+    Returns:
+        Dictionary of all baggage key-value pairs.
+
+    Example:
+        >>> from backend.core.telemetry import get_all_baggage
+        >>> all_baggage = get_all_baggage()
+        >>> # {'camera_id': 'front_door', 'batch_id': 'batch-12345'}
+    """
+    try:
+        from opentelemetry import baggage
+
+        # OpenTelemetry baggage values are always strings when set
+        return {k: str(v) for k, v in baggage.get_all().items()}
+    except ImportError:
+        return {}
+    except Exception as e:
+        logger.debug("Failed to get all baggage: %s", e)
+        return {}
+
+
+def clear_baggage(key: str) -> None:
+    """Remove a baggage entry from the current context.
+
+    Args:
+        key: The baggage key to remove
+
+    Example:
+        >>> from backend.core.telemetry import clear_baggage
+        >>> clear_baggage("camera_id")
+    """
+    try:
+        from opentelemetry import baggage, context
+
+        ctx = baggage.remove_baggage(key)
+        context.attach(ctx)
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.debug("Failed to clear baggage %s: %s", key, e)
+
+
+def set_request_baggage(
+    *,
+    request_id: str | None = None,
+    correlation_id: str | None = None,
+    camera_id: str | None = None,
+    batch_id: str | None = None,
+) -> None:
+    """Set common request-related baggage entries for cross-service propagation.
+
+    This is a convenience function for setting multiple baggage entries
+    commonly used in the detection pipeline.
+
+    Args:
+        request_id: The request ID for correlation
+        correlation_id: The correlation ID for distributed tracing
+        camera_id: The camera identifier
+        batch_id: The batch identifier
+
+    Example:
+        >>> from backend.core.telemetry import set_request_baggage
+        >>> set_request_baggage(
+        ...     request_id="req-123",
+        ...     camera_id="front_door",
+        ...     batch_id="batch-456"
+        ... )
+    """
+    if request_id:
+        set_baggage("request_id", request_id)
+    if correlation_id:
+        set_baggage("correlation_id", correlation_id)
+    if camera_id:
+        set_baggage("camera_id", camera_id)
+    if batch_id:
+        set_baggage("batch_id", batch_id)
+
+
+def extract_context_from_headers(headers: dict[str, str]) -> None:
+    """Extract trace context and baggage from incoming HTTP headers.
+
+    This function should be called when receiving requests from upstream services
+    to restore the trace context and baggage. It uses the composite propagator
+    configured in setup_telemetry.
+
+    Args:
+        headers: Dictionary of HTTP headers from the incoming request
+
+    Example:
+        >>> from backend.core.telemetry import extract_context_from_headers
+        >>> # In your request handler
+        >>> headers = dict(request.headers)
+        >>> extract_context_from_headers(headers)
+        >>> # Now trace context and baggage are restored
+        >>> camera_id = get_baggage("camera_id")
+    """
+    try:
+        from opentelemetry import context
+        from opentelemetry.propagate import extract
+
+        ctx = extract(headers)
+        context.attach(ctx)
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.debug("Failed to extract context from headers: %s", e)
+
+
+# =============================================================================
 # W3C Trace Context Propagation (NEM-3147)
 # =============================================================================
 
 
 def get_trace_headers() -> dict[str, str]:
-    """Get W3C Trace Context headers for propagation to downstream services.
+    """Get W3C Trace Context and Baggage headers for propagation to downstream services.
 
-    This function extracts the current trace context and returns HTTP headers
-    that can be included in outgoing requests to propagate the trace across
-    service boundaries. Uses the W3C Trace Context standard (traceparent and
-    tracestate headers).
+    This function extracts the current trace context and baggage, returning HTTP
+    headers that can be included in outgoing requests to propagate both trace
+    information and application context across service boundaries.
 
-    When OpenTelemetry is enabled, this uses the standard W3CTraceContextPropagator.
+    Headers included:
+    - traceparent: W3C Trace Context parent header (OpenTelemetry)
+    - tracestate: W3C Trace Context state header (OpenTelemetry)
+    - baggage: W3C Baggage header for cross-service context (NEM-3382)
+
+    When OpenTelemetry is enabled, this uses the composite propagator that
+    includes both W3CTraceContextPropagator and W3CBaggagePropagator.
     When disabled, returns an empty dict (no-op).
 
     Returns:
-        Dictionary with traceparent and tracestate headers if trace is active,
+        Dictionary with traceparent, tracestate, and baggage headers if active,
         empty dict otherwise.
 
     Example:
         >>> from backend.core.telemetry import get_trace_headers
         >>> headers = {"Content-Type": "application/json"}
         >>> headers.update(get_trace_headers())
-        >>> # headers now contains traceparent and tracestate if tracing is active
+        >>> # headers now contains traceparent, tracestate, and baggage if active
     """
     try:
         from opentelemetry.propagate import inject
