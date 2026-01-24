@@ -1013,9 +1013,20 @@ async def mock_redis() -> AsyncGenerator[AsyncMock]:
     mock_underlying_client.script_load.return_value = "mock_lua_script_sha"
     mock_underlying_client.evalsha.return_value = [1, 0]  # [is_allowed=1, current_count=0]
 
+    # scan_iter needs to return an async iterator, not a coroutine
+    # Create an async generator that yields nothing (empty scan results)
+    async def empty_scan_iter(*args, **kwargs):
+        return
+        yield  # Makes this an async generator
+
+    mock_underlying_client.scan_iter = empty_scan_iter
+
     # _ensure_connected is a synchronous method that returns the underlying client
     # Use MagicMock to make it synchronous (not coroutine) but return the async client
     mock_redis_client._ensure_connected = MagicMock(return_value=mock_underlying_client)
+
+    # Also add scan_iter to the top-level mock_redis_client for direct access
+    mock_redis_client.scan_iter = empty_scan_iter
 
     # Set _client to the mock underlying client for direct access if needed
     mock_redis_client._client = mock_underlying_client
