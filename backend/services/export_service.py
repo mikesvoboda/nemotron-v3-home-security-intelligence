@@ -507,7 +507,7 @@ class ExportService:
         disposition = "inline" if inline else "attachment"
         return f'{disposition}; filename="{filename}"'
 
-    async def export_events_with_progress(  # noqa: PLR0912
+    async def export_events_with_progress(
         self,
         job_id: str,
         job_tracker: JobTracker,
@@ -738,7 +738,7 @@ class ExportService:
             "format": export_format,
         }
 
-    async def export_events_with_websocket(  # noqa: PLR0912
+    async def export_events_with_websocket(
         self,
         progress_reporter: JobProgressReporter,
         export_format: str,

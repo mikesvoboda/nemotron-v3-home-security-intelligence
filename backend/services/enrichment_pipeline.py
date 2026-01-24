@@ -861,7 +861,7 @@ class EnrichmentResult:
         self.errors.append(f"{operation} failed: {error.reason}")
         return error
 
-    def to_context_string(self) -> str:  # noqa: PLR0912
+    def to_context_string(self) -> str:
         """Generate context string for LLM prompt.
 
         Returns:
@@ -1282,7 +1282,7 @@ class EnrichmentResult:
             "depth_context": format_depth_context(self.depth_analysis),
         }
 
-    def get_risk_modifiers(self) -> dict[str, float]:  # noqa: PLR0912
+    def get_risk_modifiers(self) -> dict[str, float]:
         """Calculate risk score modifiers based on enrichment results.
 
         Returns a dictionary of named risk modifiers that can be used to
@@ -1449,7 +1449,7 @@ class EnrichmentResult:
 
         return flags
 
-    def get_enrichment_for_detection(self, detection_id: int) -> dict[str, Any] | None:  # noqa: PLR0912
+    def get_enrichment_for_detection(self, detection_id: int) -> dict[str, Any] | None:
         """Get enrichment data for a specific detection.
 
         Aggregates all enrichment results that apply to the given detection ID.
@@ -2342,7 +2342,7 @@ class EnrichmentPipeline:
 
         return results
 
-    async def enrich_batch(  # noqa: PLR0912
+    async def enrich_batch(
         self,
         detections: list[DetectionInput],
         images: dict[int | None, Image.Image | Path | str],
@@ -2797,7 +2797,7 @@ class EnrichmentPipeline:
 
         return result
 
-    async def _run_reid(  # noqa: PLR0912
+    async def _run_reid(
         self,
         detections: list[DetectionInput],
         image: Image.Image,
@@ -2942,7 +2942,7 @@ class EnrichmentPipeline:
                         exc_info=True,
                     )
 
-    async def _run_household_matching(  # noqa: PLR0912
+    async def _run_household_matching(
         self,
         detections: list[DetectionInput],
         result: EnrichmentResult,
@@ -3549,7 +3549,7 @@ class EnrichmentPipeline:
             logger.error("Weather classification error", exc_info=True)
             raise
 
-    async def _classify_person_clothing(  # noqa: PLR0912
+    async def _classify_person_clothing(
         self,
         persons: list[DetectionInput],
         image: Image.Image,
@@ -3763,7 +3763,7 @@ class EnrichmentPipeline:
 
         return results
 
-    async def _classify_vehicle_types(  # noqa: PLR0912
+    async def _classify_vehicle_types(
         self,
         vehicles: list[DetectionInput],
         image: Image.Image,
@@ -4056,7 +4056,7 @@ class EnrichmentPipeline:
             logger.error("Image quality assessment error", exc_info=True)
             raise
 
-    async def _classify_pets(  # noqa: PLR0912
+    async def _classify_pets(
         self,
         animals: list[DetectionInput],
         image: Image.Image,
@@ -4213,7 +4213,7 @@ class EnrichmentPipeline:
 
         return results
 
-    async def enrich_batch_with_tracking(  # noqa: PLR0912
+    async def enrich_batch_with_tracking(
         self,
         detections: list[DetectionInput],
         images: dict[int | None, Image.Image | Path | str],

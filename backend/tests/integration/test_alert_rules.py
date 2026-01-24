@@ -95,7 +95,7 @@ class PromQLEvaluator:
         """
         self.metrics = metrics
 
-    def evaluate(self, expr: str) -> bool | None:  # noqa: PLR0911, PLR0912
+    def evaluate(self, expr: str) -> bool | None:  # noqa: PLR0911
         """Evaluate a PromQL expression and return whether it would fire.
 
         Args:

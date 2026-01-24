@@ -4,9 +4,15 @@
  * Provides central state management for disk storage status across frontend components.
  * Uses Zustand for reactive state management, allowing the Header and FileOperationsPanel
  * to share storage warning state.
+ *
+ * Enhancements (NEM-3399, NEM-3400):
+ * - DevTools middleware for debugging
+ * - useShallow hooks for selective subscriptions
  */
 
 import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
+import { useShallow } from 'zustand/shallow';
 
 // ============================================================================
 // Types
@@ -55,7 +61,7 @@ export const CRITICAL_USAGE_THRESHOLD = 90;
 export const HIGH_USAGE_THRESHOLD = 85;
 
 // ============================================================================
-// Store
+// Store (NEM-3400: DevTools middleware)
 // ============================================================================
 
 /**
@@ -66,6 +72,7 @@ export const HIGH_USAGE_THRESHOLD = 85;
  * - Provides `isCritical` flag when usage >= 90%
  * - Provides `isHigh` flag when usage >= 85%
  * - Shared between FileOperationsPanel and Header
+ * - DevTools integration for debugging (NEM-3400)
  *
  * @example
  * ```tsx
@@ -82,33 +89,46 @@ export const HIGH_USAGE_THRESHOLD = 85;
  * }
  * ```
  */
-export const useStorageStatusStore = create<StorageStatusState>((set) => ({
-  status: null,
-  isCritical: false,
-  isHigh: false,
-
-  update: (usagePercent: number, usedBytes: number, totalBytes: number, freeBytes: number) => {
-    set({
-      status: {
-        usagePercent,
-        usedBytes,
-        totalBytes,
-        freeBytes,
-        lastUpdated: new Date(),
-      },
-      isCritical: usagePercent >= CRITICAL_USAGE_THRESHOLD,
-      isHigh: usagePercent >= HIGH_USAGE_THRESHOLD,
-    });
-  },
-
-  clear: () => {
-    set({
+export const useStorageStatusStore = create<StorageStatusState>()(
+  devtools(
+    (set) => ({
       status: null,
       isCritical: false,
       isHigh: false,
-    });
-  },
-}));
+
+      update: (usagePercent: number, usedBytes: number, totalBytes: number, freeBytes: number) => {
+        set(
+          {
+            status: {
+              usagePercent,
+              usedBytes,
+              totalBytes,
+              freeBytes,
+              lastUpdated: new Date(),
+            },
+            isCritical: usagePercent >= CRITICAL_USAGE_THRESHOLD,
+            isHigh: usagePercent >= HIGH_USAGE_THRESHOLD,
+          },
+          undefined,
+          'update'
+        );
+      },
+
+      clear: () => {
+        set(
+          {
+            status: null,
+            isCritical: false,
+            isHigh: false,
+          },
+          undefined,
+          'clear'
+        );
+      },
+    }),
+    { name: 'storage-status-store', enabled: import.meta.env.DEV }
+  )
+);
 
 // ============================================================================
 // Selectors
@@ -138,4 +158,56 @@ function formatBytes(bytes: number, decimals: number = 1): string {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
+// ============================================================================
+// Shallow Hooks for Selective Subscriptions (NEM-3399)
+// ============================================================================
+
+/**
+ * Hook to select storage warning flags with shallow equality.
+ * Prevents re-renders when only status details change but warning state stays the same.
+ *
+ * @example
+ * ```tsx
+ * const { isCritical, isHigh } = useStorageWarningStatus();
+ * ```
+ */
+export function useStorageWarningStatus() {
+  return useStorageStatusStore(
+    useShallow((state) => ({
+      isCritical: state.isCritical,
+      isHigh: state.isHigh,
+    }))
+  );
+}
+
+/**
+ * Hook to select the current storage status.
+ *
+ * @example
+ * ```tsx
+ * const status = useStorageStatus();
+ * ```
+ */
+export function useStorageStatus() {
+  return useStorageStatusStore((state) => state.status);
+}
+
+/**
+ * Hook to select storage actions only.
+ * Actions are stable references and don't cause re-renders.
+ *
+ * @example
+ * ```tsx
+ * const { update, clear } = useStorageActions();
+ * ```
+ */
+export function useStorageActions() {
+  return useStorageStatusStore(
+    useShallow((state) => ({
+      update: state.update,
+      clear: state.clear,
+    }))
+  );
 }

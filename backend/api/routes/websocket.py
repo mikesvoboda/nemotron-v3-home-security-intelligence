@@ -324,7 +324,7 @@ async def send_heartbeat(
 
 
 @router.websocket("/ws/events")
-async def websocket_events_endpoint(  # noqa: PLR0912
+async def websocket_events_endpoint(
     websocket: WebSocket,
     redis: RedisClient = Depends(get_redis),
     _token_valid: bool = Depends(validate_websocket_token),
@@ -544,7 +544,7 @@ async def websocket_events_endpoint(  # noqa: PLR0912
 
 
 @router.websocket("/ws/system")
-async def websocket_system_status(  # noqa: PLR0912
+async def websocket_system_status(
     websocket: WebSocket,
     redis: RedisClient = Depends(get_redis),
     _token_valid: bool = Depends(validate_websocket_token),
@@ -766,7 +766,7 @@ async def websocket_system_status(  # noqa: PLR0912
 
 
 @router.websocket("/ws/jobs/{job_id}/logs")
-async def websocket_job_logs(  # noqa: PLR0912
+async def websocket_job_logs(
     websocket: WebSocket,
     job_id: str,
     redis: RedisClient = Depends(get_redis),

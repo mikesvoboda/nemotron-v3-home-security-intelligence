@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import ORJSONResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -81,7 +81,11 @@ ClipGeneratorDep = ClipGenerator
 NemotronAnalyzerDep = NemotronAnalyzer
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/events", tags=["events"])
+router = APIRouter(
+    prefix="/api/events",
+    tags=["events"],
+    default_response_class=ORJSONResponse,
+)
 
 # Valid severity values for search filter
 VALID_SEVERITY_VALUES = frozenset({"low", "medium", "high", "critical"})
@@ -222,7 +226,7 @@ def sanitize_csv_value(value: str | None) -> str:
 
 
 @router.get("", response_model=EventListResponse)
-async def list_events(  # noqa: PLR0912
+async def list_events(
     response: Response,
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     risk_level: str | None = Query(
@@ -394,7 +398,7 @@ async def list_events(  # noqa: PLR0912
 
     # Apply pagination - fetch one extra to determine if there are more results
     # Use explicit if/else for readability (clearer than ternary with complex expressions)
-    if cursor_data:  # noqa: SIM108
+    if cursor_data:
         # Cursor-based: fetch limit + 1 to check for more
         query = query.limit(limit + 1)
     else:
@@ -1594,7 +1598,7 @@ async def get_event(
 
 
 @router.patch("/{event_id}", response_model=EventResponse)
-async def update_event(  # noqa: PLR0912  # Allow branches for audit logging logic
+async def update_event(  # Allow branches for audit logging logic
     event_id: int,
     update_data: EventUpdate,
     request: Request,

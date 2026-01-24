@@ -33,7 +33,7 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(scope="function")
-def clean_db_config(integration_env: None) -> Generator[Config]:  # noqa: PLR0912
+def clean_db_config(integration_env: None) -> Generator[Config]:
     """Create Alembic config with clean database state for each test.
 
     This fixture ensures that each test starts with a completely clean

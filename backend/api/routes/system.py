@@ -27,6 +27,7 @@ from fastapi import (
     Response,
     status,
 )
+from fastapi.responses import ORJSONResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -147,7 +148,11 @@ BaselineServiceDep = BaselineService
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/system", tags=["system"])
+router = APIRouter(
+    prefix="/api/system",
+    tags=["system"],
+    default_response_class=ORJSONResponse,
+)
 
 
 # =============================================================================
@@ -285,7 +290,11 @@ async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
 
     # Hash and validate the API key
     key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
-    valid_hashes = {hashlib.sha256(k.encode()).hexdigest() for k in settings.api_keys}
+    # Support SecretStr for api_keys
+    valid_hashes = set()
+    for k in settings.api_keys:
+        key_value: str = k.get_secret_value() if hasattr(k, "get_secret_value") else str(k)
+        valid_hashes.add(hashlib.sha256(key_value.encode()).hexdigest())
 
     if key_hash not in valid_hashes:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")

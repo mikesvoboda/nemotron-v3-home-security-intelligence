@@ -562,4 +562,116 @@ describe('useCursorPaginatedQuery', () => {
       });
     });
   });
+
+  describe('maxPages option (TanStack Query v5 feature)', () => {
+    it('accepts maxPages option without errors', async () => {
+      mockQueryFn.mockResolvedValue(mockPage1);
+
+      const { result } = renderHook(
+        () =>
+          useCursorPaginatedQuery<TestResponse>({
+            queryKey: ['test', 'items', 'with-max-pages'],
+            queryFn: mockQueryFn,
+            maxPages: 5,
+          }),
+        { wrapper: createQueryWrapper() }
+      );
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Verify the query was successful and option was accepted
+      expect(result.current.data?.pages?.length).toBe(1);
+      expect(result.current.isError).toBe(false);
+    });
+
+    it('works correctly with maxPages set to 2', async () => {
+      // Create pages with unique cursors
+      const page1: TestResponse = {
+        items: [{ id: 1, name: 'Item 1' }],
+        pagination: { total: 5, has_more: true, next_cursor: 'cursor-2' },
+      };
+      const page2: TestResponse = {
+        items: [{ id: 2, name: 'Item 2' }],
+        pagination: { total: 5, has_more: true, next_cursor: 'cursor-3' },
+      };
+      const page3: TestResponse = {
+        items: [{ id: 3, name: 'Item 3' }],
+        pagination: { total: 5, has_more: true, next_cursor: 'cursor-4' },
+      };
+
+      mockQueryFn
+        .mockResolvedValueOnce(page1)
+        .mockResolvedValueOnce(page2)
+        .mockResolvedValueOnce(page3);
+
+      const { result } = renderHook(
+        () =>
+          useCursorPaginatedQuery<TestResponse>({
+            queryKey: ['test', 'items', 'max-pages-2'],
+            queryFn: mockQueryFn,
+            maxPages: 2, // Limit to 2 pages
+          }),
+        { wrapper: createQueryWrapper() }
+      );
+
+      // Wait for first page
+      await waitFor(() => {
+        expect(result.current.data?.pages?.length).toBe(1);
+      });
+
+      // Fetch page 2
+      result.current.fetchNextPage();
+      await waitFor(() => {
+        expect(result.current.data?.pages?.length).toBe(2);
+      });
+
+      // Fetch page 3 - with maxPages=2, TanStack Query should keep only 2 pages
+      result.current.fetchNextPage();
+      await waitFor(() => {
+        // maxPages limits stored pages - oldest page should be dropped
+        expect(result.current.data?.pages?.length).toBe(2);
+      });
+
+      // Verify the newest pages are kept (page 2 and page 3)
+      expect(result.current.data?.pages?.[0].items[0].id).toBe(2);
+      expect(result.current.data?.pages?.[1].items[0].id).toBe(3);
+    });
+
+    it('does not limit pages when maxPages is undefined', async () => {
+      mockQueryFn
+        .mockResolvedValueOnce(mockPage1)
+        .mockResolvedValueOnce(mockPage2)
+        .mockResolvedValueOnce(mockPage3);
+
+      const { result } = renderHook(
+        () =>
+          useCursorPaginatedQuery<TestResponse>({
+            queryKey: ['test', 'items', 'no-max-pages'],
+            queryFn: mockQueryFn,
+            // No maxPages - should accumulate all pages
+          }),
+        { wrapper: createQueryWrapper() }
+      );
+
+      // Wait for first page
+      await waitFor(() => {
+        expect(result.current.data?.pages?.length).toBe(1);
+      });
+
+      // Fetch page 2
+      result.current.fetchNextPage();
+      await waitFor(() => {
+        expect(result.current.data?.pages?.length).toBe(2);
+      });
+
+      // Fetch page 3
+      result.current.fetchNextPage();
+      await waitFor(() => {
+        // All 3 pages should be accumulated
+        expect(result.current.data?.pages?.length).toBe(3);
+      });
+    });
+  });
 });

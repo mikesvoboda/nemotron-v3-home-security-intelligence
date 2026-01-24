@@ -124,7 +124,7 @@ class TestRedaction:
         redacted = redact_request_body(body)
 
         assert redacted["username"] == "testuser"
-        assert redacted["password"] == "[REDACTED]"  # noqa: S105  # pragma: allowlist secret
+        assert redacted["password"] == "[REDACTED]"  # pragma: allowlist secret
 
     def test_redacts_api_key_field(self):
         """Test that api_key fields are redacted."""
@@ -141,8 +141,8 @@ class TestRedaction:
 
         redacted = redact_request_body(body)
 
-        assert redacted["access_token"] == "[REDACTED]"  # noqa: S105  # pragma: allowlist secret
-        assert redacted["refresh_token"] == "[REDACTED]"  # noqa: S105  # pragma: allowlist secret
+        assert redacted["access_token"] == "[REDACTED]"  # pragma: allowlist secret
+        assert redacted["refresh_token"] == "[REDACTED]"  # pragma: allowlist secret
 
     def test_redacts_authorization_header(self):
         """Test that Authorization headers are redacted."""
@@ -172,7 +172,7 @@ class TestRedaction:
 
         assert redacted["user"]["email"] == "test@example.com"
         # fmt: off
-        assert redacted["user"]["credentials"]["password"] == "[REDACTED]"  # noqa: S105  # pragma: allowlist secret
+        assert redacted["user"]["credentials"]["password"] == "[REDACTED]"  # pragma: allowlist secret
         assert redacted["user"]["credentials"]["api_key"] == "[REDACTED]"  # pragma: allowlist secret
         # fmt: on
 
@@ -188,8 +188,8 @@ class TestRedaction:
         redacted = redact_request_body(body)
 
         assert redacted["users"][0]["username"] == "user1"
-        assert redacted["users"][0]["password"] == "[REDACTED]"  # noqa: S105  # pragma: allowlist secret
-        assert redacted["users"][1]["password"] == "[REDACTED]"  # noqa: S105  # pragma: allowlist secret
+        assert redacted["users"][0]["password"] == "[REDACTED]"  # pragma: allowlist secret
+        assert redacted["users"][1]["password"] == "[REDACTED]"  # pragma: allowlist secret
 
     def test_handles_none_body(self):
         """Test that None body returns None."""

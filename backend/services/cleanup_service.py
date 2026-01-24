@@ -230,7 +230,7 @@ class CleanupService:
 
         await asyncio.sleep(wait_seconds)
 
-    async def run_cleanup(self) -> CleanupStats:  # noqa: PLR0912
+    async def run_cleanup(self) -> CleanupStats:
         """Execute cleanup operation.
 
         Deletes old records and files based on retention policy.

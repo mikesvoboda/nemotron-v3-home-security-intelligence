@@ -833,18 +833,20 @@ class TestPromptTestRateLimiting:
             "error": None,
         }
 
-        # Mock Redis returning count under limit (5 < 13 = 10 + 3 burst)
-        mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-        mock_pipe.execute = AsyncMock(return_value=[0, 5, 1, True])
-
-        response = client_with_rate_limit.post(
-            "/api/prompts/test",
-            json={
-                "model": "nemotron",
-                "config": {"system_prompt": "test prompt"},
-                "event_id": 123,
-            },
-        )
+        # Mock the Lua script to return allowed (count under limit)
+        with patch(
+            "backend.api.middleware.rate_limit._execute_rate_limit_script",
+            new_callable=AsyncMock,
+            return_value=(True, 5),  # allowed, count=5
+        ):
+            response = client_with_rate_limit.post(
+                "/api/prompts/test",
+                json={
+                    "model": "nemotron",
+                    "config": {"system_prompt": "test prompt"},
+                    "event_id": 123,
+                },
+            )
 
         assert response.status_code == 200
         data = response.json()
@@ -857,18 +859,20 @@ class TestPromptTestRateLimiting:
         mock_redis: MagicMock,
     ) -> None:
         """Test that 429 is returned when rate limit is exceeded."""
-        # Mock Redis returning count over limit (15 > 13 = 10 + 3 burst)
-        mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-        mock_pipe.execute = AsyncMock(return_value=[0, 15, 1, True])
-
-        response = client_with_rate_limit.post(
-            "/api/prompts/test",
-            json={
-                "model": "nemotron",
-                "config": {"system_prompt": "test prompt"},
-                "event_id": 123,
-            },
-        )
+        # Mock the Lua script to return denied (count over limit)
+        with patch(
+            "backend.api.middleware.rate_limit._execute_rate_limit_script",
+            new_callable=AsyncMock,
+            return_value=(False, 15),  # denied, count=15
+        ):
+            response = client_with_rate_limit.post(
+                "/api/prompts/test",
+                json={
+                    "model": "nemotron",
+                    "config": {"system_prompt": "test prompt"},
+                    "event_id": 123,
+                },
+            )
 
         assert response.status_code == 429
         data = response.json()
@@ -881,18 +885,20 @@ class TestPromptTestRateLimiting:
         mock_redis: MagicMock,
     ) -> None:
         """Test that 429 response includes Retry-After header."""
-        # Mock Redis returning count over limit
-        mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-        mock_pipe.execute = AsyncMock(return_value=[0, 20, 1, True])
-
-        response = client_with_rate_limit.post(
-            "/api/prompts/test",
-            json={
-                "model": "nemotron",
-                "config": {"system_prompt": "test"},
-                "event_id": 1,
-            },
-        )
+        # Mock the Lua script to return denied (count over limit)
+        with patch(
+            "backend.api.middleware.rate_limit._execute_rate_limit_script",
+            new_callable=AsyncMock,
+            return_value=(False, 20),  # denied, count=20
+        ):
+            response = client_with_rate_limit.post(
+                "/api/prompts/test",
+                json={
+                    "model": "nemotron",
+                    "config": {"system_prompt": "test"},
+                    "event_id": 1,
+                },
+            )
 
         assert response.status_code == 429
         assert "Retry-After" in response.headers
@@ -905,19 +911,20 @@ class TestPromptTestRateLimiting:
         mock_redis: MagicMock,
     ) -> None:
         """Test that the endpoint uses AI_INFERENCE tier limits."""
-        # Mock Redis returning count at exactly the limit (13 = 10 + 3 burst)
-        # Count >= limit means rate limited
-        mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
-        mock_pipe.execute = AsyncMock(return_value=[0, 13, 1, True])
-
-        response = client_with_rate_limit.post(
-            "/api/prompts/test",
-            json={
-                "model": "nemotron",
-                "config": {"system_prompt": "test"},
-                "event_id": 1,
-            },
-        )
+        # Mock the Lua script to return denied (count at limit 13 = 10 + 3 burst)
+        with patch(
+            "backend.api.middleware.rate_limit._execute_rate_limit_script",
+            new_callable=AsyncMock,
+            return_value=(False, 13),  # denied, count=13 (at limit)
+        ):
+            response = client_with_rate_limit.post(
+                "/api/prompts/test",
+                json={
+                    "model": "nemotron",
+                    "config": {"system_prompt": "test"},
+                    "event_id": 1,
+                },
+            )
 
         # Should be rate limited when count equals limit
         assert response.status_code == 429

@@ -25,19 +25,29 @@ export type {
   UseGpuHistoryReturn,
 } from './useGpuHistory';
 
-export { useHealthStatusQuery } from './useHealthStatusQuery';
+export { useHealthStatusQuery, useHealthSummaryQuery } from './useHealthStatusQuery';
 export type {
   UseHealthStatusQueryOptions,
   UseHealthStatusQueryReturn,
+  HealthSummary,
+  UseHealthSummaryQueryReturn,
 } from './useHealthStatusQuery';
 
-export { useCamerasQuery, useCameraQuery, useCameraMutation } from './useCamerasQuery';
+export {
+  useCamerasQuery,
+  useCameraQuery,
+  useCameraMutation,
+  useOnlineCamerasQuery,
+  useCameraCountsQuery,
+} from './useCamerasQuery';
 export type {
   UseCamerasQueryOptions,
   UseCamerasQueryReturn,
   UseCameraQueryOptions,
   UseCameraQueryReturn,
   UseCameraMutationReturn,
+  UseOnlineCamerasQueryReturn,
+  UseCameraCountsQueryReturn,
 } from './useCamerasQuery';
 
 export { useGpuStatsQuery, useGpuHistoryQuery } from './useGpuStatsQuery';
@@ -289,9 +299,6 @@ export type {
 
 export { useRateLimitCountdown, formatCountdown } from './useRateLimitCountdown';
 export type { UseRateLimitCountdownReturn } from './useRateLimitCountdown';
-
-export { useRateLimit } from './useRateLimit';
-export type { UseRateLimitReturn } from './useRateLimit';
 
 // Ambient status awareness hooks
 export { useAudioNotifications } from './useAudioNotifications';
@@ -690,3 +697,45 @@ export type {
   UseDetectGpusReturn,
   UsePreviewStrategyReturn,
 } from './useGpuConfig';
+
+// TanStack Query v5 Advanced Patterns (NEM-3409, NEM-3410, NEM-3411, NEM-3412)
+export {
+  // PlaceholderData factories (NEM-3409)
+  createPlaceholderCameras,
+  createPlaceholderHealthStatus,
+  createPlaceholderGpuStats,
+  createPlaceholderEventStats,
+  // Select functions for data transformation (NEM-3410)
+  selectOnlineCameras,
+  selectCameraCountsByStatus,
+  selectHealthSummary,
+  selectRiskDistribution,
+  // AbortSignal utilities (NEM-3411)
+  withAbortSignal,
+  createSignalAwareQueryFn,
+  // Parallel queries (NEM-3412)
+  useDashboardQueries,
+  useQueries,
+} from './useQueryPatterns';
+export type {
+  QueryFnWithSignal,
+  DashboardQueryConfig,
+  DashboardQueryResult,
+  DashboardQueriesResult,
+} from './useQueryPatterns';
+
+// Parallel Dashboard Data Hook (NEM-3412)
+export { useDashboardData, default as useDashboardDataDefault } from './useDashboardData';
+export type {
+  UseDashboardDataOptions,
+  DashboardData,
+  UseDashboardDataReturn,
+} from './useDashboardData';
+
+// React 19 performance optimization hooks (NEM-3421)
+export { useDeferredFilter, useDeferredSearch, default as useDeferredFilterDefault } from './useDeferredFilter';
+export type {
+  UseDeferredFilterOptions,
+  UseDeferredFilterResult,
+  UseDeferredSearchOptions,
+} from './useDeferredFilter';

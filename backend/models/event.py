@@ -3,9 +3,22 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    case,
+)
 from sqlalchemy.dialects.postgresql import TSVECTOR
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Mapped, declared_attr, deferred, mapped_column, relationship
+
+from backend.core.orm_utils import get_relationship_lazy_mode
 
 from .camera import Base, Camera
 from .enums import Severity
@@ -38,11 +51,20 @@ class Event(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     risk_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # risk_level column stores the persisted risk level from LLM analysis
+    # Use the computed_risk_level hybrid_property for consistent risk level computation
     risk_level: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # Optimistic locking version column (NEM-3408)
+    # Auto-incremented on each UPDATE to prevent concurrent modification conflicts
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    reasoning: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Deferred columns: Large text columns that are not loaded by default
+    # to reduce memory usage in list queries. Use undefer() to load when needed.
+    reasoning: Mapped[str | None] = deferred(mapped_column(Text, nullable=True))
     # Full prompt sent to Nemotron LLM for analysis (for debugging/improvement)
-    llm_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    llm_prompt: Mapped[str | None] = deferred(mapped_column(Text, nullable=True))
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_fast_path: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -71,30 +93,55 @@ class Event(Base):
         DateTime(timezone=True), nullable=True, default=None
     )
 
-    # Relationships
-    camera: Mapped[Camera] = relationship("Camera", back_populates="events")
+    # ==========================================================================
+    # Relationships (NEM-3405: Configurable lazy loading for N+1 prevention)
+    # ==========================================================================
+    # In development/test mode, relationships use 'raise_on_sql' to catch N+1 queries.
+    # In production, standard 'select' loading is used.
+    # Use selectinload/joinedload explicitly in queries that need eager loading.
+
+    camera: Mapped[Camera] = relationship(
+        "Camera",
+        back_populates="events",
+        lazy=get_relationship_lazy_mode(),
+    )
     alerts: Mapped[list[Alert]] = relationship(
-        "Alert", back_populates="event", cascade="all, delete-orphan"
+        "Alert",
+        back_populates="event",
+        cascade="all, delete-orphan",
+        lazy=get_relationship_lazy_mode(),
     )
     audit: Mapped[EventAudit | None] = relationship(
-        "EventAudit", back_populates="event", uselist=False, cascade="all, delete-orphan"
+        "EventAudit",
+        back_populates="event",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy=get_relationship_lazy_mode(),
     )
     # Junction table relationship for normalized detection associations
     # This provides access to EventDetection records for this event
     detection_records: Mapped[list[EventDetection]] = relationship(
-        "EventDetection", back_populates="event", cascade="all, delete-orphan"
+        "EventDetection",
+        back_populates="event",
+        cascade="all, delete-orphan",
+        lazy=get_relationship_lazy_mode(),
     )
     # User feedback relationship (NEM-1794)
     feedback: Mapped[EventFeedback | None] = relationship(
-        "EventFeedback", back_populates="event", uselist=False, cascade="all, delete-orphan"
+        "EventFeedback",
+        back_populates="event",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy=get_relationship_lazy_mode(),
     )
     # Many-to-many relationship to Detection via junction table
     # This is the primary way to access detections - use this instead of parsing detection_ids
+    # Note: This relationship uses 'selectin' by default as it's frequently accessed together
     detections: Mapped[list[Detection]] = relationship(
         "Detection",
         secondary="event_detections",
         viewonly=True,  # Managed via detection_records
-        lazy="selectin",  # Eager load to avoid N+1 queries
+        lazy="selectin",  # Eager load to avoid N+1 queries (always eager for this relationship)
     )
 
     # Indexes for common queries
@@ -153,6 +200,23 @@ class Event(Base):
             postgresql_using="brin",
         ),
     )
+
+    # ==========================================================================
+    # Optimistic Locking Configuration (NEM-3408)
+    # ==========================================================================
+    # SQLAlchemy's version_id_col enables optimistic locking by auto-incrementing
+    # the version column on each UPDATE. If a concurrent modification occurs,
+    # SQLAlchemy raises StaleDataError, allowing the application to handle conflicts.
+    #
+    # Usage pattern:
+    #   1. Load event: event = await session.get(Event, event_id)
+    #   2. Modify: event.reviewed = True
+    #   3. Commit: await session.commit()  # Raises StaleDataError if version mismatch
+
+    @declared_attr  # type: ignore[arg-type]
+    def __mapper_args__(cls) -> dict[str, Any]:
+        """Configure mapper with version_id_col for optimistic locking."""
+        return {"version_id_col": cls.__table__.c.version}
 
     @property
     def is_deleted(self) -> bool:
@@ -241,3 +305,65 @@ class Event(Base):
             Number of detections linked to this event
         """
         return len(self.detections)
+
+    # ==========================================================================
+    # Hybrid Properties for Computed Values (NEM-3404)
+    # ==========================================================================
+
+    @hybrid_property
+    def computed_risk_level(self) -> str | None:
+        """Compute risk level from risk_score using configurable thresholds.
+
+        This hybrid_property computes the risk level dynamically from risk_score,
+        allowing both Python-side computation and SQL-side CASE expressions.
+
+        Default thresholds (configurable via settings):
+        - 0-29: low
+        - 30-59: medium
+        - 60-84: high
+        - 85-100: critical
+
+        Returns:
+            Risk level string ('low', 'medium', 'high', 'critical') or None if no risk_score
+        """
+        if self.risk_score is None:
+            return None
+
+        # Import settings lazily to avoid circular imports
+        from backend.core.config import get_settings
+
+        settings = get_settings()
+        score = self.risk_score
+
+        if score <= settings.severity_low_max:
+            return "low"
+        elif score <= settings.severity_medium_max:
+            return "medium"
+        elif score <= settings.severity_high_max:
+            return "high"
+        else:
+            return "critical"
+
+    @computed_risk_level.expression  # type: ignore[no-redef]
+    @classmethod
+    def computed_risk_level(cls) -> Any:
+        """SQL expression for computed_risk_level.
+
+        Generates a CASE expression for use in SQL queries:
+        SELECT *, CASE WHEN risk_score IS NULL THEN NULL
+                       WHEN risk_score <= 29 THEN 'low'
+                       WHEN risk_score <= 59 THEN 'medium'
+                       WHEN risk_score <= 84 THEN 'high'
+                       ELSE 'critical' END AS computed_risk_level
+        FROM events;
+
+        Note: Uses hardcoded default thresholds for SQL compatibility.
+        For dynamic thresholds, compute in Python or use a database function.
+        """
+        return case(
+            (cls.risk_score.is_(None), None),
+            (cls.risk_score <= 29, "low"),
+            (cls.risk_score <= 59, "medium"),
+            (cls.risk_score <= 84, "high"),
+            else_="critical",
+        )

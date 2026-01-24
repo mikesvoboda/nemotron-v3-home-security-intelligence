@@ -3,22 +3,32 @@
  *
  * This module provides hooks for fetching and mutating camera data using
  * TanStack Query. It includes:
- * - useCamerasQuery: Fetch all cameras
+ * - useCamerasQuery: Fetch all cameras (with placeholderData support - NEM-3409)
  * - useCameraQuery: Fetch a single camera by ID
  * - useCameraMutation: Create, update, and delete cameras
+ * - useCamerasWithSelect: Fetch cameras with data transformation (NEM-3410)
  *
  * Benefits:
  * - Automatic request deduplication across components
  * - Built-in caching with automatic cache invalidation
  * - Optimistic updates support
  * - Background refetching
+ * - PlaceholderData for better UX during loading states
+ * - Select option for efficient data transformation
  *
  * @module hooks/useCamerasQuery
+ * @see NEM-3409 - placeholderData pattern implementation
+ * @see NEM-3410 - select option for data transformation
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
+import {
+  createPlaceholderCameras,
+  selectOnlineCameras,
+  selectCameraCountsByStatus,
+} from './useQueryPatterns';
 import {
   fetchCameras,
   fetchCamera,
@@ -58,6 +68,28 @@ export interface UseCamerasQueryOptions {
    * @default DEFAULT_STALE_TIME (30 seconds)
    */
   staleTime?: number;
+
+  /**
+   * Number of placeholder cameras to show during loading.
+   * Set to 0 to disable placeholder data.
+   * @default 6
+   * @see NEM-3409 - placeholderData pattern
+   */
+  placeholderCount?: number;
+
+  /**
+   * Custom selector to transform the camera data.
+   * When provided, only the selected data is returned and memoized.
+   * @see NEM-3410 - select option for data transformation
+   * @example
+   * ```tsx
+   * // Filter to only online cameras
+   * const { cameras } = useCamerasQuery({
+   *   select: (cameras) => cameras.filter(c => c.status === 'online'),
+   * });
+   * ```
+   */
+  select?: (cameras: Camera[]) => Camera[];
 }
 
 /**
@@ -74,30 +106,58 @@ export interface UseCamerasQueryReturn {
   error: Error | null;
   /** Function to manually trigger a refetch */
   refetch: () => Promise<unknown>;
+  /** Whether the data is placeholder data (NEM-3409) */
+  isPlaceholderData: boolean;
 }
 
 /**
  * Hook to fetch all cameras using TanStack Query.
+ *
+ * Supports TanStack Query v5 patterns:
+ * - placeholderData: Shows skeleton cameras during loading (NEM-3409)
+ * - select: Transform data at query level for efficient memoization (NEM-3410)
  *
  * @param options - Configuration options
  * @returns Camera list and query state
  *
  * @example
  * ```tsx
- * const { cameras, isLoading, error } = useCamerasQuery();
- *
- * if (isLoading) return <Spinner />;
- * if (error) return <Error message={error.message} />;
+ * // Basic usage with placeholder data
+ * const { cameras, isLoading, isPlaceholderData } = useCamerasQuery();
  *
  * return (
  *   <ul>
- *     {cameras.map(cam => <li key={cam.id}>{cam.name}</li>)}
+ *     {cameras.map(cam => (
+ *       <li key={cam.id} className={isPlaceholderData ? 'animate-pulse' : ''}>
+ *         {cam.name}
+ *       </li>
+ *     ))}
  *   </ul>
  * );
  * ```
+ *
+ * @example
+ * ```tsx
+ * // With select to filter only online cameras
+ * const { cameras } = useCamerasQuery({
+ *   select: (cams) => cams.filter(c => c.status === 'online'),
+ * });
+ * ```
  */
 export function useCamerasQuery(options: UseCamerasQueryOptions = {}): UseCamerasQueryReturn {
-  const { enabled = true, refetchInterval = false, staleTime = DEFAULT_STALE_TIME } = options;
+  const {
+    enabled = true,
+    refetchInterval = false,
+    staleTime = DEFAULT_STALE_TIME,
+    placeholderCount = 6,
+    select,
+  } = options;
+
+  // Create stable placeholder data reference
+  const placeholderData = useMemo(
+    () => (placeholderCount > 0 ? createPlaceholderCameras(placeholderCount) : undefined),
+    [placeholderCount]
+  );
 
   const query = useQuery({
     queryKey: queryKeys.cameras.list(),
@@ -107,6 +167,10 @@ export function useCamerasQuery(options: UseCamerasQueryOptions = {}): UseCamera
     staleTime,
     // Reduced retry for faster failure feedback
     retry: 1,
+    // PlaceholderData pattern (NEM-3409): Show skeleton data during loading
+    placeholderData,
+    // Select pattern (NEM-3410): Transform data at query level
+    select,
   });
 
   // Provide empty array as default to avoid null checks
@@ -118,6 +182,7 @@ export function useCamerasQuery(options: UseCamerasQueryOptions = {}): UseCamera
     isRefetching: query.isRefetching,
     error: query.error,
     refetch: query.refetch,
+    isPlaceholderData: query.isPlaceholderData,
   };
 }
 
@@ -379,5 +444,143 @@ export function useCameraMutation(): UseCameraMutationReturn {
     createMutation,
     updateMutation,
     deleteMutation,
+  };
+}
+
+// ============================================================================
+// Convenience Hooks with Select Pattern (NEM-3410)
+// ============================================================================
+
+/**
+ * Return type for useOnlineCamerasQuery hook
+ */
+export interface UseOnlineCamerasQueryReturn extends Omit<UseCamerasQueryReturn, 'cameras'> {
+  /** List of online cameras only */
+  cameras: Camera[];
+  /** Count of online cameras */
+  count: number;
+}
+
+/**
+ * Hook to fetch only online cameras using the select pattern.
+ *
+ * This hook demonstrates the select option (NEM-3410) for efficient data
+ * transformation. The filter is applied at the query level, ensuring
+ * the transformed data is properly memoized by React Query.
+ *
+ * @param options - Configuration options (same as useCamerasQuery, minus select)
+ * @returns Online cameras list and query state
+ *
+ * @example
+ * ```tsx
+ * const { cameras, count, isLoading } = useOnlineCamerasQuery();
+ *
+ * return (
+ *   <div>
+ *     <span>{count} cameras online</span>
+ *     <CameraGrid cameras={cameras} />
+ *   </div>
+ * );
+ * ```
+ */
+export function useOnlineCamerasQuery(
+  options: Omit<UseCamerasQueryOptions, 'select'> = {}
+): UseOnlineCamerasQueryReturn {
+  const result = useCamerasQuery({
+    ...options,
+    select: selectOnlineCameras,
+  });
+
+  return {
+    ...result,
+    count: result.cameras.length,
+  };
+}
+
+/**
+ * Return type for useCameraCountsQuery hook
+ */
+export interface UseCameraCountsQueryReturn {
+  /** Camera counts by status */
+  counts: {
+    online: number;
+    offline: number;
+    error: number;
+    total: number;
+  };
+  /** Whether the initial fetch is in progress */
+  isLoading: boolean;
+  /** Whether a background refetch is in progress */
+  isRefetching: boolean;
+  /** Error object if the query failed */
+  error: Error | null;
+  /** Function to manually trigger a refetch */
+  refetch: () => Promise<unknown>;
+  /** Whether the data is placeholder data */
+  isPlaceholderData: boolean;
+}
+
+/**
+ * Hook to fetch camera counts by status using the select pattern.
+ *
+ * This hook demonstrates the select option (NEM-3410) for transforming
+ * data into aggregated statistics. Only the counts are returned, not
+ * the full camera objects, reducing component re-renders.
+ *
+ * @param options - Configuration options
+ * @returns Camera counts by status and query state
+ *
+ * @example
+ * ```tsx
+ * const { counts, isLoading } = useCameraCountsQuery();
+ *
+ * return (
+ *   <div>
+ *     <span>Online: {counts.online}</span>
+ *     <span>Offline: {counts.offline}</span>
+ *     <span>Error: {counts.error}</span>
+ *   </div>
+ * );
+ * ```
+ */
+export function useCameraCountsQuery(
+  options: Omit<UseCamerasQueryOptions, 'select'> = {}
+): UseCameraCountsQueryReturn {
+  const {
+    enabled = true,
+    refetchInterval = false,
+    staleTime = DEFAULT_STALE_TIME,
+    placeholderCount = 6,
+  } = options;
+
+  // Create stable placeholder data reference
+  const placeholderData = useMemo(
+    () => (placeholderCount > 0 ? createPlaceholderCameras(placeholderCount) : undefined),
+    [placeholderCount]
+  );
+
+  const query = useQuery({
+    queryKey: queryKeys.cameras.list(),
+    queryFn: fetchCameras,
+    enabled,
+    refetchInterval,
+    staleTime,
+    retry: 1,
+    placeholderData,
+    // Use select to transform to counts (NEM-3410)
+    select: selectCameraCountsByStatus,
+  });
+
+  // Provide default counts to avoid null checks
+  const defaultCounts = { online: 0, offline: 0, error: 0, total: 0 };
+  const counts = query.data ?? defaultCounts;
+
+  return {
+    counts,
+    isLoading: query.isLoading,
+    isRefetching: query.isRefetching,
+    error: query.error,
+    refetch: query.refetch,
+    isPlaceholderData: query.isPlaceholderData,
   };
 }

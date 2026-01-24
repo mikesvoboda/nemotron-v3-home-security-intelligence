@@ -63,7 +63,7 @@ async def notification_client(integration_db, mock_redis):
         smtp_from_address="alerts@example.com",
         smtp_use_tls=True,
         smtp_user="smtp_user",
-        smtp_password="smtp_password",  # noqa: S106 - test password
+        smtp_password="smtp_password",
         default_webhook_url="https://hooks.example.com/webhook",
         webhook_timeout_seconds=30,
         default_email_recipients=["admin@example.com", "security@example.com"],

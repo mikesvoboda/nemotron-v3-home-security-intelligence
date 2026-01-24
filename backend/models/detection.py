@@ -5,7 +5,7 @@ from typing import Any
 
 from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, deferred, mapped_column, relationship
 
 from backend.api.schemas.enrichment_data import (
     coerce_enrichment_data as _coerce_enrichment_data,
@@ -68,7 +68,9 @@ class Detection(Base):
     # Enrichment pipeline results (JSONB for structured vision model outputs)
     # Contains results from 18+ vision models: license plate, face, vehicle,
     # clothing, violence, weather, image quality, pet classification, etc.
-    enrichment_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # Deferred: Large JSONB column not loaded by default to reduce memory usage.
+    # Use undefer() when enrichment data is needed in queries.
+    enrichment_data: Mapped[dict[str, Any] | None] = deferred(mapped_column(JSONB, nullable=True))
     search_vector: Mapped[Any | None] = mapped_column(TSVECTOR, nullable=True)
     labels: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
 

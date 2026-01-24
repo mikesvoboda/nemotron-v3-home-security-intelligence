@@ -1806,10 +1806,10 @@ def test_redis_client_password_from_constructor():
     """Test that RedisClient accepts password via constructor."""
     client = RedisClient(
         redis_url="redis://localhost:6379/0",
-        password="test_password",  # noqa: S106  # pragma: allowlist secret
+        password="test_password",  # pragma: allowlist secret
     )
 
-    assert client._password == "test_password"  # noqa: S105  # pragma: allowlist secret
+    assert client._password == "test_password"  # pragma: allowlist secret
 
 
 def test_redis_client_password_none_by_default():
@@ -1836,7 +1836,7 @@ def test_redis_client_password_from_settings():
     with patch("backend.core.redis.get_settings") as mock_get_settings:
         mock_settings = MagicMock()
         mock_settings.redis_url = "redis://localhost:6379/0"
-        mock_settings.redis_password = "settings_password"  # noqa: S105  # pragma: allowlist secret
+        mock_settings.redis_password = "settings_password"  # pragma: allowlist secret
         mock_settings.redis_ssl_enabled = False
         mock_settings.redis_ssl_cert_reqs = "required"
         mock_settings.redis_ssl_ca_certs = None
@@ -1847,7 +1847,7 @@ def test_redis_client_password_from_settings():
 
         client = RedisClient()
 
-        assert client._password == "settings_password"  # noqa: S105  # pragma: allowlist secret
+        assert client._password == "settings_password"  # pragma: allowlist secret
 
 
 def test_redis_client_constructor_password_overrides_settings():
@@ -1855,7 +1855,7 @@ def test_redis_client_constructor_password_overrides_settings():
     with patch("backend.core.redis.get_settings") as mock_get_settings:
         mock_settings = MagicMock()
         mock_settings.redis_url = "redis://localhost:6379/0"
-        mock_settings.redis_password = "settings_password"  # noqa: S105  # pragma: allowlist secret
+        mock_settings.redis_password = "settings_password"  # pragma: allowlist secret
         mock_settings.redis_ssl_enabled = False
         mock_settings.redis_ssl_cert_reqs = "required"
         mock_settings.redis_ssl_ca_certs = None
@@ -1864,9 +1864,9 @@ def test_redis_client_constructor_password_overrides_settings():
         mock_settings.redis_ssl_check_hostname = True
         mock_get_settings.return_value = mock_settings
 
-        client = RedisClient(password="constructor_password")  # noqa: S106  # pragma: allowlist secret
+        client = RedisClient(password="constructor_password")  # pragma: allowlist secret
 
-        assert client._password == "constructor_password"  # noqa: S105  # pragma: allowlist secret
+        assert client._password == "constructor_password"  # pragma: allowlist secret
 
 
 @pytest.mark.asyncio
@@ -1875,14 +1875,14 @@ async def test_redis_connect_with_password(mock_redis_pool, mock_redis_client):
     with patch("backend.core.redis.Redis", return_value=mock_redis_client):
         client = RedisClient(
             redis_url="redis://localhost:6379/0",
-            password="test_password",  # noqa: S106  # pragma: allowlist secret
+            password="test_password",  # pragma: allowlist secret
         )
         await client.connect()
 
         # Verify ConnectionPool.from_url was called with password parameter
         call_kwargs = mock_redis_pool.from_url.call_args[1]
         assert "password" in call_kwargs
-        assert call_kwargs["password"] == "test_password"  # noqa: S105  # pragma: allowlist secret
+        assert call_kwargs["password"] == "test_password"  # pragma: allowlist secret
 
         await client.disconnect()
 
@@ -1929,7 +1929,7 @@ async def test_redis_connect_with_password_and_ssl(mock_redis_pool, mock_redis_c
     with patch("backend.core.redis.Redis", return_value=mock_redis_client):
         client = RedisClient(
             redis_url="redis://localhost:6379/0",
-            password="secure_password",  # noqa: S106  # pragma: allowlist secret
+            password="secure_password",  # pragma: allowlist secret
             ssl_enabled=True,
             ssl_cert_reqs="none",
             ssl_check_hostname=False,
@@ -1939,7 +1939,7 @@ async def test_redis_connect_with_password_and_ssl(mock_redis_pool, mock_redis_c
         # Verify both password and SSL are passed
         call_kwargs = mock_redis_pool.from_url.call_args[1]
         assert "password" in call_kwargs
-        assert call_kwargs["password"] == "secure_password"  # noqa: S105  # pragma: allowlist secret
+        assert call_kwargs["password"] == "secure_password"  # pragma: allowlist secret
         assert "ssl" in call_kwargs
         assert isinstance(call_kwargs["ssl"], ssl.SSLContext)
 

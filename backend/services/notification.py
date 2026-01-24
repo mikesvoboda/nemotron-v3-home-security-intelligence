@@ -253,12 +253,22 @@ class NotificationService:
             msg: Email message to send
             recipients: List of recipient email addresses
         """
+        # Extract smtp_password, supporting both SecretStr and str
+        smtp_password = self.settings.smtp_password
+        password_value: str | None = (
+            smtp_password.get_secret_value()
+            if smtp_password and hasattr(smtp_password, "get_secret_value")
+            else str(smtp_password)
+            if smtp_password
+            else None
+        )
+
         if self.settings.smtp_use_tls:
             context = ssl.create_default_context()
             with smtplib.SMTP(self.settings.smtp_host or "", self.settings.smtp_port) as server:
                 server.starttls(context=context)
-                if self.settings.smtp_user and self.settings.smtp_password:
-                    server.login(self.settings.smtp_user, self.settings.smtp_password)
+                if self.settings.smtp_user and password_value:
+                    server.login(self.settings.smtp_user, password_value)
                 server.sendmail(
                     self.settings.smtp_from_address or "",
                     recipients,
@@ -266,8 +276,8 @@ class NotificationService:
                 )
         else:
             with smtplib.SMTP(self.settings.smtp_host or "", self.settings.smtp_port) as server:
-                if self.settings.smtp_user and self.settings.smtp_password:
-                    server.login(self.settings.smtp_user, self.settings.smtp_password)
+                if self.settings.smtp_user and password_value:
+                    server.login(self.settings.smtp_user, password_value)
                 server.sendmail(
                     self.settings.smtp_from_address or "",
                     recipients,

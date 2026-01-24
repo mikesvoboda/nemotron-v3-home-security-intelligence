@@ -88,6 +88,15 @@ export interface UseEntitiesInfiniteQueryOptions {
    * @default 1
    */
   retry?: number | boolean;
+
+  /**
+   * Maximum number of pages to store in memory.
+   * When this limit is reached, older pages are removed when new pages are fetched.
+   * This bounds memory usage regardless of scroll depth.
+   * TanStack Query v5 feature for memory optimization.
+   * @default 10
+   */
+  maxPages?: number;
 }
 
 /**
@@ -174,6 +183,7 @@ export function useEntitiesInfiniteQuery(
     staleTime,
     refetchInterval = 30000,
     retry = 1,
+    maxPages = 10, // Default to 10 pages for bounded memory (NEM-3362)
   } = options;
 
   const query = useCursorPaginatedQuery<EntityListResponse, EntityFilters>({
@@ -191,6 +201,7 @@ export function useEntitiesInfiniteQuery(
     staleTime,
     refetchInterval,
     retry,
+    maxPages,
   });
 
   // Flatten all entities from all pages

@@ -14,7 +14,7 @@ Note: This test file uses hardcoded test tokens which trigger S105/S106 security
 warnings. These are intentional test fixtures, not real secrets.
 """
 
-# ruff: noqa: S105, S106  # Test tokens are not real secrets
+# Test tokens are not real secrets
 
 import os
 from unittest.mock import MagicMock, patch
@@ -260,7 +260,13 @@ class TestConfigSetting:
         get_settings.cache_clear()
 
         settings = get_settings()
-        assert settings.websocket_token == test_token
+        # websocket_token is now SecretStr, so we need to get the actual value
+        token_value = (
+            settings.websocket_token.get_secret_value()
+            if settings.websocket_token and hasattr(settings.websocket_token, "get_secret_value")
+            else settings.websocket_token
+        )
+        assert token_value == test_token
 
         # Cleanup
         os.environ.pop("WEBSOCKET_TOKEN", None)

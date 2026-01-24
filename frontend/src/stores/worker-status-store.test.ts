@@ -7,6 +7,10 @@ import {
   selectRunningWorkers,
   selectWorkerByName,
   selectWorkersByType,
+  // Memoized selectors (NEM-3428)
+  selectErrorWorkersMemoized,
+  selectWarningWorkersMemoized,
+  selectRunningWorkersMemoized,
 } from './worker-status-store';
 
 import type {
@@ -475,6 +479,85 @@ describe('worker-status-store', () => {
 
       expect(detectionWorkers.length).toBe(2);
       expect(detectionWorkers.every((w) => w.type === 'detection')).toBe(true);
+    });
+  });
+
+  describe('memoized selectors (NEM-3428)', () => {
+    beforeEach(() => {
+      // Reset and set up workers in various states
+      useWorkerStatusStore.getState().clear();
+      const { handleWorkerStarted, handleWorkerStopped, handleWorkerError } =
+        useWorkerStatusStore.getState();
+
+      handleWorkerStarted({
+        worker_name: 'detection-worker-1',
+        worker_type: 'detection',
+        timestamp: new Date().toISOString(),
+      });
+
+      handleWorkerStopped({
+        worker_name: 'analysis-worker-1',
+        worker_type: 'analysis',
+        reason: 'shutdown',
+        timestamp: new Date().toISOString(),
+      });
+
+      handleWorkerError({
+        worker_name: 'metrics-worker-1',
+        worker_type: 'metrics',
+        error: 'Connection failed',
+        error_type: 'ConnectionError',
+        recoverable: true,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    it('selectErrorWorkersMemoized returns cached result on repeated calls', () => {
+      const state = useWorkerStatusStore.getState();
+      const result1 = selectErrorWorkersMemoized(state);
+      const result2 = selectErrorWorkersMemoized(state);
+
+      expect(result1).toBe(result2); // Same reference
+      expect(result1.length).toBe(1);
+      expect(result1[0].name).toBe('metrics-worker-1');
+    });
+
+    it('selectWarningWorkersMemoized returns cached result on repeated calls', () => {
+      const state = useWorkerStatusStore.getState();
+      const result1 = selectWarningWorkersMemoized(state);
+      const result2 = selectWarningWorkersMemoized(state);
+
+      expect(result1).toBe(result2); // Same reference
+      expect(result1.length).toBe(1);
+      expect(result1[0].name).toBe('analysis-worker-1');
+    });
+
+    it('selectRunningWorkersMemoized returns cached result on repeated calls', () => {
+      const state = useWorkerStatusStore.getState();
+      const result1 = selectRunningWorkersMemoized(state);
+      const result2 = selectRunningWorkersMemoized(state);
+
+      expect(result1).toBe(result2); // Same reference
+      expect(result1.length).toBe(1);
+      expect(result1[0].name).toBe('detection-worker-1');
+    });
+
+    it('memoized selectors recompute when state changes', () => {
+      const state1 = useWorkerStatusStore.getState();
+      const result1 = selectRunningWorkersMemoized(state1);
+
+      // Add another running worker to change the state
+      useWorkerStatusStore.getState().handleWorkerStarted({
+        worker_name: 'timeout-worker-1',
+        worker_type: 'timeout',
+        timestamp: new Date().toISOString(),
+      });
+
+      const state2 = useWorkerStatusStore.getState();
+      const result2 = selectRunningWorkersMemoized(state2);
+
+      expect(result1).not.toBe(result2); // Different reference
+      expect(result2.length).toBe(2);
     });
   });
 });

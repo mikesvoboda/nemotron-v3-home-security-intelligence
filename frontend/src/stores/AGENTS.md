@@ -1,10 +1,14 @@
 # Stores Directory
 
-This directory contains state management stores for the frontend application.
+This directory contains state management stores for the frontend application using Zustand.
 
 ## Overview
 
-Stores manage application state that needs to persist across sessions or be shared across components. Currently using pure TypeScript with localStorage persistence rather than a state management library like Zustand or Redux.
+Stores manage application state that needs to be shared across components. All stores use Zustand with the following enhancements (NEM-3399, NEM-3400, NEM-3428):
+
+- **DevTools middleware** - Redux DevTools integration for debugging (disabled in production)
+- **useShallow hooks** - Selective subscriptions to prevent unnecessary re-renders
+- **Memoized selectors** - Cached selectors for derived state
 
 ## Files
 
@@ -21,6 +25,55 @@ Stores manage application state that needs to persist across sessions or be shar
 | `worker-status-store.ts`          | Background worker status store                        |
 | `worker-status-store.test.ts`     | Tests for worker status store                         |
 
+## Store Architecture
+
+Each Zustand store follows this pattern:
+
+```typescript
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
+import { useShallow } from 'zustand/shallow';
+
+export const useMyStore = create<MyState>()(
+  devtools(
+    (set, get) => ({
+      // State
+      data: null,
+
+      // Actions
+      update: (value) => {
+        set({ data: value }, undefined, 'update');
+      },
+    }),
+    { name: 'my-store', enabled: process.env.NODE_ENV !== 'production' }
+  )
+);
+
+// Selectors
+export const selectDerivedData = (state: MyState) => /* ... */;
+
+// Memoized selectors (for derived state that creates new arrays/objects)
+export const selectDerivedDataMemoized = (state: MyState) => {
+  if (state.data === cache.data) return cache.result;
+  const result = /* compute */;
+  cache = { data: state.data, result };
+  return result;
+};
+
+// Shallow hooks for selective subscriptions
+export function useMyData() {
+  return useMyStore(useShallow((state) => ({
+    data: state.data,
+  })));
+}
+
+export function useMyActions() {
+  return useMyStore(useShallow((state) => ({
+    update: state.update,
+  })));
+}
+```
+
 ### `dashboardConfig.ts`
 
 Dashboard widget customization store. Manages:
@@ -30,10 +83,12 @@ Dashboard widget customization store. Manages:
 - **localStorage persistence** - Configuration survives browser refresh
 - **Default configuration** - Sensible defaults for new users
 
+Note: This store does not use Zustand (uses pure TypeScript with localStorage).
+
 #### Key Types
 
 ```typescript
-type WidgetId = 'stats-row' | 'camera-grid' | 'activity-feed' | 'gpu-stats' | 'pipeline-telemetry' | 'pipeline-queues';
+type WidgetId = 'stats-row' | 'ai-summary-row' | 'camera-grid' | 'activity-feed' | 'gpu-stats' | 'pipeline-telemetry' | 'pipeline-queues';
 
 interface WidgetConfig {
   id: WidgetId;
@@ -48,71 +103,111 @@ interface DashboardConfig {
 }
 ```
 
-#### Key Functions
+### `prometheus-alert-store.ts`
 
-| Function | Purpose |
+Prometheus/Alertmanager alert state management.
+
+#### Shallow Hooks (NEM-3399)
+
+| Hook | Purpose |
+|------|---------|
+| `usePrometheusAlertCounts()` | Select only alert counts (criticalCount, warningCount, etc.) |
+| `usePrometheusAlerts()` | Select only the alerts map |
+| `usePrometheusAlertActions()` | Select actions (handlePrometheusAlert, removeAlert, clear) |
+
+#### Memoized Selectors (NEM-3428)
+
+| Selector | Purpose |
 |----------|---------|
-| `loadDashboardConfig()` | Load config from localStorage or return defaults |
-| `saveDashboardConfig(config)` | Save config to localStorage |
-| `resetDashboardConfig()` | Reset to defaults and clear localStorage |
-| `setWidgetVisibility(config, id, visible)` | Toggle widget visibility |
-| `moveWidgetUp(config, id)` | Move widget up in order |
-| `moveWidgetDown(config, id)` | Move widget down in order |
-| `getVisibleWidgets(config)` | Get only visible widgets in order |
+| `selectCriticalAlertsMemoized` | Cached critical alerts array |
+| `selectWarningAlertsMemoized` | Cached warning alerts array |
+| `selectInfoAlertsMemoized` | Cached info alerts array |
+| `selectAlertsSortedBySeverityMemoized` | Cached sorted alerts array |
 
-#### Default Visible Widgets
+### `rate-limit-store.ts`
 
-- Stats Row (metrics)
-- Camera Grid (live feeds)
-- Activity Feed (events)
+API rate limit tracking store.
 
-#### Default Hidden Widgets
+#### Shallow Hooks (NEM-3399)
 
-- GPU Statistics
-- Pipeline Telemetry
-- Pipeline Queues
+| Hook | Purpose |
+|------|---------|
+| `useRateLimitStatus()` | Select isLimited and secondsUntilReset |
+| `useRateLimitCurrent()` | Select current rate limit info |
+| `useRateLimitActions()` | Select actions (update, clear) |
 
-### `dashboardConfig.test.ts`
+### `storage-status-store.ts`
 
-Comprehensive test suite (33 tests) covering:
+Storage status tracking store.
 
-- Default configuration
-- localStorage loading/saving
-- Widget visibility toggling
-- Widget reordering
-- Configuration merging (for version migrations)
-- Edge cases (invalid JSON, missing fields)
+#### Shallow Hooks (NEM-3399)
 
-## Usage Pattern
+| Hook | Purpose |
+|------|---------|
+| `useStorageWarningStatus()` | Select isCritical and isHigh flags |
+| `useStorageStatus()` | Select current storage status |
+| `useStorageActions()` | Select actions (update, clear) |
+
+### `worker-status-store.ts`
+
+Background worker status store.
+
+#### Shallow Hooks (NEM-3399)
+
+| Hook | Purpose |
+|------|---------|
+| `usePipelineHealth()` | Select pipeline health status (pipelineHealth, hasError, hasWarning, counts) |
+| `useWorkers()` | Select only the workers map |
+| `useWorkerActions()` | Select all worker event handlers and clear action |
+
+#### Memoized Selectors (NEM-3428)
+
+| Selector | Purpose |
+|----------|---------|
+| `selectErrorWorkersMemoized` | Cached error workers array |
+| `selectWarningWorkersMemoized` | Cached warning workers array |
+| `selectRunningWorkersMemoized` | Cached running workers array |
+
+## Usage Patterns
+
+### Basic Store Usage
 
 ```typescript
-// In a React component
-const [config, setConfig] = useState<DashboardConfig>(() => loadDashboardConfig());
-
-// Update and persist
-const handleToggle = (widgetId: WidgetId, visible: boolean) => {
-  const newConfig = setWidgetVisibility(config, widgetId, visible);
-  setConfig(newConfig);
-  saveDashboardConfig(newConfig);
-};
-
-// Reset
-const handleReset = () => {
-  const defaultConfig = resetDashboardConfig();
-  setConfig(defaultConfig);
-};
+// Full store (triggers re-render on any state change)
+const { alerts, criticalCount, handlePrometheusAlert } = usePrometheusAlertStore();
 ```
 
-## Adding New Widgets
+### Optimized Usage with Shallow Hooks
 
-1. Add widget ID to `WidgetId` type
-2. Add widget config to `DEFAULT_WIDGETS` array
-3. Update `DashboardLayout.tsx` to handle the new widget
-4. Add render function prop to `DashboardLayoutProps`
+```typescript
+// Only re-renders when counts change (not when alert details change)
+const { criticalCount, warningCount } = usePrometheusAlertCounts();
+
+// Actions never change, so no re-renders
+const { handlePrometheusAlert, clear } = usePrometheusAlertActions();
+```
+
+### Using Memoized Selectors
+
+```typescript
+// Use memoized selector in component
+const criticalAlerts = usePrometheusAlertStore(selectCriticalAlertsMemoized);
+```
+
+## DevTools Integration (NEM-3400)
+
+All Zustand stores integrate with Redux DevTools for debugging:
+
+1. Install Redux DevTools browser extension
+2. Open DevTools and navigate to "Redux" tab
+3. See stores: `prometheus-alert-store`, `rate-limit-store`, `storage-status-store`, `worker-status-store`
+4. Track state changes with action names like `handlePrometheusAlert/firing`, `update`, `clear`
+
+DevTools is disabled in production (`enabled: process.env.NODE_ENV !== 'production'`).
 
 ## Storage Key
 
-Configuration is stored in localStorage under the key `'dashboard-config'`.
+Dashboard configuration is stored in localStorage under the key `'dashboard-config'`.
 
 ## Version Migration
 

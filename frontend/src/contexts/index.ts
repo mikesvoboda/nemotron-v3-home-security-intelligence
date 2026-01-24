@@ -34,17 +34,6 @@ export {
 
 export type { SystemData, SystemDataProviderProps } from './SystemDataContext';
 
-// Rate limit state context for per-endpoint rate limit tracking
-export { RateLimitContext, RateLimitProvider, useRateLimitContext } from './RateLimitContext';
-
-export type {
-  EndpointRateLimitInfo,
-  RateLimitUpdateInput,
-  RateLimitState,
-  RateLimitContextType,
-  RateLimitProviderProps,
-} from './RateLimitContext';
-
 // Announcement context for screen reader announcements
 export { AnnouncementContext, AnnouncementProvider, useAnnounce } from './AnnouncementContext';
 

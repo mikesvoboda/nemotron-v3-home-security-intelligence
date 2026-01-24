@@ -126,7 +126,7 @@ class PoseAnalyzer:
         inputs = {k: v.to(self.device, model_dtype) for k, v in inputs.items()}
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.model(**inputs)
 
         # Post-process to get keypoint coordinates
