@@ -161,7 +161,7 @@ def _topological_sort(tables: set[str], dependencies: dict[str, set[str]]) -> li
     return sorted_tables
 
 
-def get_table_deletion_order(engine) -> list[str]:
+async def get_table_deletion_order(engine) -> list[str]:
     """Get tables in FK-safe deletion order using topological sort.
 
     Uses SQLAlchemy's inspector to dynamically discover all tables and their
@@ -170,24 +170,32 @@ def get_table_deletion_order(engine) -> list[str]:
     be deleted first.
 
     Args:
-        engine: SQLAlchemy engine (sync or async)
+        engine: SQLAlchemy async engine
 
     Returns:
         List of table names in safe deletion order (dependent tables first,
         parent tables last).
     """
-    try:
-        # For async engines, we need to get the sync engine
-        sync_engine = getattr(engine, "sync_engine", engine)
+
+    def _inspect_tables(sync_engine):
+        """Synchronous function to inspect tables - called via run_sync."""
         inspector = inspect(sync_engine)
         tables = set(inspector.get_table_names())
 
         if not tables:
-            logger.warning("No tables found via reflection, using hardcoded order")
-            return HARDCODED_TABLE_DELETION_ORDER
+            return None, None
 
         # Build dependency graph from foreign key relationships
         dependencies = _build_dependency_graph(inspector, tables)
+        return tables, dependencies
+
+    try:
+        # Use run_sync to execute synchronous inspection in async context
+        tables, dependencies = await engine.run_sync(_inspect_tables)
+
+        if tables is None or not tables:
+            logger.warning("No tables found via reflection, using hardcoded order")
+            return HARDCODED_TABLE_DELETION_ORDER
 
         # Perform topological sort
         sorted_tables = _topological_sort(tables, dependencies)
@@ -887,7 +895,7 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
             return
 
         # Get tables in FK-safe deletion order
-        deletion_order = get_table_deletion_order(engine)
+        deletion_order = await get_table_deletion_order(engine)
 
         async with get_session() as session:
             # Delete data in order (respecting foreign key constraints)
@@ -1108,7 +1116,7 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
                 return
 
             # Get tables in FK-safe deletion order (dependent tables first)
-            deletion_order = get_table_deletion_order(engine)
+            deletion_order = await get_table_deletion_order(engine)
 
             async with get_session() as session:
                 # Delete all test-related data in FK-safe order

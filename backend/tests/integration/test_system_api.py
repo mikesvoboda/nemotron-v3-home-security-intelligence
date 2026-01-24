@@ -756,10 +756,16 @@ async def test_pipeline_status_with_degradation_manager(client, mock_redis):
 @pytest.mark.asyncio
 async def test_pipeline_status_batch_aggregator_no_redis(client):
     """Test pipeline status when Redis is not available."""
-    from unittest.mock import patch
+    from backend.core.redis import get_redis_optional
+    from backend.main import app
 
-    # Mock get_redis_optional to return None
-    with patch("backend.api.routes.system.get_redis_optional", return_value=None):
+    # Override the dependency to return None
+    async def mock_no_redis():
+        yield None
+
+    app.dependency_overrides[get_redis_optional] = mock_no_redis
+
+    try:
         response = await client.get("/api/system/pipeline")
 
         assert response.status_code == 200
@@ -767,6 +773,9 @@ async def test_pipeline_status_batch_aggregator_no_redis(client):
 
         # Batch aggregator should be null when Redis is unavailable
         assert data["batch_aggregator"] is None
+    finally:
+        # Clean up dependency override
+        app.dependency_overrides.pop(get_redis_optional, None)
 
 
 @pytest.mark.asyncio
