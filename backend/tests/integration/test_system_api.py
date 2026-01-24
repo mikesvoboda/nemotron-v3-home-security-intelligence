@@ -540,8 +540,11 @@ async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(clien
 
     # Save original
     original_pipeline_manager = system_routes._pipeline_manager
+    original_cache = system_routes._readiness_cache
 
     try:
+        # Clear the readiness cache to ensure fresh evaluation
+        system_routes._readiness_cache = None
         # Mock pipeline manager with detection worker in error state
         mock_manager = MagicMock()
         mock_manager.get_status.return_value = {
@@ -571,6 +574,7 @@ async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(clien
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager
+        system_routes._readiness_cache = original_cache
 
 
 @pytest.mark.asyncio
@@ -584,8 +588,11 @@ async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock
 
     # Save original
     original_pipeline_manager = system_routes._pipeline_manager
+    original_cache = system_routes._readiness_cache
 
     try:
+        # Clear the readiness cache to ensure fresh evaluation
+        system_routes._readiness_cache = None
         # Set pipeline manager to None (not registered)
         system_routes._pipeline_manager = None
 
@@ -612,6 +619,7 @@ async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager
+        system_routes._readiness_cache = original_cache
 
 
 # =============================================================================
