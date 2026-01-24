@@ -275,74 +275,13 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: 'assets/[name]-[hash].js',
           entryFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash][extname]',
-          // NEM-3384: Function-based manual chunk splitting for optimal caching
-          // Separates vendor code into logical groups that change at different rates
-          manualChunks: (id: string) => {
-            // React core - changes rarely, cache aggressively
-            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
-              return 'vendor-react';
-            }
-
-            // React Router - changes independently from React core
-            if (id.includes('node_modules/react-router')) {
-              return 'vendor-router';
-            }
-
-            // UI component libraries - @tremor, @headlessui
-            if (id.includes('node_modules/@tremor/') || id.includes('node_modules/@headlessui/')) {
-              return 'vendor-ui-components';
-            }
-
-            // Icon library - large but rarely changes
-            if (id.includes('node_modules/lucide-react')) {
-              return 'vendor-icons';
-            }
-
-            // State management - zustand, tanstack-query
-            if (id.includes('node_modules/zustand') || id.includes('node_modules/@tanstack/')) {
-              return 'vendor-state';
-            }
-
-            // Animation library - framer-motion is large (NEM-3439)
-            if (id.includes('node_modules/framer-motion')) {
-              return 'vendor-animation';
-            }
-
-            // Form handling - react-hook-form, zod, hookform/resolvers
-            if (
-              id.includes('node_modules/react-hook-form') ||
-              id.includes('node_modules/@hookform/') ||
-              id.includes('node_modules/zod')
-            ) {
-              return 'vendor-forms';
-            }
-
-            // Date utilities
-            if (id.includes('node_modules/date-fns')) {
-              return 'vendor-date';
-            }
-
-            // General utilities - clsx, other small utils
-            if (
-              id.includes('node_modules/clsx') ||
-              id.includes('node_modules/tailwind-merge') ||
-              id.includes('node_modules/pako') ||
-              id.includes('node_modules/lru-cache') ||
-              id.includes('node_modules/dompurify')
-            ) {
-              return 'vendor-utils';
-            }
-
-            // Remaining node_modules go to a general vendor chunk
-            if (id.includes('node_modules')) {
-              return 'vendor-misc';
-            }
-
-            // NEM-3436: Barrel file tree shaking optimization
-            // Let application code be split naturally by Rollup for better tree shaking
-            // Return undefined to let Rollup decide based on import graph
-            return undefined;
-          },
+          // NEM-3384: Manual chunk splitting DISABLED
+          // The previous function-based chunking caused circular import deadlocks
+          // between vendor-react and vendor-misc due to shared interop helpers.
+          // Rollup's natural chunking handles this correctly.
+          // TODO: Re-enable with a more sophisticated approach that accounts for
+          // interop helper dependencies (see NEM-XXXX for E2E test).
+          // manualChunks: undefined,
         },
         // NEM-3436: Tree shaking configuration for barrel files
         // Enables aggressive dead code elimination for barrel exports
