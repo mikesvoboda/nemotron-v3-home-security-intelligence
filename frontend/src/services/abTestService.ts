@@ -145,7 +145,7 @@ async function testPromptApi(
   customPrompt: string,
   config: ModelConfig
 ): Promise<TestPromptResponse> {
-  const url = `${BASE_URL}/api/ai-audit/test-prompt`;
+  const url = `${BASE_URL}/api/prompts/test-prompt`;
 
   // Build headers with optional API key
   const headers: HeadersInit = {
