@@ -5,10 +5,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import ORJSONResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, undefer
 
 from backend.api.dependencies import (
     get_cache_service_dep,
@@ -59,7 +59,7 @@ from backend.api.utils.field_filter import (
     validate_fields,
 )
 from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
-from backend.core.database import escape_ilike_pattern, get_db
+from backend.core.database import escape_ilike_pattern, get_db, get_read_db
 from backend.core.logging import get_logger, sanitize_log_value
 from backend.core.metrics import record_event_acknowledged, record_event_reviewed
 from backend.core.sanitization import sanitize_error_for_response
@@ -81,7 +81,11 @@ ClipGeneratorDep = ClipGenerator
 NemotronAnalyzerDep = NemotronAnalyzer
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/events", tags=["events"])
+router = APIRouter(
+    prefix="/api/events",
+    tags=["events"],
+    default_response_class=ORJSONResponse,
+)
 
 # Valid severity values for search filter
 VALID_SEVERITY_VALUES = frozenset({"low", "medium", "high", "critical"})
@@ -222,7 +226,7 @@ def sanitize_csv_value(value: str | None) -> str:
 
 
 @router.get("", response_model=EventListResponse)
-async def list_events(  # noqa: PLR0912
+async def list_events(
     response: Response,
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     risk_level: str | None = Query(
@@ -245,7 +249,7 @@ async def list_events(  # noqa: PLR0912
         False,
         description="Include soft-deleted events in results. Default is False to hide deleted events.",
     ),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ) -> EventListResponse:
     """List events with optional filtering and cursor-based pagination.
 
@@ -333,7 +337,8 @@ async def list_events(  # noqa: PLR0912
     normalized_end_date = normalize_end_date_to_end_of_day(end_date)
 
     # Build base query with eager loading for camera relationship (NEM-1619)
-    query = select(Event).options(joinedload(Event.camera))
+    # Also eagerly load deferred columns (reasoning) to prevent lazy loading errors
+    query = select(Event).options(joinedload(Event.camera), undefer(Event.reasoning))
 
     # Filter out soft-deleted events by default (consistent with get_event_or_404)
     # Use include_deleted=true to include soft-deleted events in results
@@ -394,7 +399,7 @@ async def list_events(  # noqa: PLR0912
 
     # Apply pagination - fetch one extra to determine if there are more results
     # Use explicit if/else for readability (clearer than ternary with complex expressions)
-    if cursor_data:  # noqa: SIM108
+    if cursor_data:
         # Cursor-based: fetch limit + 1 to check for more
         query = query.limit(limit + 1)
     else:
@@ -801,9 +806,11 @@ async def search_events_endpoint(
     reviewed: bool | None = Query(None, description="Filter by reviewed status"),
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ) -> SearchResponseSchema:
     """Search events using full-text search.
+
+    Uses read replica for linear scalability (NEM-3392).
 
     This endpoint provides PostgreSQL full-text search across event summaries,
     reasoning, object types, and camera names.
@@ -1111,7 +1118,13 @@ async def list_deleted_events(
         DeletedEventsListResponse containing list of deleted events and count
     """
     # Query for events where deleted_at is not null
-    query = select(Event).where(Event.deleted_at.isnot(None)).order_by(Event.deleted_at.desc())
+    # Eagerly load deferred columns to prevent lazy loading errors
+    query = (
+        select(Event)
+        .options(undefer(Event.reasoning), undefer(Event.llm_prompt))
+        .where(Event.deleted_at.isnot(None))
+        .order_by(Event.deleted_at.desc())
+    )
 
     result = await db.execute(query)
     deleted_events = result.scalars().all()
@@ -1594,7 +1607,7 @@ async def get_event(
 
 
 @router.patch("/{event_id}", response_model=EventResponse)
-async def update_event(  # noqa: PLR0912  # Allow branches for audit logging logic
+async def update_event(  # Allow branches for audit logging logic
     event_id: int,
     update_data: EventUpdate,
     request: Request,
@@ -1773,7 +1786,11 @@ async def get_event_detections(
         )
 
     # Build query for detections
-    query = select(Detection).where(Detection.id.in_(detection_ids))
+    query = (
+        select(Detection)
+        .options(undefer(Detection.enrichment_data))
+        .where(Detection.id.in_(detection_ids))
+    )
 
     # Get total count (before pagination)
     count_query = select(func.count()).select_from(query.subquery())

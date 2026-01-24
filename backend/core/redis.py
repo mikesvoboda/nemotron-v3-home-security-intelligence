@@ -7,11 +7,15 @@ __all__ = [
     "QueueOverflowPolicy",
     "QueuePressureMetrics",
     "RedisClient",
+    "SentinelClient",
     # Functions
     "close_redis",
+    "close_sentinel",
     "get_redis",
     "get_redis_client_sync",
     "get_redis_optional",
+    "get_sentinel_redis",
+    "get_sentinel_redis_slave",
     "init_redis",
 ]
 
@@ -30,6 +34,7 @@ from typing import Any, TypeVar, cast
 
 from redis.asyncio import ConnectionPool, Redis
 from redis.asyncio.client import PubSub
+from redis.asyncio.sentinel import Sentinel
 from redis.exceptions import ConnectionError, RedisError, TimeoutError
 
 from backend.core.config import get_settings
@@ -603,8 +608,14 @@ class RedisClient:
 
                 # Add password if configured (non-empty string)
                 # Empty string is treated as no password for backward compatibility
+                # Support both str and SecretStr for password
                 if self._password:
-                    pool_kwargs["password"] = self._password
+                    password_value = (
+                        self._password.get_secret_value()
+                        if hasattr(self._password, "get_secret_value")
+                        else self._password
+                    )
+                    pool_kwargs["password"] = password_value
 
                 # Add SSL context if enabled
                 if ssl_context:
@@ -687,7 +698,7 @@ class RedisClient:
 
     # Queue operations
 
-    async def add_to_queue_safe(  # noqa: PLR0912
+    async def add_to_queue_safe(
         self,
         queue_name: str,
         data: Any,
@@ -1504,6 +1515,525 @@ class RedisClient:
         """
         client = self._ensure_connected()
         return cast("list[tuple[bytes | str, int]]", await client.pubsub_numsub(*channels))
+
+    # HyperLogLog operations (NEM-3414)
+    # HyperLogLog is a probabilistic data structure for cardinality estimation
+    # with ~0.81% standard error using only ~12KB of memory regardless of set size
+
+    async def pfadd(self, key: str, *values: str) -> int:
+        """Add elements to a HyperLogLog structure for unique counting.
+
+        HyperLogLog provides probabilistic cardinality estimation with:
+        - ~0.81% standard error (very accurate for analytics)
+        - Constant memory (~12KB) regardless of cardinality
+        - O(1) time complexity for both add and count
+
+        Use cases in this project:
+        - Count unique cameras that detected activity
+        - Count unique events in a time window
+        - Count unique detection types (person, vehicle, etc.)
+        - Count unique entity IDs for tracking
+
+        Args:
+            key: HyperLogLog key
+            *values: Elements to add (will be deduplicated internally)
+
+        Returns:
+            1 if the cardinality estimate changed, 0 otherwise
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.pfadd(key, *values))
+
+    async def pfcount(self, *keys: str) -> int:
+        """Get the approximate cardinality (unique count) of a HyperLogLog.
+
+        When called with a single key, returns the approximate cardinality.
+        When called with multiple keys, returns the cardinality of the union.
+
+        Args:
+            *keys: One or more HyperLogLog keys
+
+        Returns:
+            Approximate number of unique elements
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.pfcount(*keys))
+
+    async def pfmerge(self, dest_key: str, *source_keys: str) -> bool:
+        """Merge multiple HyperLogLogs into a single destination.
+
+        Creates a new HyperLogLog that represents the union of all source HLLs.
+        Useful for combining counts across time windows or partitions.
+
+        Args:
+            dest_key: Destination key for the merged HyperLogLog
+            *source_keys: Source HyperLogLog keys to merge
+
+        Returns:
+            True if successful
+        """
+        client = self._ensure_connected()
+        result = await client.pfmerge(dest_key, *source_keys)
+        return result is True or result == "OK"
+
+    # Memory management operations (NEM-3416)
+
+    async def config_get(self, pattern: str) -> dict[str, str]:
+        """Get Redis server configuration values.
+
+        Args:
+            pattern: Configuration parameter pattern (e.g., "maxmemory*")
+
+        Returns:
+            Dictionary of configuration key-value pairs
+        """
+        client = self._ensure_connected()
+        result = await client.config_get(pattern)
+        return cast("dict[str, str]", result)
+
+    async def config_set(self, name: str, value: str) -> bool:
+        """Set a Redis server configuration value at runtime.
+
+        Note: Not all configuration values can be changed at runtime.
+        Commonly used for:
+        - maxmemory: Maximum memory limit
+        - maxmemory-policy: Eviction policy when limit is reached
+
+        Args:
+            name: Configuration parameter name
+            value: Value to set
+
+        Returns:
+            True if successful
+        """
+        client = self._ensure_connected()
+        result = await client.config_set(name, value)
+        return result is True or result == "OK"
+
+    async def memory_stats(self) -> dict[str, Any]:
+        """Get detailed memory statistics from Redis.
+
+        Returns comprehensive memory information including:
+        - peak.allocated: Peak memory consumption
+        - total.allocated: Total allocated memory
+        - keys.count: Number of keys
+        - fragmentation.ratio: Memory fragmentation
+        - overhead.*: Memory overhead for various structures
+
+        Returns:
+            Dictionary containing memory statistics
+        """
+        client = self._ensure_connected()
+        result = await client.memory_stats()
+        return cast("dict[str, Any]", result)
+
+    async def memory_usage(self, key: str, samples: int = 5) -> int | None:
+        """Get memory usage of a specific key in bytes.
+
+        Args:
+            key: Key to check memory usage for
+            samples: Number of samples for aggregate types (default: 5)
+
+        Returns:
+            Memory usage in bytes, or None if key doesn't exist
+        """
+        client = self._ensure_connected()
+        result = await client.memory_usage(key, samples=samples)
+        return cast("int | None", result)
+
+    async def dbsize(self) -> int:
+        """Get the number of keys in the current database.
+
+        Returns:
+            Number of keys in the database
+        """
+        client = self._ensure_connected()
+        return cast("int", await client.dbsize())
+
+    async def scan_keys(
+        self,
+        pattern: str = "*",
+        count: int = 100,
+        max_keys: int = 10000,
+    ) -> list[str]:
+        """Scan for keys matching a pattern without blocking.
+
+        Uses SCAN command for non-blocking iteration. Useful for:
+        - Finding keys to analyze memory usage
+        - Identifying keys for cleanup
+        - Pattern-based key discovery
+
+        Args:
+            pattern: Glob-style pattern to match keys
+            count: Hint for number of keys per iteration (default: 100)
+            max_keys: Maximum total keys to return (default: 10000)
+
+        Returns:
+            List of matching key names
+        """
+        client = self._ensure_connected()
+        keys: list[str] = []
+        async for key in client.scan_iter(match=pattern, count=count):
+            keys.append(key)
+            if len(keys) >= max_keys:
+                break
+        return keys
+
+
+class SentinelClient:
+    """Redis Sentinel client for high availability with automatic failover (NEM-3413).
+
+    This client connects to Redis via Sentinel for automatic master discovery
+    and failover. It provides separate connections for master (writes) and
+    slave (reads) to enable read scaling and load balancing.
+
+    Usage:
+        # For writes (master)
+        master = await get_sentinel_redis()
+        await master.set("key", "value")
+
+        # For reads (slave, load balanced)
+        slave = await get_sentinel_redis_slave()
+        value = await slave.get("key")
+
+    Configuration via environment variables:
+        - REDIS_USE_SENTINEL: Enable Sentinel mode (default: false)
+        - REDIS_SENTINEL_MASTER_NAME: Master name (default: "mymaster")
+        - REDIS_SENTINEL_HOSTS: Comma-separated host:port pairs
+        - REDIS_SENTINEL_SOCKET_TIMEOUT: Failover detection timeout (default: 0.1s)
+    """
+
+    def __init__(
+        self,
+        sentinel_hosts: list[tuple[str, int]] | None = None,
+        master_name: str | None = None,
+        socket_timeout: float | None = None,
+        password: str | None = None,
+    ):
+        """Initialize Sentinel client.
+
+        Args:
+            sentinel_hosts: List of (host, port) tuples for Sentinel instances.
+                If not provided, uses settings.redis_sentinel_hosts.
+            master_name: Name of the Redis master in Sentinel config.
+                If not provided, uses settings.redis_sentinel_master_name.
+            socket_timeout: Socket timeout for fast failover detection.
+                If not provided, uses settings.redis_sentinel_socket_timeout.
+            password: Redis password for authentication.
+                If not provided, uses settings.redis_password.
+        """
+        settings = get_settings()
+
+        # Parse sentinel hosts from settings if not provided
+        if sentinel_hosts is None:
+            sentinel_hosts = self._parse_sentinel_hosts(settings.redis_sentinel_hosts)
+
+        self._sentinel_hosts = sentinel_hosts
+        self._master_name = master_name or settings.redis_sentinel_master_name
+        self._socket_timeout = socket_timeout or settings.redis_sentinel_socket_timeout
+
+        # Password authentication
+        self._password = password
+        if self._password is None and settings.redis_password:
+            self._password = (
+                settings.redis_password.get_secret_value()
+                if hasattr(settings.redis_password, "get_secret_value")
+                else str(settings.redis_password)
+            )
+
+        self._sentinel: Sentinel | None = None
+        self._master: Redis | None = None
+        self._slave: Redis | None = None
+
+    @staticmethod
+    def _parse_sentinel_hosts(hosts_str: str) -> list[tuple[str, int]]:
+        """Parse comma-separated host:port string into list of tuples.
+
+        Args:
+            hosts_str: Comma-separated host:port pairs (e.g., "host1:26379,host2:26379")
+
+        Returns:
+            List of (host, port) tuples
+
+        Raises:
+            ValueError: If host string format is invalid
+        """
+        hosts = []
+        for host_port_raw in hosts_str.split(","):
+            host_port = host_port_raw.strip()
+            if not host_port:
+                continue
+            try:
+                host, port_str = host_port.rsplit(":", 1)
+                port = int(port_str)
+                hosts.append((host, port))
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid Sentinel host format '{host_port}'. Expected 'host:port' format."
+                ) from e
+        if not hosts:
+            raise ValueError(
+                "No valid Sentinel hosts configured. Set REDIS_SENTINEL_HOSTS environment variable."
+            )
+        return hosts
+
+    async def connect(self) -> None:
+        """Establish connection to Sentinel and discover master/slaves.
+
+        Raises:
+            ConnectionError: If unable to connect to Sentinel or master
+        """
+        settings = get_settings()
+
+        # Build connection kwargs for Redis clients (master/slave)
+        connection_kwargs: dict[str, Any] = {
+            "socket_timeout": self._socket_timeout,
+            "socket_connect_timeout": 5.0,
+            "socket_keepalive": True,
+            "decode_responses": True,
+            "encoding": "utf-8",
+            "health_check_interval": 30,
+            "max_connections": settings.redis_pool_size,
+        }
+
+        # Add password if configured
+        if self._password:
+            connection_kwargs["password"] = self._password
+
+        # Create Sentinel instance (socket_timeout for Sentinel commands)
+        self._sentinel = Sentinel(
+            self._sentinel_hosts,
+            socket_timeout=self._socket_timeout,
+        )
+
+        # Verify we can reach the master
+        try:
+            self._master = self._sentinel.master_for(
+                self._master_name,
+                redis_class=Redis,
+                **connection_kwargs,
+            )
+            await self._master.ping()  # type: ignore[misc]
+            logger.info(
+                f"Connected to Redis master '{self._master_name}' via Sentinel",
+                extra={
+                    "sentinel_hosts": self._sentinel_hosts,
+                    "master_name": self._master_name,
+                    "socket_timeout": self._socket_timeout,
+                },
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to connect to Redis master via Sentinel: {e}",
+                extra={
+                    "sentinel_hosts": self._sentinel_hosts,
+                    "master_name": self._master_name,
+                },
+            )
+            raise ConnectionError(f"Cannot connect to Redis master: {e}") from e
+
+        # Get slave connection (for read operations)
+        try:
+            self._slave = self._sentinel.slave_for(
+                self._master_name,
+                redis_class=Redis,
+                **connection_kwargs,
+            )
+            await self._slave.ping()  # type: ignore[misc]
+            logger.info(
+                f"Connected to Redis slave for '{self._master_name}'",
+                extra={"master_name": self._master_name},
+            )
+        except Exception as e:
+            # Slave connection is optional (master can serve reads)
+            logger.warning(
+                f"Could not connect to Redis slave, using master for reads: {e}",
+                extra={"master_name": self._master_name},
+            )
+            self._slave = self._master
+
+    async def disconnect(self) -> None:
+        """Close Sentinel and Redis connections."""
+        with contextlib.suppress(Exception):
+            if self._master:
+                await self._master.aclose()
+                self._master = None
+
+            if self._slave and self._slave != self._master:
+                await self._slave.aclose()
+                self._slave = None
+
+            self._sentinel = None
+            logger.info("Sentinel Redis connections closed")
+
+    def get_master(self) -> Redis:
+        """Get the master Redis connection for write operations.
+
+        Returns:
+            Redis client connected to master
+
+        Raises:
+            RuntimeError: If not connected
+        """
+        if not self._master:
+            raise RuntimeError("Sentinel client not connected. Call connect() first.")
+        return self._master
+
+    def get_slave(self) -> Redis:
+        """Get a slave Redis connection for read operations (load balanced).
+
+        Returns:
+            Redis client connected to a slave (or master if no slaves available)
+
+        Raises:
+            RuntimeError: If not connected
+        """
+        if not self._slave:
+            raise RuntimeError("Sentinel client not connected. Call connect() first.")
+        return self._slave
+
+    async def health_check(self) -> dict[str, Any]:
+        """Check Sentinel and Redis connection health.
+
+        Returns:
+            Dictionary with health status information
+        """
+        result: dict[str, Any] = {
+            "status": "healthy",
+            "mode": "sentinel",
+            "master_name": self._master_name,
+            "sentinel_hosts": self._sentinel_hosts,
+        }
+
+        try:
+            if self._master:
+                await self._master.ping()  # type: ignore[misc]
+                master_info = await self._master.info("server")
+                result["master"] = {
+                    "connected": True,
+                    "redis_version": master_info.get("redis_version", "unknown"),
+                }
+            else:
+                result["master"] = {"connected": False}
+                result["status"] = "unhealthy"
+        except Exception as e:
+            result["master"] = {"connected": False, "error": str(e)}
+            result["status"] = "unhealthy"
+
+        try:
+            if self._slave and self._slave != self._master:
+                await self._slave.ping()  # type: ignore[misc]
+                result["slave"] = {"connected": True}
+            elif self._slave:
+                result["slave"] = {"connected": True, "note": "using master"}
+            else:
+                result["slave"] = {"connected": False}
+        except Exception as e:
+            result["slave"] = {"connected": False, "error": str(e)}
+
+        return result
+
+
+# Global Sentinel client instance
+_sentinel_client: SentinelClient | None = None
+_sentinel_init_lock: asyncio.Lock | None = None
+
+
+def _get_sentinel_init_lock() -> asyncio.Lock:
+    """Get the Sentinel initialization lock (lazy initialization).
+
+    Returns:
+        asyncio.Lock for Sentinel client initialization
+    """
+    global _sentinel_init_lock  # noqa: PLW0603
+    if _sentinel_init_lock is None:
+        _sentinel_init_lock = asyncio.Lock()
+    return _sentinel_init_lock
+
+
+async def get_sentinel_redis() -> Redis:
+    """Get Redis master connection via Sentinel for write operations.
+
+    This function initializes the Sentinel client if needed and returns
+    a connection to the Redis master. Use this for all write operations.
+
+    Returns:
+        Redis client connected to the master
+
+    Raises:
+        RuntimeError: If Sentinel mode is not enabled
+        ConnectionError: If unable to connect to Sentinel or master
+    """
+    global _sentinel_client  # noqa: PLW0603
+
+    settings = get_settings()
+    if not settings.redis_use_sentinel:
+        raise RuntimeError(
+            "Sentinel mode not enabled. Set REDIS_USE_SENTINEL=true to use Sentinel."
+        )
+
+    # Fast path: client already initialized
+    if _sentinel_client is not None:
+        return _sentinel_client.get_master()
+
+    # Slow path: acquire lock and check again
+    lock = _get_sentinel_init_lock()
+    async with lock:
+        if _sentinel_client is None:
+            client = SentinelClient()
+            await client.connect()
+            _sentinel_client = client
+
+    return _sentinel_client.get_master()
+
+
+async def get_sentinel_redis_slave() -> Redis:
+    """Get Redis slave connection via Sentinel for read operations.
+
+    This function initializes the Sentinel client if needed and returns
+    a connection to a Redis slave. Use this for read operations to
+    distribute load across replicas.
+
+    If no slaves are available, returns the master connection.
+
+    Returns:
+        Redis client connected to a slave (or master if no slaves)
+
+    Raises:
+        RuntimeError: If Sentinel mode is not enabled
+        ConnectionError: If unable to connect to Sentinel
+    """
+    global _sentinel_client  # noqa: PLW0603
+
+    settings = get_settings()
+    if not settings.redis_use_sentinel:
+        raise RuntimeError(
+            "Sentinel mode not enabled. Set REDIS_USE_SENTINEL=true to use Sentinel."
+        )
+
+    # Fast path: client already initialized
+    if _sentinel_client is not None:
+        return _sentinel_client.get_slave()
+
+    # Slow path: acquire lock and check again
+    lock = _get_sentinel_init_lock()
+    async with lock:
+        if _sentinel_client is None:
+            client = SentinelClient()
+            await client.connect()
+            _sentinel_client = client
+
+    return _sentinel_client.get_slave()
+
+
+async def close_sentinel() -> None:
+    """Close Sentinel client for application shutdown."""
+    global _sentinel_client, _sentinel_init_lock  # noqa: PLW0603
+
+    if _sentinel_client:
+        await _sentinel_client.disconnect()
+        _sentinel_client = None
+    _sentinel_init_lock = None
 
 
 # Global Redis client instance

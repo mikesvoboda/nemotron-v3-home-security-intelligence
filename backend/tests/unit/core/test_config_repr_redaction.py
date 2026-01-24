@@ -56,7 +56,7 @@ class TestSettingsReprRedaction:
 
     def test_smtp_password_redacted(self, mock_settings):
         """SMTP password should be redacted."""
-        mock_settings.smtp_password = "smtp-secret-password"  # noqa: S105  # pragma: allowlist secret
+        mock_settings.smtp_password = "smtp-secret-password"  # pragma: allowlist secret
         result = repr(mock_settings)
         assert "smtp-secret-password" not in result
 
@@ -74,7 +74,7 @@ class TestSettingsReprRedaction:
 
     def test_websocket_token_redacted(self, mock_settings):
         """WebSocket token should be redacted."""
-        mock_settings.websocket_token = "ws-secret-token"  # noqa: S105  # pragma: allowlist secret
+        mock_settings.websocket_token = "ws-secret-token"  # pragma: allowlist secret
         result = repr(mock_settings)
         assert "ws-secret-token" not in result
 

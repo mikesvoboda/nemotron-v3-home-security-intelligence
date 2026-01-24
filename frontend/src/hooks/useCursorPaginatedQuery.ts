@@ -36,6 +36,14 @@ export interface UseCursorPaginatedQueryOptions<
    * Defaults to the global QueryClient setting (3).
    */
   retry?: number | boolean;
+  /**
+   * Maximum number of pages to store in memory.
+   * When this limit is reached, older pages are removed when new pages are fetched.
+   * This bounds memory usage regardless of scroll depth.
+   * TanStack Query v5 feature for memory optimization.
+   * @default undefined (unlimited pages)
+   */
+  maxPages?: number;
 }
 
 export interface UseCursorPaginatedQueryReturn<TData extends CursorPaginatedResponse> {
@@ -72,6 +80,7 @@ export function useCursorPaginatedQuery<
     refetchInterval,
     refetchOnWindowFocus = true,
     retry,
+    maxPages,
   } = options;
 
   const query = useInfiniteQuery<
@@ -96,6 +105,7 @@ export function useCursorPaginatedQuery<
     refetchInterval,
     refetchOnWindowFocus,
     ...(retry !== undefined && { retry }),
+    ...(maxPages !== undefined && { maxPages }),
   });
 
   const handleFetchNextPage = (): void => {
@@ -139,6 +149,11 @@ export interface CreateInfiniteQueryHookConfig<
   getFilters?: (options: TOptions) => TFilters | undefined;
   getLimit?: (options: TOptions) => number;
   defaultRetry?: number | boolean;
+  /**
+   * Default maximum pages to store in memory.
+   * Can be overridden per-call via options.maxPages.
+   */
+  defaultMaxPages?: number;
 }
 
 /**
@@ -150,6 +165,13 @@ export interface BaseInfiniteQueryOptions {
   staleTime?: number;
   refetchInterval?: number | false;
   retry?: number | boolean;
+  /**
+   * Maximum number of pages to store in memory.
+   * When this limit is reached, older pages are removed when new pages are fetched.
+   * This bounds memory usage regardless of scroll depth.
+   * TanStack Query v5 feature for memory optimization.
+   */
+  maxPages?: number;
 }
 
 /**
@@ -180,7 +202,7 @@ export function createInfiniteQueryHook<
 >(
   config: CreateInfiniteQueryHookConfig<TResponse, TItem, TOptions, TFilters>
 ): (options?: TOptions) => InfiniteQueryHookReturn<TItem, TResponse> {
-  const { getQueryKey, fetchFn, getFilters, getLimit, defaultRetry } = config;
+  const { getQueryKey, fetchFn, getFilters, getLimit, defaultRetry, defaultMaxPages } = config;
 
   return function useInfiniteQueryHook(
     options: TOptions = {} as TOptions
@@ -191,6 +213,7 @@ export function createInfiniteQueryHook<
       staleTime,
       refetchInterval,
       retry = defaultRetry,
+      maxPages = defaultMaxPages,
     } = options;
 
     const actualLimit = getLimit ? getLimit(options) : limit;
@@ -205,6 +228,7 @@ export function createInfiniteQueryHook<
       staleTime,
       refetchInterval,
       retry,
+      maxPages,
     });
 
     const items = useMemo(() => {

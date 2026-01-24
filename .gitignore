@@ -104,3 +104,7 @@ postgresql+asyncpg:*
 
 # Local docker-compose overrides (machine-specific)
 docker-compose.override.yml
+
+# GPU configuration (auto-generated)
+config/docker-compose.gpu-override.yml
+config/gpu-assignments.yml

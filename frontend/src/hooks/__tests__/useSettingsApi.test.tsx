@@ -12,8 +12,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { server } from '../../mocks/server';
 import {
   useSettingsQuery,
   useUpdateSettings,
@@ -35,12 +36,14 @@ function createTestWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        retry: false,
+        retry: 0, // Explicitly 0, not false
         gcTime: 0,
         staleTime: 0,
+        retryDelay: 0,
       },
       mutations: {
-        retry: false,
+        retry: 0,
+        retryDelay: 0,
       },
     },
   });
@@ -55,6 +58,30 @@ function createTestWrapper() {
  */
 function createMockFetch() {
   return vi.fn();
+}
+
+/**
+ * Helper to create a mock Response object with proper headers
+ */
+function createMockResponse(data: unknown, status = 200, ok = true): Response {
+  return {
+    ok,
+    status,
+    statusText: status === 200 ? 'OK' : 'Error',
+    json: () => Promise.resolve(data),
+    headers: new Headers(),
+    // Add required Response properties
+    redirected: false,
+    type: 'basic',
+    url: '',
+    body: null,
+    bodyUsed: false,
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    blob: () => Promise.resolve(new Blob()),
+    clone: () => createMockResponse(data, status, ok),
+    formData: () => Promise.resolve(new FormData()),
+    text: () => Promise.resolve(JSON.stringify(data)),
+  } as Response;
 }
 
 // ============================================================================
@@ -104,14 +131,24 @@ const mockSettingsResponse: SettingsResponse = {
 
 let mockFetch: ReturnType<typeof createMockFetch>;
 
+// Temporarily close MSW for these unit tests since we're testing the fetch wrapper directly
+beforeAll(() => {
+  server.close();
+});
+
+afterAll(() => {
+  server.listen({ onUnhandledRequest: 'bypass' });
+});
+
 beforeEach(() => {
-  mockFetch = createMockFetch();
-  globalThis.fetch = mockFetch;
   vi.clearAllMocks();
-  mockFetch.mockResolvedValue({
-    ok: true,
-    json: () => Promise.resolve(mockSettingsResponse),
-  } as Response);
+  mockFetch = createMockFetch();
+  mockFetch.mockResolvedValue(createMockResponse(mockSettingsResponse));
+  vi.stubGlobal('fetch', mockFetch);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 // ============================================================================
@@ -155,20 +192,18 @@ describe('useSettingsQuery', () => {
 
   it('handles error state', async () => {
     const errorMessage = 'Failed to fetch settings';
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 500,
-      statusText: 'Internal Server Error',
-      json: () => Promise.resolve({ detail: errorMessage }),
-    } as Response);
+    mockFetch.mockResolvedValue(createMockResponse({ detail: errorMessage }, 500, false));
 
     const { result } = renderHook(() => useSettingsQuery(), {
       wrapper: createTestWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.isError).toBe(true);
-    });
+    await waitFor(
+      () => {
+        expect(result.current.isError).toBe(true);
+      },
+      { timeout: 3000 }
+    );
 
     expect(result.current.error).toBeInstanceOf(Error);
     expect(result.current.error?.message).toBe(errorMessage);
@@ -239,6 +274,20 @@ describe('useSettingsQuery', () => {
   });
 
   it('tracks fetching state correctly', async () => {
+    // Use a delayed mock to ensure we can catch the fetching state
+    mockFetch.mockImplementation(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve(
+                createMockResponse(mockSettingsResponse)
+              ),
+            50
+          )
+        )
+    );
+
     const { result } = renderHook(() => useSettingsQuery(), {
       wrapper: createTestWrapper(),
     });
@@ -279,12 +328,7 @@ describe('useSettingsQuery', () => {
 
   it('extracts error message from API response', async () => {
     const errorDetail = 'Database connection failed';
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 503,
-      statusText: 'Service Unavailable',
-      json: () => Promise.resolve({ detail: errorDetail }),
-    } as Response);
+    mockFetch.mockResolvedValue(createMockResponse({ detail: errorDetail }, 503, false));
 
     const { result } = renderHook(() => useSettingsQuery(), {
       wrapper: createTestWrapper(),
@@ -298,11 +342,13 @@ describe('useSettingsQuery', () => {
   });
 
   it('falls back to status text when JSON parsing fails', async () => {
+    // Special mock that rejects on json() - cannot use helper here
     mockFetch.mockResolvedValue({
       ok: false,
       status: 500,
       statusText: 'Internal Server Error',
       json: () => Promise.reject(new Error('Invalid JSON')),
+      headers: new Headers(),
     } as unknown as Response);
 
     const { result } = renderHook(() => useSettingsQuery(), {
@@ -332,10 +378,7 @@ describe('useUpdateSettings', () => {
       },
     };
 
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(updatedSettings),
-    } as Response);
+    mockFetch.mockResolvedValue(createMockResponse(updatedSettings));
 
     const { result } = renderHook(() => useUpdateSettings(), {
       wrapper: createTestWrapper(),
@@ -391,12 +434,7 @@ describe('useUpdateSettings', () => {
 
   it('handles validation errors', async () => {
     const errorMessage = 'Confidence threshold must be between 0.0 and 1.0';
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 422,
-      statusText: 'Unprocessable Entity',
-      json: () => Promise.resolve({ detail: errorMessage }),
-    } as Response);
+    mockFetch.mockResolvedValue(createMockResponse({ detail: errorMessage }, 422, false));
 
     const { result } = renderHook(() => useUpdateSettings(), {
       wrapper: createTestWrapper(),
@@ -460,7 +498,11 @@ describe('useUpdateSettings', () => {
     });
 
     expect(response).toEqual(mockSettingsResponse);
-    expect(result.current.isSuccess).toBe(true);
+
+    // Wait for React state to update after async mutation
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
   });
 
   it('resets mutation state', async () => {
@@ -478,7 +520,10 @@ describe('useUpdateSettings', () => {
 
     result.current.reset();
 
-    expect(result.current.isSuccess).toBe(false);
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(false);
+    });
+
     expect(result.current.data).toBeUndefined();
   });
 
@@ -631,10 +676,7 @@ describe('useSettingsApi', () => {
       retention: { days: 45, log_days: 14 },
     };
 
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(updatedSettings),
-    } as Response);
+    mockFetch.mockResolvedValue(createMockResponse(updatedSettings));
 
     result.current.updateMutation.mutate({
       retention: { days: 45, log_days: 14 },
@@ -682,12 +724,7 @@ describe('useSettingsApi', () => {
 
   it('handles query errors', async () => {
     const errorMessage = 'Settings not found';
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 404,
-      statusText: 'Not Found',
-      json: () => Promise.resolve({ detail: errorMessage }),
-    } as Response);
+    mockFetch.mockResolvedValue(createMockResponse({ detail: errorMessage }, 404, false));
 
     const { result } = renderHook(() => useSettingsApi(), {
       wrapper: createTestWrapper(),
@@ -715,12 +752,7 @@ describe('useSettingsApi', () => {
 
     // Trigger failing mutation
     const errorMessage = 'Invalid settings';
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 400,
-      statusText: 'Bad Request',
-      json: () => Promise.resolve({ detail: errorMessage }),
-    } as Response);
+    mockFetch.mockResolvedValue(createMockResponse({ detail: errorMessage }, 400, false));
 
     result.current.updateMutation.mutate({
       detection: { confidence_threshold: -1 },
@@ -768,10 +800,7 @@ describe('Integration Tests', () => {
       ...fullUpdate,
     } as SettingsResponse;
 
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(updatedSettings),
-    } as Response);
+    mockFetch.mockResolvedValue(createMockResponse(updatedSettings));
 
     result.current.updateMutation.mutate(fullUpdate);
 

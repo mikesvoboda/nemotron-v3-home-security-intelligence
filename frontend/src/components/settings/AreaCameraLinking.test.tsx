@@ -165,6 +165,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
+      isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -208,6 +209,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
+      isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -256,6 +258,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: new Error('Failed to load cameras'),
         refetch: vi.fn(),
+      isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -300,6 +303,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
+      isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -349,6 +353,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
+      isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -426,6 +431,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
+      isPlaceholderData: false,
       });
 
       render(<AreaCameraLinking />);
@@ -465,6 +471,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
+      isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -568,6 +575,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
+      isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -682,6 +690,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
+      isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -855,6 +864,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
+      isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -1036,6 +1046,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
+      isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({

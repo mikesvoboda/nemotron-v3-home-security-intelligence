@@ -1321,8 +1321,14 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<T>
 // Camera Endpoints
 // ============================================================================
 
-export async function fetchCameras(): Promise<Camera[]> {
-  const response = await fetchApi<GeneratedCameraListResponse>('/api/cameras');
+/**
+ * Fetch all cameras.
+ *
+ * @param options - Optional fetch options including AbortSignal for cancellation (NEM-3411)
+ * @returns Array of Camera objects
+ */
+export async function fetchCameras(options?: { signal?: AbortSignal }): Promise<Camera[]> {
+  const response = await fetchApi<GeneratedCameraListResponse>('/api/cameras', options);
   return response.items;
 }
 
@@ -1518,8 +1524,24 @@ export async function updateAnomalyConfig(config: AnomalyConfigUpdate): Promise<
 // System Endpoints
 // ============================================================================
 
-export async function fetchHealth(): Promise<HealthResponse> {
-  return fetchApi<HealthResponse>('/api/system/health');
+/**
+ * Fetch system health status.
+ *
+ * @param options - Optional fetch options including AbortSignal for cancellation (NEM-3411)
+ * @returns HealthResponse with service status information
+ *
+ * @example
+ * ```typescript
+ * // Basic usage
+ * const health = await fetchHealth();
+ *
+ * // With AbortSignal for cancellation
+ * const controller = new AbortController();
+ * const health = await fetchHealth({ signal: controller.signal });
+ * ```
+ */
+export async function fetchHealth(options?: { signal?: AbortSignal }): Promise<HealthResponse> {
+  return fetchApi<HealthResponse>('/api/system/health', options);
 }
 
 // ============================================================================
@@ -1588,14 +1610,21 @@ export interface FullHealthResponse {
  * Fetch comprehensive system health including all AI services and circuit breakers.
  * Returns 503 if critical services are unhealthy.
  *
+ * @param options - Optional fetch options including AbortSignal for cancellation (NEM-3411)
  * @returns FullHealthResponse with detailed status of all services
  */
-export async function fetchFullHealth(): Promise<FullHealthResponse> {
-  return fetchApi<FullHealthResponse>('/api/system/health/full');
+export async function fetchFullHealth(options?: { signal?: AbortSignal }): Promise<FullHealthResponse> {
+  return fetchApi<FullHealthResponse>('/api/system/health/full', options);
 }
 
-export async function fetchGPUStats(): Promise<GPUStats> {
-  return fetchApi<GPUStats>('/api/system/gpu');
+/**
+ * Fetch GPU statistics.
+ *
+ * @param options - Optional fetch options including AbortSignal for cancellation (NEM-3411)
+ * @returns GPUStats with GPU utilization and memory information
+ */
+export async function fetchGPUStats(options?: { signal?: AbortSignal }): Promise<GPUStats> {
+  return fetchApi<GPUStats>('/api/system/gpu', options);
 }
 
 export async function fetchGpuHistory(limit: number = 100): Promise<GPUStatsHistoryResponse> {
@@ -1717,8 +1746,16 @@ export interface EventStatsQueryParams {
   camera_id?: string;
 }
 
+/**
+ * Fetch event statistics.
+ *
+ * @param params - Query parameters for filtering events
+ * @param options - Optional fetch options including AbortSignal for cancellation (NEM-3411)
+ * @returns EventStatsResponse with aggregated statistics
+ */
 export async function fetchEventStats(
-  params?: EventStatsQueryParams
+  params?: EventStatsQueryParams,
+  options?: { signal?: AbortSignal }
 ): Promise<GeneratedEventStatsResponse> {
   const queryParams = new URLSearchParams();
 
@@ -1731,7 +1768,7 @@ export async function fetchEventStats(
   const queryString = queryParams.toString();
   const endpoint = queryString ? `/api/events/stats?${queryString}` : '/api/events/stats';
 
-  return fetchApi<GeneratedEventStatsResponse>(endpoint);
+  return fetchApi<GeneratedEventStatsResponse>(endpoint, options);
 }
 
 export interface EventUpdateData {

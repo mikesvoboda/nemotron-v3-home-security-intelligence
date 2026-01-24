@@ -1634,7 +1634,7 @@ class TestVisionExtractorWithVQAValidation:
         extractor = VisionExtractor()
 
         # Mock responses with garbage VQA for person attributes
-        async def mock_query(image, task, text_input=""):  # noqa: PLR0911, PLR0912
+        async def mock_query(image, task, text_input=""):  # noqa: PLR0911
             if task == "<CAPTION>":
                 return "Person in blue jacket near white car"
             if "wearing" in text_input.lower():

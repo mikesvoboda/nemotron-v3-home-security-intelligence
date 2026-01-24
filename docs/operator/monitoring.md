@@ -846,6 +846,272 @@ Both the Redis service and Redis exporter use this environment variable.
 
 ---
 
+---
+
+### Alloy (Log Collection)
+
+Alloy is Grafana's telemetry collector that collects container logs from Podman and forwards them to Loki for centralized log aggregation and querying.
+
+**Port:** 12345 (Alloy UI)
+
+**Configuration File:** `monitoring/alloy/config.alloy`
+
+**Dependencies:**
+
+- **Loki** - Log storage backend (port 3100)
+- **Podman Socket** - Container discovery and log collection
+
+**CRITICAL: Podman Socket Requirement**
+
+Alloy requires access to the Podman socket to discover running containers and collect their logs. The socket **must be enabled** before starting the monitoring stack.
+
+**Enable Podman Socket (one-time setup):**
+
+```bash
+# Start the Podman socket service
+systemctl --user start podman.socket
+
+# Enable it to start automatically on boot
+systemctl --user enable podman.socket
+
+# Verify the socket is active
+systemctl --user status podman.socket
+
+# Verify the socket file exists
+ls -l /run/user/1000/podman/podman.sock
+```
+
+Expected output:
+
+```
+srw-rw----. 1 user user 0 Jan 23 14:09 /run/user/1000/podman/podman.sock
+```
+
+**Socket Mount:**
+
+The `docker-compose.prod.yml` file mounts the Podman socket into the Alloy container:
+
+```yaml
+volumes:
+  - /run/user/1000/podman/podman.sock:/run/user/1000/podman/podman.sock:ro
+```
+
+**How It Works:**
+
+1. **Container Discovery** - Alloy connects to the Podman socket to discover running containers
+2. **Log Collection** - Alloy reads container logs directly from Podman
+3. **Log Processing** - Logs are parsed and enriched with metadata (container name, image, labels)
+4. **Log Forwarding** - Processed logs are sent to Loki for storage and querying
+
+**Log Enrichment:**
+
+Alloy automatically extracts and adds metadata to logs:
+
+| Label            | Description                                | Source                              |
+| ---------------- | ------------------------------------------ | ----------------------------------- |
+| `container`      | Container name                             | `__meta_docker_container_name`      |
+| `image`          | Container image name                       | `__meta_docker_container_image`     |
+| `job`            | Static label (always `podman-containers`)  | Configuration                       |
+| `level`          | Log level (DEBUG, INFO, WARNING, ERROR)    | Regex extraction from log line      |
+| `camera`         | Camera name (from AI pipeline logs)        | Regex extraction (`camera=<name>`)  |
+| `trace_id`       | OpenTelemetry trace ID (32-char hex)       | Regex extraction (`trace_id=<id>`)  |
+| `span_id`        | OpenTelemetry span ID (16-char hex)        | Regex extraction (`span_id=<id>`)   |
+| `batch_id`       | Batch processing ID (UUID)                 | Regex extraction (`batch_id=<id>`)  |
+| `duration_ms`    | Operation duration in milliseconds         | Regex extraction (`duration=<ms>`)  |
+| `pg_duration_ms` | PostgreSQL query duration (slow queries)   | Regex extraction from Postgres logs |
+| `pg_event`       | PostgreSQL events (connection, checkpoint) | Regex extraction                    |
+
+**Querying Logs in Grafana:**
+
+```logql
+# All logs from backend container
+{container="backend"}
+
+# Logs from a specific camera
+{container="backend", camera="front_door"}
+
+# Error logs only
+{container="backend"} |= "ERROR"
+
+# PostgreSQL slow queries (>1 second)
+{container="postgres"} | pg_slow_query != ""
+
+# Logs for a specific trace
+{container="backend"} |= "trace_id=abc123..."
+
+# Logs from AI services with errors
+{container=~"ai-.*"} |= "error" | level="ERROR"
+```
+
+**PostgreSQL Query Logging:**
+
+The PostgreSQL container is configured to log slow queries (>1 second) to stdout, which Alloy collects:
+
+```yaml
+# PostgreSQL logging configuration (docker-compose.prod.yml)
+command:
+  - postgres
+  - -c
+  - log_min_duration_statement=1000 # Log queries >1 second
+  - -c
+  - log_duration=on
+  - -c
+  - log_line_prefix=%t [%p] %u@%d
+```
+
+Alloy extracts query duration and connection info, making it easy to find slow queries in Grafana.
+
+**Troubleshooting:**
+
+**Error: "Cannot connect to the Docker daemon at unix:///run/user/1000/podman/podman.sock"**
+
+This indicates the Podman socket is not active. Fix:
+
+```bash
+# Check if socket service is running
+systemctl --user status podman.socket
+
+# If inactive, start and enable it
+systemctl --user start podman.socket
+systemctl --user enable podman.socket
+
+# Verify socket file is a socket (not a directory)
+file /run/user/1000/podman/podman.sock
+# Expected: /run/user/1000/podman/podman.sock: socket
+
+# Restart Alloy to pick up the socket
+podman stop alloy && podman rm alloy
+podman-compose -f docker-compose.prod.yml up -d alloy
+```
+
+**No logs appearing in Loki:**
+
+```bash
+# Check Alloy logs for errors
+podman logs alloy 2>&1 | grep -i error
+
+# Verify Loki is running and healthy
+curl http://localhost:3100/ready
+
+# Check if Alloy can reach Loki
+podman exec alloy wget -qO- http://loki:3100/ready
+
+# Verify log pipeline is active
+curl http://localhost:12345  # Alloy UI
+```
+
+**Too many log streams error (429 from Loki):**
+
+```
+level=warn msg="error sending batch, will retry" error="server returned HTTP status 429 Too Many Requests"
+```
+
+This means Alloy is creating too many unique label combinations. Fix by:
+
+1. Reducing labels in `monitoring/alloy/config.alloy`
+2. Increasing Loki stream limits in `monitoring/loki/loki-config.yml`
+3. Using log pipeline stages to drop unnecessary labels
+
+---
+
+### Loki (Log Storage)
+
+Loki is a log aggregation system designed for storing and querying logs collected by Alloy.
+
+**Port:** 3100
+
+**Configuration File:** `monitoring/loki/loki-config.yml`
+
+**Key Features:**
+
+- **Label-based indexing** - Efficient querying using labels (not full-text indexing)
+- **LogQL** - Powerful query language similar to PromQL
+- **Grafana integration** - Native datasource for Grafana dashboards
+- **Retention** - Configurable log retention (default: 7 days)
+
+**Accessing Loki:**
+
+```bash
+# Check Loki health
+curl http://localhost:3100/ready
+
+# Query logs via API
+curl -G "http://localhost:3100/loki/api/v1/query_range" \
+  --data-urlencode 'query={container="backend"}' \
+  --data-urlencode 'start=2026-01-23T00:00:00Z'
+
+# View label values
+curl http://localhost:3100/loki/api/v1/label/container/values
+```
+
+**Grafana Explore:**
+
+1. Go to Grafana: http://localhost:3002
+2. Navigate to **Explore** (compass icon)
+3. Select **Loki** datasource from dropdown
+4. Use LogQL to query logs
+5. Click **Split** to compare multiple queries side-by-side
+
+**Resource Limits:**
+
+```yaml
+# docker-compose.prod.yml
+deploy:
+  resources:
+    limits:
+      cpus: '0.25'
+      memory: 512M
+```
+
+For high-volume deployments, increase memory limits and configure object storage (S3, GCS) for log storage.
+
+---
+
+### Pyroscope (Continuous Profiling)
+
+Pyroscope provides continuous profiling for Python services, helping identify CPU and memory hotspots in the backend and AI services.
+
+**Port:** 4040
+
+**Configuration File:** `monitoring/pyroscope/pyroscope-config.yml`
+
+**How It Works:**
+
+Services push profiling data to Pyroscope when `PYROSCOPE_ENABLED=true`:
+
+```yaml
+# Backend service (docker-compose.prod.yml)
+environment:
+  - PYROSCOPE_ENABLED=true
+  - PYROSCOPE_URL=http://pyroscope:4040
+labels:
+  pyroscope.profile: 'true'
+  pyroscope.service: 'backend'
+```
+
+**Supported Services:**
+
+- `backend` - FastAPI backend
+- `ai-detector` - RT-DETRv2 object detection
+- `ai-florence` - Florence-2 vision-language
+- `ai-enrichment` - Entity enrichment
+
+**Accessing Pyroscope UI:**
+
+1. Open http://localhost:4040
+2. Select a service from the dropdown
+3. View CPU flame graphs, call trees, and timeline
+4. Filter by time range to analyze specific periods
+
+**Useful for:**
+
+- Identifying slow functions
+- Finding CPU bottlenecks
+- Analyzing memory allocation patterns
+- Comparing performance before/after changes
+
+---
+
 ### Verifying Monitoring Stack
 
 After starting the stack, verify all services are healthy:

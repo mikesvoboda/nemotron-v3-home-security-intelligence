@@ -76,7 +76,11 @@ async def verify_api_key(
 
     # Hash the provided key and compare against valid keys
     key_hash = hashlib.sha256(key.encode()).hexdigest()
-    valid_hashes = {hashlib.sha256(k.encode()).hexdigest() for k in settings.api_keys}
+    # Support SecretStr for api_keys
+    valid_hashes = set()
+    for k in settings.api_keys:
+        key_value: str = k.get_secret_value() if hasattr(k, "get_secret_value") else str(k)
+        valid_hashes.add(hashlib.sha256(key_value.encode()).hexdigest())
 
     if key_hash not in valid_hashes:
         raise HTTPException(

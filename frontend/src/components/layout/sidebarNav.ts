@@ -11,6 +11,7 @@ import {
   Briefcase,
   ClipboardCheck,
   Clock,
+  Cpu,
   Database,
   Flame,
   Home,
@@ -83,6 +84,7 @@ export const navGroups: NavGroup[] = [
       { id: 'audit', label: 'Audit Log', icon: Shield, path: '/audit' },
       { id: 'data', label: 'Data Management', icon: Database, path: '/data' },
       { id: 'trash', label: 'Trash', icon: Trash2, path: '/trash' },
+      { id: 'gpu-settings', label: 'GPU Settings', icon: Cpu, path: '/settings/gpu' },
       {
         id: 'settings',
         label: 'Settings',

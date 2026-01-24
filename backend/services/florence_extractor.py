@@ -315,7 +315,7 @@ class FlorenceExtractor:
                 inputs = {k: v.to(device) for k, v in inputs.items()}
 
                 # Generate
-                with torch.no_grad():
+                with torch.inference_mode():
                     generated_ids = model.generate(
                         **inputs,
                         max_new_tokens=256,

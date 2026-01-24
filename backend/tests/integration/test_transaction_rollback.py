@@ -16,6 +16,7 @@ Uses shared fixtures from conftest.py:
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from datetime import UTC, datetime
 
@@ -32,6 +33,8 @@ from backend.models.event_detection import EventDetection
 from backend.tests.conftest import unique_id
 
 pytestmark = pytest.mark.integration
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -193,6 +196,7 @@ class TestEventDetectionAtomicCreation:
             assert detection_result.scalar_one_or_none() is None
 
 
+@pytest.mark.timeout(15)  # Complex cascade deletes need more time
 class TestCameraCascadeDelete:
     """Tests for camera cascade delete with rollback on partial failure."""
 
@@ -442,6 +446,7 @@ class TestAlertRuleConstraintValidation:
             assert result.scalar_one_or_none() is None
 
 
+@pytest.mark.timeout(10)  # Multiple database round-trips
 class TestBatchTransactionBoundaries:
     """Tests for batch processing transaction boundaries."""
 
@@ -533,6 +538,8 @@ class TestBatchTransactionBoundaries:
             # This tests the pattern of checking before insert
 
 
+@pytest.mark.timeout(15)  # Concurrent operations need more time
+@pytest.mark.serial  # Ensure this test runs alone to avoid interference
 class TestConcurrentBatchCompletion:
     """Tests for concurrent batch completion handling."""
 
@@ -547,37 +554,49 @@ class TestConcurrentBatchCompletion:
 
         async def create_event_for_batch(session_num: int) -> int | None:
             """Try to create an event for the batch, return event ID if created."""
-            async with get_session() as session:
-                # Check if batch already processed (idempotency check)
-                result = await session.execute(select(Event).where(Event.batch_id == batch_id))
-                existing = result.scalar_one_or_none()
+            try:
+                async with get_session() as session:
+                    # Check if batch already processed (idempotency check)
+                    result = await session.execute(select(Event).where(Event.batch_id == batch_id))
+                    existing = result.scalar_one_or_none()
 
-                if existing is not None:
-                    return None  # Already processed
+                    if existing is not None:
+                        return None  # Already processed
 
-                # Create new event
-                event = Event(
-                    batch_id=batch_id,
-                    camera_id=sample_camera.id,
-                    started_at=datetime.now(UTC),
-                    risk_score=50,
-                    risk_level="medium",
-                    summary=f"Event from session {session_num}",
-                )
-                session.add(event)
-                await session.commit()
-                await session.refresh(event)
-                return event.id
+                    # Add small delay to increase chance of race condition
+                    await asyncio.sleep(0.01)
+
+                    # Create new event
+                    event = Event(
+                        batch_id=batch_id,
+                        camera_id=sample_camera.id,
+                        started_at=datetime.now(UTC),
+                        risk_score=50,
+                        risk_level="medium",
+                        summary=f"Event from session {session_num}",
+                    )
+                    session.add(event)
+                    await session.commit()
+                    await session.refresh(event)
+                    return event.id
+            except Exception as e:
+                # Log but don't raise - race conditions might cause integrity errors
+                logger.debug(f"Session {session_num} failed: {e}")
+                return None
 
         # Run concurrent attempts (with small delay to simulate race condition)
-        await asyncio.gather(
+        results = await asyncio.gather(
             create_event_for_batch(1),
             create_event_for_batch(2),
             create_event_for_batch(3),
-            return_exceptions=True,
+            return_exceptions=False,
         )
 
-        # Verify at most one event was created
+        # At least one should succeed
+        successful_creates = [r for r in results if r is not None]
+        assert len(successful_creates) >= 1
+
+        # Verify at most one event was created (despite multiple attempts)
         async with get_session() as session:
             result = await session.execute(select(Event).where(Event.batch_id == batch_id))
             events = result.scalars().all()
@@ -589,6 +608,7 @@ class TestConcurrentBatchCompletion:
             assert len(events) >= 1
 
 
+@pytest.mark.timeout(10)  # Multiple savepoint operations
 class TestPartialFailureRecovery:
     """Tests for partial failure and recovery scenarios."""
 
@@ -752,6 +772,7 @@ class TestPartialFailureRecovery:
             assert "attempt 2" in event.summary
 
 
+@pytest.mark.timeout(10)  # Multiple session operations
 class TestTransactionIsolation:
     """Tests for transaction isolation behavior."""
 

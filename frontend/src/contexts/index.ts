@@ -22,7 +22,7 @@ export type {
   ToastProviderProps,
 } from './ToastContext';
 
-// System data context for shared polling
+// System data context for shared polling (composed from specialized contexts)
 export {
   SystemDataContext,
   SystemDataProvider,
@@ -34,16 +34,37 @@ export {
 
 export type { SystemData, SystemDataProviderProps } from './SystemDataContext';
 
-// Rate limit state context for per-endpoint rate limit tracking
-export { RateLimitContext, RateLimitProvider, useRateLimitContext } from './RateLimitContext';
+// Camera context for camera state
+export {
+  CameraContext,
+  CameraProvider,
+  useCameraContext,
+  useCameraContextOptional,
+} from './CameraContext';
 
-export type {
-  EndpointRateLimitInfo,
-  RateLimitUpdateInput,
-  RateLimitState,
-  RateLimitContextType,
-  RateLimitProviderProps,
-} from './RateLimitContext';
+export type { CameraContextData, CameraProviderProps } from './CameraContext';
+
+// Health context for system health
+export {
+  HealthContext,
+  HealthProvider,
+  useHealthContext,
+  useHealthContextOptional,
+  DEFAULT_HEALTH as HEALTH_DEFAULT,
+} from './HealthContext';
+
+export type { HealthContextData, HealthProviderProps } from './HealthContext';
+
+// Metrics context for GPU and performance metrics
+export {
+  MetricsContext,
+  MetricsProvider,
+  useMetricsContext,
+  useMetricsContextOptional,
+  DEFAULT_GPU_STATS as METRICS_DEFAULT_GPU_STATS,
+} from './MetricsContext';
+
+export type { MetricsContextData, MetricsProviderProps } from './MetricsContext';
 
 // Announcement context for screen reader announcements
 export { AnnouncementContext, AnnouncementProvider, useAnnounce } from './AnnouncementContext';

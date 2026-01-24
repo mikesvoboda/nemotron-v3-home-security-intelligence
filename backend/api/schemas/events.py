@@ -2,10 +2,43 @@
 
 from datetime import datetime
 from enum import Enum
+from functools import cached_property
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from backend.api.schemas.pagination import PaginationMeta
+
+# Default severity thresholds (matches backend.services.severity)
+# These are used for computing risk_level from risk_score
+_DEFAULT_LOW_MAX = 29
+_DEFAULT_MEDIUM_MAX = 59
+_DEFAULT_HIGH_MAX = 84
+
+
+def _compute_risk_level(risk_score: int | None) -> str | None:
+    """Compute risk level from risk score using default thresholds.
+
+    Thresholds (from backend severity taxonomy):
+    - LOW: 0-29
+    - MEDIUM: 30-59
+    - HIGH: 60-84
+    - CRITICAL: 85-100
+
+    Args:
+        risk_score: Risk score from 0 to 100, or None
+
+    Returns:
+        Risk level string ('low', 'medium', 'high', 'critical') or None if score is None
+    """
+    if risk_score is None:
+        return None
+    if risk_score <= _DEFAULT_LOW_MAX:
+        return "low"
+    if risk_score <= _DEFAULT_MEDIUM_MAX:
+        return "medium"
+    if risk_score <= _DEFAULT_HIGH_MAX:
+        return "high"
+    return "critical"
 
 
 class EnrichmentStatusEnum(str, Enum):
@@ -96,8 +129,25 @@ class EventResponse(BaseModel):
     started_at: datetime = Field(..., description="Event start timestamp")
     ended_at: datetime | None = Field(None, description="Event end timestamp")
     risk_score: int | None = Field(None, description="Risk score (0-100)")
-    risk_level: str | None = Field(None, description="Risk level (low, medium, high, critical)")
     summary: str | None = Field(None, description="LLM-generated event summary")
+
+    @computed_field  # type: ignore[prop-decorator]
+    @cached_property
+    def risk_level(self) -> str | None:
+        """Compute risk level from risk_score (NEM-3398).
+
+        This computed field derives risk_level from risk_score using
+        the backend severity taxonomy thresholds:
+        - LOW: 0-29
+        - MEDIUM: 30-59
+        - HIGH: 60-84
+        - CRITICAL: 85-100
+
+        Returns:
+            Risk level string or None if risk_score is None
+        """
+        return _compute_risk_level(self.risk_score)
+
     reasoning: str | None = Field(None, description="LLM reasoning for risk score")
     llm_prompt: str | None = Field(
         None, description="Full prompt sent to Nemotron LLM (for debugging/improvement)"
@@ -122,6 +172,32 @@ class EventResponse(BaseModel):
         None,
         description="Timestamp when the event was soft-deleted (null if not deleted)",
     )
+
+    def model_dump_list(self) -> dict:
+        """Serialize for list views (exclude detail-only fields).
+
+        Excludes large fields like llm_prompt and reasoning that are only
+        needed in detail views. This reduces payload size by 30-50% for
+        list responses.
+
+        Returns:
+            Dictionary with list view fields only, None values excluded.
+        """
+        return self.model_dump(
+            exclude={"llm_prompt", "reasoning"},
+            exclude_none=True,
+        )
+
+    def model_dump_detail(self) -> dict:
+        """Serialize for detail views (include all fields).
+
+        Includes all fields including large detail-only fields like
+        llm_prompt and reasoning.
+
+        Returns:
+            Dictionary with all fields, None values excluded.
+        """
+        return self.model_dump(exclude_none=True)
 
 
 class EventUpdate(BaseModel):

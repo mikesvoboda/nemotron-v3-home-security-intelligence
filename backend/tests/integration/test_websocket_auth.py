@@ -1052,6 +1052,7 @@ class TestWebSocketRateLimitFunctionsUnit:
     @pytest.mark.asyncio
     async def test_check_websocket_rate_limit_exceeded(self, integration_env):
         """Test that rate limit check fails when limit is exceeded."""
+        import backend.api.middleware.rate_limit as rate_limit_module
         from backend.api.middleware.rate_limit import check_websocket_rate_limit
         from backend.core.config import get_settings
 
@@ -1061,24 +1062,22 @@ class TestWebSocketRateLimitFunctionsUnit:
         os.environ["RATE_LIMIT_BURST"] = "2"  # Total limit = 5 + 2 = 7
         get_settings.cache_clear()
 
+        # Reset the cached Lua script SHA to ensure proper mock isolation
+        rate_limit_module._lua_script_sha = None
+
         # Mock websocket
         mock_ws = MagicMock()
         mock_ws.client = MagicMock()
         mock_ws.client.host = "10.0.0.50"
         mock_ws.headers = {}
 
-        # Mock redis client with pipeline - simulate exceeding limit
-        mock_pipeline = MagicMock()
-        mock_pipeline.zremrangebyscore = MagicMock()
-        mock_pipeline.zcard = MagicMock()
-        mock_pipeline.zadd = MagicMock()
-        mock_pipeline.expire = MagicMock()
-        mock_pipeline.execute = AsyncMock(
-            return_value=[0, 100, 1, True]
-        )  # 100 requests, over limit
-
+        # Mock redis client with Lua script support - simulate exceeding limit
+        # The Lua script returns [is_allowed (0 or 1), current_count]
         mock_redis_inner = MagicMock()
-        mock_redis_inner.pipeline = MagicMock(return_value=mock_pipeline)
+        mock_redis_inner.script_load = AsyncMock(return_value="fake-sha-123")
+        mock_redis_inner.evalsha = AsyncMock(
+            return_value=[0, 100]  # 0 = not allowed, 100 = current count (over limit)
+        )
 
         mock_redis = MagicMock()
         mock_redis._ensure_connected = MagicMock(return_value=mock_redis_inner)
@@ -1091,10 +1090,12 @@ class TestWebSocketRateLimitFunctionsUnit:
         os.environ.pop("RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE", None)
         os.environ.pop("RATE_LIMIT_BURST", None)
         get_settings.cache_clear()
+        rate_limit_module._lua_script_sha = None
 
     @pytest.mark.asyncio
     async def test_check_websocket_rate_limit_redis_error_fails_open(self, integration_env):
         """Test that rate limit check passes on Redis errors (fail-open)."""
+        import backend.api.middleware.rate_limit as rate_limit_module
         from backend.api.middleware.rate_limit import check_websocket_rate_limit
         from backend.core.config import get_settings
 
@@ -1102,15 +1103,18 @@ class TestWebSocketRateLimitFunctionsUnit:
         os.environ["RATE_LIMIT_ENABLED"] = "true"
         get_settings.cache_clear()
 
+        # Reset the cached Lua script SHA to ensure proper mock isolation
+        rate_limit_module._lua_script_sha = None
+
         # Mock websocket
         mock_ws = MagicMock()
         mock_ws.client = MagicMock()
         mock_ws.client.host = "172.16.0.1"
         mock_ws.headers = {}
 
-        # Mock redis client that raises an error
+        # Mock redis client that raises an error on script_load
         mock_redis_inner = MagicMock()
-        mock_redis_inner.pipeline = MagicMock(side_effect=Exception("Redis connection error"))
+        mock_redis_inner.script_load = AsyncMock(side_effect=Exception("Redis connection error"))
 
         mock_redis = MagicMock()
         mock_redis._ensure_connected = MagicMock(return_value=mock_redis_inner)
@@ -1122,3 +1126,4 @@ class TestWebSocketRateLimitFunctionsUnit:
         # Cleanup
         os.environ.pop("RATE_LIMIT_ENABLED", None)
         get_settings.cache_clear()
+        rate_limit_module._lua_script_sha = None

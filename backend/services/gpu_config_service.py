@@ -27,6 +27,17 @@ Usage:
 
     # Check container status
     status = await service.get_container_status(["ai-detector", "ai-llm"])
+
+    # Or use simple file writing API:
+    service = GpuConfigService(config_dir=Path("config"))
+    assignments = [
+        GpuAssignment(service_name="ai-llm", gpu_index=0),
+        GpuAssignment(service_name="ai-enrichment", gpu_index=1, vram_budget_override=3.5),
+    ]
+    override_path, assignments_path = await service.write_config_files(
+        assignments=assignments,
+        strategy="vram_based",
+    )
 """
 
 from __future__ import annotations
@@ -38,6 +49,8 @@ from datetime import UTC, datetime
 from enum import StrEnum, auto
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+import yaml
 
 from backend.core.logging import get_logger
 
@@ -146,7 +159,7 @@ class ApplyResult:
         }
 
 
-@dataclass(slots=True)
+@dataclass
 class GpuAssignment:
     """Represents a GPU assignment for a service.
 
@@ -154,11 +167,22 @@ class GpuAssignment:
         service_name: Name of the AI service (e.g., 'ai-detector', 'ai-llm')
         gpu_index: Index of the GPU assigned (0-based)
         vram_limit_mb: Optional VRAM limit in megabytes
+        vram_budget_override: Optional VRAM budget override in GB (alias for vram_limit_mb)
     """
 
     service_name: str
     gpu_index: int
     vram_limit_mb: int | None = None
+    vram_budget_override: float | None = None
+
+    def __post_init__(self) -> None:
+        """Sync vram_limit_mb and vram_budget_override fields."""
+        # If vram_budget_override is set but vram_limit_mb is not, convert GB to MB
+        if self.vram_budget_override is not None and self.vram_limit_mb is None:
+            self.vram_limit_mb = int(self.vram_budget_override * 1024)
+        # If vram_limit_mb is set but vram_budget_override is not, convert MB to GB
+        elif self.vram_limit_mb is not None and self.vram_budget_override is None:
+            self.vram_budget_override = self.vram_limit_mb / 1024.0
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -166,6 +190,7 @@ class GpuAssignment:
             "service_name": self.service_name,
             "gpu_index": self.gpu_index,
             "vram_limit_mb": self.vram_limit_mb,
+            "vram_budget_override": self.vram_budget_override,
         }
 
 
@@ -183,6 +208,14 @@ class GpuConfigService:
 
     The service supports both Docker and Podman, using podman-compose for
     container operations when available, falling back to docker-compose.
+
+    Simple file-writing API (for routes):
+        service = GpuConfigService(config_dir=Path("config"))
+        await service.write_config_files(assignments, strategy)
+
+    Full orchestration API (for background tasks):
+        service = GpuConfigService(redis_client=redis, docker_client=docker)
+        result = await service.apply_gpu_config(assignments)
     """
 
     # Default compose file paths
@@ -201,6 +234,7 @@ class GpuConfigService:
         docker_client: DockerClient | None = None,
         compose_file_path: str | Path | None = None,
         project_root: str | Path | None = None,
+        config_dir: Path | None = None,
     ) -> None:
         """Initialize the GPU configuration service.
 
@@ -213,6 +247,7 @@ class GpuConfigService:
                 Defaults to docker-compose.prod.yml in project root.
             project_root: Path to the project root directory.
                 Used for locating compose files and override output.
+            config_dir: Directory for config files (simple API). Defaults to 'config'.
         """
         self._redis = redis_client
         self._docker_client = docker_client
@@ -230,7 +265,12 @@ class GpuConfigService:
         else:
             self._compose_file = self._project_root / self.DEFAULT_COMPOSE_FILE
 
-        # Override file is always in project root
+        # Config directory for simple file writing API
+        self.config_dir = config_dir if config_dir is not None else Path("config")
+        self.override_file = self.config_dir / "docker-compose.gpu-override.yml"
+        self.assignments_file = self.config_dir / "gpu-assignments.yml"
+
+        # Override file for full orchestration API is in project root
         self._override_file = self._project_root / self.OVERRIDE_FILE_NAME
 
         # Current assignments cache
@@ -241,12 +281,135 @@ class GpuConfigService:
             extra={
                 "compose_file": str(self._compose_file),
                 "override_file": str(self._override_file),
+                "config_dir": str(self.config_dir),
                 "redis_enabled": redis_client is not None,
             },
         )
 
     # =========================================================================
-    # Public API
+    # Simple File Writing API (used by routes)
+    # =========================================================================
+
+    def generate_override_content(self, assignments: list[GpuAssignment]) -> str:
+        """Generate docker-compose.gpu-override.yml content.
+
+        Creates a docker-compose override file that pins services to specific
+        GPUs using the NVIDIA container runtime.
+
+        Args:
+            assignments: List of GPU assignments for services.
+
+        Returns:
+            YAML content string with header comment and services configuration.
+        """
+        services: dict[str, dict] = {}
+
+        for assignment in assignments:
+            service_config: dict = {
+                "deploy": {
+                    "resources": {
+                        "reservations": {
+                            "devices": [
+                                {
+                                    "driver": "nvidia",
+                                    "device_ids": [str(assignment.gpu_index)],
+                                    "capabilities": ["gpu"],
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+
+            if assignment.vram_budget_override is not None:
+                service_config["environment"] = [
+                    f"VRAM_BUDGET_GB={assignment.vram_budget_override}"
+                ]
+
+            services[assignment.service_name] = service_config
+
+        content: dict = {"services": services}
+
+        header = "# Auto-generated by GPU Config Service - DO NOT EDIT MANUALLY\n"
+        yaml_content: str = yaml.dump(content, default_flow_style=False, sort_keys=False)
+        return header + yaml_content
+
+    def generate_assignments_content(
+        self,
+        assignments: list[GpuAssignment],
+        strategy: str,
+    ) -> str:
+        """Generate human-readable gpu-assignments.yml.
+
+        Args:
+            assignments: List of GPU assignments for services.
+            strategy: The assignment strategy used (e.g., 'manual', 'vram_based').
+
+        Returns:
+            YAML content string with header comment and assignment details.
+        """
+        data: dict = {
+            "generated_at": datetime.now(UTC).isoformat(),
+            "strategy": strategy,
+            "assignments": {
+                a.service_name: {
+                    "gpu": a.gpu_index,
+                    "vram_budget": a.vram_budget_override,
+                }
+                for a in assignments
+            },
+        }
+
+        header = "# Auto-generated - for reference only\n"
+        yaml_content: str = yaml.dump(data, default_flow_style=False, sort_keys=False)
+        return header + yaml_content
+
+    async def write_config_files(
+        self,
+        assignments: list[GpuAssignment],
+        strategy: str,
+    ) -> tuple[Path, Path]:
+        """Write both config files to disk.
+
+        Creates the config directory if it doesn't exist, then writes:
+        1. docker-compose.gpu-override.yml - For docker-compose/podman-compose
+        2. gpu-assignments.yml - Human-readable reference file
+
+        Args:
+            assignments: List of GPU assignments for services.
+            strategy: The assignment strategy used.
+
+        Returns:
+            Tuple of (override_file_path, assignments_file_path).
+
+        Raises:
+            OSError: If directory creation or file writing fails.
+        """
+        logger.info(
+            f"Writing GPU config files: strategy={strategy}, assignments={len(assignments)}"
+        )
+
+        # Create config directory if missing
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+
+        # Write override file
+        override_content = self.generate_override_content(assignments)
+        self.override_file.write_text(override_content)
+        logger.debug(f"Wrote override file: {self.override_file}")
+
+        # Write assignments file
+        assignments_content = self.generate_assignments_content(assignments, strategy)
+        self.assignments_file.write_text(assignments_content)
+        logger.debug(f"Wrote assignments file: {self.assignments_file}")
+
+        logger.info(
+            f"GPU config files written successfully: {self.override_file}, {self.assignments_file}"
+        )
+
+        return self.override_file, self.assignments_file
+
+    # =========================================================================
+    # Full Orchestration API
     # =========================================================================
 
     async def apply_gpu_config(
@@ -323,20 +486,20 @@ class GpuConfigService:
             # Restart each changed service
             all_success = True
             for service_name in changed_services:
-                status = result.service_statuses[service_name]
-                status.status = RestartStatus.RESTARTING
-                status.started_at = datetime.now(UTC)
+                service_status = result.service_statuses[service_name]
+                service_status.status = RestartStatus.RESTARTING
+                service_status.started_at = datetime.now(UTC)
                 await self._persist_operation_status(result)
 
                 success = await self._recreate_service(service_name)
 
                 if success:
-                    status.status = RestartStatus.RUNNING
-                    status.completed_at = datetime.now(UTC)
+                    service_status.status = RestartStatus.RUNNING
+                    service_status.completed_at = datetime.now(UTC)
                 else:
-                    status.status = RestartStatus.FAILED
-                    status.completed_at = datetime.now(UTC)
-                    status.error = f"Failed to restart service {service_name}"
+                    service_status.status = RestartStatus.FAILED
+                    service_status.completed_at = datetime.now(UTC)
+                    service_status.error = f"Failed to restart service {service_name}"
                     all_success = False
 
                 await self._persist_operation_status(result)
@@ -368,8 +531,6 @@ class GpuConfigService:
     ) -> dict[str, str | None]:
         """Get the current status of containers for the specified services.
 
-        Polls container status for progress tracking during restarts.
-
         Args:
             service_names: List of service names to check.
 
@@ -385,7 +546,6 @@ class GpuConfigService:
 
         for service_name in service_names:
             try:
-                # Get container by name pattern (compose adds project prefix)
                 container = await self._docker_client.get_container_by_name(service_name)
                 if container:
                     result[service_name] = await self._docker_client.get_container_status(
@@ -432,11 +592,6 @@ class GpuConfigService:
     ) -> list[str]:
         """Determine which services changed between old and new assignments.
 
-        A service is considered changed if:
-        - It exists in new but not old (added)
-        - It exists in old but not new (removed)
-        - Its GPU index or VRAM limit changed
-
         Args:
             old: Previous GPU assignments by service name.
             new: New GPU assignments by service name.
@@ -449,14 +604,10 @@ class GpuConfigService:
         # Check for added or modified services
         for service_name, new_assignment in new.items():
             old_assignment = old.get(service_name)
-            if old_assignment is None:
-                # New service added
-                changed.append(service_name)
-            elif (
+            if old_assignment is None or (
                 old_assignment.gpu_index != new_assignment.gpu_index
                 or old_assignment.vram_limit_mb != new_assignment.vram_limit_mb
             ):
-                # Service modified
                 changed.append(service_name)
 
         # Check for removed services
@@ -473,15 +624,9 @@ class GpuConfigService:
     async def _load_assignments(self) -> dict[str, GpuAssignment]:
         """Load GPU assignments from the configuration source.
 
-        Currently returns an empty dict as placeholder. In production,
-        this would load from database via SQLAlchemy or from Redis cache.
-
         Returns:
             Dictionary of service name to GpuAssignment.
         """
-        # Placeholder - in production this loads from database
-        # The actual database loading would be implemented when the
-        # GPU configuration database schema is available
         return {}
 
     async def _generate_override_file(
@@ -490,15 +635,10 @@ class GpuConfigService:
     ) -> None:
         """Generate docker-compose.gpu-override.yml with GPU assignments.
 
-        Creates a compose override file that assigns GPUs to services
-        using NVIDIA runtime device specifications.
-
         Args:
             assignments: GPU assignments by service name.
         """
         override_content = self._build_override_content(assignments)
-
-        # Write to file
         self._override_file.write_text(override_content)
 
         logger.info(
@@ -518,18 +658,15 @@ class GpuConfigService:
         Returns:
             YAML content string for the override file.
         """
-        # Build override structure
         services: dict[str, Any] = {}
 
         for service_name, assignment in assignments.items():
-            # Use NVIDIA_VISIBLE_DEVICES to specify GPU
             service_config: dict[str, Any] = {
                 "environment": [
                     f"NVIDIA_VISIBLE_DEVICES={assignment.gpu_index}",
                 ],
             }
 
-            # Add VRAM limit if specified (via memory reservation)
             if assignment.vram_limit_mb is not None:
                 service_config["deploy"] = {
                     "resources": {
@@ -547,15 +684,11 @@ class GpuConfigService:
 
             services[service_name] = service_config
 
-        # Build full override document
-        import yaml  # type: ignore[import-untyped]
-
         override_doc = {
             "version": "3.8",
             "services": services,
         }
 
-        # Add header comment
         header = (
             "# GPU Configuration Override\n"
             "# Generated by GpuConfigService\n"
@@ -571,9 +704,6 @@ class GpuConfigService:
     async def _recreate_service(self, service_name: str) -> bool:
         """Restart a single service via podman-compose or docker-compose.
 
-        Uses 'up -d --force-recreate' to recreate the container with
-        the new configuration from the override file.
-
         Args:
             service_name: Name of the service to restart.
 
@@ -585,14 +715,11 @@ class GpuConfigService:
             extra={"service_name": service_name},
         )
 
-        # Determine which compose command to use
         compose_cmd = await self._get_compose_command()
         if compose_cmd is None:
             logger.error("Neither podman-compose nor docker-compose found")
             return False
 
-        # Build the recreate command
-        # Use -f for base file and override file
         cmd = [
             compose_cmd,
             "-f",
@@ -602,7 +729,7 @@ class GpuConfigService:
             "up",
             "-d",
             "--force-recreate",
-            "--no-deps",  # Don't recreate dependencies
+            "--no-deps",
             service_name,
         ]
 
@@ -669,17 +796,12 @@ class GpuConfigService:
     async def _get_compose_command(self) -> str | None:
         """Determine which compose command is available.
 
-        Prefers podman-compose over docker-compose for Podman environments.
-
         Returns:
             Command string ('podman-compose' or 'docker-compose') or None.
         """
-        # Try podman-compose first
         for cmd in ["podman-compose", "docker-compose", "docker compose"]:
             try:
-                # Check if command exists
                 if " " in cmd:
-                    # Handle 'docker compose' (V2 syntax)
                     parts = cmd.split()
                     process = await asyncio.create_subprocess_exec(
                         *parts,
@@ -767,8 +889,6 @@ class GpuConfigService:
 
     def set_current_assignments(self, assignments: dict[str, GpuAssignment]) -> None:
         """Set the current GPU assignments cache.
-
-        Used for initialization or testing.
 
         Args:
             assignments: New assignments to cache.

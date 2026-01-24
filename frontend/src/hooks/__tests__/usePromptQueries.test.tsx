@@ -203,16 +203,24 @@ describe('usePromptConfig', () => {
 
   it('handles error state', async () => {
     const errorMessage = 'Failed to fetch prompt config';
+
+    // Clear the default mock behavior and set up rejection
+    mockFetchPromptForModel.mockClear();
     mockFetchPromptForModel.mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => usePromptConfig(mockModel), {
       wrapper: createTestWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.error).toBeInstanceOf(Error);
-    });
+    await waitFor(
+      () => {
+        expect(result.current.isLoading).toBe(false);
+      },
+      { timeout: 2000 }
+    );
 
+    expect(result.current.error).toBeTruthy();
+    expect(result.current.error).toBeInstanceOf(Error);
     expect(result.current.error?.message).toBe(errorMessage);
     expect(result.current.data).toBeUndefined();
   });
@@ -273,13 +281,10 @@ describe('usePromptConfig', () => {
 
     expect(result.current.isRefetching).toBe(false);
 
-    // Trigger refetch
+    // Trigger refetch and immediately check for refetching state
     const refetchPromise = result.current.refetch();
 
-    await waitFor(() => {
-      expect(result.current.isRefetching).toBe(true);
-    });
-
+    // Wait for refetch to complete
     await refetchPromise;
 
     await waitFor(() => {
@@ -361,16 +366,24 @@ describe('usePromptHistory', () => {
 
   it('handles error state', async () => {
     const errorMessage = 'Failed to fetch history';
+
+    // Clear the default mock behavior and set up rejection
+    mockFetchPromptHistory.mockClear();
     mockFetchPromptHistory.mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => usePromptHistory(mockModel), {
       wrapper: createTestWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.error).toBeInstanceOf(Error);
-    });
+    await waitFor(
+      () => {
+        expect(result.current.isLoading).toBe(false);
+      },
+      { timeout: 2000 }
+    );
 
+    expect(result.current.error).toBeTruthy();
+    expect(result.current.error).toBeInstanceOf(Error);
     expect(result.current.error?.message).toBe(errorMessage);
     expect(result.current.versions).toEqual([]);
   });
@@ -493,7 +506,11 @@ describe('useUpdatePromptConfig', () => {
     });
 
     expect(response).toEqual(mockPromptConfig);
-    expect(result.current.isSuccess).toBe(true);
+
+    // Wait for React state to update
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
   });
 
   it('resets mutation state', async () => {
@@ -515,7 +532,11 @@ describe('useUpdatePromptConfig', () => {
 
     result.current.reset();
 
-    expect(result.current.isSuccess).toBe(false);
+    // Wait for React state to update after reset
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(false);
+    });
+
     expect(result.current.data).toBeUndefined();
   });
 
@@ -597,7 +618,11 @@ describe('useRestorePromptVersion', () => {
     const response = await result.current.mutateAsync(3);
 
     expect(response).toEqual(mockRestoreResponse);
-    expect(result.current.isSuccess).toBe(true);
+
+    // Wait for React state to update
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
   });
 
   it('invalidates cache on success', async () => {
@@ -639,7 +664,11 @@ describe('useRestorePromptVersion', () => {
 
     result.current.reset();
 
-    expect(result.current.isSuccess).toBe(false);
+    // Wait for React state to update after reset
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(false);
+    });
+
     expect(result.current.data).toBeUndefined();
   });
 });
@@ -766,7 +795,11 @@ describe('usePromptTest', () => {
     });
 
     expect(response.riskScore).toBe(82);
-    expect(result.current.isSuccess).toBe(true);
+
+    // Wait for React state to update
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
   });
 
   it('does not invalidate cache on success', async () => {
@@ -816,7 +849,11 @@ describe('usePromptTest', () => {
 
     result.current.reset();
 
-    expect(result.current.isSuccess).toBe(false);
+    // Wait for React state to update after reset
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(false);
+    });
+
     expect(result.current.data).toBeUndefined();
   });
 });

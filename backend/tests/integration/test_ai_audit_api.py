@@ -101,7 +101,7 @@ async def sample_event_for_audit(integration_db: str, sample_camera_for_audit: C
             camera_id=sample_camera_for_audit.id,
             started_at=datetime(2025, 12, 23, 12, 0, 0, tzinfo=UTC),
             ended_at=datetime(2025, 12, 23, 12, 2, 30, tzinfo=UTC),
-            risk_score=75,
+            risk_score=45,
             risk_level="medium",
             summary="Person detected near front entrance",
             reasoning="A person was detected approaching the front door during daylight hours.",

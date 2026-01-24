@@ -407,7 +407,7 @@ class ReIdentificationService:
         """
         return self._hybrid_storage
 
-    async def generate_embedding(  # noqa: PLR0912
+    async def generate_embedding(
         self,
         image: Image.Image,
         bbox: tuple[int, int, int, int] | None = None,

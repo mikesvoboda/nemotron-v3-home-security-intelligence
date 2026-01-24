@@ -142,6 +142,15 @@ from .florence_extractor import (
     reset_florence_extractor,
 )
 from .florence_loader import load_florence_model
+from .gpu_config_service import GpuAssignment, GpuConfigService
+from .gpu_detection_service import (
+    AI_SERVICE_VRAM_REQUIREMENTS_MB,
+    GpuDetectionService,
+    GpuDevice,
+    GpuUtilization,
+    get_gpu_detection_service,
+    reset_gpu_detection_service,
+)
 from .gpu_monitor import GPUMonitor
 from .household_matcher import (
     HouseholdMatch,
@@ -328,6 +337,7 @@ from .zone_service import (
 
 __all__ = [  # noqa: RUF022  # Intentionally organized by category
     # Constants
+    "AI_SERVICE_VRAM_REQUIREMENTS_MB",
     "DEFAULT_JOB_TIMEOUT",
     "DEFAULT_MAX_RETRY_ATTEMPTS",
     "DEFAULT_SIMILARITY_THRESHOLD",
@@ -417,6 +427,11 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "FaceResult",
     "FileWatcher",
     "FlorenceExtractor",
+    "GpuAssignment",
+    "GpuConfigService",
+    "GpuDetectionService",
+    "GpuDevice",
+    "GpuUtilization",
     "GPUMonitor",
     "HouseholdMatch",
     "HouseholdMatcher",
@@ -521,6 +536,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_event_service",
     "get_file_service",
     "get_florence_extractor",
+    "get_gpu_detection_service",
     "get_household_matcher",
     "get_highest_priority_zone",
     "get_job_status_service",
@@ -569,6 +585,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_event_service",
     "reset_file_service",
     "reset_florence_extractor",
+    "reset_gpu_detection_service",
     "reset_household_matcher",
     "reset_job_status_service",
     "reset_job_timeout_service",

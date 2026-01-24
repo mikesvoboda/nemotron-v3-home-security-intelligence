@@ -1,12 +1,20 @@
+import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DashboardConfigModal from './DashboardConfigModal';
 import {
-  DEFAULT_CONFIG,
+  DEFAULT_CONFIG_STATE,
   DEFAULT_WIDGETS,
+  useDashboardConfigStore,
   type DashboardConfig,
-} from '../../stores/dashboardConfig';
+} from '../../stores/dashboard-config-store';
 import { renderWithProviders, screen, waitFor } from '../../test-utils/renderWithProviders';
+
+// Create a default config object for tests
+const DEFAULT_CONFIG: DashboardConfig = {
+  widgets: DEFAULT_CONFIG_STATE.widgets,
+  version: DEFAULT_CONFIG_STATE.version,
+};
 
 // Mock framer-motion to avoid animation timing issues in tests
 vi.mock('framer-motion', () => ({
@@ -64,6 +72,11 @@ beforeEach(() => {
   });
   vi.spyOn(Storage.prototype, 'removeItem').mockImplementation((key: string) => {
     delete mockStorage[key];
+  });
+
+  // Reset Zustand store to default state before each test
+  act(() => {
+    useDashboardConfigStore.setState({ ...DEFAULT_CONFIG_STATE });
   });
 });
 

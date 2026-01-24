@@ -1,39 +1,112 @@
 # Stores Directory
 
-This directory contains state management stores for the frontend application.
+This directory contains Zustand state management stores for the frontend application.
 
 ## Overview
 
-Stores manage application state that needs to persist across sessions or be shared across components. Currently using pure TypeScript with localStorage persistence rather than a state management library like Zustand or Redux.
+Stores manage application state that needs to persist across sessions or be shared across components. Uses Zustand with advanced middleware patterns for optimal performance:
+
+- **Immer middleware** for immutable updates with mutable syntax
+- **subscribeWithSelector** for fine-grained component subscriptions
+- **Transient updates** for high-frequency WebSocket events
+- **Persist middleware** for localStorage persistence
 
 ## Files
 
-| File                              | Purpose                                               |
-| --------------------------------- | ----------------------------------------------------- |
-| `dashboardConfig.ts`              | Dashboard widget configuration store                  |
-| `dashboardConfig.test.ts`         | Tests for dashboard configuration store               |
-| `prometheus-alert-store.ts`       | Prometheus alert state management                     |
-| `prometheus-alert-store.test.ts`  | Tests for Prometheus alert store                      |
-| `rate-limit-store.ts`             | API rate limit tracking store                         |
-| `rate-limit-store.test.ts`        | Tests for rate limit store                            |
-| `storage-status-store.ts`         | Storage status tracking store                         |
-| `storage-status-store.test.ts`    | Tests for storage status store                        |
-| `worker-status-store.ts`          | Background worker status store                        |
-| `worker-status-store.test.ts`     | Tests for worker status store                         |
+| File                               | Purpose                                               |
+| ---------------------------------- | ----------------------------------------------------- |
+| `middleware.ts`                    | Zustand middleware utilities (Immer, selectors)       |
+| `middleware.test.ts`               | Tests for middleware utilities                        |
+| `dashboard-config-store.ts`        | Dashboard widget configuration store (Zustand)        |
+| `dashboard-config-store.test.ts`   | Tests for dashboard configuration store               |
+| `dashboardConfig.ts`               | Legacy dashboard config (deprecated, use new store)   |
+| `dashboardConfig.test.ts`          | Legacy tests (deprecated)                             |
+| `prometheus-alert-store.ts`        | Prometheus alert state management (Immer + selector)  |
+| `prometheus-alert-store.test.ts`   | Tests for Prometheus alert store                      |
+| `rate-limit-store.ts`              | API rate limit tracking store                         |
+| `rate-limit-store.test.ts`         | Tests for rate limit store                            |
+| `realtime-metrics-store.ts`        | High-frequency real-time metrics (transient updates)  |
+| `realtime-metrics-store.test.ts`   | Tests for real-time metrics store                     |
+| `storage-status-store.ts`          | Storage status tracking store                         |
+| `storage-status-store.test.ts`     | Tests for storage status store                        |
+| `worker-status-store.ts`           | Pipeline worker status (Immer + selector)             |
+| `worker-status-store.test.ts`      | Tests for worker status store                         |
 
-### `dashboardConfig.ts`
+## Middleware Utilities (`middleware.ts`)
 
-Dashboard widget customization store. Manages:
+Provides advanced Zustand patterns for performance optimization (NEM-3402, NEM-3403, NEM-3426).
+
+### createImmerStore
+
+Creates a store with Immer middleware for mutable syntax that produces immutable updates.
+
+```typescript
+const useStore = createImmerStore<State>((set) => ({
+  nested: { deep: { value: 0 } },
+  setDeepValue: (value) => set((state) => {
+    // Mutate directly - Immer handles immutability
+    state.nested.deep.value = value;
+  }),
+}));
+```
+
+### createImmerSelectorStore
+
+Combines Immer with subscribeWithSelector for fine-grained subscriptions.
+
+```typescript
+const useStore = createImmerSelectorStore<State>((set) => ({
+  metrics: { cpu: 0, gpu: 0 },
+  updateMetric: (key, value) => set((state) => {
+    state.metrics[key] = value;
+  }),
+}));
+
+// Subscribe only to CPU changes
+const unsub = useStore.subscribe(
+  (state) => state.metrics.cpu,
+  (newCpu, prevCpu) => console.log('CPU changed:', newCpu)
+);
+```
+
+### Transient Updates
+
+For high-frequency WebSocket events, use batching to prevent render thrashing.
+
+```typescript
+import { createWebSocketEventHandler } from './middleware';
+
+const handleGPUStats = createWebSocketEventHandler(
+  useStore.setState,
+  (event) => ({
+    gpuUtilization: event.gpu_utilization,
+    memoryUsed: event.memory_used,
+  }),
+  { batchMs: 100, maxBatchSize: 5 }
+);
+
+// Events are batched within 100ms window
+websocket.on('gpu_stats', handleGPUStats);
+```
+
+### `dashboard-config-store.ts` (Recommended)
+
+Zustand-based dashboard configuration store with persist middleware. Manages:
 
 - **Widget visibility toggles** - Show/hide individual dashboard widgets
 - **Widget ordering** - Reorder widgets via up/down controls
-- **localStorage persistence** - Configuration survives browser refresh
-- **Default configuration** - Sensible defaults for new users
+- **Theme setting** - Light/dark/system theme preference
+- **Refresh interval** - Auto-refresh configuration
+- **Compact mode** - UI density toggle
+- **localStorage persistence** - Automatic via Zustand persist middleware
+- **Schema versioning** - Supports migrations between versions
 
 #### Key Types
 
 ```typescript
-type WidgetId = 'stats-row' | 'camera-grid' | 'activity-feed' | 'gpu-stats' | 'pipeline-telemetry' | 'pipeline-queues';
+type WidgetId = 'stats-row' | 'ai-summary-row' | 'camera-grid' | 'activity-feed' | 'gpu-stats' | 'pipeline-telemetry' | 'pipeline-queues';
+
+type ThemeSetting = 'light' | 'dark' | 'system';
 
 interface WidgetConfig {
   id: WidgetId;
@@ -42,27 +115,42 @@ interface WidgetConfig {
   visible: boolean;
 }
 
-interface DashboardConfig {
+interface DashboardConfigState {
   widgets: WidgetConfig[];
+  theme: ThemeSetting;
+  refreshInterval: number;
+  compactMode: boolean;
   version: number;
 }
 ```
 
-#### Key Functions
+#### Store Actions
 
-| Function | Purpose |
+| Action | Purpose |
+|--------|---------|
+| `setWidgetVisibility(id, visible)` | Toggle widget visibility |
+| `moveWidgetUp(id)` | Move widget up in order |
+| `moveWidgetDown(id)` | Move widget down in order |
+| `setTheme(theme)` | Set theme preference |
+| `setRefreshInterval(ms)` | Set auto-refresh interval |
+| `setCompactMode(enabled)` | Toggle compact mode |
+| `reset()` | Reset to defaults |
+
+#### Selectors
+
+| Selector | Purpose |
 |----------|---------|
-| `loadDashboardConfig()` | Load config from localStorage or return defaults |
-| `saveDashboardConfig(config)` | Save config to localStorage |
-| `resetDashboardConfig()` | Reset to defaults and clear localStorage |
-| `setWidgetVisibility(config, id, visible)` | Toggle widget visibility |
-| `moveWidgetUp(config, id)` | Move widget up in order |
-| `moveWidgetDown(config, id)` | Move widget down in order |
-| `getVisibleWidgets(config)` | Get only visible widgets in order |
+| `selectVisibleWidgets` | Get visible widgets in order |
+| `selectIsWidgetVisible(id)` | Check if widget is visible |
+| `selectWidgetById(id)` | Get widget config by ID |
+| `selectCanMoveUp(id)` | Check if widget can move up |
+| `selectCanMoveDown(id)` | Check if widget can move down |
+| `selectEffectiveTheme` | Resolve 'system' to actual theme |
 
 #### Default Visible Widgets
 
 - Stats Row (metrics)
+- AI Summary Row (AI model health)
 - Camera Grid (live feeds)
 - Activity Feed (events)
 
@@ -72,48 +160,182 @@ interface DashboardConfig {
 - Pipeline Telemetry
 - Pipeline Queues
 
-### `dashboardConfig.test.ts`
+## Store Patterns
 
-Comprehensive test suite (33 tests) covering:
+### Alert/Worker Stores (Immer + Selector)
 
-- Default configuration
-- localStorage loading/saving
-- Widget visibility toggling
-- Widget reordering
-- Configuration merging (for version migrations)
-- Edge cases (invalid JSON, missing fields)
+Use Immer for complex nested updates and subscribeWithSelector for performance:
+
+```typescript
+// Subscribe to specific count - won't re-render on other changes
+const criticalCount = usePrometheusAlertStore(
+  (state) => state.criticalCount
+);
+
+// Subscribe to changes programmatically
+usePrometheusAlertStore.subscribe(
+  (state) => state.criticalCount,
+  (newCount, prevCount) => {
+    if (newCount > prevCount) playAlertSound();
+  }
+);
+```
+
+### Real-time Metrics (Transient Updates)
+
+For high-frequency data, use transient slices with batched updates:
+
+```typescript
+// Subscribe only to GPU utilization
+const gpuUtil = useRealtimeMetricsStore(
+  (state) => state.gpu.data.utilization
+);
+
+// Batched WebSocket handler
+websocket.on('gpu_stats', handleGPUStatsEvent);
+```
 
 ## Usage Pattern
 
 ```typescript
-// In a React component
-const [config, setConfig] = useState<DashboardConfig>(() => loadDashboardConfig());
+import { useDashboardConfigStore, selectVisibleWidgets } from '@/stores/dashboard-config-store';
 
-// Update and persist
-const handleToggle = (widgetId: WidgetId, visible: boolean) => {
-  const newConfig = setWidgetVisibility(config, widgetId, visible);
-  setConfig(newConfig);
-  saveDashboardConfig(newConfig);
-};
+// In a React component - direct store usage
+function Dashboard() {
+  const { widgets, setWidgetVisibility, theme, setTheme } = useDashboardConfigStore();
 
-// Reset
-const handleReset = () => {
-  const defaultConfig = resetDashboardConfig();
-  setConfig(defaultConfig);
-};
+  // Use selectors for optimized re-renders
+  const visibleWidgets = useDashboardConfigStore(selectVisibleWidgets);
+
+  return (
+    <div>
+      {visibleWidgets.map(widget => (
+        <Widget key={widget.id} {...widget} />
+      ))}
+    </div>
+  );
+}
+
+// With shallow comparison for object selections
+import { useShallow } from 'zustand/react/shallow';
+
+function Dashboard() {
+  const { widgets, version } = useDashboardConfigStore(
+    useShallow((state) => ({
+      widgets: state.widgets,
+      version: state.version,
+    }))
+  );
+}
 ```
+
+## Key Types
+
+### TransientSlice
+
+For frequently updating data:
+
+```typescript
+interface TransientSlice<T> {
+  data: T;
+  lastUpdated: number;
+}
+```
+
+### Store State Patterns
+
+All stores follow consistent patterns:
+
+```typescript
+interface StoreState {
+  // Data
+  items: Record<string, Item>;
+
+  // Derived state (computed on each update)
+  itemCount: number;
+  hasErrors: boolean;
+
+  // Actions
+  addItem: (item: Item) => void;
+  removeItem: (id: string) => void;
+  clear: () => void;
+}
+```
+
+## Performance Guidelines
+
+1. **Use selectors** - Subscribe to specific state slices, not entire store
+2. **Batch high-frequency updates** - Use `createWebSocketEventHandler` for rapid events
+3. **Avoid object recreation** - Store derived state (counts, flags) in the store
+4. **Use shallow comparison** - Import `shallow` from `zustand/shallow` for object selectors
+
+```typescript
+import { shallow } from 'zustand/shallow';
+
+// Good: Uses shallow comparison for object
+const { cpu, gpu } = useStore(
+  (state) => ({ cpu: state.cpu, gpu: state.gpu }),
+  shallow
+);
+
+// Bad: Creates new object each render, always triggers re-render
+const metrics = useStore((state) => ({ cpu: state.cpu, gpu: state.gpu }));
+```
+
+## Adding New Stores
+
+1. Determine update frequency:
+   - Low: Use `createImmerStore`
+   - High (WebSocket): Use `createImmerSelectorStore` with batching
+
+2. Define state interface with data, derived state, and actions
+
+3. Create store with appropriate middleware
+
+4. Export selectors for common queries
+
+5. Add comprehensive tests including:
+   - Initial state
+   - All actions
+   - Selectors
+   - subscribeWithSelector behavior (if applicable)
+   - Immutability verification (if using Immer)
 
 ## Adding New Widgets
 
-1. Add widget ID to `WidgetId` type
+1. Add widget ID to `WidgetId` type in `dashboard-config-store.ts`
 2. Add widget config to `DEFAULT_WIDGETS` array
 3. Update `DashboardLayout.tsx` to handle the new widget
 4. Add render function prop to `DashboardLayoutProps`
 
 ## Storage Key
 
-Configuration is stored in localStorage under the key `'dashboard-config'`.
+Configuration is stored in localStorage under the key `'dashboard-config-v2'`.
 
 ## Version Migration
 
-The `version` field in `DashboardConfig` supports future schema migrations. The `mergeWidgetsWithDefaults` function ensures new widgets are added when a user's saved config is outdated.
+The store uses Zustand's persist middleware with automatic migration support:
+- Version 1 (`dashboard-config`): Legacy manual localStorage
+- Version 2 (`dashboard-config-v2`): Zustand persist with theme, refresh, compact mode
+
+The `migrate` function in the persist config handles upgrading from v1 to v2 automatically.
+
+## Compatibility Layer
+
+For gradual migration, the store exports compatibility functions:
+
+```typescript
+import { getDashboardConfig, setDashboardConfig } from '@/stores/dashboard-config-store';
+
+// Get config in legacy format
+const config = getDashboardConfig();
+
+// Set config from legacy format
+setDashboardConfig({ widgets: [...], version: 2 });
+```
+
+## Related Documentation
+
+- [Zustand Documentation](https://zustand-demo.pmnd.rs/)
+- [Immer Documentation](https://immerjs.github.io/immer/)
+- [WebSocket Events](../types/websocket-events.ts)

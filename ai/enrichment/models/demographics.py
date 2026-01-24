@@ -182,7 +182,20 @@ class DemographicsEstimator:
         # Load age model
         logger.info(f"Loading age model from {self.age_model_path}")
         self.age_processor = AutoImageProcessor.from_pretrained(self.age_model_path)
-        self.age_model = ViTForImageClassification.from_pretrained(self.age_model_path)
+
+        # Try to load with SDPA (Scaled Dot-Product Attention) for 15-40% faster inference
+        # SDPA requires PyTorch 2.0+ and compatible hardware
+        try:
+            self.age_model = ViTForImageClassification.from_pretrained(
+                self.age_model_path,
+                attn_implementation="sdpa",
+            )
+            logger.info("Age model loaded with SDPA attention (optimized)")
+        except (ValueError, ImportError) as e:
+            # Fall back to default attention if SDPA is not supported
+            logger.warning(f"SDPA not available for age model, falling back to default: {e}")
+            self.age_model = ViTForImageClassification.from_pretrained(self.age_model_path)
+
         self.age_model.to(target_device)
         self.age_model.eval()
 
@@ -203,7 +216,21 @@ class DemographicsEstimator:
         if self.gender_model_path:
             logger.info(f"Loading gender model from {self.gender_model_path}")
             self.gender_processor = AutoImageProcessor.from_pretrained(self.gender_model_path)
-            self.gender_model = ViTForImageClassification.from_pretrained(self.gender_model_path)
+
+            # Try to load with SDPA for gender model as well
+            try:
+                self.gender_model = ViTForImageClassification.from_pretrained(
+                    self.gender_model_path,
+                    attn_implementation="sdpa",
+                )
+                logger.info("Gender model loaded with SDPA attention (optimized)")
+            except (ValueError, ImportError) as e:
+                # Fall back to default attention if SDPA is not supported
+                logger.warning(f"SDPA not available for gender model, falling back to default: {e}")
+                self.gender_model = ViTForImageClassification.from_pretrained(
+                    self.gender_model_path
+                )
+
             self.gender_model.to(target_device)
             self.gender_model.eval()
 
@@ -310,7 +337,7 @@ class DemographicsEstimator:
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.age_model(**inputs)
             probs = torch.softmax(outputs.logits, dim=-1)[0]
 
@@ -347,7 +374,7 @@ class DemographicsEstimator:
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.gender_model(**inputs)
             probs = torch.softmax(outputs.logits, dim=-1)[0]
 

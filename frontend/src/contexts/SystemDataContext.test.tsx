@@ -67,6 +67,7 @@ vi.mock('../hooks/useCamerasQuery', () => ({
     isRefetching: false,
     error: null,
     refetch: vi.fn(),
+    isPlaceholderData: false,
   })),
 }));
 
@@ -79,6 +80,7 @@ vi.mock('../hooks/useHealthStatusQuery', () => ({
     overallStatus: 'healthy',
     services: mockHealthResponse.services,
     refetch: vi.fn(),
+    isPlaceholderData: false,
   })),
 }));
 
@@ -257,6 +259,7 @@ describe('SystemDataContext', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn().mockResolvedValue(undefined),
+        isPlaceholderData: false,
       });
 
       const { result } = renderHook(() => useSystemData(), {
@@ -277,6 +280,7 @@ describe('SystemDataContext', () => {
         services: {},
         isStale: false,
         refetch: vi.fn().mockResolvedValue(undefined),
+        isPlaceholderData: false,
       });
 
       const { result } = renderHook(() => useSystemData(), {
@@ -315,6 +319,7 @@ describe('SystemDataContext', () => {
         isRefetching: true,
         error: null,
         refetch: vi.fn().mockResolvedValue(undefined),
+        isPlaceholderData: false,
       });
 
       const { result } = renderHook(() => useSystemData(), {
@@ -335,6 +340,7 @@ describe('SystemDataContext', () => {
         isRefetching: false,
         error: camerasError,
         refetch: vi.fn().mockResolvedValue(undefined),
+        isPlaceholderData: false,
       });
 
       const { result } = renderHook(() => useSystemData(), {
@@ -353,6 +359,7 @@ describe('SystemDataContext', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn().mockResolvedValue(undefined),
+        isPlaceholderData: false,
       });
       vi.mocked(useHealthStatusQuery).mockReturnValue({
         data: undefined,
@@ -363,6 +370,7 @@ describe('SystemDataContext', () => {
         services: {},
         isStale: false,
         refetch: vi.fn().mockResolvedValue(undefined),
+        isPlaceholderData: false,
       });
 
       const { result } = renderHook(() => useSystemData(), {
@@ -383,6 +391,7 @@ describe('SystemDataContext', () => {
         isRefetching: false,
         error: camerasError,
         refetch: vi.fn().mockResolvedValue(undefined),
+        isPlaceholderData: false,
       });
       vi.mocked(useHealthStatusQuery).mockReturnValue({
         data: undefined,
@@ -393,6 +402,7 @@ describe('SystemDataContext', () => {
         services: {},
         isStale: false,
         refetch: vi.fn().mockResolvedValue(undefined),
+        isPlaceholderData: false,
       });
 
       const { result } = renderHook(() => useSystemData(), {
@@ -415,6 +425,7 @@ describe('SystemDataContext', () => {
         services: {},
         isStale: false,
         refetch: vi.fn().mockResolvedValue(undefined),
+        isPlaceholderData: false,
       });
 
       const { result } = renderHook(() => useSystemData(), {
@@ -454,6 +465,7 @@ describe('SystemDataContext', () => {
         services: {},
         isStale: false,
         refetch: vi.fn().mockResolvedValue(undefined),
+        isPlaceholderData: false,
       });
 
       const { result } = renderHook(() => useSystemData(), {
@@ -470,6 +482,7 @@ describe('SystemDataContext', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn().mockResolvedValue(undefined),
+        isPlaceholderData: false,
       });
 
       const { result } = renderHook(() => useSystemData(), {
@@ -492,6 +505,7 @@ describe('SystemDataContext', () => {
         isRefetching: false,
         error: null,
         refetch: camerasRefetch,
+        isPlaceholderData: false,
       });
       vi.mocked(useHealthStatusQuery).mockReturnValue({
         data: mockHealthResponse,
@@ -502,6 +516,7 @@ describe('SystemDataContext', () => {
         services: mockHealthResponse.services,
         isStale: false,
         refetch: healthRefetch,
+        isPlaceholderData: false,
       });
       vi.mocked(useGpuStatsQuery).mockReturnValue({
         data: mockGpuStats,

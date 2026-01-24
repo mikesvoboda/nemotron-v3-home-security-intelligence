@@ -106,8 +106,16 @@ async def test_gpu_stats_endpoint(client, mock_redis):
 @pytest.mark.asyncio
 async def test_gpu_stats_endpoint_with_data(client, mock_redis):
     """Test GPU stats endpoint with mocked GPU data."""
+    from backend.api.routes import system as system_routes
+
+    # Clear cache to ensure fresh evaluation
+    system_routes.clear_health_cache()
+
     # Mock GPU stats query to return data
-    with patch("backend.api.routes.system.get_latest_gpu_stats") as mock_gpu:
+    # Must use AsyncMock since get_latest_gpu_stats is async
+    with patch(
+        "backend.api.routes.system.get_latest_gpu_stats", new_callable=AsyncMock
+    ) as mock_gpu:
         mock_gpu.return_value = {
             "gpu_name": "NVIDIA RTX A5500",
             "utilization": 75.5,
@@ -332,8 +340,16 @@ async def test_health_endpoint_includes_ai_service_status(client, mock_redis):
 @pytest.mark.asyncio
 async def test_gpu_stats_endpoint_handles_no_gpu(client, mock_redis):
     """Test GPU stats endpoint when GPU is unavailable."""
+    from backend.api.routes import system as system_routes
+
+    # Clear cache to ensure fresh evaluation
+    system_routes.clear_health_cache()
+
     # Mock GPU stats query to return None (no GPU data)
-    with patch("backend.api.routes.system.get_latest_gpu_stats") as mock_gpu:
+    # Must use AsyncMock since get_latest_gpu_stats is async
+    with patch(
+        "backend.api.routes.system.get_latest_gpu_stats", new_callable=AsyncMock
+    ) as mock_gpu:
         mock_gpu.return_value = None
 
         response = await client.get("/api/system/gpu")
@@ -540,8 +556,11 @@ async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(clien
 
     # Save original
     original_pipeline_manager = system_routes._pipeline_manager
+    original_cache = system_routes._readiness_cache
 
     try:
+        # Clear the readiness cache to ensure fresh evaluation
+        system_routes._readiness_cache = None
         # Mock pipeline manager with detection worker in error state
         mock_manager = MagicMock()
         mock_manager.get_status.return_value = {
@@ -571,6 +590,7 @@ async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(clien
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager
+        system_routes._readiness_cache = original_cache
 
 
 @pytest.mark.asyncio
@@ -584,8 +604,11 @@ async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock
 
     # Save original
     original_pipeline_manager = system_routes._pipeline_manager
+    original_cache = system_routes._readiness_cache
 
     try:
+        # Clear the readiness cache to ensure fresh evaluation
+        system_routes._readiness_cache = None
         # Set pipeline manager to None (not registered)
         system_routes._pipeline_manager = None
 
@@ -612,6 +635,7 @@ async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager
+        system_routes._readiness_cache = original_cache
 
 
 # =============================================================================
@@ -748,10 +772,16 @@ async def test_pipeline_status_with_degradation_manager(client, mock_redis):
 @pytest.mark.asyncio
 async def test_pipeline_status_batch_aggregator_no_redis(client):
     """Test pipeline status when Redis is not available."""
-    from unittest.mock import patch
+    from backend.core.redis import get_redis_optional
+    from backend.main import app
 
-    # Mock get_redis_optional to return None
-    with patch("backend.api.routes.system.get_redis_optional", return_value=None):
+    # Override the dependency to return None
+    async def mock_no_redis():
+        yield None
+
+    app.dependency_overrides[get_redis_optional] = mock_no_redis
+
+    try:
         response = await client.get("/api/system/pipeline")
 
         assert response.status_code == 200
@@ -759,6 +789,9 @@ async def test_pipeline_status_batch_aggregator_no_redis(client):
 
         # Batch aggregator should be null when Redis is unavailable
         assert data["batch_aggregator"] is None
+    finally:
+        # Clean up dependency override
+        app.dependency_overrides.pop(get_redis_optional, None)
 
 
 @pytest.mark.asyncio

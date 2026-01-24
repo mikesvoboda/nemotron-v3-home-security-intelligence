@@ -131,8 +131,7 @@ This directory contains **90+ hooks/utilities** organized into the following cat
 | `useInfiniteScroll` | Intersection observer for infinite scroll | `{ onLoadMore, hasMore, threshold? }` | `{ ref, isLoading }` |
 | `useDateRangeState` | Date range with URL persistence | `{ defaultPreset? }` | `{ range, preset, setPreset, setCustomRange }` |
 | `usePaginationState` | Pagination state with URL sync | `{ type, defaultPageSize? }` | Cursor or offset pagination state |
-| `useRateLimitCountdown` | Countdown timer for rate limits | `retryAfter: number` | `{ countdown, isRateLimited, formatCountdown }` |
-| `useRateLimit` | Rate limit state management | None | `{ isRateLimited, retryAfter, setRateLimited, clear }` |
+| `useRateLimitCountdown` | Countdown timer for rate limits | None | `{ isLimited, secondsRemaining, formattedCountdown, current }` |
 | `useAudioNotifications` | Audio alert sounds | `{ enabled? }` | `{ playSound, stopSound }` |
 | `useDesktopNotifications` | Desktop notification API | `{ enabled? }` | `{ show, permission, requestPermission }` |
 

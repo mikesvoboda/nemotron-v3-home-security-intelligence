@@ -546,7 +546,7 @@ class BatchAggregator:
 
             return batch_id
 
-    async def check_batch_timeouts(self) -> list[str]:  # noqa: PLR0912
+    async def check_batch_timeouts(self) -> list[str]:
         """Check all active batches for timeouts and close expired ones.
 
         A batch is closed if:

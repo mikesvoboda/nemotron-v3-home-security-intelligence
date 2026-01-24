@@ -70,6 +70,7 @@ const useDetectionsInfiniteQueryInternal = createInfiniteQueryHook<
     return fetchEventDetections(filters!.eventId, params);
   },
   getFilters: (options) => ({ eventId: options.eventId }),
+  defaultMaxPages: 10, // Limit stored pages for bounded memory (NEM-3362)
 });
 
 /**

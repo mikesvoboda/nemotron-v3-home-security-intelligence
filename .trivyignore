@@ -186,11 +186,25 @@ CVE-2026-0861
 # Reference: https://security-tracker.debian.org/tracker/CVE-2023-2953
 CVE-2023-2953
 
+# CVE-2026-22695 - libpng denial of service and information disclosure (REVIEW BY: 2026-04-23)
+# HIGH severity, no fix available in Debian bookworm stable (version 1.6.39-2+deb12u1)
+# Affects libpng16-16 package used by image processing libraries (PIL/Pillow)
+# Mitigated by:
+#   1. Application validates image input sizes before processing
+#   2. Image processing happens in controlled pipeline with trusted FTP sources
+#   3. Memory limits enforced at container level
+CVE-2026-22695
+
+# CVE-2026-22801 - libpng information disclosure and denial of service (REVIEW BY: 2026-04-23)
+# HIGH severity, no fix available in Debian bookworm stable (version 1.6.39-2+deb12u1)
+# Same package and mitigation as CVE-2026-22695
+CVE-2026-22801
+
 # =============================================================================
 # Python Package Vulnerabilities - No Fix Available
 # =============================================================================
 
-# GHSA-58pv-8j8x-9vj2 - jaraco.context path traversal in tarfile.chdir() (REVIEW BY: 2026-04-13)
+# GHSA-58pv-8j8x-9vj2 / CVE-2026-23949 - jaraco.context path traversal in tarfile.chdir() (REVIEW BY: 2026-04-13)
 # Affected version 5.3.0 is vendored inside setuptools (even latest 80.9.0)
 # No upstream fix available - setuptools has not updated vendored jaraco.context to 6.1.0
 # Not exploitable in our context:
@@ -199,14 +213,27 @@ CVE-2023-2953
 #   3. The vulnerability requires attacker-controlled tar extraction paths
 #   4. This is a build/setup-time dependency, not runtime-exposed
 GHSA-58pv-8j8x-9vj2
+# CVE-2026-23949 - jaraco.context path traversal (same as GHSA-58pv-8j8x-9vj2) (REVIEW BY: 2026-04-13)
+CVE-2026-23949
+
+# CVE-2026-24049 - wheel privilege escalation/arbitrary code execution (REVIEW BY: 2026-04-23)
+# Affected version 0.45.1 is vendored inside setuptools (even latest 80.9.0)
+# No upstream fix available - setuptools has not updated vendored wheel to 0.46.2
+# Not exploitable in our context:
+#   1. We don't use wheel directly at runtime
+#   2. Wheel is only used during package build/install (setuptools vendored copy)
+#   3. The application does not build/install packages at runtime
+#   4. Build process runs in controlled CI environment with trusted inputs
+CVE-2026-24049
 
 # CVE-2026-0994 - protobuf JSON recursion depth bypass (REVIEW BY: 2026-04-23)
-# HIGH severity, no fix available yet (protobuf 6.33.2)
-# Affects nested JSON parsing with deeply recursive structures
+# HIGH severity, no fix available for protobuf 6.33.2
 # Not exploitable in our context:
-#   1. We don't expose protobuf JSON parsing to untrusted input
-#   2. Used only for internal gRPC communication with AI services
-#   3. Input validation at API layer prevents malicious payloads
+#   1. We don't parse untrusted JSON with protobuf
+#   2. Protobuf is used for internal serialization between AI services
+#   3. All protobuf inputs come from trusted internal services (RT-DETR, Nemotron)
+#   4. The vulnerability requires attacker-controlled deeply nested JSON
+# Reference: https://avd.aquasec.com/nvd/cve-2026-0994
 CVE-2026-0994
 
 # =============================================================================
@@ -232,5 +259,5 @@ AVD-DS-0002
 #
 # Remove entries when fixes become available.
 #
-# Last reviewed: 2026-01-21 (NEM-3226)
-# Next review: 2026-04-21
+# Last reviewed: 2026-01-24 (NEM-3447)
+# Next review: 2026-04-24

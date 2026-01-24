@@ -246,7 +246,7 @@ async def classify_age(
             inputs = {k: v.to(device=device, dtype=dtype) for k, v in inputs.items()}
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 outputs = model(**inputs)
                 logits = outputs.logits
 
@@ -326,7 +326,7 @@ async def classify_ages_batch(
             inputs = {k: v.to(device=device, dtype=dtype) for k, v in inputs.items()}
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 outputs = model(**inputs)
                 all_logits = outputs.logits
 
@@ -369,7 +369,7 @@ async def classify_ages_batch(
         raise RuntimeError(f"Batch age classification failed: {e}") from e
 
 
-def _normalize_age_label(raw_label: str) -> str:  # noqa: PLR0911, PLR0912
+def _normalize_age_label(raw_label: str) -> str:  # noqa: PLR0911
     """Normalize raw age label to standard age group.
 
     Different models may use different labeling schemes. This function

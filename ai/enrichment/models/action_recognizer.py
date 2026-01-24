@@ -144,7 +144,19 @@ class ActionRecognizer:
         logger.info("Loading X-CLIP model...")
 
         self.processor = XCLIPProcessor.from_pretrained(self.model_path)
-        self.model = XCLIPModel.from_pretrained(self.model_path)
+
+        # Try to load with SDPA (Scaled Dot-Product Attention) for 15-40% faster inference
+        # SDPA requires PyTorch 2.0+ and compatible hardware
+        try:
+            self.model = XCLIPModel.from_pretrained(
+                self.model_path,
+                attn_implementation="sdpa",
+            )
+            logger.info("X-CLIP loaded with SDPA attention (optimized)")
+        except (ValueError, ImportError) as e:
+            # Fall back to default attention if SDPA is not supported
+            logger.warning(f"SDPA not available, falling back to default attention: {e}")
+            self.model = XCLIPModel.from_pretrained(self.model_path)
 
         # Move to device
         if "cuda" in self.device and torch.cuda.is_available():
@@ -284,7 +296,7 @@ class ActionRecognizer:
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.model(**inputs)
             # logits_per_video shape: (num_videos, num_actions) = (1, len(actions))
             logits = outputs.logits_per_video
@@ -363,7 +375,7 @@ class ActionRecognizer:
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
         # Run inference
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.model(**inputs)
             logits = outputs.logits_per_video  # Shape: (num_videos, num_actions)
             probs = torch.softmax(logits, dim=1)

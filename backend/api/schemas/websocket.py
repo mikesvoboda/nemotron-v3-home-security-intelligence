@@ -15,9 +15,17 @@ Supported message types:
 from __future__ import annotations
 
 from enum import StrEnum, auto
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 class RiskLevel(StrEnum):
@@ -2854,3 +2862,110 @@ class WebSocketSummaryUpdateMessage(BaseModel):
             }
         }
     )
+
+
+# =============================================================================
+# Discriminated Unions for WebSocket Messages (NEM-3394)
+# =============================================================================
+#
+# These discriminated unions use the 'type' field as a discriminator for
+# automatic message routing. This provides 2-5x faster validation compared
+# to generic Union types because Pydantic can immediately identify the
+# correct model based on the discriminator value.
+#
+# Benefits:
+# - Faster validation: O(1) model lookup instead of trying each model
+# - Better error messages: Reports invalid discriminator values clearly
+# - Type safety: IDE support for narrowing types based on discriminator
+
+
+# -----------------------------------------------------------------------------
+# Incoming Message Discriminated Union
+# -----------------------------------------------------------------------------
+# Messages sent from client to server
+
+WebSocketIncomingMessage = Annotated[
+    WebSocketPingMessage
+    | WebSocketSubscribeMessage
+    | WebSocketUnsubscribeMessage
+    | WebSocketResyncRequest
+    | WebSocketAckMessage,
+    Discriminator("type"),
+]
+"""Discriminated union for all incoming WebSocket messages (client -> server).
+
+Uses the 'type' field as a discriminator for automatic routing:
+- "ping" -> WebSocketPingMessage
+- "subscribe" -> WebSocketSubscribeMessage
+- "unsubscribe" -> WebSocketUnsubscribeMessage
+- "resync" -> WebSocketResyncRequest
+- "ack" -> WebSocketAckMessage
+
+Example:
+    from pydantic import TypeAdapter
+
+    adapter = TypeAdapter(WebSocketIncomingMessage)
+    message = adapter.validate_python({"type": "ping"})
+    # message is now a WebSocketPingMessage instance
+"""
+
+
+# -----------------------------------------------------------------------------
+# Outgoing Message Discriminated Union
+# -----------------------------------------------------------------------------
+# Messages sent from server to client
+
+WebSocketOutgoingMessage = Annotated[
+    WebSocketPongResponse
+    | WebSocketErrorResponse
+    | WebSocketEventMessage
+    | WebSocketServiceStatusMessage
+    | WebSocketCameraStatusMessage
+    | WebSocketSceneChangeMessage
+    | WebSocketDetectionNewMessage
+    | WebSocketDetectionBatchMessage
+    | WebSocketAlertCreatedMessage
+    | WebSocketAlertAcknowledgedMessage
+    | WebSocketAlertDismissedMessage
+    | WebSocketAlertUpdatedMessage
+    | WebSocketAlertDeletedMessage
+    | WebSocketAlertResolvedMessage
+    | WebSocketWorkerStatusMessage
+    | WebSocketJobProgressMessage
+    | WebSocketJobCompletedMessage
+    | WebSocketJobFailedMessage
+    | WebSocketInfrastructureAlertMessage
+    | WebSocketSummaryUpdateMessage,
+    Discriminator("type"),
+]
+"""Discriminated union for all outgoing WebSocket messages (server -> client).
+
+Uses the 'type' field as a discriminator for automatic routing:
+- "pong" -> WebSocketPongResponse
+- "error" -> WebSocketErrorResponse
+- "event" -> WebSocketEventMessage
+- "service_status" -> WebSocketServiceStatusMessage
+- "camera_status" -> WebSocketCameraStatusMessage
+- "scene_change" -> WebSocketSceneChangeMessage
+- "detection.new" -> WebSocketDetectionNewMessage
+- "detection.batch" -> WebSocketDetectionBatchMessage
+- "alert_created" -> WebSocketAlertCreatedMessage
+- "alert_acknowledged" -> WebSocketAlertAcknowledgedMessage
+- "alert_dismissed" -> WebSocketAlertDismissedMessage
+- "alert_updated" -> WebSocketAlertUpdatedMessage
+- "alert_deleted" -> WebSocketAlertDeletedMessage
+- "alert_resolved" -> WebSocketAlertResolvedMessage
+- "worker_status" -> WebSocketWorkerStatusMessage
+- "job_progress" -> WebSocketJobProgressMessage
+- "job_completed" -> WebSocketJobCompletedMessage
+- "job_failed" -> WebSocketJobFailedMessage
+- "infrastructure_alert" -> WebSocketInfrastructureAlertMessage
+- "summary_update" -> WebSocketSummaryUpdateMessage
+
+Example:
+    from pydantic import TypeAdapter
+
+    adapter = TypeAdapter(WebSocketOutgoingMessage)
+    message = adapter.validate_python({"type": "pong"})
+    # message is now a WebSocketPongResponse instance
+"""

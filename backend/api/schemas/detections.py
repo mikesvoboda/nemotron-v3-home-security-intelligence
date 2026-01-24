@@ -213,6 +213,31 @@ class DetectionResponse(BaseModel):
         "person attributes, license plates, weather, and image quality scores",
     )
 
+    def model_dump_list(self) -> dict:
+        """Serialize for list views (exclude detail-only fields).
+
+        Excludes large fields like enrichment_data that are only needed
+        in detail views. This reduces payload size for list responses.
+
+        Returns:
+            Dictionary with list view fields only, None values excluded.
+        """
+        return self.model_dump(
+            exclude={"enrichment_data"},
+            exclude_none=True,
+        )
+
+    def model_dump_detail(self) -> dict:
+        """Serialize for detail views (include all fields).
+
+        Includes all fields including large detail-only fields like
+        enrichment_data.
+
+        Returns:
+            Dictionary with all fields, None values excluded.
+        """
+        return self.model_dump(exclude_none=True)
+
 
 class DetectionListResponse(BaseModel):
     """Schema for detection list response with standardized pagination envelope.

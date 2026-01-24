@@ -95,6 +95,15 @@ class SpanProtocol(Protocol):
         """Set the status of the span."""
         ...
 
+    def add_event(
+        self,
+        name: str,
+        attributes: dict[str, object] | None = None,
+        timestamp: int | None = None,
+    ) -> None:
+        """Add an event (milestone) to the span (NEM-3434)."""
+        ...
+
     def __enter__(self) -> SpanProtocol:
         """Enter context manager."""
         ...
@@ -173,7 +182,13 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
         from opentelemetry.propagate import set_global_textmap
         from opentelemetry.propagators.composite import CompositePropagator
-        from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+        from opentelemetry.sdk.resources import (
+            SERVICE_NAME,
+            OsResourceDetector,
+            ProcessResourceDetector,
+            Resource,
+            get_aggregated_resources,
+        )
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
         from opentelemetry.sdk.trace.sampling import (
@@ -186,14 +201,35 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
             TraceContextTextMapPropagator,
         )
 
-        # Create resource with service information
-        resource = Resource.create(
+        # NEM-3383: Create resource with automatic container/host detection
+        # Start with service-specific attributes
+        service_resource = Resource.create(
             {
                 SERVICE_NAME: settings.otel_service_name,
                 "service.version": settings.app_version,
                 "deployment.environment": "production" if not settings.debug else "development",
             }
         )
+
+        # Collect resource detectors for automatic attribute detection
+        resource_detectors = [
+            ProcessResourceDetector(),  # Process PID, runtime info
+            OsResourceDetector(),  # OS type, version
+        ]
+
+        # Try to add Docker/container resource detector if available
+        # NEM-3383: Provides container ID for correlation with container logs/metrics
+        try:
+            from opentelemetry_resourcedetector_docker import DockerResourceDetector
+
+            resource_detectors.append(DockerResourceDetector())
+            logger.debug("Docker resource detector enabled for container correlation")
+        except ImportError:
+            logger.debug("Docker resource detector not available, skipping container detection")
+
+        # Aggregate detected resources with service attributes
+        detected_resource = get_aggregated_resources(resource_detectors)
+        resource = service_resource.merge(detected_resource)
 
         # Configure ParentBased composite sampler (NEM-3380)
         # This provides smarter sampling decisions based on parent span:
@@ -220,8 +256,22 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
             insecure=settings.otel_exporter_otlp_insecure,
         )
 
-        # Add batch processor for efficient trace export
-        provider.add_span_processor(BatchSpanProcessor(exporter))
+        # Configure BatchSpanProcessor for high-throughput scenarios (NEM-3433)
+        # These settings are tuned for production workloads (100+ spans/sec)
+        batch_processor = BatchSpanProcessor(
+            exporter,
+            max_queue_size=settings.otel_batch_max_queue_size,
+            max_export_batch_size=settings.otel_batch_max_export_batch_size,
+            schedule_delay_millis=settings.otel_batch_schedule_delay_ms,
+            export_timeout_millis=settings.otel_batch_export_timeout_ms,
+        )
+        provider.add_span_processor(batch_processor)
+        logger.debug(
+            "BatchSpanProcessor configured: queue_size=%d, batch_size=%d, delay_ms=%d",
+            settings.otel_batch_max_queue_size,
+            settings.otel_batch_max_export_batch_size,
+            settings.otel_batch_schedule_delay_ms,
+        )
 
         # Set as global tracer provider
         trace.set_tracer_provider(provider)
@@ -382,6 +432,360 @@ def record_exception(exception: Exception, attributes: dict[str, object] | None 
             span.set_status(StatusCode.ERROR, str(exception))
 
 
+# =============================================================================
+# Span Events for Pipeline Milestones (NEM-3434)
+# =============================================================================
+
+
+def add_span_event(
+    name: str,
+    attributes: dict[str, str | int | float | bool] | None = None,
+    timestamp_ns: int | None = None,
+) -> None:
+    """Add an event (milestone) to the current span.
+
+    Events are timestamped annotations that mark significant points during
+    a span's lifetime. Use them to record pipeline milestones, state transitions,
+    and other notable moments.
+
+    Args:
+        name: Name of the event (e.g., "detection.started", "enrichment.complete")
+        attributes: Optional attributes to attach to the event
+        timestamp_ns: Optional timestamp in nanoseconds since epoch. If not provided,
+            the current time is used.
+
+    Example:
+        >>> from backend.core.telemetry import add_span_event, trace_span
+        >>> with trace_span("process_batch", batch_id=batch_id) as span:
+        ...     add_span_event("batch.started", {"detection_count": 10})
+        ...     # ... processing
+        ...     add_span_event("detection.complete", {"duration_ms": 150})
+        ...     # ... more processing
+        ...     add_span_event("enrichment.complete", {"enriched_count": 8})
+    """
+    span = get_current_span()
+    if hasattr(span, "add_event"):
+        # Convert to dict[str, object] for type compatibility
+        attrs: dict[str, object] = dict(attributes) if attributes else {}
+        if timestamp_ns is not None:
+            span.add_event(name, attributes=attrs, timestamp=timestamp_ns)
+        else:
+            span.add_event(name, attributes=attrs)
+
+
+def record_pipeline_milestone(
+    milestone: str,
+    *,
+    stage: str | None = None,
+    camera_id: str | None = None,
+    batch_id: str | None = None,
+    detection_count: int | None = None,
+    duration_ms: float | None = None,
+    **extra_attributes: str | int | float | bool,
+) -> None:
+    """Record a pipeline processing milestone as a span event.
+
+    Convenience function for recording common pipeline milestones with
+    standardized attribute names.
+
+    Args:
+        milestone: Name of the milestone (e.g., "started", "detection_complete",
+            "enrichment_complete", "analysis_complete", "event_created")
+        stage: Pipeline stage name (e.g., "watch", "detect", "batch", "analyze")
+        camera_id: Camera identifier if applicable
+        batch_id: Batch identifier if applicable
+        detection_count: Number of detections if applicable
+        duration_ms: Duration in milliseconds if applicable
+        **extra_attributes: Additional custom attributes
+
+    Example:
+        >>> from backend.core.telemetry import record_pipeline_milestone
+        >>> record_pipeline_milestone(
+        ...     "detection_complete",
+        ...     stage="detect",
+        ...     camera_id="front_door",
+        ...     detection_count=5,
+        ...     duration_ms=245.3,
+        ... )
+    """
+    event_name = f"pipeline.{milestone}"
+    attributes: dict[str, str | int | float | bool] = {}
+
+    if stage:
+        attributes["pipeline.stage"] = stage
+    if camera_id:
+        attributes["camera.id"] = camera_id
+    if batch_id:
+        attributes["batch.id"] = batch_id
+    if detection_count is not None:
+        attributes["pipeline.detection_count"] = detection_count
+    if duration_ms is not None:
+        attributes["pipeline.duration_ms"] = duration_ms
+
+    attributes.update(extra_attributes)
+    add_span_event(event_name, attributes)
+
+
+# =============================================================================
+# Span Links for Async Batch Correlation (NEM-3435)
+# =============================================================================
+
+
+class SpanLinkContext:
+    """Holds span context information for creating links.
+
+    This class captures the trace_id and span_id from a span context,
+    allowing them to be passed across async boundaries and used to
+    create span links in child spans.
+    """
+
+    def __init__(self, trace_id: str, span_id: str) -> None:
+        """Initialize with trace and span IDs.
+
+        Args:
+            trace_id: 32-character hex trace ID
+            span_id: 16-character hex span ID
+        """
+        self.trace_id = trace_id
+        self.span_id = span_id
+
+    def to_dict(self) -> dict[str, str]:
+        """Convert to dictionary for serialization.
+
+        Returns:
+            Dictionary with trace_id and span_id keys
+        """
+        return {"trace_id": self.trace_id, "span_id": self.span_id}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, str]) -> SpanLinkContext | None:
+        """Create from dictionary.
+
+        Args:
+            data: Dictionary with trace_id and span_id keys
+
+        Returns:
+            SpanLinkContext instance or None if data is invalid
+        """
+        trace_id = data.get("trace_id")
+        span_id = data.get("span_id")
+        if trace_id and span_id:
+            return cls(trace_id, span_id)
+        return None
+
+
+def capture_span_context() -> SpanLinkContext | None:
+    """Capture the current span context for creating links later.
+
+    Call this in the parent span to capture context that can be passed
+    to async operations (like batch processing) for correlation.
+
+    Returns:
+        SpanLinkContext with trace_id and span_id, or None if no valid span
+
+    Example:
+        >>> from backend.core.telemetry import capture_span_context, trace_span
+        >>> with trace_span("queue_detection") as span:
+        ...     context = capture_span_context()
+        ...     # Pass context to batch aggregator via Redis
+        ...     await redis.add_to_queue(batch_key, {
+        ...         "detection_id": detection_id,
+        ...         "span_context": context.to_dict() if context else None,
+        ...     })
+    """
+    trace_id = get_trace_id()
+    span_id = get_span_id()
+    if trace_id and span_id:
+        return SpanLinkContext(trace_id, span_id)
+    return None
+
+
+def create_span_with_links(
+    name: str,
+    links: list[SpanLinkContext | dict[str, str] | None] | None = None,
+    **attributes: str | int | float | bool,
+) -> SpanProtocol:
+    """Create a new span with links to related spans.
+
+    Use this to create spans that are correlated with parent operations
+    that occurred in a different async context (e.g., batch processing
+    linked to the original detection spans).
+
+    Args:
+        name: Name of the span
+        links: List of SpanLinkContext objects or dicts with trace_id/span_id
+        **attributes: Attributes to set on the span
+
+    Returns:
+        The created span (must be used as context manager)
+
+    Example:
+        >>> from backend.core.telemetry import create_span_with_links, SpanLinkContext
+        >>> # In batch processor, after retrieving detection contexts from Redis
+        >>> contexts = [SpanLinkContext.from_dict(ctx) for ctx in detection_contexts]
+        >>> with create_span_with_links(
+        ...     "process_batch",
+        ...     links=contexts,
+        ...     batch_id=batch_id,
+        ...     detection_count=len(detections),
+        ... ) as span:
+        ...     # Process the batch...
+    """
+    _tracer = get_tracer("span_links")
+
+    # Convert links to OpenTelemetry Link objects if OTEL is available
+    otel_links: list[object] = []
+    if links:
+        try:
+            from opentelemetry.trace import Link, SpanContext, TraceFlags
+
+            for link in links:
+                if link is None:
+                    continue
+
+                # Handle dict or SpanLinkContext
+                if isinstance(link, dict):
+                    link_ctx = SpanLinkContext.from_dict(link)
+                else:
+                    link_ctx = link
+
+                if link_ctx:
+                    # Convert hex strings to integers
+                    try:
+                        trace_id_int = int(link_ctx.trace_id, 16)
+                        span_id_int = int(link_ctx.span_id, 16)
+                        span_context = SpanContext(
+                            trace_id=trace_id_int,
+                            span_id=span_id_int,
+                            is_remote=True,
+                            trace_flags=TraceFlags(0x01),  # Sampled
+                        )
+                        otel_links.append(Link(span_context))
+                    except (ValueError, TypeError):
+                        # Invalid hex string, skip this link
+                        continue
+        except ImportError:
+            # OpenTelemetry not available, keep empty list
+            pass
+
+    # Start span with links
+    try:
+        from opentelemetry import trace as otel_trace
+
+        tracer_impl = otel_trace.get_tracer("span_links")
+        span = tracer_impl.start_span(name, links=otel_links)  # type: ignore[arg-type]
+
+        # Set attributes
+        for key, value in attributes.items():
+            span.set_attribute(key, value)
+
+        # Add link count as attribute for observability
+        if otel_links:
+            span.set_attribute("span.link_count", len(otel_links))
+
+        return span  # type: ignore[no-any-return,return-value]
+    except ImportError:
+        # Return no-op span
+        return _NoOpSpan()
+
+
+@contextmanager
+def trace_span_with_links(
+    name: str,
+    links: list[SpanLinkContext | dict[str, str] | None] | None = None,
+    record_exception_on_error: bool = True,
+    **attributes: str | int | float | bool,
+) -> Iterator[SpanProtocol]:
+    """Context manager for creating a span with links to related spans.
+
+    Combines the convenience of trace_span with the ability to link to
+    parent operations from async contexts.
+
+    Args:
+        name: Name of the span
+        links: List of SpanLinkContext objects or dicts with trace_id/span_id
+        record_exception_on_error: If True, automatically record exceptions
+        **attributes: Key-value pairs to set as span attributes
+
+    Yields:
+        The created span
+
+    Example:
+        >>> from backend.core.telemetry import trace_span_with_links
+        >>> # In batch analyzer
+        >>> with trace_span_with_links(
+        ...     "analyze_batch",
+        ...     links=detection_contexts,
+        ...     batch_id=batch_id,
+        ... ) as span:
+        ...     result = await analyzer.analyze(batch)
+        ...     span.set_attribute("risk_score", result.risk_score)
+    """
+    _tracer = get_tracer("span_links")
+
+    # Convert links to OpenTelemetry Link objects if OTEL is available
+    otel_links: list[object] = []
+    if links:
+        try:
+            from opentelemetry.trace import Link, SpanContext, TraceFlags
+
+            for link in links:
+                if link is None:
+                    continue
+
+                # Handle dict or SpanLinkContext
+                if isinstance(link, dict):
+                    link_ctx = SpanLinkContext.from_dict(link)
+                else:
+                    link_ctx = link
+
+                if link_ctx:
+                    try:
+                        trace_id_int = int(link_ctx.trace_id, 16)
+                        span_id_int = int(link_ctx.span_id, 16)
+                        span_context = SpanContext(
+                            trace_id=trace_id_int,
+                            span_id=span_id_int,
+                            is_remote=True,
+                            trace_flags=TraceFlags(0x01),
+                        )
+                        otel_links.append(Link(span_context))
+                    except (ValueError, TypeError):
+                        continue
+        except ImportError:
+            # OpenTelemetry not available, keep empty list
+            pass
+
+    # Start span with links
+    try:
+        from opentelemetry import trace as otel_trace
+
+        tracer_impl = otel_trace.get_tracer("span_links")
+        span = tracer_impl.start_as_current_span(name, links=otel_links)  # type: ignore[arg-type]
+
+        with span as s:
+            # Set attributes
+            for key, value in attributes.items():
+                s.set_attribute(key, value)
+
+            # Add link count
+            if otel_links:
+                s.set_attribute("span.link_count", len(otel_links))
+
+            try:
+                yield s  # type: ignore[misc]
+            except Exception as e:
+                if record_exception_on_error:
+                    record_exception(e)
+                raise
+    except ImportError:
+        # Fallback to regular trace_span
+        with trace_span(
+            name, record_exception_on_error=record_exception_on_error, **attributes
+        ) as s:
+            yield s
+
+
 def is_telemetry_enabled() -> bool:
     """Check if telemetry has been initialized.
 
@@ -404,6 +808,18 @@ class _NoOpSpan:
 
     def set_status(self, status: object, description: str | None = None) -> None:
         """No-op set_status."""
+
+    def add_event(
+        self,
+        name: str,
+        attributes: dict[str, object] | None = None,
+        timestamp: int | None = None,
+    ) -> None:
+        """No-op add_event for span events (NEM-3434)."""
+
+    def get_span_context(self) -> None:
+        """No-op get_span_context, returns None."""
+        return None
 
     def __enter__(self) -> _NoOpSpan:
         return self

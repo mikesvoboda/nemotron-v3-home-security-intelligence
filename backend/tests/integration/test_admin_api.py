@@ -498,18 +498,23 @@ async def test_full_seed_workflow(debug_client, clean_seed_data):
 
 @pytest.mark.asyncio
 @pytest.mark.requires_debug_mode
-async def test_admin_endpoints_require_debug_mode(integration_db, mock_redis):
+@pytest.mark.unit  # Override integration mark - this test doesn't need database
+async def test_admin_endpoints_require_debug_mode(mock_redis):
     """Test that admin endpoints return 403 when DEBUG=false or ADMIN_ENABLED=false.
 
     SECURITY: This test verifies defense-in-depth access control.
     Admin endpoints must have BOTH debug=True AND admin_enabled=True.
     This prevents accidental exposure in production environments.
+
+    NOTE: This test doesn't need a real database because it patches init_db.
+    It only needs to verify HTTP response codes from the admin endpoints.
     """
     from unittest.mock import patch
 
     from httpx import ASGITransport, AsyncClient
 
     from backend.core.config import Settings
+    from backend.core.dependencies import get_redis_dependency
 
     # Test 1: DEBUG=false, ADMIN_ENABLED=true (should fail)
     production_settings = Settings(
@@ -521,64 +526,78 @@ async def test_admin_endpoints_require_debug_mode(integration_db, mock_redis):
 
     from backend.main import app
 
-    with (
-        patch("backend.main.init_db", return_value=None),
-        patch("backend.main.close_db", return_value=None),
-        patch("backend.main.init_redis", return_value=mock_redis),
-        patch("backend.main.close_redis", return_value=None),
-        patch("backend.core.config.get_settings", return_value=production_settings),
-        patch("backend.api.routes.admin.get_settings", return_value=production_settings),
-    ):
-        from backend.core.config import get_settings
+    # Override redis dependency to return mock_redis
+    async def mock_redis_dependency():
+        yield mock_redis
 
-        get_settings.cache_clear()
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            # All admin endpoints should return 403
-            endpoints = [
-                ("POST", "/api/admin/seed/cameras", {"count": 1}),
-                ("POST", "/api/admin/seed/events", {"count": 1}),
-                ("DELETE", "/api/admin/seed/clear", {"confirm": "DELETE_ALL_DATA"}),
-                ("POST", "/api/admin/cleanup/orphans", {"dry_run": True}),
-                ("POST", "/api/admin/seed/pipeline-latency", {"num_samples": 10}),
-                ("POST", "/api/admin/maintenance/clear-cache", None),
-                ("POST", "/api/admin/maintenance/flush-queues", None),
-            ]
+    app.dependency_overrides[get_redis_dependency] = mock_redis_dependency
 
-            for method, endpoint, body in endpoints:
-                if body:
-                    response = await client.request(method, endpoint, json=body)
-                else:
-                    response = await client.request(method, endpoint)
+    try:
+        with (
+            patch("backend.main.init_db", return_value=None),
+            patch("backend.main.close_db", return_value=None),
+            patch("backend.main.init_redis", return_value=mock_redis),
+            patch("backend.main.close_redis", return_value=None),
+            patch("backend.core.config.get_settings", return_value=production_settings),
+            patch("backend.api.routes.admin.get_settings", return_value=production_settings),
+        ):
+            from backend.core.config import get_settings
 
-                assert response.status_code == 403, (
-                    f"{method} {endpoint} should return 403 when DEBUG=false, "
-                    f"but returned {response.status_code}"
-                )
+            get_settings.cache_clear()
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                # All admin endpoints should return 403
+                endpoints = [
+                    ("POST", "/api/admin/seed/cameras", {"count": 1}),
+                    ("POST", "/api/admin/seed/events", {"count": 1}),
+                    ("DELETE", "/api/admin/seed/clear", {"confirm": "DELETE_ALL_DATA"}),
+                    ("POST", "/api/admin/cleanup/orphans", {"dry_run": True}),
+                    ("POST", "/api/admin/seed/pipeline-latency", {"num_samples": 10}),
+                    ("POST", "/api/admin/maintenance/clear-cache", None),
+                    ("POST", "/api/admin/maintenance/flush-queues", None),
+                ]
+
+                for method, endpoint, body in endpoints:
+                    if body:
+                        response = await client.request(method, endpoint, json=body)
+                    else:
+                        response = await client.request(method, endpoint)
+
+                    assert response.status_code == 403, (
+                        f"{method} {endpoint} should return 403 when DEBUG=false, "
+                        f"but returned {response.status_code}"
+                    )
+                    assert "Admin endpoints require DEBUG=true" in response.json()["detail"]
+            get_settings.cache_clear()
+
+        # Test 2: DEBUG=true, ADMIN_ENABLED=false (should fail)
+        no_admin_settings = Settings(
+            debug=True,
+            admin_enabled=False,
+            database_url=os.environ.get("DATABASE_URL", ""),
+            redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379/15"),
+        )
+
+        with (
+            patch("backend.main.init_db", return_value=None),
+            patch("backend.main.close_db", return_value=None),
+            patch("backend.main.init_redis", return_value=mock_redis),
+            patch("backend.main.close_redis", return_value=None),
+            patch("backend.core.config.get_settings", return_value=no_admin_settings),
+            patch("backend.api.routes.admin.get_settings", return_value=no_admin_settings),
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                # Test one endpoint to verify admin_enabled=false also blocks
+                response = await client.post("/api/admin/seed/cameras", json={"count": 1})
+                assert response.status_code == 403
                 assert "Admin endpoints require DEBUG=true" in response.json()["detail"]
-        get_settings.cache_clear()
-
-    # Test 2: DEBUG=true, ADMIN_ENABLED=false (should fail)
-    no_admin_settings = Settings(
-        debug=True,
-        admin_enabled=False,
-        database_url=os.environ.get("DATABASE_URL", ""),
-        redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379/15"),
-    )
-
-    with (
-        patch("backend.main.init_db", return_value=None),
-        patch("backend.main.close_db", return_value=None),
-        patch("backend.main.init_redis", return_value=mock_redis),
-        patch("backend.main.close_redis", return_value=None),
-        patch("backend.core.config.get_settings", return_value=no_admin_settings),
-        patch("backend.api.routes.admin.get_settings", return_value=no_admin_settings),
-    ):
-        from backend.core.config import get_settings
-
-        get_settings.cache_clear()
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            # Test one endpoint to verify admin_enabled=false also blocks
-            response = await client.post("/api/admin/seed/cameras", json={"count": 1})
-            assert response.status_code == 403
-            assert "Admin endpoints require DEBUG=true" in response.json()["detail"]
-        get_settings.cache_clear()
+            get_settings.cache_clear()
+    finally:
+        # Clean up dependency override
+        app.dependency_overrides.pop(get_redis_dependency, None)

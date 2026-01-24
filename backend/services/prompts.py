@@ -1720,7 +1720,7 @@ def _collect_detection_ids_from_enrichment(
     return detection_ids
 
 
-def format_detections_with_all_enrichment(  # noqa: PLR0912
+def format_detections_with_all_enrichment(
     detections: list[dict[str, Any]],
     enrichment_result: EnrichmentResult | None = None,
     vision_extraction: BatchExtractionResult | None = None,
@@ -2209,7 +2209,7 @@ def _get_schedule_status(match: HouseholdMatchLike) -> bool | None:
     return getattr(match, "schedule_status", None)
 
 
-def check_member_schedule(  # noqa: PLR0911, PLR0912
+def check_member_schedule(  # noqa: PLR0911
     typical_schedule: dict[str, str] | None,
     current_time: datetime,
 ) -> bool | None:
@@ -2721,7 +2721,7 @@ class OnDemandEnrichmentLike(Protocol):
     vehicle: VehicleAttributesLike | None
 
 
-def build_person_analysis_section(enrichment: OnDemandEnrichmentLike) -> str:  # noqa: PLR0912
+def build_person_analysis_section(enrichment: OnDemandEnrichmentLike) -> str:
     """Build person analysis section for prompt.
 
     Combines pose, clothing, demographics, action recognition, and re-ID

@@ -48,6 +48,7 @@ from backend.api.routes import (
     events,
     exports,
     feedback,
+    gpu_config,
     health_ai_services,
     hierarchy,
     household,
@@ -459,7 +460,7 @@ async def validate_camera_paths_on_startup() -> tuple[int, int]:
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Complex lifecycle requires many branches
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events.
 
     This lifespan context manager handles:
@@ -702,6 +703,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
 
     # Initialize summary job scheduler for automatic dashboard summary generation (NEM-2891)
     # Generates hourly and daily summaries of high/critical events every 5 minutes
+    # Uses DEFAULT_TIMEOUT_SECONDS (180s) to accommodate Nemotron LLM inference time
     summary_job_scheduler: SummaryJobScheduler | None = None
     if redis_client is not None:
         event_broadcaster = await get_broadcaster(redis_client)
@@ -709,7 +711,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:  # noqa: PLR0912 - Co
             interval_minutes=5,
             redis_client=redis_client,
             broadcaster=event_broadcaster,
-            timeout=60.0,
         )
         await summary_job_scheduler.start()
         lifespan_logger.info("Summary job scheduler started (5-minute interval)")
@@ -1086,6 +1087,7 @@ app.include_router(entities.router)
 app.include_router(events.router)
 app.include_router(exports.router)
 app.include_router(feedback.router)
+app.include_router(gpu_config.router)
 app.include_router(health_ai_services.router)
 app.include_router(hierarchy.router)
 app.include_router(hierarchy.property_router)
