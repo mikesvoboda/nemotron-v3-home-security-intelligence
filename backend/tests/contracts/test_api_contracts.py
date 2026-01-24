@@ -163,7 +163,7 @@ async def client(mock_session: MagicMock, mock_redis: AsyncMock) -> AsyncGenerat
     async def mock_get_db():
         yield mock_session
 
-    # Create mock read database dependency (for read replicas)
+    # Create mock read database dependency (same as write for tests)
     async def mock_get_read_db():
         yield mock_session
 

@@ -108,6 +108,46 @@ def setup_telemetry(
 | `OTEL_AUTO_INSTRUMENTATION`   | `bool`  | `True`                    | Enable auto-instrumentation |
 | `OTEL_PROPAGATORS`            | `str`   | `"tracecontext,baggage"`  | Context propagators         |
 
+## Storage Backend
+
+### Elasticsearch Configuration
+
+Jaeger uses Elasticsearch for persistent trace storage with automatic retention management.
+
+| Setting                 | Value                       | Purpose                        |
+| ----------------------- | --------------------------- | ------------------------------ |
+| `SPAN_STORAGE_TYPE`     | `elasticsearch`             | Storage backend type           |
+| `ES_SERVER_URLS`        | `http://elasticsearch:9200` | ES cluster endpoint            |
+| `ES_INDEX_PREFIX`       | `jaeger`                    | Index name prefix              |
+| `ES_TAGS_AS_FIELDS_ALL` | `true`                      | Index all span tags for search |
+
+### Index Lifecycle Management
+
+Traces are automatically managed with the following lifecycle:
+
+| Phase  | Age       | Actions                        |
+| ------ | --------- | ------------------------------ |
+| Hot    | 0-1 day   | Active writes, high priority   |
+| Warm   | 2-30 days | Shrink to 1 shard, force merge |
+| Delete | 30+ days  | Automatic deletion             |
+
+### Resource Requirements
+
+| Component     | CPU     | Memory         | Disk      |
+| ------------- | ------- | -------------- | --------- |
+| Elasticsearch | 2 cores | 4GB (2GB heap) | 50GB+ SSD |
+| Jaeger        | 1 core  | 512MB          | -         |
+
+### Initialization
+
+On first deployment, run the ILM initialization script:
+
+```bash
+./scripts/init-elasticsearch.sh
+```
+
+This creates the ILM policy and index template for automatic retention.
+
 ### Auto-Instrumentation
 
 The system auto-instruments common libraries (`backend/core/telemetry.py:270-340`):

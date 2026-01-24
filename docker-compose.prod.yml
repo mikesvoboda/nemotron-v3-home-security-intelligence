@@ -620,8 +620,55 @@ services:
   #   - Jaeger: http://localhost:16686 (distributed tracing)
   #   - Alertmanager: http://localhost:9093
 
-  # Jaeger all-in-one for distributed tracing (NEM-1629)
+  # Elasticsearch for Jaeger trace storage (NEM-3053)
+  # Single-node deployment with 30-day retention via ILM
+  elasticsearch:
+    image: docker.io/elasticsearch:8.12.0
+    environment:
+      # Single-node discovery (no cluster)
+      - discovery.type=single-node
+      # Disable security for internal network (no external exposure)
+      - xpack.security.enabled=false
+      # Memory settings - ES needs locked memory for performance
+      - bootstrap.memory_lock=true
+      - 'ES_JAVA_OPTS=-Xms${ES_HEAP_SIZE:-2g} -Xmx${ES_HEAP_SIZE:-2g}'
+      # Reduce disk watermarks for single-node
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=85%
+      - cluster.routing.allocation.disk.watermark.high=90%
+      - cluster.routing.allocation.disk.watermark.flood_stage=95%
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+      - ./monitoring/elasticsearch:/usr/share/elasticsearch/config/ilm:ro,z
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'curl -s http://localhost:9200/_cluster/health | grep -q ''"status":"green"\|"status":"yellow"''',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: ${ES_MEMORY_LIMIT:-4G}
+
+  # Jaeger all-in-one for distributed tracing (NEM-1629, NEM-3053)
   # Provides trace collection, storage, and visualization for cross-service request correlation
+  # Uses Elasticsearch backend for persistent storage with 30-day retention
   jaeger:
     image: docker.io/jaegertracing/all-in-one:1.54
     ports:
@@ -630,11 +677,21 @@ services:
       - '4318:4318' # OTLP HTTP receiver
     environment:
       - COLLECTOR_OTLP_ENABLED=true
-      # Store traces in memory (sufficient for development/debugging)
-      # For production, configure external storage (Elasticsearch, Cassandra, etc.)
-      - SPAN_STORAGE_TYPE=memory
-      # Limit memory usage for trace storage
-      - MEMORY_MAX_TRACES=${JAEGER_MAX_TRACES:-100000}
+      # Elasticsearch storage backend (NEM-3053)
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+      # Index configuration
+      - ES_INDEX_PREFIX=jaeger
+      - ES_TAGS_AS_FIELDS_ALL=true
+      # Performance tuning
+      - ES_NUM_SHARDS=1
+      - ES_NUM_REPLICAS=0
+      - ES_BULK_SIZE=5000000
+      - ES_BULK_WORKERS=1
+      - ES_BULK_FLUSH_INTERVAL=200ms
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     healthcheck:
       test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:16686']
       interval: 15s
@@ -937,6 +994,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  elasticsearch_data:
     driver: local
   # Redis Sentinel volumes (uncomment when enabling Sentinel)
   # sentinel1_data:
