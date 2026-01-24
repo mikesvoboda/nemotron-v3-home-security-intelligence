@@ -4,15 +4,14 @@ import { ArrowDown, ArrowUp, RefreshCw, Settings2, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import {
-  moveWidgetDown,
-  moveWidgetUp,
-  resetDashboardConfig,
-  setWidgetVisibility,
-} from '../../stores/dashboardConfig';
+  useDashboardConfigStore,
+  DEFAULT_CONFIG_STATE,
+  type DashboardConfig,
+  type WidgetConfig,
+  type WidgetId,
+} from '../../stores/dashboard-config-store';
 import IconButton from '../common/IconButton';
 import ResponsiveModal from '../common/ResponsiveModal';
-
-import type { DashboardConfig, WidgetConfig, WidgetId } from '../../stores/dashboardConfig';
 
 // ============================================================================
 // Types
@@ -27,6 +26,60 @@ export interface DashboardConfigModalProps {
   config: DashboardConfig;
   /** Callback when configuration changes */
   onConfigChange: (config: DashboardConfig) => void;
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Updates visibility for a specific widget (immutable).
+ */
+function setWidgetVisibility(
+  config: DashboardConfig,
+  widgetId: WidgetId,
+  visible: boolean
+): DashboardConfig {
+  return {
+    ...config,
+    widgets: config.widgets.map((widget) =>
+      widget.id === widgetId ? { ...widget, visible } : widget
+    ),
+  };
+}
+
+/**
+ * Moves a widget up in the display order (immutable).
+ */
+function moveWidgetUp(config: DashboardConfig, widgetId: WidgetId): DashboardConfig {
+  const widgets = [...config.widgets];
+  const index = widgets.findIndex((w) => w.id === widgetId);
+
+  if (index <= 0) {
+    return config; // Already at top or not found
+  }
+
+  // Swap with previous widget
+  [widgets[index - 1], widgets[index]] = [widgets[index], widgets[index - 1]];
+
+  return { ...config, widgets };
+}
+
+/**
+ * Moves a widget down in the display order (immutable).
+ */
+function moveWidgetDown(config: DashboardConfig, widgetId: WidgetId): DashboardConfig {
+  const widgets = [...config.widgets];
+  const index = widgets.findIndex((w) => w.id === widgetId);
+
+  if (index < 0 || index >= widgets.length - 1) {
+    return config; // Already at bottom or not found
+  }
+
+  // Swap with next widget
+  [widgets[index], widgets[index + 1]] = [widgets[index + 1], widgets[index]];
+
+  return { ...config, widgets };
 }
 
 // ============================================================================
@@ -76,7 +129,12 @@ export default function DashboardConfigModal({
 
   // Handle reset to defaults
   const handleReset = useCallback(() => {
-    const defaultConfig = resetDashboardConfig();
+    // Reset store to defaults and update local state
+    useDashboardConfigStore.getState().reset();
+    const defaultConfig: DashboardConfig = {
+      widgets: DEFAULT_CONFIG_STATE.widgets,
+      version: DEFAULT_CONFIG_STATE.version,
+    };
     setEditConfig(defaultConfig);
   }, []);
 

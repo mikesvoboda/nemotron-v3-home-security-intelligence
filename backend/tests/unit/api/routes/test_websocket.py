@@ -787,3 +787,122 @@ class TestSubscriptionEdgeCases:
         response = json.loads(call_args)
         assert response["action"] == "unsubscribed"
         assert response["events"] == ["alert.*", "camera.*"]
+
+
+# =============================================================================
+# Tests for single-pass JSON parsing optimization (NEM-3396)
+# =============================================================================
+
+
+class TestModelValidateJsonOptimization:
+    """Tests to verify model_validate_json() single-pass parsing works correctly.
+
+    These tests ensure that the optimization from json.loads() + model_validate()
+    to model_validate_json() produces identical results for all valid and invalid
+    inputs. This validates the jiter-powered single-pass parsing behaves correctly.
+    """
+
+    @pytest.mark.asyncio
+    async def test_valid_json_parsed_with_single_pass(self, mock_websocket):
+        """Test that valid JSON is correctly parsed with single-pass parsing."""
+        # Test various valid message types
+        test_messages = [
+            '{"type": "ping"}',
+            '{"type": "pong"}',
+            '{"type": "subscribe", "data": {"events": ["alert.*", "camera.status"]}}',
+            '{"type": "unsubscribe", "data": {"events": ["alert.*"]}}',
+            '{"type": "resync", "data": {"channel": "events", "last_sequence": 42}}',
+        ]
+
+        for raw_data in test_messages:
+            message = await validate_websocket_message(mock_websocket, raw_data)
+            assert message is not None, f"Failed to parse: {raw_data}"
+            # Verify the type matches what we sent
+            expected_type = json.loads(raw_data)["type"]
+            assert message.type == expected_type
+
+    @pytest.mark.asyncio
+    async def test_unicode_in_json_parsed_correctly(self, mock_websocket):
+        """Test that Unicode characters in JSON are correctly parsed."""
+        # Unicode in message data
+        raw_data = '{"type": "ping", "data": {"note": "Hello \\u4e16\\u754c"}}'
+        message = await validate_websocket_message(mock_websocket, raw_data)
+
+        assert message is not None
+        assert message.type == "ping"
+        assert message.data is not None
+        assert message.data["note"] == "Hello \u4e16\u754c"
+
+    @pytest.mark.asyncio
+    async def test_nested_json_objects_parsed_correctly(self, mock_websocket):
+        """Test that nested JSON objects are correctly parsed."""
+        raw_data = '{"type": "subscribe", "data": {"events": ["alert.*"], "metadata": {"key": "value", "nested": {"deep": true}}}}'
+        message = await validate_websocket_message(mock_websocket, raw_data)
+
+        assert message is not None
+        assert message.type == "subscribe"
+        assert message.data is not None
+        assert message.data["metadata"]["nested"]["deep"] is True
+
+    @pytest.mark.asyncio
+    async def test_json_with_escaped_characters_parsed_correctly(self, mock_websocket):
+        """Test that escaped characters in JSON strings are correctly parsed."""
+        raw_data = (
+            '{"type": "ping", "data": {"path": "C:\\\\Users\\\\test", "quote": "\\"hello\\""}}'
+        )
+        message = await validate_websocket_message(mock_websocket, raw_data)
+
+        assert message is not None
+        assert message.type == "ping"
+        assert message.data is not None
+        assert message.data["path"] == "C:\\Users\\test"
+        assert message.data["quote"] == '"hello"'
+
+    @pytest.mark.asyncio
+    async def test_json_with_numeric_values_parsed_correctly(self, mock_websocket):
+        """Test that numeric values in JSON are correctly parsed."""
+        raw_data = '{"type": "resync", "data": {"last_sequence": 12345678901234567890, "float_val": 3.14159}}'
+        message = await validate_websocket_message(mock_websocket, raw_data)
+
+        assert message is not None
+        assert message.type == "resync"
+        assert message.data is not None
+        assert message.data["last_sequence"] == 12345678901234567890
+        assert abs(message.data["float_val"] - 3.14159) < 0.00001
+
+    @pytest.mark.asyncio
+    async def test_json_with_null_values_parsed_correctly(self, mock_websocket):
+        """Test that null values in JSON are correctly parsed."""
+        raw_data = '{"type": "ping", "data": {"optional_field": null}}'
+        message = await validate_websocket_message(mock_websocket, raw_data)
+
+        assert message is not None
+        assert message.type == "ping"
+        assert message.data is not None
+        assert message.data["optional_field"] is None
+
+    @pytest.mark.asyncio
+    async def test_json_with_boolean_values_parsed_correctly(self, mock_websocket):
+        """Test that boolean values in JSON are correctly parsed."""
+        raw_data = '{"type": "ping", "data": {"enabled": true, "disabled": false}}'
+        message = await validate_websocket_message(mock_websocket, raw_data)
+
+        assert message is not None
+        assert message.type == "ping"
+        assert message.data is not None
+        assert message.data["enabled"] is True
+        assert message.data["disabled"] is False
+
+    @pytest.mark.asyncio
+    async def test_json_with_array_values_parsed_correctly(self, mock_websocket):
+        """Test that array values in JSON are correctly parsed."""
+        raw_data = (
+            '{"type": "subscribe", "data": {"events": ["a", "b", "c"], "numbers": [1, 2, 3]}}'
+        )
+        message = await validate_websocket_message(mock_websocket, raw_data)
+
+        assert message is not None
+        assert message.type == "subscribe"
+        assert message.data is not None
+        assert message.data["events"] == ["a", "b", "c"]
+        assert message.data["numbers"] == [1, 2, 3]

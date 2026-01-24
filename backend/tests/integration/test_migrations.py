@@ -268,7 +268,7 @@ class TestFreshDatabaseMigrations:
             "gpu_stats",
             "logs",
             # Added by subsequent migrations
-            "zones",
+            "camera_zones",  # Renamed from "zones" in f1231ed7e32d
             "alert_rules",
             "alerts",
             "audit_logs",

@@ -265,7 +265,7 @@ async def extract_person_embedding(
             input_tensor = input_tensor.to(device)
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 features = model(input_tensor)
 
             # Handle different output formats
@@ -363,7 +363,7 @@ async def extract_person_embeddings_batch(
             batch_tensor = batch_tensor.to(device)
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 features = model(batch_tensor)
 
             # Handle different output formats

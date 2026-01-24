@@ -203,6 +203,17 @@ def pytest_configure(config: pytest.Config) -> None:
 
     Sets environment variables needed before any test modules are imported.
     """
+    # Load .env file if it exists (for local development)
+    # Only load if DATABASE_URL isn't already set (to avoid interfering with tests)
+    if "DATABASE_URL" not in os.environ:
+        from pathlib import Path
+
+        from dotenv import load_dotenv
+
+        env_file = Path(__file__).parents[2] / ".env"
+        if env_file.exists():
+            load_dotenv(env_file, override=False)
+
     # Force pure-Python protobuf implementation for Python 3.14+ compatibility.
     # The C++ extension fails with "Metaclasses with custom tp_new are not supported."
     # See: https://bugzilla.redhat.com/show_bug.cgi?id=2356165
@@ -227,7 +238,9 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 # Default development PostgreSQL URL (matches docker-compose.yml)
-DEFAULT_DEV_POSTGRES_URL = "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"  # pragma: allowlist secret
+# Use POSTGRES_PASSWORD from environment if set, otherwise fall back to default
+_POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "security_dev_password")
+DEFAULT_DEV_POSTGRES_URL = f"postgresql+asyncpg://security:{_POSTGRES_PASSWORD}@localhost:5432/security"  # pragma: allowlist secret
 
 # Default development Redis URL (matches docker-compose.yml, using DB 15 for test isolation)
 DEFAULT_DEV_REDIS_URL = "redis://localhost:6379/15"
@@ -961,6 +974,7 @@ def reset_settings_cache() -> Generator[None]:
     # Save original env vars to restore after test
     original_db_url = os.environ.get("DATABASE_URL")
     original_redis_url = os.environ.get("REDIS_URL")
+    original_environment = os.environ.get("ENVIRONMENT")
 
     # Set default test values if not already set
     # This prevents Settings validation errors in unit tests that don't need a real DB
@@ -968,6 +982,9 @@ def reset_settings_cache() -> Generator[None]:
         os.environ["DATABASE_URL"] = DEFAULT_DEV_POSTGRES_URL
     if not os.environ.get("REDIS_URL"):
         os.environ["REDIS_URL"] = DEFAULT_DEV_REDIS_URL
+    # Always set ENVIRONMENT to development for tests to skip password validation
+    if not os.environ.get("ENVIRONMENT"):
+        os.environ["ENVIRONMENT"] = "development"
 
     # Clear settings cache before test
     get_settings.cache_clear()
@@ -984,6 +1001,11 @@ def reset_settings_cache() -> Generator[None]:
         os.environ.pop("REDIS_URL", None)
     else:
         os.environ["REDIS_URL"] = original_redis_url
+
+    if original_environment is None:
+        os.environ.pop("ENVIRONMENT", None)
+    else:
+        os.environ["ENVIRONMENT"] = original_environment
 
     # Clear settings cache after test
     get_settings.cache_clear()
@@ -1489,6 +1511,11 @@ def mock_settings():
     # API settings
     settings.api_host = "0.0.0.0"  # noqa: S104
     settings.api_port = 8000
+
+    # Idempotency settings
+    settings.idempotency_ttl_seconds = 86400  # 24 hours
+    settings.idempotency_max_payload_size = 10485760  # 10MB
+    settings.idempotency_chunk_size = 65536  # 64KB
 
     return settings
 

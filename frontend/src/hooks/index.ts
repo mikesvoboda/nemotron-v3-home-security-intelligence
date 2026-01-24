@@ -25,19 +25,29 @@ export type {
   UseGpuHistoryReturn,
 } from './useGpuHistory';
 
-export { useHealthStatusQuery } from './useHealthStatusQuery';
+export { useHealthStatusQuery, useHealthSummaryQuery } from './useHealthStatusQuery';
 export type {
   UseHealthStatusQueryOptions,
   UseHealthStatusQueryReturn,
+  HealthSummary,
+  UseHealthSummaryQueryReturn,
 } from './useHealthStatusQuery';
 
-export { useCamerasQuery, useCameraQuery, useCameraMutation } from './useCamerasQuery';
+export {
+  useCamerasQuery,
+  useCameraQuery,
+  useCameraMutation,
+  useOnlineCamerasQuery,
+  useCameraCountsQuery,
+} from './useCamerasQuery';
 export type {
   UseCamerasQueryOptions,
   UseCamerasQueryReturn,
   UseCameraQueryOptions,
   UseCameraQueryReturn,
   UseCameraMutationReturn,
+  UseOnlineCamerasQueryReturn,
+  UseCameraCountsQueryReturn,
 } from './useCamerasQuery';
 
 export { useGpuStatsQuery, useGpuHistoryQuery } from './useGpuStatsQuery';
@@ -289,9 +299,6 @@ export type {
 
 export { useRateLimitCountdown, formatCountdown } from './useRateLimitCountdown';
 export type { UseRateLimitCountdownReturn } from './useRateLimitCountdown';
-
-export { useRateLimit } from './useRateLimit';
-export type { UseRateLimitReturn } from './useRateLimit';
 
 // Ambient status awareness hooks
 export { useAudioNotifications } from './useAudioNotifications';
@@ -656,3 +663,166 @@ export type {
   UseCircuitBreakerDebugQueryOptions,
   UseCircuitBreakerDebugQueryReturn,
 } from './useCircuitBreakerDebugQuery';
+
+// GPU configuration hooks (Multi-GPU Support - NEM-3300)
+export {
+  useGpus,
+  useGpuConfig,
+  useGpuStatus,
+  useUpdateGpuConfig,
+  useApplyGpuConfig,
+  useDetectGpus,
+  usePreviewStrategy,
+  GPU_QUERY_KEYS,
+} from './useGpuConfig';
+export type {
+  GpuDevice,
+  GpuListResponse,
+  GpuConfig,
+  GpuConfigUpdateRequest,
+  GpuConfigUpdateResponse,
+  GpuApplyResult,
+  GpuStatusResponse,
+  StrategyPreviewResponse,
+  GpuAssignment,
+  ServiceStatus as GpuServiceStatus,
+  UseGpusOptions,
+  UseGpusReturn,
+  UseGpuConfigOptions,
+  UseGpuConfigReturn,
+  UseGpuStatusOptions,
+  UseGpuStatusReturn,
+  UseUpdateGpuConfigReturn,
+  UseApplyGpuConfigReturn,
+  UseDetectGpusReturn,
+  UsePreviewStrategyReturn,
+} from './useGpuConfig';
+
+// TanStack Query v5 Advanced Patterns (NEM-3409, NEM-3410, NEM-3411, NEM-3412)
+export {
+  // PlaceholderData factories (NEM-3409)
+  createPlaceholderCameras,
+  createPlaceholderHealthStatus,
+  createPlaceholderGpuStats,
+  createPlaceholderEventStats,
+  // Select functions for data transformation (NEM-3410)
+  selectOnlineCameras,
+  selectCameraCountsByStatus,
+  selectHealthSummary,
+  selectRiskDistribution,
+  // AbortSignal utilities (NEM-3411)
+  withAbortSignal,
+  createSignalAwareQueryFn,
+  // Parallel queries (NEM-3412)
+  useDashboardQueries,
+  useQueries,
+} from './useQueryPatterns';
+export type {
+  QueryFnWithSignal,
+  DashboardQueryConfig,
+  DashboardQueryResult,
+  DashboardQueriesResult,
+} from './useQueryPatterns';
+
+// Parallel Dashboard Data Hook (NEM-3412)
+export { useDashboardData, default as useDashboardDataDefault } from './useDashboardData';
+export type {
+  UseDashboardDataOptions,
+  DashboardData,
+  UseDashboardDataReturn,
+} from './useDashboardData';
+
+// React 19 performance optimization hooks (NEM-3421)
+export { useDeferredFilter, useDeferredSearch, default as useDeferredFilterDefault } from './useDeferredFilter';
+export type {
+  UseDeferredFilterOptions,
+  UseDeferredFilterResult,
+  UseDeferredSearchOptions,
+} from './useDeferredFilter';
+
+// Virtualized list hook (NEM-3423)
+export { useVirtualizedList, default as useVirtualizedListDefault } from './useVirtualizedList';
+export type {
+  UseVirtualizedListOptions,
+  UseVirtualizedListReturn,
+} from './useVirtualizedList';
+
+// Route prefetching hook (NEM-3359)
+export { useRoutePrefetch, default as useRoutePrefetchDefault } from './useRoutePrefetch';
+export type {
+  UseRoutePrefetchOptions,
+  UseRoutePrefetchReturn,
+} from './useRoutePrefetch';
+
+// Suspense query hooks (NEM-3360)
+export {
+  useSuspenseCamerasQuery,
+  useSuspenseHealthQuery,
+  useSuspenseSettingsQuery,
+  useSuspenseNotificationPreferencesQuery,
+  useSuspenseEventsInfiniteQuery,
+} from './useSuspenseQueries';
+export type {
+  UseSuspenseCamerasQueryOptions,
+  UseSuspenseCamerasQueryReturn,
+  UseSuspenseHealthQueryOptions,
+  UseSuspenseHealthQueryReturn,
+  UseSuspenseSettingsQueryOptions,
+  UseSuspenseSettingsQueryReturn,
+  UseSuspenseNotificationPreferencesQueryOptions,
+  UseSuspenseNotificationPreferencesQueryReturn,
+  UseSuspenseEventsInfiniteQueryOptions,
+  UseSuspenseEventsInfiniteQueryReturn,
+} from './useSuspenseQueries';
+
+// Optimistic mutation hooks (NEM-3361)
+export {
+  useOptimisticSettingsUpdate,
+  useOptimisticNotificationPreferencesUpdate,
+  useOptimisticCameraNotificationSettingUpdate,
+  useOptimisticQuietHoursPeriodMutations,
+} from './useOptimisticMutations';
+export type {
+  UseOptimisticSettingsUpdateOptions,
+  UseOptimisticSettingsUpdateReturn,
+  UseOptimisticNotificationPreferencesUpdateOptions,
+  UseOptimisticNotificationPreferencesUpdateReturn,
+  UseOptimisticCameraNotificationSettingUpdateOptions,
+  UseOptimisticCameraNotificationSettingUpdateReturn,
+  UseOptimisticQuietHoursPeriodMutationsOptions,
+  UseOptimisticQuietHoursPeriodMutationsReturn,
+} from './useOptimisticMutations';
+
+// React 19 useOptimistic state hooks (NEM-3355)
+export {
+  useOptimisticToggle,
+  useOptimisticList,
+  useOptimisticValue,
+  useOptimisticAction,
+  createOptimisticReducer,
+} from './useOptimisticState';
+export type {
+  OptimisticUpdateFn,
+  UseOptimisticToggleReturn,
+  UseOptimisticListReturn,
+  UseOptimisticValueReturn,
+  UseOptimisticActionOptions,
+  UseOptimisticActionReturn,
+} from './useOptimisticState';
+
+// React 19 use() hook utilities (NEM-3357)
+export {
+  createContextWithUse,
+  usePromiseValue,
+  useConditionalContext,
+  useContextOrDefault,
+  createSuspenseResource,
+  wrapPromise,
+} from './useContextValue';
+export type {
+  ContextWithUse,
+  CreateContextWithUseOptions,
+  UsePromiseResult,
+  UseConditionalContextResult,
+  SuspenseResource,
+} from './useContextValue';

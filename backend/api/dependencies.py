@@ -88,6 +88,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
 
 from backend.core.database import get_db
 from backend.core.exceptions import CacheUnavailableError
@@ -484,12 +485,18 @@ async def get_event_or_404(
                          Required for restore operations (NEM-1955).
 
     Returns:
-        Event object if found
+        Event object if found with deferred columns loaded
 
     Raises:
         HTTPException: 404 if event not found
     """
-    query = select(Event).where(Event.id == event_id)
+    # Eagerly load deferred columns (reasoning, llm_prompt) to prevent lazy loading
+    # errors when the session is closed (NEM-XXXX)
+    query = (
+        select(Event)
+        .options(undefer(Event.reasoning), undefer(Event.llm_prompt))
+        .where(Event.id == event_id)
+    )
     if not include_deleted:
         query = query.where(Event.deleted_at.is_(None))
 
@@ -519,12 +526,19 @@ async def get_detection_or_404(
         db: Database session
 
     Returns:
-        Detection object if found
+        Detection object if found with deferred columns loaded
 
     Raises:
         HTTPException: 404 if detection not found
     """
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
+    # Eagerly load deferred column (enrichment_data) to prevent lazy loading
+    # errors when the session is closed (NEM-XXXX)
+    query = (
+        select(Detection)
+        .options(undefer(Detection.enrichment_data))
+        .where(Detection.id == detection_id)
+    )
+    result = await db.execute(query)
     detection = result.scalar_one_or_none()
 
     if not detection:

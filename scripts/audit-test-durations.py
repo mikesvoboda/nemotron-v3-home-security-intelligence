@@ -195,6 +195,39 @@ SLOW_TEST_PATTERNS = [
     r"test_token_counter.*TestEnrichmentTokenEstimation.*",
     # Pipeline E2E test - fast path with multi-stage processing
     r"test_pipeline_e2e.*test_fast_path_high_priority_detection",
+    # Pipeline E2E LLM failure test - uses retry logic with timeouts (~13s in CI)
+    r"test_pipeline_e2e.*test_pipeline_llm_failure_fallback",
+    # Enrichment pipeline tests - model initialization and processing overhead
+    r"test_enrichment_pipeline.*test_enrich_batch_no_shared_image",
+    r"test_enrichment_pipeline_household_matching.*test_household_matching_skipped_when_disabled",
+    # Hypothesis property-based tests - generation overhead for large input spaces
+    r"test_models_hypothesis.*TestZoneCoordinateValidation.*test_out_of_range_coordinates_rejected",
+    # Service registry singleton tests - initialization overhead with multiple services
+    r"test_managed_service.*TestGlobalRegistry.*test_get_service_registry_creates_singleton",
+    # Model tests with property-based generation - Hypothesis overhead
+    r"test_detection.*TestDetectionProperties.*test_video_metadata_roundtrip",
+    r"test_job_attempt.*TestJobAttemptProperties.*test_worker_id_roundtrip",
+    r"test_job_attempt.*TestJobAttemptProperties.*test_error_message_roundtrip",
+    r"test_job_transition.*TestJobTransitionProperties.*test_status_transition_roundtrip",
+    r"test_scene_change.*TestSceneChangeProperties.*test_id_roundtrip",
+    r"test_models_hypothesis.*TestZoneModelProperties.*test_zone_type_values",
+    # Job progress reporter duration tracking tests - use actual time.time() calls
+    r"test_job_progress_reporter.*TestDurationTracking.*test_duration_after_start",
+    # Model zoo preload/unload tests - model initialization and GPU resource management
+    r"test_model_zoo.*TestModelManager.*test_preload_and_unload",
+    # API middleware correlation tests - HTTP request overhead
+    r"test_correlation_propagation.*TestNemotronAnalyzerCorrelation.*test_call_llm_includes_correlation_headers",
+    # Segformer clothing segmentation error tests - model initialization overhead
+    r"test_segformer_loader.*test_segment_clothing_error_handling",
+    # Violence classification error tests - model initialization overhead
+    r"test_violence_loader.*TestClassifyViolence.*test_classify_violence_error_handling",
+    # Worker supervisor circuit breaker tests - use real delays for testing timeout logic
+    r"test_worker_supervisor.*TestWorkerCrashRestart.*test_max_restarts_exceeded",
+    r"test_worker_supervisor.*TestCircuitBreaker.*test_circuit_opens_after_max_restarts",
+    # Detection properties roundtrip tests - Hypothesis generation overhead
+    r"test_detection.*TestDetectionProperties.*test_required_fields_roundtrip",
+    # Hypothesis vehicle detection format tests - generation overhead
+    r"test_hypothesis_strategies.*test_example_vehicle_detection_format",
 ]
 
 # Benchmark patterns - tests that should be excluded from audit entirely

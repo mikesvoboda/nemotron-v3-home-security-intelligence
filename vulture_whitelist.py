@@ -85,3 +85,15 @@ _.sample_anomalies
 _.clean_summaries
 _.multiple_summaries
 _.enable_api_key_auth
+_.service_reset
+_.cleanup_redis_keys
+
+# SQLAlchemy event handler parameters (required by signature but unused in handler body)
+_.flush_context
+_.instances
+
+# asyncpg callback parameters (required by signature but unused in callback body)
+_.pid
+
+# Redis Sentinel type annotation (used in type hints only)
+_.Sentinel

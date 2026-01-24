@@ -90,7 +90,7 @@ async def sample_event(integration_db, sample_camera):
             camera_id=sample_camera.id,
             started_at=datetime(2025, 12, 23, 12, 0, 0),
             ended_at=datetime(2025, 12, 23, 12, 2, 30),
-            risk_score=75,
+            risk_score=45,
             risk_level="medium",
             summary="Person detected near front entrance",
             reasoning="A person was detected approaching the front door during daylight hours",

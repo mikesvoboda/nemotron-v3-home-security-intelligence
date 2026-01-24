@@ -1337,11 +1337,13 @@ async def test_get_event_returns_event_by_id() -> None:
     db = AsyncMock()
     mock_request = MagicMock()
 
+    # Note: risk_level is computed from risk_score (NEM-3398)
+    # risk_score=85 falls in the critical range (85-100)
     mock_event = create_mock_event(
         event_id=42,
         camera_id="cam-001",
         risk_score=85,
-        risk_level="high",
+        risk_level="critical",  # Computed from score (85-100 = critical)
         summary="Person detected",
         reviewed=True,
         notes="Verified",
@@ -1357,7 +1359,7 @@ async def test_get_event_returns_event_by_id() -> None:
     assert response.id == 42
     assert response.camera_id == "cam-001"
     assert response.risk_score == 85
-    assert response.risk_level == "high"
+    assert response.risk_level == "critical"  # Computed from risk_score=85
     assert response.summary == "Person detected"
     assert response.reviewed is True
     assert response.notes == "Verified"

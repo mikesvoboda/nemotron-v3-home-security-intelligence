@@ -33,6 +33,19 @@ export type {
   FallbackRenderFunction,
 } from './ApiErrorBoundary';
 
+// Action error boundary for React 19 form actions (NEM-3358)
+export {
+  ActionErrorBoundary,
+  ActionErrorDisplay,
+  FormActionError,
+} from './ActionErrorBoundary';
+export type {
+  ActionErrorBoundaryProps,
+  ActionErrorBoundaryState,
+  ActionErrorDisplayProps,
+  ErrorSeverity,
+} from './ActionErrorBoundary';
+
 export { default as LoadingSpinner } from './LoadingSpinner';
 
 export { default as RiskBadge } from './RiskBadge';
@@ -178,3 +191,7 @@ export type { AlertBadgeProps } from './AlertBadge';
 
 export { default as AlertDrawer } from './AlertDrawer';
 export type { AlertDrawerProps } from './AlertDrawer';
+
+// Virtualized list component (NEM-3423)
+export { VirtualizedList, default as VirtualizedListDefault } from './VirtualizedList';
+export type { VirtualizedListProps } from './VirtualizedList';

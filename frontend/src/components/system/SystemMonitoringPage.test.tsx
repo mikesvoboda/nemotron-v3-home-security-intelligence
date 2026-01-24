@@ -84,6 +84,25 @@ vi.mock('./CollapsibleSection', () => ({
   ),
 }));
 
+// Mock developer tools components that use React Query
+vi.mock('../developer-tools', () => ({
+  ProfilingPanel: (props: { 'data-testid'?: string }) => (
+    <div data-testid={props['data-testid'] || 'profiling-panel'}>ProfilingPanel</div>
+  ),
+  RecordingReplayPanel: (props: { 'data-testid'?: string }) => (
+    <div data-testid={props['data-testid'] || 'recording-replay-panel'}>RecordingReplayPanel</div>
+  ),
+  ConfigInspectorPanel: (props: { 'data-testid'?: string }) => (
+    <div data-testid={props['data-testid'] || 'config-inspector-panel'}>ConfigInspectorPanel</div>
+  ),
+  LogLevelPanel: (props: { 'data-testid'?: string }) => (
+    <div data-testid={props['data-testid'] || 'log-level-panel'}>LogLevelPanel</div>
+  ),
+  TestDataPanel: (props: { 'data-testid'?: string }) => (
+    <div data-testid={props['data-testid'] || 'test-data-panel'}>TestDataPanel</div>
+  ),
+}));
+
 const mockFetchTelemetry = vi.mocked(api.fetchTelemetry);
 const mockFetchConfig = vi.mocked(api.fetchConfig);
 const mockFetchCircuitBreakers = vi.mocked(api.fetchCircuitBreakers);

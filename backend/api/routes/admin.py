@@ -559,15 +559,19 @@ async def seed_events(
         db.add(event)
         await db.flush()  # Get event ID for junction table
 
-        # Link detections via junction table (NEM-1592)
+        # Link detections via junction table (NEM-1592, NEM-3350)
+        # Uses bulk INSERT for better performance
         from sqlalchemy.dialects.postgresql import insert as pg_insert
 
         from backend.models.event_detection import event_detections
 
-        for det_id in detection_ids:
+        if detection_ids:
+            values = [
+                {"event_id": event.id, "detection_id": int(det_id)} for det_id in detection_ids
+            ]
             stmt = (
                 pg_insert(event_detections)
-                .values(event_id=event.id, detection_id=int(det_id))
+                .values(values)
                 .on_conflict_do_nothing(index_elements=["event_id", "detection_id"])
             )
             await db.execute(stmt)

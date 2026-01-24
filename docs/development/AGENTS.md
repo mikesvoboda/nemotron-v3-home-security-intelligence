@@ -21,6 +21,7 @@ development/
   linear-integration.md      # Linear MCP tools and workflow states
   migration-rollback.md      # Database migration rollback procedures
   model-testing.md           # AI model testing and validation guide
+  multi-gpu.md               # Multi-GPU support and configuration guide
   patterns.md                # Code patterns and conventions
   setup.md                   # Development environment setup
   ssl-https.md               # SSL/HTTPS configuration for development
@@ -154,6 +155,24 @@ development/
 - Troubleshooting common test failures
 
 **When to use:** Writing tests for AI models, testing model manager behavior, benchmarking inference performance.
+
+### multi-gpu.md
+
+**Purpose:** User guide for configuring multi-GPU support for AI services.
+
+**Topics Covered:**
+
+- Feature overview and hardware requirements
+- Accessing the GPU Settings page
+- Understanding GPU cards and VRAM utilization
+- Assignment strategies (Manual, VRAM-based, Latency-optimized, Isolation-first, Balanced)
+- Manual assignment and VRAM budget overrides
+- Applying changes and restart flow
+- Troubleshooting common issues
+- API reference for GPU configuration endpoints
+- FAQ
+
+**When to use:** Configuring multi-GPU setups, distributing AI workloads, troubleshooting GPU assignment issues.
 
 ### testing-workflow.md
 

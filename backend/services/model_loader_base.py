@@ -39,7 +39,7 @@ from typing import Generic, TypeVar
 T = TypeVar("T")
 
 
-class ModelLoaderBase(ABC, Generic[T]):  # noqa: UP046
+class ModelLoaderBase(ABC, Generic[T]):
     """Abstract base class for model loaders in the Model Zoo.
 
     This class defines the required interface that all model loaders must

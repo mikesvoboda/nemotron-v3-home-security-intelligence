@@ -10,3 +10,10 @@ storage:
 # Server configuration
 server:
   http_listen_port: 4040
+
+# Compactor configuration (NEM-3443)
+# Set working directory for compactor to prevent "permission denied" errors
+# The compactor needs write access to create data-compactor directory
+compactor:
+  data_dir: /data/compactor
+  compaction_interval: 2h

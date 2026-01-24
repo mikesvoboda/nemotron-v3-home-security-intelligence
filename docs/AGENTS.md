@@ -68,6 +68,7 @@ docs/
 │   ├── testing.md               # Testing guide
 │   ├── hooks.md                 # Git hooks
 │   ├── code-quality.md          # Code quality tools
+│   ├── multi-gpu.md             # Multi-GPU support guide
 │   └── *.md                     # Other development docs
 │
 ├── getting-started/             # Installation and setup

@@ -99,7 +99,7 @@ def wait_for_postgres_container(
                 host=host,
                 port=port,
                 user="postgres",
-                password="postgres",  # noqa: S106  # pragma: allowlist secret
+                password="postgres",  # pragma: allowlist secret
                 dbname="security_test",
                 connect_timeout=2,
             )

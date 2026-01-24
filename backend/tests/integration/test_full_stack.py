@@ -147,7 +147,7 @@ async def test_create_event(integration_db, clean_full_stack):
             camera_id=camera_id,
             started_at=datetime.now(UTC),
             ended_at=datetime.now(UTC) + timedelta(minutes=2),
-            risk_score=75,
+            risk_score=45,
             risk_level="medium",
             summary="Person detected near vehicle",
             reasoning="Multiple detections of person approaching parked car",
@@ -168,7 +168,7 @@ async def test_create_event(integration_db, clean_full_stack):
 
         assert saved_event is not None
         assert saved_event.batch_id == batch_id
-        assert saved_event.risk_score == 75
+        assert saved_event.risk_score == 45
         assert saved_event.risk_level == "medium"
         # Verify detections are linked
         await session.refresh(saved_event, ["detections"])

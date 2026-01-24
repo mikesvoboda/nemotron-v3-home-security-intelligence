@@ -40,6 +40,38 @@ from backend.services.reid_service import (
 )
 
 # =============================================================================
+# Module-level Fixtures
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def mock_get_settings_for_reid():
+    """Mock get_settings() for all tests in this module.
+
+    ReIdentificationService.__init__() calls get_settings() to read
+    configuration values. This fixture ensures that tests can instantiate
+    the service without triggering real Settings validation.
+
+    The mock settings object provides default values for all ReID-related
+    configuration parameters.
+    """
+    mock_settings = MagicMock()
+    # ReID-specific settings
+    mock_settings.reid_max_concurrent_requests = 10
+    mock_settings.reid_embedding_timeout = 30.0
+    mock_settings.reid_max_retries = 3
+
+    # Database and Redis settings (required by Settings validation)
+    mock_settings.database_url = (
+        "postgresql+asyncpg://test:test@localhost:5432/test"  # pragma: allowlist secret
+    )
+    mock_settings.redis_url = "redis://localhost:6379/15"
+
+    with patch("backend.services.reid_service.get_settings", return_value=mock_settings):
+        yield mock_settings
+
+
+# =============================================================================
 # EntityEmbedding Dataclass Tests
 # =============================================================================
 
@@ -2031,14 +2063,12 @@ class TestRateLimitingBehavior:
 class TestRateLimitingWithConfig:
     """Tests for rate limiting configuration from Settings."""
 
-    @patch("backend.services.reid_service.get_settings")
     def test_service_uses_settings_for_default_rate_limit(
-        self, mock_get_settings: MagicMock
+        self, mock_get_settings_for_reid: MagicMock
     ) -> None:
         """Test that service uses Settings for default rate limit when not provided."""
-        mock_settings = MagicMock()
-        mock_settings.reid_max_concurrent_requests = 10
-        mock_get_settings.return_value = mock_settings
+        # Configure the autouse fixture's mock settings
+        mock_get_settings_for_reid.reid_max_concurrent_requests = 10
 
         # Service created without explicit max_concurrent_requests should use settings
         service = ReIdentificationService()
@@ -2134,14 +2164,14 @@ class TestReIDTimeoutConfiguration:
         service = ReIdentificationService(embedding_timeout=60.0)
         assert service._embedding_timeout == 60.0
 
-    @patch("backend.services.reid_service.get_settings")
-    def test_service_uses_settings_for_default_timeout(self, mock_get_settings: MagicMock) -> None:
+    def test_service_uses_settings_for_default_timeout(
+        self, mock_get_settings_for_reid: MagicMock
+    ) -> None:
         """Test that service uses Settings for default timeout when not provided."""
-        mock_settings = MagicMock()
-        mock_settings.reid_embedding_timeout = 45.0
-        mock_settings.reid_max_concurrent_requests = 10
-        mock_settings.reid_max_retries = 3
-        mock_get_settings.return_value = mock_settings
+        # Configure the autouse fixture's mock settings
+        mock_get_settings_for_reid.reid_embedding_timeout = 45.0
+        mock_get_settings_for_reid.reid_max_concurrent_requests = 10
+        mock_get_settings_for_reid.reid_max_retries = 3
 
         service = ReIdentificationService()
         assert service._embedding_timeout == 45.0
@@ -2162,16 +2192,14 @@ class TestReIDRetryConfiguration:
         service = ReIdentificationService(max_retries=5)
         assert service._max_retries == 5
 
-    @patch("backend.services.reid_service.get_settings")
     def test_service_uses_settings_for_default_max_retries(
-        self, mock_get_settings: MagicMock
+        self, mock_get_settings_for_reid: MagicMock
     ) -> None:
         """Test that service uses Settings for default max_retries when not provided."""
-        mock_settings = MagicMock()
-        mock_settings.reid_max_retries = 4
-        mock_settings.reid_embedding_timeout = 30.0
-        mock_settings.reid_max_concurrent_requests = 10
-        mock_get_settings.return_value = mock_settings
+        # Configure the autouse fixture's mock settings
+        mock_get_settings_for_reid.reid_max_retries = 4
+        mock_get_settings_for_reid.reid_embedding_timeout = 30.0
+        mock_get_settings_for_reid.reid_max_concurrent_requests = 10
 
         service = ReIdentificationService()
         assert service._max_retries == 4

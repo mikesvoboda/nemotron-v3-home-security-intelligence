@@ -1,5 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
@@ -16,7 +16,6 @@ import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
 import { useRecentEventsQuery } from '../../hooks/useRecentEventsQuery';
 import { useSummaries } from '../../hooks/useSummaries';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
-import { useThrottledValue } from '../../hooks/useThrottledValue';
 import {
   fetchCameras,
   fetchEventStats,
@@ -34,14 +33,6 @@ import {
 } from '../common';
 
 /**
- * Throttle interval for WebSocket data updates (in milliseconds).
- * This reduces unnecessary re-renders in StatsRow while keeping
- * the UI responsive. 500ms provides a good balance between
- * responsiveness and performance.
- */
-const WEBSOCKET_THROTTLE_INTERVAL = 500;
-
-/**
  * Main Dashboard Page Component
  *
  * Assembles Phase 6 components into a cohesive dashboard layout:
@@ -53,6 +44,8 @@ const WEBSOCKET_THROTTLE_INTERVAL = 500;
  *
  * Features:
  * - Real-time updates via WebSocket
+ * - React 19 useTransition for non-urgent WebSocket state updates
+ *   (replaces custom throttling for better React-native prioritization)
  * - Loading skeletons while data loads
  * - Error boundaries for failed components
  * - NVIDIA dark theme (bg-[#121212])
@@ -105,14 +98,30 @@ export default function DashboardPage() {
     enablePolling: true,
   });
 
-  // Throttle WebSocket data to reduce StatsRow re-renders
-  // This batches rapid updates within WEBSOCKET_THROTTLE_INTERVAL (500ms)
-  const throttledWsEvents = useThrottledValue(wsEvents, {
-    interval: WEBSOCKET_THROTTLE_INTERVAL,
-  });
-  const throttledSystemStatus = useThrottledValue(systemStatus, {
-    interval: WEBSOCKET_THROTTLE_INTERVAL,
-  });
+  // React 19 useTransition for non-urgent WebSocket state updates
+  // This replaces custom throttling with React's built-in prioritization.
+  // React will prioritize urgent updates (user interactions) over these
+  // non-urgent WebSocket data updates, providing better perceived performance.
+  // isPending can be used to show a loading indicator during transitions if needed
+  const [_isPending, startTransition] = useTransition();
+
+  // Deferred state for WebSocket events - updated via transition
+  const [deferredWsEvents, setDeferredWsEvents] = useState<typeof wsEvents>([]);
+  const [deferredSystemStatus, setDeferredSystemStatus] = useState(systemStatus);
+
+  // Update deferred state via transition when WebSocket data changes
+  // This marks the update as non-urgent, allowing React to batch and defer it
+  useEffect(() => {
+    startTransition(() => {
+      setDeferredWsEvents(wsEvents);
+    });
+  }, [wsEvents]);
+
+  useEffect(() => {
+    startTransition(() => {
+      setDeferredSystemStatus(systemStatus);
+    });
+  }, [systemStatus]);
 
   // Fetch cameras and event stats (events now handled by useRecentEventsQuery)
   // Re-fetches when date range changes (from useDateRangeState)
@@ -154,12 +163,12 @@ export default function DashboardPage() {
   const loading = !hasError && (camerasLoading || eventsLoading);
   const error = camerasError || (eventsError ? eventsError.message : null);
 
-  // Merge throttled WebSocket events with initial events, avoiding duplicates
+  // Merge deferred WebSocket events with initial events, avoiding duplicates
   // WebSocket events take precedence (they're newer)
-  // Using throttledWsEvents to reduce StatsRow re-renders
+  // Using deferredWsEvents via useTransition for optimized rendering
   const mergedEvents: SecurityEvent[] = useMemo(() => {
     // Create a Set of WebSocket event IDs for deduplication
-    const wsEventIds = new Set(throttledWsEvents.map((e) => String(e.id)));
+    const wsEventIds = new Set(deferredWsEvents.map((e) => String(e.id)));
 
     // Convert initial events to SecurityEvent format, excluding any that are also in wsEvents
     const initialSecurityEvents: SecurityEvent[] = initialEvents
@@ -174,8 +183,8 @@ export default function DashboardPage() {
       }));
 
     // Combine: WebSocket events first (newest), then initial events
-    return [...throttledWsEvents, ...initialSecurityEvents];
-  }, [throttledWsEvents, initialEvents]);
+    return [...deferredWsEvents, ...initialSecurityEvents];
+  }, [deferredWsEvents, initialEvents]);
 
   // Calculate current risk score from latest merged event
   const currentRiskScore = mergedEvents.length > 0 ? mergedEvents[0].risk_score : 0;
@@ -191,7 +200,7 @@ export default function DashboardPage() {
 
   // Calculate events today count from stats API (accurate) plus any new WebSocket events
   // eventStats.total_events gives us the count at page load, then we add new WS events from today
-  // Using throttledWsEvents to reduce StatsRow re-renders
+  // Using deferredWsEvents via useTransition for optimized rendering
   const eventsToday = useMemo(() => {
     // Start with stats from API (events today at time of page load)
     const statsCount = eventStats?.total_events ?? 0;
@@ -200,7 +209,7 @@ export default function DashboardPage() {
     // (to avoid double-counting events that were already in the stats)
     const initialEventIds = new Set(initialEvents.map((e) => String(e.id)));
     const today = new Date();
-    const newWsEventsToday = throttledWsEvents.filter((event) => {
+    const newWsEventsToday = deferredWsEvents.filter((event) => {
       // Skip if this event was in initial load (already counted in stats)
       if (initialEventIds.has(String(event.id))) return false;
 
@@ -215,13 +224,13 @@ export default function DashboardPage() {
     }).length;
 
     return statsCount + newWsEventsToday;
-  }, [eventStats, throttledWsEvents, initialEvents]);
+  }, [eventStats, deferredWsEvents, initialEvents]);
 
   // Determine system health status
   // Default to 'healthy' during initial load (before WebSocket connects)
   // This prevents "Unknown" flashing on mobile where WS connection may be slower
-  // Using throttledSystemStatus to reduce StatsRow re-renders
-  const systemHealth = throttledSystemStatus?.health ?? 'healthy';
+  // Using deferredSystemStatus via useTransition for optimized rendering
+  const systemHealth = deferredSystemStatus?.health ?? 'healthy';
 
   // Convert Camera[] to CameraStatus[] for CameraGrid
   const cameraStatuses: CameraStatus[] = cameras.map((camera) => ({
@@ -388,12 +397,12 @@ export default function DashboardPage() {
           },
           gpuStats: {
             gpuName: 'NVIDIA RTX A5500', // GPU name from system config
-            utilization: throttledSystemStatus?.gpu_utilization ?? null,
-            memoryUsed: throttledSystemStatus?.gpu_memory_used ?? null,
-            memoryTotal: throttledSystemStatus?.gpu_memory_total ?? null,
-            temperature: throttledSystemStatus?.gpu_temperature ?? null,
+            utilization: deferredSystemStatus?.gpu_utilization ?? null,
+            memoryUsed: deferredSystemStatus?.gpu_memory_used ?? null,
+            memoryTotal: deferredSystemStatus?.gpu_memory_total ?? null,
+            temperature: deferredSystemStatus?.gpu_temperature ?? null,
             powerUsage: null, // Power not available in current WebSocket data
-            inferenceFps: throttledSystemStatus?.inference_fps ?? null,
+            inferenceFps: deferredSystemStatus?.inference_fps ?? null,
           },
           pipelineTelemetry: {
             pollingInterval: 5000,

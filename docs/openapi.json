@@ -9611,7 +9611,8 @@
                 "type": "null"
               }
             ],
-            "description": "Risk level (low, medium, high, critical)",
+            "description": "Compute risk level from risk_score (NEM-3398).\n\nThis computed field derives risk_level from risk_score using\nthe backend severity taxonomy thresholds:\n- LOW: 0-29\n- MEDIUM: 30-59\n- HIGH: 60-84\n- CRITICAL: 85-100\n\nReturns:\n    Risk level string or None if risk_score is None",
+            "readOnly": true,
             "title": "Risk Level"
           },
           "risk_score": {
@@ -9673,7 +9674,8 @@
         "required": [
           "id",
           "camera_id",
-          "started_at"
+          "started_at",
+          "risk_level"
         ],
         "title": "EventResponse",
         "type": "object"
@@ -12061,6 +12063,448 @@
           "recorded_at"
         ],
         "title": "GPUStatsSample",
+        "type": "object"
+      },
+      "GpuApplyResponse": {
+        "description": "Response schema for applying GPU configuration.\n\nReturns the result of applying GPU configuration changes,\nincluding which services were restarted and any warnings.",
+        "example": {
+          "restarted_services": [
+            "ai-enrichment"
+          ],
+          "service_statuses": [
+            {
+              "service": "ai-enrichment",
+              "status": "starting"
+            }
+          ],
+          "success": true,
+          "warnings": []
+        },
+        "properties": {
+          "restarted_services": {
+            "description": "Services that were restarted to apply changes",
+            "items": {
+              "type": "string"
+            },
+            "title": "Restarted Services",
+            "type": "array"
+          },
+          "service_statuses": {
+            "description": "Status of each affected service after apply",
+            "items": {
+              "$ref": "#/components/schemas/ServiceStatus"
+            },
+            "title": "Service Statuses",
+            "type": "array"
+          },
+          "success": {
+            "description": "Whether the configuration was applied successfully",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "warnings": {
+            "description": "Warnings about the configuration",
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "GpuApplyResponse",
+        "type": "object"
+      },
+      "GpuAssignment": {
+        "description": "Schema for a single service-to-GPU assignment.\n\nMaps an AI service to a specific GPU with optional VRAM budget override.",
+        "example": {
+          "gpu_index": 1,
+          "service": "ai-enrichment",
+          "vram_budget_override": 3.5
+        },
+        "properties": {
+          "gpu_index": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Target GPU index (null for auto-assign)",
+            "title": "Gpu Index"
+          },
+          "service": {
+            "description": "Service name (e.g., 'ai-llm', 'ai-detector')",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Service",
+            "type": "string"
+          },
+          "vram_budget_override": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Override VRAM budget in GB (for services with dynamic VRAM needs)",
+            "title": "Vram Budget Override"
+          }
+        },
+        "required": [
+          "service"
+        ],
+        "title": "GpuAssignment",
+        "type": "object"
+      },
+      "GpuAssignmentStrategy": {
+        "description": "GPU assignment strategies for AI services.\n\nStrategies determine how models are distributed across GPUs:\n- MANUAL: User controls each assignment explicitly\n- VRAM_BASED: Largest models assigned to GPU with most VRAM\n- LATENCY_OPTIMIZED: Critical path models on fastest GPU\n- ISOLATION_FIRST: LLM gets dedicated GPU, others share\n- BALANCED: Distribute VRAM evenly across GPUs",
+        "enum": [
+          "manual",
+          "vram_based",
+          "latency_optimized",
+          "isolation_first",
+          "balanced"
+        ],
+        "title": "GpuAssignmentStrategy",
+        "type": "string"
+      },
+      "GpuConfigPreviewResponse": {
+        "description": "Response schema for previewing auto-assignment.\n\nReturns the proposed assignments for a given strategy without applying.",
+        "example": {
+          "proposed_assignments": [
+            {
+              "gpu_index": 0,
+              "service": "ai-llm"
+            },
+            {
+              "gpu_index": 0,
+              "service": "ai-detector"
+            },
+            {
+              "gpu_index": 1,
+              "service": "ai-enrichment",
+              "vram_budget_override": 3.5
+            }
+          ],
+          "strategy": "vram_based",
+          "warnings": [
+            "ai-enrichment VRAM budget (6.8 GB) exceeds GPU 1 (4 GB). Suggested budget: 3.5 GB."
+          ]
+        },
+        "properties": {
+          "proposed_assignments": {
+            "description": "Proposed service-to-GPU assignments",
+            "items": {
+              "$ref": "#/components/schemas/GpuAssignment"
+            },
+            "title": "Proposed Assignments",
+            "type": "array"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/GpuAssignmentStrategy",
+            "description": "Strategy used for preview"
+          },
+          "warnings": {
+            "description": "Warnings about the proposed configuration",
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "strategy",
+          "proposed_assignments"
+        ],
+        "title": "GpuConfigPreviewResponse",
+        "type": "object"
+      },
+      "GpuConfigResponse": {
+        "description": "Response schema for current GPU configuration.\n\nReturns the current assignment strategy and all service-to-GPU mappings.",
+        "example": {
+          "assignments": [
+            {
+              "gpu_index": 0,
+              "service": "ai-llm"
+            },
+            {
+              "gpu_index": 0,
+              "service": "ai-detector"
+            },
+            {
+              "gpu_index": 1,
+              "service": "ai-enrichment",
+              "vram_budget_override": 3.5
+            }
+          ],
+          "strategy": "manual",
+          "updated_at": "2026-01-23T10:30:00Z"
+        },
+        "properties": {
+          "assignments": {
+            "description": "List of service-to-GPU assignments",
+            "items": {
+              "$ref": "#/components/schemas/GpuAssignment"
+            },
+            "title": "Assignments",
+            "type": "array"
+          },
+          "strategy": {
+            "$ref": "#/components/schemas/GpuAssignmentStrategy",
+            "description": "Current GPU assignment strategy"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp of last configuration update",
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "strategy",
+          "assignments"
+        ],
+        "title": "GpuConfigResponse",
+        "type": "object"
+      },
+      "GpuConfigStatusResponse": {
+        "description": "Response schema for GPU configuration apply status.\n\nReturns the current status of a GPU configuration apply operation.",
+        "example": {
+          "in_progress": false,
+          "service_statuses": [
+            {
+              "service": "ai-enrichment",
+              "status": "running"
+            }
+          ],
+          "services_completed": [
+            "ai-enrichment"
+          ],
+          "services_pending": []
+        },
+        "properties": {
+          "in_progress": {
+            "description": "Whether an apply operation is currently in progress",
+            "title": "In Progress",
+            "type": "boolean"
+          },
+          "service_statuses": {
+            "description": "Current status of all affected services",
+            "items": {
+              "$ref": "#/components/schemas/ServiceStatus"
+            },
+            "title": "Service Statuses",
+            "type": "array"
+          },
+          "services_completed": {
+            "description": "Services that have completed restart",
+            "items": {
+              "type": "string"
+            },
+            "title": "Services Completed",
+            "type": "array"
+          },
+          "services_pending": {
+            "description": "Services still pending restart",
+            "items": {
+              "type": "string"
+            },
+            "title": "Services Pending",
+            "type": "array"
+          }
+        },
+        "required": [
+          "in_progress"
+        ],
+        "title": "GpuConfigStatusResponse",
+        "type": "object"
+      },
+      "GpuConfigUpdateRequest": {
+        "description": "Request schema for updating GPU configuration.\n\nAllows updating the assignment strategy and/or individual assignments.",
+        "example": {
+          "assignments": [
+            {
+              "gpu_index": 0,
+              "service": "ai-llm"
+            },
+            {
+              "gpu_index": 0,
+              "service": "ai-detector"
+            },
+            {
+              "gpu_index": 1,
+              "service": "ai-enrichment",
+              "vram_budget_override": 3.5
+            }
+          ],
+          "strategy": "manual"
+        },
+        "properties": {
+          "assignments": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GpuAssignment"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Service-to-GPU assignments (null to keep current)",
+            "title": "Assignments"
+          },
+          "strategy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GpuAssignmentStrategy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "GPU assignment strategy (null to keep current)"
+          }
+        },
+        "title": "GpuConfigUpdateRequest",
+        "type": "object"
+      },
+      "GpuConfigUpdateResponse": {
+        "description": "Response schema for GPU configuration update.\n\nReturns success status and any warnings about the configuration.",
+        "example": {
+          "success": true,
+          "warnings": [
+            "ai-enrichment VRAM budget (6.8 GB) exceeds GPU 1 (4 GB). Auto-adjusted to 3.5 GB."
+          ]
+        },
+        "properties": {
+          "success": {
+            "description": "Whether the configuration was saved successfully",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "warnings": {
+            "description": "Warnings about the configuration (e.g., VRAM overages)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "title": "GpuConfigUpdateResponse",
+        "type": "object"
+      },
+      "GpuDeviceResponse": {
+        "description": "Response schema for a detected GPU device.\n\nContains metadata about a GPU including VRAM capacity\nand current utilization.",
+        "example": {
+          "compute_capability": "8.6",
+          "index": 0,
+          "name": "RTX A5500",
+          "vram_total_mb": 24564,
+          "vram_used_mb": 19304
+        },
+        "properties": {
+          "compute_capability": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "CUDA compute capability (e.g., '8.6')",
+            "title": "Compute Capability"
+          },
+          "index": {
+            "description": "GPU index (0-based)",
+            "minimum": 0.0,
+            "title": "Index",
+            "type": "integer"
+          },
+          "name": {
+            "description": "GPU name (e.g., 'NVIDIA RTX A5500')",
+            "title": "Name",
+            "type": "string"
+          },
+          "vram_total_mb": {
+            "description": "Total VRAM in megabytes",
+            "minimum": 0.0,
+            "title": "Vram Total Mb",
+            "type": "integer"
+          },
+          "vram_used_mb": {
+            "description": "Currently used VRAM in megabytes",
+            "minimum": 0.0,
+            "title": "Vram Used Mb",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "index",
+          "name",
+          "vram_total_mb",
+          "vram_used_mb"
+        ],
+        "title": "GpuDeviceResponse",
+        "type": "object"
+      },
+      "GpuDevicesResponse": {
+        "description": "Response schema for listing detected GPUs.",
+        "example": {
+          "gpus": [
+            {
+              "compute_capability": "8.6",
+              "index": 0,
+              "name": "RTX A5500",
+              "vram_total_mb": 24564,
+              "vram_used_mb": 19304
+            },
+            {
+              "compute_capability": "8.6",
+              "index": 1,
+              "name": "RTX A400",
+              "vram_total_mb": 4094,
+              "vram_used_mb": 329
+            }
+          ]
+        },
+        "properties": {
+          "gpus": {
+            "description": "List of detected GPU devices",
+            "items": {
+              "$ref": "#/components/schemas/GpuDeviceResponse"
+            },
+            "title": "Gpus",
+            "type": "array"
+          }
+        },
+        "required": [
+          "gpus"
+        ],
+        "title": "GpuDevicesResponse",
         "type": "object"
       },
       "GpuMetrics": {
@@ -14477,6 +14921,144 @@
         "title": "LicensePlateEnrichment",
         "type": "object"
       },
+      "LogEntryResponse": {
+        "description": "Schema for a single log entry in query responses.\n\nThis schema is used for GET /api/logs responses and represents\na log record from the database.\n\nAttributes:\n    id: Unique log entry identifier\n    timestamp: When the log was created (UTC)\n    level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)\n    component: Component that generated the log (e.g., \"backend.api.routes.events\")\n    message: The log message content\n    camera_id: Optional camera ID associated with this log\n    event_id: Optional event ID associated with this log\n    request_id: Optional request ID for correlation\n    detection_id: Optional detection ID associated with this log\n    duration_ms: Optional duration in milliseconds (for timing logs)\n    extra: Additional structured context data (JSON)\n    source: Log source (backend or frontend)",
+        "example": {
+          "camera_id": "front_door",
+          "component": "backend.services.detector",
+          "detection_id": 789,
+          "duration_ms": 30000,
+          "event_id": 456,
+          "extra": {
+            "error_code": "TIMEOUT",
+            "retry_count": 3
+          },
+          "id": 12345,
+          "level": "ERROR",
+          "message": "Detection failed: timeout after 30s",
+          "request_id": "req-abc123",
+          "source": "backend",
+          "timestamp": "2026-01-15T10:30:00Z"
+        },
+        "properties": {
+          "camera_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Associated camera ID",
+            "title": "Camera Id"
+          },
+          "component": {
+            "description": "Component that generated the log",
+            "maxLength": 100,
+            "title": "Component",
+            "type": "string"
+          },
+          "detection_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Associated detection ID",
+            "title": "Detection Id"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Duration in milliseconds",
+            "title": "Duration Ms"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Associated event ID",
+            "title": "Event Id"
+          },
+          "extra": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Additional structured context",
+            "title": "Extra"
+          },
+          "id": {
+            "description": "Unique log entry ID",
+            "minimum": 1.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "level": {
+            "description": "Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+            "title": "Level",
+            "type": "string"
+          },
+          "message": {
+            "description": "Log message content",
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Request ID for correlation",
+            "title": "Request Id"
+          },
+          "source": {
+            "default": "backend",
+            "description": "Log source (backend or frontend)",
+            "title": "Source",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "When the log was created (UTC)",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "timestamp",
+          "level",
+          "component",
+          "message"
+        ],
+        "title": "LogEntryResponse",
+        "type": "object"
+      },
       "LogLevelRequest": {
         "description": "Request to change log level.",
         "properties": {
@@ -14523,6 +15105,124 @@
           "timestamp"
         ],
         "title": "LogLevelResponse",
+        "type": "object"
+      },
+      "LogStats": {
+        "description": "Schema for log statistics dashboard.\n\nProvides aggregated statistics about logs for the dashboard,\nincluding counts by level and component.\n\nAttributes:\n    errors_today: Number of ERROR logs today\n    warnings_today: Number of WARNING logs today\n    total_today: Total number of logs today\n    top_component: The component with the most logs today (if any)\n    by_component: Breakdown of log counts by component",
+        "example": {
+          "by_component": {
+            "backend.api.routes.events": 280,
+            "backend.services.analyzer": 150,
+            "backend.services.detector": 350,
+            "frontend": 200
+          },
+          "errors_today": 15,
+          "top_component": "backend.services.detector",
+          "total_today": 1500,
+          "warnings_today": 42
+        },
+        "properties": {
+          "by_component": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Log counts by component",
+            "title": "By Component",
+            "type": "object"
+          },
+          "errors_today": {
+            "description": "Number of errors today",
+            "minimum": 0.0,
+            "title": "Errors Today",
+            "type": "integer"
+          },
+          "top_component": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Component with most logs today",
+            "title": "Top Component"
+          },
+          "total_today": {
+            "description": "Total logs today",
+            "minimum": 0.0,
+            "title": "Total Today",
+            "type": "integer"
+          },
+          "warnings_today": {
+            "description": "Number of warnings today",
+            "minimum": 0.0,
+            "title": "Warnings Today",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "errors_today",
+          "warnings_today",
+          "total_today"
+        ],
+        "title": "LogStats",
+        "type": "object"
+      },
+      "LogsListResponse": {
+        "description": "Schema for paginated log query response.\n\nSupports both cursor-based pagination (recommended) and offset pagination.\nCursor-based pagination offers better performance for large datasets.",
+        "example": {
+          "items": [
+            {
+              "camera_id": "front_door",
+              "component": "backend.services.detector",
+              "id": 12345,
+              "level": "ERROR",
+              "message": "Detection failed",
+              "request_id": "req-abc123",
+              "source": "backend",
+              "timestamp": "2026-01-15T10:30:00Z"
+            }
+          ],
+          "pagination": {
+            "has_more": true,
+            "limit": 50,
+            "next_cursor": "eyJpZCI6IDEyMzQ1fQ==",
+            "offset": 0,
+            "total": 1500
+          }
+        },
+        "properties": {
+          "deprecation_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Warning when using deprecated offset pagination",
+            "title": "Deprecation Warning"
+          },
+          "items": {
+            "description": "List of log entries",
+            "items": {
+              "$ref": "#/components/schemas/LogEntryResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "LogsListResponse",
         "type": "object"
       },
       "MediaErrorResponse": {
@@ -20721,7 +21421,8 @@
                 "type": "null"
               }
             ],
-            "description": "Risk level (low, medium, high, critical)",
+            "description": "Compute risk level from risk_score (NEM-3398).\n\nThis computed field derives risk_level from risk_score using\nthe backend severity taxonomy thresholds:\n- LOW: 0-29\n- MEDIUM: 30-59\n- HIGH: 60-84\n- CRITICAL: 85-100\n\nReturns:\n    Risk level string or None if risk_score is None",
+            "readOnly": true,
             "title": "Risk Level"
           },
           "risk_score": {
@@ -20758,7 +21459,8 @@
         "required": [
           "id",
           "camera_id",
-          "started_at"
+          "started_at",
+          "risk_level"
         ],
         "title": "SearchResult",
         "type": "object"
@@ -21160,6 +21862,43 @@
           "port"
         ],
         "title": "ServiceInfo",
+        "type": "object"
+      },
+      "ServiceStatus": {
+        "description": "Schema for service status after GPU config apply.\n\nReports the status of a service after applying GPU configuration changes.",
+        "example": {
+          "service": "ai-llm",
+          "status": "running"
+        },
+        "properties": {
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional status message or error details",
+            "title": "Message"
+          },
+          "service": {
+            "description": "Service name",
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "description": "Service status (running, starting, stopped, error)",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service",
+          "status"
+        ],
+        "title": "ServiceStatus",
         "type": "object"
       },
       "ServicesResponse": {
@@ -30339,7 +31078,7 @@
     },
     "/api/events/search": {
       "get": {
-        "description": "Search events using full-text search.\n\nThis endpoint provides PostgreSQL full-text search across event summaries,\nreasoning, object types, and camera names.\n\nSearch Query Syntax:\n- Basic words: \"person vehicle\" (implicit AND)\n- Phrase search: '\"suspicious person\"' (exact phrase)\n- Boolean OR: \"person OR animal\"\n- Boolean NOT: \"person NOT cat\"\n- Boolean AND: \"person AND vehicle\" (explicit)\n\nArgs:\n    q: Search query string (required)\n    camera_id: Optional comma-separated camera IDs to filter by\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    severity: Optional comma-separated risk levels (low, medium, high, critical)\n    risk_level: Alias for severity - accepts same format\n    object_type: Optional comma-separated object types (person, vehicle, animal)\n    reviewed: Optional filter by reviewed status\n    limit: Maximum number of results to return (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    db: Database session\n\nReturns:\n    SearchResponse with ranked results and pagination info\n\nRaises:\n    HTTPException: 400 if any severity value is invalid\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Search events using full-text search.\n\nUses read replica for linear scalability (NEM-3392).\n\nThis endpoint provides PostgreSQL full-text search across event summaries,\nreasoning, object types, and camera names.\n\nSearch Query Syntax:\n- Basic words: \"person vehicle\" (implicit AND)\n- Phrase search: '\"suspicious person\"' (exact phrase)\n- Boolean OR: \"person OR animal\"\n- Boolean NOT: \"person NOT cat\"\n- Boolean AND: \"person AND vehicle\" (explicit)\n\nArgs:\n    q: Search query string (required)\n    camera_id: Optional comma-separated camera IDs to filter by\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    severity: Optional comma-separated risk levels (low, medium, high, critical)\n    risk_level: Alias for severity - accepts same format\n    object_type: Optional comma-separated object types (person, vehicle, animal)\n    reviewed: Optional filter by reviewed status\n    limit: Maximum number of results to return (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    db: Database session\n\nReturns:\n    SearchResponse with ranked results and pagination info\n\nRaises:\n    HTTPException: 400 if any severity value is invalid\n    HTTPException: 400 if start_date is after end_date",
         "operationId": "search_events_endpoint_api_events_search_get",
         "parameters": [
           {
@@ -32915,6 +33654,224 @@
         ]
       }
     },
+    "/api/logs": {
+      "get": {
+        "description": "Query logs with optional filtering by level, component, source, and date range.",
+        "operationId": "list_logs_api_logs_get",
+        "parameters": [
+          {
+            "description": "Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+              "title": "Level"
+            }
+          },
+          {
+            "description": "Filter by component (partial match)",
+            "in": "query",
+            "name": "component",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by component (partial match)",
+              "title": "Component"
+            }
+          },
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
+            }
+          },
+          {
+            "description": "Filter by source (backend, frontend)",
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by source (backend, frontend)",
+              "title": "Source"
+            }
+          },
+          {
+            "description": "Full-text search on message content",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Full-text search on message content",
+              "title": "Search"
+            }
+          },
+          {
+            "description": "Filter from date (ISO format)",
+            "in": "query",
+            "name": "start_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter from date (ISO format)",
+              "title": "Start Date"
+            }
+          },
+          {
+            "description": "Filter to date (ISO format)",
+            "in": "query",
+            "name": "end_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to date (ISO format)",
+              "title": "End Date"
+            }
+          },
+          {
+            "description": "Page size",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "Page size",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of results to skip (deprecated, use cursor)",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of results to skip (deprecated, use cursor)",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Pagination cursor from previous response",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pagination cursor from previous response",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Include total count in response. Defaults to False for performance.",
+            "in": "query",
+            "name": "include_total_count",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Include total count in response. Defaults to False for performance.",
+              "title": "Include Total Count",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogsListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid date range or cursor"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List logs with optional filtering",
+        "tags": [
+          "logs"
+        ]
+      }
+    },
     "/api/logs/frontend": {
       "post": {
         "description": "Receive a single log entry from the frontend for structured logging.",
@@ -32986,6 +33943,31 @@
           }
         },
         "summary": "Ingest batch of frontend logs",
+        "tags": [
+          "logs"
+        ]
+      }
+    },
+    "/api/logs/stats": {
+      "get": {
+        "description": "Get aggregated log statistics for the dashboard.",
+        "operationId": "get_log_stats_api_logs_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogStats"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get log statistics",
         "tags": [
           "logs"
         ]
@@ -34660,6 +35642,202 @@
         ]
       }
     },
+    "/api/system/gpu-config": {
+      "get": {
+        "description": "Returns current GPU assignment strategy and service-to-GPU mappings.",
+        "operationId": "get_gpu_config_api_system_gpu_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuConfigResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "Failed to load configuration"
+          }
+        },
+        "summary": "Get GPU configuration",
+        "tags": [
+          "gpu-config"
+        ]
+      },
+      "put": {
+        "description": "Updates GPU assignments. Does not apply changes - use /apply endpoint.",
+        "operationId": "update_gpu_config_api_system_gpu_config_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GpuConfigUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuConfigUpdateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid configuration"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Failed to save configuration"
+          }
+        },
+        "summary": "Update GPU configuration",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
+    "/api/system/gpu-config/apply": {
+      "post": {
+        "description": "Applies current config and restarts affected services.",
+        "operationId": "apply_gpu_config_api_system_gpu_config_apply_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuApplyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "Apply operation already in progress"
+          },
+          "500": {
+            "description": "Failed to apply configuration"
+          }
+        },
+        "summary": "Apply GPU configuration",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
+    "/api/system/gpu-config/detect": {
+      "post": {
+        "description": "Triggers a fresh GPU scan and updates the database.",
+        "operationId": "detect_gpus_api_system_gpu_config_detect_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuDevicesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "GPU detection failed"
+          }
+        },
+        "summary": "Re-detect GPUs",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
+    "/api/system/gpu-config/preview": {
+      "get": {
+        "description": "Preview what assignments would result from a given strategy.",
+        "operationId": "preview_gpu_config_api_system_gpu_config_preview_get",
+        "parameters": [
+          {
+            "description": "Assignment strategy to preview",
+            "in": "query",
+            "name": "strategy",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/GpuAssignmentStrategy",
+              "description": "Assignment strategy to preview"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuConfigPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid strategy"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Preview generation failed"
+          }
+        },
+        "summary": "Preview auto-assignment",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
+    "/api/system/gpu-config/status": {
+      "get": {
+        "description": "Returns current status of GPU configuration apply operation.",
+        "operationId": "get_gpu_config_status_api_system_gpu_config_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuConfigStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get apply operation status",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
     "/api/system/gpu/history": {
       "get": {
         "description": "Get recent GPU stats samples as a time-series.\n\nReturns GPU stats in standard pagination envelope format (NEM-2178):\n- items: GPU stats samples (renamed from 'samples')\n- pagination: Standard pagination metadata\n\nArgs:\n    since: Optional lower bound for recorded_at (ISO datetime)\n    limit: Maximum number of samples to return (default 300, max 5000)\n    db: Database session",
@@ -34718,6 +35896,31 @@
         "summary": "Get Gpu Stats History",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/api/system/gpus": {
+      "get": {
+        "description": "Returns all GPUs detected on the system with hardware specs and utilization.",
+        "operationId": "list_gpus_api_system_gpus_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GpuDevicesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "500": {
+            "description": "GPU detection failed"
+          }
+        },
+        "summary": "List detected GPUs",
+        "tags": [
+          "gpu-config"
         ]
       }
     },

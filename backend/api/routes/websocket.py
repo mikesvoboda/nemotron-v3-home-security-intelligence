@@ -81,9 +81,9 @@ async def validate_websocket_message(
 ) -> WebSocketMessage | None:
     """Validate an incoming WebSocket message.
 
-    Attempts to parse the raw data as JSON and validate it against the
-    WebSocketMessage schema. If validation fails, sends an error response
-    to the client and returns None.
+    Uses Pydantic's model_validate_json() for single-pass JSON parsing and
+    validation, powered by jiter for 10-30% better performance compared to
+    the two-step json.loads() + model_validate() approach.
 
     Args:
         websocket: The WebSocket connection to send error responses to.
@@ -91,31 +91,44 @@ async def validate_websocket_message(
 
     Returns:
         A validated WebSocketMessage if successful, None if validation failed.
-    """
-    # Try to parse as JSON
-    try:
-        message_data: dict[str, Any] = json.loads(raw_data)
-    except json.JSONDecodeError as e:
-        logger.warning(f"WebSocket received invalid JSON: {e}")
-        error_response = WebSocketErrorResponse(
-            error=WebSocketErrorCode.INVALID_JSON,
-            message="Message must be valid JSON",
-            details={"raw_data_preview": raw_data[:100] if raw_data else None},
-        )
-        await websocket.send_text(error_response.model_dump_json())
-        return None
 
-    # Validate message structure
+    Note:
+        Optimization (NEM-3396): Uses model_validate_json() instead of
+        json.loads() followed by model_validate() for single-pass parsing
+        with jiter, providing better performance for WebSocket message handling.
+    """
+    # Use single-pass JSON parsing + validation with jiter (NEM-3396)
+    # This is more efficient than json.loads() + model_validate()
     try:
-        message = WebSocketMessage.model_validate(message_data)
+        message = WebSocketMessage.model_validate_json(raw_data)
         return message
     except ValidationError as e:
-        logger.warning(f"WebSocket received invalid message format: {e}")
-        error_response = WebSocketErrorResponse(
-            error=WebSocketErrorCode.INVALID_MESSAGE_FORMAT,
-            message="Message does not match expected schema",
-            details={"validation_errors": e.errors()},
+        # Pydantic's ValidationError can be raised for both JSON parse errors
+        # and schema validation errors when using model_validate_json().
+        # We need to distinguish between the two for proper error responses.
+
+        # Check if any error is a JSON parsing error
+        # Pydantic 2.x reports JSON errors as 'json_invalid' type
+        errors = e.errors()
+        is_json_error = any(
+            err.get("type") in ("json_invalid", "value_error.jsondecode") for err in errors
         )
+
+        if is_json_error:
+            logger.warning(f"WebSocket received invalid JSON: {e}")
+            error_response = WebSocketErrorResponse(
+                error=WebSocketErrorCode.INVALID_JSON,
+                message="Message must be valid JSON",
+                details={"raw_data_preview": raw_data[:100] if raw_data else None},
+            )
+        else:
+            logger.warning(f"WebSocket received invalid message format: {e}")
+            error_response = WebSocketErrorResponse(
+                error=WebSocketErrorCode.INVALID_MESSAGE_FORMAT,
+                message="Message does not match expected schema",
+                details={"validation_errors": errors},
+            )
+
         await websocket.send_text(error_response.model_dump_json())
         return None
 
@@ -311,7 +324,7 @@ async def send_heartbeat(
 
 
 @router.websocket("/ws/events")
-async def websocket_events_endpoint(  # noqa: PLR0912
+async def websocket_events_endpoint(
     websocket: WebSocket,
     redis: RedisClient = Depends(get_redis),
     _token_valid: bool = Depends(validate_websocket_token),
@@ -531,7 +544,7 @@ async def websocket_events_endpoint(  # noqa: PLR0912
 
 
 @router.websocket("/ws/system")
-async def websocket_system_status(  # noqa: PLR0912
+async def websocket_system_status(
     websocket: WebSocket,
     redis: RedisClient = Depends(get_redis),
     _token_valid: bool = Depends(validate_websocket_token),
@@ -753,7 +766,7 @@ async def websocket_system_status(  # noqa: PLR0912
 
 
 @router.websocket("/ws/jobs/{job_id}/logs")
-async def websocket_job_logs(  # noqa: PLR0912
+async def websocket_job_logs(
     websocket: WebSocket,
     job_id: str,
     redis: RedisClient = Depends(get_redis),

@@ -435,11 +435,13 @@ class TestConnectionPoolSettings:
             with patch("backend.core.database.get_settings") as mock_settings:
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",  # pragma: allowlist secret
+                    database_url_read=None,
                     debug=False,
                     database_pool_size=15,
                     database_pool_overflow=25,
                     database_pool_timeout=45,
                     database_pool_recycle=2400,
+                    use_pgbouncer=False,
                 )
 
                 # Mock create_async_engine to capture arguments
@@ -470,6 +472,7 @@ class TestConnectionPoolSettings:
                     assert call_kwargs["pool_timeout"] == 45
                     assert call_kwargs["pool_recycle"] == 2400
                     assert call_kwargs["pool_pre_ping"] is True
+                    assert call_kwargs["pool_use_lifo"] is True
         finally:
             # Restore original state
             db_module._engine = original_engine
@@ -1147,7 +1150,7 @@ class TestSlowQueryLogging:
         result = _sanitize_query_parameters(params, max_string_length=100, max_items=10)
 
         assert result["user_id"] == 123
-        assert result["password"] == "[REDACTED]"  # noqa: S105
+        assert result["password"] == "[REDACTED]"
         assert result["email"] == "test@example.com"
 
     def test_sanitize_query_parameters_with_dict_max_items(self) -> None:

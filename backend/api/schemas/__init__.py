@@ -137,6 +137,21 @@ from .feedback import (
     FeedbackStatsResponse,
     FeedbackType,
 )
+from .gpu_config import (
+    GpuApplyResponse,
+    GpuAssignment,
+    GpuAssignmentStrategy,
+    GpuConfigPreviewResponse,
+    GpuConfigResponse,
+    GpuConfigStatusResponse,
+    GpuConfigUpdateRequest,
+    GpuConfigUpdateResponse,
+    GpuDeviceResponse,
+    GpuDevicesResponse,
+)
+from .gpu_config import (
+    ServiceStatus as GpuServiceStatus,
+)
 from .hateoas import (
     Link,
     LinkRel,
@@ -171,6 +186,10 @@ from .notification import (
     SendNotificationRequest,
     TestNotificationRequest,
     TestNotificationResponse,
+)
+from .pagination import (
+    PaginatedResponse,
+    create_paginated_response,
 )
 from .problem_details import (
     HTTP_STATUS_PHRASES,
@@ -207,6 +226,11 @@ from .services import (
     ServicesResponse,
     ServiceStatusEvent,
 )
+from .trusted import (
+    from_db_record,
+    from_db_records,
+    from_dict,
+)
 from .websocket import (
     EVENT_REGISTRY,
     EventRegistryResponse,
@@ -220,8 +244,11 @@ from .websocket import (
     WebSocketErrorResponse,
     WebSocketEventData,
     WebSocketEventMessage,
+    # Discriminated unions (NEM-3394)
+    WebSocketIncomingMessage,
     WebSocketMessage,
     WebSocketMessageType,
+    WebSocketOutgoingMessage,
     WebSocketPingMessage,
     WebSocketPongResponse,
     WebSocketSceneChangeData,
@@ -365,6 +392,18 @@ __all__ = [  # noqa: RUF022
     "FilterParams",
     "FilterRiskLevel",
     "FlatErrorResponse",
+    # GPU configuration schemas (NEM-3294)
+    "GpuApplyResponse",
+    "GpuAssignment",
+    "GpuAssignmentStrategy",
+    "GpuConfigPreviewResponse",
+    "GpuConfigResponse",
+    "GpuConfigStatusResponse",
+    "GpuConfigUpdateRequest",
+    "GpuConfigUpdateResponse",
+    "GpuDeviceResponse",
+    "GpuDevicesResponse",
+    "GpuServiceStatus",
     "HealthReadinessResponse",
     "HourlyPattern",
     "ImageQualityEnrichment",
@@ -381,6 +420,8 @@ __all__ = [  # noqa: RUF022
     "NotificationHistoryEntry",
     "NotificationHistoryResponse",
     "ObjectBaseline",
+    # Pagination schemas (NEM-3431)
+    "PaginatedResponse",
     "PaginationParams",
     "PersonEnrichmentData",
     "PetEnrichment",
@@ -427,8 +468,11 @@ __all__ = [  # noqa: RUF022
     "WebSocketErrorResponse",
     "WebSocketEventData",
     "WebSocketEventMessage",
+    # Discriminated unions (NEM-3394)
+    "WebSocketIncomingMessage",
     "WebSocketMessage",
     "WebSocketMessageType",
+    "WebSocketOutgoingMessage",
     "WebSocketPingMessage",
     "WebSocketPongResponse",
     "WebSocketSceneChangeData",
@@ -451,6 +495,10 @@ __all__ = [  # noqa: RUF022
     "build_detection_video_links",
     "build_event_links",
     "build_link",
+    "create_paginated_response",
+    "from_db_record",
+    "from_db_records",
+    "from_dict",
     "get_event_registry_response",
     "get_status_phrase",
     "raise_http_error",

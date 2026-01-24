@@ -781,3 +781,280 @@ class TestEventSnooze:
 
         event = EventFactory()
         assert event.snooze_until is None
+
+
+# =============================================================================
+# Event Computed Risk Level Tests (NEM-3404)
+# =============================================================================
+
+
+class TestEventComputedRiskLevel:
+    """Tests for Event.computed_risk_level hybrid property (NEM-3404).
+
+    The computed_risk_level property dynamically computes risk level from
+    risk_score using configurable thresholds, working both in Python and SQL.
+    """
+
+    @pytest.fixture
+    def mock_settings(self):
+        """Mock settings with default severity thresholds."""
+        mock_settings = MagicMock()
+        mock_settings.severity_low_max = 29
+        mock_settings.severity_medium_max = 59
+        mock_settings.severity_high_max = 84
+        return mock_settings
+
+    def test_computed_risk_level_none_when_no_risk_score(self):
+        """Test computed_risk_level returns None when risk_score is None."""
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            risk_score=None,
+        )
+        assert event.computed_risk_level is None
+
+    def test_computed_risk_level_low(self, mock_settings):
+        """Test computed_risk_level returns 'low' for score 0-29."""
+        with patch("backend.core.config.get_settings", return_value=mock_settings):
+            for score in [0, 10, 20, 29]:
+                event = Event(
+                    batch_id="b1",
+                    camera_id="cam",
+                    started_at=datetime.now(UTC),
+                    risk_score=score,
+                )
+                assert event.computed_risk_level == "low", f"Failed for score {score}"
+
+    def test_computed_risk_level_medium(self, mock_settings):
+        """Test computed_risk_level returns 'medium' for score 30-59."""
+        with patch("backend.core.config.get_settings", return_value=mock_settings):
+            for score in [30, 45, 59]:
+                event = Event(
+                    batch_id="b1",
+                    camera_id="cam",
+                    started_at=datetime.now(UTC),
+                    risk_score=score,
+                )
+                assert event.computed_risk_level == "medium", f"Failed for score {score}"
+
+    def test_computed_risk_level_high(self, mock_settings):
+        """Test computed_risk_level returns 'high' for score 60-84."""
+        with patch("backend.core.config.get_settings", return_value=mock_settings):
+            for score in [60, 70, 84]:
+                event = Event(
+                    batch_id="b1",
+                    camera_id="cam",
+                    started_at=datetime.now(UTC),
+                    risk_score=score,
+                )
+                assert event.computed_risk_level == "high", f"Failed for score {score}"
+
+    def test_computed_risk_level_critical(self, mock_settings):
+        """Test computed_risk_level returns 'critical' for score 85-100."""
+        with patch("backend.core.config.get_settings", return_value=mock_settings):
+            for score in [85, 95, 100]:
+                event = Event(
+                    batch_id="b1",
+                    camera_id="cam",
+                    started_at=datetime.now(UTC),
+                    risk_score=score,
+                )
+                assert event.computed_risk_level == "critical", f"Failed for score {score}"
+
+    def test_computed_risk_level_boundary_29_30(self, mock_settings):
+        """Test boundary between low and medium (29 vs 30)."""
+        with patch("backend.core.config.get_settings", return_value=mock_settings):
+            low_event = Event(
+                batch_id="b1",
+                camera_id="cam",
+                started_at=datetime.now(UTC),
+                risk_score=29,
+            )
+            medium_event = Event(
+                batch_id="b1",
+                camera_id="cam",
+                started_at=datetime.now(UTC),
+                risk_score=30,
+            )
+            assert low_event.computed_risk_level == "low"
+            assert medium_event.computed_risk_level == "medium"
+
+    def test_computed_risk_level_boundary_59_60(self, mock_settings):
+        """Test boundary between medium and high (59 vs 60)."""
+        with patch("backend.core.config.get_settings", return_value=mock_settings):
+            medium_event = Event(
+                batch_id="b1",
+                camera_id="cam",
+                started_at=datetime.now(UTC),
+                risk_score=59,
+            )
+            high_event = Event(
+                batch_id="b1",
+                camera_id="cam",
+                started_at=datetime.now(UTC),
+                risk_score=60,
+            )
+            assert medium_event.computed_risk_level == "medium"
+            assert high_event.computed_risk_level == "high"
+
+    def test_computed_risk_level_boundary_84_85(self, mock_settings):
+        """Test boundary between high and critical (84 vs 85)."""
+        with patch("backend.core.config.get_settings", return_value=mock_settings):
+            high_event = Event(
+                batch_id="b1",
+                camera_id="cam",
+                started_at=datetime.now(UTC),
+                risk_score=84,
+            )
+            critical_event = Event(
+                batch_id="b1",
+                camera_id="cam",
+                started_at=datetime.now(UTC),
+                risk_score=85,
+            )
+            assert high_event.computed_risk_level == "high"
+            assert critical_event.computed_risk_level == "critical"
+
+    def test_computed_risk_level_sql_expression_exists(self):
+        """Test that computed_risk_level has a SQL expression for queries."""
+
+        # The hybrid property should have an expression
+        assert hasattr(Event.computed_risk_level, "expression")
+        # The expression should be callable and return a CASE clause
+        expr = Event.computed_risk_level.expression
+        assert expr is not None
+
+
+# =============================================================================
+# Event Version Column Tests (NEM-3408)
+# =============================================================================
+
+
+class TestEventVersionColumn:
+    """Tests for Event.version column for optimistic locking (NEM-3408).
+
+    The version column enables optimistic locking to prevent concurrent
+    modification conflicts.
+    """
+
+    def test_version_column_exists(self):
+        """Test that version column is defined on Event model."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        assert "version" in mapper.columns
+
+    def test_version_column_default(self):
+        """Test that version column has default value of 1."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        version_col = mapper.columns["version"]
+        assert version_col.default is not None
+        assert version_col.default.arg == 1
+
+    def test_version_column_server_default(self):
+        """Test that version column has server_default of '1'."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        version_col = mapper.columns["version"]
+        assert version_col.server_default is not None
+        assert version_col.server_default.arg == "1"
+
+    def test_version_column_not_nullable(self):
+        """Test that version column is NOT nullable."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        version_col = mapper.columns["version"]
+        assert version_col.nullable is False
+
+    def test_mapper_args_has_version_id_col(self):
+        """Test that __mapper_args__ configures version_id_col."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        # In SQLAlchemy 2.0, version_id_col is accessible via mapper.version_id_col
+        assert mapper.version_id_col is not None
+        assert mapper.version_id_col.name == "version"
+
+    def test_event_with_explicit_version(self):
+        """Test creating an event with explicit version."""
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            version=5,
+        )
+        assert event.version == 5
+
+
+# =============================================================================
+# ORM Utils Tests (NEM-3405, NEM-3407)
+# =============================================================================
+
+
+class TestOrmUtils:
+    """Tests for backend.core.orm_utils utility functions."""
+
+    def test_is_development_mode_default(self, monkeypatch):
+        """Test is_development_mode returns False for production."""
+        from backend.core.orm_utils import is_development_mode
+
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        # Need to reload or call without cache
+        import os
+
+        os.environ["ENVIRONMENT"] = "production"
+        # Since function reads os.environ directly, this should work
+        assert is_development_mode() is False
+
+    def test_is_development_mode_development(self, monkeypatch):
+        """Test is_development_mode returns True for development."""
+        import os
+
+        os.environ["ENVIRONMENT"] = "development"
+        from backend.core.orm_utils import is_development_mode
+
+        assert is_development_mode() is True
+
+    def test_is_development_mode_test(self, monkeypatch):
+        """Test is_development_mode returns True for test environment."""
+        import os
+
+        os.environ["ENVIRONMENT"] = "test"
+        from backend.core.orm_utils import is_development_mode
+
+        assert is_development_mode() is True
+
+    def test_get_relationship_lazy_mode_production(self, monkeypatch):
+        """Test get_relationship_lazy_mode returns 'select' in production."""
+        import os
+
+        os.environ["ENVIRONMENT"] = "production"
+        from backend.core.orm_utils import get_relationship_lazy_mode
+
+        result = get_relationship_lazy_mode()
+        assert result == "select"
+
+    def test_get_relationship_lazy_mode_development(self, monkeypatch):
+        """Test get_relationship_lazy_mode returns 'raise_on_sql' in development."""
+        import os
+
+        os.environ["ENVIRONMENT"] = "development"
+        from backend.core.orm_utils import get_relationship_lazy_mode
+
+        result = get_relationship_lazy_mode()
+        assert result == "raise_on_sql"
+
+    def test_get_relationship_lazy_mode_custom_default(self, monkeypatch):
+        """Test get_relationship_lazy_mode with custom default."""
+        import os
+
+        os.environ["ENVIRONMENT"] = "production"
+        from backend.core.orm_utils import get_relationship_lazy_mode
+
+        result = get_relationship_lazy_mode(default="selectin")
+        assert result == "selectin"

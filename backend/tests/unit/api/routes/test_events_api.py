@@ -13,7 +13,11 @@ class TestEventResponseSchema:
     """Tests for EventResponse schema validation."""
 
     def test_event_response_valid(self):
-        """Test EventResponse with valid data using factory."""
+        """Test EventResponse with valid data using factory.
+
+        Note: risk_level is now a computed field derived from risk_score (NEM-3398).
+        With risk_score=75, risk_level is computed as "high" (60-84 range).
+        """
         # Generate event data using factory
         factory_event = EventFactory(
             id=1,
@@ -21,7 +25,7 @@ class TestEventResponseSchema:
             started_at=datetime(2025, 12, 23, 12, 0, 0),
             ended_at=datetime(2025, 12, 23, 12, 2, 30),
             risk_score=75,
-            risk_level="medium",
+            risk_level="high",  # Computed from score (60-84 = high)
             summary="Person detected near front entrance",
             reviewed=False,
         )
@@ -32,7 +36,7 @@ class TestEventResponseSchema:
             "started_at": factory_event.started_at,
             "ended_at": factory_event.ended_at,
             "risk_score": factory_event.risk_score,
-            "risk_level": factory_event.risk_level,
+            # Note: risk_level is not passed - it's computed from risk_score
             "summary": factory_event.summary,
             "reviewed": factory_event.reviewed,
             "detection_count": 5,
@@ -42,7 +46,7 @@ class TestEventResponseSchema:
         assert event.id == 1
         assert event.camera_id == "123e4567-e89b-12d3-a456-426614174000"
         assert event.risk_score == 75
-        assert event.risk_level == "medium"
+        assert event.risk_level == "high"  # Computed from risk_score=75
         assert event.summary == "Person detected near front entrance"
         assert event.reviewed is False
         assert event.detection_count == 5

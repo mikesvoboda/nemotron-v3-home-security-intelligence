@@ -291,7 +291,7 @@ async def classify_vehicle(
             input_tensor = input_tensor.to(device)
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 outputs = model(input_tensor)
                 probs = torch.nn.functional.softmax(outputs, dim=-1)[0]
 
@@ -380,7 +380,7 @@ async def classify_vehicles_batch(
             batch_tensor = batch_tensor.to(device)
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 outputs = model(batch_tensor)
                 all_probs = torch.nn.functional.softmax(outputs, dim=-1)
 

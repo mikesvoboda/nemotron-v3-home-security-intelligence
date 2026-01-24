@@ -18,7 +18,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_validator
 
 
 class RiskLevel(str, Enum):
@@ -435,11 +435,23 @@ class LLMResponseParseError(Exception):
         self.message = message
 
 
+# =============================================================================
+# Module-level TypeAdapter instance (NEM-3395)
+# =============================================================================
+#
+# This TypeAdapter is created once at module load time to eliminate the overhead
+# of creating adapters on each validation call. This provides significant
+# performance improvement for hot path LLM response validation.
+
+_llm_risk_response_adapter: TypeAdapter[LLMRiskResponse] = TypeAdapter(LLMRiskResponse)
+
+
 def validate_llm_response(data: dict[str, Any]) -> LLMRiskResponse:
     """Validate and parse LLM response data into typed schema.
 
     This function wraps Pydantic validation with additional error handling
-    to provide clear, actionable error messages.
+    to provide clear, actionable error messages. Uses a module-level TypeAdapter
+    for optimal performance in hot paths.
 
     Args:
         data: Dictionary parsed from LLM JSON response
@@ -453,7 +465,7 @@ def validate_llm_response(data: dict[str, Any]) -> LLMRiskResponse:
     from pydantic import ValidationError
 
     try:
-        return LLMRiskResponse.model_validate(data)
+        return _llm_risk_response_adapter.validate_python(data)
     except ValidationError as e:
         # Extract readable error messages
         errors = []

@@ -14,8 +14,6 @@ frontend/src/contexts/
 ├── AnnouncementContext.test.tsx  # Tests for announcement context
 ├── DebugModeContext.tsx          # Debug mode state provider
 ├── DebugModeContext.test.tsx     # Tests for debug mode context
-├── RateLimitContext.tsx          # Rate limit state provider
-├── RateLimitContext.test.tsx     # Tests for rate limit context
 ├── SystemDataContext.tsx         # System data state provider
 ├── SystemDataContext.test.tsx    # Tests for system data context
 ├── ToastContext.tsx              # Toast notification provider and hook
@@ -31,8 +29,6 @@ frontend/src/contexts/
 | `AnnouncementContext.test.tsx` | Tests for announcement context                        |
 | `DebugModeContext.tsx`         | Debug mode state provider with localStorage           |
 | `DebugModeContext.test.tsx`    | Tests for debug mode context                          |
-| `RateLimitContext.tsx`         | API rate limit state tracking                         |
-| `RateLimitContext.test.tsx`    | Tests for rate limit context                          |
 | `SystemDataContext.tsx`        | System data provider for shared system state          |
 | `SystemDataContext.test.tsx`   | Tests for system data context                         |
 | `ToastContext.tsx`             | Toast notification provider with auto-dismiss         |

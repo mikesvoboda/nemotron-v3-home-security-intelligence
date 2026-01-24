@@ -400,11 +400,22 @@ class CLIPEmbeddingModel:
             # Load processor
             self.processor = CLIPProcessor.from_pretrained(self.model_path)
 
-            # Load model with appropriate settings
-            self.model = CLIPModel.from_pretrained(
-                self.model_path,
-                torch_dtype=dtype,
-            )
+            # Try to load with SDPA (Scaled Dot-Product Attention) for 15-40% faster inference
+            # SDPA requires PyTorch 2.0+ and compatible hardware
+            try:
+                self.model = CLIPModel.from_pretrained(
+                    self.model_path,
+                    torch_dtype=dtype,
+                    attn_implementation="sdpa",
+                )
+                logger.info("CLIP loaded with SDPA attention (optimized)")
+            except (ValueError, ImportError) as e:
+                # Fall back to default attention if SDPA is not supported
+                logger.warning(f"SDPA not available, falling back to default attention: {e}")
+                self.model = CLIPModel.from_pretrained(
+                    self.model_path,
+                    torch_dtype=dtype,
+                )
 
             # Move model to device
             if "cuda" in self.device:
@@ -466,7 +477,7 @@ class CLIPEmbeddingModel:
         inputs = {k: v.to(self.device, model_dtype) for k, v in inputs.items()}
 
         # Generate embedding
-        with torch.no_grad():
+        with torch.inference_mode():
             image_features = self.model.get_image_features(**inputs)
 
             # Normalize embedding with epsilon to prevent division by zero (NEM-1100)
@@ -570,7 +581,7 @@ class CLIPEmbeddingModel:
         inputs = {k: v.to(self.device, model_dtype) for k, v in inputs.items()}
 
         # Generate logits
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.model(**inputs)
             logits_per_image = outputs.logits_per_image
 
@@ -650,7 +661,7 @@ class CLIPEmbeddingModel:
         image_inputs = {k: v.to(self.device, model_dtype) for k, v in image_inputs.items()}
 
         # Get image features
-        with torch.no_grad():
+        with torch.inference_mode():
             image_features = self.model.get_image_features(**image_inputs)
             # Normalize image features with epsilon for numerical stability
             epsilon = 1e-8
@@ -669,7 +680,7 @@ class CLIPEmbeddingModel:
             text_inputs = self.processor(text=prompts, return_tensors="pt", padding=True)
             text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
 
-            with torch.no_grad():
+            with torch.inference_mode():
                 text_features = self.model.get_text_features(**text_inputs)
                 # Normalize text features with epsilon
                 text_features = text_features / (
@@ -689,7 +700,7 @@ class CLIPEmbeddingModel:
         )
 
         # Compute similarities: (1, num_labels)
-        with torch.no_grad():
+        with torch.inference_mode():
             similarities = image_features @ ensemble_embeddings.T
 
             # Apply softmax to get probabilities
@@ -746,7 +757,7 @@ class CLIPEmbeddingModel:
         text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
 
         # Generate embeddings
-        with torch.no_grad():
+        with torch.inference_mode():
             image_features = self.model.get_image_features(**image_inputs)
             text_features = self.model.get_text_features(**text_inputs)
 
@@ -800,7 +811,7 @@ class CLIPEmbeddingModel:
         text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
 
         # Generate embeddings
-        with torch.no_grad():
+        with torch.inference_mode():
             image_features = self.model.get_image_features(**image_inputs)
             text_features = self.model.get_text_features(**text_inputs)
 

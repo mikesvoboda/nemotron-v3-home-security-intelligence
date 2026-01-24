@@ -8,9 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, ORJSONResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
 
 from backend.api.dependencies import (
     get_cache_service_dep,
@@ -58,7 +59,7 @@ from backend.api.utils.field_filter import (
     validate_fields,
 )
 from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
-from backend.core.database import get_db
+from backend.core.database import get_db, get_read_db
 from backend.core.logging import get_logger
 from backend.models.camera import Camera
 from backend.models.detection import Detection
@@ -74,7 +75,11 @@ VideoProcessorDep = VideoProcessor
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/detections", tags=["detections"])
+router = APIRouter(
+    prefix="/api/detections",
+    tags=["detections"],
+    default_response_class=ORJSONResponse,
+)
 
 # Valid fields for sparse fieldsets on list_detections endpoint (NEM-1434)
 VALID_DETECTION_LIST_FIELDS = frozenset(
@@ -170,7 +175,7 @@ detection_media_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
 
 @router.get("", response_model=DetectionListResponse)
-async def list_detections(  # noqa: PLR0912
+async def list_detections(
     response: Response,
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     object_type: str | None = Query(None, description="Filter by object type"),
@@ -189,7 +194,7 @@ async def list_detections(  # noqa: PLR0912
         "bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path, media_type, duration, "
         "video_codec, video_width, video_height, enrichment_data",
     ),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ) -> DetectionListResponse:
     """List detections with optional filtering and cursor-based pagination.
 
@@ -251,6 +256,11 @@ async def list_detections(  # noqa: PLR0912
     # Build base query
     query = select(Detection)
 
+    # Conditionally undefer enrichment_data if it's requested or all fields are requested
+    # This prevents lazy loading errors when the session is closed (similar to Event fix)
+    if validated_fields is None or "enrichment_data" in validated_fields:
+        query = query.options(undefer(Detection.enrichment_data))
+
     # Apply filters
     if camera_id:
         query = query.where(Detection.camera_id == camera_id)
@@ -286,7 +296,7 @@ async def list_detections(  # noqa: PLR0912
 
     # Apply pagination - fetch one extra to determine if there are more results
     # Use explicit if/else for readability (clearer than ternary with complex expressions)
-    if cursor_data:  # noqa: SIM108
+    if cursor_data:
         # Cursor-based: fetch limit + 1 to check for more
         query = query.limit(limit + 1)
     else:
@@ -527,9 +537,11 @@ async def search_detections(
     search_words = q.strip().split()
     search_query = r" \& ".join(f"{word}:*" for word in search_words if word)
     ts_query = func.to_tsquery("english", search_query)
-    base_query = select(
-        Detection, func.ts_rank(Detection.search_vector, ts_query).label("rank")
-    ).where(Detection.search_vector.op("@@")(ts_query))
+    base_query = (
+        select(Detection, func.ts_rank(Detection.search_vector, ts_query).label("rank"))
+        .options(undefer(Detection.enrichment_data))
+        .where(Detection.search_vector.op("@@")(ts_query))
+    )
     if labels:
         for label in labels:
             base_query = base_query.where(Detection.labels.op("@>")(cast([label], PG_JSONB)))
@@ -1801,7 +1813,11 @@ async def bulk_update_detections(
 
     # Fetch all detections in one query
     detection_ids = [item.id for item in request.detections]
-    query = select(Detection).where(Detection.id.in_(detection_ids))
+    query = (
+        select(Detection)
+        .options(undefer(Detection.enrichment_data))
+        .where(Detection.id.in_(detection_ids))
+    )
     result = await db.execute(query)
     detections_map = {det.id: det for det in result.scalars().all()}
 

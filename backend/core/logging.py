@@ -501,7 +501,7 @@ class ContextFilter(logging.Filter):
             # Settings not available during early startup
             self._environment = "unknown"
 
-    def filter(self, record: logging.LogRecord) -> bool:  # noqa: PLR0912
+    def filter(self, record: logging.LogRecord) -> bool:
         """Add contextual fields to the log record for observability.
 
         This method enriches every log record with:
@@ -616,7 +616,7 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
     log aggregation and log-to-trace correlation in observability platforms.
     """
 
-    def add_fields(  # noqa: PLR0912
+    def add_fields(
         self,
         log_record: dict[str, Any],
         record: logging.LogRecord,
@@ -739,7 +739,7 @@ class DatabaseHandler(logging.Handler):
 
         return self._session_factory()
 
-    def emit(self, record: logging.LogRecord) -> None:  # noqa: PLR0912
+    def emit(self, record: logging.LogRecord) -> None:
         """Write log record to database.
 
         Gracefully handles the case where the logs table doesn't exist yet

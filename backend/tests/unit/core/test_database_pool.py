@@ -62,11 +62,13 @@ class TestInitDbPoolConfiguration:
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    database_url_read=None,
                     debug=False,
                     database_pool_size=20,
                     database_pool_overflow=30,
                     database_pool_timeout=30,
                     database_pool_recycle=1800,
+                    use_pgbouncer=False,
                 )
                 mock_sessionmaker.return_value = MagicMock()
 
@@ -80,6 +82,7 @@ class TestInitDbPoolConfiguration:
                 assert call_kwargs["pool_timeout"] == 30
                 assert call_kwargs["pool_recycle"] == 1800
                 assert call_kwargs["pool_pre_ping"] is True
+                assert call_kwargs["pool_use_lifo"] is True
 
         finally:
             db_module._engine = original_engine
@@ -117,11 +120,13 @@ class TestInitDbPoolConfiguration:
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    database_url_read=None,
                     debug=False,
                     database_pool_size=10,
                     database_pool_overflow=20,
                     database_pool_timeout=30,
                     database_pool_recycle=1800,
+                    use_pgbouncer=False,
                 )
                 mock_sessionmaker.return_value = MagicMock()
 
@@ -170,11 +175,13 @@ class TestInitDbPoolConfiguration:
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    database_url_read=None,
                     debug=True,  # Enable debug
                     database_pool_size=10,
                     database_pool_overflow=20,
                     database_pool_timeout=30,
                     database_pool_recycle=1800,
+                    use_pgbouncer=False,
                 )
 
                 await db_module.init_db()
@@ -202,11 +209,13 @@ class TestInitDbPoolConfiguration:
             with patch("backend.core.database.get_settings") as mock_settings:
                 mock_settings.return_value = MagicMock(
                     database_url="mysql://user:pass@localhost:3306/testdb",
+                    database_url_read=None,
                     debug=False,
                     database_pool_size=10,
                     database_pool_overflow=20,
                     database_pool_timeout=30,
                     database_pool_recycle=1800,
+                    use_pgbouncer=False,
                 )
 
                 with pytest.raises(ValueError) as exc_info:
@@ -387,11 +396,13 @@ class TestPoolTimeoutBehavior:
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    database_url_read=None,
                     debug=False,
                     database_pool_size=10,
                     database_pool_overflow=20,
                     database_pool_timeout=custom_timeout,
                     database_pool_recycle=1800,
+                    use_pgbouncer=False,
                 )
 
                 await db_module.init_db()
@@ -437,11 +448,13 @@ class TestPoolTimeoutBehavior:
             ):
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",
+                    database_url_read=None,
                     debug=False,
                     database_pool_size=10,
                     database_pool_overflow=20,
                     database_pool_timeout=30,
                     database_pool_recycle=custom_recycle,
+                    use_pgbouncer=False,
                 )
 
                 await db_module.init_db()

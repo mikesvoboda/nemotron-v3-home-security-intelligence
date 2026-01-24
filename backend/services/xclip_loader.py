@@ -277,7 +277,7 @@ async def classify_actions(
 
         loop = asyncio.get_event_loop()
 
-        def _classify() -> dict[str, Any]:  # noqa: PLR0912
+        def _classify() -> dict[str, Any]:
             import numpy as np
 
             # X-CLIP expects 8 frames for optimal performance
@@ -329,11 +329,13 @@ async def classify_actions(
                 validated_frames.append(validated_frames[-1])
 
             # Prepare inputs for X-CLIP
-            # X-CLIP expects videos as list of frames
+            # X-CLIP processor expects videos as List[List[PIL.Image]]
+            # where outer list is batch of videos, inner list is frames per video
+            # We have a single video with multiple frames
             try:
                 inputs = processor(
                     text=prompts,
-                    videos=validated_frames,  # List of PIL images
+                    videos=[validated_frames],  # Wrap in list - single video with multiple frames
                     return_tensors="pt",
                     padding=True,
                 )
@@ -383,7 +385,7 @@ async def classify_actions(
                 inputs["pixel_values"] = inputs["pixel_values"].half()
 
             # Run inference
-            with torch.no_grad():
+            with torch.inference_mode():
                 outputs = model(**inputs)
 
             # Get similarity scores (logits per video)

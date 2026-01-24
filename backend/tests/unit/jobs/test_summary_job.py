@@ -628,7 +628,7 @@ class TestConstants:
         )
 
         assert DEFAULT_INTERVAL_MINUTES == 5
-        assert DEFAULT_TIMEOUT_SECONDS == 60
+        assert DEFAULT_TIMEOUT_SECONDS == 180
 
     def test_cache_keys(self):
         """Test SUMMARY_CACHE_KEYS matches route keys."""

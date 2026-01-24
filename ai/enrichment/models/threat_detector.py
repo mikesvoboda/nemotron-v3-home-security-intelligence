@@ -3,6 +3,10 @@
 This module provides the ThreatDetector class for detecting weapons and
 threatening objects in security camera images using YOLOv8 object detection.
 
+Note: YOLOv8/Ultralytics models have their own optimization through export
+to TensorRT/ONNX. torch.compile() integration is limited for these models.
+True batch inference is fully supported (NEM-3377).
+
 Model: Weapon-Detection YOLOv8 variant from HuggingFace
 VRAM: ~400MB
 Priority: CRITICAL (should never be evicted if possible)
@@ -15,7 +19,9 @@ Reference: https://huggingface.co/Subh775/Threat-Detection-YOLOv8n
 from __future__ import annotations
 
 import logging
+import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
@@ -24,6 +30,13 @@ from PIL import Image
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
+# Add parent directory to path for shared utilities
+_ai_dir = Path(__file__).parent.parent.parent
+if str(_ai_dir) not in sys.path:
+    sys.path.insert(0, str(_ai_dir))
+
+from torch_optimizations import BatchConfig, BatchProcessor  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +165,13 @@ class ThreatDetector:
     an interface for detecting knives, guns, rifles, and other threatening
     objects in security camera images.
 
+    Supports:
+    - True batch inference with optimal batching (NEM-3377)
+
+    Note: YOLOv8/Ultralytics models are optimized via TensorRT/ONNX export
+    rather than torch.compile(). For maximum performance, export the model
+    to TensorRT format.
+
     The model has CRITICAL priority and should be loaded quickly when needed.
     All detections are logged at WARNING level for security auditing.
 
@@ -166,6 +186,7 @@ class ThreatDetector:
         model_path: str,
         device: str = "cuda:0",
         confidence_threshold: float = 0.5,
+        max_batch_size: int = 8,
     ):
         """Initialize the threat detector.
 
@@ -173,12 +194,16 @@ class ThreatDetector:
             model_path: Path to the YOLOv8 model weights file or directory
             device: Device to run inference on
             confidence_threshold: Minimum confidence threshold for detections
+            max_batch_size: Maximum batch size for batch inference (NEM-3377).
         """
         self.model_path = model_path
         self.device = device
         self.confidence_threshold = confidence_threshold
         self.model: Any = None
         self._class_names: dict[int, str] = {}
+
+        # Batch processing configuration (NEM-3377)
+        self.batch_processor = BatchProcessor(BatchConfig(max_batch_size=max_batch_size))
 
         logger.info(f"Initializing ThreatDetector from {self.model_path}")
 

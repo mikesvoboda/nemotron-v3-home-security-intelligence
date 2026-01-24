@@ -1,9 +1,9 @@
 /**
- * Prometheus Alert State Management Store (NEM-3124)
+ * Prometheus Alert State Management Store (NEM-3124, NEM-3402, NEM-3403)
  *
  * Provides central state management for Prometheus/Alertmanager alerts across frontend components.
- * Uses Zustand for reactive state management, allowing components to subscribe to infrastructure
- * alerts and display alert status indicators.
+ * Uses Zustand with Immer middleware for immutable updates and subscribeWithSelector for
+ * fine-grained subscriptions to prevent unnecessary re-renders.
  *
  * Prometheus alerts are received via WebSocket from the backend Alertmanager webhook receiver:
  * - prometheus.alert events with status "firing" add/update alerts
@@ -13,12 +13,16 @@
  * separate from AI-generated security alerts.
  */
 
-import { create } from 'zustand';
+import {
+  createImmerSelectorStore,
+  type ImmerSetState,
+} from './middleware';
 
 import type {
   PrometheusAlertPayload,
   PrometheusAlertSeverity,
 } from '../types/websocket-events';
+
 
 // ============================================================================
 // Types
@@ -108,85 +112,110 @@ function calculateSeverityCounts(alerts: Record<string, StoredPrometheusAlert>):
  * - Automatically updates when alerts fire or resolve
  * - Provides severity-based counts for UI display
  * - Shared across components for consistent alert display
+ * - Uses Immer for immutable state updates with mutable syntax
+ * - Uses subscribeWithSelector for fine-grained subscriptions
  *
  * @example
  * ```tsx
  * import { usePrometheusAlertStore } from '@/stores/prometheus-alert-store';
  *
- * // In a component
- * const { criticalCount, warningCount, alerts } = usePrometheusAlertStore();
+ * // In a component - subscribe to specific counts
+ * const criticalCount = usePrometheusAlertStore((state) => state.criticalCount);
+ *
+ * // Subscribe to alerts object with shallow comparison
+ * const alerts = usePrometheusAlertStore((state) => state.alerts);
  *
  * // Display alert badge
  * if (criticalCount > 0) {
  *   return <Badge color="red">{criticalCount} Critical</Badge>;
  * }
+ *
+ * // Subscribe to changes programmatically
+ * const unsubscribe = usePrometheusAlertStore.subscribe(
+ *   (state) => state.criticalCount,
+ *   (newCount, prevCount) => {
+ *     if (newCount > prevCount) {
+ *       playAlertSound();
+ *     }
+ *   }
+ * );
  * ```
  */
-export const usePrometheusAlertStore = create<PrometheusAlertState>((set, get) => ({
-  alerts: {},
-  criticalCount: 0,
-  warningCount: 0,
-  infoCount: 0,
-  totalCount: 0,
+export const usePrometheusAlertStore = createImmerSelectorStore<PrometheusAlertState>(
+  (set: ImmerSetState<PrometheusAlertState>, get) => ({
+    alerts: {},
+    criticalCount: 0,
+    warningCount: 0,
+    infoCount: 0,
+    totalCount: 0,
 
-  handlePrometheusAlert: (payload: PrometheusAlertPayload) => {
-    const { fingerprint, status, alertname, severity, labels, annotations, starts_at, received_at } =
-      payload;
+    handlePrometheusAlert: (payload: PrometheusAlertPayload) => {
+      const { fingerprint, status, alertname, severity, labels, annotations, starts_at, received_at } =
+        payload;
 
-    if (status === 'firing') {
-      // Add or update the alert
-      const alerts = {
-        ...get().alerts,
-        [fingerprint]: {
-          fingerprint,
-          alertname,
-          severity,
-          labels,
-          annotations,
-          startsAt: starts_at,
-          receivedAt: received_at,
-        },
-      };
+      if (status === 'firing') {
+        // Add or update the alert using Immer
+        set((draft: PrometheusAlertState) => {
+          draft.alerts[fingerprint] = {
+            fingerprint,
+            alertname,
+            severity,
+            labels,
+            annotations,
+            startsAt: starts_at,
+            receivedAt: received_at,
+          };
 
-      set({
-        alerts,
-        ...calculateSeverityCounts(alerts),
-      });
-    } else if (status === 'resolved') {
-      // Remove the alert
-      const { [fingerprint]: removed, ...remainingAlerts } = get().alerts;
+          // Recalculate counts
+          const counts = calculateSeverityCounts(draft.alerts);
+          draft.criticalCount = counts.criticalCount;
+          draft.warningCount = counts.warningCount;
+          draft.infoCount = counts.infoCount;
+          draft.totalCount = counts.totalCount;
+        });
+      } else if (status === 'resolved') {
+        // Only update if the alert exists
+        if (get().alerts[fingerprint]) {
+          set((draft: PrometheusAlertState) => {
+            delete draft.alerts[fingerprint];
 
-      // Only update if the alert existed
-      if (removed) {
-        set({
-          alerts: remainingAlerts,
-          ...calculateSeverityCounts(remainingAlerts),
+            // Recalculate counts
+            const counts = calculateSeverityCounts(draft.alerts);
+            draft.criticalCount = counts.criticalCount;
+            draft.warningCount = counts.warningCount;
+            draft.infoCount = counts.infoCount;
+            draft.totalCount = counts.totalCount;
+          });
+        }
+      }
+    },
+
+    removeAlert: (fingerprint: string) => {
+      if (get().alerts[fingerprint]) {
+        set((draft: PrometheusAlertState) => {
+          delete draft.alerts[fingerprint];
+
+          // Recalculate counts
+          const counts = calculateSeverityCounts(draft.alerts);
+          draft.criticalCount = counts.criticalCount;
+          draft.warningCount = counts.warningCount;
+          draft.infoCount = counts.infoCount;
+          draft.totalCount = counts.totalCount;
         });
       }
-    }
-  },
+    },
 
-  removeAlert: (fingerprint: string) => {
-    const { [fingerprint]: removed, ...remainingAlerts } = get().alerts;
-
-    if (removed) {
-      set({
-        alerts: remainingAlerts,
-        ...calculateSeverityCounts(remainingAlerts),
+    clear: () => {
+      set((draft: PrometheusAlertState) => {
+        draft.alerts = {};
+        draft.criticalCount = 0;
+        draft.warningCount = 0;
+        draft.infoCount = 0;
+        draft.totalCount = 0;
       });
-    }
-  },
-
-  clear: () => {
-    set({
-      alerts: {},
-      criticalCount: 0,
-      warningCount: 0,
-      infoCount: 0,
-      totalCount: 0,
-    });
-  },
-}));
+    },
+  })
+);
 
 // ============================================================================
 // Selectors

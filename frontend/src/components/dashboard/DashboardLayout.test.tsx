@@ -1,7 +1,12 @@
+import { act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DashboardLayout, { type WidgetProps } from './DashboardLayout';
-import { DEFAULT_WIDGETS, type DashboardConfig } from '../../stores/dashboardConfig';
+import {
+  DEFAULT_CONFIG_STATE,
+  DEFAULT_WIDGETS,
+  useDashboardConfigStore,
+} from '../../stores/dashboard-config-store';
 import { renderWithProviders, screen, waitFor } from '../../test-utils/renderWithProviders';
 
 // Base time for consistent testing
@@ -66,6 +71,11 @@ beforeEach(() => {
   });
   vi.spyOn(Storage.prototype, 'removeItem').mockImplementation((key: string) => {
     delete mockStorage[key];
+  });
+
+  // Reset Zustand store to default state before each test
+  act(() => {
+    useDashboardConfigStore.setState({ ...DEFAULT_CONFIG_STATE });
   });
 });
 
@@ -306,12 +316,13 @@ describe('DashboardLayout', () => {
 
   describe('empty state', () => {
     it('shows empty state when all widgets are hidden', () => {
-      // Set up config with all widgets hidden
-      const allHiddenConfig: DashboardConfig = {
-        widgets: DEFAULT_WIDGETS.map((w) => ({ ...w, visible: false })),
-        version: 1,
-      };
-      mockStorage['dashboard-config'] = JSON.stringify(allHiddenConfig);
+      // Set up store with all widgets hidden
+      act(() => {
+        useDashboardConfigStore.setState({
+          ...DEFAULT_CONFIG_STATE,
+          widgets: DEFAULT_WIDGETS.map((w) => ({ ...w, visible: false })),
+        });
+      });
 
       renderWithProviders(<DashboardLayout {...defaultProps} />);
 
@@ -320,11 +331,12 @@ describe('DashboardLayout', () => {
     });
 
     it('empty state has configure button', () => {
-      const allHiddenConfig: DashboardConfig = {
-        widgets: DEFAULT_WIDGETS.map((w) => ({ ...w, visible: false })),
-        version: 1,
-      };
-      mockStorage['dashboard-config'] = JSON.stringify(allHiddenConfig);
+      act(() => {
+        useDashboardConfigStore.setState({
+          ...DEFAULT_CONFIG_STATE,
+          widgets: DEFAULT_WIDGETS.map((w) => ({ ...w, visible: false })),
+        });
+      });
 
       renderWithProviders(<DashboardLayout {...defaultProps} />);
 
@@ -336,11 +348,12 @@ describe('DashboardLayout', () => {
     });
 
     it('can open config modal from empty state', async () => {
-      const allHiddenConfig: DashboardConfig = {
-        widgets: DEFAULT_WIDGETS.map((w) => ({ ...w, visible: false })),
-        version: 1,
-      };
-      mockStorage['dashboard-config'] = JSON.stringify(allHiddenConfig);
+      act(() => {
+        useDashboardConfigStore.setState({
+          ...DEFAULT_CONFIG_STATE,
+          widgets: DEFAULT_WIDGETS.map((w) => ({ ...w, visible: false })),
+        });
+      });
 
       const { user } = renderWithProviders(<DashboardLayout {...defaultProps} />);
 
@@ -355,16 +368,17 @@ describe('DashboardLayout', () => {
   });
 
   describe('localStorage persistence', () => {
-    it('loads config from localStorage on mount', () => {
-      // Set up custom config in localStorage
-      const customConfig: DashboardConfig = {
-        widgets: DEFAULT_WIDGETS.map((w) => ({
-          ...w,
-          visible: w.id === 'gpu-stats', // Only gpu-stats visible
-        })),
-        version: 1,
-      };
-      mockStorage['dashboard-config'] = JSON.stringify(customConfig);
+    it('loads config from store on mount', () => {
+      // Set up custom config in store
+      act(() => {
+        useDashboardConfigStore.setState({
+          ...DEFAULT_CONFIG_STATE,
+          widgets: DEFAULT_WIDGETS.map((w) => ({
+            ...w,
+            visible: w.id === 'gpu-stats', // Only gpu-stats visible
+          })),
+        });
+      });
 
       renderWithProviders(<DashboardLayout {...defaultProps} />);
 
@@ -373,7 +387,7 @@ describe('DashboardLayout', () => {
       expect(screen.queryByTestId('mock-stats-row')).not.toBeInTheDocument();
     });
 
-    it('saves config to localStorage when changed', async () => {
+    it('saves config to store when changed', async () => {
       const { user } = renderWithProviders(<DashboardLayout {...defaultProps} />);
 
       // Open config modal and make a change
@@ -381,10 +395,10 @@ describe('DashboardLayout', () => {
       await user.click(screen.getByTestId('widget-toggle-gpu-stats'));
       await user.click(screen.getByTestId('save-button'));
 
-      // Check that localStorage was updated
-      const savedConfig = JSON.parse(mockStorage['dashboard-config']);
-      const gpuStats = savedConfig.widgets.find((w: { id: string }) => w.id === 'gpu-stats');
-      expect(gpuStats.visible).toBe(true);
+      // Check that store was updated
+      const state = useDashboardConfigStore.getState();
+      const gpuStats = state.widgets.find((w) => w.id === 'gpu-stats');
+      expect(gpuStats?.visible).toBe(true);
     });
   });
 
@@ -398,14 +412,15 @@ describe('DashboardLayout', () => {
     });
 
     it('uses single column when only camera-grid is visible', () => {
-      const config: DashboardConfig = {
-        widgets: DEFAULT_WIDGETS.map((w) => ({
-          ...w,
-          visible: w.id === 'stats-row' || w.id === 'camera-grid',
-        })),
-        version: 1,
-      };
-      mockStorage['dashboard-config'] = JSON.stringify(config);
+      act(() => {
+        useDashboardConfigStore.setState({
+          ...DEFAULT_CONFIG_STATE,
+          widgets: DEFAULT_WIDGETS.map((w) => ({
+            ...w,
+            visible: w.id === 'stats-row' || w.id === 'camera-grid',
+          })),
+        });
+      });
 
       renderWithProviders(<DashboardLayout {...defaultProps} />);
 

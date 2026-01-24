@@ -65,6 +65,7 @@ describe('useSceneChangeEvents', () => {
       isRefetching: false,
       error: null,
       refetch: vi.fn(),
+      isPlaceholderData: false,
     } as UseCamerasQueryReturn);
 
     // Mock useToast

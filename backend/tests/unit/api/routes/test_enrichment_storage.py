@@ -216,7 +216,7 @@ class TestDetectionsAPIEnrichmentData:
         """Test that GET /api/detections/{id} returns enrichment_data."""
         from httpx import ASGITransport, AsyncClient
 
-        from backend.core.database import get_db
+        from backend.core.database import get_db, get_read_db
         from backend.main import app
         from backend.models.detection import Detection
 
@@ -257,6 +257,7 @@ class TestDetectionsAPIEnrichmentData:
             yield mock_session
 
         app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_read_db] = override_get_db
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -277,7 +278,7 @@ class TestDetectionsAPIEnrichmentData:
         """Test that GET /api/detections returns enrichment_data for each detection."""
         from httpx import ASGITransport, AsyncClient
 
-        from backend.core.database import get_db
+        from backend.core.database import get_db, get_read_db
         from backend.main import app
         from backend.models.detection import Detection
 
@@ -321,6 +322,7 @@ class TestDetectionsAPIEnrichmentData:
             yield mock_session
 
         app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_read_db] = override_get_db
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
@@ -347,7 +349,7 @@ class TestEventDetectionsEnrichmentData:
         """Test that GET /api/events/{id}/detections returns enrichment_data."""
         from httpx import ASGITransport, AsyncClient
 
-        from backend.core.database import get_db
+        from backend.core.database import get_db, get_read_db
         from backend.main import app
         from backend.models.detection import Detection
         from backend.models.event import Event
@@ -418,6 +420,7 @@ class TestEventDetectionsEnrichmentData:
             yield mock_session
 
         app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_read_db] = override_get_db
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"

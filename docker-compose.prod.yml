@@ -443,6 +443,122 @@ services:
           cpus: '1'
           memory: 512M
 
+  # =============================================================================
+  # Redis Sentinel for High Availability (NEM-3413) - Optional
+  # =============================================================================
+  # Redis Sentinel provides automatic failover and master discovery.
+  # Enable by setting REDIS_USE_SENTINEL=true in .env and uncommenting below.
+  #
+  # Requires at least 3 Sentinel instances for proper quorum (2 must agree for failover).
+  # Configure backend with:
+  #   - REDIS_USE_SENTINEL=true
+  #   - REDIS_SENTINEL_MASTER_NAME=mymaster
+  #   - REDIS_SENTINEL_HOSTS=sentinel1:26379,sentinel2:26379,sentinel3:26379
+  #
+  # To enable, uncomment the sentinel services below and add redis replicas.
+
+  # sentinel1:
+  #   image: docker.io/library/redis:7.4-alpine3.21
+  #   ports:
+  #     - '26379:26379'
+  #   volumes:
+  #     - ./config/sentinel.conf:/etc/redis/sentinel.conf:ro,z
+  #     - sentinel1_data:/data
+  #   command: >-
+  #     sh -c '
+  #     cp /etc/redis/sentinel.conf /data/sentinel.conf &&
+  #     if [ -n "$$REDIS_PASSWORD" ]; then
+  #       echo "sentinel auth-pass mymaster $$REDIS_PASSWORD" >> /data/sentinel.conf
+  #     fi &&
+  #     redis-sentinel /data/sentinel.conf
+  #     '
+  #   environment:
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ['CMD', 'redis-cli', '-p', '26379', 'ping']
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
+  #   restart: unless-stopped
+  #   networks:
+  #     - security-net
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.25'
+  #         memory: 64M
+
+  # sentinel2:
+  #   image: docker.io/library/redis:7.4-alpine3.21
+  #   ports:
+  #     - '26380:26379'
+  #   volumes:
+  #     - ./config/sentinel.conf:/etc/redis/sentinel.conf:ro,z
+  #     - sentinel2_data:/data
+  #   command: >-
+  #     sh -c '
+  #     cp /etc/redis/sentinel.conf /data/sentinel.conf &&
+  #     if [ -n "$$REDIS_PASSWORD" ]; then
+  #       echo "sentinel auth-pass mymaster $$REDIS_PASSWORD" >> /data/sentinel.conf
+  #     fi &&
+  #     redis-sentinel /data/sentinel.conf
+  #     '
+  #   environment:
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ['CMD', 'redis-cli', '-p', '26379', 'ping']
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
+  #   restart: unless-stopped
+  #   networks:
+  #     - security-net
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.25'
+  #         memory: 64M
+
+  # sentinel3:
+  #   image: docker.io/library/redis:7.4-alpine3.21
+  #   ports:
+  #     - '26381:26379'
+  #   volumes:
+  #     - ./config/sentinel.conf:/etc/redis/sentinel.conf:ro,z
+  #     - sentinel3_data:/data
+  #   command: >-
+  #     sh -c '
+  #     cp /etc/redis/sentinel.conf /data/sentinel.conf &&
+  #     if [ -n "$$REDIS_PASSWORD" ]; then
+  #       echo "sentinel auth-pass mymaster $$REDIS_PASSWORD" >> /data/sentinel.conf
+  #     fi &&
+  #     redis-sentinel /data/sentinel.conf
+  #     '
+  #   environment:
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ['CMD', 'redis-cli', '-p', '26379', 'ping']
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 3
+  #   restart: unless-stopped
+  #   networks:
+  #     - security-net
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.25'
+  #         memory: 64M
+
   frontend:
     build:
       context: ./frontend
@@ -469,6 +585,8 @@ services:
       # Custom certificate paths (relative to /etc/nginx/certs mount)
       - SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/certs/cert.pem}
       - SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/certs/key.pem}
+      # HTTPS port for redirect (must match external port mapping)
+      - FRONTEND_HTTPS_PORT=${FRONTEND_HTTPS_PORT:-8443}
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
@@ -820,6 +938,13 @@ volumes:
     driver: local
   redis_data:
     driver: local
+  # Redis Sentinel volumes (uncomment when enabling Sentinel)
+  # sentinel1_data:
+  #   driver: local
+  # sentinel2_data:
+  #   driver: local
+  # sentinel3_data:
+  #   driver: local
   prometheus_data:
     driver: local
   grafana_data:
