@@ -1006,9 +1006,19 @@ async def mock_redis() -> AsyncGenerator[AsyncMock]:
         "redis_version": "7.0.0",
     }
 
-    # Set _client to None by default - tests that need _client behavior
-    # should configure it explicitly
-    mock_redis_client._client = None
+    # Create a mock for the underlying Redis client that _ensure_connected returns
+    # This needs to be a regular MagicMock (not AsyncMock) because _ensure_connected
+    # is synchronous, but the mock client's methods (script_load, evalsha) are async
+    mock_underlying_client = AsyncMock()
+    mock_underlying_client.script_load.return_value = "mock_lua_script_sha"
+    mock_underlying_client.evalsha.return_value = [1, 0]  # [is_allowed=1, current_count=0]
+
+    # _ensure_connected is a synchronous method that returns the underlying client
+    # Use MagicMock to make it synchronous (not coroutine) but return the async client
+    mock_redis_client._ensure_connected = MagicMock(return_value=mock_underlying_client)
+
+    # Set _client to the mock underlying client for direct access if needed
+    mock_redis_client._client = mock_underlying_client
 
     # Patch the shared singleton, initializer, and closer.
     with (
