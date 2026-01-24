@@ -172,8 +172,8 @@ architecture/
 - `frontend/src/hooks/useWebSocket.ts` - Base WebSocket hook
 - `frontend/src/hooks/useEventStream.ts` - Event stream hook
 - `frontend/src/hooks/useSystemStatus.ts` - System status hook
-- `frontend/src/hooks/useEvents.ts` - Events data fetching
-- `frontend/src/hooks/useCameras.ts` - Cameras data fetching
+- `frontend/src/hooks/useEventsQuery.ts` - Events data fetching
+- `frontend/src/hooks/useCamerasQuery.ts` - Cameras data fetching
 
 **When to use:** Implementing new frontend features, understanding data flow in components.
 
@@ -197,7 +197,7 @@ architecture/
 - `frontend/src/components/system/PipelineFlowVisualization.tsx` - Pipeline flow diagram
 - `frontend/src/components/system/PipelineMetricsPanel.tsx` - Detailed metrics panel
 - `frontend/src/components/system/SystemMonitoringPage.tsx` - Parent page component
-- `frontend/src/components/system/SystemSummaryRow.tsx` - Summary indicators
+- `frontend/src/components/system/SystemHealthIndicator.tsx` - Summary indicators
 - `frontend/src/hooks/usePerformanceMetrics.ts` - Performance data hook
 - `backend/api/routes/system.py` - Telemetry API endpoint
 

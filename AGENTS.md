@@ -322,7 +322,7 @@ cd frontend && npm test
 
 - **Backend:** pytest with fixtures, asyncio support
 - **Frontend:** Vitest with React Testing Library
-- **Coverage:** HTML reports in `coverage/` directory
+- **Coverage:** HTML reports generated in a coverage directory (gitignored)
 - **Markers:** `@pytest.mark.unit` and `@pytest.mark.integration`
 
 ## Service Ports

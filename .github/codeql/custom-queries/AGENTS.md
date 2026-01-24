@@ -74,7 +74,7 @@ CodeQL ignores:
 
 - Test files (`**/*.test.ts`, `**/test_*.py`, `**/tests/**`)
 - Dependencies (`node_modules/`, `.venv/`)
-- Build artifacts (`dist/`, `build/`, `coverage/`)
+- Build artifacts (dist, build, coverage directories)
 - Generated files (Alembic migrations, `*.generated.ts`)
 
 See `.github/codeql/codeql-config.yml` for full list.

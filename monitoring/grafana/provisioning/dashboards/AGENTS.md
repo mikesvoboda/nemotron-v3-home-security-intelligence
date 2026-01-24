@@ -113,7 +113,7 @@ grafana:
 ### Method 1: Drop JSON File
 
 1. Create or export dashboard JSON
-2. Save to `monitoring/grafana/dashboards/my-dashboard.json`
+2. Save to the dashboards directory (e.g., `monitoring/grafana/dashboards/`)
 3. Wait 30 seconds or restart Grafana
 4. Dashboard appears in "Home Security Intelligence" folder
 
@@ -133,7 +133,7 @@ grafana:
 1. Create dashboard in Grafana UI
 2. Dashboard Settings → JSON Model
 3. Copy JSON content
-4. Save to `monitoring/grafana/dashboards/my-dashboard.json`
+4. Save to the dashboards directory (e.g., `monitoring/grafana/dashboards/`)
 5. Dashboard is now provisioned (survives container restarts)
 
 ## Adding a New Dashboard Provider
@@ -303,7 +303,7 @@ allowUiUpdates: false
 - **Parent directory:** `../` - Main provisioning AGENTS.md with overview
 - **Dashboard definitions:** `../../dashboards/` - Actual dashboard JSON files
 - **Datasource config:** `../datasources/prometheus.yml` - Data sources used by dashboards
-- **Compose file:** `../../../docker-compose.prod.yml` - Volume mounts and service config
+- **Compose file:** Root `docker-compose.prod.yml` - Volume mounts and service config
 
 ## References
 

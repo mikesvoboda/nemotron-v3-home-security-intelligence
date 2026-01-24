@@ -614,7 +614,7 @@ Security vulnerability tests for common web attacks.
 
 Test fixtures and sample data.
 
-- `images/pipeline_test/`: 14 JPEG images for testing (person, pet, vehicle detection)
+- `fixtures/images/pipeline_test/`: 14 JPEG images for testing (person, pet, vehicle detection)
 
 ## Pre-commit Integration
 
@@ -702,7 +702,7 @@ For local development, you may want to keep the Hypothesis database enabled (the
 - You don't need to manually add `@example` decorators
 - The database persists known edge cases across test runs
 
-The database is stored in `.hypothesis/` (gitignored).
+The database is stored in a .hypothesis directory (gitignored).
 
 ## Async Testing Best Practices
 

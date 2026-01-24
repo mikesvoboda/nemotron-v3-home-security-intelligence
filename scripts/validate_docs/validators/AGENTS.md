@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `validators/` package implements the five validation levels for checking documentation citations against the actual codebase. Each validator is independent and returns a `ValidationResult`.
+This package implements the five validation levels for checking documentation citations against the actual codebase. Each validator is independent and returns a `ValidationResult`.
 
 ## Files
 

@@ -554,10 +554,10 @@ API_KEY=secret_api_key
 - **Parent directory:** `../` - Main provisioning AGENTS.md with overview
 - **Dashboard provisioning:** `../dashboards/dashboard.yml` - Dashboard provider config
 - **Dashboard definitions:** `../../dashboards/*.json` - Dashboards that use these datasources
-- **Prometheus config:** `../../prometheus.yml` - Prometheus scrape targets
+- **Prometheus config:** `monitoring/prometheus.yml` - Prometheus scrape targets
 - **Backend metrics:** `backend/api/routes/metrics.py` - Prometheus metrics endpoint
 - **Backend API:** `backend/api/routes/system.py` - REST API endpoints for Backend-API datasource
-- **Compose file:** `../../../docker-compose.prod.yml` - Service definitions and network config
+- **Compose file:** Root `docker-compose.prod.yml` - Service definitions and network config
 
 ## References
 

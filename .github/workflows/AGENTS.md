@@ -429,7 +429,7 @@ docker compose -f docker-compose.preview.yml up -d
 **Path Filters:**
 
 - `**/Dockerfile*`
-- `backend/requirements.txt`
+- `pyproject.toml` (Python dependencies)
 - `frontend/package.json`
 
 **Severity Filter:** CRITICAL, HIGH (fails build)

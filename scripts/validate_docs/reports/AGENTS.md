@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `reports/` package provides different output formats for validation results. Supports both human-readable console output and machine-readable JSON for CI integration.
+This package provides different output formats for validation results. Supports both human-readable console output and machine-readable JSON for CI integration.
 
 ## Files
 

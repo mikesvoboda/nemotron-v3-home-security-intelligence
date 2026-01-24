@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `parsers/` package extracts code citations from various documentation formats. Each parser handles a specific format and returns a list of `Citation` objects.
+This package extracts code citations from various documentation formats. Each parser handles a specific format and returns a list of `Citation` objects.
 
 ## Files
 

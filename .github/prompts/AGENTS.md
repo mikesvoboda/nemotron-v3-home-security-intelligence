@@ -95,7 +95,7 @@ The `ai-code-review.yml` workflow:
 
 ### Adding New Prompts
 
-1. Create new `.prompt.md` file in this directory
+1. Create new prompt file in this directory (e.g., `my-prompt.prompt.md`)
 2. Reference in workflow with:
    ```yaml
    - name: Load prompt

@@ -73,7 +73,7 @@ gh api /repos/{owner}/{repo}/code-scanning/alerts
 
 To add custom CodeQL queries:
 
-1. Create a `.ql` file in the appropriate `custom-queries/` subdirectory (e.g., `python/` or `javascript/`)
+1. Create a `.ql` file in the appropriate subdirectory (e.g., `custom-queries/python/` or `custom-queries/javascript/`)
 2. Add the query with proper metadata
 3. The queries are already referenced in the config via `custom-queries/`
 
