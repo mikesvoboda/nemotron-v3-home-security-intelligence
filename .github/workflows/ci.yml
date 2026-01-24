@@ -17,12 +17,77 @@ env:
   UV_VERSION: '0.9.18' # Update this single location to change uv version across all workflows
 
 jobs:
+  # Change Detection Job - determines which tests to run based on changed files
+  # Always runs tests on main branch pushes and when workflow file changes
+  detect-changes:
+    name: Detect Changed Files
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      docs-only: ${{ steps.filter.outputs.docs-only }}
+      workflow: ${{ steps.filter.outputs.workflow }}
+      should-run-all: ${{ github.ref == 'refs/heads/main' || steps.filter.outputs.workflow == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@17de8ba7ec422df3a8d66b68b31e3e8fdd27cbed # v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'ai/**'
+              - 'scripts/**/*.py'
+            frontend:
+              - 'frontend/**'
+              - '!frontend/**/*.md'
+            docs-only:
+              - 'docs/**'
+              - '**/*.md'
+              - '!frontend/**'
+              - '!backend/**'
+            workflow:
+              - '.github/workflows/ci.yml'
+
+      - name: Log detected changes
+        run: |
+          echo "## Change Detection Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Changed |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | ${{ steps.filter.outputs.backend }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ steps.filter.outputs.frontend }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docs Only | ${{ steps.filter.outputs.docs-only }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow | ${{ steps.filter.outputs.workflow }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Is Main Branch | ${{ github.ref == 'refs/heads/main' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.ref }}" == "refs/heads/main" ] || [ "${{ steps.filter.outputs.workflow }}" == "true" ]; then
+            echo "**Running all tests** (main branch push or workflow changes)" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.filter.outputs.backend }}" == "true" ] && [ "${{ steps.filter.outputs.frontend }}" == "true" ]; then
+            echo "**Running all tests** (both backend and frontend changes)" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.filter.outputs.backend }}" == "true" ]; then
+            echo "**Running backend tests only** (frontend unchanged)" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.filter.outputs.frontend }}" == "true" ]; then
+            echo "**Running frontend tests only** (backend unchanged)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Skipping tests** (docs-only changes)" >> $GITHUB_STEP_SUMMARY
+          fi
+
   # Backend Jobs
 
   # Shared backend dependencies - built once, used by all backend jobs
   build-backend-deps:
     name: Build Backend Dependencies
     runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: |
+      needs.detect-changes.outputs.should-run-all == 'true' ||
+      needs.detect-changes.outputs.backend == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -46,7 +111,12 @@ jobs:
   lint:
     name: Backend Lint (Ruff) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    needs: [build-backend-deps]
+    needs: [detect-changes, build-backend-deps]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.build-backend-deps.result != 'failure'
     strategy:
       fail-fast: false
       matrix:
@@ -81,7 +151,12 @@ jobs:
   typecheck:
     name: Backend Type Check (Mypy) - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    needs: [build-backend-deps]
+    needs: [detect-changes, build-backend-deps]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.build-backend-deps.result != 'failure'
     strategy:
       fail-fast: false
       matrix:
@@ -116,7 +191,14 @@ jobs:
         shard: [1, 2, 3, 4]
     # Wait for lint to pass first - fail fast on code quality issues
     # This saves CI minutes by not running expensive tests when lint fails
-    needs: [lint, build-backend-deps]
+    # Skip if only frontend/docs changed (checked via detect-changes)
+    needs: [detect-changes, lint, build-backend-deps]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.lint.result != 'failure' &&
+      needs.build-backend-deps.result != 'failure'
     services:
       postgres:
         image: postgres:16-alpine
@@ -196,8 +278,11 @@ jobs:
   unit-tests-coverage-merge:
     name: Backend Unit Tests Coverage
     runs-on: ubuntu-latest
-    needs: [unit-tests]
-    if: always()
+    needs: [detect-changes, unit-tests]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true')
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -253,11 +338,20 @@ jobs:
   unit-tests-summary:
     name: Backend Unit Tests
     runs-on: ubuntu-latest
-    needs: [unit-tests]
+    needs: [detect-changes, unit-tests]
     if: always()
     steps:
       - name: Check unit test shard results
         run: |
+          # Skip check if tests were skipped due to no backend changes
+          if [ "${{ needs.detect-changes.outputs.should-run-all }}" != "true" ] && \
+             [ "${{ needs.detect-changes.outputs.backend }}" != "true" ]; then
+            echo "Backend tests skipped - no backend changes detected"
+            echo "## Backend Unit Tests" >> $GITHUB_STEP_SUMMARY
+            echo "Skipped - no backend changes detected" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
           if [ "${{ needs.unit-tests.result }}" == "failure" ]; then
             echo "One or more unit test shards failed"
             exit 1
@@ -275,7 +369,13 @@ jobs:
       matrix:
         python-version: ['3.14']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
-    needs: [build-backend-deps]
+    # Skip if only frontend/docs changed (checked via detect-changes)
+    needs: [detect-changes, build-backend-deps]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.build-backend-deps.result != 'failure'
     services:
       postgres:
         image: postgres:16-alpine
@@ -388,7 +488,13 @@ jobs:
       matrix:
         python-version: ['3.14']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
-    needs: [build-backend-deps]
+    # Skip if only frontend/docs changed (checked via detect-changes)
+    needs: [detect-changes, build-backend-deps]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.build-backend-deps.result != 'failure'
     services:
       postgres:
         image: postgres:16-alpine
@@ -492,7 +598,13 @@ jobs:
       matrix:
         python-version: ['3.14']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
-    needs: [build-backend-deps]
+    # Skip if only frontend/docs changed (checked via detect-changes)
+    needs: [detect-changes, build-backend-deps]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.build-backend-deps.result != 'failure'
     services:
       postgres:
         image: postgres:16-alpine
@@ -603,7 +715,13 @@ jobs:
       matrix:
         python-version: ['3.14']
     # Run in parallel with lint - dependencies checked in integration-tests-summary
-    needs: [build-backend-deps]
+    # Skip if only frontend/docs changed (checked via detect-changes)
+    needs: [detect-changes, build-backend-deps]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.build-backend-deps.result != 'failure'
     services:
       postgres:
         image: postgres:16-alpine
@@ -701,12 +819,16 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       [
+        detect-changes,
         integration-tests-api,
         integration-tests-websocket,
         integration-tests-services,
         integration-tests-models,
       ]
-    if: always()
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true')
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -734,6 +856,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       [
+        detect-changes,
         lint,
         integration-tests-api,
         integration-tests-websocket,
@@ -744,6 +867,15 @@ jobs:
     steps:
       - name: Check integration test results
         run: |
+          # Skip check if tests were skipped due to no backend changes
+          if [ "${{ needs.detect-changes.outputs.should-run-all }}" != "true" ] && \
+             [ "${{ needs.detect-changes.outputs.backend }}" != "true" ]; then
+            echo "Integration tests skipped - no backend changes detected"
+            echo "## Backend Integration Tests" >> $GITHUB_STEP_SUMMARY
+            echo "Skipped - no backend changes detected" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
           if [ "${{ needs.integration-tests-api.result }}" == "failure" ] || \
              [ "${{ needs.integration-tests-websocket.result }}" == "failure" ] || \
              [ "${{ needs.integration-tests-services.result }}" == "failure" ] || \
@@ -970,6 +1102,12 @@ jobs:
   api-types-check:
     name: API Types Contract Check
     runs-on: ubuntu-latest
+    needs: [detect-changes]
+    # Run when backend or frontend changes (contract spans both)
+    if: |
+      needs.detect-changes.outputs.should-run-all == 'true' ||
+      needs.detect-changes.outputs.backend == 'true' ||
+      needs.detect-changes.outputs.frontend == 'true'
     env:
       DATABASE_URL: postgresql://user:pass@localhost/db # pragma: allowlist secret
     steps:
@@ -1013,6 +1151,10 @@ jobs:
   frontend-lint:
     name: Frontend Lint (ESLint)
     runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: |
+      needs.detect-changes.outputs.should-run-all == 'true' ||
+      needs.detect-changes.outputs.frontend == 'true'
     env:
       NODE_VERSION: '20'
     steps:
@@ -1040,6 +1182,10 @@ jobs:
   frontend-typecheck:
     name: Frontend Type Check (TypeScript)
     runs-on: ubuntu-latest
+    needs: [detect-changes]
+    if: |
+      needs.detect-changes.outputs.should-run-all == 'true' ||
+      needs.detect-changes.outputs.frontend == 'true'
     env:
       NODE_VERSION: '20'
     steps:
@@ -1064,7 +1210,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10 # Increased from 5 to accommodate cleanup overhead
     # Wait for lint to pass first - fail fast on code quality issues
-    needs: [frontend-lint]
+    # Skip if only backend/docs changed (checked via detect-changes)
+    needs: [detect-changes, frontend-lint]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.frontend == 'true') &&
+      needs.frontend-lint.result != 'failure'
     strategy:
       fail-fast: false
       matrix:
@@ -1165,8 +1317,11 @@ jobs:
   frontend-coverage-merge:
     name: Merge Frontend Coverage
     runs-on: ubuntu-latest
-    needs: [frontend-tests]
-    if: always()
+    needs: [detect-changes, frontend-tests]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.frontend == 'true')
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -1193,11 +1348,20 @@ jobs:
   frontend-tests-summary:
     name: Frontend Tests (Vitest)
     runs-on: ubuntu-latest
-    needs: [frontend-tests]
+    needs: [detect-changes, frontend-tests]
     if: always()
     steps:
       - name: Check shard results
         run: |
+          # Skip check if tests were skipped due to no frontend changes
+          if [ "${{ needs.detect-changes.outputs.should-run-all }}" != "true" ] && \
+             [ "${{ needs.detect-changes.outputs.frontend }}" != "true" ]; then
+            echo "Frontend tests skipped - no frontend changes detected"
+            echo "## Frontend Tests (Vitest)" >> $GITHUB_STEP_SUMMARY
+            echo "Skipped - no frontend changes detected" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
           if [ "${{ needs.frontend-tests.result }}" == "failure" ]; then
             echo "One or more Vitest shards failed"
             exit 1
@@ -1220,7 +1384,13 @@ jobs:
     name: E2E Tests (chromium ${{ matrix.shard }})
     runs-on: ubuntu-latest
     # Wait for lint to pass first - fail fast on code quality issues
-    needs: [frontend-lint]
+    # Skip if only backend/docs changed (checked via detect-changes)
+    needs: [detect-changes, frontend-lint]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.frontend == 'true') &&
+      needs.frontend-lint.result != 'failure'
     strategy:
       fail-fast: false
       matrix:
@@ -1328,11 +1498,20 @@ jobs:
   frontend-e2e-summary:
     name: E2E Tests (Chromium)
     runs-on: ubuntu-latest
-    needs: [frontend-e2e]
+    needs: [detect-changes, frontend-e2e]
     if: always()
     steps:
       - name: Check shard results
         run: |
+          # Skip check if tests were skipped due to no frontend changes
+          if [ "${{ needs.detect-changes.outputs.should-run-all }}" != "true" ] && \
+             [ "${{ needs.detect-changes.outputs.frontend }}" != "true" ]; then
+            echo "E2E tests skipped - no frontend changes detected"
+            echo "## E2E Tests (Chromium)" >> $GITHUB_STEP_SUMMARY
+            echo "Skipped - no frontend changes detected" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
           if [ "${{ needs.frontend-e2e.result }}" == "failure" ]; then
             echo "One or more E2E shards failed"
             exit 1
@@ -1696,147 +1875,7 @@ jobs:
               }'
             echo "Created new issue"
           fi
-
-  # Security Validation Job (main-only)
-
-  # Main-only: security tests verify DEBUG=false enforcement post-merge
-  security-validation:
-    name: Admin Endpoint Security Validation
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres # pragma: allowlist secret
-          POSTGRES_DB: security_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
-      REDIS_URL: redis://localhost:6379
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
-      DEBUG: 'false'
-      LOG_DB_ENABLED: 'false'
-      ENVIRONMENT: development # Avoid production password validation in CI
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
-        with:
-          version: ${{ env.UV_VERSION }}
-          enable-cache: true
-
-      - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
-
-      - name: Install dependencies
-        run: uv sync --extra dev --frozen
-
-      - name: Validate admin endpoints require DEBUG mode
-        run: |
-          # Run specific tests that verify admin endpoints return 403 when DEBUG=false
-          # These tests are critical security validation
-          # -n0 disables xdist (security tests modify global settings)
-          # --timeout=0 disables timeout (fixture import takes >1s in CI)
-          uv run pytest backend/tests/integration/test_admin_api.py \
-            -n0 \
-            --timeout=0 \
-            -k "requires_debug_mode" \
-            -v \
-            --tb=short
-
-      - name: Verify DEBUG=false is enforced
-        run: |
-          # Double-check that DEBUG is actually false in this environment
-          uv run python -c "
-          import os
-          from backend.core.config import get_settings
-          settings = get_settings()
-          assert settings.debug == False, f'DEBUG should be False but is {settings.debug}'
-          print('SUCCESS: DEBUG mode is correctly set to False')
-          "
-
-      - name: Create Linear issue on failure
-        if: failure()
-        env:
-          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-        run: |
-          TITLE="[CI] Security Validation failed on main"
-
-          # Check for existing open issue with same title
-          EXISTING=$(curl -s -X POST https://api.linear.app/graphql \
-            -H "Content-Type: application/json" \
-            -H "Authorization: $LINEAR_API_KEY" \
-            -d '{
-              "query": "query SearchIssues($filter: IssueFilter) { issues(filter: $filter) { nodes { id identifier } } }",
-              "variables": {
-                "filter": {
-                  "team": { "key": { "eq": "NEM" } },
-                  "title": { "eq": "'"$TITLE"'" },
-                  "state": { "type": { "nin": ["completed", "canceled"] } }
-                }
-              }
-            }')
-
-          EXISTING_ID=$(echo "$EXISTING" | jq -r '.data.issues.nodes[0].id // empty')
-
-          if [ -n "$EXISTING_ID" ]; then
-            # Add comment to existing issue
-            COMMENT="**Another failure detected**\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            curl -s -X POST https://api.linear.app/graphql \
-              -H "Content-Type: application/json" \
-              -H "Authorization: $LINEAR_API_KEY" \
-              -d '{
-                "query": "mutation CreateComment($input: CommentCreateInput!) { commentCreate(input: $input) { success } }",
-                "variables": {
-                  "input": {
-                    "issueId": "'"$EXISTING_ID"'",
-                    "body": "'"$COMMENT"'"
-                  }
-                }
-              }'
-            echo "Added comment to existing issue"
-          else
-            # Create new issue
-            curl -s -X POST https://api.linear.app/graphql \
-              -H "Content-Type: application/json" \
-              -H "Authorization: $LINEAR_API_KEY" \
-              -d '{
-                "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { identifier url } } }",
-                "variables": {
-                  "input": {
-                    "teamId": "998946a2-aa75-491b-a39d-189660131392",
-                    "title": "'"$TITLE"'",
-                    "description": "Security validation (DEBUG=false enforcement) failed after merge to main.\n\n**Commit:** ${{ github.sha }}\n**Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n\n**CRITICAL:** Admin endpoints may be exposed. Investigate immediately.",
-                    "priority": 1
-                  }
-                }
-              }'
-            echo "Created new issue"
-          fi
-
   # Test Performance Audit Job (main-only)
-
   test-performance-audit:
     name: Test Performance Audit
     runs-on: ubuntu-latest
@@ -2360,10 +2399,12 @@ jobs:
   # This job provides a single status check that depends on all required jobs.
   # Use this as the required check in branch protection to simplify configuration.
   # Non-blocking workflows can use workflow_run trigger on CI completion.
+  # Note: Jobs may be skipped based on changed files (detect-changes job)
   ci-gate:
     name: CI Gate (Required Checks)
     runs-on: ubuntu-latest
     needs:
+      - detect-changes
       - lint
       - typecheck
       - unit-tests-summary

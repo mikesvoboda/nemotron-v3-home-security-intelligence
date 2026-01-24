@@ -187,14 +187,17 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
         className="relative w-full max-w-lg overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#1a1a1a] shadow-2xl"
         onKeyDown={handleKeyDown}
         loop
-        filter={(value, search) => {
+        filter={(value, search, keywords) => {
           // Custom filter for case-insensitive fuzzy matching
-          const normalizedValue = value.toLowerCase();
+          // Combine value with keywords for search (similar to cmdk's default behavior)
+          const combinedValue =
+            keywords && keywords.length > 0 ? `${value} ${keywords.join(' ')}` : value;
+          const normalizedValue = combinedValue.toLowerCase();
           const normalizedSearch = search.toLowerCase();
 
           // Check if any word in the value starts with the search term
           const words = normalizedValue.split(' ');
-          if (words.some(word => word.startsWith(normalizedSearch))) {
+          if (words.some((word) => word.startsWith(normalizedSearch))) {
             return 1;
           }
 
@@ -240,14 +243,11 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
             heading="Navigation"
             className="px-2 [&_[cmdk-group-heading]]:mb-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-[#666]"
           >
-            {NAVIGATION_ITEMS.map((item) => {
-              // Build search value with name and keywords, avoiding extra spaces
-              const searchValue = [item.name, ...(item.keywords || [])].join(' ').trim();
-
-              return (
+            {NAVIGATION_ITEMS.map((item) => (
                 <Command.Item
                   key={item.path}
-                  value={searchValue}
+                  value={item.name}
+                  keywords={item.keywords}
                   onSelect={() => handleSelect(item.path)}
                   className="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-[#999] transition-colors hover:bg-[#2a2a2a] hover:text-white aria-selected:bg-[#2a2a2a] aria-selected:text-white"
                 >
@@ -261,8 +261,7 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
                     </kbd>
                   )}
                 </Command.Item>
-              );
-            })}
+              ))}
           </Command.Group>
         </Command.List>
 

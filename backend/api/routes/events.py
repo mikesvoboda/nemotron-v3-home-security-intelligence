@@ -1557,7 +1557,7 @@ async def bulk_delete_events(
     )
 
 
-@router.get("/{event_id}", response_model=EventResponse)
+@router.get("/{event_id}", response_model=EventResponse, response_model_exclude_unset=True)
 async def get_event(
     event_id: int,
     request: Request,
@@ -1821,7 +1821,11 @@ async def get_event_detections(
     )
 
 
-@router.get("/{event_id}/enrichments", response_model=EventEnrichmentsResponse)
+@router.get(
+    "/{event_id}/enrichments",
+    response_model=EventEnrichmentsResponse,
+    response_model_exclude_unset=True,
+)
 async def get_event_enrichments(
     event_id: int,
     limit: int = Query(50, ge=1, le=200, description="Maximum number of enrichments to return"),

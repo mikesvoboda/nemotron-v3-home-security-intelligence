@@ -24994,7 +24994,7 @@
     "/": {
       "get": {
         "description": "Health check endpoint.",
-        "operationId": "root__get",
+        "operationId": "root",
         "responses": {
           "200": {
             "content": {
@@ -25003,7 +25003,7 @@
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "title": "Response Root  Get",
+                  "title": "Response Root",
                   "type": "object"
                 }
               }
@@ -25017,7 +25017,7 @@
     "/api/admin/cleanup/orphans": {
       "post": {
         "description": "Manually trigger orphaned file cleanup.\n\nScans camera upload directories for files that have no corresponding\ndatabase records and optionally deletes them.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nSafety features:\n- dry_run=True by default (no actual deletions)\n- min_age_hours threshold prevents deleting files being processed\n- max_delete_gb limits total deletion per run\n\nArgs:\n    request: Cleanup configuration (dry_run, min_age_hours, max_delete_gb)\n    http_request: FastAPI request for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cleanup operation with statistics",
-        "operationId": "cleanup_orphans_api_admin_cleanup_orphans_post",
+        "operationId": "admin_cleanup_orphans",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25061,7 +25061,7 @@
     "/api/admin/maintenance/clear-cache": {
       "post": {
         "description": "Clear all cached data from Redis.\n\nInvalidates all cache entries including:\n- Events cache\n- Cameras cache\n- System status cache\n- Stats cache\n- Detections cache\n- Alerts cache\n- Summaries cache\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cache clear operation",
-        "operationId": "clear_cache_api_admin_maintenance_clear_cache_post",
+        "operationId": "admin_clear_cache",
         "responses": {
           "200": {
             "content": {
@@ -25092,7 +25092,7 @@
     "/api/admin/maintenance/flush-queues": {
       "post": {
         "description": "Flush all processing queues in Redis.\n\nClears the following queues:\n- Detection queue (incoming detection jobs)\n- Analysis queue (LLM analysis jobs)\n- DLQ detection queue (failed detection jobs)\n- DLQ analysis queue (failed analysis jobs)\n\nWARNING: This will discard any pending items in the queues.\nItems will need to be reprocessed from scratch.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of queue flush operation",
-        "operationId": "flush_queues_api_admin_maintenance_flush_queues_post",
+        "operationId": "admin_flush_queues",
         "responses": {
           "200": {
             "content": {
@@ -25123,7 +25123,7 @@
     "/api/admin/seed/cameras": {
       "post": {
         "description": "Seed test cameras into the database.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nArgs:\n    request: Seed configuration (count, clear_existing, create_folders)\n    http_request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded cameras",
-        "operationId": "seed_cameras_api_admin_seed_cameras_post",
+        "operationId": "admin_seed_cameras",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25167,7 +25167,7 @@
     "/api/admin/seed/clear": {
       "delete": {
         "description": "Clear all seeded data (cameras, events, detections).\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\nRequires JSON body confirmation to prevent accidental data deletion:\n{\"confirm\": \"DELETE_ALL_DATA\"}\n\nArgs:\n    body: Request body with confirmation string\n    request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of cleared data counts\n\nRaises:\n    HTTPException: 400 if confirmation string is incorrect",
-        "operationId": "clear_seeded_data_api_admin_seed_clear_delete",
+        "operationId": "admin_clear_seeded_data",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25221,7 +25221,7 @@
     "/api/admin/seed/events": {
       "post": {
         "description": "Seed mock events and detections into the database.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\nRequires cameras to exist first.\n\nArgs:\n    request: Seed configuration (count, clear_existing)\n    http_request: FastAPI request for audit logging\n    db: Database session\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded events and detections",
-        "operationId": "seed_events_api_admin_seed_events_post",
+        "operationId": "admin_seed_events",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25268,7 +25268,7 @@
     "/api/admin/seed/pipeline-latency": {
       "post": {
         "description": "Seed the pipeline latency tracker with mock historical data.\n\nThis populates the in-memory PipelineLatencyTracker with realistic\nlatency samples for UI testing and development. Data is distributed\nacross the specified time span with realistic variance.\n\nSECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.\nIf ADMIN_API_KEY is set, requires X-Admin-API-Key header.\n\nTypical latency ranges (ms):\n- watch_to_detect: 50-200ms (file processing + RT-DETR inference)\n- detect_to_batch: 10-50ms (detection aggregation)\n- batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)\n- total_pipeline: 5100-15300ms (end-to-end)\n\nArgs:\n    request: Configuration for sample generation\n    http_request: FastAPI request for audit logging\n    db: Database session for audit logging\n    _admin: Admin access validation (via dependency)\n\nReturns:\n    Summary of seeded latency data",
-        "operationId": "seed_pipeline_latency_api_admin_seed_pipeline_latency_post",
+        "operationId": "admin_seed_pipeline_latency",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25319,7 +25319,7 @@
     "/api/ai-audit/batch": {
       "post": {
         "description": "Trigger batch audit processing for multiple events.\n\nThis endpoint returns immediately with a job ID that can be used to\ntrack progress via GET /api/ai-audit/batch/{job_id}. Events are\nprocessed asynchronously in the background.\n\nArgs:\n    request: Batch audit request with filtering criteria\n    background_tasks: FastAPI background tasks\n    db: Database session\n    job_tracker: Job tracker for progress tracking\n\nReturns:\n    BatchAuditJobResponse with job ID for tracking progress",
-        "operationId": "trigger_batch_audit_api_ai_audit_batch_post",
+        "operationId": "ai-audit_trigger_batch_audit",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25357,7 +25357,7 @@
     "/api/ai-audit/batch/{job_id}": {
       "get": {
         "description": "Get the status of a batch audit job.\n\nProvides progress information for an ongoing or completed batch audit,\nincluding the number of events processed and any errors.\n\nArgs:\n    job_id: The job ID returned by trigger_batch_audit\n    job_tracker: Job tracker for retrieving job status\n\nReturns:\n    BatchAuditJobStatusResponse with current progress\n\nRaises:\n    HTTPException: 404 if job not found",
-        "operationId": "get_batch_audit_status_api_ai_audit_batch__job_id__get",
+        "operationId": "ai-audit_get_batch_audit_status",
         "parameters": [
           {
             "in": "path",
@@ -25399,7 +25399,7 @@
     "/api/ai-audit/events/{event_id}": {
       "get": {
         "description": "Get audit information for a specific event.\n\nRetrieves the AI pipeline audit record for the given event, including\nmodel contributions, quality scores, and prompt improvement suggestions.\n\nArgs:\n    event_id: The ID of the event to get audit for\n    db: Database session\n\nReturns:\n    EventAuditResponse containing full audit details\n\nRaises:\n    HTTPException: 404 if event or audit not found",
-        "operationId": "get_event_audit_api_ai_audit_events__event_id__get",
+        "operationId": "ai-audit_get_event_audit",
         "parameters": [
           {
             "in": "path",
@@ -25448,7 +25448,7 @@
     "/api/ai-audit/events/{event_id}/evaluate": {
       "post": {
         "description": "Trigger full evaluation for a specific event's audit.\n\nRuns the complete self-evaluation pipeline (self-critique, rubric scoring,\nconsistency check, prompt improvement) for the given event.\n\nArgs:\n    event_id: The ID of the event to evaluate\n    request: HTTP request for audit logging\n    force: If True, re-evaluate even if already evaluated\n    db: Database session\n\nReturns:\n    EventAuditResponse with updated evaluation results\n\nRaises:\n    HTTPException: 404 if event or audit not found",
-        "operationId": "evaluate_event_api_ai_audit_events__event_id__evaluate_post",
+        "operationId": "ai-audit_evaluate_event",
         "parameters": [
           {
             "in": "path",
@@ -25502,7 +25502,7 @@
     "/api/ai-audit/leaderboard": {
       "get": {
         "description": "Get model leaderboard ranked by contribution rate.\n\nReturns a ranked list of AI models by their contribution rate,\nalong with quality correlation data.\n\nArgs:\n    days: Number of days to include (1-90, default 7)\n    db: Database session\n\nReturns:\n    LeaderboardResponse with ranked model entries",
-        "operationId": "get_model_leaderboard_api_ai_audit_leaderboard_get",
+        "operationId": "ai-audit_get_model_leaderboard",
         "parameters": [
           {
             "description": "Number of days to include",
@@ -25546,7 +25546,7 @@
     "/api/ai-audit/recommendations": {
       "get": {
         "description": "Get aggregated prompt improvement recommendations.\n\nAnalyzes all audits to produce actionable recommendations for\nimproving the AI pipeline prompt templates.\n\nArgs:\n    days: Number of days to analyze (1-90, default 7)\n    db: Database session\n\nReturns:\n    RecommendationsResponse with prioritized recommendations",
-        "operationId": "get_recommendations_api_ai_audit_recommendations_get",
+        "operationId": "ai-audit_get_recommendations",
         "parameters": [
           {
             "description": "Number of days to include",
@@ -25590,7 +25590,7 @@
     "/api/ai-audit/stats": {
       "get": {
         "description": "Get aggregate AI audit statistics.\n\nReturns aggregate statistics including total events, quality scores,\nmodel contribution rates, and audit trends over the specified period.\n\nArgs:\n    days: Number of days to include in statistics (1-90, default 7)\n    camera_id: Optional camera ID to filter stats\n    db: Database session\n\nReturns:\n    AuditStatsResponse with aggregate statistics",
-        "operationId": "get_audit_stats_api_ai_audit_stats_get",
+        "operationId": "ai-audit_get_audit_stats",
         "parameters": [
           {
             "description": "Number of days to include",
@@ -25652,7 +25652,7 @@
     "/api/alerts/rules": {
       "get": {
         "description": "List all alert rules with optional filtering and pagination.\n\nArgs:\n    enabled: Filter by enabled status\n    severity: Filter by severity level (low, medium, high, critical)\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    AlertRuleListResponse with rules and pagination info",
-        "operationId": "list_rules_api_alerts_rules_get",
+        "operationId": "alert-rules_list_rules",
         "parameters": [
           {
             "description": "Filter by enabled status",
@@ -25743,7 +25743,7 @@
       },
       "post": {
         "description": "Create a new alert rule.\n\nArgs:\n    rule_data: Rule creation data\n    db: Database session\n    cache: Cache service for cache invalidation (NEM-1952)\n\nReturns:\n    Created AlertRule",
-        "operationId": "create_rule_api_alerts_rules_post",
+        "operationId": "alert-rules_create_rule",
         "requestBody": {
           "content": {
             "application/json": {
@@ -25781,7 +25781,7 @@
     "/api/alerts/rules/{rule_id}": {
       "delete": {
         "description": "Delete an alert rule.\n\nArgs:\n    rule_id: Rule UUID\n    db: Database session\n    cache: Cache service for cache invalidation (NEM-1952)\n\nRaises:\n    HTTPException: 404 if rule not found",
-        "operationId": "delete_rule_api_alerts_rules__rule_id__delete",
+        "operationId": "alert-rules_delete_rule",
         "parameters": [
           {
             "in": "path",
@@ -25821,7 +25821,7 @@
       },
       "get": {
         "description": "Get a specific alert rule by ID.\n\nArgs:\n    rule_id: Rule UUID\n    db: Database session\n\nReturns:\n    AlertRule\n\nRaises:\n    HTTPException: 404 if rule not found",
-        "operationId": "get_rule_api_alerts_rules__rule_id__get",
+        "operationId": "alert-rules_get_rule",
         "parameters": [
           {
             "in": "path",
@@ -25868,7 +25868,7 @@
       },
       "put": {
         "description": "Update an existing alert rule.\n\nArgs:\n    rule_id: Rule UUID\n    rule_data: Rule update data\n    db: Database session\n    cache: Cache service for cache invalidation (NEM-1952)\n\nReturns:\n    Updated AlertRule\n\nRaises:\n    HTTPException: 404 if rule not found",
-        "operationId": "update_rule_api_alerts_rules__rule_id__put",
+        "operationId": "alert-rules_update_rule",
         "parameters": [
           {
             "in": "path",
@@ -25921,7 +25921,7 @@
     "/api/alerts/rules/{rule_id}/test": {
       "post": {
         "description": "Test a rule against historical events.\n\nThis endpoint allows testing rule configuration without actually\ncreating alerts. Useful for validating rules before enabling them.\n\nArgs:\n    rule_id: Rule UUID\n    test_data: Test configuration (event IDs, time override)\n    db: Database session\n    engine: AlertRuleEngine injected via Depends()\n\nReturns:\n    RuleTestResponse with per-event match results\n\nRaises:\n    HTTPException: 404 if rule not found",
-        "operationId": "test_rule_api_alerts_rules__rule_id__test_post",
+        "operationId": "alert-rules_test_rule",
         "parameters": [
           {
             "in": "path",
@@ -25973,7 +25973,7 @@
     "/api/alerts/{alert_id}/acknowledge": {
       "post": {
         "description": "Acknowledge an alert.\n\nMarks an alert as acknowledged and broadcasts the state change via WebSocket.\nOnly alerts with status PENDING or DELIVERED can be acknowledged.\n\nUses optimistic locking to prevent race conditions when multiple requests\nattempt to modify the same alert concurrently. If a concurrent modification\nis detected, returns HTTP 409 Conflict.\n\nNEM-2582: WebSocket broadcast now uses background task with retry logic\nto ensure delivery without blocking the main request.\n\nArgs:\n    alert_id: Alert UUID\n    background_tasks: FastAPI background tasks for non-blocking broadcast\n    db: Database session\n\nReturns:\n    Updated AlertResponse\n\nRaises:\n    HTTPException: 404 if alert not found, 409 if alert cannot be acknowledged\n                  or if concurrent modification detected",
-        "operationId": "acknowledge_alert_api_alerts__alert_id__acknowledge_post",
+        "operationId": "alerts_acknowledge_alert",
         "parameters": [
           {
             "in": "path",
@@ -26025,7 +26025,7 @@
     "/api/alerts/{alert_id}/dismiss": {
       "post": {
         "description": "Dismiss an alert.\n\nMarks an alert as dismissed and broadcasts the state change via WebSocket.\nOnly alerts with status PENDING, DELIVERED, or ACKNOWLEDGED can be dismissed.\n\nUses optimistic locking to prevent race conditions when multiple requests\nattempt to modify the same alert concurrently. If a concurrent modification\nis detected, returns HTTP 409 Conflict.\n\nNEM-2582: WebSocket broadcast now uses background task with retry logic\nto ensure delivery without blocking the main request.\n\nArgs:\n    alert_id: Alert UUID\n    background_tasks: FastAPI background tasks for non-blocking broadcast\n    db: Database session\n\nReturns:\n    Updated AlertResponse\n\nRaises:\n    HTTPException: 404 if alert not found, 409 if alert cannot be dismissed\n                  or if concurrent modification detected",
-        "operationId": "dismiss_alert_api_alerts__alert_id__dismiss_post",
+        "operationId": "alerts_dismiss_alert",
         "parameters": [
           {
             "in": "path",
@@ -26077,7 +26077,7 @@
     "/api/analytics/camera-uptime": {
       "get": {
         "description": "Get uptime percentage per camera.\n\nReturns uptime percentage and detection count for each camera.\nUptime is calculated based on the number of days with at least one detection\ndivided by the total days in the date range.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    CameraUptimeResponse with per-camera uptime data\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
-        "operationId": "get_camera_uptime_api_analytics_camera_uptime_get",
+        "operationId": "analytics_get_camera_uptime",
         "parameters": [
           {
             "description": "Start date for analytics (ISO format)",
@@ -26134,7 +26134,7 @@
     "/api/analytics/detection-trends": {
       "get": {
         "description": "Get detection counts aggregated by day.\n\nReturns daily detection counts for the specified date range.\nCreates one data point per day even if there are no detections.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    DetectionTrendsResponse with daily detection counts\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
-        "operationId": "get_detection_trends_api_analytics_detection_trends_get",
+        "operationId": "analytics_get_detection_trends",
         "parameters": [
           {
             "description": "Start date for analytics (ISO format)",
@@ -26191,7 +26191,7 @@
     "/api/analytics/object-distribution": {
       "get": {
         "description": "Get detection counts by object type.\n\nReturns detection counts grouped by object type with percentages.\nOnly includes detections with non-null object_type.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    ObjectDistributionResponse with object type counts and percentages\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
-        "operationId": "get_object_distribution_api_analytics_object_distribution_get",
+        "operationId": "analytics_get_object_distribution",
         "parameters": [
           {
             "description": "Start date for analytics (ISO format)",
@@ -26248,7 +26248,7 @@
     "/api/analytics/risk-history": {
       "get": {
         "description": "Get risk score distribution over time.\n\nReturns daily counts of events grouped by risk level (low, medium, high, critical).\nCreates one data point per day even if there are no events.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    RiskHistoryResponse with daily risk level counts\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
-        "operationId": "get_risk_history_api_analytics_risk_history_get",
+        "operationId": "analytics_get_risk_history",
         "parameters": [
           {
             "description": "Start date for analytics (ISO format)",
@@ -26305,7 +26305,7 @@
     "/api/audit": {
       "get": {
         "description": "List audit logs with optional filtering and cursor-based pagination.\n\nThis endpoint is intended for admin use to review security-sensitive operations.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\n**Performance Note:** Total count queries are expensive for large datasets. By default,\nthe total count is not calculated (returns 0). Use `include_total_count=true` only when\nthe total count is needed (e.g., for displaying \"X of Y results\" in UI). For pagination,\n`has_more` and `next_cursor` provide sufficient information.\n\nArgs:\n    action: Optional action type to filter by\n    resource_type: Optional resource type to filter by\n    resource_id: Optional specific resource ID to filter by\n    actor: Optional actor to filter by\n    status_filter: Optional status to filter by (success/failure)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    limit: Maximum number of results to return (1-1000, default 100)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    include_total_count: Whether to calculate total count (default False for performance)\n    db: Database session\n\nReturns:\n    AuditLogListResponse containing filtered logs and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid",
-        "operationId": "list_audit_logs_api_audit_get",
+        "operationId": "audit_list_audit_logs",
         "parameters": [
           {
             "description": "Filter by action type",
@@ -26523,7 +26523,7 @@
     "/api/audit/stats": {
       "get": {
         "description": "Get audit log statistics for dashboard.\n\nReturns aggregated statistics about audit logs including:\n- Total log count\n- Logs today\n- Breakdown by action type\n- Breakdown by resource type\n- Breakdown by status\n- Recently active actors\n\nThis endpoint is optimized to use a single aggregation query for counts\n(total, today, by_action, by_resource_type, by_status) plus one query\nfor recent actors, reducing database round-trips from 6 to 2.\n\nArgs:\n    db: Database session\n\nReturns:\n    AuditLogStats with aggregated statistics",
-        "operationId": "get_audit_stats_api_audit_stats_get",
+        "operationId": "audit_get_audit_stats",
         "responses": {
           "200": {
             "content": {
@@ -26551,7 +26551,7 @@
     "/api/audit/{audit_id}": {
       "get": {
         "description": "Get a specific audit log entry by ID.\n\nArgs:\n    audit_id: Audit log ID\n    db: Database session\n\nReturns:\n    AuditLog record\n\nRaises:\n    HTTPException: 404 if audit log not found",
-        "operationId": "get_audit_log_api_audit__audit_id__get",
+        "operationId": "audit_get_audit_log",
         "parameters": [
           {
             "in": "path",
@@ -26600,7 +26600,7 @@
     "/api/calibration": {
       "get": {
         "description": "Get the current user's calibration settings.\n\nReturns the calibration thresholds for the default user.\nIf no calibration exists, one is automatically created with default values.\n\nReturns:\n    CalibrationResponse with current threshold settings",
-        "operationId": "get_calibration_api_calibration_get",
+        "operationId": "calibration_get_calibration",
         "responses": {
           "200": {
             "content": {
@@ -26623,7 +26623,7 @@
       },
       "patch": {
         "description": "Partially update calibration thresholds.\n\nAllows partial updates - only provided fields will be changed.\nValidates that threshold ordering is maintained (low < medium < high).\n\nArgs:\n    update_data: Fields to update (partial updates supported)\n    db: Database session\n\nReturns:\n    Updated CalibrationResponse\n\nRaises:\n    HTTPException: 422 if threshold ordering would be violated",
-        "operationId": "patch_calibration_api_calibration_patch",
+        "operationId": "calibration_patch_calibration",
         "requestBody": {
           "content": {
             "application/json": {
@@ -26659,7 +26659,7 @@
       },
       "put": {
         "description": "Update calibration thresholds (full replacement semantics).\n\nAllows partial updates - only provided fields will be changed.\nValidates that threshold ordering is maintained (low < medium < high).\n\nNote: For REST semantics, use PATCH for partial updates. This PUT endpoint\nis kept for backward compatibility and behaves identically to PATCH.\n\nArgs:\n    update_data: Fields to update (partial updates supported)\n    db: Database session\n\nReturns:\n    Updated CalibrationResponse\n\nRaises:\n    HTTPException: 422 if threshold ordering would be violated",
-        "operationId": "update_calibration_api_calibration_put",
+        "operationId": "calibration_update_calibration",
         "requestBody": {
           "content": {
             "application/json": {
@@ -26697,7 +26697,7 @@
     "/api/calibration/defaults": {
       "get": {
         "description": "Get default calibration threshold values.\n\nReturns the default values used when creating new calibrations\nor when resetting to defaults. This endpoint is useful for\ndisplaying defaults in the UI or documentation.\n\nReturns:\n    CalibrationDefaultsResponse with default threshold values",
-        "operationId": "get_calibration_defaults_api_calibration_defaults_get",
+        "operationId": "calibration_get_calibration_defaults",
         "responses": {
           "200": {
             "content": {
@@ -26722,7 +26722,7 @@
     "/api/calibration/reset": {
       "post": {
         "description": "Reset calibration to default thresholds.\n\nResets all thresholds to their default values:\n- low_threshold: 30\n- medium_threshold: 60\n- high_threshold: 85\n- decay_factor: 0.1\n\nNote: Feedback counts (correct_count, false_positive_count, missed_threat_count,\nseverity_wrong_count) are NOT reset by this operation.\n\nReturns:\n    CalibrationResetResponse with success message and reset calibration data",
-        "operationId": "reset_calibration_api_calibration_reset_post",
+        "operationId": "calibration_reset_calibration",
         "responses": {
           "200": {
             "content": {
@@ -26747,7 +26747,7 @@
     "/api/cameras": {
       "get": {
         "description": "List all cameras with optional status filter.\n\nUses Redis cache with cache-aside pattern to improve performance\nand generate cache hit metrics.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,name,status\n\nArgs:\n    status_filter: Optional status to filter cameras by (online, offline, error)\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    db: Database session\n    cache: Cache service injected via FastAPI DI\n\nReturns:\n    CameraListResponse containing list of cameras and total count\n\nRaises:\n    HTTPException: 400 if invalid fields are requested",
-        "operationId": "list_cameras_api_cameras_get",
+        "operationId": "cameras_list_cameras",
         "parameters": [
           {
             "description": "Filter by camera status",
@@ -26815,7 +26815,7 @@
       },
       "post": {
         "description": "Create a new camera.\n\nArgs:\n    camera_data: Camera creation data\n    request: FastAPI request for audit logging\n    db: Database session\n\nReturns:\n    Created camera object with generated ID\n\nRaises:\n    HTTPException: 409 if camera with same name or folder_path already exists",
-        "operationId": "create_camera_api_cameras_post",
+        "operationId": "cameras_create_camera",
         "requestBody": {
           "content": {
             "application/json": {
@@ -26857,7 +26857,7 @@
     "/api/cameras/deleted": {
       "get": {
         "description": "List all soft-deleted cameras for trash view.\n\nReturns cameras that have been soft-deleted (deleted_at is not null),\nordered by deleted_at descending (most recently deleted first).\n\nThis endpoint enables a \"trash\" view where users can see deleted cameras\nand optionally restore them.\n\nArgs:\n    db: Database session\n\nReturns:\n    DeletedCamerasListResponse containing list of deleted cameras and count",
-        "operationId": "list_deleted_cameras_api_cameras_deleted_get",
+        "operationId": "cameras_list_deleted_cameras",
         "responses": {
           "200": {
             "content": {
@@ -26879,7 +26879,7 @@
     "/api/cameras/validation/paths": {
       "get": {
         "description": "Validate all camera folder paths against the configured base path.\n\nThis endpoint checks each camera's folder_path to determine:\n1. Whether the path is under the configured FOSCAM_BASE_PATH\n2. Whether the directory exists on disk\n3. Whether the directory contains any images or video files\n\nNEM-2446: Video files (.mkv, .mp4, etc.) are now valid for snapshot\nextraction, so cameras with only video files pass validation.\n\nUse this to diagnose cameras that show \"No snapshot available\" errors.\n\nReturns:\n    CameraPathValidationResponse with validation results for all cameras",
-        "operationId": "validate_camera_paths_api_cameras_validation_paths_get",
+        "operationId": "cameras_validate_camera_paths",
         "responses": {
           "200": {
             "content": {
@@ -26904,7 +26904,7 @@
     "/api/cameras/{camera_id}": {
       "delete": {
         "description": "Delete a camera.\n\nThis operation cascades to all related detections and events.\n\nArgs:\n    camera_id: Normalized camera ID (e.g., \"front_door\", \"backyard\")\n    request: FastAPI request for audit logging\n    db: Database session\n\nRaises:\n    HTTPException: 404 if camera not found",
-        "operationId": "delete_camera_api_cameras__camera_id__delete",
+        "operationId": "cameras_delete_camera",
         "parameters": [
           {
             "in": "path",
@@ -26938,7 +26938,7 @@
       },
       "get": {
         "description": "Get a specific camera by ID.\n\nArgs:\n    camera_id: Normalized camera ID (e.g., \"front_door\", \"backyard\")\n    db: Database session\n\nReturns:\n    Camera object\n\nRaises:\n    HTTPException: 404 if camera not found",
-        "operationId": "get_camera_api_cameras__camera_id__get",
+        "operationId": "cameras_get_camera",
         "parameters": [
           {
             "in": "path",
@@ -26979,7 +26979,7 @@
       },
       "patch": {
         "description": "Update an existing camera.\n\nArgs:\n    camera_id: Normalized camera ID (e.g., \"front_door\", \"backyard\")\n    camera_data: Camera update data (all fields optional)\n    request: FastAPI request for audit logging\n    db: Database session\n\nReturns:\n    Updated camera object\n\nRaises:\n    HTTPException: 404 if camera not found",
-        "operationId": "update_camera_api_cameras__camera_id__patch",
+        "operationId": "cameras_update_camera",
         "parameters": [
           {
             "in": "path",
@@ -27032,7 +27032,7 @@
     "/api/cameras/{camera_id}/baseline": {
       "get": {
         "description": "Get baseline activity data for a camera.\n\nReturns comprehensive baseline statistics including:\n- Hourly activity patterns (0-23 hours)\n- Daily patterns (by day of week)\n- Object-specific baselines\n- Current deviation from baseline\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n    baseline_service: BaselineService injected via Depends()\n\nReturns:\n    BaselineSummaryResponse with all baseline data\n\nRaises:\n    HTTPException: 404 if camera not found",
-        "operationId": "get_camera_baseline_api_cameras__camera_id__baseline_get",
+        "operationId": "cameras_get_camera_baseline",
         "parameters": [
           {
             "in": "path",
@@ -27075,7 +27075,7 @@
     "/api/cameras/{camera_id}/baseline/activity": {
       "get": {
         "description": "Get raw activity baseline data for a camera.\n\nReturns up to 168 entries (24 hours x 7 days) representing the full\nweekly activity heatmap. Each entry contains the average count and\nsample count for that hour/day combination.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n    baseline_service: BaselineService injected via Depends()\n\nReturns:\n    ActivityBaselineResponse with entries for the heatmap\n\nRaises:\n    HTTPException: 404 if camera not found",
-        "operationId": "get_camera_activity_baseline_api_cameras__camera_id__baseline_activity_get",
+        "operationId": "cameras_get_camera_activity_baseline",
         "parameters": [
           {
             "in": "path",
@@ -27118,7 +27118,7 @@
     "/api/cameras/{camera_id}/baseline/anomalies": {
       "get": {
         "description": "Get recent anomaly events for a camera.\n\nReturns a list of anomaly events detected within the specified time period.\nAnomalies are detections that significantly deviate from the established\nbaseline activity patterns.\n\nArgs:\n    camera_id: ID of the camera\n    days: Number of days to look back (default: 7, max: 90)\n    db: Database session\n    baseline_service: BaselineService injected via Depends()\n\nReturns:\n    AnomalyListResponse with list of anomaly events\n\nRaises:\n    HTTPException: 404 if camera not found",
-        "operationId": "get_camera_baseline_anomalies_api_cameras__camera_id__baseline_anomalies_get",
+        "operationId": "cameras_get_camera_baseline_anomalies",
         "parameters": [
           {
             "in": "path",
@@ -27175,7 +27175,7 @@
     "/api/cameras/{camera_id}/baseline/classes": {
       "get": {
         "description": "Get class frequency baseline data for a camera.\n\nReturns baseline entries grouped by object class and hour, showing\nthe frequency of each object type at different times of day.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n    baseline_service: BaselineService injected via Depends()\n\nReturns:\n    ClassBaselineResponse with entries for each class/hour combination\n\nRaises:\n    HTTPException: 404 if camera not found",
-        "operationId": "get_camera_class_baseline_api_cameras__camera_id__baseline_classes_get",
+        "operationId": "cameras_get_camera_class_baseline",
         "parameters": [
           {
             "in": "path",
@@ -27218,7 +27218,7 @@
     "/api/cameras/{camera_id}/restore": {
       "post": {
         "description": "Restore a soft-deleted camera.\n\nClears the deleted_at timestamp on a soft-deleted camera, making it\nvisible again in normal queries.\n\nArgs:\n    camera_id: ID of the camera to restore\n    db: Database session\n    cache: Cache service for invalidation\n\nReturns:\n    CameraResponse with the restored camera data\n\nRaises:\n    HTTPException: 404 if camera not found\n    HTTPException: 400 if camera is not deleted (nothing to restore)",
-        "operationId": "restore_camera_api_cameras__camera_id__restore_post",
+        "operationId": "cameras_restore_camera",
         "parameters": [
           {
             "in": "path",
@@ -27267,7 +27267,7 @@
     "/api/cameras/{camera_id}/scene-changes": {
       "get": {
         "description": "Get scene changes for a camera with cursor-based pagination.\n\nReturns a list of detected scene changes that may indicate camera\ntampering, angle changes, or blocked views. Uses cursor-based pagination\nfor efficient navigation through large datasets.\n\nArgs:\n    camera_id: ID of the camera\n    acknowledged: Filter by acknowledgement status (None = all)\n    limit: Maximum number of results (default: 50, max: 100)\n    cursor: Cursor for pagination (detected_at timestamp from previous response)\n    db: Database session\n\nReturns:\n    SceneChangeListResponse with list of scene changes and pagination info\n\nRaises:\n    HTTPException: 404 if camera not found",
-        "operationId": "get_camera_scene_changes_api_cameras__camera_id__scene_changes_get",
+        "operationId": "cameras_get_camera_scene_changes",
         "parameters": [
           {
             "in": "path",
@@ -27361,7 +27361,7 @@
     "/api/cameras/{camera_id}/scene-changes/{scene_change_id}/acknowledge": {
       "post": {
         "description": "Acknowledge a scene change alert.\n\nMarks a scene change as acknowledged to indicate it has been reviewed.\n\nArgs:\n    camera_id: ID of the camera\n    scene_change_id: ID of the scene change to acknowledge\n    request: FastAPI request for audit logging\n    db: Database session\n\nReturns:\n    SceneChangeAcknowledgeResponse confirming acknowledgement\n\nRaises:\n    HTTPException: 404 if camera or scene change not found",
-        "operationId": "acknowledge_scene_change_api_cameras__camera_id__scene_changes__scene_change_id__acknowledge_post",
+        "operationId": "cameras_acknowledge_scene_change",
         "parameters": [
           {
             "in": "path",
@@ -27413,7 +27413,7 @@
     "/api/cameras/{camera_id}/snapshot": {
       "get": {
         "description": "Return the latest image for a camera (best-effort snapshot).\n\nThis endpoint is exempt from API key authentication because:\n1. It serves static image content accessed directly by browsers via <img> tags\n2. It has its own security controls (path traversal protection, file type allowlist)\n3. It has rate limiting to prevent abuse\n\nThis endpoint uses the camera's configured `folder_path` and returns the most recently\nmodified image file under that directory.\n\nNEM-2446: Now supports video-only cameras by extracting and caching frames.",
-        "operationId": "get_camera_snapshot_api_cameras__camera_id__snapshot_get",
+        "operationId": "cameras_get_camera_snapshot",
         "parameters": [
           {
             "in": "path",
@@ -27455,7 +27455,7 @@
     "/api/cameras/{camera_id}/zones": {
       "get": {
         "description": "List all zones for a camera with optional filtering.\n\nArgs:\n    camera_id: ID of the camera\n    enabled: Optional filter for enabled/disabled zones\n    db: Database session\n\nReturns:\n    ZoneListResponse containing list of zones and total count",
-        "operationId": "list_zones_api_cameras__camera_id__zones_get",
+        "operationId": "zones_list_zones",
         "parameters": [
           {
             "in": "path",
@@ -27514,7 +27514,7 @@
       },
       "post": {
         "description": "Create a new zone for a camera.\n\nArgs:\n    camera_id: ID of the camera\n    zone_data: Zone creation data\n    db: Database session\n\nReturns:\n    Created zone object with generated ID",
-        "operationId": "create_zone_api_cameras__camera_id__zones_post",
+        "operationId": "zones_create_zone",
         "parameters": [
           {
             "in": "path",
@@ -27567,7 +27567,7 @@
     "/api/cameras/{camera_id}/zones/{zone_id}": {
       "delete": {
         "description": "Delete a zone.\n\nArgs:\n    camera_id: ID of the camera\n    zone_id: ID of the zone to delete\n    db: Database session\n\nRaises:\n    HTTPException: 404 if zone not found",
-        "operationId": "delete_zone_api_cameras__camera_id__zones__zone_id__delete",
+        "operationId": "zones_delete_zone",
         "parameters": [
           {
             "in": "path",
@@ -27610,7 +27610,7 @@
       },
       "get": {
         "description": "Get a specific zone by ID.\n\nArgs:\n    camera_id: ID of the camera\n    zone_id: ID of the zone\n    db: Database session\n\nReturns:\n    CameraZone object\n\nRaises:\n    HTTPException: 404 if zone not found",
-        "operationId": "get_zone_api_cameras__camera_id__zones__zone_id__get",
+        "operationId": "zones_get_zone",
         "parameters": [
           {
             "in": "path",
@@ -27660,7 +27660,7 @@
       },
       "put": {
         "description": "Update an existing zone.\n\nArgs:\n    camera_id: ID of the camera\n    zone_id: ID of the zone to update\n    zone_data: Zone update data (all fields optional)\n    db: Database session\n\nReturns:\n    Updated zone object\n\nRaises:\n    HTTPException: 404 if zone not found",
-        "operationId": "update_zone_api_cameras__camera_id__zones__zone_id__put",
+        "operationId": "zones_update_zone",
         "parameters": [
           {
             "in": "path",
@@ -27722,7 +27722,7 @@
     "/api/debug/circuit-breakers": {
       "get": {
         "description": "Get all circuit breaker states.\n\nReturns the current state and metrics for all registered circuit breakers,\nincluding failure counts, success counts, and configuration.\n\nNEM-1642: Debug endpoint for circuit breaker diagnostics",
-        "operationId": "get_circuit_breakers_api_debug_circuit_breakers_get",
+        "operationId": "debug_get_circuit_breakers",
         "responses": {
           "200": {
             "content": {
@@ -27750,7 +27750,7 @@
     "/api/debug/config": {
       "get": {
         "description": "Get current configuration with sensitive values redacted.\n\nReturns all configuration settings with passwords, API keys, and other\nsensitive values replaced with [REDACTED]. URLs containing passwords\nwill have only the password portion redacted, preserving the structure.\n\nNEM-1642: Debug endpoint for configuration inspection",
-        "operationId": "get_config_api_debug_config_get",
+        "operationId": "debug_get_config",
         "responses": {
           "200": {
             "content": {
@@ -27778,7 +27778,7 @@
     "/api/debug/log-level": {
       "get": {
         "description": "Get current log level.\n\nNEM-1471: Log level inspection endpoint",
-        "operationId": "get_log_level_api_debug_log_level_get",
+        "operationId": "debug_get_log_level",
         "responses": {
           "200": {
             "content": {
@@ -27804,7 +27804,7 @@
       },
       "post": {
         "description": "Set log level at runtime for debugging.\n\nAllows changing the log level without restarting the application.\nUseful for temporarily enabling DEBUG logging to investigate issues.\n\nNEM-1471: Log level runtime override\n\nArgs:\n    request: Log level request with new level\n\nReturns:\n    Current and previous log level\n\nRaises:\n    HTTPException: If the log level is invalid",
-        "operationId": "set_log_level_api_debug_log_level_post",
+        "operationId": "debug_set_log_level",
         "requestBody": {
           "content": {
             "application/json": {
@@ -27848,7 +27848,7 @@
     "/api/debug/memory": {
       "get": {
         "description": "Get detailed memory statistics for debugging memory issues.\n\nReturns process memory usage, garbage collector stats, and the top\nobject types consuming memory. Useful for detecting memory leaks.\n\nArgs:\n    top_n: Number of top object types to return (default: 20)\n    force_gc: Force garbage collection before measuring (default: False)\n\nReturns:\n    Detailed memory statistics",
-        "operationId": "get_memory_stats_api_debug_memory_get",
+        "operationId": "debug_get_memory_stats",
         "parameters": [
           {
             "in": "query",
@@ -27908,14 +27908,14 @@
     "/api/debug/memory/gc": {
       "post": {
         "description": "Trigger garbage collection and return stats.\n\nForces a full garbage collection cycle and returns the number of\nobjects collected. Useful for testing if memory can be reclaimed.\n\nReturns:\n    GC collection statistics",
-        "operationId": "trigger_gc_api_debug_memory_gc_post",
+        "operationId": "debug_trigger_gc",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "additionalProperties": true,
-                  "title": "Response Trigger Gc Api Debug Memory Gc Post",
+                  "title": "Response Debug Trigger Gc",
                   "type": "object"
                 }
               }
@@ -27938,7 +27938,7 @@
     "/api/debug/memory/tracemalloc/start": {
       "post": {
         "description": "Start tracemalloc memory tracing.\n\nEnables detailed memory allocation tracking. This adds some overhead\nbut allows tracking where memory is being allocated.\n\nArgs:\n    nframes: Number of stack frames to capture (default: 25)\n\nReturns:\n    Status of tracemalloc",
-        "operationId": "start_tracemalloc_api_debug_memory_tracemalloc_start_post",
+        "operationId": "debug_start_tracemalloc",
         "parameters": [
           {
             "in": "query",
@@ -27957,7 +27957,7 @@
               "application/json": {
                 "schema": {
                   "additionalProperties": true,
-                  "title": "Response Start Tracemalloc Api Debug Memory Tracemalloc Start Post",
+                  "title": "Response Debug Start Tracemalloc",
                   "type": "object"
                 }
               }
@@ -27990,14 +27990,14 @@
     "/api/debug/memory/tracemalloc/stop": {
       "post": {
         "description": "Stop tracemalloc memory tracing.\n\nStops memory allocation tracking and clears the trace data.\n\nReturns:\n    Final memory statistics before stopping",
-        "operationId": "stop_tracemalloc_api_debug_memory_tracemalloc_stop_post",
+        "operationId": "debug_stop_tracemalloc",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
                   "additionalProperties": true,
-                  "title": "Response Stop Tracemalloc Api Debug Memory Tracemalloc Stop Post",
+                  "title": "Response Debug Stop Tracemalloc",
                   "type": "object"
                 }
               }
@@ -28020,7 +28020,7 @@
     "/api/debug/pipeline-errors": {
       "get": {
         "description": "Get recent pipeline errors from the AI analysis pipeline.\n\nRetrieves errors stored in Redis for debugging pipeline issues.\nSupports optional filtering by component and error type.\n\nArgs:\n    limit: Maximum number of errors to return (default: 10, max: 100)\n    component: Optional filter by component (e.g., \"detector\", \"analyzer\")\n    error_type: Optional filter by error type (e.g., \"connection_error\")\n\nReturns:\n    List of recent pipeline errors with metadata\n\nNEM-2485: Pipeline errors retrieval endpoint for Debug API",
-        "operationId": "get_pipeline_errors_api_debug_pipeline_errors_get",
+        "operationId": "debug_get_pipeline_errors",
         "parameters": [
           {
             "in": "query",
@@ -28102,7 +28102,7 @@
     "/api/debug/pipeline-state": {
       "get": {
         "description": "Get current state of the AI processing pipeline.\n\nReturns queue depths, worker status, and recent errors for debugging\npipeline issues and monitoring system health.\n\nArgs:\n    error_limit: Maximum number of recent errors to return (default: 10, max: 100)\n\nNEM-1470: Debug endpoint for pipeline state inspection\nNEM-2485: Complete pipeline errors retrieval implementation",
-        "operationId": "get_pipeline_state_api_debug_pipeline_state_get",
+        "operationId": "debug_get_pipeline_state",
         "parameters": [
           {
             "in": "query",
@@ -28152,7 +28152,7 @@
     "/api/debug/profile/start": {
       "post": {
         "description": "Start performance profiling.\n\nBegins collecting profiling data for performance analysis.\nProfile data is saved to disk when stop is called.\n\nNEM-1644: Debug endpoint for performance profiling\n\nReturns:\n    Profiling start status",
-        "operationId": "start_profiling_api_debug_profile_start_post",
+        "operationId": "debug_start_profiling",
         "responses": {
           "200": {
             "content": {
@@ -28180,7 +28180,7 @@
     "/api/debug/profile/stats": {
       "get": {
         "description": "Get current profiling statistics.\n\nReturns the current profiling state and statistics from the last\ncompleted profiling session.\n\nNEM-1644: Debug endpoint for performance profiling\n\nReturns:\n    Profiling status and statistics",
-        "operationId": "get_profile_stats_api_debug_profile_stats_get",
+        "operationId": "debug_get_profile_stats",
         "responses": {
           "200": {
             "content": {
@@ -28208,7 +28208,7 @@
     "/api/debug/profile/stop": {
       "post": {
         "description": "Stop performance profiling and save results.\n\nStops the profiler and saves the profile data to a .prof file.\nThe file can be analyzed with snakeviz or py-spy.\n\nNEM-1644: Debug endpoint for performance profiling\n\nReturns:\n    Profiling stop status with path to saved profile",
-        "operationId": "stop_profiling_api_debug_profile_stop_post",
+        "operationId": "debug_stop_profiling",
         "responses": {
           "200": {
             "content": {
@@ -28236,7 +28236,7 @@
     "/api/debug/recordings": {
       "get": {
         "description": "List available request recordings.\n\nReturns a list of recorded requests, sorted by timestamp (newest first).\nUse the recording_id to replay a specific request.\n\nNEM-1646: Request recording and replay for debugging\n\nArgs:\n    limit: Maximum number of recordings to return (default: 50)\n\nReturns:\n    List of recordings with metadata",
-        "operationId": "list_recordings_api_debug_recordings_get",
+        "operationId": "debug_list_recordings",
         "parameters": [
           {
             "in": "query",
@@ -28280,7 +28280,7 @@
     "/api/debug/recordings/{recording_id}": {
       "delete": {
         "description": "Delete a specific recording.\n\nNEM-1646: Request recording management\n\nArgs:\n    recording_id: ID of the recording to delete\n\nReturns:\n    Confirmation message\n\nRaises:\n    HTTPException: 404 if recording not found",
-        "operationId": "delete_recording_api_debug_recordings__recording_id__delete",
+        "operationId": "debug_delete_recording",
         "parameters": [
           {
             "in": "path",
@@ -28300,7 +28300,7 @@
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "title": "Response Delete Recording Api Debug Recordings  Recording Id  Delete",
+                  "title": "Response Debug Delete Recording",
                   "type": "object"
                 }
               }
@@ -28325,7 +28325,7 @@
       },
       "get": {
         "description": "Get details of a specific recording.\n\nReturns the full recording data including headers, body, and response.\n\nNEM-1646: Request recording and replay for debugging\n\nArgs:\n    recording_id: ID of the recording to retrieve\n\nReturns:\n    Full recording data\n\nRaises:\n    HTTPException: 404 if recording not found",
-        "operationId": "get_recording_api_debug_recordings__recording_id__get",
+        "operationId": "debug_get_recording",
         "parameters": [
           {
             "in": "path",
@@ -28343,7 +28343,7 @@
               "application/json": {
                 "schema": {
                   "additionalProperties": true,
-                  "title": "Response Get Recording Api Debug Recordings  Recording Id  Get",
+                  "title": "Response Debug Get Recording",
                   "type": "object"
                 }
               }
@@ -28370,7 +28370,7 @@
     "/api/debug/redis/info": {
       "get": {
         "description": "Get Redis connection stats and pub/sub channel information.\n\nReturns Redis server info, memory usage, connection stats, and\nactive pub/sub channels with their subscriber counts.\n\nNEM-1642: Debug endpoint for Redis diagnostics",
-        "operationId": "get_redis_info_api_debug_redis_info_get",
+        "operationId": "debug_get_redis_info",
         "responses": {
           "200": {
             "content": {
@@ -28398,7 +28398,7 @@
     "/api/debug/replay/{recording_id}": {
       "post": {
         "description": "Replay a recorded request for debugging.\n\nReconstructs the original request from the recording and executes it\nagainst the current application. This is useful for:\n- Reproducing production issues locally\n- Testing fixes for error scenarios\n- Debugging intermittent failures\n\nSECURITY: This endpoint is only available when debug=True and requires\nthe request to pass through the debug mode gate.\n\nNEM-1646: Request recording and replay for debugging\n\nArgs:\n    recording_id: ID of the recording to replay\n\nReturns:\n    Replay response with original and new status codes\n\nRaises:\n    HTTPException: 404 if recording not found",
-        "operationId": "replay_request_api_debug_replay__recording_id__post",
+        "operationId": "debug_replay_request",
         "parameters": [
           {
             "in": "path",
@@ -28441,7 +28441,7 @@
     "/api/debug/websocket/connections": {
       "get": {
         "description": "Get active WebSocket connection states.\n\nReturns connection counts and health status for both the event broadcaster\n(security event stream) and system broadcaster (system status stream).\n\nNEM-1642: Debug endpoint for WebSocket diagnostics",
-        "operationId": "get_websocket_connections_api_debug_websocket_connections_get",
+        "operationId": "debug_get_websocket_connections",
         "responses": {
           "200": {
             "content": {
@@ -28469,7 +28469,7 @@
     "/api/detections": {
       "get": {
         "description": "List detections with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,object_type,confidence\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    object_type: Optional object type to filter by (person, car, etc.)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    min_confidence: Optional minimum confidence score (0-1)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    db: Database session\n\nReturns:\n    DetectionListResponse containing filtered detections and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
-        "operationId": "list_detections_api_detections_get",
+        "operationId": "detections_list_detections",
         "parameters": [
           {
             "description": "Filter by camera ID",
@@ -28660,7 +28660,7 @@
     "/api/detections/bulk": {
       "delete": {
         "description": "Delete multiple detections in a single request.\n\nSupports partial success - some deletions may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nNote: Detection deletion is always hard delete as detections are raw data\nand soft-delete is not supported.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk delete request with up to 100 detection IDs\n    db: Database session\n    cache: Cache service for invalidation (NEM-1951)\n\nReturns:\n    BulkOperationResponse with per-item results",
-        "operationId": "bulk_delete_detections_api_detections_bulk_delete",
+        "operationId": "detections_bulk_delete_detections",
         "requestBody": {
           "content": {
             "application/json": {
@@ -28699,7 +28699,7 @@
       },
       "patch": {
         "description": "Update multiple detections in a single request.\n\nSupports partial success - some updates may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk update request with up to 100 detection updates\n    db: Database session\n    cache: Cache service for invalidation (NEM-1951)\n\nReturns:\n    BulkOperationResponse with per-item results",
-        "operationId": "bulk_update_detections_api_detections_bulk_patch",
+        "operationId": "detections_bulk_update_detections",
         "requestBody": {
           "content": {
             "application/json": {
@@ -28738,7 +28738,7 @@
       },
       "post": {
         "description": "Create multiple detections in a single request.\n\nSupports partial success - some detections may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk create request with up to 100 detections\n    db: Database session\n    cache: Cache service for invalidation (NEM-1951)\n\nReturns:\n    DetectionBulkCreateResponse with per-item results",
-        "operationId": "bulk_create_detections_api_detections_bulk_post",
+        "operationId": "detections_bulk_create_detections",
         "requestBody": {
           "content": {
             "application/json": {
@@ -28779,7 +28779,7 @@
     "/api/detections/labels": {
       "get": {
         "description": "Get all unique detection labels with counts.",
-        "operationId": "list_detection_labels_api_detections_labels_get",
+        "operationId": "detections_list_detection_labels",
         "responses": {
           "200": {
             "content": {
@@ -28801,7 +28801,7 @@
     "/api/detections/search": {
       "get": {
         "description": "Search detections using full-text search.",
-        "operationId": "search_detections_api_detections_search_get",
+        "operationId": "detections_search_detections",
         "parameters": [
           {
             "in": "query",
@@ -28955,7 +28955,7 @@
     "/api/detections/stats": {
       "get": {
         "description": "Get aggregate detection statistics including class distribution and trends.\n\nReturns:\n- Total detection count\n- Detection counts grouped by object class (person, car, truck, etc.)\n- Average confidence score across all detections\n- Detection trends for the last 7 days (for Grafana time series)\n\nUsed by the AI Performance page to display detection class distribution charts\nand by the Grafana Analytics dashboard for detection trend visualization.\n\nOptimized to use a single query with window functions instead of 3 separate queries\n(NEM-1321). The query combines:\n- Per-class counts via GROUP BY\n- Total count via SUM(COUNT(*)) OVER() window function\n- Per-class avg confidence, then combined using weighted average formula\n\nArgs:\n    camera_id: Optional camera ID filter (for camera-specific stats)\n    db: Database session\n\nReturns:\n    DetectionStatsResponse with aggregate detection statistics and trends",
-        "operationId": "get_detection_stats_api_detections_stats_get",
+        "operationId": "detections_get_detection_stats",
         "parameters": [
           {
             "description": "Filter by camera ID",
@@ -29007,7 +29007,7 @@
     "/api/detections/{detection_id}": {
       "get": {
         "description": "Get a specific detection by ID.\n\nArgs:\n    detection_id: Detection ID\n    db: Database session\n\nReturns:\n    Detection object\n\nRaises:\n    HTTPException: 404 if detection not found",
-        "operationId": "get_detection_api_detections__detection_id__get",
+        "operationId": "detections_get_detection",
         "parameters": [
           {
             "in": "path",
@@ -29050,7 +29050,7 @@
     "/api/detections/{detection_id}/enrichment": {
       "get": {
         "description": "Get structured enrichment data for a detection.\n\nReturns results from the 18+ vision models run during the enrichment pipeline:\n- License plate detection and OCR\n- Face detection\n- Vehicle classification and damage detection\n- Clothing analysis (FashionCLIP and SegFormer)\n- Violence detection\n- Image quality assessment\n- Pet classification\n\nArgs:\n    detection_id: Detection ID\n    db: Database session\n\nReturns:\n    EnrichmentResponse with structured vision model results\n\nRaises:\n    HTTPException: 404 if detection not found",
-        "operationId": "get_detection_enrichment_api_detections__detection_id__enrichment_get",
+        "operationId": "detections_get_detection_enrichment",
         "parameters": [
           {
             "in": "path",
@@ -29093,7 +29093,7 @@
     "/api/detections/{detection_id}/image": {
       "get": {
         "description": "Get detection image with bounding box overlay, or full-size original.\n\nThis endpoint is exempt from API key authentication because:\n1. It serves static image content accessed directly by browsers via <img> tags\n2. Detection IDs are not predictable (integer IDs require prior knowledge)\n3. It has rate limiting to prevent abuse\n\nBy default, returns the thumbnail image with bounding box drawn around the\ndetected object. If thumbnail doesn't exist, generates it on the fly from\nthe source image or video.\n\nFor video detections, extracts a frame from the video using ffmpeg.\n\nWhen full=true is passed, returns the original source image without any\nbounding box overlay. This is used for the full-size image lightbox viewer.\nNote: For video detections with full=true, returns the first frame as an image.\n\nArgs:\n    detection_id: Detection ID\n    full: If true, return the original full-size image instead of thumbnail\n    db: Database session\n    thumbnail_generator: ThumbnailGenerator injected via Depends()\n    video_processor: VideoProcessor injected via Depends() for video detections\n\nReturns:\n    JPEG image (thumbnail with bounding box, or full-size original)\n\nRaises:\n    HTTPException: 404 if detection not found or image file doesn't exist\n    HTTPException: 500 if image generation fails",
-        "operationId": "get_detection_image_api_detections__detection_id__image_get",
+        "operationId": "detections_get_detection_image",
         "parameters": [
           {
             "in": "path",
@@ -29150,7 +29150,7 @@
     "/api/detections/{detection_id}/thumbnail": {
       "get": {
         "description": "Serve the cropped thumbnail image with bounding box overlay.",
-        "operationId": "get_detection_thumbnail_api_detections__detection_id__thumbnail_get",
+        "operationId": "detections_get_detection_thumbnail",
         "parameters": [
           {
             "in": "path",
@@ -29199,7 +29199,7 @@
     "/api/detections/{detection_id}/video": {
       "get": {
         "description": "Stream detection video with HTTP Range request support and transcoding.\n\nThis endpoint is exempt from API key authentication because:\n1. It serves video content accessed directly by browsers via <video> tags\n2. Detection IDs are not predictable (integer IDs require prior knowledge)\n3. It has rate limiting to prevent abuse\n\nNEM-2681: Videos are automatically transcoded to browser-compatible H.264/MP4\nformat. Transcoded videos are cached to avoid re-transcoding on subsequent\nrequests. Videos that are already browser-compatible (H.264 MP4) are served\ndirectly without transcoding.\n\nSupports partial content requests for video seeking and efficient playback.\nReturns 206 Partial Content for range requests, 200 OK for full content.\n\nArgs:\n    detection_id: Detection ID\n    range_header: HTTP Range header for partial content requests\n    db: Database session\n    transcoding_service: Service for transcoding videos to browser-compatible format\n\nReturns:\n    StreamingResponse with browser-compatible video content\n\nRaises:\n    HTTPException: 400 if detection is not a video\n    HTTPException: 404 if detection not found or video file not found\n    HTTPException: 416 if range is not satisfiable\n    HTTPException: 500 if transcoding fails",
-        "operationId": "stream_detection_video_api_detections__detection_id__video_get",
+        "operationId": "detections_stream_detection_video",
         "parameters": [
           {
             "in": "path",
@@ -29269,7 +29269,7 @@
     "/api/detections/{detection_id}/video/thumbnail": {
       "get": {
         "description": "Get thumbnail frame from a video detection.\n\nThis endpoint is exempt from API key authentication because:\n1. It serves static image content accessed directly by browsers via <img> tags\n2. Detection IDs are not predictable (integer IDs require prior knowledge)\n3. It has rate limiting to prevent abuse\n\nExtracts and returns a thumbnail frame from the video. If thumbnail\ndoesn't exist, generates it on the fly using ffmpeg.\n\nArgs:\n    detection_id: Detection ID\n    db: Database session\n    video_processor: VideoProcessor injected via Depends()\n\nReturns:\n    JPEG thumbnail image\n\nRaises:\n    HTTPException: 404 if detection not found or not a video\n    HTTPException: 500 if thumbnail generation fails",
-        "operationId": "get_video_thumbnail_api_detections__detection_id__video_thumbnail_get",
+        "operationId": "detections_get_video_thumbnail",
         "parameters": [
           {
             "in": "path",
@@ -29317,7 +29317,7 @@
     "/api/dlq/jobs/{queue_name}": {
       "get": {
         "description": "List jobs in a specific dead-letter queue with enriched error context.\n\nReturns jobs in the specified DLQ without removing them.\nUse pagination parameters to control the result set.\n\nEach job includes enriched error context (NEM-1474):\n- error_type: Exception class name for categorization\n- stack_trace: Truncated stack trace for debugging\n- http_status: HTTP status code (for network errors)\n- response_body: Truncated AI service response\n- retry_delays: Delays applied between retry attempts\n- context: System state snapshot at failure time\n\nArgs:\n    queue_name: Name of the DLQ (detection or analysis)\n    start: Start index for pagination\n    limit: Maximum number of jobs to return\n    redis: Redis client\n\nReturns:\n    DLQJobsResponse with list of jobs including error context (NEM-2178 pagination envelope)",
-        "operationId": "get_dlq_jobs_api_dlq_jobs__queue_name__get",
+        "operationId": "dlq_get_dlq_jobs",
         "parameters": [
           {
             "in": "path",
@@ -29382,7 +29382,7 @@
     "/api/dlq/requeue-all/{queue_name}": {
       "post": {
         "description": "Requeue all jobs from a DLQ back to their original processing queue.\n\nRemoves all jobs from the specified DLQ and adds them back to the\noriginal processing queue for retry. Limited to settings.max_requeue_iterations\nto prevent resource exhaustion.\n\nArgs:\n    queue_name: Name of the DLQ (detection or analysis)\n    redis: Redis client\n\nReturns:\n    DLQRequeueResponse with operation result and count",
-        "operationId": "requeue_all_dlq_jobs_api_dlq_requeue_all__queue_name__post",
+        "operationId": "dlq_requeue_all_dlq_jobs",
         "parameters": [
           {
             "in": "path",
@@ -29455,7 +29455,7 @@
     "/api/dlq/requeue/{queue_name}": {
       "post": {
         "description": "Requeue the oldest job from a DLQ back to its original processing queue.\n\nRemoves the oldest job from the specified DLQ and adds it back to the\noriginal processing queue for retry.\n\nArgs:\n    queue_name: Name of the DLQ (detection or analysis)\n    redis: Redis client\n\nReturns:\n    DLQRequeueResponse with operation result",
-        "operationId": "requeue_dlq_job_api_dlq_requeue__queue_name__post",
+        "operationId": "dlq_requeue_dlq_job",
         "parameters": [
           {
             "in": "path",
@@ -29528,7 +29528,7 @@
     "/api/dlq/stats": {
       "get": {
         "description": "Get dead-letter queue statistics.\n\nReturns the number of jobs in each DLQ and the total count.\n\nReturns:\n    DLQStatsResponse with queue counts",
-        "operationId": "get_dlq_stats_api_dlq_stats_get",
+        "operationId": "dlq_get_dlq_stats",
         "responses": {
           "200": {
             "content": {
@@ -29553,7 +29553,7 @@
     "/api/dlq/{queue_name}": {
       "delete": {
         "description": "Clear all jobs from a dead-letter queue.\n\nWARNING: This permanently removes all jobs from the specified DLQ.\nUse with caution.\n\nArgs:\n    queue_name: Name of the DLQ to clear\n    redis: Redis client\n\nReturns:\n    DLQClearResponse with operation result",
-        "operationId": "clear_dlq_api_dlq__queue_name__delete",
+        "operationId": "dlq_clear_dlq",
         "parameters": [
           {
             "in": "path",
@@ -29626,7 +29626,7 @@
     "/api/entities": {
       "get": {
         "description": "List tracked entities with optional filtering.\n\nReturns a paginated list of entities from PostgreSQL. Entities are\ntracked via re-identification and stored in the database.\n\nArgs:\n    entity_type: Filter by entity type ('person' or 'vehicle')\n    camera_id: Filter by camera ID\n    since: Filter entities seen since this timestamp\n    limit: Maximum number of results (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    entity_repo: Entity repository dependency for PostgreSQL queries\n\nReturns:\n    EntityListResponse with filtered entities and pagination info",
-        "operationId": "list_entities_api_entities_get",
+        "operationId": "entities_list_entities",
         "parameters": [
           {
             "description": "Filter by entity type: 'person' or 'vehicle'",
@@ -29738,7 +29738,7 @@
     "/api/entities/matches/{detection_id}": {
       "get": {
         "description": "Find entities matching a specific detection's embedding.\n\nSearches for entities similar to the specified detection's embedding\nacross all cameras. Used to show re-ID matches in the EventDetailModal.\n\nNOTE: This endpoint continues to use Redis for real-time similarity matching.\n\nArgs:\n    detection_id: Detection ID to find matches for\n    entity_type: Type of entity to search ('person' or 'vehicle')\n    threshold: Minimum cosine similarity threshold (default 0.85)\n    reid_service: Re-identification service dependency\n\nReturns:\n    EntityMatchResponse with matching entities sorted by similarity\n\nRaises:\n    HTTPException: 404 if detection embedding not found, 503 if Redis unavailable",
-        "operationId": "get_entity_matches_api_entities_matches__detection_id__get",
+        "operationId": "entities_get_entity_matches",
         "parameters": [
           {
             "in": "path",
@@ -29815,7 +29815,7 @@
     "/api/entities/stats": {
       "get": {
         "description": "Get aggregated entity statistics.\n\nReturns statistics about tracked entities including counts by type,\ncamera, and repeat visitors.\n\nArgs:\n    since: Filter entities seen since this timestamp\n    until: Filter entities seen until this timestamp\n    entity_repo: Entity repository dependency\n\nReturns:\n    EntityStatsResponse with aggregated statistics",
-        "operationId": "get_entity_stats_api_entities_stats_get",
+        "operationId": "entities_get_entity_stats",
         "parameters": [
           {
             "description": "Filter entities seen since this time",
@@ -29890,7 +29890,7 @@
     "/api/entities/trusted": {
       "get": {
         "description": "List all trusted entities.\n\nReturns a paginated list of entities that have been marked as trusted.\nTrusted entities are those that have been classified as known/safe,\nsuch as family members, regular visitors, or delivery personnel.\n\nArgs:\n    entity_type: Filter by entity type ('person' or 'vehicle')\n    limit: Maximum number of results (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    entity_repo: Entity repository dependency for PostgreSQL queries\n\nReturns:\n    TrustedEntityListResponse with filtered trusted entities and pagination info",
-        "operationId": "list_trusted_entities_api_entities_trusted_get",
+        "operationId": "entities_list_trusted_entities",
         "parameters": [
           {
             "description": "Filter by entity type: 'person' or 'vehicle'",
@@ -29965,7 +29965,7 @@
     "/api/entities/untrusted": {
       "get": {
         "description": "List all untrusted entities.\n\nReturns a paginated list of entities that have been marked as untrusted.\nUntrusted entities are those that have been classified as unknown or suspicious,\nrequiring additional monitoring.\n\nArgs:\n    entity_type: Filter by entity type ('person' or 'vehicle')\n    limit: Maximum number of results (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    entity_repo: Entity repository dependency for PostgreSQL queries\n\nReturns:\n    TrustedEntityListResponse with filtered untrusted entities and pagination info",
-        "operationId": "list_untrusted_entities_api_entities_untrusted_get",
+        "operationId": "entities_list_untrusted_entities",
         "parameters": [
           {
             "description": "Filter by entity type: 'person' or 'vehicle'",
@@ -30040,7 +30040,7 @@
     "/api/entities/v2": {
       "get": {
         "description": "List tracked entities with historical query support.\n\nReturns a paginated list of entities from Redis (hot cache) and/or\nPostgreSQL (historical data). Use the source parameter to control\nwhich backend to query.\n\nArgs:\n    entity_type: Filter by entity type ('person' or 'vehicle')\n    camera_id: Filter by camera ID\n    since: Filter entities seen since this timestamp\n    until: Filter entities seen until this timestamp\n    source: Data source ('redis', 'postgres', 'both') - default 'both'\n    limit: Maximum number of results (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    reid_service: Re-identification service dependency\n    hybrid_storage: Hybrid storage service dependency\n\nReturns:\n    EntityListResponse with filtered entities and pagination info",
-        "operationId": "list_entities_v2_api_entities_v2_get",
+        "operationId": "entities_list_entities_v2",
         "parameters": [
           {
             "description": "Filter by entity type: 'person' or 'vehicle'",
@@ -30182,7 +30182,7 @@
     "/api/entities/v2/{entity_id}": {
       "get": {
         "description": "Get detailed information about a specific entity from PostgreSQL.\n\nReturns the canonical PostgreSQL entity record with full history.\nFor real-time Redis entities, use the original /api/entities/{entity_id} endpoint.\n\nArgs:\n    entity_id: UUID of the entity\n    hybrid_storage: Hybrid storage service dependency\n\nReturns:\n    EntityDetail with full entity information\n\nRaises:\n    HTTPException: 404 if entity not found",
-        "operationId": "get_entity_v2_api_entities_v2__entity_id__get",
+        "operationId": "entities_get_entity_v2",
         "parameters": [
           {
             "in": "path",
@@ -30232,7 +30232,7 @@
     "/api/entities/v2/{entity_id}/detections": {
       "get": {
         "description": "List all detections linked to an entity.\n\nReturns paginated detections associated with the specified entity.\n\nArgs:\n    entity_id: UUID of the entity\n    limit: Maximum number of results (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    entity_repo: Entity repository dependency\n\nReturns:\n    EntityDetectionsResponse with linked detections and pagination info\n\nRaises:\n    HTTPException: 404 if entity not found",
-        "operationId": "get_entity_detections_api_entities_v2__entity_id__detections_get",
+        "operationId": "entities_get_entity_detections",
         "parameters": [
           {
             "in": "path",
@@ -30309,7 +30309,7 @@
     "/api/entities/{entity_id}": {
       "get": {
         "description": "Get detailed information about a specific entity.\n\nReturns the entity's summary information along with all recorded appearances\nfrom PostgreSQL.\n\nArgs:\n    entity_id: UUID of the entity\n    entity_repo: Entity repository dependency for PostgreSQL queries\n\nReturns:\n    EntityDetail with full entity information\n\nRaises:\n    HTTPException: 404 if entity not found",
-        "operationId": "get_entity_api_entities__entity_id__get",
+        "operationId": "entities_get_entity",
         "parameters": [
           {
             "in": "path",
@@ -30359,7 +30359,7 @@
     "/api/entities/{entity_id}/history": {
       "get": {
         "description": "Get the appearance timeline for a specific entity.\n\nReturns a chronological list of all appearances for the entity\nacross all cameras from PostgreSQL.\n\nArgs:\n    entity_id: UUID of the entity\n    entity_repo: Entity repository dependency for PostgreSQL queries\n\nReturns:\n    EntityHistoryResponse with appearance timeline\n\nRaises:\n    HTTPException: 404 if entity not found",
-        "operationId": "get_entity_history_api_entities__entity_id__history_get",
+        "operationId": "entities_get_entity_history",
         "parameters": [
           {
             "in": "path",
@@ -30409,7 +30409,7 @@
     "/api/entities/{entity_id}/trust": {
       "patch": {
         "description": "Update an entity's trust classification status.\n\nAllows marking entities as trusted (known/safe), untrusted (suspicious),\nor unclassified (default). Includes optional notes for documenting\nthe classification decision.\n\nArgs:\n    entity_id: UUID of the entity to update\n    trust_update: Trust status update request containing trust_status and optional notes\n    entity_repo: Entity repository dependency for PostgreSQL queries\n\nReturns:\n    EntityTrustResponse with updated trust information\n\nRaises:\n    HTTPException: 404 if entity not found",
-        "operationId": "update_entity_trust_api_entities__entity_id__trust_patch",
+        "operationId": "entities_update_entity_trust",
         "parameters": [
           {
             "in": "path",
@@ -30462,7 +30462,7 @@
     "/api/events": {
       "get": {
         "description": "List events with optional filtering and cursor-based pagination.\n\nSupports both cursor-based pagination (recommended) and offset pagination (deprecated).\nCursor-based pagination offers better performance for large datasets.\n\nBy default, soft-deleted events (events with deleted_at set) are excluded from results.\nUse include_deleted=true to include them.\n\nSparse Fieldsets (NEM-1434):\nUse the `fields` parameter to request only specific fields in the response,\nreducing payload size. Example: ?fields=id,camera_id,risk_level,summary,reviewed\n\nArgs:\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip (deprecated, use cursor instead)\n    cursor: Pagination cursor from previous response's next_cursor field\n    fields: Comma-separated list of fields to include (sparse fieldsets)\n    include_deleted: Include soft-deleted events in results (default False)\n    db: Database session\n\nReturns:\n    EventListResponse containing filtered events and pagination info\n\nRaises:\n    HTTPException: 400 if start_date is after end_date\n    HTTPException: 400 if cursor is invalid\n    HTTPException: 400 if invalid fields are requested",
-        "operationId": "list_events_api_events_get",
+        "operationId": "events_list_events",
         "parameters": [
           {
             "description": "Filter by camera ID",
@@ -30681,7 +30681,7 @@
     "/api/events/analyze/{batch_id}/stream": {
       "get": {
         "description": "Stream LLM analysis progress for a batch via Server-Sent Events (NEM-1665).\n\nThis endpoint provides progressive LLM response updates during long inference\ntimes, allowing the frontend to display partial results and show typing\nindicators while the analysis is in progress.\n\nEvent Types:\n- progress: Partial LLM response chunk with accumulated_text\n- complete: Final event with risk assessment and event_id\n- error: Error information with error_code and recoverable flag\n\nArgs:\n    batch_id: Batch identifier to analyze\n    camera_id: Optional camera ID (uses Redis lookup if not provided)\n    detection_ids: Optional comma-separated detection IDs\n    analyzer: NemotronAnalyzer injected via Depends()\n\nReturns:\n    StreamingResponse with SSE event stream (text/event-stream)\n\nExample SSE output:\n    data: {\"event_type\": \"progress\", \"content\": \"Based on\", \"accumulated_text\": \"Based on\"}\n\n    data: {\"event_type\": \"progress\", \"content\": \" the\", \"accumulated_text\": \"Based on the\"}\n\n    data: {\"event_type\": \"complete\", \"event_id\": 123, \"risk_score\": 75, ...}",
-        "operationId": "analyze_batch_streaming_api_events_analyze__batch_id__stream_get",
+        "operationId": "events_analyze_batch_streaming",
         "parameters": [
           {
             "in": "path",
@@ -30758,7 +30758,7 @@
     "/api/events/bulk": {
       "delete": {
         "description": "Delete multiple events in a single request.\n\nSupports partial success - some deletions may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nBy default uses soft delete (sets deleted_at timestamp) with cascade to\nrelated detections. Use soft_delete=false for permanent deletion.\nUse cascade=false to only delete the event without affecting detections.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk delete request with up to 100 event IDs\n    db: Database session\n    cache: Cache service for invalidation\n\nReturns:\n    BulkOperationResponse with per-item results",
-        "operationId": "bulk_delete_events_api_events_bulk_delete",
+        "operationId": "events_bulk_delete_events",
         "requestBody": {
           "content": {
             "application/json": {
@@ -30797,7 +30797,7 @@
       },
       "patch": {
         "description": "Update multiple events in a single request.\n\nSupports partial success - some updates may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk update request with up to 100 event updates\n    db: Database session\n\nReturns:\n    BulkOperationResponse with per-item results",
-        "operationId": "bulk_update_events_api_events_bulk_patch",
+        "operationId": "events_bulk_update_events",
         "requestBody": {
           "content": {
             "application/json": {
@@ -30836,7 +30836,7 @@
       },
       "post": {
         "description": "Create multiple events in a single request.\n\nSupports partial success - some events may succeed while others fail.\nReturns HTTP 207 Multi-Status with per-item results.\n\nRate limiting: Limited to 10 requests/minute with burst of 2 (NEM-2600).\n\nArgs:\n    request: Bulk create request with up to 100 events\n    db: Database session\n\nReturns:\n    EventBulkCreateResponse with per-item results",
-        "operationId": "bulk_create_events_api_events_bulk_post",
+        "operationId": "events_bulk_create_events",
         "requestBody": {
           "content": {
             "application/json": {
@@ -30877,7 +30877,7 @@
     "/api/events/deleted": {
       "get": {
         "description": "List all soft-deleted events for trash view.\n\nReturns events that have been soft-deleted (deleted_at is not null),\nordered by deleted_at descending (most recently deleted first).\n\nThis endpoint enables a \"trash\" view where users can see deleted events\nand optionally restore them.\n\nArgs:\n    db: Database session\n\nReturns:\n    DeletedEventsListResponse containing list of deleted events and count",
-        "operationId": "list_deleted_events_api_events_deleted_get",
+        "operationId": "events_list_deleted_events",
         "responses": {
           "200": {
             "content": {
@@ -30899,7 +30899,7 @@
     "/api/events/export": {
       "get": {
         "description": "Export events as CSV or Excel file for external analysis or record-keeping.\n\nSupports content negotiation via HTTP Accept header:\n- `Accept: text/csv` or `Accept: application/csv` - CSV format (default)\n- `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` - Excel (XLSX)\n- `Accept: application/vnd.ms-excel` or `Accept: application/xlsx` - Excel (XLSX)\n\nThis endpoint is rate-limited to 10 requests per minute per client IP\nto prevent abuse and protect against data exfiltration attacks.\n\nExports events with the following fields:\n- Event ID, camera name, timestamps\n- Risk score, risk level, summary\n- Detection count, reviewed status\n\nArgs:\n    request: FastAPI request object (includes Accept header for format selection)\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    db: Database session\n    _rate_limit: Rate limiter dependency (10 req/min, no burst)\n\nReturns:\n    StreamingResponse with CSV or Response with Excel file containing exported events\n\nRaises:\n    HTTPException: 429 if rate limit exceeded\n    HTTPException: 400 if start_date is after end_date",
-        "operationId": "export_events_api_events_export_get",
+        "operationId": "events_export_events",
         "parameters": [
           {
             "description": "Filter by camera ID",
@@ -31037,7 +31037,7 @@
       },
       "post": {
         "description": "Start a background export job for events. Returns a job ID that can be used to track progress via GET /api/jobs/{job_id}.",
-        "operationId": "start_export_job_api_events_export_post",
+        "operationId": "jobs_start_export_job",
         "requestBody": {
           "content": {
             "application/json": {
@@ -31079,7 +31079,7 @@
     "/api/events/search": {
       "get": {
         "description": "Search events using full-text search.\n\nUses read replica for linear scalability (NEM-3392).\n\nThis endpoint provides PostgreSQL full-text search across event summaries,\nreasoning, object types, and camera names.\n\nSearch Query Syntax:\n- Basic words: \"person vehicle\" (implicit AND)\n- Phrase search: '\"suspicious person\"' (exact phrase)\n- Boolean OR: \"person OR animal\"\n- Boolean NOT: \"person NOT cat\"\n- Boolean AND: \"person AND vehicle\" (explicit)\n\nArgs:\n    q: Search query string (required)\n    camera_id: Optional comma-separated camera IDs to filter by\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    severity: Optional comma-separated risk levels (low, medium, high, critical)\n    risk_level: Alias for severity - accepts same format\n    object_type: Optional comma-separated object types (person, vehicle, animal)\n    reviewed: Optional filter by reviewed status\n    limit: Maximum number of results to return (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    db: Database session\n\nReturns:\n    SearchResponse with ranked results and pagination info\n\nRaises:\n    HTTPException: 400 if any severity value is invalid\n    HTTPException: 400 if start_date is after end_date",
-        "operationId": "search_events_endpoint_api_events_search_get",
+        "operationId": "events_search_events_endpoint",
         "parameters": [
           {
             "description": "Search query string",
@@ -31280,7 +31280,7 @@
     "/api/events/stats": {
       "get": {
         "description": "Get aggregated event statistics.\n\nReturns statistics about events including:\n- Total event count\n- Events grouped by risk level (critical, high, medium, low)\n- Events grouped by camera with camera names\n\nUses Redis cache with cache-aside pattern to improve performance\nand generate cache hit metrics.\n\nArgs:\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    camera_id: Optional camera ID filter (for camera-specific stats)\n    db: Database session\n    cache: Cache service injected via FastAPI DI\n\nReturns:\n    EventStatsResponse with aggregated statistics\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
-        "operationId": "get_event_stats_api_events_stats_get",
+        "operationId": "events_get_event_stats",
         "parameters": [
           {
             "description": "Filter by start date (ISO format)",
@@ -31370,7 +31370,7 @@
     "/api/events/timeline-summary": {
       "get": {
         "description": "Get timeline summary data for the timeline scrubber visualization (NEM-2932).\n\nReturns event data bucketed by time periods for visualization.\nEach bucket includes:\n- Timestamp (start of the bucket)\n- Event count\n- Maximum risk score in that bucket\n\nBucket sizes based on zoom level:\n- hour: 5-minute buckets (12 buckets per hour)\n- day: 1-hour buckets (24 buckets per day)\n- week: 1-day buckets (7 buckets per week)\n\nArgs:\n    start_date: Start of timeline range (defaults based on bucket_size)\n    end_date: End of timeline range (defaults to now)\n    bucket_size: Zoom level - \"hour\", \"day\", or \"week\"\n    camera_id: Optional camera filter\n    db: Database session\n    cache: Cache service\n\nReturns:\n    TimelineSummaryResponse with bucketed event data",
-        "operationId": "get_timeline_summary_api_events_timeline_summary_get",
+        "operationId": "events_get_timeline_summary",
         "parameters": [
           {
             "description": "Start of timeline range (ISO format)",
@@ -31473,7 +31473,7 @@
     "/api/events/{event_id}": {
       "delete": {
         "description": "Soft delete a single event with optional cascade to related detections.\n\nBy default, cascade=True soft deletes all related detections using the same\ntimestamp as the event. This enables cascade restore by matching timestamps.\n\nArgs:\n    event_id: ID of the event to delete\n    cascade: If True, cascade soft delete to related detections\n    db: Database session\n    cache: Cache service for invalidation\n\nRaises:\n    HTTPException: 404 if event not found, 409 if already deleted",
-        "operationId": "delete_event_api_events__event_id__delete",
+        "operationId": "events_delete_event",
         "parameters": [
           {
             "in": "path",
@@ -31525,7 +31525,7 @@
       },
       "get": {
         "description": "Get a specific event by ID with HATEOAS links.\n\nArgs:\n    event_id: Event ID\n    request: FastAPI request object for building HATEOAS links\n    db: Database session\n\nReturns:\n    Event object with detection count and HATEOAS links\n\nRaises:\n    HTTPException: 404 if event not found",
-        "operationId": "get_event_api_events__event_id__get",
+        "operationId": "events_get_event",
         "parameters": [
           {
             "in": "path",
@@ -31566,7 +31566,7 @@
       },
       "patch": {
         "description": "Update an event (mark as reviewed).\n\nArgs:\n    event_id: Event ID\n    update_data: Update data (reviewed field)\n    request: FastAPI request for audit logging\n    db: Database session\n    cache: Cache service for cache invalidation (NEM-1938)\n\nReturns:\n    Updated event object\n\nRaises:\n    HTTPException: 404 if event not found",
-        "operationId": "update_event_api_events__event_id__patch",
+        "operationId": "events_update_event",
         "parameters": [
           {
             "in": "path",
@@ -31619,7 +31619,7 @@
     "/api/events/{event_id}/clip": {
       "get": {
         "description": "Get clip information for a specific event.\n\nReturns information about whether a video clip is available for the event,\nand if so, provides the URL to access it along with metadata.\n\nArgs:\n    event_id: Event ID\n    db: Database session\n\nReturns:\n    ClipInfoResponse with clip availability and metadata\n\nRaises:\n    HTTPException: 404 if event not found",
-        "operationId": "get_event_clip_api_events__event_id__clip_get",
+        "operationId": "events_get_event_clip",
         "parameters": [
           {
             "in": "path",
@@ -31662,7 +31662,7 @@
     "/api/events/{event_id}/clip/generate": {
       "post": {
         "description": "Trigger video clip generation for an event.\n\nIf a clip already exists and force=False, returns the existing clip info.\nIf force=True, regenerates the clip even if one exists.\n\nClip generation uses detection images to create a video sequence, or\nextracts from existing video if available.\n\nArgs:\n    event_id: Event ID\n    request: Clip generation parameters\n    db: Database session\n    clip_generator: ClipGenerator injected via Depends()\n\nReturns:\n    ClipGenerateResponse with generation status and clip info\n\nRaises:\n    HTTPException: 404 if event not found\n    HTTPException: 400 if event has no detections to generate clip from",
-        "operationId": "generate_event_clip_api_events__event_id__clip_generate_post",
+        "operationId": "events_generate_event_clip",
         "parameters": [
           {
             "in": "path",
@@ -31731,7 +31731,7 @@
     "/api/events/{event_id}/detections": {
       "get": {
         "description": "Get detections for a specific event.\n\nArgs:\n    event_id: Event ID\n    limit: Maximum number of results to return (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    db: Database session\n\nReturns:\n    DetectionListResponse containing detections for the event\n\nRaises:\n    HTTPException: 404 if event not found",
-        "operationId": "get_event_detections_api_events__event_id__detections_get",
+        "operationId": "events_get_event_detections",
         "parameters": [
           {
             "in": "path",
@@ -31801,7 +31801,7 @@
     "/api/events/{event_id}/enrichments": {
       "get": {
         "description": "Get enrichment data for detections in an event with pagination.\n\nReturns structured vision model results from the enrichment pipeline for\neach detection in the event. Results include:\n- License plate detection and OCR\n- Face detection\n- Vehicle classification and damage detection\n- Clothing analysis (FashionCLIP and SegFormer)\n- Violence detection\n- Image quality assessment\n- Pet classification\n\nArgs:\n    event_id: Event ID\n    limit: Maximum number of enrichments to return (1-200, default 50)\n    offset: Number of enrichments to skip (default 0)\n    db: Database session\n\nReturns:\n    EventEnrichmentsResponse with enrichment data for each detection and pagination metadata\n\nRaises:\n    HTTPException: 404 if event not found",
-        "operationId": "get_event_enrichments_api_events__event_id__enrichments_get",
+        "operationId": "events_get_event_enrichments",
         "parameters": [
           {
             "in": "path",
@@ -31871,7 +31871,7 @@
     "/api/events/{event_id}/restore": {
       "post": {
         "description": "Restore a soft-deleted event with optional cascade to related detections.\n\nWhen cascade=True, this restores detections that were deleted at the same\ntimestamp as the event, indicating they were cascade-deleted together.\n\nArgs:\n    event_id: ID of the event to restore\n    cascade: If True, cascade restore to related detections\n    db: Database session\n    cache: Cache service for invalidation\n\nReturns:\n    The restored event as EventResponse\n\nRaises:\n    HTTPException: 404 if event not found, 409 if not deleted",
-        "operationId": "restore_event_api_events__event_id__restore_post",
+        "operationId": "events_restore_event",
         "parameters": [
           {
             "in": "path",
@@ -31932,7 +31932,7 @@
     "/api/exports": {
       "get": {
         "description": "List recent export jobs with optional filtering by status.",
-        "operationId": "list_exports_api_exports_get",
+        "operationId": "exports_list_exports",
         "parameters": [
           {
             "description": "Filter by job status",
@@ -32009,7 +32009,7 @@
       },
       "post": {
         "description": "Start a new background export job. Returns a job ID that can be used to track progress via GET /api/exports/{job_id}.",
-        "operationId": "start_export_api_exports_post",
+        "operationId": "exports_start_export",
         "requestBody": {
           "content": {
             "application/json": {
@@ -32051,7 +32051,7 @@
     "/api/exports/{job_id}": {
       "delete": {
         "description": "Cancel a pending or running export job. Completed or failed jobs cannot be cancelled.",
-        "operationId": "cancel_export_api_exports__job_id__delete",
+        "operationId": "exports_cancel_export",
         "parameters": [
           {
             "in": "path",
@@ -32098,7 +32098,7 @@
       },
       "get": {
         "description": "Get the current status and progress of an export job.",
-        "operationId": "get_export_status_api_exports__job_id__get",
+        "operationId": "exports_get_export_status",
         "parameters": [
           {
             "in": "path",
@@ -32144,7 +32144,7 @@
     "/api/exports/{job_id}/download": {
       "get": {
         "description": "Download the completed export file.",
-        "operationId": "download_export_api_exports__job_id__download_get",
+        "operationId": "exports_download_export",
         "parameters": [
           {
             "in": "path",
@@ -32191,7 +32191,7 @@
     "/api/exports/{job_id}/download/info": {
       "get": {
         "description": "Get metadata about the export file for download.",
-        "operationId": "get_download_info_api_exports__job_id__download_info_get",
+        "operationId": "exports_get_download_info",
         "parameters": [
           {
             "in": "path",
@@ -32237,7 +32237,7 @@
     "/api/feedback": {
       "post": {
         "description": "Submit feedback for an event.\n\nAllows users to mark events as false positives, missed detections,\nwrong severity, or correctly classified. Only one feedback per event\nis allowed (enforced by unique constraint).\n\nThis feedback is used to calibrate personalized risk thresholds\nand improve the AI model's accuracy over time.\n\nArgs:\n    feedback_data: Feedback details including event_id and feedback_type\n    db: Database session\n\nReturns:\n    The created feedback record\n\nRaises:\n    HTTPException: 404 if event not found\n    HTTPException: 409 if feedback already exists for this event",
-        "operationId": "create_feedback_api_feedback_post",
+        "operationId": "feedback_create_feedback",
         "requestBody": {
           "content": {
             "application/json": {
@@ -32278,7 +32278,7 @@
     "/api/feedback/event/{event_id}": {
       "get": {
         "description": "Get feedback for a specific event.\n\nArgs:\n    event_id: The event ID to get feedback for\n    db: Database session\n\nReturns:\n    The feedback record for the event\n\nRaises:\n    HTTPException: 404 if no feedback exists for the event",
-        "operationId": "get_event_feedback_api_feedback_event__event_id__get",
+        "operationId": "feedback_get_event_feedback",
         "parameters": [
           {
             "in": "path",
@@ -32317,7 +32317,7 @@
     "/api/feedback/stats": {
       "get": {
         "description": "Get aggregate feedback statistics.\n\nReturns counts of feedback grouped by:\n- Feedback type (false_positive, missed_detection, wrong_severity, correct)\n- Camera ID\n\nThis data is useful for:\n- Identifying cameras with high false positive rates\n- Calibrating risk thresholds per camera\n- Tracking model accuracy over time\n\nArgs:\n    db: Database session\n\nReturns:\n    Aggregate statistics including total count and breakdowns",
-        "operationId": "get_feedback_stats_api_feedback_stats_get",
+        "operationId": "feedback_get_feedback_stats",
         "responses": {
           "200": {
             "content": {
@@ -32339,7 +32339,7 @@
     "/api/health/ai-services": {
       "get": {
         "description": "Get a unified view of all AI service health including circuit breaker states,\nerror rates, latency metrics, and queue depths.\n\nThe response includes:\n- **overall_status**: healthy/degraded/critical based on service availability\n- **services**: Individual health status for each AI service (rtdetr, nemotron, florence, clip, enrichment)\n- **queues**: Current depth of detection and analysis queues with DLQ counts\n\nHTTP Status Codes:\n- **200**: All services operational or system is degraded but functional\n- **503**: Critical services (rtdetr, nemotron) are unhealthy",
-        "operationId": "get_ai_services_health_api_health_ai_services_get",
+        "operationId": "health_get_ai_services_health",
         "responses": {
           "200": {
             "content": {
@@ -32364,7 +32364,7 @@
     "/api/household/members": {
       "get": {
         "description": "List all household members.\n\nReturns all registered household members ordered by name.\n\nArgs:\n    session: Database session\n\nReturns:\n    List of HouseholdMember objects",
-        "operationId": "list_members_api_household_members_get",
+        "operationId": "household_list_members",
         "responses": {
           "200": {
             "content": {
@@ -32373,7 +32373,7 @@
                   "items": {
                     "$ref": "#/components/schemas/HouseholdMemberResponse"
                   },
-                  "title": "Response List Members Api Household Members Get",
+                  "title": "Response Household List Members",
                   "type": "array"
                 }
               }
@@ -32388,7 +32388,7 @@
       },
       "post": {
         "description": "Create a new household member.\n\nArgs:\n    member: Member creation data\n    session: Database session\n\nReturns:\n    Created HouseholdMember object",
-        "operationId": "create_member_api_household_members_post",
+        "operationId": "household_create_member",
         "requestBody": {
           "content": {
             "application/json": {
@@ -32430,7 +32430,7 @@
     "/api/household/members/{member_id}": {
       "delete": {
         "description": "Delete a household member.\n\nThis will also delete all associated person embeddings (cascade).\n\nArgs:\n    member_id: ID of the member to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if member not found",
-        "operationId": "delete_member_api_household_members__member_id__delete",
+        "operationId": "household_delete_member",
         "parameters": [
           {
             "in": "path",
@@ -32464,7 +32464,7 @@
       },
       "get": {
         "description": "Get a specific household member by ID.\n\nArgs:\n    member_id: ID of the member to retrieve\n    session: Database session\n\nReturns:\n    HouseholdMember object\n\nRaises:\n    HTTPException: 404 if member not found",
-        "operationId": "get_member_api_household_members__member_id__get",
+        "operationId": "household_get_member",
         "parameters": [
           {
             "in": "path",
@@ -32505,7 +32505,7 @@
       },
       "patch": {
         "description": "Update an existing household member.\n\nArgs:\n    member_id: ID of the member to update\n    updates: Member update data (all fields optional)\n    session: Database session\n\nReturns:\n    Updated HouseholdMember object\n\nRaises:\n    HTTPException: 404 if member not found",
-        "operationId": "update_member_api_household_members__member_id__patch",
+        "operationId": "household_update_member",
         "parameters": [
           {
             "in": "path",
@@ -32558,7 +32558,7 @@
     "/api/household/members/{member_id}/embeddings": {
       "post": {
         "description": "Add a person embedding from an event to a household member.\n\nThis endpoint allows linking a person detection embedding from an event\nto a household member for future re-identification. The embedding data\nis extracted from the event's detection.\n\nArgs:\n    member_id: ID of the household member\n    request: Request containing event_id and confidence\n    session: Database session\n\nReturns:\n    Created PersonEmbedding object\n\nRaises:\n    HTTPException: 404 if member not found\n    HTTPException: 404 if event not found\n    HTTPException: 400 if event has no embedding data",
-        "operationId": "add_embedding_from_event_api_household_members__member_id__embeddings_post",
+        "operationId": "household_add_embedding_from_event",
         "parameters": [
           {
             "in": "path",
@@ -32611,7 +32611,7 @@
     "/api/household/vehicles": {
       "get": {
         "description": "List all registered vehicles.\n\nReturns all registered vehicles ordered by description.\n\nArgs:\n    session: Database session\n\nReturns:\n    List of RegisteredVehicle objects",
-        "operationId": "list_vehicles_api_household_vehicles_get",
+        "operationId": "household_list_vehicles",
         "responses": {
           "200": {
             "content": {
@@ -32620,7 +32620,7 @@
                   "items": {
                     "$ref": "#/components/schemas/RegisteredVehicleResponse"
                   },
-                  "title": "Response List Vehicles Api Household Vehicles Get",
+                  "title": "Response Household List Vehicles",
                   "type": "array"
                 }
               }
@@ -32635,7 +32635,7 @@
       },
       "post": {
         "description": "Create a new registered vehicle.\n\nArgs:\n    vehicle: Vehicle creation data\n    session: Database session\n\nReturns:\n    Created RegisteredVehicle object\n\nRaises:\n    HTTPException: 404 if owner_id is specified but owner doesn't exist",
-        "operationId": "create_vehicle_api_household_vehicles_post",
+        "operationId": "household_create_vehicle",
         "requestBody": {
           "content": {
             "application/json": {
@@ -32677,7 +32677,7 @@
     "/api/household/vehicles/{vehicle_id}": {
       "delete": {
         "description": "Delete a registered vehicle.\n\nArgs:\n    vehicle_id: ID of the vehicle to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if vehicle not found",
-        "operationId": "delete_vehicle_api_household_vehicles__vehicle_id__delete",
+        "operationId": "household_delete_vehicle",
         "parameters": [
           {
             "in": "path",
@@ -32711,7 +32711,7 @@
       },
       "get": {
         "description": "Get a specific registered vehicle by ID.\n\nArgs:\n    vehicle_id: ID of the vehicle to retrieve\n    session: Database session\n\nReturns:\n    RegisteredVehicle object\n\nRaises:\n    HTTPException: 404 if vehicle not found",
-        "operationId": "get_vehicle_api_household_vehicles__vehicle_id__get",
+        "operationId": "household_get_vehicle",
         "parameters": [
           {
             "in": "path",
@@ -32752,7 +32752,7 @@
       },
       "patch": {
         "description": "Update an existing registered vehicle.\n\nArgs:\n    vehicle_id: ID of the vehicle to update\n    updates: Vehicle update data (all fields optional)\n    session: Database session\n\nReturns:\n    Updated RegisteredVehicle object\n\nRaises:\n    HTTPException: 404 if vehicle not found\n    HTTPException: 404 if owner_id is specified but owner doesn't exist",
-        "operationId": "update_vehicle_api_household_vehicles__vehicle_id__patch",
+        "operationId": "household_update_vehicle",
         "parameters": [
           {
             "in": "path",
@@ -32805,7 +32805,7 @@
     "/api/jobs": {
       "get": {
         "description": "List all background jobs with optional filtering by type and status.",
-        "operationId": "list_jobs_api_jobs_get",
+        "operationId": "jobs_list_jobs",
         "parameters": [
           {
             "description": "Filter by job type (e.g., 'export', 'cleanup')",
@@ -32902,7 +32902,7 @@
     "/api/jobs/bulk-cancel": {
       "post": {
         "description": "Cancel multiple jobs at once. Returns counts of successful and failed cancellations.",
-        "operationId": "bulk_cancel_jobs_api_jobs_bulk_cancel_post",
+        "operationId": "jobs_bulk_cancel_jobs",
         "requestBody": {
           "content": {
             "application/json": {
@@ -32944,7 +32944,7 @@
     "/api/jobs/search": {
       "get": {
         "description": "Search and filter jobs with advanced query capabilities. Supports free text search, filtering by status/type/timestamps/duration, and returns aggregation data for faceted filtering. NEM-2392: Advanced job search endpoint.",
-        "operationId": "search_jobs_api_jobs_search_get",
+        "operationId": "jobs_search_jobs",
         "parameters": [
           {
             "description": "Free text search across job type, error message, and metadata",
@@ -33233,7 +33233,7 @@
     "/api/jobs/stats": {
       "get": {
         "description": "Get aggregate statistics about jobs including counts by status, counts by type, and timing information.",
-        "operationId": "get_job_stats_api_jobs_stats_get",
+        "operationId": "jobs_get_job_stats",
         "responses": {
           "200": {
             "content": {
@@ -33255,7 +33255,7 @@
     "/api/jobs/types": {
       "get": {
         "description": "List all available job types that can be created.",
-        "operationId": "list_job_types_api_jobs_types_get",
+        "operationId": "jobs_list_job_types",
         "responses": {
           "200": {
             "content": {
@@ -33277,7 +33277,7 @@
     "/api/jobs/{job_id}": {
       "delete": {
         "description": "Cancel or abort a job based on its current state. Queued jobs will be cancelled, running jobs will be aborted.",
-        "operationId": "delete_job_api_jobs__job_id__delete",
+        "operationId": "jobs_delete_job",
         "parameters": [
           {
             "in": "path",
@@ -33324,7 +33324,7 @@
       },
       "get": {
         "description": "Get the current status and progress of a background job.",
-        "operationId": "get_job_status_api_jobs__job_id__get",
+        "operationId": "jobs_get_job_status",
         "parameters": [
           {
             "in": "path",
@@ -33370,7 +33370,7 @@
     "/api/jobs/{job_id}/abort": {
       "post": {
         "description": "Abort a running background job by sending a signal to the worker. Only jobs with status 'running' can be aborted. Queued jobs should use the /cancel endpoint instead.",
-        "operationId": "abort_job_api_jobs__job_id__abort_post",
+        "operationId": "jobs_abort_job",
         "parameters": [
           {
             "in": "path",
@@ -33419,7 +33419,7 @@
     "/api/jobs/{job_id}/cancel": {
       "post": {
         "description": "Request cancellation of a background job. Jobs that are already completed or failed cannot be cancelled.",
-        "operationId": "cancel_job_api_jobs__job_id__cancel_post",
+        "operationId": "jobs_cancel_job",
         "parameters": [
           {
             "in": "path",
@@ -33468,7 +33468,7 @@
     "/api/jobs/{job_id}/detail": {
       "get": {
         "description": "Get detailed information about a specific job including full progress history, timing information, retry details, and execution metadata. NEM-2390: Provides comprehensive job status for monitoring and debugging.",
-        "operationId": "get_job_detail_api_jobs__job_id__detail_get",
+        "operationId": "jobs_get_job_detail",
         "parameters": [
           {
             "in": "path",
@@ -33514,7 +33514,7 @@
     "/api/jobs/{job_id}/history": {
       "get": {
         "description": "Retrieve complete job execution history including state transitions, retry attempts, and execution timeline. Provides audit trail for debugging and compliance purposes. NEM-2396.",
-        "operationId": "get_job_history_api_jobs__job_id__history_get",
+        "operationId": "jobs_get_job_history",
         "parameters": [
           {
             "in": "path",
@@ -33560,7 +33560,7 @@
     "/api/jobs/{job_id}/logs": {
       "get": {
         "description": "Retrieve execution logs for a job with optional filtering by level and time range. Useful for debugging and monitoring job execution. NEM-2396.",
-        "operationId": "get_job_logs_api_jobs__job_id__logs_get",
+        "operationId": "jobs_get_job_logs",
         "parameters": [
           {
             "in": "path",
@@ -33657,7 +33657,7 @@
     "/api/logs": {
       "get": {
         "description": "Query logs with optional filtering by level, component, source, and date range.",
-        "operationId": "list_logs_api_logs_get",
+        "operationId": "logs_list_logs",
         "parameters": [
           {
             "description": "Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
@@ -33875,7 +33875,7 @@
     "/api/logs/frontend": {
       "post": {
         "description": "Receive a single log entry from the frontend for structured logging.",
-        "operationId": "ingest_frontend_log_api_logs_frontend_post",
+        "operationId": "logs_ingest_frontend_log",
         "requestBody": {
           "content": {
             "application/json": {
@@ -33913,7 +33913,7 @@
     "/api/logs/frontend/batch": {
       "post": {
         "description": "Receive a batch of log entries from the frontend for structured logging.",
-        "operationId": "ingest_frontend_logs_batch_api_logs_frontend_batch_post",
+        "operationId": "logs_ingest_frontend_logs_batch",
         "requestBody": {
           "content": {
             "application/json": {
@@ -33951,7 +33951,7 @@
     "/api/logs/stats": {
       "get": {
         "description": "Get aggregated log statistics for the dashboard.",
-        "operationId": "get_log_stats_api_logs_stats_get",
+        "operationId": "logs_get_log_stats",
         "responses": {
           "200": {
             "content": {
@@ -33976,7 +33976,7 @@
     "/api/media/cameras/{camera_id}/{filename}": {
       "get": {
         "description": "Serve camera images or videos from Foscam storage.\n\nArgs:\n    camera_id: The camera identifier (directory name)\n    filename: The file to serve (can include subdirectories)\n\nReturns:\n    FileResponse with appropriate content-type header\n\nRaises:\n    HTTPException: 403 for invalid paths, 404 for missing files",
-        "operationId": "serve_camera_file_api_media_cameras__camera_id___filename__get",
+        "operationId": "media_serve_camera_file",
         "parameters": [
           {
             "in": "path",
@@ -34044,7 +34044,7 @@
     "/api/media/clips/{filename}": {
       "get": {
         "description": "Serve event video clips.\n\nClips are generated by the ClipGenerator service and stored in the\nconfigured clips directory.\n\nArgs:\n    filename: The clip filename (e.g., \"123_clip.mp4\")\n    clip_generator: ClipGenerator injected via Depends()\n\nReturns:\n    FileResponse with appropriate content-type header\n\nRaises:\n    HTTPException: 403 for invalid paths, 404 for missing files",
-        "operationId": "serve_clip_api_media_clips__filename__get",
+        "operationId": "media_serve_clip",
         "parameters": [
           {
             "in": "path",
@@ -34103,7 +34103,7 @@
     "/api/media/thumbnails/{filename}": {
       "get": {
         "description": "Serve detection thumbnail images.\n\nArgs:\n    filename: The thumbnail filename\n\nReturns:\n    FileResponse with appropriate content-type header\n\nRaises:\n    HTTPException: 403 for invalid paths, 404 for missing files",
-        "operationId": "serve_thumbnail_api_media_thumbnails__filename__get",
+        "operationId": "media_serve_thumbnail",
         "parameters": [
           {
             "in": "path",
@@ -34162,7 +34162,7 @@
     "/api/media/{path}": {
       "get": {
         "description": "Compatibility route: serve media via design-spec-style /api/media/{path}.\n\nThis preserves the stricter behavior of the new routes:\n- Path traversal protection\n- Allowed file type allowlist\n- Must remain under configured base directories\n\nMapping rules:\n- `cameras/<camera_id>/<filename...>` -> camera media\n- `thumbnails/<filename>` -> thumbnails\n- `detections/<id>` -> detection images",
-        "operationId": "serve_media_compat_api_media__path__get",
+        "operationId": "media_serve_media_compat",
         "parameters": [
           {
             "in": "path",
@@ -34221,7 +34221,7 @@
     "/api/metrics": {
       "get": {
         "description": "Return Prometheus metrics in exposition format.\n\nThis endpoint returns all registered metrics in the standard\nPrometheus exposition format for scraping.\n\nReturns:\n    Response with text/plain content type containing metrics",
-        "operationId": "metrics_api_metrics_get",
+        "operationId": "metrics_metrics",
         "responses": {
           "200": {
             "content": {
@@ -34244,7 +34244,7 @@
     "/api/notification-preferences/": {
       "get": {
         "description": "Get global notification preferences.\n\nReturns the global notification settings including:\n- Whether notifications are enabled\n- Notification sound selection\n- Risk level filters (which risk levels trigger notifications)\n\nReturns:\n    NotificationPreferencesResponse with current preferences",
-        "operationId": "get_notification_preferences_api_notification_preferences__get",
+        "operationId": "notification-preferences_get_notification_preferences",
         "responses": {
           "200": {
             "content": {
@@ -34267,7 +34267,7 @@
       },
       "put": {
         "description": "Update global notification preferences.\n\nArgs:\n    update: Preferences update data\n\nReturns:\n    NotificationPreferencesResponse with updated preferences\n\nRaises:\n    HTTPException: 400 if sound value is invalid",
-        "operationId": "update_notification_preferences_api_notification_preferences__put",
+        "operationId": "notification-preferences_update_notification_preferences",
         "requestBody": {
           "content": {
             "application/json": {
@@ -34308,7 +34308,7 @@
     "/api/notification-preferences/cameras": {
       "get": {
         "description": "Get all camera notification settings.\n\nReturns:\n    CameraNotificationSettingsListResponse with all camera settings",
-        "operationId": "get_all_camera_settings_api_notification_preferences_cameras_get",
+        "operationId": "notification-preferences_get_all_camera_settings",
         "responses": {
           "200": {
             "content": {
@@ -34333,7 +34333,7 @@
     "/api/notification-preferences/cameras/{camera_id}": {
       "get": {
         "description": "Get notification setting for a specific camera.\n\nArgs:\n    camera_id: Camera ID\n\nReturns:\n    CameraNotificationSettingResponse for the camera\n\nRaises:\n    HTTPException: 404 if setting not found",
-        "operationId": "get_camera_setting_api_notification_preferences_cameras__camera_id__get",
+        "operationId": "notification-preferences_get_camera_setting",
         "parameters": [
           {
             "in": "path",
@@ -34380,7 +34380,7 @@
       },
       "put": {
         "description": "Update or create notification setting for a camera.\n\nArgs:\n    camera_id: Camera ID\n    update: Setting update data\n\nReturns:\n    CameraNotificationSettingResponse with updated setting\n\nRaises:\n    HTTPException: 404 if camera doesn't exist",
-        "operationId": "update_camera_setting_api_notification_preferences_cameras__camera_id__put",
+        "operationId": "notification-preferences_update_camera_setting",
         "parameters": [
           {
             "in": "path",
@@ -34432,7 +34432,7 @@
     "/api/notification-preferences/quiet-hours": {
       "get": {
         "description": "Get all quiet hours periods.\n\nReturns:\n    QuietHoursPeriodsListResponse with all quiet periods",
-        "operationId": "get_quiet_hours_api_notification_preferences_quiet_hours_get",
+        "operationId": "notification-preferences_get_quiet_hours",
         "responses": {
           "200": {
             "content": {
@@ -34455,7 +34455,7 @@
       },
       "post": {
         "description": "Create a new quiet hours period.\n\nArgs:\n    period: Quiet hours period data\n\nReturns:\n    QuietHoursPeriodResponse with created period\n\nRaises:\n    HTTPException: 400 if start_time equals end_time (zero-length period)\n\nNote:\n    Periods can span midnight (e.g., 22:00 to 06:00).\n    If start_time > end_time, the period wraps to the next day.",
-        "operationId": "create_quiet_hours_period_api_notification_preferences_quiet_hours_post",
+        "operationId": "notification-preferences_create_quiet_hours_period",
         "requestBody": {
           "content": {
             "application/json": {
@@ -34496,7 +34496,7 @@
     "/api/notification-preferences/quiet-hours/{period_id}": {
       "delete": {
         "description": "Delete a quiet hours period.\n\nArgs:\n    period_id: Period UUID\n\nRaises:\n    HTTPException: 404 if period not found",
-        "operationId": "delete_quiet_hours_period_api_notification_preferences_quiet_hours__period_id__delete",
+        "operationId": "notification-preferences_delete_quiet_hours_period",
         "parameters": [
           {
             "in": "path",
@@ -34538,7 +34538,7 @@
     "/api/notification/config": {
       "get": {
         "description": "Get notification configuration status.\n\nReturns the current notification configuration including:\n- Whether notifications are enabled\n- Which channels are configured (email, webhook, push)\n- SMTP host and port (if configured)\n- Default webhook URL (if configured)\n- Default email recipients\n\nNote: Sensitive fields like SMTP password are NOT returned.\n\nReturns:\n    NotificationConfigResponse with current notification settings",
-        "operationId": "get_notification_config_api_notification_config_get",
+        "operationId": "notification_get_notification_config",
         "responses": {
           "200": {
             "content": {
@@ -34560,7 +34560,7 @@
     "/api/notification/test": {
       "post": {
         "description": "Test notification delivery for a specific channel.\n\nSends a test notification to verify the configuration is working.\nFor email, sends a test email to the specified recipients or default recipients.\nFor webhook, sends a test payload to the specified URL or default URL.\n\nArgs:\n    test_request: Test notification request with channel and optional overrides\n\nReturns:\n    TestNotificationResponse with test result",
-        "operationId": "test_notification_api_notification_test_post",
+        "operationId": "notification_test_notification",
         "requestBody": {
           "content": {
             "application/json": {
@@ -34602,7 +34602,7 @@
     "/api/prompts": {
       "get": {
         "description": "Fetch current prompt configurations for all AI models.\n\nReturns the active prompt/configuration for each supported model:\n- nemotron: System prompt for risk analysis\n- florence2: Scene analysis queries\n- yolo_world: Custom object classes and confidence threshold\n- xclip: Action recognition classes\n- fashion_clip: Clothing categories",
-        "operationId": "get_all_prompts_api_prompts_get",
+        "operationId": "prompts_get_all_prompts",
         "responses": {
           "200": {
             "content": {
@@ -34627,7 +34627,7 @@
     "/api/prompts/export": {
       "get": {
         "description": "Export all prompt configurations as JSON.\n\nReturns a complete export of all model configurations suitable for\nbackup, sharing, or importing into another instance.",
-        "operationId": "export_prompts_api_prompts_export_get",
+        "operationId": "prompts_export_prompts",
         "responses": {
           "200": {
             "content": {
@@ -34652,7 +34652,7 @@
     "/api/prompts/history": {
       "get": {
         "description": "Get version history for prompt configurations.\n\nReturns a list of all prompt versions, optionally filtered by model.",
-        "operationId": "get_prompt_history_api_prompts_history_get",
+        "operationId": "prompts_get_prompt_history",
         "parameters": [
           {
             "description": "Filter by specific model",
@@ -34727,7 +34727,7 @@
     "/api/prompts/history/{version_id}": {
       "post": {
         "description": "Restore a specific prompt version.\n\nCreates a new version with the configuration from the specified version,\nmaking it the active configuration.",
-        "operationId": "restore_prompt_version_api_prompts_history__version_id__post",
+        "operationId": "prompts_restore_prompt_version",
         "parameters": [
           {
             "in": "path",
@@ -34769,7 +34769,7 @@
     "/api/prompts/import": {
       "post": {
         "description": "Import prompt configurations from JSON.\n\nValidates and imports configurations for each model, creating new\nversions for each imported configuration.",
-        "operationId": "import_prompts_api_prompts_import_post",
+        "operationId": "prompts_import_prompts",
         "requestBody": {
           "content": {
             "application/json": {
@@ -34807,7 +34807,7 @@
     "/api/prompts/import/preview": {
       "post": {
         "description": "Preview import changes without applying them.\n\nValidates the import data and computes diffs against current configurations.",
-        "operationId": "preview_import_prompts_api_prompts_import_preview_post",
+        "operationId": "prompts_preview_import_prompts",
         "requestBody": {
           "content": {
             "application/json": {
@@ -34845,7 +34845,7 @@
     "/api/prompts/test": {
       "post": {
         "description": "Test a modified prompt configuration against an event or image.\n\nRuns inference with the modified configuration and compares results\nwith the original configuration.\n\nRate Limited:\n    This endpoint is rate limited to 10 requests per minute per client\n    with a burst allowance of 3. This protects the AI services from abuse\n    since prompt testing runs LLM inference which is computationally expensive.\n\nReturns 429 Too Many Requests if rate limit is exceeded.",
-        "operationId": "test_prompt_api_prompts_test_post",
+        "operationId": "prompts_test_prompt",
         "requestBody": {
           "content": {
             "application/json": {
@@ -34886,7 +34886,7 @@
     "/api/prompts/test-prompt": {
       "post": {
         "description": "Test a custom prompt against an existing event for A/B testing.\n\nThis endpoint allows testing a custom prompt without persisting results.\nIt's designed for the Prompt Playground A/B testing feature where users\ncan experiment with different prompts and compare results.\n\nThe endpoint:\n1. Fetches the event with its detections\n2. Builds context from the event data\n3. Calls the AI model with the custom prompt (or mocks if service unavailable)\n4. Returns results WITHOUT saving to database\n\nRate Limited:\n    This endpoint is rate limited to 10 requests per minute per client\n    with a burst allowance of 3. This protects the AI services from abuse\n    since prompt testing runs LLM inference which is computationally expensive.\n\nArgs:\n    request: Test request containing event_id, custom_prompt, and optional\n             parameters (temperature, max_tokens, model)\n    db: Database session\n\nReturns:\n    CustomTestPromptResponse with risk analysis results\n\nRaises:\n    HTTPException: 404 if event not found\n    HTTPException: 400 if prompt is invalid (empty or too long)\n    HTTPException: 429 if rate limit is exceeded\n    HTTPException: 503 if AI service is unavailable\n    HTTPException: 408 if request times out (>60s)",
-        "operationId": "test_custom_prompt_api_prompts_test_prompt_post",
+        "operationId": "prompts_test_custom_prompt",
         "requestBody": {
           "content": {
             "application/json": {
@@ -34939,7 +34939,7 @@
     "/api/prompts/{model}": {
       "get": {
         "description": "Fetch prompt configuration for a specific AI model.",
-        "operationId": "get_prompt_for_model_api_prompts__model__get",
+        "operationId": "prompts_get_prompt_for_model",
         "parameters": [
           {
             "in": "path",
@@ -34978,7 +34978,7 @@
       },
       "put": {
         "description": "Update prompt configuration for a specific AI model.\n\nCreates a new version of the configuration while preserving history.\nValidates the configuration structure before saving.\n\nSupports optimistic locking via expected_version in the request body.\nIf expected_version is provided and doesn't match the current version,\nreturns 409 Conflict to indicate concurrent modification.",
-        "operationId": "update_prompt_for_model_api_prompts__model__put",
+        "operationId": "prompts_update_prompt_for_model",
         "parameters": [
           {
             "in": "path",
@@ -35032,7 +35032,7 @@
     "/api/queues/status": {
       "get": {
         "description": "Get the status of all job queues including depth, processing rate, and health.\n\n**Queues Monitored:**\n- `detection`: Object detection jobs from camera uploads\n- `ai_analysis`: LLM risk analysis jobs for batched detections\n- `dlq`: Dead-letter queue for failed jobs\n\n**Health Status:**\n- `healthy`: Queue depth below warning threshold, wait times acceptable\n- `warning`: Queue depth approaching limits or wait times elevated\n- `critical`: Queue depth exceeds limits or oldest job waiting too long\n\n**Thresholds:**\nEach queue has configurable thresholds:\n- `depth_warning`: Queue depth that triggers warning status\n- `depth_critical`: Queue depth that triggers critical status\n- `max_wait_seconds`: Maximum acceptable wait time for oldest job",
-        "operationId": "get_queues_status_api_queues_status_get",
+        "operationId": "queues_get_queues_status",
         "responses": {
           "200": {
             "content": {
@@ -35083,7 +35083,7 @@
     "/api/rum": {
       "post": {
         "description": "Receive Core Web Vitals metrics from the frontend for Real User Monitoring.",
-        "operationId": "ingest_rum_metrics_api_rum_post",
+        "operationId": "rum_ingest_rum_metrics",
         "requestBody": {
           "content": {
             "application/json": {
@@ -35121,7 +35121,7 @@
     "/api/summaries/daily": {
       "get": {
         "description": "Get the latest daily summary.\n\nReturns the most recent daily summary, which covers high/critical events\nsince midnight today. Returns null if no daily summary exists.\n\nThis endpoint is useful when you only need the daily summary without\nthe overhead of fetching the hourly summary as well.\n\nReturns:\n    SummaryResponse with daily summary, or null if none exists",
-        "operationId": "get_daily_summary_api_summaries_daily_get",
+        "operationId": "summaries_get_daily_summary",
         "responses": {
           "200": {
             "content": {
@@ -35143,7 +35143,7 @@
                       "type": "null"
                     }
                   ],
-                  "title": "Response Get Daily Summary Api Summaries Daily Get"
+                  "title": "Response Summaries Get Daily Summary"
                 }
               }
             },
@@ -35159,7 +35159,7 @@
     "/api/summaries/hourly": {
       "get": {
         "description": "Get the latest hourly summary.\n\nReturns the most recent hourly summary, which covers high/critical events\nfrom the past 60 minutes. Returns null if no hourly summary exists.\n\nThis endpoint is useful when you only need the hourly summary without\nthe overhead of fetching the daily summary as well.\n\nReturns:\n    SummaryResponse with hourly summary, or null if none exists",
-        "operationId": "get_hourly_summary_api_summaries_hourly_get",
+        "operationId": "summaries_get_hourly_summary",
         "responses": {
           "200": {
             "content": {
@@ -35181,7 +35181,7 @@
                       "type": "null"
                     }
                   ],
-                  "title": "Response Get Hourly Summary Api Summaries Hourly Get"
+                  "title": "Response Summaries Get Hourly Summary"
                 }
               }
             },
@@ -35197,7 +35197,7 @@
     "/api/summaries/latest": {
       "get": {
         "description": "Get the latest hourly and daily summaries.\n\nReturns both the most recent hourly summary (covering the past 60 minutes)\nand the most recent daily summary (covering since midnight today).\n\nEither `hourly` or `daily` can be null if no summary exists yet for that\ntime period. This can happen when:\n- The system was just started\n- No high/critical events have occurred\n\nResponse is cached in Redis with a 5-minute TTL to match the summary\ngeneration frequency. Cache is invalidated when new summaries are generated.\n\nReturns:\n    LatestSummariesResponse with hourly and daily summaries (or nulls)",
-        "operationId": "get_latest_summaries_api_summaries_latest_get",
+        "operationId": "summaries_get_latest_summaries",
         "responses": {
           "200": {
             "content": {
@@ -35237,7 +35237,7 @@
     "/api/system/anomaly-config": {
       "get": {
         "description": "Get current anomaly detection configuration.\n\nReturns the current settings for the baseline service including:\n- threshold_stdev: Number of standard deviations for anomaly detection\n- min_samples: Minimum samples required before anomaly detection is reliable\n- decay_factor: Exponential decay factor for EWMA (weights recent observations)\n- window_days: Rolling window size in days for baseline calculations\n\nArgs:\n    service: BaselineService injected via Depends()\n\nReturns:\n    AnomalyConfig with current anomaly detection settings",
-        "operationId": "get_anomaly_config_api_system_anomaly_config_get",
+        "operationId": "system_get_anomaly_config",
         "responses": {
           "200": {
             "content": {
@@ -35260,7 +35260,7 @@
       },
       "patch": {
         "description": "Update anomaly detection configuration.\n\nAllows updating the anomaly detection thresholds:\n- threshold_stdev: Number of standard deviations for anomaly detection\n- min_samples: Minimum samples required before anomaly detection is reliable\n\nNote: decay_factor and window_days are not configurable at runtime\nas they affect historical data calculations.\n\nRequires API key authentication.\n\nArgs:\n    config_update: Configuration values to update (only provided values are changed)\n    request: HTTP request for audit logging\n    db: Database session\n    service: BaselineService injected via Depends()\n\nReturns:\n    AnomalyConfig with updated settings",
-        "operationId": "update_anomaly_config_api_system_anomaly_config_patch",
+        "operationId": "system_update_anomaly_config",
         "parameters": [
           {
             "in": "header",
@@ -35319,7 +35319,7 @@
     "/api/system/circuit-breakers": {
       "get": {
         "description": "Get status of all circuit breakers in the system.\n\nReturns the current state and metrics for each circuit breaker,\nwhich protect external services from cascading failures.\n\nCircuit breakers can be in one of three states:\n- CLOSED: Normal operation, calls pass through\n- OPEN: Service failing, calls rejected immediately\n- HALF_OPEN: Testing recovery, limited calls allowed\n\nReturns:\n    CircuitBreakersResponse with status of all circuit breakers",
-        "operationId": "get_circuit_breakers_api_system_circuit_breakers_get",
+        "operationId": "system_get_circuit_breakers",
         "responses": {
           "200": {
             "content": {
@@ -35341,7 +35341,7 @@
     "/api/system/circuit-breakers/{name}/reset": {
       "post": {
         "description": "Reset a specific circuit breaker to CLOSED state.\n\nThis manually resets a circuit breaker, clearing failure counts\nand returning it to normal operation. Use this to recover from\ntransient failures or after fixing an underlying issue.\n\nRequires API key authentication when api_key_enabled is True.\n\nArgs:\n    name: Name of the circuit breaker to reset\n\nReturns:\n    CircuitBreakerResetResponse with reset confirmation\n\nRaises:\n    HTTPException 400: If name is invalid (empty, too long, or contains invalid characters)\n    HTTPException 404: If circuit breaker not found",
-        "operationId": "reset_circuit_breaker_api_system_circuit_breakers__name__reset_post",
+        "operationId": "system_reset_circuit_breaker",
         "parameters": [
           {
             "in": "path",
@@ -35400,7 +35400,7 @@
     "/api/system/cleanup": {
       "post": {
         "description": "Trigger manual data cleanup based on retention settings.\n\nRequires API key authentication when api_key_enabled is True in settings.\nProvide the API key via X-API-Key header.\n\nThis endpoint runs the CleanupService to delete old data according to\nthe configured retention period. It deletes:\n- Events older than retention period\n- Detections older than retention period\n- GPU stats older than retention period\n- Logs older than log retention period\n- Associated thumbnail files\n- Optionally original image files (if delete_images is enabled)\n\nThe cleanup respects the current retention_days setting from the system\nconfiguration. To change the retention period before running cleanup,\nuse PATCH /api/system/config first.\n\nArgs:\n    dry_run: If True, calculate and return what would be deleted without\n             actually performing the deletion. Useful for verification\n             before destructive operations.\n\nReturns:\n    CleanupResponse with statistics about the cleanup operation.\n    When dry_run=True, the counts represent what would be deleted.",
-        "operationId": "trigger_cleanup_api_system_cleanup_post",
+        "operationId": "system_trigger_cleanup",
         "parameters": [
           {
             "in": "query",
@@ -35460,7 +35460,7 @@
     "/api/system/cleanup/orphaned-files": {
       "post": {
         "description": "Find and clean up orphaned files (files on disk not referenced in database).\n\nRequires API key authentication when api_key_enabled is True in settings.\nProvide the API key via X-API-Key header.\n\nThis endpoint scans storage directories for files that are not referenced\nin the database and optionally deletes them to reclaim disk space.\n\nStorage directories scanned:\n- Thumbnails directory (video_thumbnails_dir setting)\n- Clips directory (clips_directory setting)\n\nDatabase tables checked for file references:\n- Detection.file_path (source images)\n- Detection.thumbnail_path (thumbnails)\n- Event.clip_path (generated clips)\n\n**Safety Features:**\n- dry_run=True by default to prevent accidental deletion\n- Progress tracking via job system\n- Detailed reporting of orphaned files\n\nArgs:\n    dry_run: If True, calculate and return what would be deleted without\n             actually performing the deletion. Default is True for safety.\n             Set to False to actually delete orphaned files.\n\nReturns:\n    OrphanedFileCleanupResponse with statistics about orphaned files.\n    When dry_run=True, shows what would be deleted.\n    When dry_run=False, shows what was deleted.",
-        "operationId": "run_orphaned_file_cleanup_api_system_cleanup_orphaned_files_post",
+        "operationId": "system_run_orphaned_file_cleanup",
         "parameters": [
           {
             "description": "If True, only report what would be deleted without deleting. Default is True for safety.",
@@ -35522,7 +35522,7 @@
     "/api/system/cleanup/status": {
       "get": {
         "description": "Get current status of the cleanup service.\n\nReturns information about the automated cleanup service including:\n- Whether the service is running\n- Current retention settings\n- Next scheduled cleanup time\n\nReturns:\n    CleanupStatusResponse with cleanup service status",
-        "operationId": "get_cleanup_status_api_system_cleanup_status_get",
+        "operationId": "system_get_cleanup_status",
         "responses": {
           "200": {
             "content": {
@@ -35544,7 +35544,7 @@
     "/api/system/config": {
       "get": {
         "description": "Get public configuration settings.\n\nReturns non-sensitive application configuration values.\nDoes NOT expose database URLs, API keys, or other secrets.\n\nReturns:\n    ConfigResponse with public configuration settings",
-        "operationId": "get_config_api_system_config_get",
+        "operationId": "system_get_config",
         "responses": {
           "200": {
             "content": {
@@ -35564,7 +35564,7 @@
       },
       "patch": {
         "description": "Patch processing-related configuration and persist runtime overrides.\n\nRequires API key authentication when api_key_enabled is True in settings.\nProvide the API key via X-API-Key header.\n\nNotes:\n- This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the\n  settings cache so subsequent `get_settings()` calls observe the new values.",
-        "operationId": "patch_config_api_system_config_patch",
+        "operationId": "system_patch_config",
         "parameters": [
           {
             "in": "header",
@@ -35623,7 +35623,7 @@
     "/api/system/gpu": {
       "get": {
         "description": "Get current GPU statistics.\n\nReturns the most recent GPU statistics including:\n- GPU name\n- GPU utilization percentage\n- Memory usage (used/total)\n- Temperature\n- Power usage\n- Inference FPS\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\ndatabase load from frequent polling. GPU stats only update every 5 seconds anyway.\n\nReturns:\n    GPUStatsResponse with GPU statistics (null values if unavailable)",
-        "operationId": "get_gpu_stats_api_system_gpu_get",
+        "operationId": "system_get_gpu_stats",
         "responses": {
           "200": {
             "content": {
@@ -35645,7 +35645,7 @@
     "/api/system/gpu-config": {
       "get": {
         "description": "Returns current GPU assignment strategy and service-to-GPU mappings.",
-        "operationId": "get_gpu_config_api_system_gpu_config_get",
+        "operationId": "gpu-config_get_gpu_config",
         "responses": {
           "200": {
             "content": {
@@ -35668,7 +35668,7 @@
       },
       "put": {
         "description": "Updates GPU assignments. Does not apply changes - use /apply endpoint.",
-        "operationId": "update_gpu_config_api_system_gpu_config_put",
+        "operationId": "gpu-config_update_gpu_config",
         "requestBody": {
           "content": {
             "application/json": {
@@ -35716,7 +35716,7 @@
     "/api/system/gpu-config/apply": {
       "post": {
         "description": "Applies current config and restarts affected services.",
-        "operationId": "apply_gpu_config_api_system_gpu_config_apply_post",
+        "operationId": "gpu-config_apply_gpu_config",
         "responses": {
           "200": {
             "content": {
@@ -35744,7 +35744,7 @@
     "/api/system/gpu-config/detect": {
       "post": {
         "description": "Triggers a fresh GPU scan and updates the database.",
-        "operationId": "detect_gpus_api_system_gpu_config_detect_post",
+        "operationId": "gpu-config_detect_gpus",
         "responses": {
           "200": {
             "content": {
@@ -35769,7 +35769,7 @@
     "/api/system/gpu-config/preview": {
       "get": {
         "description": "Preview what assignments would result from a given strategy.",
-        "operationId": "preview_gpu_config_api_system_gpu_config_preview_get",
+        "operationId": "gpu-config_preview_gpu_config",
         "parameters": [
           {
             "description": "Assignment strategy to preview",
@@ -35819,7 +35819,7 @@
     "/api/system/gpu-config/status": {
       "get": {
         "description": "Returns current status of GPU configuration apply operation.",
-        "operationId": "get_gpu_config_status_api_system_gpu_config_status_get",
+        "operationId": "gpu-config_get_gpu_config_status",
         "responses": {
           "200": {
             "content": {
@@ -35841,7 +35841,7 @@
     "/api/system/gpu/history": {
       "get": {
         "description": "Get recent GPU stats samples as a time-series.\n\nReturns GPU stats in standard pagination envelope format (NEM-2178):\n- items: GPU stats samples (renamed from 'samples')\n- pagination: Standard pagination metadata\n\nArgs:\n    since: Optional lower bound for recorded_at (ISO datetime)\n    limit: Maximum number of samples to return (default 300, max 5000)\n    db: Database session",
-        "operationId": "get_gpu_stats_history_api_system_gpu_history_get",
+        "operationId": "system_get_gpu_stats_history",
         "parameters": [
           {
             "in": "query",
@@ -35902,7 +35902,7 @@
     "/api/system/gpus": {
       "get": {
         "description": "Returns all GPUs detected on the system with hardware specs and utilization.",
-        "operationId": "list_gpus_api_system_gpus_get",
+        "operationId": "gpu-config_list_gpus",
         "responses": {
           "200": {
             "content": {
@@ -35927,7 +35927,7 @@
     "/api/system/health": {
       "get": {
         "description": "Get detailed system health check.\n\nChecks the health of all system components:\n- Database connectivity\n- Redis connectivity\n- AI services status\n\nHealth checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).\nIf a health check times out, the service is marked as unhealthy.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\nload from frequent health probes. Cached responses are returned immediately\nwithout re-checking services.\n\nReturns:\n    HealthResponse with overall status and individual service statuses.\n    HTTP 200 if healthy, 503 if degraded or unhealthy.",
-        "operationId": "get_health_api_system_health_get",
+        "operationId": "system_get_health",
         "responses": {
           "200": {
             "content": {
@@ -35949,7 +35949,7 @@
     "/api/system/health/full": {
       "get": {
         "description": "Get comprehensive health status for all system components.",
-        "operationId": "get_full_health_api_system_health_full_get",
+        "operationId": "system_get_full_health",
         "responses": {
           "200": {
             "content": {
@@ -35974,7 +35974,7 @@
     "/api/system/health/ready": {
       "get": {
         "description": "Kubernetes-style readiness probe endpoint with detailed information.\n\nThis endpoint indicates whether the application is ready to receive\ntraffic and process uploads. It checks all critical dependencies:\n- Database connectivity (critical)\n- Redis connectivity (required for queue processing)\n- AI services availability\n- Background worker status\n\nNote: The canonical readiness probe is GET /ready at the root level.\nThis endpoint provides the same readiness check but with detailed\nservice and worker status information.\n\nUsed by Kubernetes/Docker to determine if traffic should be routed to this instance.\nIf this endpoint returns not_ready, the instance should not receive new requests.\n\nHealth checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).\nIf a health check times out, the service is marked as unhealthy.\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\nload from frequent readiness probes.\n\nReturns:\n    ReadinessResponse with overall readiness status and detailed checks.\n    HTTP 200 if ready, 503 if degraded or not ready.",
-        "operationId": "get_readiness_api_system_health_ready_get",
+        "operationId": "system_get_readiness",
         "responses": {
           "200": {
             "content": {
@@ -35996,7 +35996,7 @@
     "/api/system/health/websocket": {
       "get": {
         "description": "Get health status of WebSocket broadcasters and their circuit breakers.\n\nReturns the current state of circuit breakers for:\n- Event broadcaster: Handles real-time security event distribution\n- System broadcaster: Handles system status updates (GPU, cameras, queues)\n\nCircuit breakers protect the system from cascading failures by:\n- Opening after repeated connection failures\n- Blocking recovery attempts while open to allow stabilization\n- Gradually testing recovery in half-open state\n\nCircuit breaker states:\n- closed: Normal operation, WebSocket events flowing normally\n- open: Failures detected, events may be delayed or unavailable\n- half_open: Testing recovery, limited operations allowed\n\nReturns:\n    WebSocketHealthResponse with circuit breaker status for both broadcasters",
-        "operationId": "get_websocket_health_api_system_health_websocket_get",
+        "operationId": "system_get_websocket_health",
         "responses": {
           "200": {
             "content": {
@@ -36018,7 +36018,7 @@
     "/api/system/model-zoo/latency/history": {
       "get": {
         "description": "Get latency history for a specific Model Zoo model.\n\nReturns time-series latency data for the dropdown-controlled chart.\nEach bucket contains aggregated statistics (avg, p50, p95).\n\nArgs:\n    model: Model name to get history for\n    since: Number of minutes of history to return (default 60)\n    bucket_seconds: Size of each time bucket in seconds (default 60)\n\nReturns:\n    ModelLatencyHistoryResponse with chronologically ordered snapshots\n\nRaises:\n    HTTPException: 404 if model not found in registry",
-        "operationId": "get_model_zoo_latency_history_api_system_model_zoo_latency_history_get",
+        "operationId": "system_get_model_zoo_latency_history",
         "parameters": [
           {
             "description": "Model name to get latency history for (e.g., 'yolo11-license-plate')",
@@ -36091,7 +36091,7 @@
     "/api/system/model-zoo/status": {
       "get": {
         "description": "Get status information for all Model Zoo models.\n\nReturns status information for all 18 Model Zoo models, including:\n- Current status (loaded, unloaded, disabled)\n- VRAM usage when loaded\n- Last usage timestamp (derived from EventAudit records, None if DB unavailable)\n- Category grouping for UI display\n\nThis endpoint is optimized for the compact status card display\nin the AI Performance page.\n\nArgs:\n    db: Optional database session for querying EventAudit last used timestamps\n\nReturns:\n    ModelZooStatusResponse with all model statuses",
-        "operationId": "get_model_zoo_status_api_system_model_zoo_status_get",
+        "operationId": "system_get_model_zoo_status",
         "responses": {
           "200": {
             "content": {
@@ -36113,7 +36113,7 @@
     "/api/system/models": {
       "get": {
         "description": "Get the current status of all models in the Model Zoo.\n\nReturns comprehensive information about all AI models available in the system,\nincluding their VRAM requirements, loading status, and configuration.\n\n**VRAM Budget**: The Model Zoo has a dedicated VRAM budget of 1650 MB,\nseparate from the RT-DETRv2 detector and Nemotron LLM allocations.\n\n**Loading Strategy**: Models are loaded sequentially (one at a time) to\nprevent VRAM fragmentation and ensure stable operation.\n\n**Model Categories**:\n- detection: Object detection models (YOLO variants)\n- recognition: Face and license plate recognition\n- ocr: Optical character recognition\n- embedding: Visual embedding models (CLIP)\n- depth-estimation: Depth estimation models\n- pose: Human pose estimation\n\nReturns:\n    ModelRegistryResponse with VRAM stats and all model statuses",
-        "operationId": "get_models_api_system_models_get",
+        "operationId": "system_get_models",
         "responses": {
           "200": {
             "content": {
@@ -36135,7 +36135,7 @@
     "/api/system/models/{model_name}": {
       "get": {
         "description": "Get detailed status information for a specific model.\n\nArgs:\n    model_name: Unique identifier of the model (e.g., 'yolo11-license-plate')\n\nReturns:\n    ModelStatusResponse with detailed model information\n\nRaises:\n    HTTPException: 404 if model not found in registry",
-        "operationId": "get_model_api_system_models__model_name__get",
+        "operationId": "system_get_model",
         "parameters": [
           {
             "in": "path",
@@ -36178,7 +36178,7 @@
     "/api/system/monitoring/health": {
       "get": {
         "description": "Get comprehensive monitoring stack health status.\n\nChecks the health of the monitoring infrastructure including:\n- Prometheus server reachability\n- Scrape target status (UP/DOWN counts by job)\n- Exporter status (redis-exporter, json-exporter, blackbox-exporter)\n- Metrics collection status\n\nThis endpoint provides operators with a quick view of monitoring\nstack health without needing to access the Prometheus UI directly.\n\nReturns:\n    MonitoringHealthResponse with full monitoring stack status.\n    The 'healthy' field is True if Prometheus is reachable and\n    the majority of critical targets are up.",
-        "operationId": "get_monitoring_health_api_system_monitoring_health_get",
+        "operationId": "system_get_monitoring_health",
         "responses": {
           "200": {
             "content": {
@@ -36200,7 +36200,7 @@
     "/api/system/monitoring/targets": {
       "get": {
         "description": "Get detailed status of all Prometheus scrape targets.\n\nReturns complete information about every target Prometheus is\nconfigured to scrape, including:\n- Job and instance identifiers\n- Health status (up/down)\n- All labels associated with the target\n- Last scrape timestamp and duration\n- Any scrape errors\n\nThis endpoint is useful for debugging specific target issues\nor getting a comprehensive view of all monitored endpoints.\n\nReturns:\n    MonitoringTargetsResponse with detailed target information.\n\nRaises:\n    HTTPException: 503 if Prometheus is unreachable",
-        "operationId": "get_monitoring_targets_api_system_monitoring_targets_get",
+        "operationId": "system_get_monitoring_targets",
         "responses": {
           "200": {
             "content": {
@@ -36222,7 +36222,7 @@
     "/api/system/performance": {
       "get": {
         "description": "Get current system performance metrics.\n\nCollects and returns real-time metrics from all system components:\n- GPU: Utilization, VRAM usage, temperature, power consumption\n- AI Models: RT-DETRv2 and Nemotron status and resource usage\n- Inference: Latency percentiles and throughput metrics\n- Databases: PostgreSQL and Redis connection status and performance\n- Host: CPU, RAM, and disk usage\n- Containers: Health status of all running containers\n- Alerts: Active performance alerts when thresholds are exceeded\n\nThis endpoint powers the System Performance Dashboard and provides\na comprehensive snapshot of system health at the time of the request.\n\nReturns:\n    PerformanceUpdate with all available metrics. Fields may be None\n    if a particular metric source is unavailable.\n\nRaises:\n    HTTPException: 503 if performance collector is not initialized\n    HTTPException: 500 if metric collection fails",
-        "operationId": "get_performance_metrics_api_system_performance_get",
+        "operationId": "system_get_performance_metrics",
         "responses": {
           "200": {
             "content": {
@@ -36244,7 +36244,7 @@
     "/api/system/performance/history": {
       "get": {
         "description": "Get historical system performance metrics.\n\nReturns historical performance snapshots for time-series visualization.\nThe data is sampled based on the requested time range to provide\napproximately 60 data points for each range:\n\n- 5m: All snapshots from the last 5 minutes (every 5s = 60 points max)\n- 15m: Sampled snapshots from last 15 minutes (every 15s = 60 points max)\n- 60m: Sampled snapshots from last 60 minutes (every 60s = 60 points max)\n\nThis endpoint enables the System Performance Dashboard to display\nhistorical trends and patterns in system metrics.\n\nArgs:\n    time_range: Time range for history (5m, 15m, or 60m). Defaults to 5m.\n\nReturns:\n    PerformanceHistoryResponse containing:\n    - snapshots: List of PerformanceUpdate objects in chronological order\n    - time_range: The requested time range\n    - count: Number of snapshots returned",
-        "operationId": "get_performance_history_api_system_performance_history_get",
+        "operationId": "system_get_performance_history",
         "parameters": [
           {
             "in": "query",
@@ -36287,7 +36287,7 @@
     "/api/system/pipeline": {
       "get": {
         "description": "Get combined status of all pipeline operations.\n\nReturns real-time visibility into the AI processing pipeline:\n\n**FileWatcher**: Monitors camera directories for new uploads\n- running: Whether the watcher is active\n- camera_root: Directory being watched\n- pending_tasks: Files waiting for debounce completion\n- observer_type: Filesystem observer type (native/polling)\n\n**BatchAggregator**: Groups detections into time-based batches\n- active_batches: Number of batches being aggregated\n- batches: Details of each active batch\n- batch_window_seconds: Configured window timeout\n- idle_timeout_seconds: Configured idle timeout\n\n**DegradationManager**: Handles graceful degradation\n- mode: Current degradation mode (normal/degraded/minimal/offline)\n- is_degraded: Whether system is in any degraded state\n- services: Health status of registered services\n- available_features: Features available in current mode\n\nReturns:\n    PipelineStatusResponse with status of all pipeline services",
-        "operationId": "get_pipeline_status_api_system_pipeline_get",
+        "operationId": "system_get_pipeline_status",
         "responses": {
           "200": {
             "content": {
@@ -36309,7 +36309,7 @@
     "/api/system/pipeline-latency": {
       "get": {
         "description": "Get pipeline latency metrics with percentiles.\n\nReturns latency statistics for each stage transition in the AI pipeline:\n- watch_to_detect: Time from file watcher detecting image to RT-DETR processing start\n- detect_to_batch: Time from detection completion to batch aggregation\n- batch_to_analyze: Time from batch completion to Nemotron analysis start\n- total_pipeline: Total end-to-end processing time\n\nEach stage includes:\n- avg_ms: Average latency in milliseconds\n- min_ms: Minimum latency\n- max_ms: Maximum latency\n- p50_ms: 50th percentile (median)\n- p95_ms: 95th percentile\n- p99_ms: 99th percentile\n- sample_count: Number of samples used\n\nArgs:\n    window_minutes: Time window for statistics calculation (default 60 minutes)\n\nReturns:\n    PipelineLatencyResponse with latency statistics for each stage",
-        "operationId": "get_pipeline_latency_api_system_pipeline_latency_get",
+        "operationId": "system_get_pipeline_latency",
         "parameters": [
           {
             "in": "query",
@@ -36353,7 +36353,7 @@
     "/api/system/pipeline-latency/history": {
       "get": {
         "description": "Get pipeline latency history for time-series visualization.\n\nReturns latency data grouped into time buckets for charting.\nEach bucket contains aggregated statistics for all pipeline stages.\n\nArgs:\n    since: Number of minutes of history to return (1-1440, default 60)\n    bucket_seconds: Size of each time bucket in seconds (10-3600, default 60)\n\nReturns:\n    PipelineLatencyHistoryResponse with chronologically ordered snapshots",
-        "operationId": "get_pipeline_latency_history_api_system_pipeline_latency_history_get",
+        "operationId": "system_get_pipeline_latency_history",
         "parameters": [
           {
             "description": "Number of minutes of history to return (1-1440, i.e., 1 minute to 24 hours)",
@@ -36415,7 +36415,7 @@
     "/api/system/services": {
       "get": {
         "description": "Get status of all managed services.\n\nArgs:\n    category: Optional filter by category (infrastructure, ai, monitoring)\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    List of services with status and category summaries.",
-        "operationId": "list_services_api_system_services_get",
+        "operationId": "services_list_services",
         "parameters": [
           {
             "in": "query",
@@ -36471,7 +36471,7 @@
     "/api/system/services/{name}/disable": {
       "post": {
         "description": "Manually disable a service.\n\nPrevents self-healing restarts.\n\nArgs:\n    name: Service name to disable\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found",
-        "operationId": "disable_service_api_system_services__name__disable_post",
+        "operationId": "services_disable_service",
         "parameters": [
           {
             "in": "path",
@@ -36523,7 +36523,7 @@
     "/api/system/services/{name}/enable": {
       "post": {
         "description": "Re-enable a disabled service.\n\nResets failure count and allows self-healing to resume.\n\nArgs:\n    name: Service name to enable\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found",
-        "operationId": "enable_service_api_system_services__name__enable_post",
+        "operationId": "services_enable_service",
         "parameters": [
           {
             "in": "path",
@@ -36575,7 +36575,7 @@
     "/api/system/services/{name}/restart": {
       "post": {
         "description": "Manually restart a service.\n\nResets failure count (manual restart is intentional).\n\nArgs:\n    name: Service name to restart\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found, 400 if service is disabled",
-        "operationId": "restart_service_api_system_services__name__restart_post",
+        "operationId": "services_restart_service",
         "parameters": [
           {
             "in": "path",
@@ -36630,7 +36630,7 @@
     "/api/system/services/{name}/start": {
       "post": {
         "description": "Start a stopped service container.\n\nArgs:\n    name: Service name to start\n    orchestrator: Container orchestrator instance (injected)\n\nReturns:\n    Action result with updated service information\n\nRaises:\n    HTTPException: 404 if service not found,\n                   400 if service is already running or disabled",
-        "operationId": "start_service_api_system_services__name__start_post",
+        "operationId": "services_start_service",
         "parameters": [
           {
             "in": "path",
@@ -36685,7 +36685,7 @@
     "/api/system/severity": {
       "get": {
         "description": "Get severity level definitions and thresholds.\n\nReturns complete information about the severity taxonomy including:\n- All severity level definitions (LOW, MEDIUM, HIGH, CRITICAL)\n- Risk score thresholds for each level\n- Color codes for UI display\n- Human-readable labels and descriptions\n\nThis endpoint is useful for frontends to:\n- Display severity information consistently\n- Show severity legends in the UI\n- Validate severity-related user inputs\n- Map risk scores to severity levels client-side\n\nReturns:\n    SeverityMetadataResponse with all severity definitions and current thresholds",
-        "operationId": "get_severity_metadata_api_system_severity_get",
+        "operationId": "system_get_severity_metadata",
         "responses": {
           "200": {
             "content": {
@@ -36705,7 +36705,7 @@
       },
       "put": {
         "description": "Update severity threshold configuration.\n\nUpdates the risk score thresholds for severity levels. The thresholds\ndefine how risk scores (0-100) are mapped to severity levels:\n- LOW: 0 to low_max\n- MEDIUM: low_max+1 to medium_max\n- HIGH: medium_max+1 to high_max\n- CRITICAL: high_max+1 to 100\n\nRequires API key authentication when api_key_enabled is True in settings.\nProvide the API key via X-API-Key header.\n\nValidation:\n- Thresholds must be strictly ordered: low_max < medium_max < high_max\n- All thresholds must be between 1 and 99\n- This ensures contiguous, non-overlapping ranges covering 0-100\n\nNote: Changes only affect new events. Existing events retain their\noriginal severity assignment.\n\nArgs:\n    update: New threshold values\n\nReturns:\n    SeverityMetadataResponse with updated definitions and thresholds\n\nRaises:\n    HTTPException 400: If thresholds are not strictly ordered",
-        "operationId": "update_severity_thresholds_api_system_severity_put",
+        "operationId": "system_update_severity_thresholds",
         "parameters": [
           {
             "in": "header",
@@ -36765,7 +36765,7 @@
     "/api/system/stats": {
       "get": {
         "description": "Get system statistics.\n\nReturns aggregate statistics about the system:\n- Total number of cameras\n- Total number of events\n- Total number of detections\n- Application uptime\n\nResults are cached for HEALTH_CACHE_TTL_SECONDS (default 5 seconds) to reduce\ndatabase load from three sequential COUNT queries.\n\nReturns:\n    SystemStatsResponse with system statistics",
-        "operationId": "get_stats_api_system_stats_get",
+        "operationId": "system_get_stats",
         "responses": {
           "200": {
             "content": {
@@ -36787,7 +36787,7 @@
     "/api/system/storage": {
       "get": {
         "description": "Get storage statistics and disk usage metrics.\n\nReturns detailed storage usage information including:\n- Overall disk usage (used/total/free)\n- Storage breakdown by category (thumbnails, images, clips)\n- Database record counts (events, detections, GPU stats, logs)\n\nThis endpoint helps operators:\n- Monitor available storage space\n- Understand storage distribution across data types\n- Plan cleanup operations\n- Track database growth\n\nReturns:\n    StorageStatsResponse with comprehensive storage metrics",
-        "operationId": "get_storage_stats_api_system_storage_get",
+        "operationId": "system_get_storage_stats",
         "responses": {
           "200": {
             "content": {
@@ -36809,7 +36809,7 @@
     "/api/system/supervisor": {
       "get": {
         "description": "Get status of the Worker Supervisor and all supervised workers.\n\nThe Worker Supervisor monitors pipeline worker tasks and automatically\nrestarts them with exponential backoff when they crash.\n\nReturns:\n    WorkerSupervisorStatusResponse with:\n    - running: Whether the supervisor is active\n    - worker_count: Number of registered workers\n    - workers: Detailed status of each supervised worker including:\n      - status: running/stopped/crashed/restarting/failed\n      - restart_count: Number of restart attempts\n      - last_started_at/last_crashed_at: Timestamps\n      - error: Last error message if crashed\n\nUse this endpoint to monitor worker health and identify workers that\nare repeatedly crashing or have exceeded their restart limit.",
-        "operationId": "get_supervisor_status_api_system_supervisor_get",
+        "operationId": "system_get_supervisor_status",
         "responses": {
           "200": {
             "content": {
@@ -36831,7 +36831,7 @@
     "/api/system/supervisor/reset/{worker_name}": {
       "post": {
         "description": "Reset a failed worker's restart count to allow new restart attempts.\n\nWhen a worker exceeds its max restart limit, it enters FAILED status\nand won't be restarted. Use this endpoint to reset the worker's\nrestart count and transition it back to STOPPED status, allowing\nthe supervisor to attempt restarts again.\n\nArgs:\n    worker_name: Name of the worker to reset\n\nReturns:\n    Dictionary with success status and message\n\nRaises:\n    HTTPException 404: Worker not found\n    HTTPException 503: Supervisor not initialized",
-        "operationId": "reset_worker_api_system_supervisor_reset__worker_name__post",
+        "operationId": "system_reset_worker",
         "parameters": [
           {
             "in": "path",
@@ -36858,7 +36858,7 @@
                       }
                     ]
                   },
-                  "title": "Response Reset Worker Api System Supervisor Reset  Worker Name  Post",
+                  "title": "Response System Reset Worker",
                   "type": "object"
                 }
               }
@@ -36885,7 +36885,7 @@
     "/api/system/supervisor/restart-history": {
       "get": {
         "description": "Get paginated history of worker restart events.\n\nReturns a list of restart events including both automatic restarts\n(triggered by crashes) and manual restarts.\n\nArgs:\n    worker_name: Optional filter by worker name\n    limit: Maximum number of events to return (default 50, max 100)\n    offset: Number of events to skip for pagination\n\nReturns:\n    RestartHistoryResponse with events and pagination metadata",
-        "operationId": "get_restart_history_api_system_supervisor_restart_history_get",
+        "operationId": "system_get_restart_history",
         "parameters": [
           {
             "description": "Filter by worker name",
@@ -36964,7 +36964,7 @@
     "/api/system/supervisor/status": {
       "get": {
         "description": "Get full status of the Worker Supervisor and all supervised workers.\n\nThis endpoint is an alias for GET /supervisor but with a clearer path\nthat matches the API convention for status endpoints.\n\nReturns:\n    WorkerSupervisorStatusResponse with:\n    - running: Whether the supervisor is active\n    - worker_count: Number of registered workers\n    - workers: Detailed status of each supervised worker\n    - timestamp: When the status was queried",
-        "operationId": "get_supervisor_full_status_api_system_supervisor_status_get",
+        "operationId": "system_get_supervisor_full_status",
         "responses": {
           "200": {
             "content": {
@@ -36986,7 +36986,7 @@
     "/api/system/supervisor/workers/{worker_name}/restart": {
       "post": {
         "description": "Manually restart a supervised worker.\n\nThis stops the worker if running and starts it again with reset state.\n\nArgs:\n    worker_name: Name of the worker to restart (e.g., file_watcher, detector)\n\nReturns:\n    WorkerControlResponse with success status and message\n\nRaises:\n    HTTPException 400: Invalid worker name format\n    HTTPException 404: Worker not found\n    HTTPException 503: Supervisor not initialized",
-        "operationId": "restart_supervisor_worker_api_system_supervisor_workers__worker_name__restart_post",
+        "operationId": "system_restart_supervisor_worker",
         "parameters": [
           {
             "in": "path",
@@ -37029,7 +37029,7 @@
     "/api/system/supervisor/workers/{worker_name}/start": {
       "post": {
         "description": "Manually start a stopped supervised worker.\n\nThis starts a worker that was previously stopped. If the worker\nis already running, this is a no-op and returns success.\n\nArgs:\n    worker_name: Name of the worker to start\n\nReturns:\n    WorkerControlResponse with success status and message\n\nRaises:\n    HTTPException 400: Invalid worker name format\n    HTTPException 404: Worker not found\n    HTTPException 503: Supervisor not initialized",
-        "operationId": "start_supervisor_worker_api_system_supervisor_workers__worker_name__start_post",
+        "operationId": "system_start_supervisor_worker",
         "parameters": [
           {
             "in": "path",
@@ -37072,7 +37072,7 @@
     "/api/system/supervisor/workers/{worker_name}/stop": {
       "post": {
         "description": "Manually stop a supervised worker.\n\nThis stops the worker's task. The worker will remain registered\nbut will not be automatically restarted by the supervisor.\n\nArgs:\n    worker_name: Name of the worker to stop\n\nReturns:\n    WorkerControlResponse with success status and message\n\nRaises:\n    HTTPException 400: Invalid worker name format\n    HTTPException 404: Worker not found\n    HTTPException 503: Supervisor not initialized",
-        "operationId": "stop_supervisor_worker_api_system_supervisor_workers__worker_name__stop_post",
+        "operationId": "system_stop_supervisor_worker",
         "parameters": [
           {
             "in": "path",
@@ -37115,7 +37115,7 @@
     "/api/system/telemetry": {
       "get": {
         "description": "Get pipeline telemetry data.\n\nReturns real-time metrics about the AI processing pipeline:\n- Queue depths: Items waiting in detection and analysis queues\n- Stage latencies: Processing time statistics for each pipeline stage\n\nThis endpoint helps operators:\n- Monitor pipeline health and throughput\n- Identify bottlenecks and backlogs\n- Debug pipeline stalls\n- Track performance trends\n\nReturns:\n    TelemetryResponse with queue depths and latency statistics",
-        "operationId": "get_telemetry_api_system_telemetry_get",
+        "operationId": "system_get_telemetry",
         "responses": {
           "200": {
             "content": {
@@ -37137,7 +37137,7 @@
     "/api/system/websocket/events": {
       "get": {
         "description": "List all available WebSocket event types with schemas.\n\nReturns the complete registry of WebSocket event types supported by the system,\nincluding their descriptions, payload schemas, and example payloads. This\nendpoint enables frontend developers and API consumers to discover and\nunderstand all available real-time event types.\n\nEvent types follow a hierarchical naming convention: {domain}.{action}\nFor example: detection.new, event.created, camera.status_changed\n\nChannels group related events:\n- detections: AI detection pipeline events\n- events: Security event lifecycle events\n- alerts: Alert notifications and state changes\n- cameras: Camera status and configuration changes\n- jobs: Background job lifecycle events\n- system: System health and status events\n\nNote: Some event types are marked as deprecated with suggested replacements.\nThese remain available for backward compatibility but should be avoided in\nnew implementations.\n\nReturns:\n    EventRegistryResponse containing:\n    - event_types: List of all event types with schemas and examples\n    - channels: List of available WebSocket channels\n    - total_count: Total number of event types\n    - deprecated_count: Number of deprecated event types",
-        "operationId": "list_websocket_event_types_api_system_websocket_events_get",
+        "operationId": "system_list_websocket_event_types",
         "responses": {
           "200": {
             "content": {
@@ -37159,7 +37159,7 @@
     "/api/v1/alertmanager/webhook": {
       "post": {
         "description": "Receive webhook notifications from Alertmanager.\n\nThis endpoint receives alerts from Prometheus Alertmanager and:\n1. Stores each alert in the database for history tracking\n2. Broadcasts each alert via WebSocket for real-time frontend updates\n3. Returns acknowledgment to Alertmanager\n\nThe alerts are infrastructure alerts (GPU memory, pipeline health, etc.)\nwhich are stored for history and displayed alongside security alerts.\n\nArgs:\n    payload: Alertmanager webhook payload containing alert details\n    db: Database session (injected)\n    redis_client: Redis client for WebSocket broadcasting (optional)\n\nReturns:\n    AlertmanagerWebhookResponse with processing status",
-        "operationId": "receive_alertmanager_webhook_api_v1_alertmanager_webhook_post",
+        "operationId": "alertmanager_receive_alertmanager_webhook",
         "requestBody": {
           "content": {
             "application/json": {
@@ -37197,7 +37197,7 @@
     "/api/v1/areas/{area_id}": {
       "delete": {
         "description": "Delete an area.\n\nThis will unlink all cameras associated with this area (cameras themselves\nare not deleted, only the association).\n\nArgs:\n    area_id: ID of the area to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if area not found",
-        "operationId": "delete_area_api_v1_areas__area_id__delete",
+        "operationId": "areas_delete_area",
         "parameters": [
           {
             "in": "path",
@@ -37231,7 +37231,7 @@
       },
       "get": {
         "description": "Get a specific area by ID.\n\nArgs:\n    area_id: ID of the area to retrieve\n    session: Database session\n\nReturns:\n    Area object\n\nRaises:\n    HTTPException: 404 if area not found",
-        "operationId": "get_area_api_v1_areas__area_id__get",
+        "operationId": "areas_get_area",
         "parameters": [
           {
             "in": "path",
@@ -37272,7 +37272,7 @@
       },
       "patch": {
         "description": "Update an existing area.\n\nArgs:\n    area_id: ID of the area to update\n    updates: Area update data (all fields optional)\n    session: Database session\n\nReturns:\n    Updated Area object\n\nRaises:\n    HTTPException: 404 if area not found\n    HTTPException: 409 if new name conflicts with existing area in same property",
-        "operationId": "update_area_api_v1_areas__area_id__patch",
+        "operationId": "areas_update_area",
         "parameters": [
           {
             "in": "path",
@@ -37325,7 +37325,7 @@
     "/api/v1/areas/{area_id}/cameras": {
       "get": {
         "description": "List all cameras linked to an area.\n\nArgs:\n    area_id: ID of the area\n    session: Database session\n\nReturns:\n    AreaCamerasResponse with list of cameras and count\n\nRaises:\n    HTTPException: 404 if area not found",
-        "operationId": "list_area_cameras_api_v1_areas__area_id__cameras_get",
+        "operationId": "areas_list_area_cameras",
         "parameters": [
           {
             "in": "path",
@@ -37366,7 +37366,7 @@
       },
       "post": {
         "description": "Link a camera to an area.\n\nCreates a many-to-many relationship between the area and camera.\nA camera can be linked to multiple areas, and an area can have multiple cameras.\n\nArgs:\n    area_id: ID of the area\n    link_request: Contains the camera_id to link\n    session: Database session\n\nReturns:\n    CameraLinkResponse confirming the link\n\nRaises:\n    HTTPException: 404 if area or camera not found\n    HTTPException: 409 if camera is already linked to this area",
-        "operationId": "link_camera_to_area_api_v1_areas__area_id__cameras_post",
+        "operationId": "areas_link_camera_to_area",
         "parameters": [
           {
             "in": "path",
@@ -37419,7 +37419,7 @@
     "/api/v1/areas/{area_id}/cameras/{camera_id}": {
       "delete": {
         "description": "Unlink a camera from an area.\n\nRemoves the many-to-many relationship between the area and camera.\nNeither the area nor the camera is deleted.\n\nArgs:\n    area_id: ID of the area\n    camera_id: ID of the camera to unlink\n    session: Database session\n\nReturns:\n    CameraLinkResponse confirming the unlink\n\nRaises:\n    HTTPException: 404 if area or camera not found\n    HTTPException: 404 if camera is not linked to this area",
-        "operationId": "unlink_camera_from_area_api_v1_areas__area_id__cameras__camera_id__delete",
+        "operationId": "areas_unlink_camera_from_area",
         "parameters": [
           {
             "in": "path",
@@ -37471,7 +37471,7 @@
     "/api/v1/households": {
       "get": {
         "description": "List all households.\n\nReturns all households in the system ordered by name.\n\nArgs:\n    session: Database session\n\nReturns:\n    HouseholdListResponse with list of households and total count",
-        "operationId": "list_households_api_v1_households_get",
+        "operationId": "households_list_households",
         "responses": {
           "200": {
             "content": {
@@ -37491,7 +37491,7 @@
       },
       "post": {
         "description": "Create a new household.\n\nArgs:\n    household_data: Household creation data\n    session: Database session\n\nReturns:\n    Created Household object\n\nRaises:\n    HTTPException: 409 if household with same name already exists",
-        "operationId": "create_household_api_v1_households_post",
+        "operationId": "households_create_household",
         "requestBody": {
           "content": {
             "application/json": {
@@ -37533,7 +37533,7 @@
     "/api/v1/households/{household_id}": {
       "delete": {
         "description": "Delete a household.\n\nThis will cascade delete all related properties, areas, and unlink\nassociated members and vehicles.\n\nArgs:\n    household_id: ID of the household to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if household not found",
-        "operationId": "delete_household_api_v1_households__household_id__delete",
+        "operationId": "households_delete_household",
         "parameters": [
           {
             "in": "path",
@@ -37567,7 +37567,7 @@
       },
       "get": {
         "description": "Get a specific household by ID.\n\nArgs:\n    household_id: ID of the household to retrieve\n    session: Database session\n\nReturns:\n    Household object\n\nRaises:\n    HTTPException: 404 if household not found",
-        "operationId": "get_household_api_v1_households__household_id__get",
+        "operationId": "households_get_household",
         "parameters": [
           {
             "in": "path",
@@ -37608,7 +37608,7 @@
       },
       "patch": {
         "description": "Update an existing household.\n\nArgs:\n    household_id: ID of the household to update\n    updates: Household update data (all fields optional)\n    session: Database session\n\nReturns:\n    Updated Household object\n\nRaises:\n    HTTPException: 404 if household not found\n    HTTPException: 409 if new name conflicts with existing household",
-        "operationId": "update_household_api_v1_households__household_id__patch",
+        "operationId": "households_update_household",
         "parameters": [
           {
             "in": "path",
@@ -37661,7 +37661,7 @@
     "/api/v1/households/{household_id}/properties": {
       "get": {
         "description": "List all properties for a household.\n\nArgs:\n    household_id: ID of the household\n    session: Database session\n\nReturns:\n    PropertyListResponse with list of properties and total count\n\nRaises:\n    HTTPException: 404 if household not found",
-        "operationId": "list_household_properties_api_v1_households__household_id__properties_get",
+        "operationId": "households_list_household_properties",
         "parameters": [
           {
             "in": "path",
@@ -37702,7 +37702,7 @@
       },
       "post": {
         "description": "Create a new property under a household.\n\nArgs:\n    household_id: ID of the household that owns this property\n    property_data: Property creation data\n    session: Database session\n\nReturns:\n    Created Property object\n\nRaises:\n    HTTPException: 404 if household not found\n    HTTPException: 409 if property with same name already exists for this household",
-        "operationId": "create_property_api_v1_households__household_id__properties_post",
+        "operationId": "households_create_property",
         "parameters": [
           {
             "in": "path",
@@ -37755,7 +37755,7 @@
     "/api/v1/properties/{property_id}": {
       "delete": {
         "description": "Delete a property.\n\nThis will cascade delete all related areas and unlink associated cameras.\n\nArgs:\n    property_id: ID of the property to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if property not found",
-        "operationId": "delete_property_api_v1_properties__property_id__delete",
+        "operationId": "properties_delete_property",
         "parameters": [
           {
             "in": "path",
@@ -37789,7 +37789,7 @@
       },
       "get": {
         "description": "Get a specific property by ID.\n\nArgs:\n    property_id: ID of the property to retrieve\n    session: Database session\n\nReturns:\n    Property object\n\nRaises:\n    HTTPException: 404 if property not found",
-        "operationId": "get_property_api_v1_properties__property_id__get",
+        "operationId": "properties_get_property",
         "parameters": [
           {
             "in": "path",
@@ -37830,7 +37830,7 @@
       },
       "patch": {
         "description": "Update an existing property.\n\nArgs:\n    property_id: ID of the property to update\n    updates: Property update data (all fields optional)\n    session: Database session\n\nReturns:\n    Updated Property object\n\nRaises:\n    HTTPException: 404 if property not found\n    HTTPException: 409 if new name conflicts with existing property in same household",
-        "operationId": "update_property_api_v1_properties__property_id__patch",
+        "operationId": "properties_update_property",
         "parameters": [
           {
             "in": "path",
@@ -37883,7 +37883,7 @@
     "/api/v1/properties/{property_id}/areas": {
       "get": {
         "description": "List all areas for a property.\n\nArgs:\n    property_id: ID of the property\n    session: Database session\n\nReturns:\n    AreaListResponse with list of areas and total count\n\nRaises:\n    HTTPException: 404 if property not found",
-        "operationId": "list_property_areas_api_v1_properties__property_id__areas_get",
+        "operationId": "properties_list_property_areas",
         "parameters": [
           {
             "in": "path",
@@ -37924,7 +37924,7 @@
       },
       "post": {
         "description": "Create a new area under a property.\n\nArgs:\n    property_id: ID of the property that owns this area\n    area_data: Area creation data\n    session: Database session\n\nReturns:\n    Created Area object\n\nRaises:\n    HTTPException: 404 if property not found\n    HTTPException: 409 if area with same name already exists for this property",
-        "operationId": "create_area_api_v1_properties__property_id__areas_post",
+        "operationId": "properties_create_area",
         "parameters": [
           {
             "in": "path",
@@ -37977,7 +37977,7 @@
     "/api/v1/settings": {
       "get": {
         "description": "Returns user-configurable settings grouped by category. These settings control detection thresholds, batch processing, severity levels, feature toggles, rate limiting, queue management, and data retention policies.",
-        "operationId": "get_user_settings_api_v1_settings_get",
+        "operationId": "settings_get_user_settings",
         "responses": {
           "200": {
             "content": {
@@ -37997,7 +37997,7 @@
       },
       "patch": {
         "description": "Update system settings at runtime without server restart. Changes are written to data/runtime.env and take effect immediately. All fields are optional - only provided fields will be updated.",
-        "operationId": "update_settings_api_v1_settings_patch",
+        "operationId": "settings_update_settings",
         "requestBody": {
           "content": {
             "application/json": {
@@ -38035,7 +38035,7 @@
     "/api/webhooks/alerts": {
       "post": {
         "description": "Receive webhook notifications from Alertmanager.\n\nThis endpoint receives alerts from Prometheus Alertmanager and:\n1. Logs the alert for observability\n2. Broadcasts to WebSocket clients for real-time frontend updates\n3. Returns acknowledgment to Alertmanager\n\nThe alerts are infrastructure alerts (GPU memory, pipeline health, etc.)\nwhich are separate from AI-generated security alerts.\n\nArgs:\n    payload: Alertmanager webhook payload containing alert details\n    background_tasks: FastAPI background tasks for async processing\n\nReturns:\n    WebhookResponse with processing status",
-        "operationId": "receive_alertmanager_webhook_api_webhooks_alerts_post",
+        "operationId": "webhooks_receive_alertmanager_webhook",
         "requestBody": {
           "content": {
             "application/json": {
@@ -38073,7 +38073,7 @@
     "/api/zones/member/{member_id}/zones": {
       "get": {
         "description": "Get all zones where a household member has trust.\n\nReturns zones where the member is:\n- The owner (full trust)\n- In the allowed members list (partial trust)\n- In any access schedule (potential monitor trust)\n\nArgs:\n    member_id: ID of the household member\n    db: Database session\n\nReturns:\n    List of zones with trust information",
-        "operationId": "get_member_zones_api_zones_member__member_id__zones_get",
+        "operationId": "zone-household_get_member_zones",
         "parameters": [
           {
             "in": "path",
@@ -38094,7 +38094,7 @@
                     "additionalProperties": true,
                     "type": "object"
                   },
-                  "title": "Response Get Member Zones Api Zones Member  Member Id  Zones Get",
+                  "title": "Response Zone-Household Get Member Zones",
                   "type": "array"
                 }
               }
@@ -38121,7 +38121,7 @@
     "/api/zones/vehicle/{vehicle_id}/zones": {
       "get": {
         "description": "Get all zones where a vehicle has trust.\n\nReturns zones where the vehicle is in the allowed vehicles list.\n\nArgs:\n    vehicle_id: ID of the registered vehicle\n    db: Database session\n\nReturns:\n    List of zones with trust information",
-        "operationId": "get_vehicle_zones_api_zones_vehicle__vehicle_id__zones_get",
+        "operationId": "zone-household_get_vehicle_zones",
         "parameters": [
           {
             "in": "path",
@@ -38142,7 +38142,7 @@
                     "additionalProperties": true,
                     "type": "object"
                   },
-                  "title": "Response Get Vehicle Zones Api Zones Vehicle  Vehicle Id  Zones Get",
+                  "title": "Response Zone-Household Get Vehicle Zones",
                   "type": "array"
                 }
               }
@@ -38169,7 +38169,7 @@
     "/api/zones/{zone_id}/household": {
       "delete": {
         "description": "Delete the household configuration for a zone.\n\nRemoves all household linkage for this zone, including owner,\nallowed members, allowed vehicles, and access schedules.\n\nArgs:\n    zone_id: ID of the zone\n    db: Database session\n\nRaises:\n    HTTPException: 404 if zone not found\n    HTTPException: 404 if config not found",
-        "operationId": "delete_zone_household_config_api_zones__zone_id__household_delete",
+        "operationId": "zone-household_delete_zone_household_config",
         "parameters": [
           {
             "in": "path",
@@ -38203,7 +38203,7 @@
       },
       "get": {
         "description": "Get the household configuration for a zone.\n\nReturns the household configuration if one exists, or null if the zone\nhas no household linkage configured.\n\nArgs:\n    zone_id: ID of the zone\n    db: Database session\n\nReturns:\n    ZoneHouseholdConfigResponse if config exists, None otherwise\n\nRaises:\n    HTTPException: 404 if zone not found",
-        "operationId": "get_zone_household_config_api_zones__zone_id__household_get",
+        "operationId": "zone-household_get_zone_household_config",
         "parameters": [
           {
             "in": "path",
@@ -38228,7 +38228,7 @@
                       "type": "null"
                     }
                   ],
-                  "title": "Response Get Zone Household Config Api Zones  Zone Id  Household Get"
+                  "title": "Response Zone-Household Get Zone Household Config"
                 }
               }
             },
@@ -38252,7 +38252,7 @@
       },
       "patch": {
         "description": "Partially update the household configuration for a zone.\n\nOnly updates the fields that are provided in the request body.\nUnlike PUT, this endpoint requires an existing configuration.\n\nArgs:\n    zone_id: ID of the zone\n    config_data: Household configuration update data\n    db: Database session\n\nReturns:\n    Updated ZoneHouseholdConfigResponse\n\nRaises:\n    HTTPException: 404 if zone not found\n    HTTPException: 404 if config not found\n    HTTPException: 404 if owner_id references non-existent member",
-        "operationId": "patch_zone_household_config_api_zones__zone_id__household_patch",
+        "operationId": "zone-household_patch_zone_household_config",
         "parameters": [
           {
             "in": "path",
@@ -38303,7 +38303,7 @@
       },
       "put": {
         "description": "Create or update the household configuration for a zone.\n\nIf a configuration already exists for this zone, it will be updated.\nOtherwise, a new configuration will be created.\n\nArgs:\n    zone_id: ID of the zone\n    config_data: Household configuration data\n    db: Database session\n\nReturns:\n    Created or updated ZoneHouseholdConfigResponse\n\nRaises:\n    HTTPException: 404 if zone not found\n    HTTPException: 404 if owner_id references non-existent member",
-        "operationId": "upsert_zone_household_config_api_zones__zone_id__household_put",
+        "operationId": "zone-household_upsert_zone_household_config",
         "parameters": [
           {
             "in": "path",
@@ -38356,7 +38356,7 @@
     "/api/zones/{zone_id}/household/trust/{entity_type}/{entity_id}": {
       "get": {
         "description": "Check the trust level of an entity in a zone.\n\nEvaluates the trust level based on:\n1. Zone ownership (full trust)\n2. Allowed members/vehicles list (partial trust)\n3. Time-based access schedules (monitor trust)\n4. No configuration (none)\n\nArgs:\n    zone_id: ID of the zone\n    entity_type: Type of entity (\"member\" or \"vehicle\")\n    entity_id: ID of the entity to check\n    at_time: Optional time for schedule checking (defaults to now)\n    db: Database session\n\nReturns:\n    TrustCheckResponse with trust level and reason\n\nRaises:\n    HTTPException: 404 if zone not found",
-        "operationId": "check_entity_trust_api_zones__zone_id__household_trust__entity_type___entity_id__get",
+        "operationId": "zone-household_check_entity_trust",
         "parameters": [
           {
             "in": "path",
@@ -38440,7 +38440,7 @@
     "/health": {
       "get": {
         "description": "Simple liveness health check endpoint (canonical liveness probe).\n\nThis endpoint indicates whether the process is running and able to\nrespond to HTTP requests. It always returns 200 with status \"alive\"\nif the process is up.\n\nThis is the canonical liveness probe endpoint. Use this for:\n- Docker HEALTHCHECK liveness checks\n- Kubernetes liveness probes\n- Simple \"is the server up?\" monitoring\n\nFor detailed health information, use:\n- GET /api/system/health - Detailed health check with service status\n- GET /ready - Readiness probe (checks dependencies)\n\nReturns:\n    LivenessResponse with status \"alive\".",
-        "operationId": "health_health_get",
+        "operationId": "health",
         "responses": {
           "200": {
             "content": {
@@ -38449,7 +38449,7 @@
                   "additionalProperties": {
                     "type": "string"
                   },
-                  "title": "Response Health Health Get",
+                  "title": "Response Health",
                   "type": "object"
                 }
               }
@@ -38463,7 +38463,7 @@
     "/ready": {
       "get": {
         "description": "Simple readiness health check endpoint (canonical readiness probe).\n\nThis endpoint indicates whether the application is ready to receive\ntraffic and process requests. It checks critical dependencies:\n- Database connectivity\n- Redis connectivity\n- Critical pipeline workers\n\nThis is the canonical readiness probe endpoint. Use this for:\n- Docker HEALTHCHECK readiness checks\n- Kubernetes readiness probes\n- Load balancer health checks\n\nFor detailed readiness information with service breakdown, use:\n- GET /api/system/health/ready - Full readiness response with details\n\nReturns:\n    SimpleReadinessResponse with ready bool and status. HTTP 200 if ready, 503 if not.",
-        "operationId": "ready_ready_get",
+        "operationId": "ready",
         "responses": {
           "200": {
             "content": {

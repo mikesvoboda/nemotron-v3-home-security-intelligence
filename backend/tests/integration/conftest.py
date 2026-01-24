@@ -1034,8 +1034,9 @@ async def mock_redis() -> AsyncGenerator[AsyncMock]:
     # Mock scan_iter as an async generator that yields nothing by default
     async def mock_scan_iter(match: str = "*", count: int = 100):
         """Empty async generator for scan_iter."""
-        return
-        yield  # Makes this an async generator
+        # Empty generator - explicitly iterate over empty list
+        for _ in []:
+            yield _
 
     mock_internal_client.scan_iter = MagicMock(
         side_effect=lambda match="*", count=100: mock_scan_iter(match, count)

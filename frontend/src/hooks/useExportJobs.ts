@@ -82,7 +82,9 @@ export interface UseExportJobsQueryReturn {
   jobs: ExportJob[];
   /** Pagination metadata */
   pagination: ExportPaginationMeta | null;
-  /** Whether the query is loading */
+  /** Whether there is no cached data yet (TanStack Query v5: status === 'pending') */
+  isPending: boolean;
+  /** Whether the query is in initial loading state (isPending && isFetching) */
   isLoading: boolean;
   /** Whether the query is fetching (includes background refetches) */
   isFetching: boolean;
@@ -200,6 +202,7 @@ export function useExportJobsQuery(options: UseExportJobsQueryOptions = {}): Use
   return {
     jobs: query.data?.items ?? [],
     pagination: query.data?.pagination ?? null,
+    isPending: query.isPending,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
     isError: query.isError,

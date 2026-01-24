@@ -600,7 +600,7 @@ async def list_detection_labels(db: AsyncSession = Depends(get_db)) -> Detection
     )
 
 
-@router.get("/{detection_id}", response_model=DetectionResponse)
+@router.get("/{detection_id}", response_model=DetectionResponse, response_model_exclude_unset=True)
 async def get_detection(
     detection_id: int,
     db: AsyncSession = Depends(get_db),
@@ -1002,7 +1002,11 @@ def _transform_enrichment_data(
     }
 
 
-@router.get("/{detection_id}/enrichment", response_model=EnrichmentResponse)
+@router.get(
+    "/{detection_id}/enrichment",
+    response_model=EnrichmentResponse,
+    response_model_exclude_unset=True,
+)
 async def get_detection_enrichment(
     detection_id: int,
     db: AsyncSession = Depends(get_db),

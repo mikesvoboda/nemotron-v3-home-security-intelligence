@@ -339,7 +339,7 @@ async def restore_camera(
     return camera
 
 
-@router.get("/{camera_id}", response_model=CameraResponse)
+@router.get("/{camera_id}", response_model=CameraResponse, response_model_exclude_unset=True)
 async def get_camera(
     camera_id: str,
     db: AsyncSession = Depends(get_db),

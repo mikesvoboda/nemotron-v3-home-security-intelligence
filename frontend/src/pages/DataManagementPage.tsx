@@ -401,7 +401,7 @@ function BackupSection() {
  * DataManagementPage provides data export and backup functionality.
  */
 export default function DataManagementPage() {
-  const { jobs, isLoading, isError, error, refetch } = useExportJobsQuery({
+  const { jobs, isPending, isLoading, isError, error, refetch } = useExportJobsQuery({
     refetchInterval: 5000, // Poll for updates every 5 seconds
   });
   const { startExport, isPending: isStarting } = useStartExportJob();
@@ -425,8 +425,10 @@ export default function DataManagementPage() {
     await downloadExportFile(jobId);
   }, []);
 
-  // Loading state
-  if (isLoading) {
+  // Loading state - check both isPending (no data yet) and isLoading (initial fetch)
+  // In TanStack Query v5, isPending means status === 'pending' (no cached data)
+  // This handles edge cases where isLoading might be false but data isn't available
+  if (isPending || isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center" data-testid="loading-spinner">
         <LoadingSpinner />
