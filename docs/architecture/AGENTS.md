@@ -17,6 +17,7 @@ architecture/
   real-time.md      # WebSocket channels, Redis pub/sub, event broadcasting
   resilience.md     # Circuit breakers, retries, DLQ, health monitoring
   system-page-pipeline-visualization.md  # System page pipeline visualization components
+  ai-orchestration/ # AI Model Zoo, inference clients, enrichment pipeline (hub)
 ```
 
 ## Key Files
@@ -247,8 +248,20 @@ FileWatcher --> detection_queue --> DetectionWorker --> RT-DETRv2
 ### Working on AI Features
 
 1. Read `ai-pipeline.md` for processing flow details
-2. Understand batch aggregation timing
-3. Review fast path logic for critical detections
+2. Read `ai-orchestration/README.md` for model inventory and VRAM allocation
+3. Understand batch aggregation timing
+4. Review fast path logic for critical detections
+
+### Working on AI Services
+
+1. Read `ai-orchestration/` hub for comprehensive AI documentation:
+   - `model-zoo.md` - Model registry, VRAM management, LRU eviction
+   - `rt-detr-client.md` - RT-DETRv2 detector client implementation
+   - `nemotron-analyzer.md` - LLM-based risk analysis service
+   - `enrichment-pipeline.md` - Multi-model enrichment flow
+   - `fallback-strategies.md` - Graceful degradation patterns
+2. Review source files in `backend/services/` for implementation details
+3. Check `ai/enrichment/` for enrichment service models
 
 ### Database Changes
 

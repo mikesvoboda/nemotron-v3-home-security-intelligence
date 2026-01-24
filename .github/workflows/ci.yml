@@ -327,14 +327,17 @@ jobs:
 
       - name: Run API integration tests with retry
         # API tests: test_*_api.py files
-        # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
+        # -n auto enables parallel execution with database-per-worker isolation
+        # Each pytest-xdist worker gets its own database copy via template_database fixture
         # Retry loop: 3 attempts with 10s wait between retries for transient failures
         run: |
+          START_TIME=$(date +%s)
           for attempt in 1 2 3; do
             echo "Attempt $attempt of 3"
+            echo "::group::Test Execution (Attempt $attempt)"
             if uv run pytest backend/tests/integration/ \
               -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
-              -n0 \
+              -n auto \
               --timeout=30 \
               --cov=backend \
               --cov-fail-under=0 \
@@ -342,9 +345,15 @@ jobs:
               --cov-report=term-missing \
               --junit-xml=test-results-integration-api.xml \
               --durations=20 \
-              -v; then
+              -v 2>&1 | tee test-output.log; then
+              echo "::endgroup::"
+              END_TIME=$(date +%s)
+              DURATION=$((END_TIME - START_TIME))
+              WORKERS=$(grep -oP 'gw\d+' test-output.log | sort -u | wc -l || echo "unknown")
+              echo "::notice::API Integration Tests completed in ${DURATION}s using ${WORKERS} workers"
               exit 0
             fi
+            echo "::endgroup::"
             if [ $attempt -lt 3 ]; then
               echo "Test failed, retrying in 10s..."
               sleep 10

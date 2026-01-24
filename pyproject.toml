@@ -132,6 +132,14 @@ nemo = [
 quantization = [
     "bitsandbytes>=0.44.0",
 ]
+# Documentation validation tools
+# Usage: `uv sync --extra docs` or `uv sync --group docs`
+docs = [
+    "tree-sitter>=0.23.0",
+    "tree-sitter-python>=0.23.0",
+    "tree-sitter-typescript>=0.23.0",
+    "rich>=13.0.0",
+]
 
 # =============================================================================
 # PEP 735 Dependency Groups (uv 0.5.0+)
@@ -214,6 +222,15 @@ nemo = [
     "numpy>=1.24.0",
 ]
 
+# Documentation validation tools
+# Usage: uv sync --group docs
+docs = [
+    "tree-sitter>=0.23.0",
+    "tree-sitter-python>=0.23.0",
+    "tree-sitter-typescript>=0.23.0",
+    "rich>=13.0.0",
+]
+
 # All Development Dependencies (combines all groups above)
 dev = [
     {include-group = "lint"},
@@ -223,6 +240,7 @@ dev = [
     {include-group = "mutation"},
     {include-group = "quality"},
     "types-pyyaml>=6.0.12.20250915",
+    {include-group = "docs"},
 ]
 
 [tool.ruff]
