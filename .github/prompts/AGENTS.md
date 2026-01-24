@@ -95,7 +95,7 @@ The `ai-code-review.yml` workflow:
 
 ### Adding New Prompts
 
-1. Create new `.prompt.md` file in this directory
+1. Create new prompt file in this directory (e.g., `my-prompt.prompt.md`)
 2. Reference in workflow with:
    ```yaml
    - name: Load prompt
@@ -120,6 +120,6 @@ The `ai-code-review.yml` workflow:
 
 ## Related Files
 
-- `../.github/workflows/ai-code-review.yml` - Workflow using this prompt
-- `../.github/copilot-instructions.md` - GitHub Copilot context
+- `../workflows/ai-code-review.yml` - Workflow using this prompt
+- `../copilot-instructions.md` - GitHub Copilot context
 - `CLAUDE.md` - Project development guidelines

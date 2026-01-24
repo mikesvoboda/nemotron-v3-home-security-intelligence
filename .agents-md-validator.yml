@@ -1,0 +1,70 @@
+# AGENTS.md validation configuration
+# Controls which directories are scanned and what counts as code files
+
+# Directories to skip entirely (no AGENTS.md required)
+# Glob patterns relative to project root
+exclude_directories:
+  - __pycache__
+  - node_modules
+  - .git
+  - .venv
+  - .pytest_cache
+  - coverage
+  - dist
+  - build
+  - .mypy_cache
+  - .ruff_cache
+  - mutants
+  - '*.egg-info'
+  - .tox
+  - .nox
+
+# Directories that intentionally have no AGENTS.md
+# Even if they contain code files (used for generated code, test fixtures, etc.)
+no_agents_md_required:
+  - certs/
+  - data/
+  - custom/clips/
+  # Setup library is simple utilities
+  - setup_lib/
+  # Tests directory at root is minimal
+  - tests/
+
+# File extensions that count as "code files"
+# Directories with >= min_code_files of these need AGENTS.md
+code_extensions:
+  - .py
+  - .ts
+  - .tsx
+  - .js
+  - .jsx
+
+# Minimum code files before requiring AGENTS.md
+min_code_files: 2
+
+# File patterns to exclude from reference validation
+# Regex patterns - references matching these are not validated as file paths
+exclude_reference_patterns:
+  # Example patterns in documentation
+  - "example\\.py"
+  - "your_file\\.py"
+  # Template variables like {file}.py or <name>.py
+  - "\\{.*\\}"
+  - '<.*>'
+  # Environment variables
+  - "\\$\\{.*\\}"
+  - "\\$[A-Z_]+"
+  # Output artifacts mentioned in documentation
+  - "report\\.json$"
+  - "-report\\.json$"
+  # Generic pattern placeholders
+  - "_test\\.(py|tsx?)$"
+  - "test_.*\\.py$"
+
+# Linear configuration (used by agents_md_linear_sync.py)
+linear:
+  team_id: '998946a2-aa75-491b-a39d-189660131392'
+  task_title: 'AGENTS.md Documentation Sync Required'
+  labels:
+    - 'documentation'
+    - 'tech-debt'

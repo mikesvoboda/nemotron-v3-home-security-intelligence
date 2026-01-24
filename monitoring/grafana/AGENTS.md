@@ -11,7 +11,11 @@ grafana/
   AGENTS.md                  # This file
   dashboards/                # Dashboard JSON definitions
     AGENTS.md                # Dashboards guide
-    pipeline.json            # Main AI pipeline monitoring dashboard
+    consolidated.json        # Main unified monitoring dashboard
+    analytics.json           # Analytics dashboard
+    hsi-profiling.json       # Profiling dashboard
+    logs.json                # Logs dashboard
+    tracing.json             # Tracing dashboard
   provisioning/              # Auto-provisioning configuration
     AGENTS.md                # Provisioning guide
     dashboards/
@@ -22,11 +26,11 @@ grafana/
 
 ## Key Files
 
-### dashboards/pipeline.json
+### dashboards/consolidated.json
 
-**Purpose:** Main monitoring dashboard for the AI security pipeline.
+**Purpose:** Main unified monitoring dashboard for the AI security pipeline.
 
-**Dashboard UID:** `hsi-pipeline`
+**Dashboard UID:** `hsi-consolidated`
 
 **Sections:**
 
@@ -96,7 +100,7 @@ Note: This project uses **Podman** for container management, not Docker.
 
 **In JSON files:**
 
-1. Edit `dashboards/pipeline.json`
+1. Edit `dashboards/consolidated.json`
 2. Restart Grafana or wait 30 seconds for auto-reload
 
 ### Adding New Dashboards
@@ -162,7 +166,7 @@ Note: This project uses **Podman** for container management, not Docker.
 ### Dashboard Not Loading
 
 1. Check Grafana logs: `docker compose logs grafana`
-2. Verify JSON syntax: `jq . dashboards/pipeline.json`
+2. Verify JSON syntax: `jq . dashboards/consolidated.json`
 3. Check provisioning path in `dashboard.yml`
 
 ### Datasource Connection Failed

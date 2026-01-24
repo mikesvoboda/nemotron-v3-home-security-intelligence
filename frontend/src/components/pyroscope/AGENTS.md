@@ -171,7 +171,7 @@ Unit tests cover:
 ## Design Document
 
 For detailed architecture decisions, feature rationale, dashboard panels, and implementation notes, see:
-[Pyroscope Profiling Page Design](../../docs/plans/2026-01-20-pyroscope-page-design.md)
+[Pyroscope Profiling Page Design](../../../../docs/plans/2026-01-20-pyroscope-page-design.md)
 
 ## Pattern Reference
 

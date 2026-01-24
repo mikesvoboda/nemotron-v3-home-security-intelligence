@@ -130,7 +130,7 @@ npm test -- --watch tests/integration/
 | **Scope**       | Hook/component interactions    | Full user workflows        |
 | **Speed**       | Fast (~ms per test)            | Slower (~seconds per test) |
 | **Mocking**     | Module-level mocks             | Route interception         |
-| **Location**    | `tests/integration/`           | `tests/e2e/specs/`         |
+| **Location**    | This directory                 | `../e2e/specs/`            |
 
 ## When to Use Integration Tests
 
@@ -223,6 +223,6 @@ it('handles async updates', async () => {
 ## Entry Points
 
 1. **Start here**: `websocket-performance.test.ts` - Main integration test
-2. **Hook source**: `src/hooks/usePerformanceMetrics.ts` - Hook under test
-3. **WebSocket hook**: `src/hooks/useWebSocket.ts` - Mocked dependency
-4. **Test setup**: `src/test/setup.ts` - Vitest configuration
+2. **Hook source**: `../../src/hooks/usePerformanceMetrics.ts` - Hook under test
+3. **WebSocket hook**: `../../src/hooks/useWebSocket.ts` - Mocked dependency
+4. **Test setup**: `../../src/test/setup.ts` - Vitest configuration

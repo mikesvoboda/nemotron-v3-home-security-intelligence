@@ -373,16 +373,16 @@ curl -X POST http://localhost:8000/api/v1/admin/cleanup
 - **Database configuration:** `backend/core/database.py` - Connection and session management
 - **Cleanup service:** `backend/services/cleanup_service.py` - Retention policy implementation
 - **Environment config:** `.env.example` - Database URL and retention settings
-- **Seed script:** `scripts/seed-cameras.py` - Database population tool
+- **Seed script:** `scripts/seed-events.py` - Database population tool
 
 ## Entry Points for Agents
 
 ### Inspecting Database State
 
-1. **List cameras:**
+1. **Seed events and cameras:**
 
    ```bash
-   ./scripts/seed-cameras.py --list
+   ./scripts/seed-events.py
    ```
 
 2. **Check database size:**

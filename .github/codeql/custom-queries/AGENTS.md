@@ -15,11 +15,13 @@ CodeQL is GitHub's semantic code analysis engine that treats code as data. These
 .github/codeql/custom-queries/
 ├── AGENTS.md                    # This file
 ├── python/                      # Python/FastAPI security queries
+│   ├── AGENTS.md               # Python queries guide
 │   ├── qlpack.yml              # CodeQL package definition
 │   ├── fastapi-missing-auth.ql
 │   ├── fastapi-sql-injection.ql
 │   └── unsafe-file-operations.ql
 └── javascript/                  # JavaScript/TypeScript/React queries
+    ├── AGENTS.md               # JavaScript queries guide
     ├── qlpack.yml              # CodeQL package definition
     ├── localstorage-sensitive-data.ql
     ├── react-dangerous-html.ql
@@ -72,7 +74,7 @@ CodeQL ignores:
 
 - Test files (`**/*.test.ts`, `**/test_*.py`, `**/tests/**`)
 - Dependencies (`node_modules/`, `.venv/`)
-- Build artifacts (`dist/`, `build/`, `coverage/`)
+- Build artifacts (dist, build, coverage directories)
 - Generated files (Alembic migrations, `*.generated.ts`)
 
 See `.github/codeql/codeql-config.yml` for full list.
@@ -375,5 +377,5 @@ If CodeQL analysis times out (> 2 hours):
 2. **Post-merge analysis** - Runs after merge to main (not on PRs)
 3. **Complement existing tools** - Works alongside Semgrep, Mypy, ESLint
 4. **Security tab** - View results in GitHub Security > Code scanning alerts
-5. **7 custom queries** - 3 Python (FastAPI), 4 JavaScript (React)
+5. **6 custom queries** - 3 Python (FastAPI), 3 JavaScript (React)
 6. **Deep analysis** - Control flow, data flow, taint tracking

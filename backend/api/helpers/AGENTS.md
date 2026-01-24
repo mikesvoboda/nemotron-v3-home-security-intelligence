@@ -165,7 +165,6 @@ result = transformer.transform(detection_id, enrichment_data, detected_at)
 ### Used By
 
 - `backend/api/routes/detections.py` - Detections API endpoints
-- `backend/api/routes/enrichment.py` - Enrichment API endpoints (if exists)
 
 ### Dependencies
 

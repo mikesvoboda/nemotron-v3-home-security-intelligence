@@ -298,7 +298,7 @@ test.describe('Dashboard Tests', () => {
 - Use `expect()` from `@playwright/test` for assertions
 - Page load timeout is 5000ms by default
 - Error handling uses `.catch(() => false)` for boolean checks
-- Screenshots go to `test-results/` directory
+- Screenshots go to test-results directory (generated during test runs)
 
 ## Entry Points
 

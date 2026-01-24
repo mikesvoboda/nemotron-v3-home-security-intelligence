@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Test suite directory for end-to-end (E2E) tests using Playwright and integration tests using Vitest. Unit tests are co-located with source files in `src/`, not in this directory.
+Test suite directory for end-to-end (E2E) tests using Playwright and integration tests using Vitest. Unit tests are co-located with source files in `../src/`, not in this directory.
 
 ## Directory Structure
 
@@ -65,11 +65,11 @@ frontend/tests/
 
 | Test Type       | Location             | Framework    | Purpose                          |
 | --------------- | -------------------- | ------------ | -------------------------------- |
-| **Unit**        | `src/**/*.test.tsx`  | Vitest + RTL | Component/function isolation     |
-| **Integration** | `tests/integration/` | Vitest       | Cross-component, WebSocket tests |
-| **E2E**         | `tests/e2e/specs/`   | Playwright   | Full browser workflows           |
+| **Unit**        | `../src/**/*.test.tsx` | Vitest + RTL | Component/function isolation     |
+| **Integration** | `integration/`         | Vitest       | Cross-component, WebSocket tests |
+| **E2E**         | `e2e/specs/`           | Playwright   | Full browser workflows           |
 
-**Important**: Unit tests are NOT in this directory. They are co-located with source files (e.g., `src/components/events/EventCard.test.tsx`).
+**Important**: Unit tests are NOT in this directory. They are co-located with source files (e.g., `../src/components/events/EventCard.test.tsx`).
 
 ## E2E Test Architecture
 
@@ -142,7 +142,7 @@ Coverage thresholds are configured in `vite.config.ts`:
 - Unit tests are co-located with source files, not here
 - E2E tests follow the Page Object Model pattern
 - All E2E tests mock backend endpoints via Playwright route interception
-- Test setup is in `src/test/setup.ts`
+- Test setup is in `../src/test/setup.ts`
 - E2E tests are excluded from Vitest runs via `vite.config.ts` exclude pattern
 - Use fixtures from `e2e/fixtures/` instead of duplicating mock data
 - Use page objects from `e2e/pages/` for consistent selectors

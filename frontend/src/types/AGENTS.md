@@ -237,7 +237,7 @@ interface EnrichmentData {
 }
 ```
 
-**Note:** These types correspond to backend `backend/services/enrichment_service.py`.
+**Note:** These types correspond to backend enrichment services (see backend/services/enrichment_*.py files).
 
 ## Generated Types
 
