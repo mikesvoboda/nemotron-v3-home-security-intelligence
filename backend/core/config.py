@@ -367,15 +367,41 @@ class Settings(BaseSettings):
         "queue names, and other Redis keys will be prefixed with '{prefix}:'.",
     )
 
-    # Redis connection pool settings
+    # Redis connection pool settings (NEM-3368)
     # Pool size should be tuned based on concurrent operations (file watcher, workers, API)
-    # Default 50 connections handles burst loads from bulk file operations
     redis_pool_size: int = Field(
         default=50,
         ge=10,
         le=500,
-        description="Maximum number of Redis connections in the pool. "
-        "Increase for high-concurrency workloads with many simultaneous file uploads.",
+        description="Total pool size when dedicated pools are disabled.",
+    )
+    redis_pool_dedicated_enabled: bool = Field(
+        default=True,
+        description="Enable dedicated connection pools by workload type.",
+    )
+    redis_pool_size_cache: int = Field(
+        default=20,
+        ge=5,
+        le=100,
+        description="Max connections for cache operations.",
+    )
+    redis_pool_size_queue: int = Field(
+        default=15,
+        ge=3,
+        le=100,
+        description="Max connections for queue operations.",
+    )
+    redis_pool_size_pubsub: int = Field(
+        default=10,
+        ge=2,
+        le=50,
+        description="Max connections for pub/sub operations.",
+    )
+    redis_pool_size_ratelimit: int = Field(
+        default=10,
+        ge=2,
+        le=50,
+        description="Max connections for rate limiting operations.",
     )
 
     # Redis SSL/TLS settings
@@ -431,6 +457,21 @@ class Settings(BaseSettings):
         le=86400,
         description="Long cache TTL in seconds (1 hour). Used for rarely changing data.",
     )
+
+    # Stale-While-Revalidate (SWR) cache settings (NEM-3367)
+    cache_swr_stale_ttl: int = Field(
+        default=60,
+        ge=10,
+        le=3600,
+        description="Stale TTL in seconds for SWR pattern. After TTL expires but within "
+        "stale_ttl, cached data is returned while revalidating in background.",
+    )
+    cache_swr_enabled: bool = Field(
+        default=True,
+        description="Enable Stale-While-Revalidate caching pattern. When enabled, "
+        "stale cached data is returned immediately while refreshing in background.",
+    )
+
     snapshot_cache_ttl: int = Field(
         default=3600,
         ge=60,

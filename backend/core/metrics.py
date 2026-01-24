@@ -555,6 +555,43 @@ CACHE_INVALIDATIONS_TOTAL = Counter(
     registry=_registry,
 )
 
+# SWR (Stale-While-Revalidate) Metrics (NEM-3367)
+CACHE_STALE_HITS_TOTAL = Counter(
+    "hsi_cache_stale_hits_total",
+    "Total number of stale cache hits (returned while revalidating in background)",
+    labelnames=["cache_type"],
+    registry=_registry,
+)
+
+CACHE_BACKGROUND_REFRESH_TOTAL = Counter(
+    "hsi_cache_background_refresh_total",
+    "Total number of background cache refresh operations",
+    labelnames=["cache_type", "status"],
+    registry=_registry,
+)
+
+# Connection Pool Metrics (NEM-3368)
+REDIS_POOL_SIZE = Gauge(
+    "hsi_redis_pool_size",
+    "Current size of the Redis connection pool",
+    labelnames=["pool_type"],
+    registry=_registry,
+)
+
+REDIS_POOL_AVAILABLE = Gauge(
+    "hsi_redis_pool_available",
+    "Number of available connections in the Redis pool",
+    labelnames=["pool_type"],
+    registry=_registry,
+)
+
+REDIS_POOL_IN_USE = Gauge(
+    "hsi_redis_pool_in_use",
+    "Number of connections currently in use",
+    labelnames=["pool_type"],
+    registry=_registry,
+)
+
 # =============================================================================
 # LLM Token Usage Metrics (NEM-1730)
 # =============================================================================
@@ -1592,6 +1629,46 @@ def record_cache_invalidation(cache_type: str, reason: str) -> None:
         reason: Reason for invalidation (e.g., "event_created", "camera_updated")
     """
     CACHE_INVALIDATIONS_TOTAL.labels(cache_type=cache_type, reason=reason).inc()
+
+
+def record_cache_stale_hit(cache_type: str) -> None:
+    """Record a stale cache hit (SWR pattern - NEM-3367).
+
+    A stale hit occurs when cached data is served while being refreshed in the background.
+    This is part of the Stale-While-Revalidate pattern for zero-latency cache updates.
+
+    Args:
+        cache_type: Type of cache (e.g., "dashboard_stats", "event_stats")
+    """
+    CACHE_STALE_HITS_TOTAL.labels(cache_type=cache_type).inc()
+
+
+def record_cache_background_refresh(cache_type: str, success: bool = True) -> None:
+    """Record a background cache refresh (SWR pattern - NEM-3367).
+
+    Background refreshes occur when stale data is served while fresh data is fetched.
+    This metric tracks the success/failure rate of these background operations.
+
+    Args:
+        cache_type: Type of cache being refreshed
+        success: Whether the refresh succeeded
+    """
+    status = "success" if success else "skipped"
+    CACHE_BACKGROUND_REFRESH_TOTAL.labels(cache_type=cache_type, status=status).inc()
+
+
+def set_redis_pool_metrics(pool_type: str, size: int, available: int, in_use: int) -> None:
+    """Update Redis pool metrics (NEM-3368).
+
+    Args:
+        pool_type: Type of pool ("cache", "queue", "pubsub", "ratelimit")
+        size: Total pool size
+        available: Number of available connections
+        in_use: Number of connections in use
+    """
+    REDIS_POOL_SIZE.labels(pool_type=pool_type).set(size)
+    REDIS_POOL_AVAILABLE.labels(pool_type=pool_type).set(available)
+    REDIS_POOL_IN_USE.labels(pool_type=pool_type).set(in_use)
 
 
 # =============================================================================

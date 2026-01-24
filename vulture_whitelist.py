@@ -79,3 +79,9 @@ _.FDS  # FaceDetectorService alias
 _.PDS  # PlateDetectorService alias
 _.OCRS  # OCRService alias
 _.YWS  # YOLOWorldService alias
+
+# Test fixtures used for side effects (data setup)
+_.sample_anomalies
+_.clean_summaries
+_.multiple_summaries
+_.enable_api_key_auth
