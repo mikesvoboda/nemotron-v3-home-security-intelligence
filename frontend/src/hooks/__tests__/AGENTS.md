@@ -5,6 +5,7 @@ This directory contains unit tests for custom React hooks in the frontend applic
 ## Purpose
 
 Test the behavior of individual hooks in isolation, covering:
+
 - TanStack Query integration (mutations, cache invalidation)
 - Form validation with API error mapping
 - WebSocket event handling
@@ -13,19 +14,19 @@ Test the behavior of individual hooks in isolation, covering:
 
 ## Test Files
 
-| File | Hook Under Test | Key Coverage |
-|------|-----------------|--------------|
-| `useAdminMutations.test.tsx` | `useAdminMutations` | Admin API mutations (seed, clear, cleanup), cache invalidation |
-| `useEntityHistory.test.tsx` | `useEntityHistory` | Entity history tracking with undo/redo |
-| `useFormWithApiErrors.test.ts` | `useFormWithApiErrors` | API validation errors to react-hook-form mapping |
-| `useHouseholdApi.test.ts` | `useHouseholdApi` | Household member CRUD operations |
-| `useNotificationPreferences.test.tsx` | `useNotificationPreferences` | Notification settings persistence |
-| `usePaginationState.test.tsx` | `usePaginationState` | Cursor and offset pagination with URL sync |
-| `usePromptQueries.test.tsx` | `usePromptQueries` | Prompt configuration CRUD, history, testing |
-| `usePullToRefresh.test.ts` | `usePullToRefresh` | Touch gesture handling for mobile refresh |
-| `useSettingsApi.test.tsx` | `useSettingsApi` | Application settings queries and mutations |
-| `useSummaries.test.ts` | `useSummaries` | Event summary generation and caching |
-| `useZoneAlerts.test.tsx` | `useZoneAlerts` | Zone-based anomaly and trust violation alerts |
+| File                                  | Hook Under Test              | Key Coverage                                                   |
+| ------------------------------------- | ---------------------------- | -------------------------------------------------------------- |
+| `useAdminMutations.test.tsx`          | `useAdminMutations`          | Admin API mutations (seed, clear, cleanup), cache invalidation |
+| `useEntityHistory.test.tsx`           | `useEntityHistory`           | Entity history tracking with undo/redo                         |
+| `useFormWithApiErrors.test.ts`        | `useFormWithApiErrors`       | API validation errors to react-hook-form mapping               |
+| `useHouseholdApi.test.ts`             | `useHouseholdApi`            | Household member CRUD operations                               |
+| `useNotificationPreferences.test.tsx` | `useNotificationPreferences` | Notification settings persistence                              |
+| `usePaginationState.test.tsx`         | `usePaginationState`         | Cursor and offset pagination with URL sync                     |
+| `usePromptQueries.test.tsx`           | `usePromptQueries`           | Prompt configuration CRUD, history, testing                    |
+| `usePullToRefresh.test.ts`            | `usePullToRefresh`           | Touch gesture handling for mobile refresh                      |
+| `useSettingsApi.test.tsx`             | `useSettingsApi`             | Application settings queries and mutations                     |
+| `useSummaries.test.ts`                | `useSummaries`               | Event summary generation and caching                           |
+| `useZoneAlerts.test.tsx`              | `useZoneAlerts`              | Zone-based anomaly and trust violation alerts                  |
 
 ## Test Patterns
 
@@ -100,7 +101,9 @@ mockMutationFn.mockRejectedValue(
 await act(async () => {
   try {
     await result.current.mutation.mutateAsync(formData);
-  } catch { /* Expected */ }
+  } catch {
+    /* Expected */
+  }
 });
 
 expect(result.current.form.formState.errors.email?.message).toBe('Invalid');
@@ -151,11 +154,11 @@ await waitFor(() => {
 
 ## Coverage Targets
 
-| Test Category | Minimum Coverage |
-|---------------|-----------------|
-| Hook logic | 85% |
-| Error handling | 80% |
-| Edge cases | 80% |
+| Test Category  | Minimum Coverage |
+| -------------- | ---------------- |
+| Hook logic     | 85%              |
+| Error handling | 80%              |
+| Edge cases     | 80%              |
 
 ## Key Testing Scenarios
 

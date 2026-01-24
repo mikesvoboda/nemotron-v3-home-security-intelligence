@@ -8,11 +8,11 @@ These mocks provide configurable, test-friendly implementations of hooks that wo
 
 ## Files
 
-| File | Mocks | Purpose |
-|------|-------|---------|
-| `useEventStream.ts` | `useEventStream` hook | Security event stream with WebSocket simulation |
-| `useSystemStatus.ts` | `useSystemStatus` hook | System health and GPU metrics monitoring |
-| `useWebSocket.ts` | `useWebSocket` hook | Low-level WebSocket connection management |
+| File                  | Mocks                     | Purpose                                         |
+| --------------------- | ------------------------- | ----------------------------------------------- |
+| `useEventStream.ts`   | `useEventStream` hook     | Security event stream with WebSocket simulation |
+| `useSystemStatus.ts`  | `useSystemStatus` hook    | System health and GPU metrics monitoring        |
+| `useWebSocket.ts`     | `useWebSocket` hook       | Low-level WebSocket connection management       |
 | `webSocketManager.ts` | `webSocketManager` module | WebSocket subscription and lifecycle management |
 
 ## Mock Patterns
@@ -45,9 +45,9 @@ createReconnectingWebSocket(3);  // 3 reconnect attempts
 Convenience functions for security event testing:
 
 ```typescript
-createLowRiskEvent();      // risk_score: 15, risk_level: 'low'
-createMediumRiskEvent();   // risk_score: 50, risk_level: 'medium'
-createHighRiskEvent();     // risk_score: 80, risk_level: 'high'
+createLowRiskEvent(); // risk_score: 15, risk_level: 'low'
+createMediumRiskEvent(); // risk_score: 50, risk_level: 'medium'
+createHighRiskEvent(); // risk_score: 80, risk_level: 'high'
 createCriticalRiskEvent(); // risk_score: 95, risk_level: 'critical'
 ```
 
@@ -56,12 +56,12 @@ createCriticalRiskEvent(); // risk_score: 95, risk_level: 'critical'
 Convenience functions for system status testing:
 
 ```typescript
-createHealthySystemStatus();      // GPU utilization: 45%, temp: 65C
-createDegradedSystemStatus();     // GPU utilization: 85%, temp: 78C
-createUnhealthySystemStatus();    // GPU utilization: 98%, temp: 92C
-createOverheatingSystemStatus();  // High temperature scenario
-createLowMemorySystemStatus();    // GPU memory pressure scenario
-createNoGpuSystemStatus();        // Null GPU metrics
+createHealthySystemStatus(); // GPU utilization: 45%, temp: 65C
+createDegradedSystemStatus(); // GPU utilization: 85%, temp: 78C
+createUnhealthySystemStatus(); // GPU utilization: 98%, temp: 92C
+createOverheatingSystemStatus(); // High temperature scenario
+createLowMemorySystemStatus(); // GPU memory pressure scenario
+createNoGpuSystemStatus(); // Null GPU metrics
 ```
 
 ### Hook Mock Functions

@@ -5,6 +5,7 @@ This directory contains integration tests for frontend state management, focusin
 ## Purpose
 
 Test complex interactions between multiple hooks and systems:
+
 - WebSocket events triggering React Query cache updates
 - Optimistic updates with rollback on failure
 - localStorage synchronization between browser tabs
@@ -14,24 +15,24 @@ Test complex interactions between multiple hooks and systems:
 
 ## Test Files
 
-| File | Coverage Focus | Key Scenarios |
-|------|----------------|---------------|
-| `websocket-react-query.integration.test.ts` | WebSocket -> cache invalidation | Event buffering, deduplication, connection state |
-| `optimistic-updates.integration.test.ts` | Mutation rollback | Update, delete, create with rollback on failure |
-| `cross-tab-sync.integration.test.ts` | localStorage sync | StorageEvent handling, concurrent writes |
-| `race-conditions.integration.test.ts` | Concurrent updates | API vs WebSocket timing, stale data prevention |
-| `offline-mutations.integration.test.ts` | PWA/offline support | Network status, mutation queuing, cache persistence |
-| `memory-leak-prevention.integration.test.ts` | Cleanup verification | Listener removal, subscription cleanup, ref tracking |
+| File                                         | Coverage Focus                  | Key Scenarios                                        |
+| -------------------------------------------- | ------------------------------- | ---------------------------------------------------- |
+| `websocket-react-query.integration.test.ts`  | WebSocket -> cache invalidation | Event buffering, deduplication, connection state     |
+| `optimistic-updates.integration.test.ts`     | Mutation rollback               | Update, delete, create with rollback on failure      |
+| `cross-tab-sync.integration.test.ts`         | localStorage sync               | StorageEvent handling, concurrent writes             |
+| `race-conditions.integration.test.ts`        | Concurrent updates              | API vs WebSocket timing, stale data prevention       |
+| `offline-mutations.integration.test.ts`      | PWA/offline support             | Network status, mutation queuing, cache persistence  |
+| `memory-leak-prevention.integration.test.ts` | Cleanup verification            | Listener removal, subscription cleanup, ref tracking |
 
 ## Coverage Targets
 
-| Test Type | Target |
-|-----------|--------|
-| Cross-hook integration | 80% |
-| Cross-tab sync | 80% |
-| Offline mutations | 80% |
-| Race conditions | 80% |
-| Optimistic updates | 80% |
+| Test Type              | Target |
+| ---------------------- | ------ |
+| Cross-hook integration | 80%    |
+| Cross-tab sync         | 80%    |
+| Offline mutations      | 80%    |
+| Race conditions        | 80%    |
+| Optimistic updates     | 80%    |
 
 ## Test Patterns
 
@@ -43,9 +44,11 @@ class MockWebSocket {
   onmessage?: (event: MessageEvent) => void;
 
   simulateMessage(data: unknown) {
-    this.onmessage?.(new MessageEvent('message', {
-      data: JSON.stringify(data),
-    }));
+    this.onmessage?.(
+      new MessageEvent('message', {
+        data: JSON.stringify(data),
+      })
+    );
   }
 }
 
@@ -130,7 +133,9 @@ const createLocalStorageMock = () => {
   let store: Record<string, string> = {};
   return {
     getItem: vi.fn((key) => store[key] ?? null),
-    setItem: vi.fn((key, value) => { store[key] = value; }),
+    setItem: vi.fn((key, value) => {
+      store[key] = value;
+    }),
     _triggerStorageEvent: (key, newValue, oldValue) => {
       const event = new StorageEvent('storage', {
         key,
