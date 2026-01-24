@@ -330,15 +330,14 @@ Dashboards reference datasources using:
 
 **Prometheus datasource used in:**
 
-- `operations.json` - All Prometheus metric panels (~50 panels)
+- `consolidated.json` - All Prometheus metric panels
 - Time-series graphs
 - Rate calculations
 - Histogram quantiles
 
 **Backend-API datasource used in:**
 
-- `pipeline.json` - System health, stats, telemetry panels (~25 panels)
-- `operations.json` - Quick system health checks
+- `consolidated.json` - System health, stats, telemetry panels
 - Stat panels (gauges, counters)
 - Real-time status indicators
 
