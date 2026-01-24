@@ -16,7 +16,7 @@ export interface paths {
          * Root
          * @description Health check endpoint.
          */
-        get: operations["root__get"];
+        get: operations["root"];
         put?: never;
         post?: never;
         delete?: never;
@@ -57,7 +57,7 @@ export interface paths {
          *     Returns:
          *         Summary of cleanup operation with statistics
          */
-        post: operations["cleanup_orphans_api_admin_cleanup_orphans_post"];
+        post: operations["admin_cleanup_orphans"];
         delete?: never;
         options?: never;
         head?: never;
@@ -97,7 +97,7 @@ export interface paths {
          *     Returns:
          *         Summary of cache clear operation
          */
-        post: operations["clear_cache_api_admin_maintenance_clear_cache_post"];
+        post: operations["admin_clear_cache"];
         delete?: never;
         options?: never;
         head?: never;
@@ -137,7 +137,7 @@ export interface paths {
          *     Returns:
          *         Summary of queue flush operation
          */
-        post: operations["flush_queues_api_admin_maintenance_flush_queues_post"];
+        post: operations["admin_flush_queues"];
         delete?: never;
         options?: never;
         head?: never;
@@ -169,7 +169,7 @@ export interface paths {
          *     Returns:
          *         Summary of seeded cameras
          */
-        post: operations["seed_cameras_api_admin_seed_cameras_post"];
+        post: operations["admin_seed_cameras"];
         delete?: never;
         options?: never;
         head?: never;
@@ -207,7 +207,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 400 if confirmation string is incorrect
          */
-        delete: operations["clear_seeded_data_api_admin_seed_clear_delete"];
+        delete: operations["admin_clear_seeded_data"];
         options?: never;
         head?: never;
         patch?: never;
@@ -239,7 +239,7 @@ export interface paths {
          *     Returns:
          *         Summary of seeded events and detections
          */
-        post: operations["seed_events_api_admin_seed_events_post"];
+        post: operations["admin_seed_events"];
         delete?: never;
         options?: never;
         head?: never;
@@ -281,7 +281,7 @@ export interface paths {
          *     Returns:
          *         Summary of seeded latency data
          */
-        post: operations["seed_pipeline_latency_api_admin_seed_pipeline_latency_post"];
+        post: operations["admin_seed_pipeline_latency"];
         delete?: never;
         options?: never;
         head?: never;
@@ -314,7 +314,7 @@ export interface paths {
          *     Returns:
          *         BatchAuditJobResponse with job ID for tracking progress
          */
-        post: operations["trigger_batch_audit_api_ai_audit_batch_post"];
+        post: operations["ai-audit_trigger_batch_audit"];
         delete?: never;
         options?: never;
         head?: never;
@@ -345,7 +345,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if job not found
          */
-        get: operations["get_batch_audit_status_api_ai_audit_batch__job_id__get"];
+        get: operations["ai-audit_get_batch_audit_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -378,7 +378,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if event or audit not found
          */
-        get: operations["get_event_audit_api_ai_audit_events__event_id__get"];
+        get: operations["ai-audit_get_event_audit"];
         put?: never;
         post?: never;
         delete?: never;
@@ -415,7 +415,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if event or audit not found
          */
-        post: operations["evaluate_event_api_ai_audit_events__event_id__evaluate_post"];
+        post: operations["ai-audit_evaluate_event"];
         delete?: never;
         options?: never;
         head?: never;
@@ -443,7 +443,7 @@ export interface paths {
          *     Returns:
          *         LeaderboardResponse with ranked model entries
          */
-        get: operations["get_model_leaderboard_api_ai_audit_leaderboard_get"];
+        get: operations["ai-audit_get_model_leaderboard"];
         put?: never;
         post?: never;
         delete?: never;
@@ -473,7 +473,7 @@ export interface paths {
          *     Returns:
          *         RecommendationsResponse with prioritized recommendations
          */
-        get: operations["get_recommendations_api_ai_audit_recommendations_get"];
+        get: operations["ai-audit_get_recommendations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -504,7 +504,7 @@ export interface paths {
          *     Returns:
          *         AuditStatsResponse with aggregate statistics
          */
-        get: operations["get_audit_stats_api_ai_audit_stats_get"];
+        get: operations["ai-audit_get_audit_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -534,7 +534,7 @@ export interface paths {
          *     Returns:
          *         AlertRuleListResponse with rules and pagination info
          */
-        get: operations["list_rules_api_alerts_rules_get"];
+        get: operations["alert-rules_list_rules"];
         put?: never;
         /**
          * Create Rule
@@ -548,7 +548,7 @@ export interface paths {
          *     Returns:
          *         Created AlertRule
          */
-        post: operations["create_rule_api_alerts_rules_post"];
+        post: operations["alert-rules_create_rule"];
         delete?: never;
         options?: never;
         head?: never;
@@ -576,7 +576,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if rule not found
          */
-        get: operations["get_rule_api_alerts_rules__rule_id__get"];
+        get: operations["alert-rules_get_rule"];
         /**
          * Update Rule
          * @description Update an existing alert rule.
@@ -593,7 +593,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if rule not found
          */
-        put: operations["update_rule_api_alerts_rules__rule_id__put"];
+        put: operations["alert-rules_update_rule"];
         post?: never;
         /**
          * Delete Rule
@@ -607,7 +607,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if rule not found
          */
-        delete: operations["delete_rule_api_alerts_rules__rule_id__delete"];
+        delete: operations["alert-rules_delete_rule"];
         options?: never;
         head?: never;
         patch?: never;
@@ -641,7 +641,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if rule not found
          */
-        post: operations["test_rule_api_alerts_rules__rule_id__test_post"];
+        post: operations["alert-rules_test_rule"];
         delete?: never;
         options?: never;
         head?: never;
@@ -683,7 +683,7 @@ export interface paths {
          *         HTTPException: 404 if alert not found, 409 if alert cannot be acknowledged
          *                       or if concurrent modification detected
          */
-        post: operations["acknowledge_alert_api_alerts__alert_id__acknowledge_post"];
+        post: operations["alerts_acknowledge_alert"];
         delete?: never;
         options?: never;
         head?: never;
@@ -725,7 +725,7 @@ export interface paths {
          *         HTTPException: 404 if alert not found, 409 if alert cannot be dismissed
          *                       or if concurrent modification detected
          */
-        post: operations["dismiss_alert_api_alerts__alert_id__dismiss_post"];
+        post: operations["alerts_dismiss_alert"];
         delete?: never;
         options?: never;
         head?: never;
@@ -758,7 +758,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 400 if start_date is after end_date
          */
-        get: operations["get_camera_uptime_api_analytics_camera_uptime_get"];
+        get: operations["analytics_get_camera_uptime"];
         put?: never;
         post?: never;
         delete?: never;
@@ -792,7 +792,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 400 if start_date is after end_date
          */
-        get: operations["get_detection_trends_api_analytics_detection_trends_get"];
+        get: operations["analytics_get_detection_trends"];
         put?: never;
         post?: never;
         delete?: never;
@@ -826,7 +826,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 400 if start_date is after end_date
          */
-        get: operations["get_object_distribution_api_analytics_object_distribution_get"];
+        get: operations["analytics_get_object_distribution"];
         put?: never;
         post?: never;
         delete?: never;
@@ -860,7 +860,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 400 if start_date is after end_date
          */
-        get: operations["get_risk_history_api_analytics_risk_history_get"];
+        get: operations["analytics_get_risk_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -911,7 +911,7 @@ export interface paths {
          *         HTTPException: 400 if start_date is after end_date
          *         HTTPException: 400 if cursor is invalid
          */
-        get: operations["list_audit_logs_api_audit_get"];
+        get: operations["audit_list_audit_logs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -949,7 +949,7 @@ export interface paths {
          *     Returns:
          *         AuditLogStats with aggregated statistics
          */
-        get: operations["get_audit_stats_api_audit_stats_get"];
+        get: operations["audit_get_audit_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -979,7 +979,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if audit log not found
          */
-        get: operations["get_audit_log_api_audit__audit_id__get"];
+        get: operations["audit_get_audit_log"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1005,7 +1005,7 @@ export interface paths {
          *     Returns:
          *         CalibrationResponse with current threshold settings
          */
-        get: operations["get_calibration_api_calibration_get"];
+        get: operations["calibration_get_calibration"];
         /**
          * Update Calibration
          * @description Update calibration thresholds (full replacement semantics).
@@ -1026,7 +1026,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 422 if threshold ordering would be violated
          */
-        put: operations["update_calibration_api_calibration_put"];
+        put: operations["calibration_update_calibration"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1048,7 +1048,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 422 if threshold ordering would be violated
          */
-        patch: operations["patch_calibration_api_calibration_patch"];
+        patch: operations["calibration_patch_calibration"];
         trace?: never;
     };
     "/api/calibration/defaults": {
@@ -1069,7 +1069,7 @@ export interface paths {
          *     Returns:
          *         CalibrationDefaultsResponse with default threshold values
          */
-        get: operations["get_calibration_defaults_api_calibration_defaults_get"];
+        get: operations["calibration_get_calibration_defaults"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1103,7 +1103,7 @@ export interface paths {
          *     Returns:
          *         CalibrationResetResponse with success message and reset calibration data
          */
-        post: operations["reset_calibration_api_calibration_reset_post"];
+        post: operations["calibration_reset_calibration"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1140,7 +1140,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 400 if invalid fields are requested
          */
-        get: operations["list_cameras_api_cameras_get"];
+        get: operations["cameras_list_cameras"];
         put?: never;
         /**
          * Create Camera
@@ -1157,7 +1157,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 409 if camera with same name or folder_path already exists
          */
-        post: operations["create_camera_api_cameras_post"];
+        post: operations["cameras_create_camera"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1187,7 +1187,7 @@ export interface paths {
          *     Returns:
          *         DeletedCamerasListResponse containing list of deleted cameras and count
          */
-        get: operations["list_deleted_cameras_api_cameras_deleted_get"];
+        get: operations["cameras_list_deleted_cameras"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1220,7 +1220,7 @@ export interface paths {
          *     Returns:
          *         CameraPathValidationResponse with validation results for all cameras
          */
-        get: operations["validate_camera_paths_api_cameras_validation_paths_get"];
+        get: operations["cameras_validate_camera_paths"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1250,7 +1250,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if camera not found
          */
-        get: operations["get_camera_api_cameras__camera_id__get"];
+        get: operations["cameras_get_camera"];
         put?: never;
         post?: never;
         /**
@@ -1267,7 +1267,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if camera not found
          */
-        delete: operations["delete_camera_api_cameras__camera_id__delete"];
+        delete: operations["cameras_delete_camera"];
         options?: never;
         head?: never;
         /**
@@ -1286,7 +1286,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if camera not found
          */
-        patch: operations["update_camera_api_cameras__camera_id__patch"];
+        patch: operations["cameras_update_camera"];
         trace?: never;
     };
     "/api/cameras/{camera_id}/baseline": {
@@ -1317,7 +1317,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if camera not found
          */
-        get: operations["get_camera_baseline_api_cameras__camera_id__baseline_get"];
+        get: operations["cameras_get_camera_baseline"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1352,7 +1352,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if camera not found
          */
-        get: operations["get_camera_activity_baseline_api_cameras__camera_id__baseline_activity_get"];
+        get: operations["cameras_get_camera_activity_baseline"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1388,7 +1388,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if camera not found
          */
-        get: operations["get_camera_baseline_anomalies_api_cameras__camera_id__baseline_anomalies_get"];
+        get: operations["cameras_get_camera_baseline_anomalies"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1422,7 +1422,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if camera not found
          */
-        get: operations["get_camera_class_baseline_api_cameras__camera_id__baseline_classes_get"];
+        get: operations["cameras_get_camera_class_baseline"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1459,7 +1459,7 @@ export interface paths {
          *         HTTPException: 404 if camera not found
          *         HTTPException: 400 if camera is not deleted (nothing to restore)
          */
-        post: operations["restore_camera_api_cameras__camera_id__restore_post"];
+        post: operations["cameras_restore_camera"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1494,7 +1494,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if camera not found
          */
-        get: operations["get_camera_scene_changes_api_cameras__camera_id__scene_changes_get"];
+        get: operations["cameras_get_camera_scene_changes"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1530,7 +1530,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if camera or scene change not found
          */
-        post: operations["acknowledge_scene_change_api_cameras__camera_id__scene_changes__scene_change_id__acknowledge_post"];
+        post: operations["cameras_acknowledge_scene_change"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1558,7 +1558,7 @@ export interface paths {
          *
          *     NEM-2446: Now supports video-only cameras by extracting and caching frames.
          */
-        get: operations["get_camera_snapshot_api_cameras__camera_id__snapshot_get"];
+        get: operations["cameras_get_camera_snapshot"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1586,7 +1586,7 @@ export interface paths {
          *     Returns:
          *         ZoneListResponse containing list of zones and total count
          */
-        get: operations["list_zones_api_cameras__camera_id__zones_get"];
+        get: operations["zones_list_zones"];
         put?: never;
         /**
          * Create Zone
@@ -1600,7 +1600,7 @@ export interface paths {
          *     Returns:
          *         Created zone object with generated ID
          */
-        post: operations["create_zone_api_cameras__camera_id__zones_post"];
+        post: operations["zones_create_zone"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1629,7 +1629,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if zone not found
          */
-        get: operations["get_zone_api_cameras__camera_id__zones__zone_id__get"];
+        get: operations["zones_get_zone"];
         /**
          * Update Zone
          * @description Update an existing zone.
@@ -1646,7 +1646,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if zone not found
          */
-        put: operations["update_zone_api_cameras__camera_id__zones__zone_id__put"];
+        put: operations["zones_update_zone"];
         post?: never;
         /**
          * Delete Zone
@@ -1660,7 +1660,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if zone not found
          */
-        delete: operations["delete_zone_api_cameras__camera_id__zones__zone_id__delete"];
+        delete: operations["zones_delete_zone"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1682,7 +1682,7 @@ export interface paths {
          *
          *     NEM-1642: Debug endpoint for circuit breaker diagnostics
          */
-        get: operations["get_circuit_breakers_api_debug_circuit_breakers_get"];
+        get: operations["debug_get_circuit_breakers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1708,7 +1708,7 @@ export interface paths {
          *
          *     NEM-1642: Debug endpoint for configuration inspection
          */
-        get: operations["get_config_api_debug_config_get"];
+        get: operations["debug_get_config"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1730,7 +1730,7 @@ export interface paths {
          *
          *     NEM-1471: Log level inspection endpoint
          */
-        get: operations["get_log_level_api_debug_log_level_get"];
+        get: operations["debug_get_log_level"];
         put?: never;
         /**
          * Set Log Level
@@ -1750,7 +1750,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: If the log level is invalid
          */
-        post: operations["set_log_level_api_debug_log_level_post"];
+        post: operations["debug_set_log_level"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1778,7 +1778,7 @@ export interface paths {
          *     Returns:
          *         Detailed memory statistics
          */
-        get: operations["get_memory_stats_api_debug_memory_get"];
+        get: operations["debug_get_memory_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1806,7 +1806,7 @@ export interface paths {
          *     Returns:
          *         GC collection statistics
          */
-        post: operations["trigger_gc_api_debug_memory_gc_post"];
+        post: operations["debug_trigger_gc"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1835,7 +1835,7 @@ export interface paths {
          *     Returns:
          *         Status of tracemalloc
          */
-        post: operations["start_tracemalloc_api_debug_memory_tracemalloc_start_post"];
+        post: operations["debug_start_tracemalloc"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1860,7 +1860,7 @@ export interface paths {
          *     Returns:
          *         Final memory statistics before stopping
          */
-        post: operations["stop_tracemalloc_api_debug_memory_tracemalloc_stop_post"];
+        post: operations["debug_stop_tracemalloc"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1891,7 +1891,7 @@ export interface paths {
          *
          *     NEM-2485: Pipeline errors retrieval endpoint for Debug API
          */
-        get: operations["get_pipeline_errors_api_debug_pipeline_errors_get"];
+        get: operations["debug_get_pipeline_errors"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1920,7 +1920,7 @@ export interface paths {
          *     NEM-1470: Debug endpoint for pipeline state inspection
          *     NEM-2485: Complete pipeline errors retrieval implementation
          */
-        get: operations["get_pipeline_state_api_debug_pipeline_state_get"];
+        get: operations["debug_get_pipeline_state"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1950,7 +1950,7 @@ export interface paths {
          *     Returns:
          *         Profiling start status
          */
-        post: operations["start_profiling_api_debug_profile_start_post"];
+        post: operations["debug_start_profiling"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1976,7 +1976,7 @@ export interface paths {
          *     Returns:
          *         Profiling status and statistics
          */
-        get: operations["get_profile_stats_api_debug_profile_stats_get"];
+        get: operations["debug_get_profile_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2006,7 +2006,7 @@ export interface paths {
          *     Returns:
          *         Profiling stop status with path to saved profile
          */
-        post: operations["stop_profiling_api_debug_profile_stop_post"];
+        post: operations["debug_stop_profiling"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2035,7 +2035,7 @@ export interface paths {
          *     Returns:
          *         List of recordings with metadata
          */
-        get: operations["list_recordings_api_debug_recordings_get"];
+        get: operations["debug_list_recordings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2068,7 +2068,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if recording not found
          */
-        get: operations["get_recording_api_debug_recordings__recording_id__get"];
+        get: operations["debug_get_recording"];
         put?: never;
         post?: never;
         /**
@@ -2086,7 +2086,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if recording not found
          */
-        delete: operations["delete_recording_api_debug_recordings__recording_id__delete"];
+        delete: operations["debug_delete_recording"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2108,7 +2108,7 @@ export interface paths {
          *
          *     NEM-1642: Debug endpoint for Redis diagnostics
          */
-        get: operations["get_redis_info_api_debug_redis_info_get"];
+        get: operations["debug_get_redis_info"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2150,7 +2150,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if recording not found
          */
-        post: operations["replay_request_api_debug_replay__recording_id__post"];
+        post: operations["debug_replay_request"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2173,7 +2173,7 @@ export interface paths {
          *
          *     NEM-1642: Debug endpoint for WebSocket diagnostics
          */
-        get: operations["get_websocket_connections_api_debug_websocket_connections_get"];
+        get: operations["debug_get_websocket_connections"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2220,7 +2220,7 @@ export interface paths {
          *         HTTPException: 400 if cursor is invalid
          *         HTTPException: 400 if invalid fields are requested
          */
-        get: operations["list_detections_api_detections_get"];
+        get: operations["detections_list_detections"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2255,7 +2255,7 @@ export interface paths {
          *     Returns:
          *         DetectionBulkCreateResponse with per-item results
          */
-        post: operations["bulk_create_detections_api_detections_bulk_post"];
+        post: operations["detections_bulk_create_detections"];
         /**
          * Bulk delete detections
          * @description Delete multiple detections in a single request.
@@ -2276,7 +2276,7 @@ export interface paths {
          *     Returns:
          *         BulkOperationResponse with per-item results
          */
-        delete: operations["bulk_delete_detections_api_detections_bulk_delete"];
+        delete: operations["detections_bulk_delete_detections"];
         options?: never;
         head?: never;
         /**
@@ -2296,7 +2296,7 @@ export interface paths {
          *     Returns:
          *         BulkOperationResponse with per-item results
          */
-        patch: operations["bulk_update_detections_api_detections_bulk_patch"];
+        patch: operations["detections_bulk_update_detections"];
         trace?: never;
     };
     "/api/detections/labels": {
@@ -2310,7 +2310,7 @@ export interface paths {
          * List Detection Labels
          * @description Get all unique detection labels with counts.
          */
-        get: operations["list_detection_labels_api_detections_labels_get"];
+        get: operations["detections_list_detection_labels"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2330,7 +2330,7 @@ export interface paths {
          * Search Detections
          * @description Search detections using full-text search.
          */
-        get: operations["search_detections_api_detections_search_get"];
+        get: operations["detections_search_detections"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2372,7 +2372,7 @@ export interface paths {
          *     Returns:
          *         DetectionStatsResponse with aggregate detection statistics and trends
          */
-        get: operations["get_detection_stats_api_detections_stats_get"];
+        get: operations["detections_get_detection_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2402,7 +2402,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if detection not found
          */
-        get: operations["get_detection_api_detections__detection_id__get"];
+        get: operations["detections_get_detection"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2441,7 +2441,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if detection not found
          */
-        get: operations["get_detection_enrichment_api_detections__detection_id__enrichment_get"];
+        get: operations["detections_get_detection_enrichment"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2490,7 +2490,7 @@ export interface paths {
          *         HTTPException: 404 if detection not found or image file doesn't exist
          *         HTTPException: 500 if image generation fails
          */
-        get: operations["get_detection_image_api_detections__detection_id__image_get"];
+        get: operations["detections_get_detection_image"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2510,7 +2510,7 @@ export interface paths {
          * Get detection thumbnail
          * @description Serve the cropped thumbnail image with bounding box overlay.
          */
-        get: operations["get_detection_thumbnail_api_detections__detection_id__thumbnail_get"];
+        get: operations["detections_get_detection_thumbnail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2558,7 +2558,7 @@ export interface paths {
          *         HTTPException: 416 if range is not satisfiable
          *         HTTPException: 500 if transcoding fails
          */
-        get: operations["stream_detection_video_api_detections__detection_id__video_get"];
+        get: operations["detections_stream_detection_video"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2598,7 +2598,7 @@ export interface paths {
          *         HTTPException: 404 if detection not found or not a video
          *         HTTPException: 500 if thumbnail generation fails
          */
-        get: operations["get_video_thumbnail_api_detections__detection_id__video_thumbnail_get"];
+        get: operations["detections_get_video_thumbnail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2638,7 +2638,7 @@ export interface paths {
          *     Returns:
          *         DLQJobsResponse with list of jobs including error context (NEM-2178 pagination envelope)
          */
-        get: operations["get_dlq_jobs_api_dlq_jobs__queue_name__get"];
+        get: operations["dlq_get_dlq_jobs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2671,7 +2671,7 @@ export interface paths {
          *     Returns:
          *         DLQRequeueResponse with operation result and count
          */
-        post: operations["requeue_all_dlq_jobs_api_dlq_requeue_all__queue_name__post"];
+        post: operations["dlq_requeue_all_dlq_jobs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2701,7 +2701,7 @@ export interface paths {
          *     Returns:
          *         DLQRequeueResponse with operation result
          */
-        post: operations["requeue_dlq_job_api_dlq_requeue__queue_name__post"];
+        post: operations["dlq_requeue_dlq_job"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2724,7 +2724,7 @@ export interface paths {
          *     Returns:
          *         DLQStatsResponse with queue counts
          */
-        get: operations["get_dlq_stats_api_dlq_stats_get"];
+        get: operations["dlq_get_dlq_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2757,7 +2757,7 @@ export interface paths {
          *     Returns:
          *         DLQClearResponse with operation result
          */
-        delete: operations["clear_dlq_api_dlq__queue_name__delete"];
+        delete: operations["dlq_clear_dlq"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2788,7 +2788,7 @@ export interface paths {
          *     Returns:
          *         EntityListResponse with filtered entities and pagination info
          */
-        get: operations["list_entities_api_entities_get"];
+        get: operations["entities_list_entities"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2825,7 +2825,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if detection embedding not found, 503 if Redis unavailable
          */
-        get: operations["get_entity_matches_api_entities_matches__detection_id__get"];
+        get: operations["entities_get_entity_matches"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2856,7 +2856,7 @@ export interface paths {
          *     Returns:
          *         EntityStatsResponse with aggregated statistics
          */
-        get: operations["get_entity_stats_api_entities_stats_get"];
+        get: operations["entities_get_entity_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2889,7 +2889,7 @@ export interface paths {
          *     Returns:
          *         TrustedEntityListResponse with filtered trusted entities and pagination info
          */
-        get: operations["list_trusted_entities_api_entities_trusted_get"];
+        get: operations["entities_list_trusted_entities"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2922,7 +2922,7 @@ export interface paths {
          *     Returns:
          *         TrustedEntityListResponse with filtered untrusted entities and pagination info
          */
-        get: operations["list_untrusted_entities_api_entities_untrusted_get"];
+        get: operations["entities_list_untrusted_entities"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2960,7 +2960,7 @@ export interface paths {
          *     Returns:
          *         EntityListResponse with filtered entities and pagination info
          */
-        get: operations["list_entities_v2_api_entities_v2_get"];
+        get: operations["entities_list_entities_v2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2993,7 +2993,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if entity not found
          */
-        get: operations["get_entity_v2_api_entities_v2__entity_id__get"];
+        get: operations["entities_get_entity_v2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3027,7 +3027,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if entity not found
          */
-        get: operations["get_entity_detections_api_entities_v2__entity_id__detections_get"];
+        get: operations["entities_get_entity_detections"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3060,7 +3060,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if entity not found
          */
-        get: operations["get_entity_api_entities__entity_id__get"];
+        get: operations["entities_get_entity"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3093,7 +3093,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if entity not found
          */
-        get: operations["get_entity_history_api_entities__entity_id__history_get"];
+        get: operations["entities_get_entity_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3134,7 +3134,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if entity not found
          */
-        patch: operations["update_entity_trust_api_entities__entity_id__trust_patch"];
+        patch: operations["entities_update_entity_trust"];
         trace?: never;
     };
     "/api/events": {
@@ -3180,7 +3180,7 @@ export interface paths {
          *         HTTPException: 400 if cursor is invalid
          *         HTTPException: 400 if invalid fields are requested
          */
-        get: operations["list_events_api_events_get"];
+        get: operations["events_list_events"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3225,7 +3225,7 @@ export interface paths {
          *
          *         data: {"event_type": "complete", "event_id": 123, "risk_score": 75, ...}
          */
-        get: operations["analyze_batch_streaming_api_events_analyze__batch_id__stream_get"];
+        get: operations["events_analyze_batch_streaming"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3259,7 +3259,7 @@ export interface paths {
          *     Returns:
          *         EventBulkCreateResponse with per-item results
          */
-        post: operations["bulk_create_events_api_events_bulk_post"];
+        post: operations["events_bulk_create_events"];
         /**
          * Bulk delete events
          * @description Delete multiple events in a single request.
@@ -3281,7 +3281,7 @@ export interface paths {
          *     Returns:
          *         BulkOperationResponse with per-item results
          */
-        delete: operations["bulk_delete_events_api_events_bulk_delete"];
+        delete: operations["events_bulk_delete_events"];
         options?: never;
         head?: never;
         /**
@@ -3300,7 +3300,7 @@ export interface paths {
          *     Returns:
          *         BulkOperationResponse with per-item results
          */
-        patch: operations["bulk_update_events_api_events_bulk_patch"];
+        patch: operations["events_bulk_update_events"];
         trace?: never;
     };
     "/api/events/deleted": {
@@ -3326,7 +3326,7 @@ export interface paths {
          *     Returns:
          *         DeletedEventsListResponse containing list of deleted events and count
          */
-        get: operations["list_deleted_events_api_events_deleted_get"];
+        get: operations["events_list_deleted_events"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3376,13 +3376,13 @@ export interface paths {
          *         HTTPException: 429 if rate limit exceeded
          *         HTTPException: 400 if start_date is after end_date
          */
-        get: operations["export_events_api_events_export_get"];
+        get: operations["events_export_events"];
         put?: never;
         /**
          * Start export job
          * @description Start a background export job for events. Returns a job ID that can be used to track progress via GET /api/jobs/{job_id}.
          */
-        post: operations["start_export_job_api_events_export_post"];
+        post: operations["jobs_start_export_job"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3432,7 +3432,7 @@ export interface paths {
          *         HTTPException: 400 if any severity value is invalid
          *         HTTPException: 400 if start_date is after end_date
          */
-        get: operations["search_events_endpoint_api_events_search_get"];
+        get: operations["events_search_events_endpoint"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3473,7 +3473,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 400 if start_date is after end_date
          */
-        get: operations["get_event_stats_api_events_stats_get"];
+        get: operations["events_get_event_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3515,7 +3515,7 @@ export interface paths {
          *     Returns:
          *         TimelineSummaryResponse with bucketed event data
          */
-        get: operations["get_timeline_summary_api_events_timeline_summary_get"];
+        get: operations["events_get_timeline_summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3546,7 +3546,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if event not found
          */
-        get: operations["get_event_api_events__event_id__get"];
+        get: operations["events_get_event"];
         put?: never;
         post?: never;
         /**
@@ -3565,7 +3565,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if event not found, 409 if already deleted
          */
-        delete: operations["delete_event_api_events__event_id__delete"];
+        delete: operations["events_delete_event"];
         options?: never;
         head?: never;
         /**
@@ -3585,7 +3585,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if event not found
          */
-        patch: operations["update_event_api_events__event_id__patch"];
+        patch: operations["events_update_event"];
         trace?: never;
     };
     "/api/events/{event_id}/clip": {
@@ -3612,7 +3612,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if event not found
          */
-        get: operations["get_event_clip_api_events__event_id__clip_get"];
+        get: operations["events_get_event_clip"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3653,7 +3653,7 @@ export interface paths {
          *         HTTPException: 404 if event not found
          *         HTTPException: 400 if event has no detections to generate clip from
          */
-        post: operations["generate_event_clip_api_events__event_id__clip_generate_post"];
+        post: operations["events_generate_event_clip"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3683,7 +3683,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if event not found
          */
-        get: operations["get_event_detections_api_events__event_id__detections_get"];
+        get: operations["events_get_event_detections"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3725,7 +3725,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if event not found
          */
-        get: operations["get_event_enrichments_api_events__event_id__enrichments_get"];
+        get: operations["events_get_event_enrichments"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3762,7 +3762,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if event not found, 409 if not deleted
          */
-        post: operations["restore_event_api_events__event_id__restore_post"];
+        post: operations["events_restore_event"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3780,13 +3780,13 @@ export interface paths {
          * List export jobs
          * @description List recent export jobs with optional filtering by status.
          */
-        get: operations["list_exports_api_exports_get"];
+        get: operations["exports_list_exports"];
         put?: never;
         /**
          * Start export job
          * @description Start a new background export job. Returns a job ID that can be used to track progress via GET /api/exports/{job_id}.
          */
-        post: operations["start_export_api_exports_post"];
+        post: operations["exports_start_export"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3804,14 +3804,14 @@ export interface paths {
          * Get export status
          * @description Get the current status and progress of an export job.
          */
-        get: operations["get_export_status_api_exports__job_id__get"];
+        get: operations["exports_get_export_status"];
         put?: never;
         post?: never;
         /**
          * Cancel export job
          * @description Cancel a pending or running export job. Completed or failed jobs cannot be cancelled.
          */
-        delete: operations["cancel_export_api_exports__job_id__delete"];
+        delete: operations["exports_cancel_export"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3828,7 +3828,7 @@ export interface paths {
          * Download export file
          * @description Download the completed export file.
          */
-        get: operations["download_export_api_exports__job_id__download_get"];
+        get: operations["exports_download_export"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3848,7 +3848,7 @@ export interface paths {
          * Get download info
          * @description Get metadata about the export file for download.
          */
-        get: operations["get_download_info_api_exports__job_id__download_info_get"];
+        get: operations["exports_get_download_info"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3888,7 +3888,7 @@ export interface paths {
          *         HTTPException: 404 if event not found
          *         HTTPException: 409 if feedback already exists for this event
          */
-        post: operations["create_feedback_api_feedback_post"];
+        post: operations["feedback_create_feedback"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3916,7 +3916,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if no feedback exists for the event
          */
-        get: operations["get_event_feedback_api_feedback_event__event_id__get"];
+        get: operations["feedback_get_event_feedback"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3951,7 +3951,7 @@ export interface paths {
          *     Returns:
          *         Aggregate statistics including total count and breakdowns
          */
-        get: operations["get_feedback_stats_api_feedback_stats_get"];
+        get: operations["feedback_get_feedback_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3981,7 +3981,7 @@ export interface paths {
          *     - **200**: All services operational or system is degraded but functional
          *     - **503**: Critical services (rtdetr, nemotron) are unhealthy
          */
-        get: operations["get_ai_services_health_api_health_ai_services_get"];
+        get: operations["health_get_ai_services_health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4009,7 +4009,7 @@ export interface paths {
          *     Returns:
          *         List of HouseholdMember objects
          */
-        get: operations["list_members_api_household_members_get"];
+        get: operations["household_list_members"];
         put?: never;
         /**
          * Create Member
@@ -4022,7 +4022,7 @@ export interface paths {
          *     Returns:
          *         Created HouseholdMember object
          */
-        post: operations["create_member_api_household_members_post"];
+        post: operations["household_create_member"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4050,7 +4050,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if member not found
          */
-        get: operations["get_member_api_household_members__member_id__get"];
+        get: operations["household_get_member"];
         put?: never;
         post?: never;
         /**
@@ -4066,7 +4066,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if member not found
          */
-        delete: operations["delete_member_api_household_members__member_id__delete"];
+        delete: operations["household_delete_member"];
         options?: never;
         head?: never;
         /**
@@ -4084,7 +4084,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if member not found
          */
-        patch: operations["update_member_api_household_members__member_id__patch"];
+        patch: operations["household_update_member"];
         trace?: never;
     };
     "/api/household/members/{member_id}/embeddings": {
@@ -4117,7 +4117,7 @@ export interface paths {
          *         HTTPException: 404 if event not found
          *         HTTPException: 400 if event has no embedding data
          */
-        post: operations["add_embedding_from_event_api_household_members__member_id__embeddings_post"];
+        post: operations["household_add_embedding_from_event"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4143,7 +4143,7 @@ export interface paths {
          *     Returns:
          *         List of RegisteredVehicle objects
          */
-        get: operations["list_vehicles_api_household_vehicles_get"];
+        get: operations["household_list_vehicles"];
         put?: never;
         /**
          * Create Vehicle
@@ -4159,7 +4159,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if owner_id is specified but owner doesn't exist
          */
-        post: operations["create_vehicle_api_household_vehicles_post"];
+        post: operations["household_create_vehicle"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4187,7 +4187,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if vehicle not found
          */
-        get: operations["get_vehicle_api_household_vehicles__vehicle_id__get"];
+        get: operations["household_get_vehicle"];
         put?: never;
         post?: never;
         /**
@@ -4201,7 +4201,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if vehicle not found
          */
-        delete: operations["delete_vehicle_api_household_vehicles__vehicle_id__delete"];
+        delete: operations["household_delete_vehicle"];
         options?: never;
         head?: never;
         /**
@@ -4220,7 +4220,7 @@ export interface paths {
          *         HTTPException: 404 if vehicle not found
          *         HTTPException: 404 if owner_id is specified but owner doesn't exist
          */
-        patch: operations["update_vehicle_api_household_vehicles__vehicle_id__patch"];
+        patch: operations["household_update_vehicle"];
         trace?: never;
     };
     "/api/jobs": {
@@ -4234,7 +4234,7 @@ export interface paths {
          * List all jobs
          * @description List all background jobs with optional filtering by type and status.
          */
-        get: operations["list_jobs_api_jobs_get"];
+        get: operations["jobs_list_jobs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4256,7 +4256,7 @@ export interface paths {
          * Bulk cancel jobs
          * @description Cancel multiple jobs at once. Returns counts of successful and failed cancellations.
          */
-        post: operations["bulk_cancel_jobs_api_jobs_bulk_cancel_post"];
+        post: operations["jobs_bulk_cancel_jobs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4274,7 +4274,7 @@ export interface paths {
          * Search and filter jobs
          * @description Search and filter jobs with advanced query capabilities. Supports free text search, filtering by status/type/timestamps/duration, and returns aggregation data for faceted filtering. NEM-2392: Advanced job search endpoint.
          */
-        get: operations["search_jobs_api_jobs_search_get"];
+        get: operations["jobs_search_jobs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4294,7 +4294,7 @@ export interface paths {
          * Get job statistics
          * @description Get aggregate statistics about jobs including counts by status, counts by type, and timing information.
          */
-        get: operations["get_job_stats_api_jobs_stats_get"];
+        get: operations["jobs_get_job_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4314,7 +4314,7 @@ export interface paths {
          * List available job types
          * @description List all available job types that can be created.
          */
-        get: operations["list_job_types_api_jobs_types_get"];
+        get: operations["jobs_list_job_types"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4334,14 +4334,14 @@ export interface paths {
          * Get job status
          * @description Get the current status and progress of a background job.
          */
-        get: operations["get_job_status_api_jobs__job_id__get"];
+        get: operations["jobs_get_job_status"];
         put?: never;
         post?: never;
         /**
          * Cancel or abort a job
          * @description Cancel or abort a job based on its current state. Queued jobs will be cancelled, running jobs will be aborted.
          */
-        delete: operations["delete_job_api_jobs__job_id__delete"];
+        delete: operations["jobs_delete_job"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4360,7 +4360,7 @@ export interface paths {
          * Abort a running job
          * @description Abort a running background job by sending a signal to the worker. Only jobs with status 'running' can be aborted. Queued jobs should use the /cancel endpoint instead.
          */
-        post: operations["abort_job_api_jobs__job_id__abort_post"];
+        post: operations["jobs_abort_job"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4380,7 +4380,7 @@ export interface paths {
          * Cancel a job
          * @description Request cancellation of a background job. Jobs that are already completed or failed cannot be cancelled.
          */
-        post: operations["cancel_job_api_jobs__job_id__cancel_post"];
+        post: operations["jobs_cancel_job"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4398,7 +4398,7 @@ export interface paths {
          * Get detailed job information
          * @description Get detailed information about a specific job including full progress history, timing information, retry details, and execution metadata. NEM-2390: Provides comprehensive job status for monitoring and debugging.
          */
-        get: operations["get_job_detail_api_jobs__job_id__detail_get"];
+        get: operations["jobs_get_job_detail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4418,7 +4418,7 @@ export interface paths {
          * Get job history
          * @description Retrieve complete job execution history including state transitions, retry attempts, and execution timeline. Provides audit trail for debugging and compliance purposes. NEM-2396.
          */
-        get: operations["get_job_history_api_jobs__job_id__history_get"];
+        get: operations["jobs_get_job_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4438,7 +4438,7 @@ export interface paths {
          * Get job logs
          * @description Retrieve execution logs for a job with optional filtering by level and time range. Useful for debugging and monitoring job execution. NEM-2396.
          */
-        get: operations["get_job_logs_api_jobs__job_id__logs_get"];
+        get: operations["jobs_get_job_logs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4458,7 +4458,7 @@ export interface paths {
          * List logs with optional filtering
          * @description Query logs with optional filtering by level, component, source, and date range.
          */
-        get: operations["list_logs_api_logs_get"];
+        get: operations["logs_list_logs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4480,7 +4480,7 @@ export interface paths {
          * Ingest single frontend log
          * @description Receive a single log entry from the frontend for structured logging.
          */
-        post: operations["ingest_frontend_log_api_logs_frontend_post"];
+        post: operations["logs_ingest_frontend_log"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4500,7 +4500,7 @@ export interface paths {
          * Ingest batch of frontend logs
          * @description Receive a batch of log entries from the frontend for structured logging.
          */
-        post: operations["ingest_frontend_logs_batch_api_logs_frontend_batch_post"];
+        post: operations["logs_ingest_frontend_logs_batch"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4518,7 +4518,7 @@ export interface paths {
          * Get log statistics
          * @description Get aggregated log statistics for the dashboard.
          */
-        get: operations["get_log_stats_api_logs_stats_get"];
+        get: operations["logs_get_log_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4548,7 +4548,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 403 for invalid paths, 404 for missing files
          */
-        get: operations["serve_camera_file_api_media_cameras__camera_id___filename__get"];
+        get: operations["media_serve_camera_file"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4581,7 +4581,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 403 for invalid paths, 404 for missing files
          */
-        get: operations["serve_clip_api_media_clips__filename__get"];
+        get: operations["media_serve_clip"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4610,7 +4610,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 403 for invalid paths, 404 for missing files
          */
-        get: operations["serve_thumbnail_api_media_thumbnails__filename__get"];
+        get: operations["media_serve_thumbnail"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4640,7 +4640,7 @@ export interface paths {
          *     - `thumbnails/<filename>` -> thumbnails
          *     - `detections/<id>` -> detection images
          */
-        get: operations["serve_media_compat_api_media__path__get"];
+        get: operations["media_serve_media_compat"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4666,7 +4666,7 @@ export interface paths {
          *     Returns:
          *         Response with text/plain content type containing metrics
          */
-        get: operations["metrics_api_metrics_get"];
+        get: operations["metrics_metrics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4694,7 +4694,7 @@ export interface paths {
          *     Returns:
          *         NotificationPreferencesResponse with current preferences
          */
-        get: operations["get_notification_preferences_api_notification_preferences__get"];
+        get: operations["notification-preferences_get_notification_preferences"];
         /**
          * Update Notification Preferences
          * @description Update global notification preferences.
@@ -4708,7 +4708,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 400 if sound value is invalid
          */
-        put: operations["update_notification_preferences_api_notification_preferences__put"];
+        put: operations["notification-preferences_update_notification_preferences"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4730,7 +4730,7 @@ export interface paths {
          *     Returns:
          *         CameraNotificationSettingsListResponse with all camera settings
          */
-        get: operations["get_all_camera_settings_api_notification_preferences_cameras_get"];
+        get: operations["notification-preferences_get_all_camera_settings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4759,7 +4759,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if setting not found
          */
-        get: operations["get_camera_setting_api_notification_preferences_cameras__camera_id__get"];
+        get: operations["notification-preferences_get_camera_setting"];
         /**
          * Update Camera Setting
          * @description Update or create notification setting for a camera.
@@ -4774,7 +4774,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if camera doesn't exist
          */
-        put: operations["update_camera_setting_api_notification_preferences_cameras__camera_id__put"];
+        put: operations["notification-preferences_update_camera_setting"];
         post?: never;
         delete?: never;
         options?: never;
@@ -4796,7 +4796,7 @@ export interface paths {
          *     Returns:
          *         QuietHoursPeriodsListResponse with all quiet periods
          */
-        get: operations["get_quiet_hours_api_notification_preferences_quiet_hours_get"];
+        get: operations["notification-preferences_get_quiet_hours"];
         put?: never;
         /**
          * Create Quiet Hours Period
@@ -4815,7 +4815,7 @@ export interface paths {
          *         Periods can span midnight (e.g., 22:00 to 06:00).
          *         If start_time > end_time, the period wraps to the next day.
          */
-        post: operations["create_quiet_hours_period_api_notification_preferences_quiet_hours_post"];
+        post: operations["notification-preferences_create_quiet_hours_period"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4842,7 +4842,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if period not found
          */
-        delete: operations["delete_quiet_hours_period_api_notification_preferences_quiet_hours__period_id__delete"];
+        delete: operations["notification-preferences_delete_quiet_hours_period"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4871,7 +4871,7 @@ export interface paths {
          *     Returns:
          *         NotificationConfigResponse with current notification settings
          */
-        get: operations["get_notification_config_api_notification_config_get"];
+        get: operations["notification_get_notification_config"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4903,7 +4903,7 @@ export interface paths {
          *     Returns:
          *         TestNotificationResponse with test result
          */
-        post: operations["test_notification_api_notification_test_post"];
+        post: operations["notification_test_notification"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4928,7 +4928,7 @@ export interface paths {
          *     - xclip: Action recognition classes
          *     - fashion_clip: Clothing categories
          */
-        get: operations["get_all_prompts_api_prompts_get"];
+        get: operations["prompts_get_all_prompts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4951,7 +4951,7 @@ export interface paths {
          *     Returns a complete export of all model configurations suitable for
          *     backup, sharing, or importing into another instance.
          */
-        get: operations["export_prompts_api_prompts_export_get"];
+        get: operations["prompts_export_prompts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4973,7 +4973,7 @@ export interface paths {
          *
          *     Returns a list of all prompt versions, optionally filtered by model.
          */
-        get: operations["get_prompt_history_api_prompts_history_get"];
+        get: operations["prompts_get_prompt_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4998,7 +4998,7 @@ export interface paths {
          *     Creates a new version with the configuration from the specified version,
          *     making it the active configuration.
          */
-        post: operations["restore_prompt_version_api_prompts_history__version_id__post"];
+        post: operations["prompts_restore_prompt_version"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5021,7 +5021,7 @@ export interface paths {
          *     Validates and imports configurations for each model, creating new
          *     versions for each imported configuration.
          */
-        post: operations["import_prompts_api_prompts_import_post"];
+        post: operations["prompts_import_prompts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5043,7 +5043,7 @@ export interface paths {
          *
          *     Validates the import data and computes diffs against current configurations.
          */
-        post: operations["preview_import_prompts_api_prompts_import_preview_post"];
+        post: operations["prompts_preview_import_prompts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5073,7 +5073,7 @@ export interface paths {
          *
          *     Returns 429 Too Many Requests if rate limit is exceeded.
          */
-        post: operations["test_prompt_api_prompts_test_post"];
+        post: operations["prompts_test_prompt"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5123,7 +5123,7 @@ export interface paths {
          *         HTTPException: 503 if AI service is unavailable
          *         HTTPException: 408 if request times out (>60s)
          */
-        post: operations["test_custom_prompt_api_prompts_test_prompt_post"];
+        post: operations["prompts_test_custom_prompt"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5141,7 +5141,7 @@ export interface paths {
          * Get Prompt For Model
          * @description Fetch prompt configuration for a specific AI model.
          */
-        get: operations["get_prompt_for_model_api_prompts__model__get"];
+        get: operations["prompts_get_prompt_for_model"];
         /**
          * Update Prompt For Model
          * @description Update prompt configuration for a specific AI model.
@@ -5153,7 +5153,7 @@ export interface paths {
          *     If expected_version is provided and doesn't match the current version,
          *     returns 409 Conflict to indicate concurrent modification.
          */
-        put: operations["update_prompt_for_model_api_prompts__model__put"];
+        put: operations["prompts_update_prompt_for_model"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5188,7 +5188,7 @@ export interface paths {
          *     - `depth_critical`: Queue depth that triggers critical status
          *     - `max_wait_seconds`: Maximum acceptable wait time for oldest job
          */
-        get: operations["get_queues_status_api_queues_status_get"];
+        get: operations["queues_get_queues_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5210,7 +5210,7 @@ export interface paths {
          * Ingest RUM metrics
          * @description Receive Core Web Vitals metrics from the frontend for Real User Monitoring.
          */
-        post: operations["ingest_rum_metrics_api_rum_post"];
+        post: operations["rum_ingest_rum_metrics"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5237,7 +5237,7 @@ export interface paths {
          *     Returns:
          *         SummaryResponse with daily summary, or null if none exists
          */
-        get: operations["get_daily_summary_api_summaries_daily_get"];
+        get: operations["summaries_get_daily_summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5266,7 +5266,7 @@ export interface paths {
          *     Returns:
          *         SummaryResponse with hourly summary, or null if none exists
          */
-        get: operations["get_hourly_summary_api_summaries_hourly_get"];
+        get: operations["summaries_get_hourly_summary"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5300,7 +5300,7 @@ export interface paths {
          *     Returns:
          *         LatestSummariesResponse with hourly and daily summaries (or nulls)
          */
-        get: operations["get_latest_summaries_api_summaries_latest_get"];
+        get: operations["summaries_get_latest_summaries"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5332,7 +5332,7 @@ export interface paths {
          *     Returns:
          *         AnomalyConfig with current anomaly detection settings
          */
-        get: operations["get_anomaly_config_api_system_anomaly_config_get"];
+        get: operations["system_get_anomaly_config"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5360,7 +5360,7 @@ export interface paths {
          *     Returns:
          *         AnomalyConfig with updated settings
          */
-        patch: operations["update_anomaly_config_api_system_anomaly_config_patch"];
+        patch: operations["system_update_anomaly_config"];
         trace?: never;
     };
     "/api/system/circuit-breakers": {
@@ -5385,7 +5385,7 @@ export interface paths {
          *     Returns:
          *         CircuitBreakersResponse with status of all circuit breakers
          */
-        get: operations["get_circuit_breakers_api_system_circuit_breakers_get"];
+        get: operations["system_get_circuit_breakers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5423,7 +5423,7 @@ export interface paths {
          *         HTTPException 400: If name is invalid (empty, too long, or contains invalid characters)
          *         HTTPException 404: If circuit breaker not found
          */
-        post: operations["reset_circuit_breaker_api_system_circuit_breakers__name__reset_post"];
+        post: operations["system_reset_circuit_breaker"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5468,7 +5468,7 @@ export interface paths {
          *         CleanupResponse with statistics about the cleanup operation.
          *         When dry_run=True, the counts represent what would be deleted.
          */
-        post: operations["trigger_cleanup_api_system_cleanup_post"];
+        post: operations["system_trigger_cleanup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5518,7 +5518,7 @@ export interface paths {
          *         When dry_run=True, shows what would be deleted.
          *         When dry_run=False, shows what was deleted.
          */
-        post: operations["run_orphaned_file_cleanup_api_system_cleanup_orphaned_files_post"];
+        post: operations["system_run_orphaned_file_cleanup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5544,7 +5544,7 @@ export interface paths {
          *     Returns:
          *         CleanupStatusResponse with cleanup service status
          */
-        get: operations["get_cleanup_status_api_system_cleanup_status_get"];
+        get: operations["system_get_cleanup_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5570,7 +5570,7 @@ export interface paths {
          *     Returns:
          *         ConfigResponse with public configuration settings
          */
-        get: operations["get_config_api_system_config_get"];
+        get: operations["system_get_config"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5587,7 +5587,7 @@ export interface paths {
          *     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
          *       settings cache so subsequent `get_settings()` calls observe the new values.
          */
-        patch: operations["patch_config_api_system_config_patch"];
+        patch: operations["system_patch_config"];
         trace?: never;
     };
     "/api/system/gpu": {
@@ -5615,7 +5615,7 @@ export interface paths {
          *     Returns:
          *         GPUStatsResponse with GPU statistics (null values if unavailable)
          */
-        get: operations["get_gpu_stats_api_system_gpu_get"];
+        get: operations["system_get_gpu_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5635,12 +5635,12 @@ export interface paths {
          * Get GPU configuration
          * @description Returns current GPU assignment strategy and service-to-GPU mappings.
          */
-        get: operations["get_gpu_config_api_system_gpu_config_get"];
+        get: operations["gpu-config_get_gpu_config"];
         /**
          * Update GPU configuration
          * @description Updates GPU assignments. Does not apply changes - use /apply endpoint.
          */
-        put: operations["update_gpu_config_api_system_gpu_config_put"];
+        put: operations["gpu-config_update_gpu_config"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5661,7 +5661,7 @@ export interface paths {
          * Apply GPU configuration
          * @description Applies current config and restarts affected services.
          */
-        post: operations["apply_gpu_config_api_system_gpu_config_apply_post"];
+        post: operations["gpu-config_apply_gpu_config"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5681,7 +5681,7 @@ export interface paths {
          * Re-detect GPUs
          * @description Triggers a fresh GPU scan and updates the database.
          */
-        post: operations["detect_gpus_api_system_gpu_config_detect_post"];
+        post: operations["gpu-config_detect_gpus"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5699,7 +5699,7 @@ export interface paths {
          * Preview auto-assignment
          * @description Preview what assignments would result from a given strategy.
          */
-        get: operations["preview_gpu_config_api_system_gpu_config_preview_get"];
+        get: operations["gpu-config_preview_gpu_config"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5719,7 +5719,7 @@ export interface paths {
          * Get apply operation status
          * @description Returns current status of GPU configuration apply operation.
          */
-        get: operations["get_gpu_config_status_api_system_gpu_config_status_get"];
+        get: operations["gpu-config_get_gpu_config_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5748,7 +5748,7 @@ export interface paths {
          *         limit: Maximum number of samples to return (default 300, max 5000)
          *         db: Database session
          */
-        get: operations["get_gpu_stats_history_api_system_gpu_history_get"];
+        get: operations["system_get_gpu_stats_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5768,7 +5768,7 @@ export interface paths {
          * List detected GPUs
          * @description Returns all GPUs detected on the system with hardware specs and utilization.
          */
-        get: operations["list_gpus_api_system_gpus_get"];
+        get: operations["gpu-config_list_gpus"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5804,7 +5804,7 @@ export interface paths {
          *         HealthResponse with overall status and individual service statuses.
          *         HTTP 200 if healthy, 503 if degraded or unhealthy.
          */
-        get: operations["get_health_api_system_health_get"];
+        get: operations["system_get_health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5824,7 +5824,7 @@ export interface paths {
          * Get Full System Health Status
          * @description Get comprehensive health status for all system components.
          */
-        get: operations["get_full_health_api_system_health_full_get"];
+        get: operations["system_get_full_health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5868,7 +5868,7 @@ export interface paths {
          *         ReadinessResponse with overall readiness status and detailed checks.
          *         HTTP 200 if ready, 503 if degraded or not ready.
          */
-        get: operations["get_readiness_api_system_health_ready_get"];
+        get: operations["system_get_readiness"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5905,7 +5905,7 @@ export interface paths {
          *     Returns:
          *         WebSocketHealthResponse with circuit breaker status for both broadcasters
          */
-        get: operations["get_websocket_health_api_system_health_websocket_get"];
+        get: operations["system_get_websocket_health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5939,7 +5939,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if model not found in registry
          */
-        get: operations["get_model_zoo_latency_history_api_system_model_zoo_latency_history_get"];
+        get: operations["system_get_model_zoo_latency_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5974,7 +5974,7 @@ export interface paths {
          *     Returns:
          *         ModelZooStatusResponse with all model statuses
          */
-        get: operations["get_model_zoo_status_api_system_model_zoo_status_get"];
+        get: operations["system_get_model_zoo_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6014,7 +6014,7 @@ export interface paths {
          *     Returns:
          *         ModelRegistryResponse with VRAM stats and all model statuses
          */
-        get: operations["get_models_api_system_models_get"];
+        get: operations["system_get_models"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6043,7 +6043,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if model not found in registry
          */
-        get: operations["get_model_api_system_models__model_name__get"];
+        get: operations["system_get_model"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6077,7 +6077,7 @@ export interface paths {
          *         The 'healthy' field is True if Prometheus is reachable and
          *         the majority of critical targets are up.
          */
-        get: operations["get_monitoring_health_api_system_monitoring_health_get"];
+        get: operations["system_get_monitoring_health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6114,7 +6114,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 503 if Prometheus is unreachable
          */
-        get: operations["get_monitoring_targets_api_system_monitoring_targets_get"];
+        get: operations["system_get_monitoring_targets"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6154,7 +6154,7 @@ export interface paths {
          *         HTTPException: 503 if performance collector is not initialized
          *         HTTPException: 500 if metric collection fails
          */
-        get: operations["get_performance_metrics_api_system_performance_get"];
+        get: operations["system_get_performance_metrics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6194,7 +6194,7 @@ export interface paths {
          *         - time_range: The requested time range
          *         - count: Number of snapshots returned
          */
-        get: operations["get_performance_history_api_system_performance_history_get"];
+        get: operations["system_get_performance_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6237,7 +6237,7 @@ export interface paths {
          *     Returns:
          *         PipelineStatusResponse with status of all pipeline services
          */
-        get: operations["get_pipeline_status_api_system_pipeline_get"];
+        get: operations["system_get_pipeline_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6278,7 +6278,7 @@ export interface paths {
          *     Returns:
          *         PipelineLatencyResponse with latency statistics for each stage
          */
-        get: operations["get_pipeline_latency_api_system_pipeline_latency_get"];
+        get: operations["system_get_pipeline_latency"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6308,7 +6308,7 @@ export interface paths {
          *     Returns:
          *         PipelineLatencyHistoryResponse with chronologically ordered snapshots
          */
-        get: operations["get_pipeline_latency_history_api_system_pipeline_latency_history_get"];
+        get: operations["system_get_pipeline_latency_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6335,7 +6335,7 @@ export interface paths {
          *     Returns:
          *         List of services with status and category summaries.
          */
-        get: operations["list_services_api_system_services_get"];
+        get: operations["services_list_services"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6369,7 +6369,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if service not found
          */
-        post: operations["disable_service_api_system_services__name__disable_post"];
+        post: operations["services_disable_service"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6401,7 +6401,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if service not found
          */
-        post: operations["enable_service_api_system_services__name__enable_post"];
+        post: operations["services_enable_service"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6433,7 +6433,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if service not found, 400 if service is disabled
          */
-        post: operations["restart_service_api_system_services__name__restart_post"];
+        post: operations["services_restart_service"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6464,7 +6464,7 @@ export interface paths {
          *         HTTPException: 404 if service not found,
          *                        400 if service is already running or disabled
          */
-        post: operations["start_service_api_system_services__name__start_post"];
+        post: operations["services_start_service"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6497,7 +6497,7 @@ export interface paths {
          *     Returns:
          *         SeverityMetadataResponse with all severity definitions and current thresholds
          */
-        get: operations["get_severity_metadata_api_system_severity_get"];
+        get: operations["system_get_severity_metadata"];
         /**
          * Update Severity Thresholds
          * @description Update severity threshold configuration.
@@ -6529,7 +6529,7 @@ export interface paths {
          *     Raises:
          *         HTTPException 400: If thresholds are not strictly ordered
          */
-        put: operations["update_severity_thresholds_api_system_severity_put"];
+        put: operations["system_update_severity_thresholds"];
         post?: never;
         delete?: never;
         options?: never;
@@ -6560,7 +6560,7 @@ export interface paths {
          *     Returns:
          *         SystemStatsResponse with system statistics
          */
-        get: operations["get_stats_api_system_stats_get"];
+        get: operations["system_get_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6594,7 +6594,7 @@ export interface paths {
          *     Returns:
          *         StorageStatsResponse with comprehensive storage metrics
          */
-        get: operations["get_storage_stats_api_system_storage_get"];
+        get: operations["system_get_storage_stats"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6630,7 +6630,7 @@ export interface paths {
          *     Use this endpoint to monitor worker health and identify workers that
          *     are repeatedly crashing or have exceeded their restart limit.
          */
-        get: operations["get_supervisor_status_api_system_supervisor_get"];
+        get: operations["system_get_supervisor_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6667,7 +6667,7 @@ export interface paths {
          *         HTTPException 404: Worker not found
          *         HTTPException 503: Supervisor not initialized
          */
-        post: operations["reset_worker_api_system_supervisor_reset__worker_name__post"];
+        post: operations["system_reset_worker"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6696,7 +6696,7 @@ export interface paths {
          *     Returns:
          *         RestartHistoryResponse with events and pagination metadata
          */
-        get: operations["get_restart_history_api_system_supervisor_restart_history_get"];
+        get: operations["system_get_restart_history"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6726,7 +6726,7 @@ export interface paths {
          *         - workers: Detailed status of each supervised worker
          *         - timestamp: When the status was queried
          */
-        get: operations["get_supervisor_full_status_api_system_supervisor_status_get"];
+        get: operations["system_get_supervisor_full_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6761,7 +6761,7 @@ export interface paths {
          *         HTTPException 404: Worker not found
          *         HTTPException 503: Supervisor not initialized
          */
-        post: operations["restart_supervisor_worker_api_system_supervisor_workers__worker_name__restart_post"];
+        post: operations["system_restart_supervisor_worker"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6795,7 +6795,7 @@ export interface paths {
          *         HTTPException 404: Worker not found
          *         HTTPException 503: Supervisor not initialized
          */
-        post: operations["start_supervisor_worker_api_system_supervisor_workers__worker_name__start_post"];
+        post: operations["system_start_supervisor_worker"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6829,7 +6829,7 @@ export interface paths {
          *         HTTPException 404: Worker not found
          *         HTTPException 503: Supervisor not initialized
          */
-        post: operations["stop_supervisor_worker_api_system_supervisor_workers__worker_name__stop_post"];
+        post: operations["system_stop_supervisor_worker"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6860,7 +6860,7 @@ export interface paths {
          *     Returns:
          *         TelemetryResponse with queue depths and latency statistics
          */
-        get: operations["get_telemetry_api_system_telemetry_get"];
+        get: operations["system_get_telemetry"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6907,7 +6907,7 @@ export interface paths {
          *         - total_count: Total number of event types
          *         - deprecated_count: Number of deprecated event types
          */
-        get: operations["list_websocket_event_types_api_system_websocket_events_get"];
+        get: operations["system_list_websocket_event_types"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6945,7 +6945,7 @@ export interface paths {
          *     Returns:
          *         AlertmanagerWebhookResponse with processing status
          */
-        post: operations["receive_alertmanager_webhook_api_v1_alertmanager_webhook_post"];
+        post: operations["alertmanager_receive_alertmanager_webhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6973,7 +6973,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if area not found
          */
-        get: operations["get_area_api_v1_areas__area_id__get"];
+        get: operations["areas_get_area"];
         put?: never;
         post?: never;
         /**
@@ -6990,7 +6990,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if area not found
          */
-        delete: operations["delete_area_api_v1_areas__area_id__delete"];
+        delete: operations["areas_delete_area"];
         options?: never;
         head?: never;
         /**
@@ -7009,7 +7009,7 @@ export interface paths {
          *         HTTPException: 404 if area not found
          *         HTTPException: 409 if new name conflicts with existing area in same property
          */
-        patch: operations["update_area_api_v1_areas__area_id__patch"];
+        patch: operations["areas_update_area"];
         trace?: never;
     };
     "/api/v1/areas/{area_id}/cameras": {
@@ -7033,7 +7033,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if area not found
          */
-        get: operations["list_area_cameras_api_v1_areas__area_id__cameras_get"];
+        get: operations["areas_list_area_cameras"];
         put?: never;
         /**
          * Link Camera To Area
@@ -7054,7 +7054,7 @@ export interface paths {
          *         HTTPException: 404 if area or camera not found
          *         HTTPException: 409 if camera is already linked to this area
          */
-        post: operations["link_camera_to_area_api_v1_areas__area_id__cameras_post"];
+        post: operations["areas_link_camera_to_area"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7090,7 +7090,7 @@ export interface paths {
          *         HTTPException: 404 if area or camera not found
          *         HTTPException: 404 if camera is not linked to this area
          */
-        delete: operations["unlink_camera_from_area_api_v1_areas__area_id__cameras__camera_id__delete"];
+        delete: operations["areas_unlink_camera_from_area"];
         options?: never;
         head?: never;
         patch?: never;
@@ -7115,7 +7115,7 @@ export interface paths {
          *     Returns:
          *         HouseholdListResponse with list of households and total count
          */
-        get: operations["list_households_api_v1_households_get"];
+        get: operations["households_list_households"];
         put?: never;
         /**
          * Create Household
@@ -7131,7 +7131,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 409 if household with same name already exists
          */
-        post: operations["create_household_api_v1_households_post"];
+        post: operations["households_create_household"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7159,7 +7159,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if household not found
          */
-        get: operations["get_household_api_v1_households__household_id__get"];
+        get: operations["households_get_household"];
         put?: never;
         post?: never;
         /**
@@ -7176,7 +7176,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if household not found
          */
-        delete: operations["delete_household_api_v1_households__household_id__delete"];
+        delete: operations["households_delete_household"];
         options?: never;
         head?: never;
         /**
@@ -7195,7 +7195,7 @@ export interface paths {
          *         HTTPException: 404 if household not found
          *         HTTPException: 409 if new name conflicts with existing household
          */
-        patch: operations["update_household_api_v1_households__household_id__patch"];
+        patch: operations["households_update_household"];
         trace?: never;
     };
     "/api/v1/households/{household_id}/properties": {
@@ -7219,7 +7219,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if household not found
          */
-        get: operations["list_household_properties_api_v1_households__household_id__properties_get"];
+        get: operations["households_list_household_properties"];
         put?: never;
         /**
          * Create Property
@@ -7237,7 +7237,7 @@ export interface paths {
          *         HTTPException: 404 if household not found
          *         HTTPException: 409 if property with same name already exists for this household
          */
-        post: operations["create_property_api_v1_households__household_id__properties_post"];
+        post: operations["households_create_property"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7265,7 +7265,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if property not found
          */
-        get: operations["get_property_api_v1_properties__property_id__get"];
+        get: operations["properties_get_property"];
         put?: never;
         post?: never;
         /**
@@ -7281,7 +7281,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if property not found
          */
-        delete: operations["delete_property_api_v1_properties__property_id__delete"];
+        delete: operations["properties_delete_property"];
         options?: never;
         head?: never;
         /**
@@ -7300,7 +7300,7 @@ export interface paths {
          *         HTTPException: 404 if property not found
          *         HTTPException: 409 if new name conflicts with existing property in same household
          */
-        patch: operations["update_property_api_v1_properties__property_id__patch"];
+        patch: operations["properties_update_property"];
         trace?: never;
     };
     "/api/v1/properties/{property_id}/areas": {
@@ -7324,7 +7324,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if property not found
          */
-        get: operations["list_property_areas_api_v1_properties__property_id__areas_get"];
+        get: operations["properties_list_property_areas"];
         put?: never;
         /**
          * Create Area
@@ -7342,7 +7342,7 @@ export interface paths {
          *         HTTPException: 404 if property not found
          *         HTTPException: 409 if area with same name already exists for this property
          */
-        post: operations["create_area_api_v1_properties__property_id__areas_post"];
+        post: operations["properties_create_area"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7360,7 +7360,7 @@ export interface paths {
          * Get current system settings
          * @description Returns user-configurable settings grouped by category. These settings control detection thresholds, batch processing, severity levels, feature toggles, rate limiting, queue management, and data retention policies.
          */
-        get: operations["get_user_settings_api_v1_settings_get"];
+        get: operations["settings_get_user_settings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7370,7 +7370,7 @@ export interface paths {
          * Update runtime settings
          * @description Update system settings at runtime without server restart. Changes are written to data/runtime.env and take effect immediately. All fields are optional - only provided fields will be updated.
          */
-        patch: operations["update_settings_api_v1_settings_patch"];
+        patch: operations["settings_update_settings"];
         trace?: never;
     };
     "/api/webhooks/alerts": {
@@ -7401,7 +7401,7 @@ export interface paths {
          *     Returns:
          *         WebhookResponse with processing status
          */
-        post: operations["receive_alertmanager_webhook_api_webhooks_alerts_post"];
+        post: operations["webhooks_receive_alertmanager_webhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7431,7 +7431,7 @@ export interface paths {
          *     Returns:
          *         List of zones with trust information
          */
-        get: operations["get_member_zones_api_zones_member__member_id__zones_get"];
+        get: operations["zone-household_get_member_zones"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7460,7 +7460,7 @@ export interface paths {
          *     Returns:
          *         List of zones with trust information
          */
-        get: operations["get_vehicle_zones_api_zones_vehicle__vehicle_id__zones_get"];
+        get: operations["zone-household_get_vehicle_zones"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7493,7 +7493,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if zone not found
          */
-        get: operations["get_zone_household_config_api_zones__zone_id__household_get"];
+        get: operations["zone-household_get_zone_household_config"];
         /**
          * Upsert Zone Household Config
          * @description Create or update the household configuration for a zone.
@@ -7513,7 +7513,7 @@ export interface paths {
          *         HTTPException: 404 if zone not found
          *         HTTPException: 404 if owner_id references non-existent member
          */
-        put: operations["upsert_zone_household_config_api_zones__zone_id__household_put"];
+        put: operations["zone-household_upsert_zone_household_config"];
         post?: never;
         /**
          * Delete Zone Household Config
@@ -7530,7 +7530,7 @@ export interface paths {
          *         HTTPException: 404 if zone not found
          *         HTTPException: 404 if config not found
          */
-        delete: operations["delete_zone_household_config_api_zones__zone_id__household_delete"];
+        delete: operations["zone-household_delete_zone_household_config"];
         options?: never;
         head?: never;
         /**
@@ -7553,7 +7553,7 @@ export interface paths {
          *         HTTPException: 404 if config not found
          *         HTTPException: 404 if owner_id references non-existent member
          */
-        patch: operations["patch_zone_household_config_api_zones__zone_id__household_patch"];
+        patch: operations["zone-household_patch_zone_household_config"];
         trace?: never;
     };
     "/api/zones/{zone_id}/household/trust/{entity_type}/{entity_id}": {
@@ -7586,7 +7586,7 @@ export interface paths {
          *     Raises:
          *         HTTPException: 404 if zone not found
          */
-        get: operations["check_entity_trust_api_zones__zone_id__household_trust__entity_type___entity_id__get"];
+        get: operations["zone-household_check_entity_trust"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7622,7 +7622,7 @@ export interface paths {
          *     Returns:
          *         LivenessResponse with status "alive".
          */
-        get: operations["health_health_get"];
+        get: operations["health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7659,7 +7659,7 @@ export interface paths {
          *     Returns:
          *         SimpleReadinessResponse with ready bool and status. HTTP 200 if ready, 503 if not.
          */
-        get: operations["ready_ready_get"];
+        get: operations["ready"];
         put?: never;
         post?: never;
         delete?: never;
@@ -24985,7 +24985,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    root__get: {
+    root: {
         parameters: {
             query?: never;
             header?: never;
@@ -25007,7 +25007,7 @@ export interface operations {
             };
         };
     };
-    cleanup_orphans_api_admin_cleanup_orphans_post: {
+    admin_cleanup_orphans: {
         parameters: {
             query?: never;
             header?: never;
@@ -25059,7 +25059,7 @@ export interface operations {
             };
         };
     };
-    clear_cache_api_admin_maintenance_clear_cache_post: {
+    admin_clear_cache: {
         parameters: {
             query?: never;
             header?: never;
@@ -25100,7 +25100,7 @@ export interface operations {
             };
         };
     };
-    flush_queues_api_admin_maintenance_flush_queues_post: {
+    admin_flush_queues: {
         parameters: {
             query?: never;
             header?: never;
@@ -25141,7 +25141,7 @@ export interface operations {
             };
         };
     };
-    seed_cameras_api_admin_seed_cameras_post: {
+    admin_seed_cameras: {
         parameters: {
             query?: never;
             header?: never;
@@ -25193,7 +25193,7 @@ export interface operations {
             };
         };
     };
-    clear_seeded_data_api_admin_seed_clear_delete: {
+    admin_clear_seeded_data: {
         parameters: {
             query?: never;
             header?: never;
@@ -25254,7 +25254,7 @@ export interface operations {
             };
         };
     };
-    seed_events_api_admin_seed_events_post: {
+    admin_seed_events: {
         parameters: {
             query?: never;
             header?: never;
@@ -25313,7 +25313,7 @@ export interface operations {
             };
         };
     };
-    seed_pipeline_latency_api_admin_seed_pipeline_latency_post: {
+    admin_seed_pipeline_latency: {
         parameters: {
             query?: never;
             header?: never;
@@ -25367,7 +25367,7 @@ export interface operations {
             };
         };
     };
-    trigger_batch_audit_api_ai_audit_batch_post: {
+    "ai-audit_trigger_batch_audit": {
         parameters: {
             query?: never;
             header?: never;
@@ -25405,7 +25405,7 @@ export interface operations {
             };
         };
     };
-    get_batch_audit_status_api_ai_audit_batch__job_id__get: {
+    "ai-audit_get_batch_audit_status": {
         parameters: {
             query?: never;
             header?: never;
@@ -25448,7 +25448,7 @@ export interface operations {
             };
         };
     };
-    get_event_audit_api_ai_audit_events__event_id__get: {
+    "ai-audit_get_event_audit": {
         parameters: {
             query?: never;
             header?: never;
@@ -25493,7 +25493,7 @@ export interface operations {
             };
         };
     };
-    evaluate_event_api_ai_audit_events__event_id__evaluate_post: {
+    "ai-audit_evaluate_event": {
         parameters: {
             query?: {
                 /** @description Force re-evaluation even if already evaluated */
@@ -25539,7 +25539,7 @@ export interface operations {
             };
         };
     };
-    get_model_leaderboard_api_ai_audit_leaderboard_get: {
+    "ai-audit_get_model_leaderboard": {
         parameters: {
             query?: {
                 /** @description Number of days to include */
@@ -25576,7 +25576,7 @@ export interface operations {
             };
         };
     };
-    get_recommendations_api_ai_audit_recommendations_get: {
+    "ai-audit_get_recommendations": {
         parameters: {
             query?: {
                 /** @description Number of days to include */
@@ -25613,7 +25613,7 @@ export interface operations {
             };
         };
     };
-    get_audit_stats_api_ai_audit_stats_get: {
+    "ai-audit_get_audit_stats": {
         parameters: {
             query?: {
                 /** @description Number of days to include */
@@ -25652,7 +25652,7 @@ export interface operations {
             };
         };
     };
-    list_rules_api_alerts_rules_get: {
+    "alert-rules_list_rules": {
         parameters: {
             query?: {
                 /** @description Filter by enabled status */
@@ -25695,7 +25695,7 @@ export interface operations {
             };
         };
     };
-    create_rule_api_alerts_rules_post: {
+    "alert-rules_create_rule": {
         parameters: {
             query?: never;
             header?: never;
@@ -25733,7 +25733,7 @@ export interface operations {
             };
         };
     };
-    get_rule_api_alerts_rules__rule_id__get: {
+    "alert-rules_get_rule": {
         parameters: {
             query?: never;
             header?: never;
@@ -25778,7 +25778,7 @@ export interface operations {
             };
         };
     };
-    update_rule_api_alerts_rules__rule_id__put: {
+    "alert-rules_update_rule": {
         parameters: {
             query?: never;
             header?: never;
@@ -25813,7 +25813,7 @@ export interface operations {
             };
         };
     };
-    delete_rule_api_alerts_rules__rule_id__delete: {
+    "alert-rules_delete_rule": {
         parameters: {
             query?: never;
             header?: never;
@@ -25856,7 +25856,7 @@ export interface operations {
             };
         };
     };
-    test_rule_api_alerts_rules__rule_id__test_post: {
+    "alert-rules_test_rule": {
         parameters: {
             query?: never;
             header?: never;
@@ -25903,7 +25903,7 @@ export interface operations {
             };
         };
     };
-    acknowledge_alert_api_alerts__alert_id__acknowledge_post: {
+    alerts_acknowledge_alert: {
         parameters: {
             query?: never;
             header?: never;
@@ -25955,7 +25955,7 @@ export interface operations {
             };
         };
     };
-    dismiss_alert_api_alerts__alert_id__dismiss_post: {
+    alerts_dismiss_alert: {
         parameters: {
             query?: never;
             header?: never;
@@ -26007,7 +26007,7 @@ export interface operations {
             };
         };
     };
-    get_camera_uptime_api_analytics_camera_uptime_get: {
+    analytics_get_camera_uptime: {
         parameters: {
             query: {
                 /** @description Start date for analytics (ISO format) */
@@ -26053,7 +26053,7 @@ export interface operations {
             };
         };
     };
-    get_detection_trends_api_analytics_detection_trends_get: {
+    analytics_get_detection_trends: {
         parameters: {
             query: {
                 /** @description Start date for analytics (ISO format) */
@@ -26099,7 +26099,7 @@ export interface operations {
             };
         };
     };
-    get_object_distribution_api_analytics_object_distribution_get: {
+    analytics_get_object_distribution: {
         parameters: {
             query: {
                 /** @description Start date for analytics (ISO format) */
@@ -26145,7 +26145,7 @@ export interface operations {
             };
         };
     };
-    get_risk_history_api_analytics_risk_history_get: {
+    analytics_get_risk_history: {
         parameters: {
             query: {
                 /** @description Start date for analytics (ISO format) */
@@ -26191,7 +26191,7 @@ export interface operations {
             };
         };
     };
-    list_audit_logs_api_audit_get: {
+    audit_list_audit_logs: {
         parameters: {
             query?: {
                 /** @description Filter by action type */
@@ -26255,7 +26255,7 @@ export interface operations {
             };
         };
     };
-    get_audit_stats_api_audit_stats_get: {
+    audit_get_audit_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -26289,7 +26289,7 @@ export interface operations {
             };
         };
     };
-    get_audit_log_api_audit__audit_id__get: {
+    audit_get_audit_log: {
         parameters: {
             query?: never;
             header?: never;
@@ -26334,7 +26334,7 @@ export interface operations {
             };
         };
     };
-    get_calibration_api_calibration_get: {
+    calibration_get_calibration: {
         parameters: {
             query?: never;
             header?: never;
@@ -26361,7 +26361,7 @@ export interface operations {
             };
         };
     };
-    update_calibration_api_calibration_put: {
+    calibration_update_calibration: {
         parameters: {
             query?: never;
             header?: never;
@@ -26399,7 +26399,7 @@ export interface operations {
             };
         };
     };
-    patch_calibration_api_calibration_patch: {
+    calibration_patch_calibration: {
         parameters: {
             query?: never;
             header?: never;
@@ -26437,7 +26437,7 @@ export interface operations {
             };
         };
     };
-    get_calibration_defaults_api_calibration_defaults_get: {
+    calibration_get_calibration_defaults: {
         parameters: {
             query?: never;
             header?: never;
@@ -26464,7 +26464,7 @@ export interface operations {
             };
         };
     };
-    reset_calibration_api_calibration_reset_post: {
+    calibration_reset_calibration: {
         parameters: {
             query?: never;
             header?: never;
@@ -26491,7 +26491,7 @@ export interface operations {
             };
         };
     };
-    list_cameras_api_cameras_get: {
+    cameras_list_cameras: {
         parameters: {
             query?: {
                 /** @description Filter by camera status */
@@ -26525,7 +26525,7 @@ export interface operations {
             };
         };
     };
-    create_camera_api_cameras_post: {
+    cameras_create_camera: {
         parameters: {
             query?: never;
             header?: never;
@@ -26558,7 +26558,7 @@ export interface operations {
             };
         };
     };
-    list_deleted_cameras_api_cameras_deleted_get: {
+    cameras_list_deleted_cameras: {
         parameters: {
             query?: never;
             header?: never;
@@ -26578,7 +26578,7 @@ export interface operations {
             };
         };
     };
-    validate_camera_paths_api_cameras_validation_paths_get: {
+    cameras_validate_camera_paths: {
         parameters: {
             query?: never;
             header?: never;
@@ -26605,7 +26605,7 @@ export interface operations {
             };
         };
     };
-    get_camera_api_cameras__camera_id__get: {
+    cameras_get_camera: {
         parameters: {
             query?: never;
             header?: never;
@@ -26636,7 +26636,7 @@ export interface operations {
             };
         };
     };
-    delete_camera_api_cameras__camera_id__delete: {
+    cameras_delete_camera: {
         parameters: {
             query?: never;
             header?: never;
@@ -26665,7 +26665,7 @@ export interface operations {
             };
         };
     };
-    update_camera_api_cameras__camera_id__patch: {
+    cameras_update_camera: {
         parameters: {
             query?: never;
             header?: never;
@@ -26700,7 +26700,7 @@ export interface operations {
             };
         };
     };
-    get_camera_baseline_api_cameras__camera_id__baseline_get: {
+    cameras_get_camera_baseline: {
         parameters: {
             query?: never;
             header?: never;
@@ -26731,7 +26731,7 @@ export interface operations {
             };
         };
     };
-    get_camera_activity_baseline_api_cameras__camera_id__baseline_activity_get: {
+    cameras_get_camera_activity_baseline: {
         parameters: {
             query?: never;
             header?: never;
@@ -26762,7 +26762,7 @@ export interface operations {
             };
         };
     };
-    get_camera_baseline_anomalies_api_cameras__camera_id__baseline_anomalies_get: {
+    cameras_get_camera_baseline_anomalies: {
         parameters: {
             query?: {
                 /** @description Number of days to look back */
@@ -26796,7 +26796,7 @@ export interface operations {
             };
         };
     };
-    get_camera_class_baseline_api_cameras__camera_id__baseline_classes_get: {
+    cameras_get_camera_class_baseline: {
         parameters: {
             query?: never;
             header?: never;
@@ -26827,7 +26827,7 @@ export interface operations {
             };
         };
     };
-    restore_camera_api_cameras__camera_id__restore_post: {
+    cameras_restore_camera: {
         parameters: {
             query?: never;
             header?: never;
@@ -26872,7 +26872,7 @@ export interface operations {
             };
         };
     };
-    get_camera_scene_changes_api_cameras__camera_id__scene_changes_get: {
+    cameras_get_camera_scene_changes: {
         parameters: {
             query?: {
                 /** @description Filter by acknowledgement status */
@@ -26910,7 +26910,7 @@ export interface operations {
             };
         };
     };
-    acknowledge_scene_change_api_cameras__camera_id__scene_changes__scene_change_id__acknowledge_post: {
+    cameras_acknowledge_scene_change: {
         parameters: {
             query?: never;
             header?: never;
@@ -26942,7 +26942,7 @@ export interface operations {
             };
         };
     };
-    get_camera_snapshot_api_cameras__camera_id__snapshot_get: {
+    cameras_get_camera_snapshot: {
         parameters: {
             query?: never;
             header?: never;
@@ -26985,7 +26985,7 @@ export interface operations {
             };
         };
     };
-    list_zones_api_cameras__camera_id__zones_get: {
+    zones_list_zones: {
         parameters: {
             query?: {
                 /** @description Filter by enabled status */
@@ -27019,7 +27019,7 @@ export interface operations {
             };
         };
     };
-    create_zone_api_cameras__camera_id__zones_post: {
+    zones_create_zone: {
         parameters: {
             query?: never;
             header?: never;
@@ -27054,7 +27054,7 @@ export interface operations {
             };
         };
     };
-    get_zone_api_cameras__camera_id__zones__zone_id__get: {
+    zones_get_zone: {
         parameters: {
             query?: never;
             header?: never;
@@ -27086,7 +27086,7 @@ export interface operations {
             };
         };
     };
-    update_zone_api_cameras__camera_id__zones__zone_id__put: {
+    zones_update_zone: {
         parameters: {
             query?: never;
             header?: never;
@@ -27122,7 +27122,7 @@ export interface operations {
             };
         };
     };
-    delete_zone_api_cameras__camera_id__zones__zone_id__delete: {
+    zones_delete_zone: {
         parameters: {
             query?: never;
             header?: never;
@@ -27152,7 +27152,7 @@ export interface operations {
             };
         };
     };
-    get_circuit_breakers_api_debug_circuit_breakers_get: {
+    debug_get_circuit_breakers: {
         parameters: {
             query?: never;
             header?: never;
@@ -27186,7 +27186,7 @@ export interface operations {
             };
         };
     };
-    get_config_api_debug_config_get: {
+    debug_get_config: {
         parameters: {
             query?: never;
             header?: never;
@@ -27220,7 +27220,7 @@ export interface operations {
             };
         };
     };
-    get_log_level_api_debug_log_level_get: {
+    debug_get_log_level: {
         parameters: {
             query?: never;
             header?: never;
@@ -27254,7 +27254,7 @@ export interface operations {
             };
         };
     };
-    set_log_level_api_debug_log_level_post: {
+    debug_set_log_level: {
         parameters: {
             query?: never;
             header?: never;
@@ -27306,7 +27306,7 @@ export interface operations {
             };
         };
     };
-    get_memory_stats_api_debug_memory_get: {
+    debug_get_memory_stats: {
         parameters: {
             query?: {
                 top_n?: number;
@@ -27352,7 +27352,7 @@ export interface operations {
             };
         };
     };
-    trigger_gc_api_debug_memory_gc_post: {
+    debug_trigger_gc: {
         parameters: {
             query?: never;
             header?: never;
@@ -27388,7 +27388,7 @@ export interface operations {
             };
         };
     };
-    start_tracemalloc_api_debug_memory_tracemalloc_start_post: {
+    debug_start_tracemalloc: {
         parameters: {
             query?: {
                 nframes?: number;
@@ -27435,7 +27435,7 @@ export interface operations {
             };
         };
     };
-    stop_tracemalloc_api_debug_memory_tracemalloc_stop_post: {
+    debug_stop_tracemalloc: {
         parameters: {
             query?: never;
             header?: never;
@@ -27471,7 +27471,7 @@ export interface operations {
             };
         };
     };
-    get_pipeline_errors_api_debug_pipeline_errors_get: {
+    debug_get_pipeline_errors: {
         parameters: {
             query?: {
                 limit?: number;
@@ -27518,7 +27518,7 @@ export interface operations {
             };
         };
     };
-    get_pipeline_state_api_debug_pipeline_state_get: {
+    debug_get_pipeline_state: {
         parameters: {
             query?: {
                 error_limit?: number;
@@ -27563,7 +27563,7 @@ export interface operations {
             };
         };
     };
-    start_profiling_api_debug_profile_start_post: {
+    debug_start_profiling: {
         parameters: {
             query?: never;
             header?: never;
@@ -27597,7 +27597,7 @@ export interface operations {
             };
         };
     };
-    get_profile_stats_api_debug_profile_stats_get: {
+    debug_get_profile_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -27631,7 +27631,7 @@ export interface operations {
             };
         };
     };
-    stop_profiling_api_debug_profile_stop_post: {
+    debug_stop_profiling: {
         parameters: {
             query?: never;
             header?: never;
@@ -27665,7 +27665,7 @@ export interface operations {
             };
         };
     };
-    list_recordings_api_debug_recordings_get: {
+    debug_list_recordings: {
         parameters: {
             query?: {
                 limit?: number;
@@ -27696,7 +27696,7 @@ export interface operations {
             };
         };
     };
-    get_recording_api_debug_recordings__recording_id__get: {
+    debug_get_recording: {
         parameters: {
             query?: never;
             header?: never;
@@ -27729,7 +27729,7 @@ export interface operations {
             };
         };
     };
-    delete_recording_api_debug_recordings__recording_id__delete: {
+    debug_delete_recording: {
         parameters: {
             query?: never;
             header?: never;
@@ -27762,7 +27762,7 @@ export interface operations {
             };
         };
     };
-    get_redis_info_api_debug_redis_info_get: {
+    debug_get_redis_info: {
         parameters: {
             query?: never;
             header?: never;
@@ -27796,7 +27796,7 @@ export interface operations {
             };
         };
     };
-    replay_request_api_debug_replay__recording_id__post: {
+    debug_replay_request: {
         parameters: {
             query?: never;
             header?: never;
@@ -27827,7 +27827,7 @@ export interface operations {
             };
         };
     };
-    get_websocket_connections_api_debug_websocket_connections_get: {
+    debug_get_websocket_connections: {
         parameters: {
             query?: never;
             header?: never;
@@ -27861,7 +27861,7 @@ export interface operations {
             };
         };
     };
-    list_detections_api_detections_get: {
+    detections_list_detections: {
         parameters: {
             query?: {
                 /** @description Filter by camera ID */
@@ -27909,7 +27909,7 @@ export interface operations {
             };
         };
     };
-    bulk_create_detections_api_detections_bulk_post: {
+    detections_bulk_create_detections: {
         parameters: {
             query?: never;
             header?: never;
@@ -27954,7 +27954,7 @@ export interface operations {
             };
         };
     };
-    bulk_delete_detections_api_detections_bulk_delete: {
+    detections_bulk_delete_detections: {
         parameters: {
             query?: never;
             header?: never;
@@ -27999,7 +27999,7 @@ export interface operations {
             };
         };
     };
-    bulk_update_detections_api_detections_bulk_patch: {
+    detections_bulk_update_detections: {
         parameters: {
             query?: never;
             header?: never;
@@ -28044,7 +28044,7 @@ export interface operations {
             };
         };
     };
-    list_detection_labels_api_detections_labels_get: {
+    detections_list_detection_labels: {
         parameters: {
             query?: never;
             header?: never;
@@ -28064,7 +28064,7 @@ export interface operations {
             };
         };
     };
-    search_detections_api_detections_search_get: {
+    detections_search_detections: {
         parameters: {
             query: {
                 q: string;
@@ -28102,7 +28102,7 @@ export interface operations {
             };
         };
     };
-    get_detection_stats_api_detections_stats_get: {
+    detections_get_detection_stats: {
         parameters: {
             query?: {
                 /** @description Filter by camera ID */
@@ -28134,7 +28134,7 @@ export interface operations {
             };
         };
     };
-    get_detection_api_detections__detection_id__get: {
+    detections_get_detection: {
         parameters: {
             query?: never;
             header?: never;
@@ -28165,7 +28165,7 @@ export interface operations {
             };
         };
     };
-    get_detection_enrichment_api_detections__detection_id__enrichment_get: {
+    detections_get_detection_enrichment: {
         parameters: {
             query?: never;
             header?: never;
@@ -28196,7 +28196,7 @@ export interface operations {
             };
         };
     };
-    get_detection_image_api_detections__detection_id__image_get: {
+    detections_get_detection_image: {
         parameters: {
             query?: {
                 /** @description Return full-size original image instead of thumbnail */
@@ -28249,7 +28249,7 @@ export interface operations {
             };
         };
     };
-    get_detection_thumbnail_api_detections__detection_id__thumbnail_get: {
+    detections_get_detection_thumbnail: {
         parameters: {
             query?: never;
             header?: never;
@@ -28302,7 +28302,7 @@ export interface operations {
             };
         };
     };
-    stream_detection_video_api_detections__detection_id__video_get: {
+    detections_stream_detection_video: {
         parameters: {
             query?: never;
             header?: {
@@ -28375,7 +28375,7 @@ export interface operations {
             };
         };
     };
-    get_video_thumbnail_api_detections__detection_id__video_thumbnail_get: {
+    detections_get_video_thumbnail: {
         parameters: {
             query?: never;
             header?: never;
@@ -28432,7 +28432,7 @@ export interface operations {
             };
         };
     };
-    get_dlq_jobs_api_dlq_jobs__queue_name__get: {
+    dlq_get_dlq_jobs: {
         parameters: {
             query?: {
                 /** @description Start index (0-based) */
@@ -28473,7 +28473,7 @@ export interface operations {
             };
         };
     };
-    requeue_all_dlq_jobs_api_dlq_requeue_all__queue_name__post: {
+    dlq_requeue_all_dlq_jobs: {
         parameters: {
             query?: {
                 api_key?: string | null;
@@ -28520,7 +28520,7 @@ export interface operations {
             };
         };
     };
-    requeue_dlq_job_api_dlq_requeue__queue_name__post: {
+    dlq_requeue_dlq_job: {
         parameters: {
             query?: {
                 api_key?: string | null;
@@ -28567,7 +28567,7 @@ export interface operations {
             };
         };
     };
-    get_dlq_stats_api_dlq_stats_get: {
+    dlq_get_dlq_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -28594,7 +28594,7 @@ export interface operations {
             };
         };
     };
-    clear_dlq_api_dlq__queue_name__delete: {
+    dlq_clear_dlq: {
         parameters: {
             query?: {
                 api_key?: string | null;
@@ -28641,7 +28641,7 @@ export interface operations {
             };
         };
     };
-    list_entities_api_entities_get: {
+    entities_list_entities: {
         parameters: {
             query?: {
                 /** @description Filter by entity type: 'person' or 'vehicle' */
@@ -28686,7 +28686,7 @@ export interface operations {
             };
         };
     };
-    get_entity_matches_api_entities_matches__detection_id__get: {
+    entities_get_entity_matches: {
         parameters: {
             query?: {
                 /** @description Type of entity to search for matches */
@@ -28743,7 +28743,7 @@ export interface operations {
             };
         };
     };
-    get_entity_stats_api_entities_stats_get: {
+    entities_get_entity_stats: {
         parameters: {
             query?: {
                 /** @description Filter entities seen since this time */
@@ -28784,7 +28784,7 @@ export interface operations {
             };
         };
     };
-    list_trusted_entities_api_entities_trusted_get: {
+    entities_list_trusted_entities: {
         parameters: {
             query?: {
                 /** @description Filter by entity type: 'person' or 'vehicle' */
@@ -28825,7 +28825,7 @@ export interface operations {
             };
         };
     };
-    list_untrusted_entities_api_entities_untrusted_get: {
+    entities_list_untrusted_entities: {
         parameters: {
             query?: {
                 /** @description Filter by entity type: 'person' or 'vehicle' */
@@ -28866,7 +28866,7 @@ export interface operations {
             };
         };
     };
-    list_entities_v2_api_entities_v2_get: {
+    entities_list_entities_v2: {
         parameters: {
             query?: {
                 /** @description Filter by entity type: 'person' or 'vehicle' */
@@ -28915,7 +28915,7 @@ export interface operations {
             };
         };
     };
-    get_entity_v2_api_entities_v2__entity_id__get: {
+    entities_get_entity_v2: {
         parameters: {
             query?: never;
             header?: never;
@@ -28960,7 +28960,7 @@ export interface operations {
             };
         };
     };
-    get_entity_detections_api_entities_v2__entity_id__detections_get: {
+    entities_get_entity_detections: {
         parameters: {
             query?: {
                 /** @description Maximum number of results */
@@ -29010,7 +29010,7 @@ export interface operations {
             };
         };
     };
-    get_entity_api_entities__entity_id__get: {
+    entities_get_entity: {
         parameters: {
             query?: never;
             header?: never;
@@ -29055,7 +29055,7 @@ export interface operations {
             };
         };
     };
-    get_entity_history_api_entities__entity_id__history_get: {
+    entities_get_entity_history: {
         parameters: {
             query?: never;
             header?: never;
@@ -29100,7 +29100,7 @@ export interface operations {
             };
         };
     };
-    update_entity_trust_api_entities__entity_id__trust_patch: {
+    entities_update_entity_trust: {
         parameters: {
             query?: never;
             header?: never;
@@ -29147,7 +29147,7 @@ export interface operations {
             };
         };
     };
-    list_events_api_events_get: {
+    events_list_events: {
         parameters: {
             query?: {
                 /** @description Filter by camera ID */
@@ -29199,7 +29199,7 @@ export interface operations {
             };
         };
     };
-    analyze_batch_streaming_api_events_analyze__batch_id__stream_get: {
+    events_analyze_batch_streaming: {
         parameters: {
             query?: {
                 /** @description Camera ID for the batch */
@@ -29235,7 +29235,7 @@ export interface operations {
             };
         };
     };
-    bulk_create_events_api_events_bulk_post: {
+    events_bulk_create_events: {
         parameters: {
             query?: never;
             header?: never;
@@ -29280,7 +29280,7 @@ export interface operations {
             };
         };
     };
-    bulk_delete_events_api_events_bulk_delete: {
+    events_bulk_delete_events: {
         parameters: {
             query?: never;
             header?: never;
@@ -29325,7 +29325,7 @@ export interface operations {
             };
         };
     };
-    bulk_update_events_api_events_bulk_patch: {
+    events_bulk_update_events: {
         parameters: {
             query?: never;
             header?: never;
@@ -29370,7 +29370,7 @@ export interface operations {
             };
         };
     };
-    list_deleted_events_api_events_deleted_get: {
+    events_list_deleted_events: {
         parameters: {
             query?: never;
             header?: never;
@@ -29390,7 +29390,7 @@ export interface operations {
             };
         };
     };
-    export_events_api_events_export_get: {
+    events_export_events: {
         parameters: {
             query?: {
                 /** @description Filter by camera ID */
@@ -29440,7 +29440,7 @@ export interface operations {
             };
         };
     };
-    start_export_job_api_events_export_post: {
+    jobs_start_export_job: {
         parameters: {
             query?: never;
             header?: never;
@@ -29473,7 +29473,7 @@ export interface operations {
             };
         };
     };
-    search_events_endpoint_api_events_search_get: {
+    events_search_events_endpoint: {
         parameters: {
             query: {
                 /** @description Search query string */
@@ -29523,7 +29523,7 @@ export interface operations {
             };
         };
     };
-    get_event_stats_api_events_stats_get: {
+    events_get_event_stats: {
         parameters: {
             query?: {
                 /** @description Filter by start date (ISO format) */
@@ -29559,7 +29559,7 @@ export interface operations {
             };
         };
     };
-    get_timeline_summary_api_events_timeline_summary_get: {
+    events_get_timeline_summary: {
         parameters: {
             query?: {
                 /** @description Start of timeline range (ISO format) */
@@ -29597,7 +29597,7 @@ export interface operations {
             };
         };
     };
-    get_event_api_events__event_id__get: {
+    events_get_event: {
         parameters: {
             query?: never;
             header?: never;
@@ -29628,7 +29628,7 @@ export interface operations {
             };
         };
     };
-    delete_event_api_events__event_id__delete: {
+    events_delete_event: {
         parameters: {
             query?: {
                 /** @description Cascade soft delete to related detections */
@@ -29674,7 +29674,7 @@ export interface operations {
             };
         };
     };
-    update_event_api_events__event_id__patch: {
+    events_update_event: {
         parameters: {
             query?: never;
             header?: never;
@@ -29709,7 +29709,7 @@ export interface operations {
             };
         };
     };
-    get_event_clip_api_events__event_id__clip_get: {
+    events_get_event_clip: {
         parameters: {
             query?: never;
             header?: never;
@@ -29740,7 +29740,7 @@ export interface operations {
             };
         };
     };
-    generate_event_clip_api_events__event_id__clip_generate_post: {
+    events_generate_event_clip: {
         parameters: {
             query?: never;
             header?: never;
@@ -29798,7 +29798,7 @@ export interface operations {
             };
         };
     };
-    get_event_detections_api_events__event_id__detections_get: {
+    events_get_event_detections: {
         parameters: {
             query?: {
                 /** @description Maximum number of results */
@@ -29834,7 +29834,7 @@ export interface operations {
             };
         };
     };
-    get_event_enrichments_api_events__event_id__enrichments_get: {
+    events_get_event_enrichments: {
         parameters: {
             query?: {
                 /** @description Maximum number of enrichments to return */
@@ -29870,7 +29870,7 @@ export interface operations {
             };
         };
     };
-    restore_event_api_events__event_id__restore_post: {
+    events_restore_event: {
         parameters: {
             query?: {
                 /** @description Cascade restore to related detections */
@@ -29918,7 +29918,7 @@ export interface operations {
             };
         };
     };
-    list_exports_api_exports_get: {
+    exports_list_exports: {
         parameters: {
             query?: {
                 /** @description Filter by job status */
@@ -29954,7 +29954,7 @@ export interface operations {
             };
         };
     };
-    start_export_api_exports_post: {
+    exports_start_export: {
         parameters: {
             query?: never;
             header?: never;
@@ -29987,7 +29987,7 @@ export interface operations {
             };
         };
     };
-    get_export_status_api_exports__job_id__get: {
+    exports_get_export_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -30025,7 +30025,7 @@ export interface operations {
             };
         };
     };
-    cancel_export_api_exports__job_id__delete: {
+    exports_cancel_export: {
         parameters: {
             query?: never;
             header?: never;
@@ -30070,7 +30070,7 @@ export interface operations {
             };
         };
     };
-    download_export_api_exports__job_id__download_get: {
+    exports_download_export: {
         parameters: {
             query?: never;
             header?: never;
@@ -30115,7 +30115,7 @@ export interface operations {
             };
         };
     };
-    get_download_info_api_exports__job_id__download_info_get: {
+    exports_get_download_info: {
         parameters: {
             query?: never;
             header?: never;
@@ -30153,7 +30153,7 @@ export interface operations {
             };
         };
     };
-    create_feedback_api_feedback_post: {
+    feedback_create_feedback: {
         parameters: {
             query?: never;
             header?: never;
@@ -30198,7 +30198,7 @@ export interface operations {
             };
         };
     };
-    get_event_feedback_api_feedback_event__event_id__get: {
+    feedback_get_event_feedback: {
         parameters: {
             query?: never;
             header?: never;
@@ -30234,7 +30234,7 @@ export interface operations {
             };
         };
     };
-    get_feedback_stats_api_feedback_stats_get: {
+    feedback_get_feedback_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -30254,7 +30254,7 @@ export interface operations {
             };
         };
     };
-    get_ai_services_health_api_health_ai_services_get: {
+    health_get_ai_services_health: {
         parameters: {
             query?: never;
             header?: never;
@@ -30281,7 +30281,7 @@ export interface operations {
             };
         };
     };
-    list_members_api_household_members_get: {
+    household_list_members: {
         parameters: {
             query?: never;
             header?: never;
@@ -30301,7 +30301,7 @@ export interface operations {
             };
         };
     };
-    create_member_api_household_members_post: {
+    household_create_member: {
         parameters: {
             query?: never;
             header?: never;
@@ -30334,7 +30334,7 @@ export interface operations {
             };
         };
     };
-    get_member_api_household_members__member_id__get: {
+    household_get_member: {
         parameters: {
             query?: never;
             header?: never;
@@ -30365,7 +30365,7 @@ export interface operations {
             };
         };
     };
-    delete_member_api_household_members__member_id__delete: {
+    household_delete_member: {
         parameters: {
             query?: never;
             header?: never;
@@ -30394,7 +30394,7 @@ export interface operations {
             };
         };
     };
-    update_member_api_household_members__member_id__patch: {
+    household_update_member: {
         parameters: {
             query?: never;
             header?: never;
@@ -30429,7 +30429,7 @@ export interface operations {
             };
         };
     };
-    add_embedding_from_event_api_household_members__member_id__embeddings_post: {
+    household_add_embedding_from_event: {
         parameters: {
             query?: never;
             header?: never;
@@ -30464,7 +30464,7 @@ export interface operations {
             };
         };
     };
-    list_vehicles_api_household_vehicles_get: {
+    household_list_vehicles: {
         parameters: {
             query?: never;
             header?: never;
@@ -30484,7 +30484,7 @@ export interface operations {
             };
         };
     };
-    create_vehicle_api_household_vehicles_post: {
+    household_create_vehicle: {
         parameters: {
             query?: never;
             header?: never;
@@ -30517,7 +30517,7 @@ export interface operations {
             };
         };
     };
-    get_vehicle_api_household_vehicles__vehicle_id__get: {
+    household_get_vehicle: {
         parameters: {
             query?: never;
             header?: never;
@@ -30548,7 +30548,7 @@ export interface operations {
             };
         };
     };
-    delete_vehicle_api_household_vehicles__vehicle_id__delete: {
+    household_delete_vehicle: {
         parameters: {
             query?: never;
             header?: never;
@@ -30577,7 +30577,7 @@ export interface operations {
             };
         };
     };
-    update_vehicle_api_household_vehicles__vehicle_id__patch: {
+    household_update_vehicle: {
         parameters: {
             query?: never;
             header?: never;
@@ -30612,7 +30612,7 @@ export interface operations {
             };
         };
     };
-    list_jobs_api_jobs_get: {
+    jobs_list_jobs: {
         parameters: {
             query?: {
                 /** @description Filter by job type (e.g., 'export', 'cleanup') */
@@ -30650,7 +30650,7 @@ export interface operations {
             };
         };
     };
-    bulk_cancel_jobs_api_jobs_bulk_cancel_post: {
+    jobs_bulk_cancel_jobs: {
         parameters: {
             query?: never;
             header?: never;
@@ -30683,7 +30683,7 @@ export interface operations {
             };
         };
     };
-    search_jobs_api_jobs_search_get: {
+    jobs_search_jobs: {
         parameters: {
             query?: {
                 /** @description Free text search across job type, error message, and metadata */
@@ -30743,7 +30743,7 @@ export interface operations {
             };
         };
     };
-    get_job_stats_api_jobs_stats_get: {
+    jobs_get_job_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -30763,7 +30763,7 @@ export interface operations {
             };
         };
     };
-    list_job_types_api_jobs_types_get: {
+    jobs_list_job_types: {
         parameters: {
             query?: never;
             header?: never;
@@ -30783,7 +30783,7 @@ export interface operations {
             };
         };
     };
-    get_job_status_api_jobs__job_id__get: {
+    jobs_get_job_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -30821,7 +30821,7 @@ export interface operations {
             };
         };
     };
-    delete_job_api_jobs__job_id__delete: {
+    jobs_delete_job: {
         parameters: {
             query?: never;
             header?: never;
@@ -30866,7 +30866,7 @@ export interface operations {
             };
         };
     };
-    abort_job_api_jobs__job_id__abort_post: {
+    jobs_abort_job: {
         parameters: {
             query?: never;
             header?: never;
@@ -30911,7 +30911,7 @@ export interface operations {
             };
         };
     };
-    cancel_job_api_jobs__job_id__cancel_post: {
+    jobs_cancel_job: {
         parameters: {
             query?: never;
             header?: never;
@@ -30956,7 +30956,7 @@ export interface operations {
             };
         };
     };
-    get_job_detail_api_jobs__job_id__detail_get: {
+    jobs_get_job_detail: {
         parameters: {
             query?: never;
             header?: never;
@@ -30994,7 +30994,7 @@ export interface operations {
             };
         };
     };
-    get_job_history_api_jobs__job_id__history_get: {
+    jobs_get_job_history: {
         parameters: {
             query?: never;
             header?: never;
@@ -31032,7 +31032,7 @@ export interface operations {
             };
         };
     };
-    get_job_logs_api_jobs__job_id__logs_get: {
+    jobs_get_job_logs: {
         parameters: {
             query?: {
                 /** @description Minimum log level to return (DEBUG, INFO, WARNING, ERROR) */
@@ -31077,7 +31077,7 @@ export interface operations {
             };
         };
     };
-    list_logs_api_logs_get: {
+    logs_list_logs: {
         parameters: {
             query?: {
                 /** @description Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) */
@@ -31141,7 +31141,7 @@ export interface operations {
             };
         };
     };
-    ingest_frontend_log_api_logs_frontend_post: {
+    logs_ingest_frontend_log: {
         parameters: {
             query?: never;
             header?: never;
@@ -31179,7 +31179,7 @@ export interface operations {
             };
         };
     };
-    ingest_frontend_logs_batch_api_logs_frontend_batch_post: {
+    logs_ingest_frontend_logs_batch: {
         parameters: {
             query?: never;
             header?: never;
@@ -31217,7 +31217,7 @@ export interface operations {
             };
         };
     };
-    get_log_stats_api_logs_stats_get: {
+    logs_get_log_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -31244,7 +31244,7 @@ export interface operations {
             };
         };
     };
-    serve_camera_file_api_media_cameras__camera_id___filename__get: {
+    media_serve_camera_file: {
         parameters: {
             query?: never;
             header?: never;
@@ -31299,7 +31299,7 @@ export interface operations {
             };
         };
     };
-    serve_clip_api_media_clips__filename__get: {
+    media_serve_clip: {
         parameters: {
             query?: never;
             header?: never;
@@ -31353,7 +31353,7 @@ export interface operations {
             };
         };
     };
-    serve_thumbnail_api_media_thumbnails__filename__get: {
+    media_serve_thumbnail: {
         parameters: {
             query?: never;
             header?: never;
@@ -31407,7 +31407,7 @@ export interface operations {
             };
         };
     };
-    serve_media_compat_api_media__path__get: {
+    media_serve_media_compat: {
         parameters: {
             query?: never;
             header?: never;
@@ -31461,7 +31461,7 @@ export interface operations {
             };
         };
     };
-    metrics_api_metrics_get: {
+    metrics_metrics: {
         parameters: {
             query?: never;
             header?: never;
@@ -31488,7 +31488,7 @@ export interface operations {
             };
         };
     };
-    get_notification_preferences_api_notification_preferences__get: {
+    "notification-preferences_get_notification_preferences": {
         parameters: {
             query?: never;
             header?: never;
@@ -31515,7 +31515,7 @@ export interface operations {
             };
         };
     };
-    update_notification_preferences_api_notification_preferences__put: {
+    "notification-preferences_update_notification_preferences": {
         parameters: {
             query?: never;
             header?: never;
@@ -31560,7 +31560,7 @@ export interface operations {
             };
         };
     };
-    get_all_camera_settings_api_notification_preferences_cameras_get: {
+    "notification-preferences_get_all_camera_settings": {
         parameters: {
             query?: never;
             header?: never;
@@ -31587,7 +31587,7 @@ export interface operations {
             };
         };
     };
-    get_camera_setting_api_notification_preferences_cameras__camera_id__get: {
+    "notification-preferences_get_camera_setting": {
         parameters: {
             query?: never;
             header?: never;
@@ -31632,7 +31632,7 @@ export interface operations {
             };
         };
     };
-    update_camera_setting_api_notification_preferences_cameras__camera_id__put: {
+    "notification-preferences_update_camera_setting": {
         parameters: {
             query?: never;
             header?: never;
@@ -31679,7 +31679,7 @@ export interface operations {
             };
         };
     };
-    get_quiet_hours_api_notification_preferences_quiet_hours_get: {
+    "notification-preferences_get_quiet_hours": {
         parameters: {
             query?: never;
             header?: never;
@@ -31706,7 +31706,7 @@ export interface operations {
             };
         };
     };
-    create_quiet_hours_period_api_notification_preferences_quiet_hours_post: {
+    "notification-preferences_create_quiet_hours_period": {
         parameters: {
             query?: never;
             header?: never;
@@ -31751,7 +31751,7 @@ export interface operations {
             };
         };
     };
-    delete_quiet_hours_period_api_notification_preferences_quiet_hours__period_id__delete: {
+    "notification-preferences_delete_quiet_hours_period": {
         parameters: {
             query?: never;
             header?: never;
@@ -31794,7 +31794,7 @@ export interface operations {
             };
         };
     };
-    get_notification_config_api_notification_config_get: {
+    notification_get_notification_config: {
         parameters: {
             query?: never;
             header?: never;
@@ -31814,7 +31814,7 @@ export interface operations {
             };
         };
     };
-    test_notification_api_notification_test_post: {
+    notification_test_notification: {
         parameters: {
             query?: never;
             header?: never;
@@ -31847,7 +31847,7 @@ export interface operations {
             };
         };
     };
-    get_all_prompts_api_prompts_get: {
+    prompts_get_all_prompts: {
         parameters: {
             query?: never;
             header?: never;
@@ -31874,7 +31874,7 @@ export interface operations {
             };
         };
     };
-    export_prompts_api_prompts_export_get: {
+    prompts_export_prompts: {
         parameters: {
             query?: never;
             header?: never;
@@ -31901,7 +31901,7 @@ export interface operations {
             };
         };
     };
-    get_prompt_history_api_prompts_history_get: {
+    prompts_get_prompt_history: {
         parameters: {
             query?: {
                 /** @description Filter by specific model */
@@ -31942,7 +31942,7 @@ export interface operations {
             };
         };
     };
-    restore_prompt_version_api_prompts_history__version_id__post: {
+    prompts_restore_prompt_version: {
         parameters: {
             query?: never;
             header?: never;
@@ -31985,7 +31985,7 @@ export interface operations {
             };
         };
     };
-    import_prompts_api_prompts_import_post: {
+    prompts_import_prompts: {
         parameters: {
             query?: never;
             header?: never;
@@ -32023,7 +32023,7 @@ export interface operations {
             };
         };
     };
-    preview_import_prompts_api_prompts_import_preview_post: {
+    prompts_preview_import_prompts: {
         parameters: {
             query?: never;
             header?: never;
@@ -32061,7 +32061,7 @@ export interface operations {
             };
         };
     };
-    test_prompt_api_prompts_test_post: {
+    prompts_test_prompt: {
         parameters: {
             query?: never;
             header?: never;
@@ -32106,7 +32106,7 @@ export interface operations {
             };
         };
     };
-    test_custom_prompt_api_prompts_test_prompt_post: {
+    prompts_test_custom_prompt: {
         parameters: {
             query?: never;
             header?: never;
@@ -32179,7 +32179,7 @@ export interface operations {
             };
         };
     };
-    get_prompt_for_model_api_prompts__model__get: {
+    prompts_get_prompt_for_model: {
         parameters: {
             query?: never;
             header?: never;
@@ -32222,7 +32222,7 @@ export interface operations {
             };
         };
     };
-    update_prompt_for_model_api_prompts__model__put: {
+    prompts_update_prompt_for_model: {
         parameters: {
             query?: never;
             header?: never;
@@ -32276,7 +32276,7 @@ export interface operations {
             };
         };
     };
-    get_queues_status_api_queues_status_get: {
+    queues_get_queues_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -32331,7 +32331,7 @@ export interface operations {
             };
         };
     };
-    ingest_rum_metrics_api_rum_post: {
+    rum_ingest_rum_metrics: {
         parameters: {
             query?: never;
             header?: never;
@@ -32369,7 +32369,7 @@ export interface operations {
             };
         };
     };
-    get_daily_summary_api_summaries_daily_get: {
+    summaries_get_daily_summary: {
         parameters: {
             query?: never;
             header?: never;
@@ -32399,7 +32399,7 @@ export interface operations {
             };
         };
     };
-    get_hourly_summary_api_summaries_hourly_get: {
+    summaries_get_hourly_summary: {
         parameters: {
             query?: never;
             header?: never;
@@ -32429,7 +32429,7 @@ export interface operations {
             };
         };
     };
-    get_latest_summaries_api_summaries_latest_get: {
+    summaries_get_latest_summaries: {
         parameters: {
             query?: never;
             header?: never;
@@ -32469,7 +32469,7 @@ export interface operations {
             };
         };
     };
-    get_anomaly_config_api_system_anomaly_config_get: {
+    system_get_anomaly_config: {
         parameters: {
             query?: never;
             header?: never;
@@ -32496,7 +32496,7 @@ export interface operations {
             };
         };
     };
-    update_anomaly_config_api_system_anomaly_config_patch: {
+    system_update_anomaly_config: {
         parameters: {
             query?: never;
             header?: {
@@ -32543,7 +32543,7 @@ export interface operations {
             };
         };
     };
-    get_circuit_breakers_api_system_circuit_breakers_get: {
+    system_get_circuit_breakers: {
         parameters: {
             query?: never;
             header?: never;
@@ -32563,7 +32563,7 @@ export interface operations {
             };
         };
     };
-    reset_circuit_breaker_api_system_circuit_breakers__name__reset_post: {
+    system_reset_circuit_breaker: {
         parameters: {
             query?: never;
             header?: {
@@ -32596,7 +32596,7 @@ export interface operations {
             };
         };
     };
-    trigger_cleanup_api_system_cleanup_post: {
+    system_trigger_cleanup: {
         parameters: {
             query?: {
                 dry_run?: boolean;
@@ -32629,7 +32629,7 @@ export interface operations {
             };
         };
     };
-    run_orphaned_file_cleanup_api_system_cleanup_orphaned_files_post: {
+    system_run_orphaned_file_cleanup: {
         parameters: {
             query?: {
                 /** @description If True, only report what would be deleted without deleting. Default is True for safety. */
@@ -32663,7 +32663,7 @@ export interface operations {
             };
         };
     };
-    get_cleanup_status_api_system_cleanup_status_get: {
+    system_get_cleanup_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -32683,7 +32683,7 @@ export interface operations {
             };
         };
     };
-    get_config_api_system_config_get: {
+    system_get_config: {
         parameters: {
             query?: never;
             header?: never;
@@ -32703,7 +32703,7 @@ export interface operations {
             };
         };
     };
-    patch_config_api_system_config_patch: {
+    system_patch_config: {
         parameters: {
             query?: never;
             header?: {
@@ -32750,7 +32750,7 @@ export interface operations {
             };
         };
     };
-    get_gpu_stats_api_system_gpu_get: {
+    system_get_gpu_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -32770,7 +32770,7 @@ export interface operations {
             };
         };
     };
-    get_gpu_config_api_system_gpu_config_get: {
+    "gpu-config_get_gpu_config": {
         parameters: {
             query?: never;
             header?: never;
@@ -32797,7 +32797,7 @@ export interface operations {
             };
         };
     };
-    update_gpu_config_api_system_gpu_config_put: {
+    "gpu-config_update_gpu_config": {
         parameters: {
             query?: never;
             header?: never;
@@ -32844,7 +32844,7 @@ export interface operations {
             };
         };
     };
-    apply_gpu_config_api_system_gpu_config_apply_post: {
+    "gpu-config_apply_gpu_config": {
         parameters: {
             query?: never;
             header?: never;
@@ -32878,7 +32878,7 @@ export interface operations {
             };
         };
     };
-    detect_gpus_api_system_gpu_config_detect_post: {
+    "gpu-config_detect_gpus": {
         parameters: {
             query?: never;
             header?: never;
@@ -32905,7 +32905,7 @@ export interface operations {
             };
         };
     };
-    preview_gpu_config_api_system_gpu_config_preview_get: {
+    "gpu-config_preview_gpu_config": {
         parameters: {
             query: {
                 /** @description Assignment strategy to preview */
@@ -32951,7 +32951,7 @@ export interface operations {
             };
         };
     };
-    get_gpu_config_status_api_system_gpu_config_status_get: {
+    "gpu-config_get_gpu_config_status": {
         parameters: {
             query?: never;
             header?: never;
@@ -32971,7 +32971,7 @@ export interface operations {
             };
         };
     };
-    get_gpu_stats_history_api_system_gpu_history_get: {
+    system_get_gpu_stats_history: {
         parameters: {
             query?: {
                 since?: string | null;
@@ -33003,7 +33003,7 @@ export interface operations {
             };
         };
     };
-    list_gpus_api_system_gpus_get: {
+    "gpu-config_list_gpus": {
         parameters: {
             query?: never;
             header?: never;
@@ -33030,7 +33030,7 @@ export interface operations {
             };
         };
     };
-    get_health_api_system_health_get: {
+    system_get_health: {
         parameters: {
             query?: never;
             header?: never;
@@ -33050,7 +33050,7 @@ export interface operations {
             };
         };
     };
-    get_full_health_api_system_health_full_get: {
+    system_get_full_health: {
         parameters: {
             query?: never;
             header?: never;
@@ -33077,7 +33077,7 @@ export interface operations {
             };
         };
     };
-    get_readiness_api_system_health_ready_get: {
+    system_get_readiness: {
         parameters: {
             query?: never;
             header?: never;
@@ -33097,7 +33097,7 @@ export interface operations {
             };
         };
     };
-    get_websocket_health_api_system_health_websocket_get: {
+    system_get_websocket_health: {
         parameters: {
             query?: never;
             header?: never;
@@ -33117,7 +33117,7 @@ export interface operations {
             };
         };
     };
-    get_model_zoo_latency_history_api_system_model_zoo_latency_history_get: {
+    system_get_model_zoo_latency_history: {
         parameters: {
             query: {
                 /** @description Model name to get latency history for (e.g., 'yolo11-license-plate') */
@@ -33153,7 +33153,7 @@ export interface operations {
             };
         };
     };
-    get_model_zoo_status_api_system_model_zoo_status_get: {
+    system_get_model_zoo_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -33173,7 +33173,7 @@ export interface operations {
             };
         };
     };
-    get_models_api_system_models_get: {
+    system_get_models: {
         parameters: {
             query?: never;
             header?: never;
@@ -33193,7 +33193,7 @@ export interface operations {
             };
         };
     };
-    get_model_api_system_models__model_name__get: {
+    system_get_model: {
         parameters: {
             query?: never;
             header?: never;
@@ -33224,7 +33224,7 @@ export interface operations {
             };
         };
     };
-    get_monitoring_health_api_system_monitoring_health_get: {
+    system_get_monitoring_health: {
         parameters: {
             query?: never;
             header?: never;
@@ -33244,7 +33244,7 @@ export interface operations {
             };
         };
     };
-    get_monitoring_targets_api_system_monitoring_targets_get: {
+    system_get_monitoring_targets: {
         parameters: {
             query?: never;
             header?: never;
@@ -33264,7 +33264,7 @@ export interface operations {
             };
         };
     };
-    get_performance_metrics_api_system_performance_get: {
+    system_get_performance_metrics: {
         parameters: {
             query?: never;
             header?: never;
@@ -33284,7 +33284,7 @@ export interface operations {
             };
         };
     };
-    get_performance_history_api_system_performance_history_get: {
+    system_get_performance_history: {
         parameters: {
             query?: {
                 time_range?: components["schemas"]["TimeRange"];
@@ -33315,7 +33315,7 @@ export interface operations {
             };
         };
     };
-    get_pipeline_status_api_system_pipeline_get: {
+    system_get_pipeline_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -33335,7 +33335,7 @@ export interface operations {
             };
         };
     };
-    get_pipeline_latency_api_system_pipeline_latency_get: {
+    system_get_pipeline_latency: {
         parameters: {
             query?: {
                 window_minutes?: number;
@@ -33366,7 +33366,7 @@ export interface operations {
             };
         };
     };
-    get_pipeline_latency_history_api_system_pipeline_latency_history_get: {
+    system_get_pipeline_latency_history: {
         parameters: {
             query?: {
                 /** @description Number of minutes of history to return (1-1440, i.e., 1 minute to 24 hours) */
@@ -33400,7 +33400,7 @@ export interface operations {
             };
         };
     };
-    list_services_api_system_services_get: {
+    services_list_services: {
         parameters: {
             query?: {
                 category?: components["schemas"]["ServiceCategory"] | null;
@@ -33445,7 +33445,7 @@ export interface operations {
             };
         };
     };
-    disable_service_api_system_services__name__disable_post: {
+    services_disable_service: {
         parameters: {
             query?: never;
             header?: never;
@@ -33497,7 +33497,7 @@ export interface operations {
             };
         };
     };
-    enable_service_api_system_services__name__enable_post: {
+    services_enable_service: {
         parameters: {
             query?: never;
             header?: never;
@@ -33549,7 +33549,7 @@ export interface operations {
             };
         };
     };
-    restart_service_api_system_services__name__restart_post: {
+    services_restart_service: {
         parameters: {
             query?: never;
             header?: never;
@@ -33608,7 +33608,7 @@ export interface operations {
             };
         };
     };
-    start_service_api_system_services__name__start_post: {
+    services_start_service: {
         parameters: {
             query?: never;
             header?: never;
@@ -33667,7 +33667,7 @@ export interface operations {
             };
         };
     };
-    get_severity_metadata_api_system_severity_get: {
+    system_get_severity_metadata: {
         parameters: {
             query?: never;
             header?: never;
@@ -33687,7 +33687,7 @@ export interface operations {
             };
         };
     };
-    update_severity_thresholds_api_system_severity_put: {
+    system_update_severity_thresholds: {
         parameters: {
             query?: never;
             header?: {
@@ -33722,7 +33722,7 @@ export interface operations {
             };
         };
     };
-    get_stats_api_system_stats_get: {
+    system_get_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -33742,7 +33742,7 @@ export interface operations {
             };
         };
     };
-    get_storage_stats_api_system_storage_get: {
+    system_get_storage_stats: {
         parameters: {
             query?: never;
             header?: never;
@@ -33762,7 +33762,7 @@ export interface operations {
             };
         };
     };
-    get_supervisor_status_api_system_supervisor_get: {
+    system_get_supervisor_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -33782,7 +33782,7 @@ export interface operations {
             };
         };
     };
-    reset_worker_api_system_supervisor_reset__worker_name__post: {
+    system_reset_worker: {
         parameters: {
             query?: never;
             header?: never;
@@ -33815,7 +33815,7 @@ export interface operations {
             };
         };
     };
-    get_restart_history_api_system_supervisor_restart_history_get: {
+    system_get_restart_history: {
         parameters: {
             query?: {
                 /** @description Filter by worker name */
@@ -33851,7 +33851,7 @@ export interface operations {
             };
         };
     };
-    get_supervisor_full_status_api_system_supervisor_status_get: {
+    system_get_supervisor_full_status: {
         parameters: {
             query?: never;
             header?: never;
@@ -33871,7 +33871,7 @@ export interface operations {
             };
         };
     };
-    restart_supervisor_worker_api_system_supervisor_workers__worker_name__restart_post: {
+    system_restart_supervisor_worker: {
         parameters: {
             query?: never;
             header?: never;
@@ -33902,7 +33902,7 @@ export interface operations {
             };
         };
     };
-    start_supervisor_worker_api_system_supervisor_workers__worker_name__start_post: {
+    system_start_supervisor_worker: {
         parameters: {
             query?: never;
             header?: never;
@@ -33933,7 +33933,7 @@ export interface operations {
             };
         };
     };
-    stop_supervisor_worker_api_system_supervisor_workers__worker_name__stop_post: {
+    system_stop_supervisor_worker: {
         parameters: {
             query?: never;
             header?: never;
@@ -33964,7 +33964,7 @@ export interface operations {
             };
         };
     };
-    get_telemetry_api_system_telemetry_get: {
+    system_get_telemetry: {
         parameters: {
             query?: never;
             header?: never;
@@ -33984,7 +33984,7 @@ export interface operations {
             };
         };
     };
-    list_websocket_event_types_api_system_websocket_events_get: {
+    system_list_websocket_event_types: {
         parameters: {
             query?: never;
             header?: never;
@@ -34004,7 +34004,7 @@ export interface operations {
             };
         };
     };
-    receive_alertmanager_webhook_api_v1_alertmanager_webhook_post: {
+    alertmanager_receive_alertmanager_webhook: {
         parameters: {
             query?: never;
             header?: never;
@@ -34042,7 +34042,7 @@ export interface operations {
             };
         };
     };
-    get_area_api_v1_areas__area_id__get: {
+    areas_get_area: {
         parameters: {
             query?: never;
             header?: never;
@@ -34073,7 +34073,7 @@ export interface operations {
             };
         };
     };
-    delete_area_api_v1_areas__area_id__delete: {
+    areas_delete_area: {
         parameters: {
             query?: never;
             header?: never;
@@ -34102,7 +34102,7 @@ export interface operations {
             };
         };
     };
-    update_area_api_v1_areas__area_id__patch: {
+    areas_update_area: {
         parameters: {
             query?: never;
             header?: never;
@@ -34137,7 +34137,7 @@ export interface operations {
             };
         };
     };
-    list_area_cameras_api_v1_areas__area_id__cameras_get: {
+    areas_list_area_cameras: {
         parameters: {
             query?: never;
             header?: never;
@@ -34168,7 +34168,7 @@ export interface operations {
             };
         };
     };
-    link_camera_to_area_api_v1_areas__area_id__cameras_post: {
+    areas_link_camera_to_area: {
         parameters: {
             query?: never;
             header?: never;
@@ -34203,7 +34203,7 @@ export interface operations {
             };
         };
     };
-    unlink_camera_from_area_api_v1_areas__area_id__cameras__camera_id__delete: {
+    areas_unlink_camera_from_area: {
         parameters: {
             query?: never;
             header?: never;
@@ -34235,7 +34235,7 @@ export interface operations {
             };
         };
     };
-    list_households_api_v1_households_get: {
+    households_list_households: {
         parameters: {
             query?: never;
             header?: never;
@@ -34255,7 +34255,7 @@ export interface operations {
             };
         };
     };
-    create_household_api_v1_households_post: {
+    households_create_household: {
         parameters: {
             query?: never;
             header?: never;
@@ -34288,7 +34288,7 @@ export interface operations {
             };
         };
     };
-    get_household_api_v1_households__household_id__get: {
+    households_get_household: {
         parameters: {
             query?: never;
             header?: never;
@@ -34319,7 +34319,7 @@ export interface operations {
             };
         };
     };
-    delete_household_api_v1_households__household_id__delete: {
+    households_delete_household: {
         parameters: {
             query?: never;
             header?: never;
@@ -34348,7 +34348,7 @@ export interface operations {
             };
         };
     };
-    update_household_api_v1_households__household_id__patch: {
+    households_update_household: {
         parameters: {
             query?: never;
             header?: never;
@@ -34383,7 +34383,7 @@ export interface operations {
             };
         };
     };
-    list_household_properties_api_v1_households__household_id__properties_get: {
+    households_list_household_properties: {
         parameters: {
             query?: never;
             header?: never;
@@ -34414,7 +34414,7 @@ export interface operations {
             };
         };
     };
-    create_property_api_v1_households__household_id__properties_post: {
+    households_create_property: {
         parameters: {
             query?: never;
             header?: never;
@@ -34449,7 +34449,7 @@ export interface operations {
             };
         };
     };
-    get_property_api_v1_properties__property_id__get: {
+    properties_get_property: {
         parameters: {
             query?: never;
             header?: never;
@@ -34480,7 +34480,7 @@ export interface operations {
             };
         };
     };
-    delete_property_api_v1_properties__property_id__delete: {
+    properties_delete_property: {
         parameters: {
             query?: never;
             header?: never;
@@ -34509,7 +34509,7 @@ export interface operations {
             };
         };
     };
-    update_property_api_v1_properties__property_id__patch: {
+    properties_update_property: {
         parameters: {
             query?: never;
             header?: never;
@@ -34544,7 +34544,7 @@ export interface operations {
             };
         };
     };
-    list_property_areas_api_v1_properties__property_id__areas_get: {
+    properties_list_property_areas: {
         parameters: {
             query?: never;
             header?: never;
@@ -34575,7 +34575,7 @@ export interface operations {
             };
         };
     };
-    create_area_api_v1_properties__property_id__areas_post: {
+    properties_create_area: {
         parameters: {
             query?: never;
             header?: never;
@@ -34610,7 +34610,7 @@ export interface operations {
             };
         };
     };
-    get_user_settings_api_v1_settings_get: {
+    settings_get_user_settings: {
         parameters: {
             query?: never;
             header?: never;
@@ -34630,7 +34630,7 @@ export interface operations {
             };
         };
     };
-    update_settings_api_v1_settings_patch: {
+    settings_update_settings: {
         parameters: {
             query?: never;
             header?: never;
@@ -34668,7 +34668,7 @@ export interface operations {
             };
         };
     };
-    receive_alertmanager_webhook_api_webhooks_alerts_post: {
+    webhooks_receive_alertmanager_webhook: {
         parameters: {
             query?: never;
             header?: never;
@@ -34706,7 +34706,7 @@ export interface operations {
             };
         };
     };
-    get_member_zones_api_zones_member__member_id__zones_get: {
+    "zone-household_get_member_zones": {
         parameters: {
             query?: never;
             header?: never;
@@ -34739,7 +34739,7 @@ export interface operations {
             };
         };
     };
-    get_vehicle_zones_api_zones_vehicle__vehicle_id__zones_get: {
+    "zone-household_get_vehicle_zones": {
         parameters: {
             query?: never;
             header?: never;
@@ -34772,7 +34772,7 @@ export interface operations {
             };
         };
     };
-    get_zone_household_config_api_zones__zone_id__household_get: {
+    "zone-household_get_zone_household_config": {
         parameters: {
             query?: never;
             header?: never;
@@ -34803,7 +34803,7 @@ export interface operations {
             };
         };
     };
-    upsert_zone_household_config_api_zones__zone_id__household_put: {
+    "zone-household_upsert_zone_household_config": {
         parameters: {
             query?: never;
             header?: never;
@@ -34838,7 +34838,7 @@ export interface operations {
             };
         };
     };
-    delete_zone_household_config_api_zones__zone_id__household_delete: {
+    "zone-household_delete_zone_household_config": {
         parameters: {
             query?: never;
             header?: never;
@@ -34867,7 +34867,7 @@ export interface operations {
             };
         };
     };
-    patch_zone_household_config_api_zones__zone_id__household_patch: {
+    "zone-household_patch_zone_household_config": {
         parameters: {
             query?: never;
             header?: never;
@@ -34902,7 +34902,7 @@ export interface operations {
             };
         };
     };
-    check_entity_trust_api_zones__zone_id__household_trust__entity_type___entity_id__get: {
+    "zone-household_check_entity_trust": {
         parameters: {
             query?: {
                 /** @description Time to check access for (ISO 8601 format, defaults to current time) */
@@ -34938,7 +34938,7 @@ export interface operations {
             };
         };
     };
-    health_health_get: {
+    health: {
         parameters: {
             query?: never;
             header?: never;
@@ -34960,7 +34960,7 @@ export interface operations {
             };
         };
     };
-    ready_ready_get: {
+    ready: {
         parameters: {
             query?: never;
             header?: never;
