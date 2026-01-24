@@ -1,7 +1,7 @@
 """Add JSON_TABLE functions for enrichment data queries
 
 Revision ID: g7h8i9j0k1l2
-Revises: f6g7h8i9j0k1
+Revises: f7g8h9i0j1k2
 Create Date: 2026-01-23 12:30:00.000000
 
 This migration creates PostgreSQL functions that use json_to_recordset and jsonb_array_elements
@@ -33,7 +33,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "g7h8i9j0k1l2"  # pragma: allowlist secret
-down_revision: str | Sequence[str] | None = "f6g7h8i9j0k1"  # pragma: allowlist secret
+down_revision: str | Sequence[str] | None = "f7g8h9i0j1k2"  # pragma: allowlist secret
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

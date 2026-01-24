@@ -1,7 +1,7 @@
 """Add materialized views for dashboard analytics optimization
 
 Revision ID: f6g7h8i9j0k1
-Revises: e5f6g7h8i9j0
+Revises: e2492ad3a41c
 Create Date: 2026-01-23 12:00:00.000000
 
 This migration creates materialized views for common dashboard aggregations to improve
@@ -28,7 +28,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "f6g7h8i9j0k1"  # pragma: allowlist secret
-down_revision: str | Sequence[str] | None = "e5f6g7h8i9j0"  # pragma: allowlist secret
+down_revision: str | Sequence[str] | None = "e2492ad3a41c"  # pragma: allowlist secret
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
