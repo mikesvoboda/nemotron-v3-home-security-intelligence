@@ -974,6 +974,7 @@ def reset_settings_cache() -> Generator[None]:
     # Save original env vars to restore after test
     original_db_url = os.environ.get("DATABASE_URL")
     original_redis_url = os.environ.get("REDIS_URL")
+    original_environment = os.environ.get("ENVIRONMENT")
 
     # Set default test values if not already set
     # This prevents Settings validation errors in unit tests that don't need a real DB
@@ -981,6 +982,9 @@ def reset_settings_cache() -> Generator[None]:
         os.environ["DATABASE_URL"] = DEFAULT_DEV_POSTGRES_URL
     if not os.environ.get("REDIS_URL"):
         os.environ["REDIS_URL"] = DEFAULT_DEV_REDIS_URL
+    # Always set ENVIRONMENT to development for tests to skip password validation
+    if not os.environ.get("ENVIRONMENT"):
+        os.environ["ENVIRONMENT"] = "development"
 
     # Clear settings cache before test
     get_settings.cache_clear()
@@ -997,6 +1001,11 @@ def reset_settings_cache() -> Generator[None]:
         os.environ.pop("REDIS_URL", None)
     else:
         os.environ["REDIS_URL"] = original_redis_url
+
+    if original_environment is None:
+        os.environ.pop("ENVIRONMENT", None)
+    else:
+        os.environ["ENVIRONMENT"] = original_environment
 
     # Clear settings cache after test
     get_settings.cache_clear()
