@@ -6,7 +6,7 @@
 
 - `backend/main.py:1041-1053` - CORS middleware registration
 - `backend/core/config.py:572-585` - CORS origin configuration
-- `backend/api/middleware/security_headers.py:1-177` - Security headers
+- `backend/api/middleware/security_headers.py:1-176` - Security headers
 
 ## Overview
 
@@ -161,7 +161,7 @@ When `allow_credentials=true`:
 
 ## Security Headers Integration
 
-The `SecurityHeadersMiddleware` (`backend/api/middleware/security_headers.py:23-177`) adds additional security headers that complement CORS:
+The `SecurityHeadersMiddleware` (`backend/api/middleware/security_headers.py:23-176`) adds additional security headers that complement CORS:
 
 | Header                         | Default Value                     | Purpose                      |
 | ------------------------------ | --------------------------------- | ---------------------------- |

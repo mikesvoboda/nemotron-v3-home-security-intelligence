@@ -4,10 +4,10 @@
 
 **Key Files:**
 
-- `backend/core/metrics.py:1-2100` - All metric definitions and helpers
+- `backend/core/metrics.py:1-3240` - All metric definitions and helpers
 - `backend/core/sanitization.py` - Label sanitization for cardinality control
-- `monitoring/prometheus.yml:1-411` - Prometheus scrape configuration
-- `monitoring/prometheus-rules.yml:1-170` - Recording rules for SLIs
+- `monitoring/prometheus.yml:1-410` - Prometheus scrape configuration
+- `monitoring/prometheus-rules.yml:1-169` - Recording rules for SLIs
 
 ## Overview
 

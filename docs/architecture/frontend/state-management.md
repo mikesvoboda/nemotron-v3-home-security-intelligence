@@ -4,10 +4,10 @@
 
 ## Key Files
 
-- `frontend/src/services/queryClient.ts:1-849` - TanStack Query configuration
-- `frontend/src/hooks/useLocalStorage.ts:1-50` - Local storage persistence
-- `frontend/src/stores/rate-limit-store.ts:1-100` - Zustand rate limit store
-- `frontend/src/contexts/AnnouncementContext.tsx:1-80` - ARIA announcement context
+- `frontend/src/services/queryClient.ts:1-848` - TanStack Query configuration
+- `frontend/src/hooks/useLocalStorage.ts:1-45` - Local storage persistence
+- `frontend/src/stores/rate-limit-store.ts:1-80` - Zustand rate limit store
+- `frontend/src/contexts/AnnouncementContext.tsx:1-60` - ARIA announcement context
 
 ## Overview
 

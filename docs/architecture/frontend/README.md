@@ -4,11 +4,11 @@
 
 ## Key Files
 
-- `frontend/src/App.tsx:1-159` - Application root with routing and providers
-- `frontend/src/components/layout/Layout.tsx:1-128` - Main layout with sidebar and header
-- `frontend/src/services/queryClient.ts:1-849` - TanStack Query configuration
-- `frontend/src/hooks/index.ts:1-659` - Custom hooks barrel export
-- `frontend/tailwind.config.js:1-296` - NVIDIA-themed Tailwind configuration
+- `frontend/src/App.tsx:1-158` - Application root with routing and providers
+- `frontend/src/components/layout/Layout.tsx:1-127` - Main layout with sidebar and header
+- `frontend/src/services/queryClient.ts:1-848` - TanStack Query configuration
+- `frontend/src/hooks/index.ts:1-658` - Custom hooks barrel export
+- `frontend/tailwind.config.js:1-295` - NVIDIA-themed Tailwind configuration
 
 ## Overview
 

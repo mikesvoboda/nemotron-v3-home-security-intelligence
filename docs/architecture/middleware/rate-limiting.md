@@ -4,7 +4,7 @@
 
 **Key Files:**
 
-- `backend/api/middleware/rate_limit.py:1-537` - Rate limiting implementation
+- `backend/api/middleware/rate_limit.py:1-536` - Rate limiting implementation
 - `backend/core/config.py:1326-1397` - Rate limit configuration
 - `backend/api/exception_handlers.py:506-548` - Rate limit error handling
 
