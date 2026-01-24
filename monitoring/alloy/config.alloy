@@ -98,17 +98,12 @@ loki.process "parse" {
   stage.labels {
     values = {
       level = "",
-      camera = "",
-      trace_id = "",
-      span_id = "",
-      batch_id = "",
-      duration_ms = "",
-      pg_duration_ms = "",
-      pg_pid = "",
-      pg_user = "",
       pg_database = "",
-      pg_slow_query = "",
+      pg_user = "",
       pg_event = "",
+      // High-cardinality values removed from labels - they remain in log content
+      // and can be queried with | json or | logfmt parsers:
+      // trace_id, span_id, batch_id, duration_ms, pg_duration_ms, pg_pid, pg_slow_query, camera
     }
   }
 
