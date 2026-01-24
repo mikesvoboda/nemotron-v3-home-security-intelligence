@@ -64,17 +64,13 @@ __all__ = [
     "MIN_SAMPLES_FOR_ROLLBACK",
     "PRODUCTION_EXPERIMENT_NAME",
     "PRODUCTION_TEST_DURATION_HOURS",
-    # Production A/B rollout config (NEM-3338 Phase 7.2)
     "PRODUCTION_TREATMENT_PERCENTAGE",
-    # A/B rollout config (NEM-3338)
     "ABRolloutConfig",
     "ABRolloutManager",
     "AutoRollbackConfig",
     "ExperimentGroup",
     "GroupMetrics",
-    # Shadow mode deployment config
     "LatencyWarning",
-    # Prompt experiment config
     "PromptExperimentConfig",
     "PromptVersion",
     "RollbackCheckResult",

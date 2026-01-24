@@ -1043,6 +1043,9 @@ async def mock_redis() -> AsyncGenerator[AsyncMock]:
     # Set the internal client
     mock_redis_client._client = mock_internal_client
 
+    # Mock _ensure_connected to return the internal client (not async)
+    mock_redis_client._ensure_connected = MagicMock(return_value=mock_internal_client)
+
     # Also mock scan_iter directly on the redis client (some code uses it directly)
     mock_redis_client.scan_iter = MagicMock(
         side_effect=lambda match="*", count=100: mock_scan_iter(match, count)
