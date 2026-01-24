@@ -139,13 +139,16 @@ describe('useExportJobsQuery', () => {
       wrapper: createQueryWrapper(),
     });
 
-    // Initially loading
+    // Initially loading - both isPending and isLoading should be true
+    expect(result.current.isPending).toBe(true);
     expect(result.current.isLoading).toBe(true);
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
+    // After data is loaded, isPending should be false
+    expect(result.current.isPending).toBe(false);
     expect(result.current.jobs).toHaveLength(2);
     expect(result.current.jobs[0].id).toBe('completed-job-456');
     expect(api.listExportJobs).toHaveBeenCalledOnce();
@@ -192,6 +195,8 @@ describe('useExportJobsQuery', () => {
     });
 
     // Should not be loading because query is disabled
+    // isPending is still true (no data) but isLoading is false (not fetching)
+    expect(result.current.isPending).toBe(true);
     expect(result.current.isLoading).toBe(false);
     expect(api.listExportJobs).not.toHaveBeenCalled();
   });

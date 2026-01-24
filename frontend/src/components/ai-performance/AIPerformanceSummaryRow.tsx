@@ -135,12 +135,13 @@ function getThroughputStatus(perMinute: number): StatusColor {
 
 /**
  * Determine error status color
+ * These are cumulative counters, so thresholds are higher.
  * Green: 0 errors
- * Yellow: 1-10 errors
- * Red: 10+ errors
+ * Yellow: 1-50 errors
+ * Red: 50+ errors
  */
 function getErrorStatus(errorCount: number): StatusColor {
-  if (errorCount >= 10) return 'red';
+  if (errorCount >= 50) return 'red';
   if (errorCount > 0) return 'yellow';
   return 'green';
 }
@@ -423,21 +424,24 @@ export default function AIPerformanceSummaryRow({
       <IndicatorCard
         testId="errors-indicator"
         label="Errors"
-        value={`${totalErrors} error${totalErrors !== 1 ? 's' : ''}`}
+        value={totalErrors === 0 ? 'None' : `${totalErrors} total`}
         status={errorStatus}
         icon={<AlertTriangle className="h-3.5 w-3.5 text-orange-500" aria-hidden="true" />}
         onClick={() => handleIndicatorClick('errors')}
-        ariaLabel={`Errors: ${totalErrors} errors. Click to scroll to errors section.`}
+        ariaLabel={`Errors: ${totalErrors} cumulative errors since system start. Click to scroll to errors section.`}
         tooltipContent={
           <div className="space-y-1">
             <div className="font-medium text-white">Pipeline Errors</div>
-            <div>Total Errors: {totalErrors}</div>
-            <div className="mt-1 text-gray-400">
+            <div>Total Since Start: {totalErrors}</div>
+            <div className="mt-1 text-xs text-gray-400">
               {totalErrors === 0
-                ? 'No errors detected'
+                ? 'No errors since system start'
                 : totalErrors < 10
-                  ? 'Some errors detected'
-                  : 'Many errors detected - check logs'}
+                  ? 'Low error count - system healthy'
+                  : 'Cumulative count since system start'}
+            </div>
+            <div className="mt-1 text-xs italic text-gray-500">
+              These are cumulative counters, not active errors
             </div>
           </div>
         }

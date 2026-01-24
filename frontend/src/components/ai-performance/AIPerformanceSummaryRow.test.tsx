@@ -565,7 +565,7 @@ describe('AIPerformanceSummaryRow', () => {
         />
       );
       const indicator = screen.getByTestId('errors-indicator');
-      expect(indicator).toHaveTextContent('5 errors');
+      expect(indicator).toHaveTextContent('5 total');
     });
 
     it('shows green status for 0 errors', () => {
@@ -586,7 +586,7 @@ describe('AIPerformanceSummaryRow', () => {
       expect(indicator).toHaveAttribute('data-status', 'green');
     });
 
-    it('shows yellow status for 1-10 errors', () => {
+    it('shows yellow status for 1-49 errors', () => {
       render(
         <AIPerformanceSummaryRow
           rtdetr={healthyRtdetr}
@@ -597,14 +597,14 @@ describe('AIPerformanceSummaryRow', () => {
           analysisQueueDepth={0}
           totalDetections={100}
           totalEvents={50}
-          totalErrors={5}
+          totalErrors={25}
         />
       );
       const indicator = screen.getByTestId('errors-indicator');
       expect(indicator).toHaveAttribute('data-status', 'yellow');
     });
 
-    it('shows red status for 10+ errors', () => {
+    it('shows red status for 50+ errors', () => {
       render(
         <AIPerformanceSummaryRow
           rtdetr={healthyRtdetr}
@@ -615,7 +615,7 @@ describe('AIPerformanceSummaryRow', () => {
           analysisQueueDepth={0}
           totalDetections={100}
           totalEvents={50}
-          totalErrors={15}
+          totalErrors={50}
         />
       );
       const indicator = screen.getByTestId('errors-indicator');
