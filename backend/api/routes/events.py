@@ -805,9 +805,11 @@ async def search_events_endpoint(
     reviewed: bool | None = Query(None, description="Filter by reviewed status"),
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ) -> SearchResponseSchema:
     """Search events using full-text search.
+
+    Uses read replica for linear scalability (NEM-3392).
 
     This endpoint provides PostgreSQL full-text search across event summaries,
     reasoning, object types, and camera names.

@@ -498,12 +498,16 @@ async def test_full_seed_workflow(debug_client, clean_seed_data):
 
 @pytest.mark.asyncio
 @pytest.mark.requires_debug_mode
-async def test_admin_endpoints_require_debug_mode(integration_db, mock_redis):
+@pytest.mark.unit  # Override integration mark - this test doesn't need database
+async def test_admin_endpoints_require_debug_mode(mock_redis):
     """Test that admin endpoints return 403 when DEBUG=false or ADMIN_ENABLED=false.
 
     SECURITY: This test verifies defense-in-depth access control.
     Admin endpoints must have BOTH debug=True AND admin_enabled=True.
     This prevents accidental exposure in production environments.
+
+    NOTE: This test doesn't need a real database because it patches init_db.
+    It only needs to verify HTTP response codes from the admin endpoints.
     """
     from unittest.mock import patch
 

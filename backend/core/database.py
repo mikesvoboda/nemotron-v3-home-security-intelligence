@@ -24,6 +24,9 @@ __all__ = [
     "get_db",
     "get_engine",
     "get_pool_status",
+    "get_read_db",
+    "get_read_engine",
+    "get_read_session",
     "get_session",
     "get_session_factory",
     "init_db",
@@ -118,9 +121,14 @@ class Base(DeclarativeBase):
     pass
 
 
-# Global engine and session factory
+# Global engine and session factory (primary/write database)
 _engine: AsyncEngine | None = None
 _async_session_factory: async_sessionmaker[AsyncSession] | None = None
+
+# Read replica engine and session factory (NEM-3392)
+# If database_url_read is not configured, these fall back to primary
+_read_engine: AsyncEngine | None = None
+_read_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 # Track which event loop the engine was created in
 # This is used to detect when pytest-asyncio creates a new loop per test
@@ -156,6 +164,27 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     return _async_session_factory
 
 
+def get_read_engine() -> AsyncEngine:
+    """Get the read replica async database engine (NEM-3392).
+
+    Returns the read replica engine if configured, otherwise falls back
+    to the primary engine. This allows read-heavy operations to be
+    routed to replicas for linear scalability.
+
+    Returns:
+        AsyncEngine: The read replica engine, or primary engine as fallback.
+
+    Raises:
+        RuntimeError: If database has not been initialized.
+    """
+    # Fall back to primary if read replica not configured
+    if _read_engine is None:
+        if _engine is None:
+            raise RuntimeError("Database not initialized. Call init_db() first.")
+        return _engine
+    return _read_engine
+
+
 async def init_db() -> None:
     """Initialize the database engine and create all tables.
 
@@ -175,6 +204,7 @@ async def init_db() -> None:
     the existing engine is automatically disposed and recreated.
     """
     global _engine, _async_session_factory, _bound_loop_id  # noqa: PLW0603
+    global _read_engine, _read_session_factory  # noqa: PLW0603
 
     # Get current event loop ID
     try:
@@ -189,11 +219,16 @@ async def init_db() -> None:
         try:
             # Reset globals before disposal to avoid issues
             old_engine = _engine
+            old_read_engine = _read_engine
             _engine = None
+            _read_engine = None
             _async_session_factory = None
+            _read_session_factory = None
             _bound_loop_id = None
             # Try to dispose - this may fail if loop is already closed
             await old_engine.dispose()
+            if old_read_engine is not None:
+                await old_read_engine.dispose()
         except (RuntimeError, OSError) as e:
             # RuntimeError: event loop issues (old loop closed, etc.)
             # OSError: connection cleanup failures
@@ -300,6 +335,42 @@ async def init_db() -> None:
         autoflush=False,
     )
 
+    # Initialize read replica engine if configured (NEM-3392)
+    # This enables routing read-heavy operations to replicas for linear scalability
+    read_db_url = settings.database_url_read
+    if read_db_url:
+        # Validate PostgreSQL URL format for read replica
+        if not read_db_url.startswith("postgresql+asyncpg://"):
+            raise ValueError(
+                f"Invalid read replica database URL. "
+                f"Expected postgresql+asyncpg:// format, got: {read_db_url}"
+            )
+
+        # Create read replica engine with same pool settings as primary
+        _read_engine = create_async_engine(read_db_url, **engine_kwargs)
+        _setup_pool_event_handlers(_read_engine)
+
+        # Create read replica session factory
+        _read_session_factory = async_sessionmaker(
+            _read_engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autocommit=False,
+            autoflush=False,
+        )
+        _logger.info(
+            "Read replica database initialized",
+            extra={"read_replica_configured": True},
+        )
+    else:
+        # No read replica configured - read operations will use primary
+        _read_engine = None
+        _read_session_factory = None
+        _logger.debug(
+            "No read replica configured, using primary database for reads",
+            extra={"read_replica_configured": False},
+        )
+
     # Import all models to ensure they're registered with Base.metadata
     from backend.models import Camera, Detection, Event, GPUStats, Zone  # noqa: F401
 
@@ -332,9 +403,25 @@ async def close_db() -> None:
     """Close the database engine and cleanup resources.
 
     This function should be called during application shutdown.
+    Cleans up both primary and read replica engines if configured.
     """
     global _engine, _async_session_factory, _bound_loop_id  # noqa: PLW0603
+    global _read_engine, _read_session_factory  # noqa: PLW0603
 
+    # Close read replica engine if configured (NEM-3392)
+    if _read_engine is not None:
+        try:
+            await _read_engine.dispose()
+        except ValueError as e:
+            if "greenlet" in str(e):
+                pass
+            else:
+                raise
+        finally:
+            _read_engine = None
+            _read_session_factory = None
+
+    # Close primary engine
     if _engine is not None:
         try:
             await _engine.dispose()

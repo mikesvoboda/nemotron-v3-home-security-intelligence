@@ -58,7 +58,7 @@ from backend.api.utils.field_filter import (
     validate_fields,
 )
 from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
-from backend.core.database import get_db
+from backend.core.database import get_db, get_read_db
 from backend.core.logging import get_logger
 from backend.models.camera import Camera
 from backend.models.detection import Detection
