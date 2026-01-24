@@ -983,8 +983,8 @@ async def export_events(
     # This ensures date-only filters like "2026-01-15" include all events from that day
     normalized_end_date = normalize_end_date_to_end_of_day(end_date)
 
-    # Build base query
-    query = select(Event)
+    # Build base query with undefer to load reasoning column
+    query = select(Event).options(undefer(Event.reasoning))
 
     # Apply filters
     if camera_id:

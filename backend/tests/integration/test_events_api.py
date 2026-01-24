@@ -183,7 +183,7 @@ async def multiple_events(integration_db, sample_camera):
                 camera_id=camera2_id,
                 started_at=datetime(2025, 12, 23, 22, 0, 0, tzinfo=UTC),
                 ended_at=datetime(2025, 12, 23, 22, 5, 0, tzinfo=UTC),
-                risk_score=90,
+                risk_score=75,
                 risk_level="high",
                 summary="Suspicious activity at night",
                 reviewed=False,
