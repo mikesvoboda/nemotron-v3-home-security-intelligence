@@ -202,7 +202,7 @@ build: {
 
 ### How It Works
 
-1. **Build Output**: Running `npm run build` generates `.map` files in `dist/assets/`
+1. **Build Output**: Running `npm run build` generates `.map` files in the build output directory
 2. **No URL Reference**: The bundles do NOT contain `//# sourceMappingURL=` comments
 3. **Private Maps**: Source maps are not served by nginx (only `.js` and `.css` are public)
 4. **Debug Access**: Developers can manually load `.map` files in DevTools or use error tracking services

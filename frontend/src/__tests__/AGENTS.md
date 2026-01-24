@@ -132,9 +132,9 @@ Add tests to this directory when:
 **Do NOT add tests here for:**
 
 - React components (co-locate with component file)
-- Hooks (co-locate in `src/hooks/`)
-- Services (co-locate in `src/services/`)
-- Utilities (co-locate in `src/utils/`)
+- Hooks (co-locate in the hooks directory)
+- Services (co-locate in the services directory)
+- Utilities (co-locate in the utils directory)
 
 ## Related Files
 

@@ -178,13 +178,13 @@ it('has configuration for all types', () => {
 
 ## Related Type Files
 
-These tests validate types defined in the parent `types/` directory:
+These tests validate types defined in the parent types directory:
 
-| Type File         | Tested In              |
-| ----------------- | ---------------------- |
-| `types/summary.ts` | `summary.test.ts`     |
-| `types/zoneAlert.ts` | `zoneAlert.test.ts` |
-| `types/zoneAnomaly.ts` | Used in zoneAlert tests |
+| Type File          | Tested In              |
+| ------------------ | ---------------------- |
+| `summary.ts`       | `summary.test.ts`      |
+| `zoneAlert.ts`     | `zoneAlert.test.ts`    |
+| `zoneAnomaly.ts`   | Used in zoneAlert tests|
 
 ## Notes for AI Agents
 

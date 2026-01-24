@@ -725,11 +725,11 @@ The `api.ts` file re-exports all types from `types/generated/` for convenience.
 | `utils.test.tsx`     | Tests for test utilities                          |
 | `README.md`          | Test infrastructure documentation                 |
 
-Contains subdirectories: `test/factories/`, `test/fixtures/`, `test/mocks/`
+Contains subdirectories for test factories, fixtures, and mocks
 
 ### `/types/` - TypeScript Types
 
-- **`types/generated/`** - Auto-generated from backend OpenAPI
+- **generated subdirectory** - Auto-generated from backend OpenAPI
   - `api.ts` - Full OpenAPI types (DO NOT EDIT)
   - `index.ts` - Re-exports with convenient aliases
 - **`aiAudit.ts`** - AI audit type definitions
@@ -780,7 +780,7 @@ Note: Tests are co-located with type files (e.g., `*.test.ts`).
 | `validation.ts`            | Validation utilities                                                         |
 | `websocketCompression.ts`  | WebSocket compression utilities                                              |
 
-Each utility has a co-located test file (named `*.test.ts`).
+Each utility has a co-located test file.
 
 ### `/test-utils/` - Test Utilities
 

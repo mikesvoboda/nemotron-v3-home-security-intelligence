@@ -58,7 +58,7 @@ frontend/src/components/ai/__tests__/
 - Save calls API with correct payload
 - Reset reverts unsaved changes
 
-**Related:** API client methods in `services/api.ts`
+**Related:** API client methods in the services directory
 
 ### `PromptPlayground.diffPreview.test.tsx` (13,425 bytes)
 

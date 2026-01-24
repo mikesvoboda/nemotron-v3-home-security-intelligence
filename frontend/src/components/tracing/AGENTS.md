@@ -185,7 +185,7 @@ For detailed architecture decisions, feature rationale, and implementation notes
 ## Pattern Reference
 
 This component follows the same iframe embedding pattern as:
-- `ai/AIPerformancePage.tsx` - Another Grafana-embedded page
+- `AIPerformancePage.tsx` in the ai directory - Another Grafana-embedded page
 
 Key pattern principles:
 - Use `resolveGrafanaUrl()` utility for URL resolution

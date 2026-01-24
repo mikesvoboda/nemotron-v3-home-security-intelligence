@@ -2148,4 +2148,4 @@ For AI agents exploring this codebase:
 5. **REST hooks**: `useHealthStatus.ts` and `useGpuHistory.ts` use polling (legacy)
 6. **PWA hooks**: `useNetworkStatus.ts`, `useCachedEvents.ts`, `usePushNotifications.ts`
 7. **UI hooks**: `useKeyboardShortcuts.ts`, `useListNavigation.ts`, `useToast.ts`
-8. **Tests**: Each hook has corresponding `.test.ts` file with usage patterns
+8. **Tests**: Each hook has corresponding test file with usage patterns

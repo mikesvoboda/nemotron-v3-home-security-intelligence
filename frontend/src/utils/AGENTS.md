@@ -520,4 +520,4 @@ For AI agents exploring this codebase:
 3. **Time utilities**: `time.ts` - Duration formatting, ongoing event detection
 4. **WebCodecs utilities**: `webcodecs.ts` - Browser API feature detection for secure context requirements
 5. **Prompt diff utilities**: `promptDiff.ts` - Diff generation and suggestion application for Prompt Playground
-6. **Tests**: Each utility has a `.test.ts` file with comprehensive examples
+6. **Tests**: Each utility has a test file with comprehensive examples
