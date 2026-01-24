@@ -145,7 +145,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install py-spy for continuous profiling (pushes to Pyroscope)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-RUN uv tool install py-spy && ln -s /root/.local/bin/py-spy /usr/local/bin/py-spy
+RUN uv tool install py-spy && \
+    cp /root/.local/bin/py-spy /usr/local/bin/py-spy && \
+    chmod +x /usr/local/bin/py-spy
 
 # Copy profiler script
 COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh

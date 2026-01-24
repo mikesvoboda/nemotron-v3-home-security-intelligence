@@ -31,7 +31,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --system --no-cache -r requirements.txt
 
 # Install py-spy for continuous profiling
-RUN uv tool install py-spy && ln -s /root/.local/bin/py-spy /usr/local/bin/py-spy
+RUN uv tool install py-spy && \
+    cp /root/.local/bin/py-spy /usr/local/bin/py-spy && \
+    chmod +x /usr/local/bin/py-spy
 
 # Copy profiler and entrypoint scripts
 COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
