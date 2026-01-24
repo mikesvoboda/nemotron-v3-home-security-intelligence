@@ -254,7 +254,7 @@ jobs:
         # Note: SARIF upload skipped for backend due to disk space constraints
         # (large ML image + Trivy cache exhausts GitHub runner disk)
         # Using scanners: 'vuln' to skip secret scanning and reduce disk usage
-        # Pinned to v0.58.2 due to GHSA ignore regression in v0.68.x (GHSA-58pv-8j8x-9vj2 not suppressed)
+        # Updated to v0.68.2 for proper 2026 CVE database coverage and ignore file support
         if: steps.build.outcome == 'success'
         uses: aquasecurity/trivy-action@master
         with:
@@ -264,7 +264,7 @@ jobs:
           exit-code: '1'
           trivyignores: '.trivyignore'
           scanners: 'vuln'
-          version: 'v0.58.2'
+          version: 'v0.68.2'
 
       - name: Create Linear issue on vulnerability found
         if: failure() && steps.trivy-scan.outcome == 'failure'
