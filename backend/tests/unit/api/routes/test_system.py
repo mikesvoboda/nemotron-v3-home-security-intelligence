@@ -1294,7 +1294,8 @@ class TestGetGPUStatsEndpointUnit:
         mock_settings: Settings,
     ) -> None:
         """Test GPU stats cache expires after TTL."""
-        from datetime import UTC, datetime, timedelta
+        import time
+        from datetime import UTC, datetime
 
         from backend.api.routes.system import GPUStatsCacheEntry
         from backend.core.database import get_db
@@ -1343,7 +1344,7 @@ class TestGetGPUStatsEndpointUnit:
                 expired_response = system_module._gpu_stats_cache.response
                 system_module._gpu_stats_cache = GPUStatsCacheEntry(
                     response=expired_response,
-                    timestamp=datetime.now(UTC) - timedelta(seconds=10),
+                    cached_at=time.time() - 10,  # Expired 10 seconds ago
                 )
 
             # Second request - cache expired, should hit database again
@@ -1369,9 +1370,9 @@ class TestGetGPUStatsHistoryEndpoint:
 
         mock_db = AsyncMock(spec=AsyncSession)
 
-        # Mock count query
+        # Mock count query - endpoint uses scalar() not scalar_one()
         mock_count_result = MagicMock()
-        mock_count_result.scalar_one.return_value = 0
+        mock_count_result.scalar.return_value = 0
 
         # Mock samples query
         mock_samples_result = MagicMock()
@@ -1393,8 +1394,7 @@ class TestGetGPUStatsHistoryEndpoint:
             data = response.json()
             assert data["items"] == []
             assert data["pagination"]["total"] == 0
-            assert data["pagination"]["limit"] == 100
-            assert data["pagination"]["offset"] == 0
+            assert data["pagination"]["limit"] == 300  # Default limit for GPU history
             assert data["pagination"]["has_more"] is False
 
     @pytest.mark.asyncio
@@ -1429,7 +1429,7 @@ class TestGetGPUStatsHistoryEndpoint:
 
         # Mock count query
         mock_count_result = MagicMock()
-        mock_count_result.scalar_one.return_value = 5
+        mock_count_result.scalar.return_value = 5
 
         # Mock samples query
         mock_samples_result = MagicMock()
@@ -1487,7 +1487,7 @@ class TestGetGPUStatsHistoryEndpoint:
 
         # Mock count query
         mock_count_result = MagicMock()
-        mock_count_result.scalar_one.return_value = 10
+        mock_count_result.scalar.return_value = 10
 
         # Mock samples query
         mock_samples_result = MagicMock()
@@ -1543,7 +1543,7 @@ class TestGetGPUStatsHistoryEndpoint:
 
         # Mock count query
         mock_count_result = MagicMock()
-        mock_count_result.scalar_one.return_value = 1
+        mock_count_result.scalar.return_value = 1
 
         # Mock samples query
         mock_samples_result = MagicMock()
@@ -1574,7 +1574,10 @@ class TestGetGPUStatsHistoryEndpoint:
         test_app: FastAPI,
         mock_settings: Settings,
     ) -> None:
-        """Test GPU history endpoint pagination with offset."""
+        """Test GPU history endpoint pagination with limit.
+
+        Note: GPU history uses time-based filtering (since), not offset pagination.
+        """
         from datetime import UTC, datetime
 
         from backend.core.database import get_db
@@ -1600,7 +1603,7 @@ class TestGetGPUStatsHistoryEndpoint:
 
         # Mock count query
         mock_count_result = MagicMock()
-        mock_count_result.scalar_one.return_value = 10
+        mock_count_result.scalar.return_value = 10
 
         # Mock samples query
         mock_samples_result = MagicMock()
@@ -1616,14 +1619,13 @@ class TestGetGPUStatsHistoryEndpoint:
         async with AsyncClient(
             transport=ASGITransport(app=test_app), base_url="http://test"
         ) as client:  # type: ignore[arg-type]
-            response = await client.get("/api/system/gpu/history?limit=2&offset=5")
+            response = await client.get("/api/system/gpu/history?limit=2")
 
             assert response.status_code == 200
             data = response.json()
             assert len(data["items"]) == 2
             assert data["pagination"]["total"] == 10
             assert data["pagination"]["limit"] == 2
-            assert data["pagination"]["offset"] == 5
             assert data["pagination"]["has_more"] is True
 
     @pytest.mark.asyncio
@@ -1633,6 +1635,15 @@ class TestGetGPUStatsHistoryEndpoint:
         mock_settings: Settings,
     ) -> None:
         """Test GPU history endpoint handles invalid since parameter."""
+        from backend.core.database import get_db
+
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        async def mock_get_db():
+            yield mock_db
+
+        test_app.dependency_overrides[get_db] = mock_get_db
+
         async with AsyncClient(
             transport=ASGITransport(app=test_app), base_url="http://test"
         ) as client:  # type: ignore[arg-type]
