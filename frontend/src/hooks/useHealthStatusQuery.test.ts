@@ -51,23 +51,29 @@ describe('useHealthStatusQuery', () => {
   });
 
   describe('initialization', () => {
-    it('starts with isLoading true', () => {
+    it('starts with isLoading true when placeholder disabled', () => {
       // Don't let fetch resolve immediately
       (api.fetchHealth as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(() => useHealthStatusQuery({ enabled: true }), {
-        wrapper: createQueryWrapper(),
-      });
+      const { result } = renderHook(
+        () => useHealthStatusQuery({ enabled: true, usePlaceholder: false }),
+        {
+          wrapper: createQueryWrapper(),
+        }
+      );
 
       expect(result.current.isLoading).toBe(true);
     });
 
-    it('starts with undefined data', () => {
+    it('starts with undefined data when placeholder disabled', () => {
       (api.fetchHealth as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(() => useHealthStatusQuery({ enabled: true }), {
-        wrapper: createQueryWrapper(),
-      });
+      const { result } = renderHook(
+        () => useHealthStatusQuery({ enabled: true, usePlaceholder: false }),
+        {
+          wrapper: createQueryWrapper(),
+        }
+      );
 
       expect(result.current.data).toBeUndefined();
     });
@@ -188,22 +194,28 @@ describe('useHealthStatusQuery', () => {
       });
     });
 
-    it('returns null overallStatus when data is not loaded', () => {
+    it('returns null overallStatus when data is not loaded and placeholder disabled', () => {
       (api.fetchHealth as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(() => useHealthStatusQuery({ enabled: true }), {
-        wrapper: createQueryWrapper(),
-      });
+      const { result } = renderHook(
+        () => useHealthStatusQuery({ enabled: true, usePlaceholder: false }),
+        {
+          wrapper: createQueryWrapper(),
+        }
+      );
 
       expect(result.current.overallStatus).toBeNull();
     });
 
-    it('returns empty services when data is not loaded', () => {
+    it('returns empty services when data is not loaded and placeholder disabled', () => {
       (api.fetchHealth as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(() => useHealthStatusQuery({ enabled: true }), {
-        wrapper: createQueryWrapper(),
-      });
+      const { result } = renderHook(
+        () => useHealthStatusQuery({ enabled: true, usePlaceholder: false }),
+        {
+          wrapper: createQueryWrapper(),
+        }
+      );
 
       expect(result.current.services).toEqual({});
     });

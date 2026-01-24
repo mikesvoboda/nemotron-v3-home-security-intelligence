@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Float, and_, cast, func, or_, select, text
 from sqlalchemy.dialects.postgresql import REGCONFIG
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, undefer
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -295,7 +295,7 @@ def _build_search_query(tsquery_str: str, query: str) -> tuple:
             select(Event, rank.label("relevance_score"), Camera.name.label("camera_name"))
             .outerjoin(Camera, Event.camera_id == Camera.id)
             .where(search_condition)
-            .options(selectinload(Event.detections)),
+            .options(selectinload(Event.detections), undefer(Event.reasoning)),
             True,
         )
     else:
@@ -306,7 +306,7 @@ def _build_search_query(tsquery_str: str, query: str) -> tuple:
                 Camera.name.label("camera_name"),
             )
             .outerjoin(Camera, Event.camera_id == Camera.id)
-            .options(selectinload(Event.detections)),
+            .options(selectinload(Event.detections), undefer(Event.reasoning)),
             False,
         )
 
