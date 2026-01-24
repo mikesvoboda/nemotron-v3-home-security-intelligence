@@ -1,13 +1,14 @@
 import { Settings2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import DashboardConfigModal from './DashboardConfigModal';
 import {
-  loadDashboardConfig,
-  saveDashboardConfig,
+  useDashboardConfigStore,
+  setDashboardConfig,
   type DashboardConfig,
   type WidgetId,
-} from '../../stores/dashboardConfig';
+} from '../../stores/dashboard-config-store';
 
 import type { ActivityEvent } from './ActivityFeed';
 import type { CameraStatus } from './CameraGrid';
@@ -97,7 +98,7 @@ export interface DashboardLayoutProps {
  * DashboardLayout manages the rendering of dashboard widgets based on user configuration.
  *
  * Features:
- * - Reads and saves widget configuration from localStorage
+ * - Uses Zustand store for widget configuration with automatic persistence
  * - Renders visible widgets in user-defined order
  * - Provides configuration modal for customization
  * - Uses render props pattern for flexible widget rendering
@@ -128,18 +129,20 @@ export default function DashboardLayout({
   renderLoadingSkeleton,
   className = '',
 }: DashboardLayoutProps) {
-  // Dashboard configuration state
-  const [config, setConfig] = useState<DashboardConfig>(() => loadDashboardConfig());
+  // Dashboard configuration from Zustand store (using shallow comparison for widgets array)
+  const { widgets, version } = useDashboardConfigStore(
+    useShallow((state) => ({
+      widgets: state.widgets,
+      version: state.version,
+    }))
+  );
+
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
 
-  // Persist configuration changes
-  useEffect(() => {
-    saveDashboardConfig(config);
-  }, [config]);
-
   // Handle configuration changes from modal
+  // Updates the Zustand store which automatically persists to localStorage
   const handleConfigChange = useCallback((newConfig: DashboardConfig) => {
-    setConfig(newConfig);
+    setDashboardConfig(newConfig);
   }, []);
 
   // Open configuration modal
@@ -245,7 +248,7 @@ export default function DashboardLayout({
   );
 
   // Get visible widgets in order
-  const visibleWidgets = config.widgets.filter((w) => w.visible);
+  const visibleWidgets = widgets.filter((w) => w.visible);
 
   // Determine layout structure based on visible widgets
   // If camera-grid and activity-feed are both visible, use 2-column layout
@@ -260,6 +263,9 @@ export default function DashboardLayout({
   const mainWidgets = visibleWidgets.filter(
     (w) => w.id === 'camera-grid' || w.id === 'activity-feed'
   );
+
+  // Create config object for modal compatibility
+  const config: DashboardConfig = { widgets, version };
 
   // Show loading skeleton if loading
   if (isLoading && renderLoadingSkeleton) {

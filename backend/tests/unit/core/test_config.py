@@ -334,6 +334,11 @@ class TestSettingsConfiguration:
             "API_PORT=8888\n"
         )
 
+        # Clear environment variables that might be set from project .env
+        monkeypatch.delenv("API_PORT", raising=False)
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.delenv("REDIS_URL", raising=False)
+
         # Change to tmp directory so Settings finds our .env file
         monkeypatch.chdir(tmp_path)
         get_settings.cache_clear()

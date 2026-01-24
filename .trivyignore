@@ -255,6 +255,15 @@ CVE-2026-0994
 #   3. Input validation at API layer prevents malicious payloads
 CVE-2026-0994
 
+# CVE-2026-0994 - protobuf JSON recursion depth bypass (REVIEW BY: 2026-04-23)
+# HIGH severity, no fix available yet (protobuf 6.33.2)
+# Affects nested JSON parsing with deeply recursive structures
+# Not exploitable in our context:
+#   1. We don't expose protobuf JSON parsing to untrusted input
+#   2. Used only for internal gRPC communication with AI services
+#   3. Input validation at API layer prevents malicious payloads
+CVE-2026-0994
+
 # =============================================================================
 # Dockerfile Misconfigurations - Accepted Risks
 # =============================================================================

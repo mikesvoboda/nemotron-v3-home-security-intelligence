@@ -998,17 +998,24 @@ class TestCudaCacheClearing:
             mock_empty_cache.assert_not_called()
 
     def test_detect_batch_clears_cache_at_configured_frequency(self):
-        """Test detect_batch() clears cache every N images based on cache_clear_frequency."""
-        # Clear cache every 2 images
+        """Test detect_batch() clears cache every N batches based on cache_clear_frequency.
+
+        NEM-3377: With true batch inference, images are processed in batches.
+        Cache is cleared every N batches (not images) plus once at the end.
+        """
+        # Clear cache every 1 batch (so after each batch + final cleanup)
         model = RTDETRv2Model(
             model_path="dummy_model_path",
             device="cuda:0",
-            cache_clear_frequency=2,
+            cache_clear_frequency=1,
+            max_batch_size=2,  # Process 2 images per batch
         )
 
         mock_torch_model = MagicMock()
         mock_processor = MagicMock()
         mock_outputs = MagicMock()
+        mock_outputs.logits = MagicMock()
+        mock_outputs.pred_boxes = MagicMock()
 
         mock_processor.post_process_object_detection.return_value = [
             {"scores": [], "labels": [], "boxes": []}
@@ -1020,7 +1027,7 @@ class TestCudaCacheClearing:
         model.model = mock_torch_model
         model.processor = mock_processor
 
-        # Create 5 test images
+        # Create 5 test images -> 3 batches with batch_size=2 (2+2+1)
         test_images = [Image.new("RGB", (640, 480), color=(128, 128, 128)) for _ in range(5)]
 
         with (
@@ -1030,16 +1037,18 @@ class TestCudaCacheClearing:
             patch(f"{MODEL_MODULE_PATH}.torch.tensor") as mock_tensor,
         ):
             mock_no_grad.return_value.__enter__ = MagicMock()
-            mock_no_grad.return_value.__exit__ = MagicMock()
+            mock_no_grad.return_value.__exit__ = MagicMock(return_value=False)
             mock_tensor.return_value.to.return_value = MagicMock()
 
             model.detect_batch(test_images)
 
-            # With frequency=2, for 5 images:
-            # - After image 2: clear (i+1=2, 2%2=0)
-            # - After image 4: clear (i+1=4, 4%2=0)
-            # Total: 2 cache clears during batch processing
-            assert mock_empty_cache.call_count == 2
+            # With frequency=1 and 3 batches:
+            # - After batch 1: clear (batch_idx=1, 1%1=0) -> Yes
+            # - After batch 2: clear (batch_idx=2, 2%1=0) -> Yes
+            # - After batch 3: clear (batch_idx=3, 3%1=0) -> Yes
+            # - Finally block: clear -> Yes
+            # Total: 4 cache clears
+            assert mock_empty_cache.call_count == 4
 
     def test_detect_batch_no_cache_clear_when_disabled(self):
         """Test detect_batch() does not clear cache when frequency=0."""
@@ -1106,7 +1115,8 @@ class TestCudaCacheClearing:
             patch(f"{MODEL_MODULE_PATH}.torch.tensor") as mock_tensor,
         ):
             mock_no_grad.return_value.__enter__ = MagicMock()
-            mock_no_grad.return_value.__exit__ = MagicMock()
+            # __exit__ must return False/None to NOT suppress exceptions
+            mock_no_grad.return_value.__exit__ = MagicMock(return_value=False)
             mock_tensor.return_value.to.return_value = MagicMock()
 
             # Should raise exception but still clear cache

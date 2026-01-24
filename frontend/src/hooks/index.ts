@@ -739,3 +739,90 @@ export type {
   UseDeferredFilterResult,
   UseDeferredSearchOptions,
 } from './useDeferredFilter';
+
+// Virtualized list hook (NEM-3423)
+export { useVirtualizedList, default as useVirtualizedListDefault } from './useVirtualizedList';
+export type {
+  UseVirtualizedListOptions,
+  UseVirtualizedListReturn,
+} from './useVirtualizedList';
+
+// Route prefetching hook (NEM-3359)
+export { useRoutePrefetch, default as useRoutePrefetchDefault } from './useRoutePrefetch';
+export type {
+  UseRoutePrefetchOptions,
+  UseRoutePrefetchReturn,
+} from './useRoutePrefetch';
+
+// Suspense query hooks (NEM-3360)
+export {
+  useSuspenseCamerasQuery,
+  useSuspenseHealthQuery,
+  useSuspenseSettingsQuery,
+  useSuspenseNotificationPreferencesQuery,
+  useSuspenseEventsInfiniteQuery,
+} from './useSuspenseQueries';
+export type {
+  UseSuspenseCamerasQueryOptions,
+  UseSuspenseCamerasQueryReturn,
+  UseSuspenseHealthQueryOptions,
+  UseSuspenseHealthQueryReturn,
+  UseSuspenseSettingsQueryOptions,
+  UseSuspenseSettingsQueryReturn,
+  UseSuspenseNotificationPreferencesQueryOptions,
+  UseSuspenseNotificationPreferencesQueryReturn,
+  UseSuspenseEventsInfiniteQueryOptions,
+  UseSuspenseEventsInfiniteQueryReturn,
+} from './useSuspenseQueries';
+
+// Optimistic mutation hooks (NEM-3361)
+export {
+  useOptimisticSettingsUpdate,
+  useOptimisticNotificationPreferencesUpdate,
+  useOptimisticCameraNotificationSettingUpdate,
+  useOptimisticQuietHoursPeriodMutations,
+} from './useOptimisticMutations';
+export type {
+  UseOptimisticSettingsUpdateOptions,
+  UseOptimisticSettingsUpdateReturn,
+  UseOptimisticNotificationPreferencesUpdateOptions,
+  UseOptimisticNotificationPreferencesUpdateReturn,
+  UseOptimisticCameraNotificationSettingUpdateOptions,
+  UseOptimisticCameraNotificationSettingUpdateReturn,
+  UseOptimisticQuietHoursPeriodMutationsOptions,
+  UseOptimisticQuietHoursPeriodMutationsReturn,
+} from './useOptimisticMutations';
+
+// React 19 useOptimistic state hooks (NEM-3355)
+export {
+  useOptimisticToggle,
+  useOptimisticList,
+  useOptimisticValue,
+  useOptimisticAction,
+  createOptimisticReducer,
+} from './useOptimisticState';
+export type {
+  OptimisticUpdateFn,
+  UseOptimisticToggleReturn,
+  UseOptimisticListReturn,
+  UseOptimisticValueReturn,
+  UseOptimisticActionOptions,
+  UseOptimisticActionReturn,
+} from './useOptimisticState';
+
+// React 19 use() hook utilities (NEM-3357)
+export {
+  createContextWithUse,
+  usePromiseValue,
+  useConditionalContext,
+  useContextOrDefault,
+  createSuspenseResource,
+  wrapPromise,
+} from './useContextValue';
+export type {
+  ContextWithUse,
+  CreateContextWithUseOptions,
+  UsePromiseResult,
+  UseConditionalContextResult,
+  SuspenseResource,
+} from './useContextValue';

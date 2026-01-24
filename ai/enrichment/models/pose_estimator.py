@@ -3,6 +3,12 @@
 This module provides the PoseEstimator class for detecting body poses and
 identifying suspicious postures using the YOLOv8n-pose model from Ultralytics.
 
+Supports true batch inference for vision models (NEM-3377).
+
+Note: YOLOv8/Ultralytics models are optimized via TensorRT/ONNX export
+rather than torch.compile(). For maximum performance, export the model
+to TensorRT format.
+
 Features:
 - Detects 17 COCO keypoints (nose, eyes, ears, shoulders, elbows, wrists, hips, knees, ankles)
 - Classifies body posture (standing, crouching, running, reaching_up, etc.)
@@ -19,6 +25,7 @@ Reference: https://docs.ultralytics.com/tasks/pose/
 from __future__ import annotations
 
 import logging
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -27,6 +34,13 @@ import numpy as np
 import torch
 from numpy.typing import NDArray
 from PIL import Image
+
+# Add parent directory to path for shared utilities
+_ai_dir = Path(__file__).parent.parent.parent
+if str(_ai_dir) not in sys.path:
+    sys.path.insert(0, str(_ai_dir))
+
+from torch_optimizations import BatchConfig, BatchProcessor  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +144,13 @@ class PoseEstimator:
     Ultralytics. It detects 17 COCO keypoints per person and classifies
     body posture for security analysis.
 
+    Supports:
+    - True batch inference with optimal batching (NEM-3377)
+
+    Note: YOLOv8/Ultralytics models are optimized via TensorRT/ONNX export
+    rather than torch.compile(). For maximum performance, export the model
+    to TensorRT format.
+
     Attributes:
         model_path: Path to the YOLOv8 pose model (.pt file or model name)
         device: Device to run inference on (e.g., "cuda:0", "cpu")
@@ -142,12 +163,18 @@ class PoseEstimator:
         >>> print(f"Pose: {result.pose_class}, Suspicious: {result.is_suspicious}")
     """
 
-    def __init__(self, model_path: str, device: str = "cuda:0") -> None:
+    def __init__(
+        self,
+        model_path: str,
+        device: str = "cuda:0",
+        max_batch_size: int = 8,
+    ) -> None:
         """Initialize pose estimator.
 
         Args:
             model_path: Path to YOLOv8 pose model file or model name
             device: Device to run inference on
+            max_batch_size: Maximum batch size for batch inference (NEM-3377).
 
         Raises:
             ValueError: If model_path contains path traversal sequences
@@ -155,6 +182,9 @@ class PoseEstimator:
         self.model_path = validate_model_path(model_path)
         self.device = device
         self.model: Any = None
+
+        # Batch processing configuration (NEM-3377)
+        self.batch_processor = BatchProcessor(BatchConfig(max_batch_size=max_batch_size))
 
         logger.info(f"Initializing PoseEstimator from {self.model_path}")
 

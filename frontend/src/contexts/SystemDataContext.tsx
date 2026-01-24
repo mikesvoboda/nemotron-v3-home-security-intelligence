@@ -5,12 +5,19 @@
  * to avoid duplicate requests from multiple components. Using TanStack Query under
  * the hood provides automatic caching and request deduplication.
  *
+ * Architecture:
+ * - SystemDataProvider composes CameraProvider, HealthProvider, and MetricsProvider
+ * - useSystemData provides combined access for components needing all data
+ * - Use specialized hooks (useCameraContext, useHealthContext, useMetricsContext)
+ *   when you only need a subset of data to reduce unnecessary re-renders
+ *
  * Benefits:
  * - Single source of truth for system state
  * - Request deduplication across the app
  * - Consistent polling intervals
  * - Easy access to loading/error states
  * - Centralized refetch capability
+ * - Optimized re-renders through context splitting
  *
  * @example
  * ```tsx
@@ -36,44 +43,35 @@
  *
  *   return <Grid cameras={cameras} />;
  * }
+ *
+ * // For optimized re-renders, use specialized context
+ * import { useCameraContext } from './contexts';
+ *
+ * function CameraList() {
+ *   // Only re-renders when camera data changes, not when GPU/health changes
+ *   const { cameras, isLoading } = useCameraContext();
+ *   // ...
+ * }
  * ```
  */
 
 import React, { createContext, useContext, useMemo, type ReactNode } from 'react';
 
-import { useCamerasQuery } from '../hooks/useCamerasQuery';
-import { useGpuStatsQuery } from '../hooks/useGpuStatsQuery';
-import { useHealthStatusQuery } from '../hooks/useHealthStatusQuery';
+import { CameraProvider, useCameraContextOptional } from './CameraContext';
+import { HealthProvider, useHealthContextOptional, DEFAULT_HEALTH } from './HealthContext';
+import { MetricsProvider, useMetricsContextOptional, DEFAULT_GPU_STATS } from './MetricsContext';
 
 import type { Camera, GPUStats, HealthResponse, ServiceStatus } from '../services/api';
 
 // ============================================================================
-// Types
+// Re-export defaults for backward compatibility
 // ============================================================================
 
-/**
- * Default health status values when data is not yet available.
- */
-// eslint-disable-next-line react-refresh/only-export-components
-export const DEFAULT_HEALTH: HealthResponse = {
-  status: 'unknown',
-  timestamp: new Date().toISOString(),
-  services: {},
-};
+export { DEFAULT_HEALTH, DEFAULT_GPU_STATS };
 
-/**
- * Default GPU stats values when data is not yet available.
- */
-// eslint-disable-next-line react-refresh/only-export-components
-export const DEFAULT_GPU_STATS: GPUStats = {
-  gpu_name: 'Unknown',
-  utilization: 0,
-  memory_used: 0,
-  memory_total: 0,
-  temperature: 0,
-  power_usage: 0,
-  inference_fps: null,
-};
+// ============================================================================
+// Types
+// ============================================================================
 
 /**
  * System data available through the context.
@@ -157,110 +155,88 @@ export const SystemDataContext = createContext<SystemData | null>(null);
 SystemDataContext.displayName = 'SystemDataContext';
 
 // ============================================================================
-// Provider Component
+// Inner Provider Component
 // ============================================================================
 
 /**
- * Provider component that fetches and manages system data.
- *
- * This provider should be placed high in your component tree, ideally wrapping
- * the entire application or the main dashboard area.
- *
- * Uses TanStack Query under the hood for caching and request deduplication,
- * so multiple components using useSystemData will share the same data without
- * making duplicate requests.
+ * Inner component that composes data from all specialized contexts.
+ * This must be rendered inside the specialized providers.
  */
-export function SystemDataProvider({
-  children,
-  cameraPollingInterval = 30_000,
-  healthPollingInterval = 10_000,
-  gpuPollingInterval = 5_000,
-  enabled = true,
-}: SystemDataProviderProps): React.ReactElement {
-  // Cameras query - less frequent updates
-  const camerasQuery = useCamerasQuery({
-    enabled,
-    refetchInterval: cameraPollingInterval,
-    staleTime: cameraPollingInterval,
-  });
-
-  // Health status query - moderate frequency
-  const healthQuery = useHealthStatusQuery({
-    enabled,
-    refetchInterval: healthPollingInterval,
-    staleTime: healthPollingInterval,
-  });
-
-  // GPU stats query - high frequency for real-time metrics
-  const gpuQuery = useGpuStatsQuery({
-    enabled,
-    refetchInterval: gpuPollingInterval,
-    staleTime: gpuPollingInterval,
-  });
+function SystemDataInnerProvider({ children }: { children: ReactNode }): React.ReactElement {
+  // Access specialized contexts
+  const cameraContext = useCameraContextOptional();
+  const healthContext = useHealthContextOptional();
+  const metricsContext = useMetricsContextOptional();
 
   // Aggregate loading state
-  const isLoading = camerasQuery.isLoading || healthQuery.isLoading || gpuQuery.isLoading;
+  const isLoading =
+    (cameraContext?.isLoading ?? true) ||
+    (healthContext?.isLoading ?? true) ||
+    (metricsContext?.isLoading ?? true);
+
   const isRefetching =
-    camerasQuery.isRefetching || healthQuery.isRefetching || gpuQuery.isRefetching;
+    (cameraContext?.isRefetching ?? false) ||
+    (healthContext?.isRefetching ?? false) ||
+    (metricsContext?.isRefetching ?? false);
 
-  // First error from any query
-  const error = camerasQuery.error || healthQuery.error || gpuQuery.error;
+  // First error from any context
+  const error = cameraContext?.error ?? healthContext?.error ?? metricsContext?.error ?? null;
 
-  // Refetch all queries
+  // Refetch all contexts
   const refetch = useMemo(
     () => () => {
-      void camerasQuery.refetch();
-      void healthQuery.refetch();
-      void gpuQuery.refetch();
+      void cameraContext?.refetch();
+      void healthContext?.refetch();
+      void metricsContext?.refetch();
     },
-    [camerasQuery, healthQuery, gpuQuery]
+    [cameraContext, healthContext, metricsContext]
   );
 
   // Memoized context value
   const value = useMemo<SystemData>(
     () => ({
-      cameras: camerasQuery.cameras,
-      systemHealth: healthQuery.data ?? DEFAULT_HEALTH,
-      gpuStats: gpuQuery.data ?? DEFAULT_GPU_STATS,
-      overallStatus: healthQuery.overallStatus ?? 'unknown',
-      services: healthQuery.services,
+      cameras: cameraContext?.cameras ?? [],
+      systemHealth: healthContext?.systemHealth ?? DEFAULT_HEALTH,
+      gpuStats: metricsContext?.gpuStats ?? DEFAULT_GPU_STATS,
+      overallStatus: healthContext?.overallStatus ?? 'unknown',
+      services: healthContext?.services ?? {},
       isLoading,
       isRefetching,
       error,
       refetch,
       queries: {
         cameras: {
-          isLoading: camerasQuery.isLoading,
-          isRefetching: camerasQuery.isRefetching,
-          error: camerasQuery.error,
+          isLoading: cameraContext?.isLoading ?? true,
+          isRefetching: cameraContext?.isRefetching ?? false,
+          error: cameraContext?.error ?? null,
         },
         health: {
-          isLoading: healthQuery.isLoading,
-          isRefetching: healthQuery.isRefetching,
-          error: healthQuery.error,
+          isLoading: healthContext?.isLoading ?? true,
+          isRefetching: healthContext?.isRefetching ?? false,
+          error: healthContext?.error ?? null,
         },
         gpu: {
-          isLoading: gpuQuery.isLoading,
-          isRefetching: gpuQuery.isRefetching,
-          error: gpuQuery.error,
+          isLoading: metricsContext?.isLoading ?? true,
+          isRefetching: metricsContext?.isRefetching ?? false,
+          error: metricsContext?.error ?? null,
         },
       },
     }),
     [
-      camerasQuery.cameras,
-      camerasQuery.isLoading,
-      camerasQuery.isRefetching,
-      camerasQuery.error,
-      healthQuery.data,
-      healthQuery.overallStatus,
-      healthQuery.services,
-      healthQuery.isLoading,
-      healthQuery.isRefetching,
-      healthQuery.error,
-      gpuQuery.data,
-      gpuQuery.isLoading,
-      gpuQuery.isRefetching,
-      gpuQuery.error,
+      cameraContext?.cameras,
+      cameraContext?.isLoading,
+      cameraContext?.isRefetching,
+      cameraContext?.error,
+      healthContext?.systemHealth,
+      healthContext?.overallStatus,
+      healthContext?.services,
+      healthContext?.isLoading,
+      healthContext?.isRefetching,
+      healthContext?.error,
+      metricsContext?.gpuStats,
+      metricsContext?.isLoading,
+      metricsContext?.isRefetching,
+      metricsContext?.error,
       isLoading,
       isRefetching,
       error,
@@ -272,6 +248,43 @@ export function SystemDataProvider({
 }
 
 // ============================================================================
+// Provider Component
+// ============================================================================
+
+/**
+ * Provider component that fetches and manages system data.
+ *
+ * This provider should be placed high in your component tree, ideally wrapping
+ * the entire application or the main dashboard area.
+ *
+ * The provider composes three specialized contexts:
+ * - CameraProvider: Camera state (30s polling)
+ * - HealthProvider: System health (10s polling)
+ * - MetricsProvider: GPU metrics (5s polling)
+ *
+ * This composition allows components to subscribe to specific slices of data
+ * using specialized hooks (useCameraContext, useHealthContext, useMetricsContext)
+ * to reduce unnecessary re-renders.
+ */
+export function SystemDataProvider({
+  children,
+  cameraPollingInterval = 30_000,
+  healthPollingInterval = 10_000,
+  gpuPollingInterval = 5_000,
+  enabled = true,
+}: SystemDataProviderProps): React.ReactElement {
+  return (
+    <CameraProvider pollingInterval={cameraPollingInterval} enabled={enabled}>
+      <HealthProvider pollingInterval={healthPollingInterval} enabled={enabled}>
+        <MetricsProvider pollingInterval={gpuPollingInterval} enabled={enabled}>
+          <SystemDataInnerProvider>{children}</SystemDataInnerProvider>
+        </MetricsProvider>
+      </HealthProvider>
+    </CameraProvider>
+  );
+}
+
+// ============================================================================
 // Hook
 // ============================================================================
 
@@ -280,6 +293,11 @@ export function SystemDataProvider({
  *
  * Must be used within a SystemDataProvider. Throws an error if used outside
  * the provider to help catch usage errors early.
+ *
+ * Note: For optimized re-renders, consider using specialized hooks:
+ * - useCameraContext() - only camera data
+ * - useHealthContext() - only health data
+ * - useMetricsContext() - only GPU/metrics data
  *
  * @throws Error if used outside of SystemDataProvider
  *

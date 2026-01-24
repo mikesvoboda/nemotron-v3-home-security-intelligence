@@ -203,6 +203,17 @@ def pytest_configure(config: pytest.Config) -> None:
 
     Sets environment variables needed before any test modules are imported.
     """
+    # Load .env file if it exists (for local development)
+    # Only load if DATABASE_URL isn't already set (to avoid interfering with tests)
+    if "DATABASE_URL" not in os.environ:
+        from pathlib import Path
+
+        from dotenv import load_dotenv
+
+        env_file = Path(__file__).parents[2] / ".env"
+        if env_file.exists():
+            load_dotenv(env_file, override=False)
+
     # Force pure-Python protobuf implementation for Python 3.14+ compatibility.
     # The C++ extension fails with "Metaclasses with custom tp_new are not supported."
     # See: https://bugzilla.redhat.com/show_bug.cgi?id=2356165

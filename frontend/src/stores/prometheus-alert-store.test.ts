@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { act } from 'react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import {
   usePrometheusAlertStore,
@@ -10,11 +11,6 @@ import {
   selectAlertsByName,
   selectHasActiveAlerts,
   selectHasCriticalAlerts,
-  // Memoized selectors (NEM-3428)
-  selectCriticalAlertsMemoized,
-  selectWarningAlertsMemoized,
-  selectInfoAlertsMemoized,
-  selectAlertsSortedBySeverityMemoized,
 } from './prometheus-alert-store';
 
 import type { PrometheusAlertPayload } from '../types/websocket-events';
@@ -358,68 +354,140 @@ describe('prometheus-alert-store', () => {
     });
   });
 
-  describe('memoized selectors (NEM-3428)', () => {
-    beforeEach(() => {
-      usePrometheusAlertStore.getState().clear();
-      const { handlePrometheusAlert } = usePrometheusAlertStore.getState();
-      handlePrometheusAlert(createAlertPayload({ fingerprint: 'c1', severity: 'critical' }));
-      handlePrometheusAlert(createAlertPayload({ fingerprint: 'w1', severity: 'warning' }));
-      handlePrometheusAlert(createAlertPayload({ fingerprint: 'i1', severity: 'info' }));
-    });
+  describe('subscribeWithSelector', () => {
+    it('allows subscribing to specific counts', () => {
+      const criticalCallback = vi.fn();
+      const warningCallback = vi.fn();
 
-    it('selectCriticalAlertsMemoized returns cached result on repeated calls', () => {
-      const state = usePrometheusAlertStore.getState();
-      const result1 = selectCriticalAlertsMemoized(state);
-      const result2 = selectCriticalAlertsMemoized(state);
-
-      expect(result1).toBe(result2); // Same reference
-      expect(result1).toHaveLength(1);
-    });
-
-    it('selectWarningAlertsMemoized returns cached result on repeated calls', () => {
-      const state = usePrometheusAlertStore.getState();
-      const result1 = selectWarningAlertsMemoized(state);
-      const result2 = selectWarningAlertsMemoized(state);
-
-      expect(result1).toBe(result2); // Same reference
-      expect(result1).toHaveLength(1);
-    });
-
-    it('selectInfoAlertsMemoized returns cached result on repeated calls', () => {
-      const state = usePrometheusAlertStore.getState();
-      const result1 = selectInfoAlertsMemoized(state);
-      const result2 = selectInfoAlertsMemoized(state);
-
-      expect(result1).toBe(result2); // Same reference
-      expect(result1).toHaveLength(1);
-    });
-
-    it('selectAlertsSortedBySeverityMemoized returns cached result on repeated calls', () => {
-      const state = usePrometheusAlertStore.getState();
-      const result1 = selectAlertsSortedBySeverityMemoized(state);
-      const result2 = selectAlertsSortedBySeverityMemoized(state);
-
-      expect(result1).toBe(result2); // Same reference
-      expect(result1).toHaveLength(3);
-      expect(result1[0].severity).toBe('critical');
-      expect(result1[1].severity).toBe('warning');
-      expect(result1[2].severity).toBe('info');
-    });
-
-    it('memoized selectors recompute when state changes', () => {
-      const state1 = usePrometheusAlertStore.getState();
-      const result1 = selectCriticalAlertsMemoized(state1);
-
-      // Add another alert to change the state
-      usePrometheusAlertStore.getState().handlePrometheusAlert(
-        createAlertPayload({ fingerprint: 'c2', severity: 'critical' })
+      // Subscribe to specific counts using subscribeWithSelector overload
+      const unsubCritical = (usePrometheusAlertStore.subscribe as any)(
+        (state: { criticalCount: number }) => state.criticalCount,
+        criticalCallback
+      );
+      const unsubWarning = (usePrometheusAlertStore.subscribe as any)(
+        (state: { warningCount: number }) => state.warningCount,
+        warningCallback
       );
 
-      const state2 = usePrometheusAlertStore.getState();
-      const result2 = selectCriticalAlertsMemoized(state2);
+      // Add a critical alert - only critical callback should fire
+      act(() => {
+        usePrometheusAlertStore.getState().handlePrometheusAlert(
+          createAlertPayload({ fingerprint: 'c1', severity: 'critical' })
+        );
+      });
 
-      expect(result1).not.toBe(result2); // Different reference
-      expect(result2).toHaveLength(2);
+      expect(criticalCallback).toHaveBeenCalledTimes(1);
+      expect(criticalCallback).toHaveBeenCalledWith(1, 0);
+      expect(warningCallback).not.toHaveBeenCalled();
+
+      // Add a warning alert - only warning callback should fire
+      act(() => {
+        usePrometheusAlertStore.getState().handlePrometheusAlert(
+          createAlertPayload({ fingerprint: 'w1', severity: 'warning' })
+        );
+      });
+
+      expect(criticalCallback).toHaveBeenCalledTimes(1); // Still 1
+      expect(warningCallback).toHaveBeenCalledTimes(1);
+      expect(warningCallback).toHaveBeenCalledWith(1, 0);
+
+      // Cleanup
+      unsubCritical();
+      unsubWarning();
+    });
+
+    it('does not fire callback when count unchanged', () => {
+      const callback = vi.fn();
+
+      const unsub = (usePrometheusAlertStore.subscribe as any)(
+        (state: { criticalCount: number }) => state.criticalCount,
+        callback
+      );
+
+      // Add alert
+      act(() => {
+        usePrometheusAlertStore.getState().handlePrometheusAlert(
+          createAlertPayload({ fingerprint: 'c1', severity: 'critical' })
+        );
+      });
+
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      // Update same alert (count unchanged)
+      act(() => {
+        usePrometheusAlertStore.getState().handlePrometheusAlert(
+          createAlertPayload({
+            fingerprint: 'c1',
+            severity: 'critical',
+            annotations: { summary: 'Updated' },
+          })
+        );
+      });
+
+      // Should still be 1 (count didn't change)
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      unsub();
+    });
+
+    it('allows subscribing to totalCount changes', () => {
+      const callback = vi.fn();
+
+      const unsub = (usePrometheusAlertStore.subscribe as any)(
+        (state: { totalCount: number }) => state.totalCount,
+        callback
+      );
+
+      // Add multiple alerts
+      act(() => {
+        usePrometheusAlertStore.getState().handlePrometheusAlert(
+          createAlertPayload({ fingerprint: 'a1', severity: 'critical' })
+        );
+      });
+
+      expect(callback).toHaveBeenLastCalledWith(1, 0);
+
+      act(() => {
+        usePrometheusAlertStore.getState().handlePrometheusAlert(
+          createAlertPayload({ fingerprint: 'a2', severity: 'warning' })
+        );
+      });
+
+      expect(callback).toHaveBeenLastCalledWith(2, 1);
+
+      // Resolve one
+      act(() => {
+        usePrometheusAlertStore.getState().handlePrometheusAlert(
+          createAlertPayload({ fingerprint: 'a1', status: 'resolved' })
+        );
+      });
+
+      expect(callback).toHaveBeenLastCalledWith(1, 2);
+
+      unsub();
+    });
+  });
+
+  describe('Immer mutations', () => {
+    it('produces immutable state updates', () => {
+      const initialState = usePrometheusAlertStore.getState();
+      const initialAlerts = initialState.alerts;
+
+      act(() => {
+        usePrometheusAlertStore.getState().handlePrometheusAlert(
+          createAlertPayload({ fingerprint: 'a1', severity: 'critical' })
+        );
+      });
+
+      const newState = usePrometheusAlertStore.getState();
+
+      // States should be different references
+      expect(newState).not.toBe(initialState);
+      expect(newState.alerts).not.toBe(initialAlerts);
+
+      // Original object should be unchanged
+      expect(Object.keys(initialAlerts)).toHaveLength(0);
+      expect(Object.keys(newState.alerts)).toHaveLength(1);
     });
   });
 });

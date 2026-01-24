@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { act } from 'react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 import {
   useWorkerStatusStore,
@@ -7,10 +8,6 @@ import {
   selectRunningWorkers,
   selectWorkerByName,
   selectWorkersByType,
-  // Memoized selectors (NEM-3428)
-  selectErrorWorkersMemoized,
-  selectWarningWorkersMemoized,
-  selectRunningWorkersMemoized,
 } from './worker-status-store';
 
 import type {
@@ -482,82 +479,185 @@ describe('worker-status-store', () => {
     });
   });
 
-  describe('memoized selectors (NEM-3428)', () => {
-    beforeEach(() => {
-      // Reset and set up workers in various states
-      useWorkerStatusStore.getState().clear();
-      const { handleWorkerStarted, handleWorkerStopped, handleWorkerError } =
-        useWorkerStatusStore.getState();
+  describe('subscribeWithSelector', () => {
+    it('allows subscribing to pipelineHealth changes', () => {
+      const callback = vi.fn();
 
-      handleWorkerStarted({
-        worker_name: 'detection-worker-1',
-        worker_type: 'detection',
-        timestamp: new Date().toISOString(),
+      const unsub = (useWorkerStatusStore.subscribe as any)(
+        (state: { pipelineHealth: string }) => state.pipelineHealth,
+        callback
+      );
+
+      // Start a worker - health should change to 'healthy'
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          timestamp: new Date().toISOString(),
+        });
       });
 
-      handleWorkerStopped({
-        worker_name: 'analysis-worker-1',
-        worker_type: 'analysis',
-        reason: 'shutdown',
-        timestamp: new Date().toISOString(),
+      expect(callback).toHaveBeenCalledWith('healthy', 'unknown');
+
+      // Trigger an error - health should change to 'error'
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerError({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          error: 'Test error',
+          timestamp: new Date().toISOString(),
+          recoverable: true,
+        });
       });
 
-      handleWorkerError({
-        worker_name: 'metrics-worker-1',
-        worker_type: 'metrics',
-        error: 'Connection failed',
-        error_type: 'ConnectionError',
-        recoverable: true,
-        timestamp: new Date().toISOString(),
-      });
+      expect(callback).toHaveBeenCalledWith('error', 'healthy');
+
+      unsub();
     });
 
-    it('selectErrorWorkersMemoized returns cached result on repeated calls', () => {
-      const state = useWorkerStatusStore.getState();
-      const result1 = selectErrorWorkersMemoized(state);
-      const result2 = selectErrorWorkersMemoized(state);
+    it('allows subscribing to specific worker changes', () => {
+      const callback = vi.fn();
 
-      expect(result1).toBe(result2); // Same reference
-      expect(result1.length).toBe(1);
-      expect(result1[0].name).toBe('metrics-worker-1');
-    });
-
-    it('selectWarningWorkersMemoized returns cached result on repeated calls', () => {
-      const state = useWorkerStatusStore.getState();
-      const result1 = selectWarningWorkersMemoized(state);
-      const result2 = selectWarningWorkersMemoized(state);
-
-      expect(result1).toBe(result2); // Same reference
-      expect(result1.length).toBe(1);
-      expect(result1[0].name).toBe('analysis-worker-1');
-    });
-
-    it('selectRunningWorkersMemoized returns cached result on repeated calls', () => {
-      const state = useWorkerStatusStore.getState();
-      const result1 = selectRunningWorkersMemoized(state);
-      const result2 = selectRunningWorkersMemoized(state);
-
-      expect(result1).toBe(result2); // Same reference
-      expect(result1.length).toBe(1);
-      expect(result1[0].name).toBe('detection-worker-1');
-    });
-
-    it('memoized selectors recompute when state changes', () => {
-      const state1 = useWorkerStatusStore.getState();
-      const result1 = selectRunningWorkersMemoized(state1);
-
-      // Add another running worker to change the state
-      useWorkerStatusStore.getState().handleWorkerStarted({
-        worker_name: 'timeout-worker-1',
-        worker_type: 'timeout',
-        timestamp: new Date().toISOString(),
+      // First create the worker
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'detection-worker-1',
+          worker_type: 'detection',
+          timestamp: new Date().toISOString(),
+        });
       });
 
-      const state2 = useWorkerStatusStore.getState();
-      const result2 = selectRunningWorkersMemoized(state2);
+      // Subscribe to specific worker
+      const unsub = (useWorkerStatusStore.subscribe as any)(
+        (state: { workers: Record<string, { state: string }> }) => state.workers['detection-worker-1']?.state,
+        callback
+      );
 
-      expect(result1).not.toBe(result2); // Different reference
-      expect(result2.length).toBe(2);
+      // Trigger error on subscribed worker
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerError({
+          worker_name: 'detection-worker-1',
+          worker_type: 'detection',
+          error: 'Connection failed',
+          timestamp: new Date().toISOString(),
+          recoverable: true,
+        });
+      });
+
+      expect(callback).toHaveBeenCalledWith('error', 'running');
+
+      unsub();
+    });
+
+    it('does not fire callback for unrelated worker changes', () => {
+      const callback = vi.fn();
+
+      // Create two workers
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          timestamp: new Date().toISOString(),
+        });
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'worker-2',
+          worker_type: 'analysis',
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      // Subscribe to worker-1's state
+      const unsub = (useWorkerStatusStore.subscribe as any)(
+        (state: { workers: Record<string, { state: string }> }) => state.workers['worker-1']?.state,
+        callback
+      );
+
+      // Change worker-2 - callback should not fire
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerError({
+          worker_name: 'worker-2',
+          worker_type: 'analysis',
+          error: 'Test error',
+          timestamp: new Date().toISOString(),
+          recoverable: true,
+        });
+      });
+
+      expect(callback).not.toHaveBeenCalled();
+
+      // Change worker-1 - callback should fire
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerError({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          error: 'Test error',
+          timestamp: new Date().toISOString(),
+          recoverable: true,
+        });
+      });
+
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      unsub();
+    });
+  });
+
+  describe('Immer mutations', () => {
+    it('produces immutable state updates', () => {
+      const initialState = useWorkerStatusStore.getState();
+      const initialWorkers = initialState.workers;
+
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      const newState = useWorkerStatusStore.getState();
+
+      // States should be different references
+      expect(newState).not.toBe(initialState);
+      expect(newState.workers).not.toBe(initialWorkers);
+
+      // Original object should be unchanged
+      expect(Object.keys(initialWorkers)).toHaveLength(0);
+      expect(Object.keys(newState.workers)).toHaveLength(1);
+    });
+
+    it('maintains immutability on worker updates', () => {
+      // Create initial worker
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerStarted({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          timestamp: new Date().toISOString(),
+        });
+      });
+
+      const stateAfterStart = useWorkerStatusStore.getState();
+      const workerAfterStart = stateAfterStart.workers['worker-1'];
+
+      // Update the worker
+      act(() => {
+        useWorkerStatusStore.getState().handleWorkerError({
+          worker_name: 'worker-1',
+          worker_type: 'detection',
+          error: 'Test error',
+          timestamp: new Date().toISOString(),
+          recoverable: true,
+        });
+      });
+
+      const stateAfterError = useWorkerStatusStore.getState();
+      const workerAfterError = stateAfterError.workers['worker-1'];
+
+      // Worker objects should be different references
+      expect(workerAfterError).not.toBe(workerAfterStart);
+      // But original should be unchanged
+      expect(workerAfterStart.state).toBe('running');
+      expect(workerAfterError.state).toBe('error');
     });
   });
 });
