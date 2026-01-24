@@ -1,7 +1,7 @@
 """add expression indexes, autovacuum settings, and jsonb path indexes
 
-Revision ID: f6g7h8i9j0k1
-Revises: e5f6g7h8i9j0
+Revision ID: i9j0k1l2m3n4
+Revises: h8i9j0k1l2m3
 Create Date: 2026-01-23 10:00:00.000000
 
 This migration implements three PostgreSQL optimization tasks:
@@ -27,8 +27,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "f6g7h8i9j0k1"  # pragma: allowlist secret
-down_revision: str | Sequence[str] | None = "e5f6g7h8i9j0"  # pragma: allowlist secret
+revision: str = "i9j0k1l2m3n4"  # pragma: allowlist secret
+down_revision: str | Sequence[str] | None = "h8i9j0k1l2m3"  # pragma: allowlist secret
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
