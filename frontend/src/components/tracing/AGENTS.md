@@ -180,7 +180,7 @@ Unit tests cover:
 ## Design Document
 
 For detailed architecture decisions, feature rationale, and implementation notes, see:
-[Distributed Tracing Page Design](../../docs/plans/2026-01-20-distributed-tracing-page-design.md)
+[Distributed Tracing Page Design](../../../../docs/plans/2026-01-20-distributed-tracing-page-design.md)
 
 ## Pattern Reference
 

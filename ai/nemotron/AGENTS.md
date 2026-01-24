@@ -387,7 +387,6 @@ curl -X POST http://localhost:8091/v1/chat/completions \
 - [AI Pipeline Architecture](../../docs/architecture/ai-pipeline.md)
 - [Risk Analysis Developer Guide](../../docs/developer/risk-analysis.md)
 - [AI Configuration](../../docs/operator/ai-configuration.md)
-- [Model Zoo Enrichment](../../docs/plans/prompt-enrichment-tasks.md)
 
 ## External Resources
 

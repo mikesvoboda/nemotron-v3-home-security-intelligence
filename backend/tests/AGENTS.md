@@ -4,7 +4,7 @@
 
 This directory contains all automated tests for the backend Python application. Tests are organized into five levels: unit tests (isolated component testing), integration tests (multi-component workflows), end-to-end tests (complete pipeline validation), GPU tests (AI service integration), and benchmarks (performance regression detection).
 
-**For comprehensive testing patterns, fixtures, and best practices, see [`/docs/development/testing.md`](/docs/development/testing.md).**
+**For comprehensive testing patterns, fixtures, and best practices, see [`docs/development/testing.md`](../../docs/development/testing.md).**
 
 ## Directory Structure
 
