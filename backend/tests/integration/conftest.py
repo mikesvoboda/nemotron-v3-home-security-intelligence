@@ -177,9 +177,9 @@ async def get_table_deletion_order(engine) -> list[str]:
         parent tables last).
     """
 
-    def _inspect_tables(sync_engine):
+    def _inspect_tables(sync_conn):
         """Synchronous function to inspect tables - called via run_sync."""
-        inspector = inspect(sync_engine)
+        inspector = inspect(sync_conn)
         tables = set(inspector.get_table_names())
 
         if not tables:
@@ -191,7 +191,8 @@ async def get_table_deletion_order(engine) -> list[str]:
 
     try:
         # Use run_sync to execute synchronous inspection in async context
-        tables, dependencies = await engine.run_sync(_inspect_tables)
+        async with engine.connect() as conn:
+            tables, dependencies = await conn.run_sync(_inspect_tables)
 
         if tables is None or not tables:
             logger.warning("No tables found via reflection, using hardcoded order")

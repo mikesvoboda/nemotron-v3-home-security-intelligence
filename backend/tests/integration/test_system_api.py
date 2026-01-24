@@ -106,8 +106,16 @@ async def test_gpu_stats_endpoint(client, mock_redis):
 @pytest.mark.asyncio
 async def test_gpu_stats_endpoint_with_data(client, mock_redis):
     """Test GPU stats endpoint with mocked GPU data."""
+    from backend.api.routes import system as system_routes
+
+    # Clear cache to ensure fresh evaluation
+    system_routes.clear_health_cache()
+
     # Mock GPU stats query to return data
-    with patch("backend.api.routes.system.get_latest_gpu_stats") as mock_gpu:
+    # Must use AsyncMock since get_latest_gpu_stats is async
+    with patch(
+        "backend.api.routes.system.get_latest_gpu_stats", new_callable=AsyncMock
+    ) as mock_gpu:
         mock_gpu.return_value = {
             "gpu_name": "NVIDIA RTX A5500",
             "utilization": 75.5,
@@ -332,8 +340,16 @@ async def test_health_endpoint_includes_ai_service_status(client, mock_redis):
 @pytest.mark.asyncio
 async def test_gpu_stats_endpoint_handles_no_gpu(client, mock_redis):
     """Test GPU stats endpoint when GPU is unavailable."""
+    from backend.api.routes import system as system_routes
+
+    # Clear cache to ensure fresh evaluation
+    system_routes.clear_health_cache()
+
     # Mock GPU stats query to return None (no GPU data)
-    with patch("backend.api.routes.system.get_latest_gpu_stats") as mock_gpu:
+    # Must use AsyncMock since get_latest_gpu_stats is async
+    with patch(
+        "backend.api.routes.system.get_latest_gpu_stats", new_callable=AsyncMock
+    ) as mock_gpu:
         mock_gpu.return_value = None
 
         response = await client.get("/api/system/gpu")
