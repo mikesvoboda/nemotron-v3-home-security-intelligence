@@ -13,6 +13,8 @@
  * - POST /api/system/services/{name}/disable - Stop/disable a service
  * - POST /api/system/services/{name}/enable - Enable a disabled service
  *
+ * Implements optimistic updates for instant UI feedback.
+ *
  * @module hooks/useServiceMutations
  */
 
@@ -23,129 +25,180 @@ import {
   startService as startServiceApi,
   stopService as stopServiceApi,
   enableService as enableServiceApi,
-  type ServiceActionResponse,
+
+  type HealthResponse,
 } from '../services/api';
 import { queryKeys } from '../services/queryClient';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Context for optimistic update rollback
+ */
+interface ServiceOptimisticContext {
+  previousHealth: HealthResponse | undefined;
+}
+
+/**
+ * Helper to update a service status optimistically in the health response.
+ */
+function updateServiceStatus(
+  health: HealthResponse | undefined,
+  serviceName: string,
+  status: string
+): HealthResponse | undefined {
+  if (!health?.services) return health;
+
+  return {
+    ...health,
+    services: Object.fromEntries(
+      Object.entries(health.services).map(([name, service]) => [
+        name,
+        name === serviceName
+          ? { ...service, status, message: `Service ${status}...` }
+          : service,
+      ])
+    ),
+  };
+}
 
 // ============================================================================
 // Mutation Hooks
 // ============================================================================
 
 /**
- * Mutation hook for restarting a service
- *
- * Restarts a running service. The service will go through a restart cycle
- * and its status will be broadcast via WebSocket when complete.
- *
- * @example
- * ```tsx
- * const { mutate, isPending, error } = useRestartServiceMutation();
- *
- * const handleRestart = () => {
- *   mutate('rtdetr', {
- *     onSuccess: () => toast.success('Service restarting...'),
- *     onError: (error) => toast.error(error.message),
- *   });
- * };
- * ```
+ * Mutation hook for restarting a service with optimistic update.
  */
 export function useRestartServiceMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: restartServiceApi,
-    onSuccess: () => {
-      // Invalidate health queries to refresh service status
+
+    onMutate: async (serviceName: string): Promise<ServiceOptimisticContext> => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.system.health });
+
+      const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
+
+      queryClient.setQueryData<HealthResponse>(
+        queryKeys.system.health,
+        (old) => updateServiceStatus(old, serviceName, 'restarting')
+      );
+
+      return { previousHealth };
+    },
+
+    onError: (_error: Error, _serviceName: string, context: ServiceOptimisticContext | undefined) => {
+      if (context?.previousHealth) {
+        queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
+      }
+    },
+
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.system.health });
     },
   });
 }
 
 /**
- * Mutation hook for starting a stopped service
- *
- * Starts a service that was previously stopped. Will fail if the service
- * is already running or is disabled.
- *
- * @example
- * ```tsx
- * const { mutate, isPending, error } = useStartServiceMutation();
- *
- * const handleStart = () => {
- *   mutate('rtdetr', {
- *     onSuccess: () => toast.success('Service starting...'),
- *     onError: (error) => toast.error(error.message),
- *   });
- * };
- * ```
+ * Mutation hook for starting a stopped service with optimistic update.
  */
 export function useStartServiceMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: startServiceApi,
-    onSuccess: () => {
-      // Invalidate health queries to refresh service status
+
+    onMutate: async (serviceName: string): Promise<ServiceOptimisticContext> => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.system.health });
+
+      const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
+
+      queryClient.setQueryData<HealthResponse>(
+        queryKeys.system.health,
+        (old) => updateServiceStatus(old, serviceName, 'starting')
+      );
+
+      return { previousHealth };
+    },
+
+    onError: (_error: Error, _serviceName: string, context: ServiceOptimisticContext | undefined) => {
+      if (context?.previousHealth) {
+        queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
+      }
+    },
+
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.system.health });
     },
   });
 }
 
 /**
- * Mutation hook for stopping/disabling a service
- *
- * Stops a running service and disables auto-restart. This maps to the
- * backend's disable endpoint. Use enableService to re-enable.
- *
- * @example
- * ```tsx
- * const { mutate, isPending, error } = useStopServiceMutation();
- *
- * const handleStop = () => {
- *   mutate('rtdetr', {
- *     onSuccess: () => toast.success('Service stopped'),
- *     onError: (error) => toast.error(error.message),
- *   });
- * };
- * ```
+ * Mutation hook for stopping/disabling a service with optimistic update.
  */
 export function useStopServiceMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: stopServiceApi,
-    onSuccess: () => {
-      // Invalidate health queries to refresh service status
+
+    onMutate: async (serviceName: string): Promise<ServiceOptimisticContext> => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.system.health });
+
+      const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
+
+      queryClient.setQueryData<HealthResponse>(
+        queryKeys.system.health,
+        (old) => updateServiceStatus(old, serviceName, 'stopping')
+      );
+
+      return { previousHealth };
+    },
+
+    onError: (_error: Error, _serviceName: string, context: ServiceOptimisticContext | undefined) => {
+      if (context?.previousHealth) {
+        queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
+      }
+    },
+
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.system.health });
     },
   });
 }
 
 /**
- * Mutation hook for enabling a disabled service
- *
- * Re-enables a service that was previously disabled. The service will
- * be started automatically if it's not running.
- *
- * @example
- * ```tsx
- * const { mutate, isPending, error } = useEnableServiceMutation();
- *
- * const handleEnable = () => {
- *   mutate('rtdetr', {
- *     onSuccess: () => toast.success('Service enabled'),
- *     onError: (error) => toast.error(error.message),
- *   });
- * };
- * ```
+ * Mutation hook for enabling a disabled service with optimistic update.
  */
 export function useEnableServiceMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: enableServiceApi,
-    onSuccess: () => {
-      // Invalidate health queries to refresh service status
+
+    onMutate: async (serviceName: string): Promise<ServiceOptimisticContext> => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.system.health });
+
+      const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
+
+      queryClient.setQueryData<HealthResponse>(
+        queryKeys.system.health,
+        (old) => updateServiceStatus(old, serviceName, 'starting')
+      );
+
+      return { previousHealth };
+    },
+
+    onError: (_error: Error, _serviceName: string, context: ServiceOptimisticContext | undefined) => {
+      if (context?.previousHealth) {
+        queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
+      }
+    },
+
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.system.health });
     },
   });
@@ -156,9 +209,7 @@ export function useEnableServiceMutation() {
 // ============================================================================
 
 /**
- * Combined hook returning all service mutations
- *
- * Provides a convenient way to access all service mutation hooks in one call.
+ * Combined hook providing all service mutation functions.
  *
  * @example
  * ```tsx
@@ -167,14 +218,8 @@ export function useEnableServiceMutation() {
  * // Restart a service
  * restartService.mutate('rtdetr');
  *
- * // Start a stopped service
- * startService.mutate('nemotron');
- *
- * // Stop/disable a service
- * stopService.mutate('redis');
- *
- * // Enable a disabled service
- * enableService.mutate('redis');
+ * // Check if any mutation is pending
+ * const isPending = restartService.isPending || startService.isPending;
  * ```
  */
 export function useServiceMutations() {
@@ -191,5 +236,4 @@ export function useServiceMutations() {
   };
 }
 
-// Re-export types for convenience
-export type { ServiceActionResponse };
+export default useServiceMutations;

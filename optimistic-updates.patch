@@ -1,0 +1,96 @@
+# Optimistic Updates Implementation for NEM-3174
+#
+# This patch implements optimistic updates for all mutations in the frontend.
+# Apply with: git apply optimistic-updates.patch
+#
+# Files modified:
+# - frontend/src/hooks/useSettingsApi.ts
+# - frontend/src/hooks/useSnoozeEvent.ts
+# - frontend/src/hooks/useServiceMutations.ts
+# - frontend/src/hooks/useNotificationPreferences.ts
+# - frontend/src/hooks/useHouseholdApi.ts
+#
+# Pattern used for each mutation:
+# 1. onMutate: Cancel queries, snapshot previous data, apply optimistic update
+# 2. onError: Rollback to previous data
+# 3. onSuccess: Update with server response
+# 4. onSettled: Invalidate queries for consistency
+
+# =================== useSettingsApi.ts Changes ===================
+#
+# Add to useUpdateSettings():
+#
+#   onMutate: async (update: SettingsUpdate): Promise<SettingsOptimisticContext> => {
+#     await queryClient.cancelQueries({ queryKey: settingsQueryKeys.current() });
+#     const previousSettings = queryClient.getQueryData<SettingsResponse>(
+#       settingsQueryKeys.current()
+#     );
+#     if (previousSettings) {
+#       const optimisticSettings = mergeSettings(previousSettings, update);
+#       queryClient.setQueryData(settingsQueryKeys.current(), optimisticSettings);
+#     }
+#     return { previousSettings };
+#   },
+#   onError: (_error, _update, context) => {
+#     if (context?.previousSettings) {
+#       queryClient.setQueryData(settingsQueryKeys.current(), context.previousSettings);
+#     }
+#   },
+#   onSuccess: (data) => {
+#     queryClient.setQueryData(settingsQueryKeys.current(), data);
+#   },
+#   onSettled: () => {
+#     void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.all });
+#   },
+
+# =================== useSnoozeEvent.ts Changes ===================
+#
+# For snoozeMutation:
+#   onMutate: async ({ eventId, seconds }) => {
+#     await queryClient.cancelQueries({ queryKey: alertsQueryKeys.all });
+#     await queryClient.cancelQueries({ queryKey: eventsQueryKeys.all });
+#     const previousAlerts = queryClient.getQueryData(alertsQueryKeys.list());
+#     const previousEvents = queryClient.getQueryData(eventsQueryKeys.lists());
+#     const snoozeUntil = new Date(Date.now() + seconds * 1000).toISOString();
+#     // Apply optimistic snooze_until to matching items
+#     return { previousAlerts, previousEvents };
+#   },
+#
+# For unsnoozeMutation:
+#   onMutate: async (eventId) => {
+#     // Similar pattern, set snooze_until to null
+#   },
+
+# =================== useServiceMutations.ts Changes ===================
+#
+# For each service mutation (restart, start, stop, enable):
+#   onMutate: async (serviceName) => {
+#     await queryClient.cancelQueries({ queryKey: queryKeys.system.health });
+#     const previousHealth = queryClient.getQueryData(queryKeys.system.health);
+#     // Update service status to transitional state (e.g., "restarting", "starting", "stopping")
+#     return { previousHealth };
+#   },
+
+# =================== useNotificationPreferences.ts Changes ===================
+#
+# For updateMutation (global preferences):
+#   onMutate: async (update) => {
+#     await queryClient.cancelQueries({ queryKey: queryKeys.notifications.preferences.global });
+#     const previousPreferences = queryClient.getQueryData(queryKeys.notifications.preferences.global);
+#     queryClient.setQueryData(queryKeys.notifications.preferences.global, { ...previousPreferences, ...update });
+#     return { previousPreferences };
+#   },
+#
+# For camera notification settings, quiet hours create/delete - similar patterns
+
+# =================== useHouseholdApi.ts Changes ===================
+#
+# For all member, vehicle, and household CRUD mutations:
+# - Create: Add optimistic item with temporary ID, replace with real ID on success
+# - Update: Apply changes immediately, rollback on error
+# - Delete: Remove item immediately, restore on error
+
+# Context types needed:
+# interface MemberOptimisticContext { previousMembers: HouseholdMember[] | undefined; optimisticId?: number; }
+# interface VehicleOptimisticContext { previousVehicles: RegisteredVehicle[] | undefined; optimisticId?: number; }
+# interface HouseholdOptimisticContext { previousHouseholds: HouseholdListResponse | undefined; optimisticId?: number; }
