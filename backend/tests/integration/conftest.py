@@ -875,38 +875,43 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
 # =============================================================================
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
-    """Delete all data from tables before and after test for proper isolation.
+    """Truncate all tables between tests for fast, proper isolation.
 
-    This fixture should be used by tests that need a clean database state.
-    Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks
-    when tests run in parallel.
+    This fixture automatically runs for all integration tests. It uses
+    TRUNCATE ... CASCADE which is faster than DELETE because it doesn't
+    scan rows - it just removes all data at once.
 
-    The table deletion order is automatically determined using SQLAlchemy's
-    reflection API to inspect foreign key relationships.
+    With database-per-worker isolation (each pytest-xdist worker gets its own
+    database), TRUNCATE is safe to use without AccessExclusiveLock deadlocks.
+
+    The table order is automatically determined using SQLAlchemy's reflection
+    API to inspect foreign key relationships. Tables are truncated in reverse
+    dependency order so that child tables are truncated before parent tables.
     """
     from sqlalchemy import text
 
     from backend.core.database import get_engine, get_session
 
-    async def delete_all() -> None:
+    async def truncate_all() -> None:
         engine = get_engine()
         if engine is None:
             return
 
-        # Get tables in FK-safe deletion order
+        # Get tables in FK-safe deletion order (children first, parents last)
         deletion_order = await get_table_deletion_order(engine)
 
         async with get_session() as session:
-            # Delete data in order (respecting foreign key constraints)
+            # Truncate tables in order (CASCADE handles any remaining FK issues)
             for table_name in deletion_order:
                 try:
                     # Use SAVEPOINT so failures don't abort the transaction
                     # This handles missing tables (not yet migrated) gracefully
                     await session.execute(text(f"SAVEPOINT sp_{table_name}"))  # nosemgrep
                     # Safe: table_name comes from SQLAlchemy inspector (trusted source), not user input
-                    await session.execute(text(f"DELETE FROM {table_name}"))  # noqa: S608 nosemgrep
+                    # TRUNCATE CASCADE is faster than DELETE and handles FK constraints
+                    await session.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))  # nosemgrep
                     await session.execute(text(f"RELEASE SAVEPOINT sp_{table_name}"))  # nosemgrep
                 except Exception as e:
                     # Rollback to savepoint and continue - table may not exist yet
@@ -920,22 +925,20 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
                     logger.debug(f"Skipping table {table_name}: {e}")
             await session.commit()
 
-    # Delete before test
-    await delete_all()
-
+    # Test runs first
     yield
 
-    # Delete after test (cleanup)
-    await delete_all()
+    # Truncate after test (cleanup for next test)
+    await truncate_all()
 
 
 @pytest.fixture
 async def db_session(integration_db: str):
     """Yield a live AsyncSession bound to the integration test database.
 
-    This fixture provides a database session for each test. When used with
-    the `client` fixture (API tests), the `client` fixture handles cleanup
-    via DELETE statements before and after each test.
+    This fixture provides a database session for each test. The autouse
+    `clean_tables` fixture automatically truncates all tables after each
+    test for isolation.
 
     When used standalone (without `client`), use `isolated_db_session`
     for automatic savepoint-based rollback.
@@ -1093,18 +1096,21 @@ async def real_redis(
 
 
 async def _cleanup_test_data(max_retries: int = 3) -> None:
-    """Delete all test data created by integration tests with retry logic.
+    """Truncate all test data created by integration tests with retry logic.
 
     This helper function cleans up all tables in correct order (respecting
     foreign key constraints) to prevent orphaned entries from accumulating
     in the database.
 
-    Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks.
+    Uses TRUNCATE ... CASCADE for speed (faster than DELETE because it doesn't
+    scan rows). With database-per-worker isolation, TRUNCATE is safe to use
+    without AccessExclusiveLock deadlocks.
+
     Implements retry logic with exponential backoff for transient failures.
 
-    The table deletion order is automatically determined using SQLAlchemy's
-    reflection API to inspect foreign key relationships, with a fallback to
-    a hardcoded list if reflection fails.
+    The table order is automatically determined using SQLAlchemy's reflection
+    API to inspect foreign key relationships, with a fallback to a hardcoded
+    list if reflection fails.
 
     Args:
         max_retries: Maximum number of retry attempts (default 3)
@@ -1123,7 +1129,7 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
             deletion_order = await get_table_deletion_order(engine)
 
             async with get_session() as session:
-                # Delete all test-related data in FK-safe order
+                # Truncate all test-related data in FK-safe order
                 # The order is automatically computed from foreign key relationships
                 for tbl in deletion_order:
                     try:
@@ -1131,7 +1137,8 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
                         # This handles missing tables (not yet migrated) gracefully
                         await session.execute(text(f"SAVEPOINT sp_{tbl}"))  # nosemgrep
                         # Safe: tbl comes from SQLAlchemy inspector (trusted source), not user input
-                        await session.execute(text(f"DELETE FROM {tbl}"))  # noqa: S608 nosemgrep
+                        # TRUNCATE CASCADE is faster than DELETE and handles FK constraints
+                        await session.execute(text(f"TRUNCATE TABLE {tbl} CASCADE"))  # nosemgrep
                         await session.execute(text(f"RELEASE SAVEPOINT sp_{tbl}"))  # nosemgrep
                     except Exception as e:
                         # Rollback to savepoint and continue - table may not exist yet
@@ -1184,8 +1191,8 @@ async def client(integration_db: str, mock_redis: AsyncMock):
     Use this fixture for testing API endpoints.
 
     Database Isolation Strategy:
-    - Pre-test cleanup: DELETE all test data to start fresh
-    - Post-test cleanup: DELETE all test data to prevent leakage
+    - Pre-test cleanup: TRUNCATE all tables to start fresh
+    - Post-test cleanup: TRUNCATE all tables to prevent leakage
     - This ensures tests can run repeatedly without data accumulation
     """
     # Clean up any existing test data BEFORE the test runs
@@ -1338,3 +1345,273 @@ async def cleanup_keys(real_redis: RedisClient, test_prefix: str):
             logger.debug(f"Cleaned up {len(keys)} Redis keys with prefix {test_prefix}")
     except Exception as e:
         logger.warning(f"Failed to clean up Redis keys: {e}")
+
+
+# =============================================================================
+# Redis Key Prefix Isolation for pytest-xdist
+# =============================================================================
+# These fixtures provide worker-scoped Redis key isolation for parallel testing.
+# Each xdist worker gets a unique key prefix to prevent collisions.
+
+
+@pytest.fixture(scope="session")
+def redis_prefix(request: pytest.FixtureRequest) -> str:
+    """Get a worker-specific Redis key prefix for pytest-xdist isolation.
+
+    Each xdist worker gets a unique prefix to prevent key collisions:
+    - gw0 -> "test:gw0:"
+    - gw1 -> "test:gw1:"
+    - master (serial) -> "test:main:"
+
+    This prefix should be used for ALL Redis keys in integration tests to ensure
+    parallel test workers don't interfere with each other.
+
+    Returns:
+        Redis key prefix like "test:gw0:" or "test:main:"
+    """
+    worker_id = get_worker_id(request)
+    # Normalize "master" to "main" for consistency
+    prefix_id = "main" if worker_id == "master" else worker_id
+    return f"test:{prefix_id}:"
+
+
+class PrefixedRedis:
+    """Redis client wrapper that automatically prefixes all keys.
+
+    This wrapper ensures key isolation in parallel test execution by transparently
+    adding a prefix to all Redis key operations. It wraps a real RedisClient
+    instance and intercepts key-based operations.
+
+    Usage:
+        @pytest.fixture
+        async def isolated_redis(real_redis, redis_prefix):
+            prefixed = PrefixedRedis(real_redis, prefix=redis_prefix)
+            yield prefixed
+            await prefixed.cleanup()  # Delete all prefixed keys
+
+        async def test_something(isolated_redis):
+            # Key "foo" is actually stored as "test:gw0:foo"
+            await isolated_redis.set("foo", "bar")
+            value = await isolated_redis.get("foo")  # Returns "bar"
+    """
+
+    def __init__(self, client: RedisClient, prefix: str):
+        """Initialize PrefixedRedis wrapper.
+
+        Args:
+            client: The underlying RedisClient instance
+            prefix: Key prefix to apply (e.g., "test:gw0:")
+        """
+        self._client = client
+        self._prefix = prefix
+
+    @property
+    def prefix(self) -> str:
+        """Get the key prefix."""
+        return self._prefix
+
+    def _prefixed_key(self, key: str) -> str:
+        """Add prefix to a single key."""
+        return f"{self._prefix}{key}"
+
+    def _prefixed_keys(self, *keys: str) -> list[str]:
+        """Add prefix to multiple keys."""
+        return [self._prefixed_key(k) for k in keys]
+
+    # Cache operations with prefix
+
+    async def get(self, key: str) -> object | None:
+        """Get a value from Redis cache (with prefix applied)."""
+        return await self._client.get(self._prefixed_key(key))
+
+    async def set(
+        self, key: str, value: object, expire: int | None = None, *, nx: bool = False
+    ) -> bool:
+        """Set a value in Redis cache (with prefix applied)."""
+        return await self._client.set(self._prefixed_key(key), value, expire, nx=nx)
+
+    async def delete(self, *keys: str) -> int:
+        """Delete one or more keys from Redis (with prefix applied)."""
+        return await self._client.delete(*self._prefixed_keys(*keys))
+
+    async def exists(self, *keys: str) -> int:
+        """Check if one or more keys exist (with prefix applied)."""
+        return await self._client.exists(*self._prefixed_keys(*keys))
+
+    async def expire(self, key: str, seconds: int) -> bool:
+        """Set a TTL on a key (with prefix applied)."""
+        return await self._client.expire(self._prefixed_key(key), seconds)
+
+    async def setex(self, key: str, seconds: int, value: str) -> bool:
+        """Set a key with expiration (with prefix applied)."""
+        return await self._client.setex(self._prefixed_key(key), seconds, value)
+
+    # Queue operations with prefix
+
+    async def add_to_queue_safe(
+        self,
+        queue_name: str,
+        data: object,
+        max_size: int | None = None,
+        overflow_policy: object | None = None,
+        dlq_name: str | None = None,
+    ) -> object:
+        """Add item to queue with backpressure handling (with prefix applied)."""
+        prefixed_dlq = self._prefixed_key(dlq_name) if dlq_name else None
+        return await self._client.add_to_queue_safe(
+            self._prefixed_key(queue_name),
+            data,
+            max_size,
+            overflow_policy,  # type: ignore[arg-type]
+            prefixed_dlq,
+        )
+
+    async def get_from_queue(self, queue_name: str, timeout: int = 0) -> object | None:
+        """Get item from queue (with prefix applied)."""
+        return await self._client.get_from_queue(self._prefixed_key(queue_name), timeout)
+
+    async def get_queue_length(self, queue_name: str) -> int:
+        """Get queue length (with prefix applied)."""
+        return await self._client.get_queue_length(self._prefixed_key(queue_name))
+
+    async def peek_queue(
+        self, queue_name: str, start: int = 0, end: int = 100, max_items: int = 1000
+    ) -> list[object]:
+        """Peek at queue items (with prefix applied)."""
+        return await self._client.peek_queue(self._prefixed_key(queue_name), start, end, max_items)
+
+    async def clear_queue(self, queue_name: str) -> bool:
+        """Clear all items from queue (with prefix applied)."""
+        return await self._client.clear_queue(self._prefixed_key(queue_name))
+
+    # List operations with prefix
+
+    async def lpush(self, key: str, *values: str) -> int:
+        """Push values to head of list (with prefix applied)."""
+        return await self._client.lpush(self._prefixed_key(key), *values)
+
+    async def rpush(self, key: str, *values: str) -> int:
+        """Push values to tail of list (with prefix applied)."""
+        return await self._client.rpush(self._prefixed_key(key), *values)
+
+    async def llen(self, key: str) -> int:
+        """Get list length (with prefix applied)."""
+        return await self._client.llen(self._prefixed_key(key))
+
+    async def lrange(self, key: str, start: int, stop: int) -> list[str]:
+        """Get range of list elements (with prefix applied)."""
+        return await self._client.lrange(self._prefixed_key(key), start, stop)
+
+    async def ltrim(self, key: str, start: int, stop: int) -> bool:
+        """Trim list to specified range (with prefix applied)."""
+        return await self._client.ltrim(self._prefixed_key(key), start, stop)
+
+    # Sorted set operations with prefix
+
+    async def zadd(self, key: str, mapping: dict[str, float | int]) -> int:
+        """Add members to sorted set (with prefix applied)."""
+        return await self._client.zadd(self._prefixed_key(key), mapping)
+
+    async def zpopmax(self, key: str, count: int = 1) -> list[tuple[str, float]]:
+        """Remove and return members with highest scores (with prefix applied)."""
+        return await self._client.zpopmax(self._prefixed_key(key), count)
+
+    async def zcard(self, key: str) -> int:
+        """Get number of elements in sorted set (with prefix applied)."""
+        return await self._client.zcard(self._prefixed_key(key))
+
+    async def zrange(self, key: str, start: int, stop: int) -> list[str]:
+        """Get elements by index range (with prefix applied)."""
+        return await self._client.zrange(self._prefixed_key(key), start, stop)
+
+    async def zrem(self, key: str, *members: str) -> int:
+        """Remove members from sorted set (with prefix applied)."""
+        return await self._client.zrem(self._prefixed_key(key), *members)
+
+    async def zscore(self, key: str, member: str) -> float | None:
+        """Get score of member in sorted set (with prefix applied)."""
+        return await self._client.zscore(self._prefixed_key(key), member)
+
+    # Pub/Sub operations with prefix
+
+    async def publish(self, channel: str, message: object) -> int:
+        """Publish a message to a channel (with prefix applied)."""
+        return await self._client.publish(self._prefixed_key(channel), message)
+
+    async def subscribe(self, *channels: str) -> object:
+        """Subscribe to channels (with prefix applied)."""
+        return await self._client.subscribe(*self._prefixed_keys(*channels))
+
+    async def subscribe_dedicated(self, *channels: str) -> object:
+        """Subscribe to channels with dedicated connection (with prefix applied)."""
+        return await self._client.subscribe_dedicated(*self._prefixed_keys(*channels))
+
+    # Health check (passthrough, no prefix needed)
+
+    async def health_check(self) -> dict[str, object]:
+        """Check Redis connection health."""
+        return await self._client.health_check()
+
+    # HyperLogLog operations with prefix
+
+    async def pfadd(self, key: str, *values: str) -> int:
+        """Add elements to HyperLogLog (with prefix applied)."""
+        return await self._client.pfadd(self._prefixed_key(key), *values)
+
+    async def pfcount(self, *keys: str) -> int:
+        """Get approximate cardinality (with prefix applied)."""
+        return await self._client.pfcount(*self._prefixed_keys(*keys))
+
+    async def pfmerge(self, dest_key: str, *source_keys: str) -> bool:
+        """Merge HyperLogLogs (with prefix applied)."""
+        return await self._client.pfmerge(
+            self._prefixed_key(dest_key), *self._prefixed_keys(*source_keys)
+        )
+
+    # Cleanup method for test teardown
+
+    async def cleanup(self) -> int:
+        """Delete all keys with this worker's prefix.
+
+        Call this in test teardown to clean up all keys created during the test.
+
+        Returns:
+            Number of keys deleted
+        """
+        keys_deleted = 0
+        try:
+            keys = []
+            async for key in self._client._client.scan_iter(match=f"{self._prefix}*"):
+                keys.append(key)
+
+            if keys:
+                keys_deleted = await self._client._client.delete(*keys)
+                logger.debug(f"Cleaned up {keys_deleted} Redis keys with prefix {self._prefix}")
+        except Exception as e:
+            logger.warning(f"Failed to clean up Redis keys with prefix {self._prefix}: {e}")
+        return keys_deleted
+
+
+@pytest.fixture
+async def prefixed_redis(
+    real_redis: RedisClient,
+    redis_prefix: str,
+) -> AsyncGenerator[PrefixedRedis]:
+    """Provide a PrefixedRedis client with automatic key isolation.
+
+    This fixture wraps the real Redis client with a worker-specific prefix,
+    ensuring parallel test execution doesn't cause key collisions. Keys are
+    automatically cleaned up after the test.
+
+    Usage:
+        async def test_redis_operations(prefixed_redis):
+            # All keys are automatically prefixed with "test:gw0:" (or similar)
+            await prefixed_redis.set("my_key", {"data": "value"})
+            result = await prefixed_redis.get("my_key")
+            assert result == {"data": "value"}
+            # Cleanup happens automatically after test
+    """
+    prefixed = PrefixedRedis(real_redis, prefix=redis_prefix)
+    yield prefixed
+    # Cleanup all keys with this prefix after test
+    await prefixed.cleanup()
