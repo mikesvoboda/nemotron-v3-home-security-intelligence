@@ -42,7 +42,7 @@ This directory contains all React application source code including components, 
 Components are organized by feature area. Each component directory contains:
 
 - Component files (`.tsx`)
-- Co-located test files (`.test.tsx`)
+- Co-located test files (named `*.test.tsx`)
 - Optional index files for barrel exports
 - Optional README documentation
 
@@ -50,33 +50,33 @@ Components are organized by feature area. Each component directory contains:
 
 | Directory           | Description                              |
 | ------------------- | ---------------------------------------- |
-| `ai/`               | AI performance and audit pages           |
-| `ai-audit/`         | AI audit visualization components        |
-| `ai-performance/`   | AI performance summary components        |
-| `alerts/`           | Alert management page                    |
-| `analytics/`        | Analytics dashboard and visualizations   |
-| `audit/`            | Audit log viewer                         |
-| `common/`           | Reusable UI components                   |
-| `dashboard/`        | Main dashboard components                |
-| `detection/`        | Object detection visualization           |
-| `developer-tools/`  | Developer tools and debugging panels     |
-| `entities/`         | Entity tracking page                     |
-| `events/`           | Event list and detail components         |
-| `exports/`          | Export modal and progress components     |
-| `feedback/`         | User feedback collection components      |
-| `forms/`            | Reusable form field components           |
-| `jobs/`             | Background jobs management page          |
-| `layout/`           | Layout, header, and sidebar              |
-| `logs/`             | Application logs viewer                  |
-| `performance/`      | Performance dashboard and charts         |
-| `pyroscope/`        | Pyroscope profiling integration page     |
-| `search/`           | Global search components                 |
-| `settings/`         | Settings pages and forms                 |
-| `status/`           | AI service status components             |
-| `system/`           | System monitoring components             |
-| `tracing/`          | Distributed tracing page                 |
-| `video/`            | Video player component                   |
-| `zones/`            | Zone management and visualization        |
+| `components/ai/`               | AI performance and audit pages           |
+| `components/ai-audit/`         | AI audit visualization components        |
+| `components/ai-performance/`   | AI performance summary components        |
+| `components/alerts/`           | Alert management page                    |
+| `components/analytics/`        | Analytics dashboard and visualizations   |
+| `components/audit/`            | Audit log viewer                         |
+| `components/common/`           | Reusable UI components                   |
+| `components/dashboard/`        | Main dashboard components                |
+| `components/detection/`        | Object detection visualization           |
+| `components/developer-tools/`  | Developer tools and debugging panels     |
+| `components/entities/`         | Entity tracking page                     |
+| `components/events/`           | Event list and detail components         |
+| `components/exports/`          | Export modal and progress components     |
+| `components/feedback/`         | User feedback collection components      |
+| `components/forms/`            | Reusable form field components           |
+| `components/jobs/`             | Background jobs management page          |
+| `components/layout/`           | Layout, header, and sidebar              |
+| `components/logs/`             | Application logs viewer                  |
+| `components/performance/`      | Performance dashboard and charts         |
+| `components/pyroscope/`        | Pyroscope profiling integration page     |
+| `components/search/`           | Global search components                 |
+| `components/settings/`         | Settings pages and forms                 |
+| `components/status/`           | AI service status components             |
+| `components/system/`           | System monitoring components             |
+| `components/tracing/`          | Distributed tracing page                 |
+| `components/video/`            | Video player component                   |
+| `components/zones/`            | Zone management and visualization        |
 
 #### `/components/common/`
 
@@ -159,7 +159,7 @@ Reusable UI components and utilities:
 **Exports:**
 - `index.ts` - Barrel export for all components
 
-Note: Tests are co-located with components (e.g., `*.test.tsx`). Contains subdirectories: `animations/`, `skeletons/`.
+Note: Tests are co-located with components (named `*.test.tsx`). Contains subdirectories: `components/common/animations/`, `components/common/skeletons/`.
 
 #### `/components/ai/`
 
@@ -347,7 +347,7 @@ Settings page components:
 - `VRAMUsageCard.tsx` - VRAM usage card
 - `README.md` - Documentation
 
-Note: Tests are co-located with components (e.g., `*.test.tsx`). Contains `prompts/` subdirectory.
+Note: Tests are co-located with components (named `*.test.tsx`). Contains `components/settings/prompts/` subdirectory.
 
 #### `/components/system/`
 
@@ -575,7 +575,7 @@ Global state management via React Context:
 | `ToastContext.tsx`        | Toast notification context     |
 | `index.ts`                | Barrel export                  |
 
-Each context has a co-located `.test.tsx` file.
+Each context has a co-located test file (named `*.test.tsx`).
 
 ### `/mocks/` - MSW Mock Server
 
@@ -598,7 +598,7 @@ Page components not in feature directories:
 | `TrashPage.tsx`                  | Deleted items / trash page    |
 | `ZonesPage.tsx`                  | Zones management page         |
 
-Each page has a co-located `.test.tsx` file.
+Each page has a co-located test file (named `*.test.tsx`).
 
 ### `/schemas/` - Validation Schemas
 
@@ -626,7 +626,7 @@ Zustand stores for global state management:
 | `storage-status-store.ts`   | Storage status state               |
 | `worker-status-store.ts`    | Worker status state                |
 
-Each store has a co-located `.test.ts` file.
+Each store has a co-located test file (named `*.test.ts`).
 
 ### `/theme/` - Theme Configuration
 
@@ -657,7 +657,7 @@ Each store has a co-located `.test.ts` file.
 | `webSocketManager.ts`       | Singleton WebSocket connection manager              | No       |
 | `index.ts`                  | Barrel export for exported hooks                    | N/A      |
 
-Each hook has a co-located `.test.ts` file.
+Each hook has a co-located test file (named `*.test.ts`).
 
 ### `/services/` - API Client and Services
 
@@ -725,11 +725,11 @@ The `api.ts` file re-exports all types from `types/generated/` for convenience.
 | `utils.test.tsx`     | Tests for test utilities                          |
 | `README.md`          | Test infrastructure documentation                 |
 
-Contains subdirectories: `factories/`, `fixtures/`, `mocks/`
+Contains subdirectories: `test/factories/`, `test/fixtures/`, `test/mocks/`
 
 ### `/types/` - TypeScript Types
 
-- **`generated/`** - Auto-generated from backend OpenAPI
+- **`types/generated/`** - Auto-generated from backend OpenAPI
   - `api.ts` - Full OpenAPI types (DO NOT EDIT)
   - `index.ts` - Re-exports with convenient aliases
 - **`aiAudit.ts`** - AI audit type definitions
@@ -780,7 +780,7 @@ Note: Tests are co-located with type files (e.g., `*.test.ts`).
 | `validation.ts`            | Validation utilities                                                         |
 | `websocketCompression.ts`  | WebSocket compression utilities                                              |
 
-Each utility has a co-located `.test.ts` file.
+Each utility has a co-located test file (named `*.test.ts`).
 
 ### `/test-utils/` - Test Utilities
 
