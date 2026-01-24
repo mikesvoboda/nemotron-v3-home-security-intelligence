@@ -99,13 +99,13 @@ describe('abTestService', () => {
 
       // Verify first call is for original prompt
       const firstCall = fetchMock.mock.calls[0];
-      expect(firstCall[0]).toContain('/api/ai-audit/test-prompt');
+      expect(firstCall[0]).toContain('/api/prompts/test-prompt');
       const firstBody = JSON.parse(firstCall[1]?.body as string);
       expect(firstBody.custom_prompt).toBe('Original prompt text');
 
       // Verify second call is for modified prompt
       const secondCall = fetchMock.mock.calls[1];
-      expect(secondCall[0]).toContain('/api/ai-audit/test-prompt');
+      expect(secondCall[0]).toContain('/api/prompts/test-prompt');
       const secondBody = JSON.parse(secondCall[1]?.body as string);
       expect(secondBody.custom_prompt).toBe('Modified prompt text');
     });

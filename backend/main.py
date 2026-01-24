@@ -13,9 +13,12 @@ import signal
 import ssl
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from functools import lru_cache
+from typing import Any
 
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 
 from backend.api.exception_handlers import register_exception_handlers
 from backend.api.middleware import (
@@ -990,6 +993,27 @@ def _get_deprecation_config() -> DeprecationConfig:
     return config
 
 
+def custom_generate_unique_id(route: APIRoute) -> str:
+    """Generate custom operation IDs for OpenAPI schema (NEM-3347).
+
+    Creates more readable operation IDs by combining the route's tag with its
+    function name. This improves the developer experience when using API clients
+    generated from the OpenAPI spec.
+
+    Args:
+        route: FastAPI route to generate an operation ID for
+
+    Returns:
+        Operation ID in format "tag_function_name" or just "function_name" if no tags
+
+    Example:
+        A route with tags=["cameras"] and name="get_camera" returns "cameras_get_camera"
+    """
+    if route.tags:
+        return f"{route.tags[0]}_{route.name}"
+    return route.name
+
+
 app = FastAPI(
     title="Home Security Intelligence API",
     description="AI-powered home security monitoring system",
@@ -998,7 +1022,32 @@ app = FastAPI(
     # Server URLs for OpenAPI spec - required for ZAP security scanning
     # Configurable via OPENAPI_SERVER_URL environment variable
     servers=_get_openapi_servers(),
+    # Custom operation ID generator for more readable API client code (NEM-3347)
+    generate_unique_id_function=custom_generate_unique_id,
 )
+
+
+# Save reference to original openapi method before overriding (NEM-3347)
+_original_openapi = app.openapi
+
+
+@lru_cache
+def get_cached_openapi_schema() -> dict[str, Any]:
+    """Get cached OpenAPI schema for improved performance (NEM-3347).
+
+    Caches the OpenAPI schema generation using lru_cache to avoid regenerating
+    the schema on every /openapi.json request. This significantly improves
+    response time for documentation endpoints in production.
+
+    Returns:
+        OpenAPI schema dictionary (cached after first call)
+    """
+    return _original_openapi()
+
+
+# Override the default openapi method with cached version (NEM-3347)
+app.openapi = get_cached_openapi_schema  # type: ignore[method-assign]
+
 
 # Add authentication middleware (if enabled in settings)
 app.add_middleware(AuthMiddleware)

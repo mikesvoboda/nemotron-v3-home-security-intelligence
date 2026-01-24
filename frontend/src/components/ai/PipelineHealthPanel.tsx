@@ -189,6 +189,10 @@ export default function PipelineHealthPanel({
                     </div>
                   ))}
                 </div>
+                <Text className="mt-2 text-xs text-gray-500">
+                  Cumulative count since system start. Small numbers are expected during normal
+                  operation.
+                </Text>
               </div>
             )}
 

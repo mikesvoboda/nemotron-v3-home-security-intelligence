@@ -221,6 +221,7 @@ async def create_rule(
 @router.get(
     "/{rule_id}",
     response_model=AlertRuleResponse,
+    response_model_exclude_unset=True,
     responses={
         404: {"description": "Alert rule not found"},
         500: {"description": "Internal server error"},

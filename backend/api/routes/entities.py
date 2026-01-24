@@ -470,6 +470,7 @@ async def update_entity_trust(
 @router.get(
     "/{entity_id}",
     response_model=EntityDetail,
+    response_model_exclude_unset=True,
     responses={
         404: {"description": "Entity not found"},
         500: {"description": "Internal server error"},
