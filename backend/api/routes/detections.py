@@ -193,7 +193,7 @@ async def list_detections(
         "bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path, media_type, duration, "
         "video_codec, video_width, video_height, enrichment_data",
     ),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ) -> DetectionListResponse:
     """List detections with optional filtering and cursor-based pagination.
 

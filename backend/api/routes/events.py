@@ -59,7 +59,7 @@ from backend.api.utils.field_filter import (
     validate_fields,
 )
 from backend.api.validators import normalize_end_date_to_end_of_day, validate_date_range
-from backend.core.database import escape_ilike_pattern, get_db
+from backend.core.database import escape_ilike_pattern, get_db, get_read_db
 from backend.core.logging import get_logger, sanitize_log_value
 from backend.core.metrics import record_event_acknowledged, record_event_reviewed
 from backend.core.sanitization import sanitize_error_for_response
@@ -249,7 +249,7 @@ async def list_events(
         False,
         description="Include soft-deleted events in results. Default is False to hide deleted events.",
     ),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_read_db),
 ) -> EventListResponse:
     """List events with optional filtering and cursor-based pagination.
 

@@ -938,6 +938,13 @@ volumes:
     driver: local
   redis_data:
     driver: local
+  # Redis Sentinel volumes (uncomment when enabling Sentinel)
+  # sentinel1_data:
+  #   driver: local
+  # sentinel2_data:
+  #   driver: local
+  # sentinel3_data:
+  #   driver: local
   prometheus_data:
     driver: local
   grafana_data:

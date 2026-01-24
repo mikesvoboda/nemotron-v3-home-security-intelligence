@@ -435,11 +435,13 @@ class TestConnectionPoolSettings:
             with patch("backend.core.database.get_settings") as mock_settings:
                 mock_settings.return_value = MagicMock(
                     database_url="postgresql+asyncpg://user:pass@localhost:5432/testdb",  # pragma: allowlist secret
+                    database_url_read=None,
                     debug=False,
                     database_pool_size=15,
                     database_pool_overflow=25,
                     database_pool_timeout=45,
                     database_pool_recycle=2400,
+                    use_pgbouncer=False,
                 )
 
                 # Mock create_async_engine to capture arguments

@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { lazy, Suspense } from 'react';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { lazy, Suspense, useMemo } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import {
@@ -18,6 +19,11 @@ import Layout from './components/layout/Layout';
 import RetryingIndicator from './components/RetryingIndicator';
 import { AnnouncementProvider } from './contexts';
 import { queryClient } from './services/queryClient';
+import {
+  createQueryPersister,
+  shouldDehydrateQueryCompat,
+  PERSISTENCE_MAX_AGE,
+} from './services/queryPersistence';
 
 // Lazy-loaded page components for code splitting
 // Each page will be loaded as a separate chunk only when navigated to
@@ -96,65 +102,99 @@ const ZonesPage = lazy(() => import('./pages/ZonesPage'));
 // GPU Settings Page
 const GpuSettingsPage = lazy(() => import('./pages/GpuSettingsPage'));
 
+/**
+ * Get persist options for query client.
+ * Creates persister only once and memoizes the options.
+ * Falls back to regular QueryClientProvider if localStorage unavailable.
+ *
+ * @see NEM-3363 - Query persistence for offline/cold-start
+ */
+function usePersistOptions() {
+  return useMemo(() => {
+    const persister = createQueryPersister();
+    if (!persister) {
+      return null;
+    }
+    return {
+      persister,
+      maxAge: PERSISTENCE_MAX_AGE,
+      dehydrateOptions: {
+        shouldDehydrateQuery: shouldDehydrateQueryCompat,
+      },
+    };
+  }, []);
+}
+
 export default function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <AnnouncementProvider>
-          <BrowserRouter>
-            {/* Track navigation between routes for analytics */}
-            <NavigationTracker />
-            <ErrorBoundary
-              title="Application Error"
-              description="The application encountered an unexpected error. Please try again or refresh the page."
-            >
-              {/* Ambient status provider for visual/audio status awareness */}
-              <AmbientStatusProvider>
-                <Layout>
-                  <ChunkLoadErrorBoundary>
-                    <Suspense fallback={<RouteLoadingFallback />}>
-                      <PageTransition>
-                        <Routes>
-                          <Route path="/" element={<DashboardPage />} />
-                          <Route path="/timeline" element={<EventTimeline />} />
-                          <Route path="/analytics" element={<AnalyticsPage />} />
-                          <Route path="/jobs" element={<JobsPage />} />
-                          <Route path="/alerts" element={<AlertsPage />} />
-                          <Route path="/entities" element={<EntitiesPage />} />
-                          <Route path="/logs" element={<LogsPage />} />
-                          <Route path="/audit" element={<AuditLogPage />} />
-                          <Route path="/ai" element={<AIPerformancePage />} />
-                          <Route path="/ai-audit" element={<AIAuditPage />} />
-                          <Route path="/pyroscope" element={<PyroscopePage />} />
-                          <Route path="/operations" element={<OperationsPage />} />
-                          <Route path="/tracing" element={<TracingPage />} />
-                          <Route path="/settings" element={<SettingsPage />} />
-                          <Route
-                            path="/notifications"
-                            element={<NotificationPreferencesPage />}
-                          />
-                          <Route path="/trash" element={<TrashPage />} />
-                          <Route path="/data" element={<DataManagementPage />} />
-                          <Route path="/zones" element={<ZonesPage />} />
-                          <Route path="/settings/gpu" element={<GpuSettingsPage />} />
-                        </Routes>
-                      </PageTransition>
-                    </Suspense>
-                  </ChunkLoadErrorBoundary>
-                </Layout>
-              </AmbientStatusProvider>
-            </ErrorBoundary>
-            {/* Interactive product tour for first-time users */}
-            <ProductTour />
-          </BrowserRouter>
-          {/* Rate limit indicator - fixed position overlay */}
-          <RateLimitIndicator />
-          {/* Retrying indicator - shows when rate limited AND requests in flight */}
-          <RetryingIndicator />
-        </AnnouncementProvider>
-        {/* React Query DevTools - only shown in development */}
-        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
-      </ToastProvider>
-    </QueryClientProvider>
+  const persistOptions = usePersistOptions();
+
+  // Render function for the app content (shared between both providers)
+  const appContent = (
+    <ToastProvider>
+      <AnnouncementProvider>
+        <BrowserRouter>
+          {/* Track navigation between routes for analytics */}
+          <NavigationTracker />
+          <ErrorBoundary
+            title="Application Error"
+            description="The application encountered an unexpected error. Please try again or refresh the page."
+          >
+            {/* Ambient status provider for visual/audio status awareness */}
+            <AmbientStatusProvider>
+              <Layout>
+                <ChunkLoadErrorBoundary>
+                  <Suspense fallback={<RouteLoadingFallback />}>
+                    <PageTransition>
+                      <Routes>
+                        <Route path="/" element={<DashboardPage />} />
+                        <Route path="/timeline" element={<EventTimeline />} />
+                        <Route path="/analytics" element={<AnalyticsPage />} />
+                        <Route path="/jobs" element={<JobsPage />} />
+                        <Route path="/alerts" element={<AlertsPage />} />
+                        <Route path="/entities" element={<EntitiesPage />} />
+                        <Route path="/logs" element={<LogsPage />} />
+                        <Route path="/audit" element={<AuditLogPage />} />
+                        <Route path="/ai" element={<AIPerformancePage />} />
+                        <Route path="/ai-audit" element={<AIAuditPage />} />
+                        <Route path="/pyroscope" element={<PyroscopePage />} />
+                        <Route path="/operations" element={<OperationsPage />} />
+                        <Route path="/tracing" element={<TracingPage />} />
+                        <Route path="/settings" element={<SettingsPage />} />
+                        <Route path="/notifications" element={<NotificationPreferencesPage />} />
+                        <Route path="/trash" element={<TrashPage />} />
+                        <Route path="/data" element={<DataManagementPage />} />
+                        <Route path="/zones" element={<ZonesPage />} />
+                        <Route path="/settings/gpu" element={<GpuSettingsPage />} />
+                      </Routes>
+                    </PageTransition>
+                  </Suspense>
+                </ChunkLoadErrorBoundary>
+              </Layout>
+            </AmbientStatusProvider>
+          </ErrorBoundary>
+          {/* Interactive product tour for first-time users */}
+          <ProductTour />
+        </BrowserRouter>
+        {/* Rate limit indicator - fixed position overlay */}
+        <RateLimitIndicator />
+        {/* Retrying indicator - shows when rate limited AND requests in flight */}
+        <RetryingIndicator />
+      </AnnouncementProvider>
+      {/* React Query DevTools - only shown in development */}
+      <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
+    </ToastProvider>
   );
+
+  // Use PersistQueryClientProvider if persister is available, otherwise fallback
+  // This enables instant page loads from cached data (NEM-3363)
+  if (persistOptions) {
+    return (
+      <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+        {appContent}
+      </PersistQueryClientProvider>
+    );
+  }
+
+  // Fallback to regular QueryClientProvider (e.g., SSR, private browsing)
+  return <QueryClientProvider client={queryClient}>{appContent}</QueryClientProvider>;
 }

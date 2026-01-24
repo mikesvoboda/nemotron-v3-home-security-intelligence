@@ -998,17 +998,16 @@ class TestCudaCacheClearing:
             mock_empty_cache.assert_not_called()
 
     def test_detect_batch_clears_cache_at_configured_frequency(self):
-        """Test detect_batch() clears cache every N batches based on cache_clear_frequency.
+        """Test detect_batch() clears cache every N images based on cache_clear_frequency.
 
-        NEM-3377: With true batch inference, images are processed in batches.
-        Cache is cleared every N batches (not images) plus once at the end.
+        The detect_batch implementation processes images sequentially (one at a time)
+        and clears cache every N images based on the configured frequency.
         """
-        # Clear cache every 1 batch (so after each batch + final cleanup)
+        # Clear cache every 1 image (so after each image)
         model = RTDETRv2Model(
             model_path="dummy_model_path",
             device="cuda:0",
             cache_clear_frequency=1,
-            max_batch_size=2,  # Process 2 images per batch
         )
 
         mock_torch_model = MagicMock()
@@ -1027,13 +1026,13 @@ class TestCudaCacheClearing:
         model.model = mock_torch_model
         model.processor = mock_processor
 
-        # Create 5 test images -> 3 batches with batch_size=2 (2+2+1)
+        # Create 5 test images
         test_images = [Image.new("RGB", (640, 480), color=(128, 128, 128)) for _ in range(5)]
 
         with (
             patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
             patch(f"{MODEL_MODULE_PATH}.torch.cuda.empty_cache") as mock_empty_cache,
-            patch(f"{MODEL_MODULE_PATH}.torch.no_grad") as mock_no_grad,
+            patch(f"{MODEL_MODULE_PATH}.torch.inference_mode") as mock_no_grad,
             patch(f"{MODEL_MODULE_PATH}.torch.tensor") as mock_tensor,
         ):
             mock_no_grad.return_value.__enter__ = MagicMock()
@@ -1042,13 +1041,9 @@ class TestCudaCacheClearing:
 
             model.detect_batch(test_images)
 
-            # With frequency=1 and 3 batches:
-            # - After batch 1: clear (batch_idx=1, 1%1=0) -> Yes
-            # - After batch 2: clear (batch_idx=2, 2%1=0) -> Yes
-            # - After batch 3: clear (batch_idx=3, 3%1=0) -> Yes
-            # - Finally block: clear -> Yes
-            # Total: 4 cache clears
-            assert mock_empty_cache.call_count == 4
+            # With frequency=1 and 5 images processed sequentially:
+            # Cache is cleared after each image (5 times)
+            assert mock_empty_cache.call_count == 5
 
     def test_detect_batch_no_cache_clear_when_disabled(self):
         """Test detect_batch() does not clear cache when frequency=0."""
@@ -1338,7 +1333,7 @@ class TestHealthEndpointGpuMetrics:
         yield mock_instance
         model_module.model = original_model
 
-    def test_health_endpoint_returns_gpu_metrics(self, client, mock_model):
+    def test_health_endpoint_returns_gpu_metrics(self, client, mock_model):  # noqa: ARG002
         """Test health endpoint returns GPU metrics when CUDA available."""
         with (
             patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
@@ -1369,7 +1364,7 @@ class TestHealthEndpointGpuMetrics:
             assert data["temperature"] == 65
             assert data["power_watts"] == 150.0
 
-    def test_health_endpoint_no_cuda_returns_null_metrics(self, client, mock_model):
+    def test_health_endpoint_no_cuda_returns_null_metrics(self, client, mock_model):  # noqa: ARG002
         """Test health endpoint returns null GPU metrics when CUDA unavailable."""
         with patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=False):
             response = client.get("/health")
@@ -1381,7 +1376,7 @@ class TestHealthEndpointGpuMetrics:
             assert data["temperature"] is None
             assert data["power_watts"] is None
 
-    def test_health_endpoint_partial_metrics(self, client, mock_model):
+    def test_health_endpoint_partial_metrics(self, client, mock_model):  # noqa: ARG002
         """Test health endpoint returns partial GPU metrics when some fail."""
         with (
             patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),

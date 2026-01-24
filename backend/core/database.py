@@ -305,6 +305,18 @@ async def init_db() -> None:
         },
     }
 
+    # PgBouncer transaction mode compatibility (NEM-3419)
+    # When using PgBouncer in transaction mode, prepared statements cannot be used
+    # because the server connection may change between transactions.
+    # Setting cache sizes to 0 disables the prepared statement cache.
+    if settings.use_pgbouncer:
+        connect_args["prepared_statement_cache_size"] = 0
+        connect_args["statement_cache_size"] = 0
+        _logger.info(
+            "PgBouncer mode enabled: prepared statement cache disabled",
+            extra={"use_pgbouncer": True},
+        )
+
     engine_kwargs: dict[str, Any] = {
         "echo": settings.debug,
         "future": True,
@@ -913,6 +925,212 @@ async def get_db() -> AsyncGenerator[AsyncSession]:
                     "error_type": "unexpected_error",
                     "exception_class": type(e).__name__,
                     "is_connection_error": is_conn_error,
+                },
+            )
+            raise
+        finally:
+            await session.close()
+
+
+@asynccontextmanager
+async def get_read_session() -> AsyncGenerator[AsyncSession]:
+    """Get an async database session from the read replica as a context manager (NEM-3392).
+
+    This function returns a session from the read replica if configured,
+    otherwise falls back to the primary database. Use this for read-heavy
+    operations to enable linear scalability with read replicas.
+
+    Note: Sessions from this function should only be used for read operations.
+    Do not use for writes - they will fail or cause replication issues.
+
+    Yields:
+        AsyncSession: An async SQLAlchemy session connected to the read replica.
+
+    Raises:
+        RuntimeError: If database has not been initialized.
+    """
+    # Check for event loop mismatch and auto-reinitialize if needed
+    if _check_loop_mismatch():
+        await init_db()
+
+    # Use read replica session factory if available, otherwise fall back to primary
+    if _read_session_factory is not None:
+        factory = _read_session_factory
+    else:
+        factory = get_session_factory()
+
+    async with factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except IntegrityError as e:
+            await session.rollback()
+            constraint_name = getattr(e.orig, "constraint_name", None)
+            if constraint_name is None and e.orig is not None and hasattr(e.orig, "diag"):
+                diag = getattr(e.orig, "diag", None)
+                if diag is not None:
+                    constraint_name = getattr(diag, "constraint_name", None)
+            _logger.warning(
+                "Database integrity error (read replica)",
+                extra={
+                    "error_type": "integrity_error",
+                    "constraint": constraint_name,
+                    "detail": str(e.orig) if e.orig else str(e),
+                    "is_read_replica": _read_session_factory is not None,
+                },
+            )
+            raise
+        except OperationalError as e:
+            await session.rollback()
+            error_category = _categorize_operational_error(e)
+            is_conn_error = _is_connection_error(e)
+            _logger.error(
+                "Database operational error (read replica)",
+                extra={
+                    "error_type": error_category,
+                    "is_connection_error": is_conn_error,
+                    "detail": str(e.orig) if e.orig else str(e),
+                    "is_read_replica": _read_session_factory is not None,
+                },
+            )
+            raise
+        except SQLAlchemyTimeoutError as e:
+            await session.rollback()
+            _logger.error(
+                "Database timeout error (read replica)",
+                extra={
+                    "error_type": "timeout_error",
+                    "detail": str(e),
+                    "is_read_replica": _read_session_factory is not None,
+                },
+            )
+            raise
+        except ProgrammingError as e:
+            await session.rollback()
+            _logger.exception(
+                "Database programming error (read replica)",
+                extra={
+                    "error_type": "programming_error",
+                    "detail": str(e.orig) if e.orig else str(e),
+                    "is_read_replica": _read_session_factory is not None,
+                },
+            )
+            raise
+        except HTTPException:
+            raise
+        except Exception as e:
+            await session.rollback()
+            is_conn_error = _is_connection_error(e)
+            _logger.exception(
+                "Unexpected database error (read replica)",
+                extra={
+                    "error_type": "unexpected_error",
+                    "exception_class": type(e).__name__,
+                    "is_connection_error": is_conn_error,
+                    "is_read_replica": _read_session_factory is not None,
+                },
+            )
+            raise
+
+
+async def get_read_db() -> AsyncGenerator[AsyncSession]:
+    """FastAPI dependency for read-only database sessions from the read replica (NEM-3392).
+
+    This function returns a session from the read replica if configured,
+    otherwise falls back to the primary database. Use this for read-heavy
+    endpoints to enable linear scalability with read replicas.
+
+    Note: Sessions from this dependency should only be used for read operations.
+    Do not use for writes - they will fail or cause replication issues.
+
+    Usage:
+        @app.get("/items")
+        async def get_items(db: AsyncSession = Depends(get_read_db)):
+            result = await db.execute(select(Item))
+            return result.scalars().all()
+
+    Yields:
+        AsyncSession: An async SQLAlchemy session connected to the read replica.
+    """
+    # Check for event loop mismatch and auto-reinitialize if needed
+    if _check_loop_mismatch():
+        await init_db()
+
+    # Use read replica session factory if available, otherwise fall back to primary
+    if _read_session_factory is not None:
+        factory = _read_session_factory
+    else:
+        factory = get_session_factory()
+
+    async with factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except IntegrityError as e:
+            await session.rollback()
+            constraint_name = getattr(e.orig, "constraint_name", None)
+            if constraint_name is None and e.orig is not None and hasattr(e.orig, "diag"):
+                diag = getattr(e.orig, "diag", None)
+                if diag is not None:
+                    constraint_name = getattr(diag, "constraint_name", None)
+            _logger.warning(
+                "Database integrity error (read replica)",
+                extra={
+                    "error_type": "integrity_error",
+                    "constraint": constraint_name,
+                    "detail": str(e.orig) if e.orig else str(e),
+                    "is_read_replica": _read_session_factory is not None,
+                },
+            )
+            raise
+        except OperationalError as e:
+            await session.rollback()
+            error_category = _categorize_operational_error(e)
+            is_conn_error = _is_connection_error(e)
+            _logger.error(
+                "Database operational error (read replica)",
+                extra={
+                    "error_type": error_category,
+                    "is_connection_error": is_conn_error,
+                    "detail": str(e.orig) if e.orig else str(e),
+                    "is_read_replica": _read_session_factory is not None,
+                },
+            )
+            raise
+        except SQLAlchemyTimeoutError as e:
+            await session.rollback()
+            _logger.error(
+                "Database timeout error (read replica)",
+                extra={
+                    "error_type": "timeout_error",
+                    "detail": str(e),
+                    "is_read_replica": _read_session_factory is not None,
+                },
+            )
+            raise
+        except ProgrammingError as e:
+            await session.rollback()
+            _logger.exception(
+                "Database programming error (read replica)",
+                extra={
+                    "error_type": "programming_error",
+                    "detail": str(e.orig) if e.orig else str(e),
+                    "is_read_replica": _read_session_factory is not None,
+                },
+            )
+            raise
+        except HTTPException:
+            raise
+        except Exception as e:
+            await session.rollback()
+            is_conn_error = _is_connection_error(e)
+            _logger.exception(
+                "Unexpected database error (read replica)",
+                extra={
+                    "error_type": "unexpected_error",
+                    "exception_class": type(e).__name__,
+                    "is_connection_error": is_conn_error,
+                    "is_read_replica": _read_session_factory is not None,
                 },
             )
             raise

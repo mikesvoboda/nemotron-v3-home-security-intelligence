@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.api.routes.events import _bulk_rate_limiter, router
-from backend.core.database import get_db
+from backend.core.database import get_db, get_read_db
 from backend.models.detection import Detection
 from backend.models.event import Event
 
@@ -57,6 +57,9 @@ def client(mock_db_session: AsyncMock, mock_cache_service: AsyncMock) -> TestCli
     async def override_get_db():
         yield mock_db_session
 
+    async def override_get_read_db():
+        yield mock_db_session
+
     async def override_get_cache_service():
         return mock_cache_service
 
@@ -85,6 +88,7 @@ def client(mock_db_session: AsyncMock, mock_cache_service: AsyncMock) -> TestCli
         yield None
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_read_db] = override_get_read_db
     app.dependency_overrides[get_cache_service_dep] = override_get_cache_service
     app.dependency_overrides[_bulk_rate_limiter] = override_rate_limiter
     # Note: get_event_or_404 is not directly injectable, so we'll mock it in tests

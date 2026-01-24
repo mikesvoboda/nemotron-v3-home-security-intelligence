@@ -3400,6 +3400,8 @@ export interface paths {
          * Search Events Endpoint
          * @description Search events using full-text search.
          *
+         *     Uses read replica for linear scalability (NEM-3392).
+         *
          *     This endpoint provides PostgreSQL full-text search across event summaries,
          *     reasoning, object types, and camera names.
          *

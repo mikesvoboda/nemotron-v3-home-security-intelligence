@@ -353,6 +353,13 @@ class Settings(BaseSettings):
         le=7200,
         description="Seconds after which connections are recycled (prevents stale connections)",
     )
+    use_pgbouncer: bool = Field(
+        default=False,
+        description="Enable PgBouncer transaction mode compatibility. When True, disables "
+        "prepared statement cache (statement_cache_size=0) since PgBouncer in transaction "
+        "mode doesn't support prepared statements. Required when connecting through PgBouncer "
+        "for connection multiplexing. NEM-3419.",
+    )
 
     # Redis configuration
     # Development: redis://localhost:6379/0 (local dev)

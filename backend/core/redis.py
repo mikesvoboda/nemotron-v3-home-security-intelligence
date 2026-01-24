@@ -1738,7 +1738,7 @@ class SentinelClient:
             self._password = (
                 settings.redis_password.get_secret_value()
                 if hasattr(settings.redis_password, "get_secret_value")
-                else settings.redis_password
+                else str(settings.redis_password)
             )
 
         self._sentinel: Sentinel | None = None
@@ -1769,13 +1769,11 @@ class SentinelClient:
                 hosts.append((host, port))
             except ValueError as e:
                 raise ValueError(
-                    f"Invalid Sentinel host format '{host_port}'. "
-                    f"Expected 'host:port' format."
+                    f"Invalid Sentinel host format '{host_port}'. Expected 'host:port' format."
                 ) from e
         if not hosts:
             raise ValueError(
-                "No valid Sentinel hosts configured. "
-                "Set REDIS_SENTINEL_HOSTS environment variable."
+                "No valid Sentinel hosts configured. Set REDIS_SENTINEL_HOSTS environment variable."
             )
         return hosts
 
@@ -1815,7 +1813,7 @@ class SentinelClient:
                 redis_class=Redis,
                 **connection_kwargs,
             )
-            await self._master.ping()
+            await self._master.ping()  # type: ignore[misc]
             logger.info(
                 f"Connected to Redis master '{self._master_name}' via Sentinel",
                 extra={
@@ -1841,7 +1839,7 @@ class SentinelClient:
                 redis_class=Redis,
                 **connection_kwargs,
             )
-            await self._slave.ping()
+            await self._slave.ping()  # type: ignore[misc]
             logger.info(
                 f"Connected to Redis slave for '{self._master_name}'",
                 extra={"master_name": self._master_name},
@@ -1909,7 +1907,7 @@ class SentinelClient:
 
         try:
             if self._master:
-                await self._master.ping()
+                await self._master.ping()  # type: ignore[misc]
                 master_info = await self._master.info("server")
                 result["master"] = {
                     "connected": True,
@@ -1924,7 +1922,7 @@ class SentinelClient:
 
         try:
             if self._slave and self._slave != self._master:
-                await self._slave.ping()
+                await self._slave.ping()  # type: ignore[misc]
                 result["slave"] = {"connected": True}
             elif self._slave:
                 result["slave"] = {"connected": True, "note": "using master"}
