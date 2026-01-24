@@ -6,6 +6,11 @@ FIXTURE HIERARCHY AND ORGANIZATION:
 ====================================
 
 Root Fixtures (backend/tests/conftest.py - THIS FILE):
+    Database-per-Worker Isolation (pytest-xdist):
+        - cleanup_stale_databases: Session-scoped autouse, removes leftover test databases
+        - template_database: Session-scoped, creates template database with full schema
+        - worker_database: Session-scoped, creates per-worker database copy from template
+
     Database Fixtures:
         - isolated_db: Function-scoped isolated database for unit tests (PostgreSQL)
         - test_db: Callable session factory for unit tests
@@ -114,19 +119,19 @@ import logging
 import os
 import socket
 import sys
+from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import urlparse, urlunparse
 
+import psycopg2
 import pytest
 from hypothesis import HealthCheck, Phase, Verbosity
 from hypothesis import settings as hypothesis_settings
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 # NEM-1061: Logger for test cleanup handlers
 logger = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Generator
 
 
 # Add backend to path for imports
@@ -551,6 +556,451 @@ def get_test_redis_url() -> str:
         "2. Set TEST_REDIS_URL environment variable\n"
         "Note: Integration tests use module-scoped testcontainers."
     )
+
+
+# =============================================================================
+# Database-per-Worker Isolation for pytest-xdist
+# =============================================================================
+# These fixtures enable parallel integration test execution by giving each
+# xdist worker its own database copy. Uses PostgreSQL's TEMPLATE feature for
+# instant database copies.
+#
+# Architecture:
+#   CI Runner starts
+#       └── Postgres container (single instance)
+#             ├── template_test (created once, schema applied)
+#             ├── test_db_gw0 (copied from template)
+#             ├── test_db_gw1 (copied from template)
+#             └── test_db_gw{N} (copied from template)
+#
+# See docs/plans/2026-01-24-integration-test-parallelization-design.md
+
+
+def _get_base_database_url() -> str:
+    """Get the base PostgreSQL URL for creating template/worker databases.
+
+    Returns the connection URL pointing to the 'postgres' system database,
+    which is required for database creation operations.
+
+    Returns:
+        PostgreSQL connection URL pointing to postgres database
+    """
+    # Get the base URL from environment or default
+    base_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+    if not base_url:
+        base_url = DEFAULT_DEV_POSTGRES_URL
+
+    # Ensure we're using asyncpg driver
+    if "postgresql://" in base_url and "asyncpg" not in base_url:
+        base_url = base_url.replace("postgresql://", "postgresql+asyncpg://")
+
+    return base_url
+
+
+def _parse_database_url(url: str) -> dict:
+    """Parse PostgreSQL URL into connection components.
+
+    Args:
+        url: PostgreSQL connection URL
+
+    Returns:
+        Dictionary with host, port, user, password, dbname keys
+    """
+    # Remove asyncpg driver for psycopg2 compatibility
+    parsed = urlparse(url.replace("+asyncpg", ""))
+    return {
+        "host": parsed.hostname or "localhost",
+        "port": parsed.port or 5432,
+        "user": parsed.username or "security",
+        "password": parsed.password or "security_dev_password",
+        "dbname": parsed.path.lstrip("/") or "security",
+    }
+
+
+def _build_database_url(base_url: str, db_name: str) -> str:
+    """Build a database URL with a different database name.
+
+    Args:
+        base_url: Original PostgreSQL URL
+        db_name: New database name to use
+
+    Returns:
+        PostgreSQL URL pointing to the new database
+    """
+    parsed = urlparse(base_url.replace("+asyncpg", ""))
+    new_parsed = parsed._replace(path=f"/{db_name}")
+    result = urlunparse(new_parsed)
+    # Add asyncpg driver back
+    return result.replace("postgresql://", "postgresql+asyncpg://")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_stale_databases(request: pytest.FixtureRequest) -> Generator[None]:
+    """Remove leftover test databases from previous failed runs.
+
+    This autouse fixture runs at the start of each test session to clean up
+    any stale databases (test_db_gw*, template_test) that may have been left
+    behind by crashed or interrupted test runs.
+
+    Only runs on the master process (or when running without xdist) to avoid
+    race conditions between workers.
+    """
+    # Only run cleanup on master process
+    try:
+        import xdist
+
+        worker_id = xdist.get_xdist_worker_id(request)
+    except (ImportError, AttributeError):
+        worker_id = "master"
+
+    if worker_id != "master":
+        yield
+        return
+
+    # Check if PostgreSQL is available
+    if not _check_postgres_connection():
+        logger.debug("PostgreSQL not available, skipping stale database cleanup")
+        yield
+        return
+
+    try:
+        base_url = _get_base_database_url()
+        params = _parse_database_url(base_url)
+
+        conn = psycopg2.connect(
+            host=params["host"],
+            port=params["port"],
+            user=params["user"],
+            password=params["password"],
+            dbname="postgres",
+        )
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+        try:
+            with conn.cursor() as cur:
+                # Find stale test databases
+                cur.execute(
+                    """
+                    SELECT datname FROM pg_database
+                    WHERE datname LIKE 'test_db_gw%'
+                       OR datname = 'template_test'
+                    """
+                )
+                stale_dbs = [row[0] for row in cur.fetchall()]
+
+                for db_name in stale_dbs:
+                    try:
+                        # Terminate connections to the database
+                        cur.execute(
+                            """
+                            SELECT pg_terminate_backend(pid)
+                            FROM pg_stat_activity
+                            WHERE datname = %s AND pid <> pg_backend_pid()
+                            """,
+                            (db_name,),
+                        )
+                        # Drop the database
+                        cur.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
+                        logger.info(f"Cleaned up stale test database: {db_name}")
+                    except Exception as e:
+                        logger.warning(f"Failed to drop stale database {db_name}: {e}")
+        finally:
+            conn.close()
+    except Exception as e:
+        # Log but don't fail - cleanup errors shouldn't prevent tests from running
+        logger.warning(f"Failed to clean up stale databases: {e}")
+
+    yield
+
+
+def _apply_schema_to_database(db_url: str) -> None:
+    """Apply full schema to a database synchronously.
+
+    This function creates all tables and adds any missing columns to ensure
+    the database schema matches the current SQLAlchemy models.
+
+    Args:
+        db_url: PostgreSQL connection URL for the database
+    """
+    from sqlalchemy import create_engine, text
+
+    # Import all models to ensure they're registered with Base.metadata
+    from backend.models import Camera, Detection, Event, GPUStats, JobTransition  # noqa: F401
+    from backend.models.camera import Base as ModelsBase
+    from backend.models.event_feedback import EventFeedback  # noqa: F401
+    from backend.models.user_calibration import UserCalibration  # noqa: F401
+
+    # Create synchronous engine (without asyncpg)
+    sync_url = db_url.replace("+asyncpg", "")
+    engine = create_engine(sync_url)
+
+    try:
+        with engine.begin() as conn:
+            # Create all tables
+            ModelsBase.metadata.create_all(conn)
+
+            # Add any missing columns (using IF NOT EXISTS for idempotency)
+            # These match the columns added in _reset_db_schema()
+            conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
+            conn.execute(
+                text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE cameras "
+                    "ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE events "
+                    "ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE events "
+                    "ADD COLUMN IF NOT EXISTS snooze_until TIMESTAMP WITH TIME ZONE"
+                )
+            )
+            conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS search_vector TSVECTOR"))
+            conn.execute(
+                text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS search_vector TSVECTOR")
+            )
+            conn.execute(text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS labels JSONB"))
+            conn.execute(
+                text(
+                    "ALTER TABLE user_calibration "
+                    "ADD COLUMN IF NOT EXISTS correct_count INTEGER DEFAULT 0"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE user_calibration "
+                    "ADD COLUMN IF NOT EXISTS missed_threat_count INTEGER DEFAULT 0"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE user_calibration "
+                    "ADD COLUMN IF NOT EXISTS severity_wrong_count INTEGER DEFAULT 0"
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE event_feedback ADD COLUMN IF NOT EXISTS expected_severity VARCHAR"
+                )
+            )
+
+            # Create unique indexes for cameras table
+            conn.execute(
+                text("CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_name_unique ON cameras (name)")
+            )
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "idx_cameras_folder_path_unique ON cameras (folder_path)"
+                )
+            )
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def template_database(
+    request: pytest.FixtureRequest, cleanup_stale_databases: None
+) -> Generator[str]:
+    """Create template database with full schema for worker copies.
+
+    This session-scoped fixture creates a template database once with the full
+    schema applied. Worker databases are then created as instant copies of this
+    template using PostgreSQL's CREATE DATABASE ... TEMPLATE feature.
+
+    Args:
+        request: pytest fixture request (for worker_id detection)
+        cleanup_stale_databases: Ensures stale databases are cleaned first
+
+    Yields:
+        Name of the template database ("template_test")
+    """
+    template_name = "template_test"
+
+    # Only master process creates the template database
+    try:
+        import xdist
+
+        worker_id = xdist.get_xdist_worker_id(request)
+    except (ImportError, AttributeError):
+        worker_id = "master"
+
+    if worker_id != "master":
+        # Workers just yield the template name - master already created it
+        yield template_name
+        return
+
+    # Check if PostgreSQL is available
+    if not _check_postgres_connection():
+        logger.warning("PostgreSQL not available, skipping template database creation")
+        yield template_name
+        return
+
+    try:
+        base_url = _get_base_database_url()
+        params = _parse_database_url(base_url)
+
+        conn = psycopg2.connect(
+            host=params["host"],
+            port=params["port"],
+            user=params["user"],
+            password=params["password"],
+            dbname="postgres",
+        )
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+        try:
+            with conn.cursor() as cur:
+                # Drop existing template database if it exists
+                # First terminate any connections
+                cur.execute(
+                    """
+                    SELECT pg_terminate_backend(pid)
+                    FROM pg_stat_activity
+                    WHERE datname = %s AND pid <> pg_backend_pid()
+                    """,
+                    (template_name,),
+                )
+                cur.execute(f'DROP DATABASE IF EXISTS "{template_name}"')
+
+                # Create fresh template database
+                cur.execute(f'CREATE DATABASE "{template_name}"')
+                logger.info(f"Created template database: {template_name}")
+        finally:
+            conn.close()
+
+        # Apply schema to template database
+        template_url = _build_database_url(base_url, template_name)
+        _apply_schema_to_database(template_url)
+        logger.info(f"Applied schema to template database: {template_name}")
+
+        yield template_name
+
+    except Exception as e:
+        logger.error(f"Failed to create template database: {e}")
+        raise
+
+
+@pytest.fixture(scope="session")
+def worker_database(request: pytest.FixtureRequest, template_database: str) -> Generator[str]:
+    """Create isolated database for this xdist worker from template.
+
+    This session-scoped fixture creates a per-worker database by copying the
+    template database using PostgreSQL's CREATE DATABASE ... TEMPLATE feature.
+    This is nearly instant (filesystem copy) and provides complete isolation
+    between workers.
+
+    Database naming:
+    - gw0 -> test_db_gw0
+    - gw1 -> test_db_gw1
+    - master (non-xdist) -> test_db_main
+
+    Args:
+        request: pytest fixture request (for worker_id detection)
+        template_database: Name of the template database to copy from
+
+    Yields:
+        Full database URL for the worker's isolated database
+    """
+    # Get worker ID
+    try:
+        import xdist
+
+        worker_id = xdist.get_xdist_worker_id(request)
+    except (ImportError, AttributeError):
+        worker_id = "master"
+
+    # Use "main" for non-xdist runs for clarity
+    if worker_id == "master":
+        db_name = "test_db_main"
+    else:
+        db_name = f"test_db_{worker_id}"
+
+    # Check if PostgreSQL is available
+    if not _check_postgres_connection():
+        logger.warning("PostgreSQL not available, returning default URL")
+        yield DEFAULT_DEV_POSTGRES_URL
+        return
+
+    try:
+        base_url = _get_base_database_url()
+        params = _parse_database_url(base_url)
+
+        conn = psycopg2.connect(
+            host=params["host"],
+            port=params["port"],
+            user=params["user"],
+            password=params["password"],
+            dbname="postgres",
+        )
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+        try:
+            with conn.cursor() as cur:
+                # Terminate any existing connections to the worker database
+                cur.execute(
+                    """
+                    SELECT pg_terminate_backend(pid)
+                    FROM pg_stat_activity
+                    WHERE datname = %s AND pid <> pg_backend_pid()
+                    """,
+                    (db_name,),
+                )
+
+                # Drop existing worker database if it exists
+                cur.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
+
+                # Create worker database from template (instant copy)
+                cur.execute(f'CREATE DATABASE "{db_name}" TEMPLATE "{template_database}"')
+                logger.info(f"Created worker database: {db_name} from template {template_database}")
+        finally:
+            conn.close()
+
+        # Build and yield the worker database URL
+        worker_url = _build_database_url(base_url, db_name)
+        yield worker_url
+
+    except Exception as e:
+        logger.error(f"Failed to create worker database: {e}")
+        raise
+
+    finally:
+        # Cleanup: drop worker database at session end
+        try:
+            conn = psycopg2.connect(
+                host=params["host"],
+                port=params["port"],
+                user=params["user"],
+                password=params["password"],
+                dbname="postgres",
+            )
+            conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+            try:
+                with conn.cursor() as cur:
+                    # Terminate connections before dropping
+                    cur.execute(
+                        """
+                        SELECT pg_terminate_backend(pid)
+                        FROM pg_stat_activity
+                        WHERE datname = %s AND pid <> pg_backend_pid()
+                        """,
+                        (db_name,),
+                    )
+                    cur.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
+                    logger.info(f"Dropped worker database: {db_name}")
+            finally:
+                conn.close()
+        except Exception as e:
+            logger.warning(f"Failed to drop worker database {db_name}: {e}")
 
 
 # Track if schema has been reset this worker process to avoid redundant operations
