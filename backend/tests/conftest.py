@@ -1503,6 +1503,11 @@ def mock_settings():
     settings.api_host = "0.0.0.0"  # noqa: S104
     settings.api_port = 8000
 
+    # Idempotency settings
+    settings.idempotency_ttl_seconds = 86400  # 24 hours
+    settings.idempotency_max_payload_size = 10485760  # 10MB
+    settings.idempotency_chunk_size = 65536  # 64KB
+
     return settings
 
 
