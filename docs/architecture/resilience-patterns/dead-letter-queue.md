@@ -141,7 +141,7 @@ class DLQStats:
 
 ## REST API Endpoints
 
-The DLQ API is defined in `backend/api/routes/dlq.py:1-392`.
+The DLQ API is defined in `backend/api/routes/dlq.py:1-391`.
 
 ### GET /api/dlq/stats
 
@@ -234,7 +234,7 @@ Requeue all jobs from DLQ (`backend/api/routes/dlq.py:262-337`):
 
 ### DELETE /api/dlq/{queue_name}
 
-Clear all jobs from DLQ (`backend/api/routes/dlq.py:340-392`):
+Clear all jobs from DLQ (`backend/api/routes/dlq.py:340-391`):
 
 **Requires:** API key authentication (when enabled)
 

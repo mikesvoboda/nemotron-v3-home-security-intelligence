@@ -4,8 +4,8 @@
 
 **Key Files:**
 
-- `backend/api/middleware/content_type_validator.py:1-196` - Content-Type validation
-- `backend/api/middleware/body_limit.py:1-104` - Request body size limits
+- `backend/api/middleware/content_type_validator.py:1-195` - Content-Type validation
+- `backend/api/middleware/body_limit.py:1-103` - Request body size limits
 - `backend/api/exception_handlers.py:305-374` - Validation error handling
 - `backend/api/validators.py` - Custom validation utilities
 
@@ -53,7 +53,7 @@ graph TD
 
 ### ContentTypeValidationMiddleware
 
-The `ContentTypeValidationMiddleware` (`backend/api/middleware/content_type_validator.py:28-196`) validates Content-Type headers for requests with bodies:
+The `ContentTypeValidationMiddleware` (`backend/api/middleware/content_type_validator.py:28-195`) validates Content-Type headers for requests with bodies:
 
 ```python
 # From backend/api/middleware/content_type_validator.py:28-58
@@ -115,7 +115,7 @@ When Content-Type validation fails, a 415 Unsupported Media Type is returned:
 
 ### BodySizeLimitMiddleware
 
-The `BodySizeLimitMiddleware` (`backend/api/middleware/body_limit.py:40-104`) prevents DoS attacks via large payloads:
+The `BodySizeLimitMiddleware` (`backend/api/middleware/body_limit.py:40-103`) prevents DoS attacks via large payloads:
 
 ```python
 # From backend/api/middleware/body_limit.py:40-71

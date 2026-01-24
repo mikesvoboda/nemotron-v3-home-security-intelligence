@@ -6,9 +6,9 @@
 
 - `frontend/src/App.tsx:24-95` - Lazy-loaded page component definitions
 - `frontend/src/components/layout/Layout.tsx:25-127` - Main layout component
-- `frontend/src/components/layout/Sidebar.tsx:113-193` - Navigation sidebar
-- `frontend/src/components/layout/Header.tsx:1-100` - Application header
-- `frontend/src/components/dashboard/DashboardPage.tsx:61-508` - Main dashboard
+- `frontend/src/components/layout/Sidebar.tsx:10-100` - Navigation sidebar
+- `frontend/src/components/layout/Header.tsx:1-80` - Application header
+- `frontend/src/components/dashboard/DashboardPage.tsx:61-507` - Main dashboard
 
 ## Overview
 
@@ -168,7 +168,7 @@ function PageComponent() {
 
 ## Dashboard Page
 
-The `DashboardPage` (`frontend/src/components/dashboard/DashboardPage.tsx:61-508`) is the main entry point:
+The `DashboardPage` (`frontend/src/components/dashboard/DashboardPage.tsx:61-507`) is the main entry point:
 
 ### Component Composition
 
@@ -234,7 +234,7 @@ The `DashboardLayout` uses render props for widget customization:
 
 ## Sidebar Navigation
 
-The `Sidebar` component (`frontend/src/components/layout/Sidebar.tsx:113-193`) provides hierarchical navigation:
+The `Sidebar` component (`frontend/src/components/layout/Sidebar.tsx:1-100`) provides hierarchical navigation:
 
 ### Navigation Groups
 

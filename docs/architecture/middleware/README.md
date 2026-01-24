@@ -62,17 +62,17 @@ graph TD
 
 | Component                       | File                                                      | Purpose                        |
 | ------------------------------- | --------------------------------------------------------- | ------------------------------ |
-| AuthMiddleware                  | `backend/api/middleware/auth.py:129-308`                  | API key authentication         |
-| ContentTypeValidationMiddleware | `backend/api/middleware/content_type_validator.py:28-196` | Validate Content-Type headers  |
-| RequestIDMiddleware             | `backend/api/middleware/request_id.py:45-91`              | Generate/propagate request IDs |
-| RequestTimingMiddleware         | `backend/api/middleware/request_timing.py:26-157`         | Measure request duration       |
-| RequestLoggingMiddleware        | `backend/api/middleware/request_logging.py:136-322`       | Structured request logging     |
+| AuthMiddleware                  | `backend/api/middleware/auth.py:129-307`                  | API key authentication         |
+| ContentTypeValidationMiddleware | `backend/api/middleware/content_type_validator.py:28-195` | Validate Content-Type headers  |
+| RequestIDMiddleware             | `backend/api/middleware/request_id.py:45-90`              | Generate/propagate request IDs |
+| RequestTimingMiddleware         | `backend/api/middleware/request_timing.py:26-156`         | Measure request duration       |
+| RequestLoggingMiddleware        | `backend/api/middleware/request_logging.py:136-321`       | Structured request logging     |
 | DeprecationMiddleware           | `backend/api/middleware/deprecation.py`                   | RFC 8594 deprecation headers   |
 | CORSMiddleware                  | FastAPI builtin                                           | Cross-Origin Resource Sharing  |
-| SecurityHeadersMiddleware       | `backend/api/middleware/security_headers.py:23-177`       | Security response headers      |
-| BodySizeLimitMiddleware         | `backend/api/middleware/body_limit.py:40-104`             | Request body size limits       |
-| IdempotencyMiddleware           | `backend/api/middleware/idempotency.py:107-594`           | Idempotency-Key support        |
-| RateLimiter                     | `backend/api/middleware/rate_limit.py:266-436`            | Rate limiting (dependency)     |
+| SecurityHeadersMiddleware       | `backend/api/middleware/security_headers.py:23-176`       | Security response headers      |
+| BodySizeLimitMiddleware         | `backend/api/middleware/body_limit.py:40-103`             | Request body size limits       |
+| IdempotencyMiddleware           | `backend/api/middleware/idempotency.py:107-593`           | Idempotency-Key support        |
+| RateLimiter                     | `backend/api/middleware/rate_limit.py:266-435`            | Rate limiting (dependency)     |
 
 ## Key Concepts
 
