@@ -48,25 +48,35 @@ Components are organized by feature area. Each component directory contains:
 
 #### Feature Directories
 
-| Directory         | Description                           |
-| ----------------- | ------------------------------------- |
-| `ai/`             | AI performance and audit pages        |
-| `ai-audit/`       | AI audit visualization components     |
-| `ai-performance/` | AI performance summary components     |
-| `alerts/`         | Alert management page                 |
-| `analytics/`      | Analytics dashboard and visualizations|
-| `audit/`          | Audit log viewer                      |
-| `common/`         | Reusable UI components                |
-| `dashboard/`      | Main dashboard components             |
-| `detection/`      | Object detection visualization        |
-| `entities/`       | Entity tracking page                  |
-| `events/`         | Event list and detail components      |
-| `layout/`         | Layout, header, and sidebar           |
-| `logs/`           | Application logs viewer               |
-| `search/`         | Global search components              |
-| `settings/`       | Settings pages and forms              |
-| `system/`         | System monitoring components          |
-| `video/`          | Video player component                |
+| Directory           | Description                              |
+| ------------------- | ---------------------------------------- |
+| `ai/`               | AI performance and audit pages           |
+| `ai-audit/`         | AI audit visualization components        |
+| `ai-performance/`   | AI performance summary components        |
+| `alerts/`           | Alert management page                    |
+| `analytics/`        | Analytics dashboard and visualizations   |
+| `audit/`            | Audit log viewer                         |
+| `common/`           | Reusable UI components                   |
+| `dashboard/`        | Main dashboard components                |
+| `detection/`        | Object detection visualization           |
+| `developer-tools/`  | Developer tools and debugging panels     |
+| `entities/`         | Entity tracking page                     |
+| `events/`           | Event list and detail components         |
+| `exports/`          | Export modal and progress components     |
+| `feedback/`         | User feedback collection components      |
+| `forms/`            | Reusable form field components           |
+| `jobs/`             | Background jobs management page          |
+| `layout/`           | Layout, header, and sidebar              |
+| `logs/`             | Application logs viewer                  |
+| `performance/`      | Performance dashboard and charts         |
+| `pyroscope/`        | Pyroscope profiling integration page     |
+| `search/`           | Global search components                 |
+| `settings/`         | Settings pages and forms                 |
+| `status/`           | AI service status components             |
+| `system/`           | System monitoring components             |
+| `tracing/`          | Distributed tracing page                 |
+| `video/`            | Video player component                   |
+| `zones/`            | Zone management and visualization        |
 
 #### `/components/common/`
 
@@ -291,6 +301,206 @@ Global search components:
 - `SearchResultCard.tsx` - Individual search result card
 - `SearchResultsPanel.tsx` - Search results panel
 - `index.ts` - Barrel export
+
+#### `/components/developer-tools/`
+
+Developer tools and debugging components:
+
+- `DeveloperToolsPage.tsx` - Main developer tools page
+- `CircuitBreakerDebugPanel.tsx` - Circuit breaker state debugging
+- `ConfigInspectorPanel.tsx` - Configuration inspection panel
+- `ConfirmWithTextDialog.tsx` - Confirmation dialog with text input
+- `LogLevelPanel.tsx` - Log level configuration panel
+- `MemorySnapshotPanel.tsx` - Memory snapshot debugging
+- `ProfilingPanel.tsx` - Performance profiling panel
+- `RecordingDetailModal.tsx` - Recording detail modal
+- `RecordingReplayPanel.tsx` - Recording replay functionality
+- `RecordingsList.tsx` - List of recordings
+- `ReplayResultsModal.tsx` - Replay results display modal
+- `CleanupRow.tsx` - Cleanup action row
+- `SeedRow.tsx` - Seed data row
+- `TestDataPanel.tsx` - Test data management panel
+- `index.ts` - Barrel export
+
+#### `/components/exports/`
+
+Export functionality components:
+
+- `ExportModal.tsx` - Export configuration modal
+- `ExportProgress.tsx` - Export progress display
+- `index.ts` - Barrel export
+
+#### `/components/feedback/`
+
+User feedback collection:
+
+- `FeedbackPanel.tsx` - User feedback collection panel
+- `index.ts` - Barrel export
+
+#### `/components/forms/`
+
+Reusable form components:
+
+- `FormField.tsx` - Reusable form field wrapper
+- `SubmitButton.tsx` - Form submit button with loading state
+- `index.ts` - Barrel export
+
+#### `/components/jobs/`
+
+Background jobs management:
+
+- `JobsPage.tsx` - Main jobs management page
+- `JobsList.tsx` - List of background jobs
+- `JobsListItem.tsx` - Individual job list item
+- `JobDetailPanel.tsx` - Job detail side panel
+- `JobHeader.tsx` - Job header display
+- `JobMetadata.tsx` - Job metadata display
+- `JobActions.tsx` - Job action buttons
+- `JobLogsViewer.tsx` - Job logs viewer
+- `JobHistoryTimeline.tsx` - Job history timeline
+- `JobsSearchBar.tsx` - Jobs search and filter bar
+- `JobsEmptyState.tsx` - Empty state for no jobs
+- `ConfirmDialog.tsx` - Confirmation dialog
+- `ConnectionIndicator.tsx` - Connection status indicator
+- `StatusDot.tsx` - Job status indicator dot
+- `TimelineEntry.tsx` - Timeline entry component
+- `LogLine.tsx` - Log line display
+- `index.ts` - Barrel export
+
+#### `/components/performance/`
+
+Performance monitoring dashboard:
+
+- `PerformanceDashboard.tsx` - Main performance dashboard
+- `PerformanceCharts.tsx` - Performance metric charts
+- `PerformanceAlerts.tsx` - Performance alert display
+- `index.ts` - Barrel export
+
+#### `/components/pyroscope/`
+
+Pyroscope profiling integration:
+
+- `PyroscopePage.tsx` - Pyroscope profiling page
+- `index.ts` - Barrel export
+
+#### `/components/status/`
+
+AI service status components:
+
+- `AIServiceStatus.tsx` - AI service health status display
+
+#### `/components/tracing/`
+
+Distributed tracing components:
+
+- `TracingPage.tsx` - Distributed tracing visualization page
+- `index.ts` - Barrel export
+
+#### `/components/zones/`
+
+Zone management and visualization:
+
+- `ZoneEditor.tsx` - Zone drawing and editing
+- `ZoneCanvas.tsx` - Canvas for zone visualization
+- `ZoneForm.tsx` - Zone configuration form
+- `ZoneList.tsx` - List of zones
+- `ZoneEditorSidebar.tsx` - Zone editor sidebar
+- `CameraZoneOverlay.tsx` - Zone overlay on camera view
+- `ZoneActivityHeatmap.tsx` - Zone activity heatmap
+- `ZoneAlertFeed.tsx` - Zone alert feed
+- `ZoneAnomalyAlert.tsx` - Zone anomaly alert display
+- `ZoneAnomalyFeed.tsx` - Zone anomaly feed
+- `ZoneCrossingFeed.tsx` - Zone crossing event feed
+- `ZoneOwnershipPanel.tsx` - Zone ownership management
+- `ZonePresenceIndicator.tsx` - Zone presence indicator
+- `ZoneStatusCard.tsx` - Zone status card
+- `ZoneTimelineScrubber.tsx` - Zone timeline scrubber
+- `ZoneTrustMatrix.tsx` - Zone trust matrix visualization
+- `zonePresenceUtils.ts` - Zone presence utility functions
+- `index.ts` - Barrel export
+
+### `/config/` - Application Configuration
+
+| File                  | Purpose                                     |
+| --------------------- | ------------------------------------------- |
+| `env.ts`              | Environment variable validation and access  |
+| `pageDocumentation.ts`| Page documentation configuration            |
+| `tourSteps.ts`        | Product tour step definitions               |
+
+### `/contexts/` - React Contexts
+
+Global state management via React Context:
+
+| File                      | Purpose                        |
+| ------------------------- | ------------------------------ |
+| `AnnouncementContext.tsx` | System announcements           |
+| `CameraContext.tsx`       | Camera state and selection     |
+| `DebugModeContext.tsx`    | Debug mode toggle              |
+| `HealthContext.tsx`       | System health state            |
+| `MetricsContext.tsx`      | Metrics data context           |
+| `SystemDataContext.tsx`   | System-wide data context       |
+| `ToastContext.tsx`        | Toast notification context     |
+| `index.ts`                | Barrel export                  |
+
+Each context has a co-located `.test.tsx` file.
+
+### `/mocks/` - MSW Mock Server
+
+Mock Service Worker handlers for testing:
+
+| File          | Purpose                  |
+| ------------- | ------------------------ |
+| `handlers.ts` | MSW request handlers     |
+| `server.ts`   | MSW server setup         |
+
+### `/pages/` - Additional Page Components
+
+Page components not in feature directories:
+
+| File                             | Purpose                       |
+| -------------------------------- | ----------------------------- |
+| `DataManagementPage.tsx`         | Data management settings page |
+| `GpuSettingsPage.tsx`            | GPU configuration settings    |
+| `NotificationPreferencesPage.tsx`| Notification preferences      |
+| `TrashPage.tsx`                  | Deleted items / trash page    |
+| `ZonesPage.tsx`                  | Zones management page         |
+
+Each page has a co-located `.test.tsx` file.
+
+### `/schemas/` - Validation Schemas
+
+Zod schemas for runtime validation:
+
+| File          | Purpose                       |
+| ------------- | ----------------------------- |
+| `alert.ts`    | Alert data schemas            |
+| `alertRule.ts`| Alert rule validation schemas |
+| `camera.ts`   | Camera data schemas           |
+| `index.ts`    | Barrel export                 |
+
+### `/stores/` - State Stores
+
+Zustand stores for global state management:
+
+| File                        | Purpose                            |
+| --------------------------- | ---------------------------------- |
+| `dashboardConfig.ts`        | Dashboard configuration store      |
+| `dashboard-config-store.ts` | Dashboard config store (alternate) |
+| `middleware.ts`             | Zustand middleware utilities       |
+| `prometheus-alert-store.ts` | Prometheus alert state             |
+| `rate-limit-store.ts`       | Rate limiting state                |
+| `realtime-metrics-store.ts` | Real-time metrics state            |
+| `storage-status-store.ts`   | Storage status state               |
+| `worker-status-store.ts`    | Worker status state                |
+
+Each store has a co-located `.test.ts` file.
+
+### `/theme/` - Theme Configuration
+
+| File        | Purpose                                   |
+| ----------- | ----------------------------------------- |
+| `colors.ts` | Color palette and theme color definitions |
+| `index.ts`  | Barrel export                             |
 
 ### `/hooks/` - Custom React Hooks
 
