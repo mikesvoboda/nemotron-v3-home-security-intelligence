@@ -1012,9 +1012,35 @@ async def mock_redis() -> AsyncGenerator[AsyncMock]:
         "redis_version": "7.0.0",
     }
 
-    # Set _client to None by default - tests that need _client behavior
-    # should configure it explicitly
-    mock_redis_client._client = None
+    # Create a mock internal client with properly mocked async methods
+    mock_internal_client = AsyncMock()
+
+    # Mock scan_iter as an async generator that yields nothing by default
+    async def mock_scan_iter(match: str = "*", count: int = 100):
+        """Empty async generator for scan_iter."""
+        return
+        yield  # Makes this an async generator
+
+    mock_internal_client.scan_iter = MagicMock(
+        side_effect=lambda match="*", count=100: mock_scan_iter(match, count)
+    )
+
+    # Mock script_load as an async method
+    mock_internal_client.script_load = AsyncMock(return_value="mock-script-sha-123")
+
+    # Mock evalsha for Lua script execution
+    mock_internal_client.evalsha = AsyncMock(return_value=[1, 1])  # [is_allowed, current_count]
+
+    # Set the internal client
+    mock_redis_client._client = mock_internal_client
+
+    # Also mock scan_iter directly on the redis client (some code uses it directly)
+    mock_redis_client.scan_iter = MagicMock(
+        side_effect=lambda match="*", count=100: mock_scan_iter(match, count)
+    )
+
+    # Mock script_load directly on redis client as well
+    mock_redis_client.script_load = AsyncMock(return_value="mock-script-sha-123")
 
     # Patch the shared singleton, initializer, and closer.
     with (
