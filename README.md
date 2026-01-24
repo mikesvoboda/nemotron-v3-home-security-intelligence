@@ -274,6 +274,16 @@ docker compose up -d
 
 ![AI Pipeline Flow](docs/images/flow-ai-pipeline.png)
 
+**Detailed Documentation:**
+
+| Hub                                                                  | Description                                |
+| -------------------------------------------------------------------- | ------------------------------------------ |
+| [Architecture Hub](docs/architecture/README.md)                      | Complete system architecture documentation |
+| [Security](docs/architecture/security/README.md)                     | Input validation, data protection, OWASP   |
+| [Dataflows](docs/architecture/dataflows/README.md)                   | End-to-end data traces, pipeline timing    |
+| [Detection Pipeline](docs/architecture/detection-pipeline/README.md) | RT-DETRv2 integration, image processing    |
+| [AI Orchestration](docs/architecture/ai-orchestration/README.md)     | Nemotron LLM, batch processing             |
+
 ---
 
 <details>
