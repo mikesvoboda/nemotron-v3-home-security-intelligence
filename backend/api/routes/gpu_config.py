@@ -274,7 +274,7 @@ async def _update_gpu_devices_in_db(
             db.add(db_device)
 
 
-def _calculate_auto_assignments(  # noqa: PLR0912
+def _calculate_auto_assignments(
     strategy: GpuAssignmentStrategy,
     gpus: list[GpuDevice],
     services: list[str] | None = None,

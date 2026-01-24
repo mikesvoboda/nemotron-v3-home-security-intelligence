@@ -251,7 +251,7 @@ async def ingest_frontend_logs_batch(
         500: {"description": "Internal server error"},
     },
 )
-async def list_logs(  # noqa: PLR0912
+async def list_logs(
     response: Response,
     level: str | None = Query(
         None, description="Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)"
@@ -360,7 +360,7 @@ async def list_logs(  # noqa: PLR0912
     query = query.order_by(Log.timestamp.desc(), Log.id.desc())
 
     # Apply pagination - fetch one extra to determine if there are more results
-    if cursor_data:  # noqa: SIM108
+    if cursor_data:
         # Cursor-based: fetch limit + 1 to check for more
         query = query.limit(limit + 1)
     else:
