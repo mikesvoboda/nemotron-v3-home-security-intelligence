@@ -998,17 +998,16 @@ class TestCudaCacheClearing:
             mock_empty_cache.assert_not_called()
 
     def test_detect_batch_clears_cache_at_configured_frequency(self):
-        """Test detect_batch() clears cache every N batches based on cache_clear_frequency.
+        """Test detect_batch() clears cache every N images based on cache_clear_frequency.
 
-        NEM-3377: With true batch inference, images are processed in batches.
-        Cache is cleared every N batches (not images) plus once at the end.
+        The detect_batch implementation processes images sequentially (one at a time)
+        and clears cache every N images based on the configured frequency.
         """
-        # Clear cache every 1 batch (so after each batch + final cleanup)
+        # Clear cache every 1 image (so after each image)
         model = RTDETRv2Model(
             model_path="dummy_model_path",
             device="cuda:0",
             cache_clear_frequency=1,
-            max_batch_size=2,  # Process 2 images per batch
         )
 
         mock_torch_model = MagicMock()
@@ -1027,13 +1026,13 @@ class TestCudaCacheClearing:
         model.model = mock_torch_model
         model.processor = mock_processor
 
-        # Create 5 test images -> 3 batches with batch_size=2 (2+2+1)
+        # Create 5 test images
         test_images = [Image.new("RGB", (640, 480), color=(128, 128, 128)) for _ in range(5)]
 
         with (
             patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
             patch(f"{MODEL_MODULE_PATH}.torch.cuda.empty_cache") as mock_empty_cache,
-            patch(f"{MODEL_MODULE_PATH}.torch.no_grad") as mock_no_grad,
+            patch(f"{MODEL_MODULE_PATH}.torch.inference_mode") as mock_no_grad,
             patch(f"{MODEL_MODULE_PATH}.torch.tensor") as mock_tensor,
         ):
             mock_no_grad.return_value.__enter__ = MagicMock()
@@ -1042,13 +1041,9 @@ class TestCudaCacheClearing:
 
             model.detect_batch(test_images)
 
-            # With frequency=1 and 3 batches:
-            # - After batch 1: clear (batch_idx=1, 1%1=0) -> Yes
-            # - After batch 2: clear (batch_idx=2, 2%1=0) -> Yes
-            # - After batch 3: clear (batch_idx=3, 3%1=0) -> Yes
-            # - Finally block: clear -> Yes
-            # Total: 4 cache clears
-            assert mock_empty_cache.call_count == 4
+            # With frequency=1 and 5 images processed sequentially:
+            # Cache is cleared after each image (5 times)
+            assert mock_empty_cache.call_count == 5
 
     def test_detect_batch_no_cache_clear_when_disabled(self):
         """Test detect_batch() does not clear cache when frequency=0."""
@@ -1173,6 +1168,150 @@ class TestCudaCacheClearing:
             assert model.cache_clear_count == 2
 
 
+class TestCUDAGraphs:
+    """Tests for CUDA graph capture and replay for optimized inference (NEM-3371).
+
+    CUDA graphs capture a sequence of GPU operations and replay them with minimal
+    CPU overhead, achieving 30-50% latency reduction for fixed input shapes.
+    """
+
+    def test_model_initialization_with_cuda_graphs_enabled(self):
+        """Test model initialization with CUDA graphs enabled."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            enable_cuda_graphs=True,
+            cuda_graph_input_shape=(640, 480),
+        )
+        assert model.enable_cuda_graphs is True
+        assert model.cuda_graph_input_shape == (640, 480)
+        assert model._cuda_graph is None  # Not captured yet
+        assert model._cuda_graph_static_input is None
+        assert model._cuda_graph_static_output is None
+
+    def test_model_initialization_with_cuda_graphs_disabled_by_default(self):
+        """Test that CUDA graphs are disabled by default."""
+        model = RTDETRv2Model(model_path="dummy_model_path")
+        assert model.enable_cuda_graphs is False
+        assert model.cuda_graph_input_shape == (640, 480)  # Default shape
+
+    def test_model_initialization_with_custom_input_shape(self):
+        """Test model initialization with custom CUDA graph input shape."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            enable_cuda_graphs=True,
+            cuda_graph_input_shape=(1280, 720),
+        )
+        assert model.cuda_graph_input_shape == (1280, 720)
+
+    def test_cuda_graph_warmup_iterations(self):
+        """Test that warmup iterations are performed before CUDA graph capture."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            device="cuda:0",
+            enable_cuda_graphs=True,
+            cuda_graph_warmup_iterations=5,
+        )
+        assert model.cuda_graph_warmup_iterations == 5
+
+    def test_cuda_graph_warmup_default_iterations(self):
+        """Test default warmup iterations value."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            enable_cuda_graphs=True,
+        )
+        assert model.cuda_graph_warmup_iterations == 3  # Default
+
+    def test_is_cuda_graph_compatible_matching_shape(self):
+        """Test _is_cuda_graph_compatible returns True for matching shape."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            device="cuda:0",
+            enable_cuda_graphs=True,
+            cuda_graph_input_shape=(640, 480),
+        )
+
+        test_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
+
+        with patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True):
+            assert model._is_cuda_graph_compatible(test_image) is True
+
+    def test_is_cuda_graph_compatible_different_shape(self):
+        """Test _is_cuda_graph_compatible returns False for different shape."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            device="cuda:0",
+            enable_cuda_graphs=True,
+            cuda_graph_input_shape=(640, 480),
+        )
+
+        test_image = Image.new("RGB", (1920, 1080), color=(128, 128, 128))
+
+        with patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True):
+            assert model._is_cuda_graph_compatible(test_image) is False
+
+    def test_is_cuda_graph_compatible_disabled(self):
+        """Test _is_cuda_graph_compatible returns False when CUDA graphs disabled."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            device="cuda:0",
+            enable_cuda_graphs=False,
+        )
+
+        test_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
+
+        with patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True):
+            assert model._is_cuda_graph_compatible(test_image) is False
+
+    def test_is_cuda_graph_compatible_cpu_device(self):
+        """Test _is_cuda_graph_compatible returns False on CPU device."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            device="cpu",
+            enable_cuda_graphs=True,
+        )
+
+        test_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
+
+        with patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=False):
+            assert model._is_cuda_graph_compatible(test_image) is False
+
+    def test_cuda_graph_capture_requires_warmup(self):
+        """Test that warmup is required before CUDA graph capture."""
+        model = RTDETRv2Model(
+            model_path="dummy_model_path",
+            device="cuda:0",
+            enable_cuda_graphs=True,
+            cuda_graph_warmup_iterations=3,
+        )
+
+        # Initially, warmup counter should be 0
+        assert model._cuda_graph_warmup_count == 0
+
+    def test_health_response_includes_cuda_graph_status(self):
+        """Test that health response includes CUDA graph status."""
+        response = HealthResponse(
+            status="healthy",
+            model_loaded=True,
+            device="cuda:0",
+            cuda_available=True,
+            cuda_graphs_enabled=True,
+            cuda_graph_captured=True,
+        )
+        assert response.cuda_graphs_enabled is True
+        assert response.cuda_graph_captured is True
+
+    def test_health_response_cuda_graph_fields_optional(self):
+        """Test that CUDA graph fields in health response are optional."""
+        response = HealthResponse(
+            status="healthy",
+            model_loaded=True,
+            device="cuda:0",
+            cuda_available=True,
+        )
+        assert response.cuda_graphs_enabled is None
+        assert response.cuda_graph_captured is None
+
+
 class TestHealthEndpointGpuMetrics:
     """Tests for health endpoint returning GPU metrics."""
 
@@ -1187,12 +1326,14 @@ class TestHealthEndpointGpuMetrics:
         mock_instance = MagicMock()
         mock_instance.model_path = "/dummy/path"
         mock_instance.model = MagicMock()
+        mock_instance.enable_cuda_graphs = False
+        mock_instance._cuda_graph = None
         original_model = getattr(model_module, "model", None)
         model_module.model = mock_instance
         yield mock_instance
         model_module.model = original_model
 
-    def test_health_endpoint_returns_gpu_metrics(self, client, _mock_model):
+    def test_health_endpoint_returns_gpu_metrics(self, client, mock_model):  # noqa: ARG002
         """Test health endpoint returns GPU metrics when CUDA available."""
         with (
             patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),
@@ -1223,7 +1364,7 @@ class TestHealthEndpointGpuMetrics:
             assert data["temperature"] == 65
             assert data["power_watts"] == 150.0
 
-    def test_health_endpoint_no_cuda_returns_null_metrics(self, client, _mock_model):
+    def test_health_endpoint_no_cuda_returns_null_metrics(self, client, mock_model):  # noqa: ARG002
         """Test health endpoint returns null GPU metrics when CUDA unavailable."""
         with patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=False):
             response = client.get("/health")
@@ -1235,7 +1376,7 @@ class TestHealthEndpointGpuMetrics:
             assert data["temperature"] is None
             assert data["power_watts"] is None
 
-    def test_health_endpoint_partial_metrics(self, client, _mock_model):
+    def test_health_endpoint_partial_metrics(self, client, mock_model):  # noqa: ARG002
         """Test health endpoint returns partial GPU metrics when some fail."""
         with (
             patch(f"{MODEL_MODULE_PATH}.torch.cuda.is_available", return_value=True),

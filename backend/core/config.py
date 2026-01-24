@@ -315,6 +315,17 @@ class Settings(BaseSettings):
         description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db). Development: localhost:5432, Docker: postgres:5432",  # pragma: allowlist secret
     )
 
+    # Read replica configuration (NEM-3392)
+    # Optional read replica URL for routing read-heavy operations to replicas
+    # If not set, all operations use the primary database_url
+    # Example: postgresql+asyncpg://security:password@replica-host:5432/security  # pragma: allowlist secret
+    database_url_read: str | None = Field(
+        default=None,
+        description="Optional PostgreSQL read replica URL for read-heavy operations. "
+        "If not set, read operations use the primary database. "
+        "Format: postgresql+asyncpg://user:pass@replica-host:port/db",  # pragma: allowlist secret
+    )
+
     # Database connection pool settings
     # Pool size should be tuned based on workload. Default 20 with 30 overflow = 50 max
     # connections, suitable for moderate workloads with multiple background workers.
@@ -342,6 +353,13 @@ class Settings(BaseSettings):
         le=7200,
         description="Seconds after which connections are recycled (prevents stale connections)",
     )
+    use_pgbouncer: bool = Field(
+        default=False,
+        description="Enable PgBouncer transaction mode compatibility. When True, disables "
+        "prepared statement cache (statement_cache_size=0) since PgBouncer in transaction "
+        "mode doesn't support prepared statements. Required when connecting through PgBouncer "
+        "for connection multiplexing. NEM-3419.",
+    )
 
     # Redis configuration
     # Development: redis://localhost:6379/0 (local dev)
@@ -359,6 +377,15 @@ class Settings(BaseSettings):
     redis_event_channel: str = Field(
         default="security_events",
         description="Redis pub/sub channel for security events",
+    )
+    redis_pubsub_shard_count: int = Field(
+        default=16,
+        ge=1,
+        le=256,
+        description="Number of shards for Redis pub/sub channel distribution (NEM-3415). "
+        "Events are distributed across shards using consistent hashing on camera_id. "
+        "More shards reduce per-channel load but increase subscription complexity. "
+        "Default: 16 shards. Recommended: 8-32 for most deployments.",
     )
     redis_key_prefix: str = Field(
         default="hsi",
@@ -402,6 +429,33 @@ class Settings(BaseSettings):
         ge=2,
         le=50,
         description="Max connections for rate limiting operations.",
+    )
+
+    # Redis Sentinel settings for high availability (NEM-3413)
+    redis_use_sentinel: bool = Field(
+        default=False,
+        description="Enable Redis Sentinel for high availability. "
+        "When True, connects via Sentinel for automatic failover. "
+        "Requires redis_sentinel_hosts to be configured.",
+    )
+    redis_sentinel_master_name: str = Field(
+        default="mymaster",
+        description="Name of the Redis master as configured in Sentinel. "
+        "Must match the 'sentinel monitor <master-name>' directive in sentinel.conf.",
+    )
+    redis_sentinel_hosts: str = Field(
+        default="sentinel1:26379,sentinel2:26379,sentinel3:26379",
+        description="Comma-separated list of Sentinel host:port pairs. "
+        "Example: 'sentinel1:26379,sentinel2:26379,sentinel3:26379'. "
+        "At least 3 Sentinels recommended for quorum.",
+    )
+    redis_sentinel_socket_timeout: float = Field(
+        default=0.1,
+        ge=0.05,
+        le=5.0,
+        description="Socket timeout in seconds for Sentinel connections. "
+        "Low value (0.1s) enables fast failover detection. "
+        "Increase if experiencing false failovers due to network latency.",
     )
 
     # Redis SSL/TLS settings
