@@ -58,12 +58,6 @@ from backend.config.shadow_mode_deployment import (
 )
 
 __all__ = [
-    "ABRolloutConfig",
-    "ABRolloutManager",
-    "AutoRollbackConfig",
-    "ExperimentGroup",
-    "GroupMetrics",
-    "LatencyWarning",
     "MAX_ERROR_RATE_INCREASE",
     "MAX_FP_RATE_INCREASE",
     "MAX_LATENCY_INCREASE_PCT",
@@ -71,6 +65,12 @@ __all__ = [
     "PRODUCTION_EXPERIMENT_NAME",
     "PRODUCTION_TEST_DURATION_HOURS",
     "PRODUCTION_TREATMENT_PERCENTAGE",
+    "ABRolloutConfig",
+    "ABRolloutManager",
+    "AutoRollbackConfig",
+    "ExperimentGroup",
+    "GroupMetrics",
+    "LatencyWarning",
     "PromptExperimentConfig",
     "PromptVersion",
     "RollbackCheckResult",
