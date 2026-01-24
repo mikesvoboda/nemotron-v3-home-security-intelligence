@@ -499,14 +499,15 @@ async def test_full_seed_workflow(debug_client, clean_seed_data):
 @pytest.mark.asyncio
 @pytest.mark.requires_debug_mode
 @pytest.mark.unit  # Override integration mark - this test doesn't need database
-async def test_admin_endpoints_require_debug_mode(mock_redis):
+async def test_admin_endpoints_require_debug_mode(mock_redis, mock_db_session):
     """Test that admin endpoints return 403 when DEBUG=false or ADMIN_ENABLED=false.
 
     SECURITY: This test verifies defense-in-depth access control.
     Admin endpoints must have BOTH debug=True AND admin_enabled=True.
     This prevents accidental exposure in production environments.
 
-    NOTE: This test doesn't need a real database because it patches init_db.
+    NOTE: This test doesn't need a real database because it patches init_db
+    and overrides the database dependency with a mock session.
     It only needs to verify HTTP response codes from the admin endpoints.
     """
     from unittest.mock import patch
@@ -514,6 +515,7 @@ async def test_admin_endpoints_require_debug_mode(mock_redis):
     from httpx import ASGITransport, AsyncClient
 
     from backend.core.config import Settings
+    from backend.core.database import get_db
     from backend.core.dependencies import get_redis_dependency
 
     # Test 1: DEBUG=false, ADMIN_ENABLED=true (should fail)
@@ -530,7 +532,12 @@ async def test_admin_endpoints_require_debug_mode(mock_redis):
     async def mock_redis_dependency():
         yield mock_redis
 
+    # Override database dependency to return mock_db_session
+    async def mock_db_dependency():
+        yield mock_db_session
+
     app.dependency_overrides[get_redis_dependency] = mock_redis_dependency
+    app.dependency_overrides[get_db] = mock_db_dependency
 
     try:
         with (
@@ -599,5 +606,6 @@ async def test_admin_endpoints_require_debug_mode(mock_redis):
                 assert "Admin endpoints require DEBUG=true" in response.json()["detail"]
             get_settings.cache_clear()
     finally:
-        # Clean up dependency override
+        # Clean up dependency overrides
         app.dependency_overrides.pop(get_redis_dependency, None)
+        app.dependency_overrides.pop(get_db, None)

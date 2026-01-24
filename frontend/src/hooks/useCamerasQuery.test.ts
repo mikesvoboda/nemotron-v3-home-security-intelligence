@@ -43,20 +43,20 @@ describe('useCamerasQuery', () => {
   });
 
   describe('initialization', () => {
-    it('starts with isLoading true', () => {
+    it('starts with isLoading true when placeholder disabled', () => {
       (api.fetchCameras as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(() => useCamerasQuery(), {
+      const { result } = renderHook(() => useCamerasQuery({ placeholderCount: 0 }), {
         wrapper: createQueryWrapper(),
       });
 
       expect(result.current.isLoading).toBe(true);
     });
 
-    it('starts with undefined data', () => {
+    it('starts with empty cameras when placeholder disabled', () => {
       (api.fetchCameras as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
-      const { result } = renderHook(() => useCamerasQuery(), {
+      const { result } = renderHook(() => useCamerasQuery({ placeholderCount: 0 }), {
         wrapper: createQueryWrapper(),
       });
 
