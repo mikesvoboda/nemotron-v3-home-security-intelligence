@@ -7178,3 +7178,182 @@ export interface DebugCircuitBreakersResponse {
 export async function fetchDebugCircuitBreakers(): Promise<DebugCircuitBreakersResponse> {
   return fetchApi<DebugCircuitBreakersResponse>('/api/debug/circuit-breakers');
 }
+
+// ============================================================================
+// System Logs API (NEM-3272)
+// ============================================================================
+
+/**
+ * Log statistics response from /api/logs/stats.
+ * Uses optimized UNION ALL query for efficient aggregation.
+ */
+export interface LogStats {
+  /** Number of ERROR logs today */
+  errors_today: number;
+  /** Number of WARNING logs today */
+  warnings_today: number;
+  /** Total number of logs today */
+  total_today: number;
+  /** Component with the most logs today (if any) */
+  top_component?: string | null;
+  /** Breakdown of log counts by component */
+  by_component?: Record<string, number>;
+}
+
+/**
+ * Query parameters for fetching logs with pagination and filtering.
+ */
+export interface LogsQueryParams {
+  /** Filter by log level (ERROR, WARNING, INFO, DEBUG) */
+  level?: string;
+  /** Filter by component name */
+  component?: string;
+  /** Filter by camera ID */
+  camera_id?: string;
+  /** Filter by source */
+  source?: string;
+  /** Full-text search in log messages */
+  search?: string;
+  /** Start date for time range filter (ISO 8601) */
+  start_date?: string;
+  /** End date for time range filter (ISO 8601) */
+  end_date?: string;
+  /** Maximum number of logs to return (default: 100, max: 1000) */
+  limit?: number;
+  /** Cursor for pagination (from previous response) */
+  cursor?: string;
+  /** Include total count in response (slower query) */
+  include_total_count?: boolean;
+}
+
+/**
+ * Individual log entry from the system.
+ */
+export interface LogEntry {
+  /** Unique log ID */
+  id: number;
+  /** ISO 8601 timestamp */
+  timestamp: string;
+  /** Log level (ERROR, WARNING, INFO, DEBUG) */
+  level: string;
+  /** Component that generated the log */
+  component: string;
+  /** Log message content */
+  message: string;
+  /** Associated camera ID (if any) */
+  camera_id?: string | null;
+  /** Associated event ID (if any) */
+  event_id?: number | null;
+  /** Request ID for tracing */
+  request_id?: string | null;
+  /** Associated detection ID (if any) */
+  detection_id?: number | null;
+  /** Operation duration in milliseconds (if applicable) */
+  duration_ms?: number | null;
+  /** Additional structured data */
+  extra?: Record<string, unknown> | null;
+  /** Log source identifier */
+  source: string;
+}
+
+/**
+ * Paginated response for logs list endpoint.
+ */
+export interface LogsListResponse {
+  /** Array of log entries */
+  items: LogEntry[];
+  /** Pagination metadata */
+  pagination: {
+    /** Total count (only if include_total_count=true) */
+    total: number;
+    /** Maximum items per page */
+    limit: number;
+    /** Current offset (deprecated, use cursor) */
+    offset?: number;
+    /** Current cursor position */
+    cursor?: string | null;
+    /** Cursor for next page (null if no more results) */
+    next_cursor?: string | null;
+    /** Whether more results are available */
+    has_more: boolean;
+  };
+  /** Deprecation warning for offset-based pagination */
+  deprecation_warning?: string | null;
+}
+
+/**
+ * Fetch log statistics for the current day.
+ *
+ * Returns aggregated statistics including error counts, warning counts,
+ * total logs, and breakdown by component. Uses an optimized UNION ALL
+ * query on the backend for efficient single-pass aggregation.
+ *
+ * @returns Log statistics for today
+ *
+ * @example
+ * ```typescript
+ * const stats = await fetchLogStats();
+ * console.log(`Errors today: ${stats.errors_today}`);
+ * console.log(`Warnings today: ${stats.warnings_today}`);
+ * console.log(`Total logs: ${stats.total_today}`);
+ * ```
+ */
+export async function fetchLogStats(): Promise<LogStats> {
+  return fetchApi<LogStats>('/api/logs/stats');
+}
+
+/**
+ * Fetch logs with optional filtering and pagination.
+ *
+ * Supports filtering by level, component, camera, source, search text,
+ * and time range. Uses cursor-based pagination for efficient traversal.
+ *
+ * @param params - Optional query parameters for filtering and pagination
+ * @param options - Optional fetch options including AbortSignal
+ * @returns Paginated list of log entries
+ *
+ * @example
+ * ```typescript
+ * // Fetch recent errors
+ * const errors = await fetchLogs({ level: 'ERROR', limit: 50 });
+ *
+ * // Fetch logs for a specific camera
+ * const cameraLogs = await fetchLogs({
+ *   camera_id: 'cam-1',
+ *   start_date: '2024-01-01T00:00:00Z',
+ *   limit: 100
+ * });
+ *
+ * // Paginate through results
+ * let response = await fetchLogs({ limit: 100 });
+ * while (response.pagination.has_more) {
+ *   response = await fetchLogs({
+ *     limit: 100,
+ *     cursor: response.pagination.next_cursor
+ *   });
+ * }
+ * ```
+ */
+export async function fetchLogs(
+  params?: LogsQueryParams,
+  options?: FetchOptions
+): Promise<LogsListResponse> {
+  const queryParams = new URLSearchParams();
+  if (params) {
+    if (params.level) queryParams.append('level', params.level);
+    if (params.component) queryParams.append('component', params.component);
+    if (params.camera_id) queryParams.append('camera_id', params.camera_id);
+    if (params.source) queryParams.append('source', params.source);
+    if (params.search) queryParams.append('search', params.search);
+    if (params.start_date) queryParams.append('start_date', params.start_date);
+    if (params.end_date) queryParams.append('end_date', params.end_date);
+    if (params.limit !== undefined)
+      queryParams.append('limit', String(params.limit));
+    if (params.cursor) queryParams.append('cursor', params.cursor);
+    if (params.include_total_count)
+      queryParams.append('include_total_count', 'true');
+  }
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/logs?${queryString}` : '/api/logs';
+  return fetchApi<LogsListResponse>(endpoint, options);
+}
