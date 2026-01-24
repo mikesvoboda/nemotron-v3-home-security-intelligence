@@ -155,12 +155,16 @@ def mock_redis() -> AsyncMock:
 @pytest.fixture
 async def client(mock_session: MagicMock, mock_redis: AsyncMock) -> AsyncGenerator[AsyncClient]:
     """Create async HTTP client with mocked dependencies."""
-    from backend.core.database import get_db
+    from backend.core.database import get_db, get_read_db
     from backend.core.redis import get_redis, get_redis_optional
     from backend.main import app
 
     # Create mock database dependency
     async def mock_get_db():
+        yield mock_session
+
+    # Create mock read database dependency (same as write for tests)
+    async def mock_get_read_db():
         yield mock_session
 
     # Create mock Redis dependencies
@@ -172,6 +176,7 @@ async def client(mock_session: MagicMock, mock_redis: AsyncMock) -> AsyncGenerat
 
     # Override dependencies at the app level
     app.dependency_overrides[get_db] = mock_get_db
+    app.dependency_overrides[get_read_db] = mock_get_read_db
     app.dependency_overrides[get_redis] = mock_get_redis
     app.dependency_overrides[get_redis_optional] = mock_get_redis_optional
 

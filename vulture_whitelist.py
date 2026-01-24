@@ -87,6 +87,7 @@ _.multiple_summaries
 _.enable_api_key_auth
 _.service_reset
 _.cleanup_redis_keys
+_.cleanup_stale_databases
 
 # SQLAlchemy event handler parameters (required by signature but unused in handler body)
 _.flush_context
