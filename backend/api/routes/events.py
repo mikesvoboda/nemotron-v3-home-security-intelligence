@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from fastapi.responses import ORJSONResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, undefer
 
 from backend.api.dependencies import (
     get_cache_service_dep,
@@ -337,7 +337,8 @@ async def list_events(
     normalized_end_date = normalize_end_date_to_end_of_day(end_date)
 
     # Build base query with eager loading for camera relationship (NEM-1619)
-    query = select(Event).options(joinedload(Event.camera))
+    # Also eagerly load deferred columns (reasoning) to prevent lazy loading errors
+    query = select(Event).options(joinedload(Event.camera), undefer(Event.reasoning))
 
     # Filter out soft-deleted events by default (consistent with get_event_or_404)
     # Use include_deleted=true to include soft-deleted events in results
@@ -1117,7 +1118,13 @@ async def list_deleted_events(
         DeletedEventsListResponse containing list of deleted events and count
     """
     # Query for events where deleted_at is not null
-    query = select(Event).where(Event.deleted_at.isnot(None)).order_by(Event.deleted_at.desc())
+    # Eagerly load deferred columns to prevent lazy loading errors
+    query = (
+        select(Event)
+        .options(undefer(Event.reasoning), undefer(Event.llm_prompt))
+        .where(Event.deleted_at.isnot(None))
+        .order_by(Event.deleted_at.desc())
+    )
 
     result = await db.execute(query)
     deleted_events = result.scalars().all()
@@ -1779,7 +1786,11 @@ async def get_event_detections(
         )
 
     # Build query for detections
-    query = select(Detection).where(Detection.id.in_(detection_ids))
+    query = (
+        select(Detection)
+        .options(undefer(Detection.enrichment_data))
+        .where(Detection.id.in_(detection_ids))
+    )
 
     # Get total count (before pagination)
     count_query = select(func.count()).select_from(query.subquery())

@@ -161,7 +161,7 @@ def _topological_sort(tables: set[str], dependencies: dict[str, set[str]]) -> li
     return sorted_tables
 
 
-def get_table_deletion_order(engine) -> list[str]:
+async def get_table_deletion_order(engine) -> list[str]:
     """Get tables in FK-safe deletion order using topological sort.
 
     Uses SQLAlchemy's inspector to dynamically discover all tables and their
@@ -170,24 +170,32 @@ def get_table_deletion_order(engine) -> list[str]:
     be deleted first.
 
     Args:
-        engine: SQLAlchemy engine (sync or async)
+        engine: SQLAlchemy async engine
 
     Returns:
         List of table names in safe deletion order (dependent tables first,
         parent tables last).
     """
-    try:
-        # For async engines, we need to get the sync engine
-        sync_engine = getattr(engine, "sync_engine", engine)
+
+    def _inspect_tables(sync_engine):
+        """Synchronous function to inspect tables - called via run_sync."""
         inspector = inspect(sync_engine)
         tables = set(inspector.get_table_names())
 
         if not tables:
-            logger.warning("No tables found via reflection, using hardcoded order")
-            return HARDCODED_TABLE_DELETION_ORDER
+            return None, None
 
         # Build dependency graph from foreign key relationships
         dependencies = _build_dependency_graph(inspector, tables)
+        return tables, dependencies
+
+    try:
+        # Use run_sync to execute synchronous inspection in async context
+        tables, dependencies = await engine.run_sync(_inspect_tables)
+
+        if tables is None or not tables:
+            logger.warning("No tables found via reflection, using hardcoded order")
+            return HARDCODED_TABLE_DELETION_ORDER
 
         # Perform topological sort
         sorted_tables = _topological_sort(tables, dependencies)
@@ -887,7 +895,7 @@ async def clean_tables(integration_db: str) -> AsyncGenerator[None]:
             return
 
         # Get tables in FK-safe deletion order
-        deletion_order = get_table_deletion_order(engine)
+        deletion_order = await get_table_deletion_order(engine)
 
         async with get_session() as session:
             # Delete data in order (respecting foreign key constraints)
@@ -1012,9 +1020,35 @@ async def mock_redis() -> AsyncGenerator[AsyncMock]:
         "redis_version": "7.0.0",
     }
 
-    # Set _client to None by default - tests that need _client behavior
-    # should configure it explicitly
-    mock_redis_client._client = None
+    # Create a mock internal client with properly mocked async methods
+    mock_internal_client = AsyncMock()
+
+    # Mock scan_iter as an async generator that yields nothing by default
+    async def mock_scan_iter(match: str = "*", count: int = 100):
+        """Empty async generator for scan_iter."""
+        return
+        yield  # Makes this an async generator
+
+    mock_internal_client.scan_iter = MagicMock(
+        side_effect=lambda match="*", count=100: mock_scan_iter(match, count)
+    )
+
+    # Mock script_load as an async method
+    mock_internal_client.script_load = AsyncMock(return_value="mock-script-sha-123")
+
+    # Mock evalsha for Lua script execution
+    mock_internal_client.evalsha = AsyncMock(return_value=[1, 1])  # [is_allowed, current_count]
+
+    # Set the internal client
+    mock_redis_client._client = mock_internal_client
+
+    # Also mock scan_iter directly on the redis client (some code uses it directly)
+    mock_redis_client.scan_iter = MagicMock(
+        side_effect=lambda match="*", count=100: mock_scan_iter(match, count)
+    )
+
+    # Mock script_load directly on redis client as well
+    mock_redis_client.script_load = AsyncMock(return_value="mock-script-sha-123")
 
     # Patch the shared singleton, initializer, and closer.
     with (
@@ -1082,7 +1116,7 @@ async def _cleanup_test_data(max_retries: int = 3) -> None:
                 return
 
             # Get tables in FK-safe deletion order (dependent tables first)
-            deletion_order = get_table_deletion_order(engine)
+            deletion_order = await get_table_deletion_order(engine)
 
             async with get_session() as session:
                 # Delete all test-related data in FK-safe order

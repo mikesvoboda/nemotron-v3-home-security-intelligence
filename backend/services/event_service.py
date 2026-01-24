@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, undefer
 
 from backend.core.logging import get_logger
 from backend.models.alert import Alert
@@ -198,7 +198,16 @@ class EventService:
             ValueError: If event not found or not deleted
         """
         # Fetch the event with soft delete (need to bypass normal filtering)
-        stmt = select(Event).options(selectinload(Event.detections)).where(Event.id == event_id)
+        # Eagerly load deferred columns to prevent lazy loading errors
+        stmt = (
+            select(Event)
+            .options(
+                selectinload(Event.detections),
+                undefer(Event.reasoning),
+                undefer(Event.llm_prompt),
+            )
+            .where(Event.id == event_id)
+        )
         result = await db.execute(stmt)
         event = result.scalar_one_or_none()
 

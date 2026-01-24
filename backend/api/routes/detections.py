@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, 
 from fastapi.responses import FileResponse, ORJSONResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
 
 from backend.api.dependencies import (
     get_cache_service_dep,
@@ -254,6 +255,11 @@ async def list_detections(
 
     # Build base query
     query = select(Detection)
+
+    # Conditionally undefer enrichment_data if it's requested or all fields are requested
+    # This prevents lazy loading errors when the session is closed (similar to Event fix)
+    if validated_fields is None or "enrichment_data" in validated_fields:
+        query = query.options(undefer(Detection.enrichment_data))
 
     # Apply filters
     if camera_id:
@@ -531,9 +537,11 @@ async def search_detections(
     search_words = q.strip().split()
     search_query = r" \& ".join(f"{word}:*" for word in search_words if word)
     ts_query = func.to_tsquery("english", search_query)
-    base_query = select(
-        Detection, func.ts_rank(Detection.search_vector, ts_query).label("rank")
-    ).where(Detection.search_vector.op("@@")(ts_query))
+    base_query = (
+        select(Detection, func.ts_rank(Detection.search_vector, ts_query).label("rank"))
+        .options(undefer(Detection.enrichment_data))
+        .where(Detection.search_vector.op("@@")(ts_query))
+    )
     if labels:
         for label in labels:
             base_query = base_query.where(Detection.labels.op("@>")(cast([label], PG_JSONB)))
@@ -1805,7 +1813,11 @@ async def bulk_update_detections(
 
     # Fetch all detections in one query
     detection_ids = [item.id for item in request.detections]
-    query = select(Detection).where(Detection.id.in_(detection_ids))
+    query = (
+        select(Detection)
+        .options(undefer(Detection.enrichment_data))
+        .where(Detection.id.in_(detection_ids))
+    )
     result = await db.execute(query)
     detections_map = {det.id: det for det in result.scalars().all()}
 
