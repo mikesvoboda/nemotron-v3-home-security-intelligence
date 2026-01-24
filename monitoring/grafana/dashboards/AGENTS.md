@@ -26,29 +26,29 @@ dashboards/
 
 **Panels by Section:**
 
-| Row                | Panel            | Type       | Data Source | Endpoint                 |
-| ------------------ | ---------------- | ---------- | ----------- | ------------------------ |
-| System Overview    | System Health    | stat       | Backend-API | /api/system/health       |
-| System Overview    | Total Cameras    | stat       | Backend-API | /api/system/stats        |
-| System Overview    | Total Events     | stat       | Backend-API | /api/system/stats        |
-| System Overview    | Total Detections | stat       | Backend-API | /api/system/stats        |
-| System Overview    | Uptime           | stat       | Backend-API | /api/system/stats        |
-| Queue Depths       | Detection Queue  | stat       | Backend-API | /api/system/telemetry    |
-| Queue Depths       | Analysis Queue   | stat       | Backend-API | /api/system/telemetry    |
-| Queue Depths       | Over Time        | timeseries | Backend-API | /api/system/telemetry    |
-| Pipeline Latencies | Watch P95        | stat       | Backend-API | /api/system/telemetry    |
-| Pipeline Latencies | Detect P95       | stat       | Backend-API | /api/system/telemetry    |
-| Pipeline Latencies | Batch P95        | stat       | Backend-API | /api/system/telemetry    |
-| Pipeline Latencies | Analysis P95     | stat       | Backend-API | /api/system/telemetry    |
-| Pipeline Latencies | Histogram        | barchart   | Backend-API | /api/system/telemetry    |
-| GPU Statistics     | GPU Utilization  | gauge      | Backend-API | /api/system/gpu          |
-| GPU Statistics     | GPU Temperature  | stat       | Backend-API | /api/system/gpu          |
-| GPU Statistics     | Memory Used      | stat       | Backend-API | /api/system/gpu          |
-| GPU Statistics     | Inference FPS    | stat       | Backend-API | /api/system/gpu          |
-| Service Health     | Database         | stat       | Backend-API | /api/system/health       |
-| Service Health     | Redis            | stat       | Backend-API | /api/system/health       |
-| Service Health     | AI Services      | stat       | Backend-API | /api/system/health       |
-| Service Health     | Readiness        | stat       | Backend-API | /api/system/health/ready |
+| Row                | Panel            | Type       | Data Source | Endpoint                        |
+| ------------------ | ---------------- | ---------- | ----------- | ------------------------------- |
+| System Overview    | System Health    | stat       | Backend-API | /api/system/health              |
+| System Overview    | Total Cameras    | stat       | Backend-API | /api/system/stats               |
+| System Overview    | Total Events     | stat       | Backend-API | /api/system/stats               |
+| System Overview    | Total Detections | stat       | Backend-API | /api/system/stats               |
+| System Overview    | Uptime           | stat       | Backend-API | /api/system/stats               |
+| Queue Depths       | Detection Queue  | stat       | Backend-API | /api/system/telemetry           |
+| Queue Depths       | Analysis Queue   | stat       | Backend-API | /api/system/telemetry           |
+| Queue Depths       | Over Time        | timeseries | Backend-API | /api/system/telemetry           |
+| Pipeline Latencies | Watch P95        | stat       | Backend-API | /api/system/telemetry           |
+| Pipeline Latencies | Detect P95       | stat       | Backend-API | /api/system/telemetry           |
+| Pipeline Latencies | Batch P95        | stat       | Backend-API | /api/system/telemetry           |
+| Pipeline Latencies | Analysis P95     | stat       | Backend-API | /api/system/telemetry           |
+| Pipeline Latencies | Histogram        | barchart   | Backend-API | /api/system/telemetry           |
+| GPU Statistics     | GPU Utilization  | gauge      | Backend-API | /api/system/gpu                 |
+| GPU Statistics     | GPU Temperature  | stat       | Backend-API | /api/system/gpu                 |
+| GPU Statistics     | Memory Used      | stat       | Backend-API | /api/system/gpu                 |
+| GPU Statistics     | Inference FPS    | stat       | AI-Detector | rtdetr_inference_requests_total |
+| Service Health     | Database         | stat       | Backend-API | /api/system/health              |
+| Service Health     | Redis            | stat       | Backend-API | /api/system/health              |
+| Service Health     | AI Services      | stat       | Backend-API | /api/system/health              |
+| Service Health     | Readiness        | stat       | Backend-API | /api/system/health/ready        |
 
 **Dashboard Settings:**
 
