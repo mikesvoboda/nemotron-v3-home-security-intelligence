@@ -4,10 +4,10 @@
 
 ## Key Files
 
-- `frontend/tailwind.config.js:1-295` - Tailwind CSS configuration
-- `frontend/src/styles/index.css:1-664` - Global CSS styles
-- `frontend/src/components/common/Button.tsx:1-80` - Styled button component
-- `frontend/src/theme/colors.ts:1-60` - Color constants
+- `frontend/tailwind.config.js:1-296` - Tailwind CSS configuration
+- `frontend/src/index.css:1-50` - Global CSS styles
+- `frontend/src/components/common/Button.tsx:1-100` - Styled button component
+- `frontend/src/theme/colors.ts:1-80` - Color constants
 
 ## Overview
 
