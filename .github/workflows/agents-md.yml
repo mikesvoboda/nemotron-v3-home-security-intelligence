@@ -1,0 +1,46 @@
+name: AGENTS.md Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-agents-md:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: |
+          pip install pyyaml
+
+      - name: Run AGENTS.md validator
+        run: |
+          python scripts/agents_md_validator.py \
+            --output report.json \
+            --format json
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agents-md-report
+          path: report.json
+
+      - name: Sync to Linear (main branch only)
+        if: github.ref == 'refs/heads/main'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          python scripts/agents_md_linear_sync.py \
+            --report report.json \
+            --commit ${{ github.sha }}

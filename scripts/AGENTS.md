@@ -477,7 +477,7 @@ python scripts/audit-test-durations.py <results-dir>
 ./scripts/generate-types.sh --check  # Check if types are current
 ```
 
-**Output:** `frontend/src/types/api.ts`
+**Output:** `frontend/src/types/api-endpoints.ts`
 
 ### Pre-commit Hooks
 

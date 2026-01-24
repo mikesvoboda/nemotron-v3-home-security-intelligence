@@ -116,6 +116,6 @@ Mutation errors are displayed inline above the content:
 
 ## Notes
 
-- Most pages are located in component directories (e.g., `components/events/EventTimeline.tsx`)
+- Most pages are located in component directories (e.g., EventTimeline.tsx in the events directory)
 - This directory is for pages that don't fit into existing component directories
 - Pages compose multiple components and handle page-level state

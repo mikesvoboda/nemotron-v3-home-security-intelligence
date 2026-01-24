@@ -132,15 +132,16 @@ Add tests to this directory when:
 **Do NOT add tests here for:**
 
 - React components (co-locate with component file)
-- Hooks (co-locate in `src/hooks/`)
-- Services (co-locate in `src/services/`)
-- Utilities (co-locate in `src/utils/`)
+- Hooks (co-locate in the hooks directory)
+- Services (co-locate in the services directory)
+- Utilities (co-locate in the utils directory)
 
 ## Related Files
 
-- `/frontend/lighthouserc.js` - Lighthouse CI configuration (source of truth)
 - `/frontend/vite.config.ts` - Vitest configuration
 - `/frontend/src/test/setup.ts` - Global test setup
+
+**Note:** The `lighthouserc.test.ts` validates expected Lighthouse CI configuration values inline rather than importing from an external config file.
 
 ## Notes for AI Agents
 

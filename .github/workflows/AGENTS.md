@@ -429,7 +429,7 @@ docker compose -f docker-compose.preview.yml up -d
 **Path Filters:**
 
 - `**/Dockerfile*`
-- `backend/requirements.txt`
+- `pyproject.toml` (Python dependencies)
 - `frontend/package.json`
 
 **Severity Filter:** CRITICAL, HIGH (fails build)
@@ -789,7 +789,7 @@ See `scripts/setup-gpu-runner.sh` for runner configuration.
 
 ## Related Files
 
-- `../.github/AGENTS.md` - Parent directory overview
+- `../AGENTS.md` - Parent directory overview
 - `../codeql/AGENTS.md` - CodeQL directory guide
 - `../codeql/codeql-config.yml` - CodeQL configuration
 - `../prompts/code-review.prompt.md` - AI review prompt

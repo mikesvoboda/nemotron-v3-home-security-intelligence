@@ -506,7 +506,7 @@ const handleCloseModal = () => {
 
 ### Form Validation
 
-Client-side validation before API call. Uses centralized validation from `utils/validation.ts`:
+Client-side validation before API call. Uses centralized validation from the utils directory:
 
 ```typescript
 import { validateCameraName, validateCameraFolderPath } from '../../utils/validation';

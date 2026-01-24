@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains static assets that are served directly at the root URL path without processing by Vite. Files placed here are copied as-is to the build output (`dist/`) and accessible via root-relative URLs (e.g., `/favicon.svg`).
+This directory contains static assets that are served directly at the root URL path without processing by Vite. Files placed here are copied as-is to the build output directory and accessible via root-relative URLs (e.g., `/favicon.svg`).
 
 ## Current Contents
 
@@ -81,8 +81,8 @@ Place these types of files in `/public/`:
 Do NOT place these in `/public/`:
 
 - **Component images** - Import into components instead
-- **Assets that need processing** - Use `src/assets/` for images/fonts that should be optimized
-- **Source code** - All `.ts`, `.tsx`, `.css` files belong in `src/`
+- **Assets that need processing** - Use the src directory for images/fonts that should be optimized
+- **Source code** - All `.ts`, `.tsx`, `.css` files belong in the src directory
 - **Dynamic content** - Use API endpoints for runtime data
 
 ## How to Reference Public Files
@@ -112,8 +112,8 @@ background-image: url(/background.jpg);
 
 ## Build Behavior
 
-- **`npm run dev`**: Files served directly from `/public/`
-- **`npm run build`**: Files copied to `dist/` at build time
+- **`npm run dev`**: Files served directly from this public directory
+- **`npm run build`**: Files copied to the build output directory at build time
 
 ## File Access
 

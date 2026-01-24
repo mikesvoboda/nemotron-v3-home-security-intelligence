@@ -280,7 +280,7 @@ VITE_API_KEY=test-key
 - Use convenience getters (`getBaseUrl()`) instead of direct `import.meta.env` access
 - Empty strings are valid for optional URLs (triggers fallback behavior)
 - `resetEnvCache()` is for testing only - don't use in production code
-- WebSocket URLs must use `ws://` or `wss://` protocol (not `http://`)
+- WebSocket URLs must use ws:// or wss:// protocol (not http://)
 - Prototype chain is set for `instanceof` checks to work correctly
 
 ## Entry Points

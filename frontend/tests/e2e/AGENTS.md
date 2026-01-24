@@ -190,7 +190,7 @@ From `frontend/playwright.config.ts`:
 
 **Artifacts on Failure:**
 
-- Screenshots saved to `test-results/`
+- Screenshots saved to test-results directory (generated during test runs)
 - Traces collected on first retry
 - Videos retained on failure
 

@@ -20,7 +20,7 @@ The `backend/scripts/` directory contains utility scripts for development, bench
   - VRAM consumption (MB)
   - Model availability status
 - Generates a summary report in markdown format
-- Saves report to `docs/vram-benchmark.md`
+- Saves report to docs/benchmarks directory (generated on demand)
 
 **Usage:**
 

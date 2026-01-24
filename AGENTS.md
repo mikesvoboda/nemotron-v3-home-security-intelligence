@@ -297,12 +297,12 @@ cd frontend && npm test
 - **Type hints:** Required on all functions
 - **Models:** SQLAlchemy ORM for database
 - **Config:** Environment variables via pydantic Settings
-- **Repository pattern:** Data access layer in `repositories/` for clean separation
+- **Repository pattern:** Data access layer in `backend/repositories/` for clean separation
 - **API layer files:**
-  - `api/dependencies.py` - FastAPI dependency injection (auth, DB, pagination)
-  - `api/exception_handlers.py` - RFC 7807 Problem Details error responses
-  - `api/validators.py` - Request validation utilities
-  - `api/pagination.py` - Cursor and offset pagination helpers
+  - `backend/api/dependencies.py` - FastAPI dependency injection (auth, DB, pagination)
+  - `backend/api/exception_handlers.py` - RFC 7807 Problem Details error responses
+  - `backend/api/validators.py` - Request validation utilities
+  - `backend/api/pagination.py` - Cursor and offset pagination helpers
 
 ### Frontend
 
@@ -310,19 +310,19 @@ cd frontend && npm test
 - **TypeScript:** Strict mode enabled
 - **Styling:** Tailwind utility classes + Tremor components
 - **State:** React hooks (useState, useEffect, custom hooks)
-- **API:** Centralized client in `services/api.ts`
-- **Contexts:** Global state providers in `contexts/` (SystemData, Toast)
+- **API:** Centralized client in `frontend/src/services/api.ts`
+- **Contexts:** Global state providers in `frontend/src/contexts/` (SystemData, Toast)
 - **Testing infrastructure:**
-  - `test/setup.ts` - Vitest setup and configuration
-  - `test-utils/` - Test factories and render helpers
-  - `mocks/` - MSW handlers for API mocking
-  - `__tests__/` - Global test files and custom matchers
+  - `frontend/src/test/setup.ts` - Vitest setup and configuration
+  - `frontend/src/test-utils/` - Test factories and render helpers
+  - `frontend/src/mocks/` - MSW handlers for API mocking
+  - `frontend/src/__tests__/` - Global test files and custom matchers
 
 ### Testing
 
 - **Backend:** pytest with fixtures, asyncio support
 - **Frontend:** Vitest with React Testing Library
-- **Coverage:** HTML reports in `coverage/` directory
+- **Coverage:** HTML reports generated in a coverage directory (gitignored)
 - **Markers:** `@pytest.mark.unit` and `@pytest.mark.integration`
 
 ## Service Ports

@@ -330,15 +330,14 @@ Dashboards reference datasources using:
 
 **Prometheus datasource used in:**
 
-- `operations.json` - All Prometheus metric panels (~50 panels)
+- `consolidated.json` - All Prometheus metric panels
 - Time-series graphs
 - Rate calculations
 - Histogram quantiles
 
 **Backend-API datasource used in:**
 
-- `pipeline.json` - System health, stats, telemetry panels (~25 panels)
-- `operations.json` - Quick system health checks
+- `consolidated.json` - System health, stats, telemetry panels
 - Stat panels (gauges, counters)
 - Real-time status indicators
 
@@ -555,10 +554,10 @@ API_KEY=secret_api_key
 - **Parent directory:** `../` - Main provisioning AGENTS.md with overview
 - **Dashboard provisioning:** `../dashboards/dashboard.yml` - Dashboard provider config
 - **Dashboard definitions:** `../../dashboards/*.json` - Dashboards that use these datasources
-- **Prometheus config:** `../../prometheus.yml` - Prometheus scrape targets
+- **Prometheus config:** `monitoring/prometheus.yml` - Prometheus scrape targets
 - **Backend metrics:** `backend/api/routes/metrics.py` - Prometheus metrics endpoint
 - **Backend API:** `backend/api/routes/system.py` - REST API endpoints for Backend-API datasource
-- **Compose file:** `../../../docker-compose.prod.yml` - Service definitions and network config
+- **Compose file:** Root `docker-compose.prod.yml` - Service definitions and network config
 
 ## References
 

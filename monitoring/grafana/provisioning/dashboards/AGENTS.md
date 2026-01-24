@@ -113,7 +113,7 @@ grafana:
 ### Method 1: Drop JSON File
 
 1. Create or export dashboard JSON
-2. Save to `monitoring/grafana/dashboards/my-dashboard.json`
+2. Save to the dashboards directory (e.g., `monitoring/grafana/dashboards/`)
 3. Wait 30 seconds or restart Grafana
 4. Dashboard appears in "Home Security Intelligence" folder
 
@@ -133,7 +133,7 @@ grafana:
 1. Create dashboard in Grafana UI
 2. Dashboard Settings → JSON Model
 3. Copy JSON content
-4. Save to `monitoring/grafana/dashboards/my-dashboard.json`
+4. Save to the dashboards directory (e.g., `monitoring/grafana/dashboards/`)
 5. Dashboard is now provisioned (survives container restarts)
 
 ## Adding a New Dashboard Provider
@@ -175,11 +175,13 @@ grafana:
 
 Dashboards loaded by this provider (from `monitoring/grafana/dashboards/`):
 
-| File              | Title                                   | UID            | Purpose                        |
-| ----------------- | --------------------------------------- | -------------- | ------------------------------ |
-| `pipeline.json`   | Home Security Intelligence - Pipeline   | hsi-pipeline   | AI pipeline monitoring         |
-| `operations.json` | Home Security Intelligence - Operations | hsi-operations | Comprehensive ops dashboard    |
-| `ci-health.json`  | Home Security Intelligence - CI Health  | hsi-ci-health  | CI/CD metrics and build health |
+| File                 | Title                                     | UID              | Purpose                           |
+| -------------------- | ----------------------------------------- | ---------------- | --------------------------------- |
+| `consolidated.json`  | Home Security Intelligence - Consolidated | hsi-consolidated | Main unified monitoring dashboard |
+| `analytics.json`     | Home Security Intelligence - Analytics    | hsi-analytics    | Analytics metrics dashboard       |
+| `hsi-profiling.json` | Home Security Intelligence - Profiling    | hsi-profiling    | Performance profiling dashboard   |
+| `logs.json`          | Home Security Intelligence - Logs         | hsi-logs         | Log aggregation dashboard         |
+| `tracing.json`       | Home Security Intelligence - Tracing      | hsi-tracing      | Distributed tracing dashboard     |
 
 ## Troubleshooting
 
@@ -199,7 +201,7 @@ Dashboards loaded by this provider (from `monitoring/grafana/dashboards/`):
 2. **Verify JSON syntax:**
 
    ```bash
-   jq . monitoring/grafana/dashboards/pipeline.json
+   jq . monitoring/grafana/dashboards/consolidated.json
    ```
 
 3. **Check file permissions:**
@@ -301,8 +303,7 @@ allowUiUpdates: false
 - **Parent directory:** `../` - Main provisioning AGENTS.md with overview
 - **Dashboard definitions:** `../../dashboards/` - Actual dashboard JSON files
 - **Datasource config:** `../datasources/prometheus.yml` - Data sources used by dashboards
-- **Compose file:** `../../../docker-compose.prod.yml` - Volume mounts and service config
-- **Grafana config:** `../grafana.ini` (if exists) - Main Grafana configuration
+- **Compose file:** Root `docker-compose.prod.yml` - Volume mounts and service config
 
 ## References
 

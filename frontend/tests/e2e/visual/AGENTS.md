@@ -128,10 +128,10 @@ Visual tests run in `.github/workflows/visual-tests.yml`:
 
 - **Triggers:** PR and push to main (frontend changes only)
 - **Browser:** Chromium only (for consistency)
-- **Artifacts:**
-  - `visual-regression-report/` - HTML report
-  - `visual-test-results/` - Test artifacts
-  - `snapshot-diffs/` - Diff images on failure
+- **Artifacts (generated during CI runs):**
+  - HTML report (output in CI artifacts)
+  - Test artifacts (output in CI artifacts)
+  - Diff images on failure (output in CI artifacts)
 
 ## Best Practices
 
@@ -175,8 +175,8 @@ When visual tests fail:
 
 Visual tests are separate from functional E2E tests:
 
-- **E2E tests (`specs/`)**: Test functionality and user interactions
-- **Visual tests (`visual/`)**: Test appearance and layout
+- **E2E tests (`../specs/`)**: Test functionality and user interactions
+- **Visual tests (this directory)**: Test appearance and layout
 
 Both use the same:
 - Page objects (`../pages/`)

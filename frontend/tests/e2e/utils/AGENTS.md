@@ -152,7 +152,7 @@ Violations are categorized by impact:
 
 ## Integration with Test Specs
 
-The `accessibility.spec.ts` in `specs/` uses these utilities:
+The `accessibility.spec.ts` in `../specs/` uses these utilities:
 
 ```typescript
 import { test } from '@playwright/test';
@@ -486,4 +486,4 @@ These utilities are designed to work seamlessly with:
 - **Fixtures** (`../fixtures/`) - Combine with API mocks and WebSocket mocks
 - **Specs** (`../specs/`) - Import and use in test files
 - **Global Setup** (`../global-setup.ts`) - Compatible with shared state
-- **Playwright Config** (`../../playwright.config.ts`) - Respects timeouts and settings
+- **Playwright Config** (`../../../playwright.config.ts`) - Respects timeouts and settings

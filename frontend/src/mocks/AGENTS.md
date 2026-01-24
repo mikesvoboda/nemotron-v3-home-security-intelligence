@@ -21,7 +21,7 @@ frontend/src/mocks/
 
 ## Quick Start
 
-MSW is automatically started by the test setup (`src/test/setup.ts`). Most tests can use the default handlers from `handlers.ts`. For test-specific responses:
+MSW is automatically started by the test setup (in the test directory). Most tests can use the default handlers from `handlers.ts`. For test-specific responses:
 
 ```typescript
 import { server } from '../mocks/server';

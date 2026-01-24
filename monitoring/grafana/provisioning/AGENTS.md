@@ -222,5 +222,5 @@ grafana:
 
 - `../../prometheus.yml` - Prometheus configuration
 - `../../json-exporter-config.yml` - JSON to metrics conversion
-- `../dashboards/pipeline.json` - Dashboard definitions
+- `../dashboards/consolidated.json` - Main unified dashboard
 - `docker-compose.yml` - Service and volume definitions
