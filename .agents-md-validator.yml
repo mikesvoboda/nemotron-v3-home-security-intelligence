@@ -1,0 +1,39 @@
+# Directories to skip entirely (no AGENTS.md required)
+exclude_directories:
+  - __pycache__
+  - node_modules
+  - .git
+  - .venv
+  - .pytest_cache
+  - coverage
+  - dist
+  - build
+  - .mypy_cache
+  - .ruff_cache
+  - mutants
+  - '*.egg-info'
+
+# Directories that intentionally have no AGENTS.md
+no_agents_md_required:
+  - certs/
+  - data/
+  - custom/clips/
+
+# File extensions that count as "code files"
+code_extensions:
+  - .py
+  - .ts
+  - .tsx
+  - .js
+  - .jsx
+
+# Minimum code files before requiring AGENTS.md
+min_code_files: 2
+
+# Linear configuration
+linear:
+  team_id: '998946a2-aa75-491b-a39d-189660131392'
+  task_title: 'AGENTS.md Documentation Sync Required'
+  labels:
+    - 'documentation'
+    - 'tech-debt'
