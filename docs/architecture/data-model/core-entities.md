@@ -21,7 +21,7 @@ flowchart LR
 
 ## Camera Model
 
-**Source:** `backend/models/camera.py:63-195`
+**Source:** `backend/models/camera.py:63-196`
 
 **Table Name:** `cameras`
 
@@ -109,7 +109,7 @@ def restore(self) -> None:
 
 ## Detection Model
 
-**Source:** `backend/models/detection.py:28-193`
+**Source:** `backend/models/detection.py:28-194`
 
 **Table Name:** `detections`
 
@@ -194,7 +194,7 @@ action_result: Mapped[ActionResult | None]
 
 ## Event Model
 
-**Source:** `backend/models/event.py:21-243`
+**Source:** `backend/models/event.py:21-244`
 
 **Table Name:** `events`
 

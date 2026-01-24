@@ -14,11 +14,11 @@ The stack runs entirely in containers alongside the application services, with P
 
 | Document                                           | Description                                             | Key Files                              |
 | -------------------------------------------------- | ------------------------------------------------------- | -------------------------------------- |
-| [structured-logging.md](./structured-logging.md)   | JSON log format, context propagation, trace correlation | `backend/core/logging.py:1-1232`       |
-| [prometheus-metrics.md](./prometheus-metrics.md)   | Custom metrics definitions, histogram buckets, labels   | `backend/core/metrics.py:1-3240`       |
-| [distributed-tracing.md](./distributed-tracing.md) | OpenTelemetry setup, span context, baggage propagation  | `backend/core/telemetry.py:1-1007`     |
+| [structured-logging.md](./structured-logging.md)   | JSON log format, context propagation, trace correlation | `backend/core/logging.py:1-1233`       |
+| [prometheus-metrics.md](./prometheus-metrics.md)   | Custom metrics definitions, histogram buckets, labels   | `backend/core/metrics.py:1-2100`       |
+| [distributed-tracing.md](./distributed-tracing.md) | OpenTelemetry setup, span context, baggage propagation  | `backend/core/telemetry.py:1-1008`     |
 | [grafana-dashboards.md](./grafana-dashboards.md)   | Dashboard configurations, panel queries, datasources    | `monitoring/grafana/dashboards/*.json` |
-| [alertmanager.md](./alertmanager.md)               | Alert routing, notification channels, inhibition rules  | `monitoring/alertmanager.yml:1-215`    |
+| [alertmanager.md](./alertmanager.md)               | Alert routing, notification channels, inhibition rules  | `monitoring/alertmanager.yml:1-216`    |
 
 ## Architecture Diagram
 
@@ -72,9 +72,9 @@ graph TD
 | `ContextFilter`       | `backend/core/logging.py:467-609`      | Inject request ID, trace ID, span ID into logs     |
 | `setup_telemetry`     | `backend/core/telemetry.py:135-268`    | Initialize OpenTelemetry with auto-instrumentation |
 | `MetricsService`      | `backend/core/metrics.py:696-1244`     | Centralized Prometheus metric recording            |
-| Prometheus Config     | `monitoring/prometheus.yml:1-410`      | Scrape configuration for all services              |
-| Alertmanager Config   | `monitoring/alertmanager.yml:1-215`    | Alert routing and notification                     |
-| Alerting Rules        | `monitoring/alerting-rules.yml:1-1116` | Alert definitions with severity labels             |
+| Prometheus Config     | `monitoring/prometheus.yml:1-411`      | Scrape configuration for all services              |
+| Alertmanager Config   | `monitoring/alertmanager.yml:1-216`    | Alert routing and notification                     |
+| Alerting Rules        | `monitoring/alerting-rules.yml:1-1117` | Alert definitions with severity labels             |
 
 ## Key Concepts
 
@@ -115,7 +115,7 @@ Alerts use multi-window burn rate calculations for SLO monitoring. Fast burns (1
 | Alertmanager | `alertmanager`                 | Alert state visualization     | `monitoring/grafana/provisioning/datasources/prometheus.yml:18-28`   |
 | Jaeger       | `jaeger`                       | Distributed trace exploration | `monitoring/grafana/provisioning/datasources/prometheus.yml:41-101`  |
 | Loki         | `loki`                         | Log aggregation and search    | `monitoring/grafana/provisioning/datasources/prometheus.yml:198-214` |
-| Pyroscope    | `grafana-pyroscope-datasource` | Continuous profiling          | `monitoring/grafana/provisioning/datasources/prometheus.yml:216-231` |
+| Pyroscope    | `grafana-pyroscope-datasource` | Continuous profiling          | `monitoring/grafana/provisioning/datasources/prometheus.yml:216-232` |
 
 ## Related Hubs
 

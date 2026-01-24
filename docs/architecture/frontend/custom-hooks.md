@@ -4,11 +4,11 @@
 
 ## Key Files
 
-- `frontend/src/hooks/useWebSocket.ts:1-208` - Base WebSocket hook
-- `frontend/src/hooks/useEventStream.ts:1-264` - Security event stream
-- `frontend/src/hooks/useSystemStatus.ts:1-138` - System health status
-- `frontend/src/hooks/useConnectionStatus.ts:1-386` - Connection state aggregation
-- `frontend/src/hooks/index.ts:1-658` - Barrel export of all hooks
+- `frontend/src/hooks/useWebSocket.ts:1-209` - Base WebSocket hook
+- `frontend/src/hooks/useEventStream.ts:1-265` - Security event stream
+- `frontend/src/hooks/useSystemStatus.ts:1-139` - System health status
+- `frontend/src/hooks/useConnectionStatus.ts:1-387` - Connection state aggregation
+- `frontend/src/hooks/index.ts:1-659` - Barrel export of all hooks
 
 ## Overview
 

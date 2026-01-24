@@ -4,9 +4,9 @@
 
 **Key Files:**
 
-- `backend/api/middleware/request_logging.py:1-321` - Primary implementation
-- `backend/api/middleware/request_timing.py:1-156` - Request timing measurement
-- `backend/api/middleware/request_id.py:1-90` - Request ID generation
+- `backend/api/middleware/request_logging.py:1-322` - Primary implementation
+- `backend/api/middleware/request_timing.py:1-157` - Request timing measurement
+- `backend/api/middleware/request_id.py:1-91` - Request ID generation
 - `backend/core/config.py:1819-1823` - Configuration settings
 
 ## Overview
@@ -55,7 +55,7 @@ sequenceDiagram
 
 ### RequestLoggingMiddleware
 
-The `RequestLoggingMiddleware` (`backend/api/middleware/request_logging.py:136-321`) provides structured logging for HTTP requests:
+The `RequestLoggingMiddleware` (`backend/api/middleware/request_logging.py:136-322`) provides structured logging for HTTP requests:
 
 ```python
 # From backend/api/middleware/request_logging.py:136-173
@@ -112,7 +112,7 @@ Log levels are determined based on HTTP status code (`backend/api/middleware/req
 
 ### Request ID Middleware
 
-The `RequestIDMiddleware` (`backend/api/middleware/request_id.py:45-90`) generates and propagates correlation IDs:
+The `RequestIDMiddleware` (`backend/api/middleware/request_id.py:45-91`) generates and propagates correlation IDs:
 
 ```python
 # From backend/api/middleware/request_id.py:66-91
@@ -145,7 +145,7 @@ async def dispatch(
 
 ### Request Timing Middleware
 
-The `RequestTimingMiddleware` (`backend/api/middleware/request_timing.py:26-156`) measures request duration:
+The `RequestTimingMiddleware` (`backend/api/middleware/request_timing.py:26-157`) measures request duration:
 
 ```python
 # From backend/api/middleware/request_timing.py:78-106
@@ -261,10 +261,10 @@ X-Response-Time: 45.23ms
 
 ## IP Address Masking
 
-Client IP addresses are masked for privacy (`backend/api/middleware/request_logging.py:294-321`):
+Client IP addresses are masked for privacy (`backend/api/middleware/request_logging.py:294-322`):
 
 ```python
-# From backend/api/middleware/request_logging.py:294-321
+# From backend/api/middleware/request_logging.py:294-322
 def _get_client_ip(self, request: Request) -> str:
     """Get client IP address from request.
 

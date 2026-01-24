@@ -26,14 +26,14 @@ graph TD
         PROM[Prometheus<br/>prometheus.yml:6-16]
         LOKI[Loki<br/>prometheus.yml:198-214]
         JAEG[Jaeger<br/>prometheus.yml:41-101]
-        PYRO[Pyroscope<br/>prometheus.yml:216-231]
+        PYRO[Pyroscope<br/>prometheus.yml:216-232]
         API[Backend API<br/>prometheus.yml:30-40]
     end
 
     subgraph "Dashboards"
-        CONS[Consolidated<br/>monitoring/grafana/dashboards/consolidated.json]
-        TRAC[Tracing<br/>monitoring/grafana/dashboards/tracing.json]
-        LOGS[Logs<br/>monitoring/grafana/dashboards/logs.json]
+        CONS[Consolidated<br/>consolidated.json]
+        TRAC[Tracing<br/>tracing.json]
+        LOGS[Logs<br/>logs.json]
     end
 
     subgraph "Panels"
@@ -123,7 +123,7 @@ Log aggregation with trace linking (`monitoring/grafana/provisioning/datasources
 
 ### Pyroscope for Profiling
 
-Continuous profiling with trace correlation (`monitoring/grafana/provisioning/datasources/prometheus.yml:216-231`):
+Continuous profiling with trace correlation (`monitoring/grafana/provisioning/datasources/prometheus.yml:216-232`):
 
 ```yaml
 - name: Pyroscope
@@ -153,7 +153,7 @@ The main dashboard (`monitoring/grafana/dashboards/consolidated.json`) provides 
 | Pipeline P95 Latency | `hsi_detect_latency_p95_ms / 1000` | Green <30s, Yellow 30-60s, Red >60s  |
 | GPU Temperature      | `hsi_gpu_temperature`              | Green <70C, Yellow 70-85C, Red >85C  |
 
-Example PromQL (`monitoring/grafana/dashboards/consolidated.json:98-99`):
+Example PromQL (`consolidated.json:98-99`):
 
 ```promql
 hsi_gpu_utilization
@@ -161,7 +161,7 @@ hsi_gpu_utilization
 
 ### GPU Memory Gauge
 
-Displays GPU VRAM usage (`monitoring/grafana/dashboards/consolidated.json:276-362`):
+Displays GPU VRAM usage (`consolidated.json:276-362`):
 
 ```promql
 hsi_gpu_memory_used_mb / hsi_gpu_memory_total_mb * 100
@@ -175,7 +175,7 @@ Thresholds:
 
 ### Event Rate Panel
 
-Time series of event creation rate (`monitoring/grafana/dashboards/consolidated.json`):
+Time series of event creation rate (`consolidated.json`):
 
 ```promql
 rate(hsi_events_created_total[5m]) * 60
@@ -222,7 +222,7 @@ The tracing dashboard (`monitoring/grafana/dashboards/tracing.json:1-332`) provi
 
 ### Pipeline Analysis Traces
 
-Full pipeline traces with duration thresholds (`monitoring/grafana/dashboards/tracing.json:40-77`):
+Full pipeline traces with duration thresholds (`tracing.json:40-77`):
 
 | Threshold | Duration | Color  |
 | --------- | -------- | ------ |
@@ -244,7 +244,7 @@ Query configuration:
 
 ### Detection Processing Panel
 
-RT-DETR detection traces (`monitoring/grafana/dashboards/tracing.json:86-143`):
+RT-DETR detection traces (`tracing.json:86-143`):
 
 | Threshold | Duration | Meaning                |
 | --------- | -------- | ---------------------- |
@@ -254,7 +254,7 @@ RT-DETR detection traces (`monitoring/grafana/dashboards/tracing.json:86-143`):
 
 ### LLM Inference Panel
 
-Nemotron LLM traces (`monitoring/grafana/dashboards/tracing.json:144-200`):
+Nemotron LLM traces (`tracing.json:144-200`):
 
 | Threshold | Duration | Meaning                |
 | --------- | -------- | ---------------------- |
@@ -264,7 +264,7 @@ Nemotron LLM traces (`monitoring/grafana/dashboards/tracing.json:144-200`):
 
 ### Error Traces Panel
 
-Traces with error tags (`monitoring/grafana/dashboards/tracing.json:210-253`):
+Traces with error tags (`tracing.json:210-253`):
 
 ```json
 {
@@ -277,7 +277,7 @@ Traces with error tags (`monitoring/grafana/dashboards/tracing.json:210-253`):
 
 ### All Recent Traces Panel
 
-General trace view (`monitoring/grafana/dashboards/tracing.json:262-318`):
+General trace view (`tracing.json:262-318`):
 
 ```json
 {
@@ -293,7 +293,7 @@ The logs dashboard (`monitoring/grafana/dashboards/logs.json`) provides centrali
 
 ### Error Rate Stat
 
-Error percentage from logs (`monitoring/grafana/dashboards/logs.json:67-73`):
+Error percentage from logs (`logs.json:67-73`):
 
 ```logql
 sum(count_over_time({container=~"$service", level=~"ERROR|CRITICAL"} [5m])) / (sum(count_over_time({container=~"$service"} [5m])) > 0)
@@ -307,7 +307,7 @@ Thresholds:
 
 ### Log Throughput Stat
 
-Log entries per second (`monitoring/grafana/dashboards/logs.json:112-118`):
+Log entries per second (`logs.json:112-118`):
 
 ```logql
 sum(rate({container=~"$service"} [5m]))
@@ -315,7 +315,7 @@ sum(rate({container=~"$service"} [5m]))
 
 ### Log Volume by Level
 
-Stacked bar chart by log level (`monitoring/grafana/dashboards/logs.json:173-248`):
+Stacked bar chart by log level (`logs.json:173-248`):
 
 ```logql
 sum by (level) (count_over_time({container=~"$service", level=~"$level"} |~ "$search" [$__interval]))
@@ -331,7 +331,7 @@ Color mapping:
 
 ### Level Distribution Pie Chart
 
-Percentage breakdown (`monitoring/grafana/dashboards/logs.json:250-311`):
+Percentage breakdown (`logs.json:250-311`):
 
 ```logql
 sum by (level) (count_over_time({container=~"$service", level=~"$level"} |~ "$search" [$__range]))
@@ -339,7 +339,7 @@ sum by (level) (count_over_time({container=~"$service", level=~"$level"} |~ "$se
 
 ### Top Error Patterns Table
 
-Most common errors (`monitoring/grafana/dashboards/logs.json:358-365`):
+Most common errors (`logs.json:358-365`):
 
 ```logql
 topk(10, sum by (level, container) (count_over_time({container=~"$service", level=~"ERROR|CRITICAL"} [15m])))
@@ -347,7 +347,7 @@ topk(10, sum by (level, container) (count_over_time({container=~"$service", leve
 
 ### Live Log Stream Panel
 
-Real-time log viewing (`monitoring/grafana/dashboards/logs.json`):
+Real-time log viewing (`logs.json`):
 
 ```logql
 {container=~"$service", level=~"$level"} |~ "$search"
@@ -357,7 +357,7 @@ Real-time log viewing (`monitoring/grafana/dashboards/logs.json`):
 
 ### Service Variable
 
-Filter by container/service (`monitoring/grafana/dashboards/logs.json`):
+Filter by container/service (`logs.json`):
 
 | Variable   | Type   | Values                                                       |
 | ---------- | ------ | ------------------------------------------------------------ |

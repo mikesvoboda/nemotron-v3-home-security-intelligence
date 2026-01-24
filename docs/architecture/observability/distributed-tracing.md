@@ -4,7 +4,7 @@
 
 **Key Files:**
 
-- `backend/core/telemetry.py:1-1007` - OpenTelemetry configuration
+- `backend/core/telemetry.py:1-1008` - OpenTelemetry configuration
 - `monitoring/grafana/provisioning/datasources/prometheus.yml:41-101` - Jaeger datasource
 - `monitoring/grafana/dashboards/tracing.json:1-332` - Tracing dashboard
 
@@ -356,7 +356,7 @@ The tracing dashboard (`monitoring/grafana/dashboards/tracing.json`) provides:
 
 ### Pipeline Analysis Traces Panel
 
-Shows full pipeline traces (`monitoring/grafana/dashboards/tracing.json:65-77`):
+Shows full pipeline traces (`tracing.json:65-77`):
 
 ```json
 {
@@ -373,7 +373,7 @@ Shows full pipeline traces (`monitoring/grafana/dashboards/tracing.json:65-77`):
 
 ### Detection Processing Panel
 
-Shows RT-DETR detection traces with latency thresholds (`monitoring/grafana/dashboards/tracing.json:131-143`):
+Shows RT-DETR detection traces with latency thresholds (`tracing.json:131-143`):
 
 - Green: < 5s (5,000,000 microseconds)
 - Yellow: 5-30s
@@ -381,7 +381,7 @@ Shows RT-DETR detection traces with latency thresholds (`monitoring/grafana/dash
 
 ### LLM Inference Panel
 
-Shows Nemotron LLM traces with latency thresholds (`monitoring/grafana/dashboards/tracing.json:194-198`):
+Shows Nemotron LLM traces with latency thresholds (`tracing.json:194-198`):
 
 - Green: < 30s
 - Yellow: 30-120s
@@ -389,7 +389,7 @@ Shows Nemotron LLM traces with latency thresholds (`monitoring/grafana/dashboard
 
 ### Error Traces Panel
 
-Shows traces with errors (`monitoring/grafana/dashboards/tracing.json:241-250`):
+Shows traces with errors (`tracing.json:241-250`):
 
 ```json
 {

@@ -4,7 +4,7 @@
 
 **Key Files:**
 
-- `backend/core/logging.py:1-1232` - Complete logging implementation
+- `backend/core/logging.py:1-1233` - Complete logging implementation
 - `backend/core/config.py` - Logging configuration settings
 - `backend/api/middleware/request_id.py` - Request ID middleware
 
@@ -344,7 +344,7 @@ def log_exception_with_context(
 
 ### log_error
 
-Simplified error logging (`backend/core/logging.py:1165-1232`):
+Simplified error logging (`backend/core/logging.py:1165-1233`):
 
 ```python
 log_error(

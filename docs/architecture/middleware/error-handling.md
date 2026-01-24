@@ -4,9 +4,9 @@
 
 **Key Files:**
 
-- `backend/api/exception_handlers.py:1-771` - Global exception handlers
-- `backend/api/middleware/error_handler.py:1-356` - Error classes and ErrorResponse schema
-- `backend/api/middleware/exception_handler.py:1-100` - Error message sanitization
+- `backend/api/exception_handlers.py:1-772` - Global exception handlers
+- `backend/api/middleware/error_handler.py:1-357` - Error classes and ErrorResponse schema
+- `backend/api/middleware/exception_handler.py:1-101` - Error message sanitization
 - `backend/api/schemas/problem_details.py` - RFC 7807 Problem Details schema
 - `backend/core/exceptions.py` - Base exception hierarchy
 
@@ -235,10 +235,10 @@ status_to_code = {
 
 ## Error Message Sanitization
 
-Error messages are sanitized to prevent information leakage (`backend/api/middleware/exception_handler.py:61-100`):
+Error messages are sanitized to prevent information leakage (`backend/api/middleware/exception_handler.py:61-101`):
 
 ```python
-# From backend/api/middleware/exception_handler.py:61-100
+# From backend/api/middleware/exception_handler.py:61-101
 def create_safe_error_message(
     error: Exception,
     *,
