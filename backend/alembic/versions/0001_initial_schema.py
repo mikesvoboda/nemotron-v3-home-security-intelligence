@@ -1970,9 +1970,35 @@ def upgrade() -> None:
     )
     op.create_index("idx_system_settings_updated_at", "system_settings", ["updated_at"])
 
+    # Expression indexes for computed columns
+    # Case-insensitive camera name lookups
+    op.execute("CREATE INDEX ix_cameras_name_lower ON cameras (lower(name))")
+    # Hourly aggregations on detections
+    op.execute(
+        "CREATE INDEX ix_detections_detected_at_hourly ON detections (date_trunc('hour', detected_at))"
+    )
+    # Daily aggregations on events
+    op.execute("CREATE INDEX ix_events_started_at_daily ON events (date_trunc('day', started_at))")
+    # Case-insensitive object type filtering on detections
+    op.execute("CREATE INDEX ix_detections_object_type_lower ON detections (lower(object_type))")
+    # Hourly aggregations on logs
+    op.execute("CREATE INDEX ix_logs_timestamp_hourly ON logs (date_trunc('hour', timestamp))")
+    # Risk score bucketing on events (0-9, 10-19, 20-29, etc.)
+    op.execute(
+        "CREATE INDEX ix_events_risk_score_bucket ON events (floor(COALESCE(risk_score, -10) / 10))"
+    )
+
 
 def downgrade() -> None:
     """Drop all tables in reverse order."""
+
+    # Drop expression indexes first
+    op.execute("DROP INDEX IF EXISTS ix_events_risk_score_bucket")
+    op.execute("DROP INDEX IF EXISTS ix_logs_timestamp_hourly")
+    op.execute("DROP INDEX IF EXISTS ix_detections_object_type_lower")
+    op.execute("DROP INDEX IF EXISTS ix_events_started_at_daily")
+    op.execute("DROP INDEX IF EXISTS ix_detections_detected_at_hourly")
+    op.execute("DROP INDEX IF EXISTS ix_cameras_name_lower")
 
     # GPU management tables
     op.drop_table("system_settings")
