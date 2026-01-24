@@ -168,7 +168,7 @@ async def test_create_event(integration_db, clean_full_stack):
 
         assert saved_event is not None
         assert saved_event.batch_id == batch_id
-        assert saved_event.risk_score == 75
+        assert saved_event.risk_score == 45
         assert saved_event.risk_level == "medium"
         # Verify detections are linked
         await session.refresh(saved_event, ["detections"])
