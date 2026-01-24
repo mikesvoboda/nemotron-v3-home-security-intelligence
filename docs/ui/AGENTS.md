@@ -31,22 +31,22 @@ ui/
 
 ## Quick Navigation
 
-| File                | Page                 | Frontend Component                           |
-| ------------------- | -------------------- | -------------------------------------------- |
-| `dashboard.md`      | Main Dashboard       | `components/dashboard/DashboardPage.tsx`     |
-| `timeline.md`       | Event Timeline       | `components/events/EventTimeline.tsx`        |
-| `entities.md`       | Entities             | `components/entities/EntitiesPage.tsx`       |
-| `alerts.md`         | Alerts               | `components/alerts/AlertsPage.tsx`           |
-| `zones.md`          | Detection Zones      | Zone configuration UI                        |
-| `audit-log.md`      | Audit Log            | `components/audit/AuditLogPage.tsx`          |
-| `analytics.md`      | Analytics            | `components/analytics/AnalyticsPage.tsx`     |
-| `jobs.md`           | Background Jobs      | `components/jobs/JobsPage.tsx`               |
-| `ai-audit.md`       | AI Audit             | `components/ai/AIAuditPage.tsx`              |
-| `ai-performance.md` | AI Performance       | `components/ai/AIPerformancePage.tsx`        |
-| `operations.md`     | System Monitoring    | `components/system/SystemMonitoringPage.tsx` |
-| `trash.md`          | Trash/Deleted Events | `pages/TrashPage.tsx`                        |
-| `logs.md`           | Application Logs     | `components/logs/LogsPage.tsx`               |
-| `settings.md`       | Settings             | `components/settings/SettingsPage.tsx`       |
+| File                | Page                 | Frontend Component                                        |
+| ------------------- | -------------------- | --------------------------------------------------------- |
+| `dashboard.md`      | Main Dashboard       | `frontend/src/components/dashboard/DashboardPage.tsx`     |
+| `timeline.md`       | Event Timeline       | `frontend/src/components/events/EventTimeline.tsx`        |
+| `entities.md`       | Entities             | `frontend/src/components/entities/EntitiesPage.tsx`       |
+| `alerts.md`         | Alerts               | `frontend/src/components/alerts/AlertsPage.tsx`           |
+| `zones.md`          | Detection Zones      | `frontend/src/components/zones/ZoneEditor.tsx`            |
+| `audit-log.md`      | Audit Log            | `frontend/src/components/audit/AuditLogPage.tsx`          |
+| `analytics.md`      | Analytics            | `frontend/src/components/analytics/AnalyticsPage.tsx`     |
+| `jobs.md`           | Background Jobs      | `frontend/src/components/jobs/JobsPage.tsx`               |
+| `ai-audit.md`       | AI Audit             | `frontend/src/components/ai/AIAuditPage.tsx`              |
+| `ai-performance.md` | AI Performance       | `frontend/src/components/ai/AIPerformancePage.tsx`        |
+| `operations.md`     | System Monitoring    | `frontend/src/components/system/SystemMonitoringPage.tsx` |
+| `trash.md`          | Trash/Deleted Events | `frontend/src/pages/TrashPage.tsx`                        |
+| `logs.md`           | Application Logs     | `frontend/src/components/logs/LogsPage.tsx`               |
+| `settings.md`       | Settings             | `frontend/src/components/settings/SettingsPage.tsx`       |
 
 ## Usability Guides
 
