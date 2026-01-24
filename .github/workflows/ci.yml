@@ -134,6 +134,7 @@ jobs:
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
+      ENVIRONMENT: test # Avoid production password validation in CI
       LOG_DB_ENABLED: 'false'
       FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-unit-shard-${{ matrix.shard }}.jsonl
     steps:
@@ -304,6 +305,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
+      ENVIRONMENT: test # Avoid production password validation in CI
       LOG_DB_ENABLED: 'false'
       CI: 'true'
       FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-api.jsonl
@@ -407,6 +409,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
+      ENVIRONMENT: test # Avoid production password validation in CI
       LOG_DB_ENABLED: 'false'
       CI: 'true'
       FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-websocket.jsonl
@@ -510,6 +513,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
+      ENVIRONMENT: test # Avoid production password validation in CI
       LOG_DB_ENABLED: 'false'
       CI: 'true'
       FLAKY_TEST_RESULTS_FILE: flaky-test-tracking-integration-services.jsonl
@@ -620,6 +624,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
+      ENVIRONMENT: test # Avoid production password validation in CI
       LOG_DB_ENABLED: 'false'
       CI: 'true'
     steps:
@@ -791,6 +796,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/15
           REDIS_HOST: localhost
           REDIS_PORT: 6379
+          ENVIRONMENT: test # Avoid production password validation in CI
           LOG_DB_ENABLED: 'false'
         run: |
           uv run pytest backend/tests/contracts/ \
@@ -1718,6 +1724,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
+      ENVIRONMENT: test # Avoid production password validation in CI
       DEBUG: 'false'
       LOG_DB_ENABLED: 'false'
     steps:
@@ -2207,6 +2214,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
+      ENVIRONMENT: test # Avoid production password validation in CI
       LOG_DB_ENABLED: 'false'
     steps:
       - name: Checkout
