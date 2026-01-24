@@ -2251,7 +2251,12 @@ class Settings(BaseSettings):
             ValueError: If a weak password is detected in production/staging environment
         """
         # Only enforce in production and staging environments
+        # Skip validation for development, test, and local environments
         if self.environment not in ("production", "staging"):
+            return self
+
+        # Also skip if environment looks like a test/CI environment
+        if self.environment.lower() in ("test", "testing", "ci", "local"):
             return self
 
         # Known weak/default passwords that should never be used in production
