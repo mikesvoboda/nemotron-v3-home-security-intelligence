@@ -214,6 +214,7 @@ const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         aria-label={ariaLabel}
         aria-busy={isLoading}
         aria-pressed={isActive}
+        title={typeof tooltip === 'string' ? tooltip : undefined}
         {...props}
       >
         {isLoading ? <LoadingSpinner /> : icon}

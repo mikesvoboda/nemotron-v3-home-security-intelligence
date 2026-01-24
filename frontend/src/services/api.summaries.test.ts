@@ -4,21 +4,43 @@
  * @see NEM-3261 - Bug fix for undefined event_count handling
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 
 import { fetchSummaries } from './api';
+import { server } from '../mocks/server';
 
-// Mock fetch globally
+// Mock fetch globally - must be done at module level before MSW starts
 const mockFetch = vi.fn();
-vi.stubGlobal('fetch', mockFetch);
+
+/**
+ * Helper to create a mock Response object with proper headers
+ */
+function createMockResponse(data: unknown, status = 200, ok = true): Partial<Response> {
+  return {
+    ok,
+    status,
+    json: () => Promise.resolve(data),
+    headers: new Headers(),
+  };
+}
 
 describe('fetchSummaries', () => {
+  // Temporarily close MSW for these unit tests since we're testing the fetch wrapper directly
+  beforeAll(() => {
+    server.close();
+  });
+
+  afterAll(() => {
+    server.listen({ onUnhandledRequest: 'bypass' });
+  });
+
   beforeEach(() => {
     mockFetch.mockClear();
+    vi.stubGlobal('fetch', mockFetch);
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('should fetch and transform summaries with valid data', async () => {
@@ -43,11 +65,7 @@ describe('fetchSummaries', () => {
       },
     };
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(mockBackendResponse),
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(mockBackendResponse));
 
     const result = await fetchSummaries();
 
@@ -74,11 +92,7 @@ describe('fetchSummaries', () => {
       daily: null,
     };
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(mockBackendResponse),
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(mockBackendResponse));
 
     const result = await fetchSummaries();
 
@@ -101,11 +115,7 @@ describe('fetchSummaries', () => {
       daily: null,
     };
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(mockBackendResponse),
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(mockBackendResponse));
 
     const result = await fetchSummaries();
 
@@ -119,11 +129,7 @@ describe('fetchSummaries', () => {
       daily: null,
     };
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(mockBackendResponse),
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(mockBackendResponse));
 
     const result = await fetchSummaries();
 
@@ -157,11 +163,7 @@ describe('fetchSummaries', () => {
       daily: null,
     };
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(mockBackendResponse),
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(mockBackendResponse));
 
     const result = await fetchSummaries();
 
@@ -190,11 +192,7 @@ describe('fetchSummaries', () => {
       daily: null,
     };
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(mockBackendResponse),
-    });
+    mockFetch.mockResolvedValueOnce(createMockResponse(mockBackendResponse));
 
     const result = await fetchSummaries();
 

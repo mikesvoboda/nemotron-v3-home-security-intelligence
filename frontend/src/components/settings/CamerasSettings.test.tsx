@@ -818,10 +818,13 @@ describe('CamerasSettings', () => {
       const deleteButton = screen.getByLabelText('Delete Front Door');
       const zonesButton = screen.getByLabelText('Configure zones for Front Door');
 
-      // All action buttons should have 44x44px minimum touch target classes
+      // All action buttons should have 44x44px minimum touch target (h-11 w-11 = 44px)
+      // IconButton uses h-11 w-11 min-h-11 min-w-11 classes (11 * 0.25rem = 2.75rem = 44px)
       [editButton, deleteButton, zonesButton].forEach((button) => {
-        expect(button).toHaveClass('min-h-[44px]');
-        expect(button).toHaveClass('min-w-[44px]');
+        expect(button).toHaveClass('h-11');
+        expect(button).toHaveClass('w-11');
+        expect(button).toHaveClass('min-h-11');
+        expect(button).toHaveClass('min-w-11');
       });
     });
 
@@ -836,17 +839,17 @@ describe('CamerasSettings', () => {
       const deleteButton = screen.getByLabelText('Delete Front Door');
       const zonesButton = screen.getByLabelText('Configure zones for Front Door');
 
-      // All action buttons should have hover state classes
+      // All action buttons use ghost variant which has hover:bg-gray-800 hover:text-white
       [editButton, deleteButton, zonesButton].forEach((button) => {
         expect(button).toHaveClass('hover:bg-gray-800');
       });
 
-      // Edit and zones buttons should turn primary on hover
-      expect(editButton).toHaveClass('hover:text-primary');
-      expect(zonesButton).toHaveClass('hover:text-primary');
+      // Edit and zones buttons should have default hover:text-white from ghost variant
+      expect(editButton).toHaveClass('hover:text-white');
+      expect(zonesButton).toHaveClass('hover:text-white');
 
-      // Delete button should turn red on hover
-      expect(deleteButton).toHaveClass('hover:text-red-500');
+      // Delete button has custom hover:!text-red-500 override
+      expect(deleteButton.className).toContain('hover:!text-red-500');
     });
 
     it('should have visible focus indicators on action buttons', async () => {
@@ -860,18 +863,18 @@ describe('CamerasSettings', () => {
       const deleteButton = screen.getByLabelText('Delete Front Door');
       const zonesButton = screen.getByLabelText('Configure zones for Front Door');
 
-      // All action buttons should have focus ring classes
+      // IconButton uses focus-visible instead of focus for better UX
       [editButton, deleteButton, zonesButton].forEach((button) => {
         expect(button).toHaveClass('focus:outline-none');
-        expect(button).toHaveClass('focus:ring-2');
+        expect(button).toHaveClass('focus-visible:ring-2');
       });
 
-      // Edit and zones buttons should have primary focus ring
-      expect(editButton).toHaveClass('focus:ring-primary');
-      expect(zonesButton).toHaveClass('focus:ring-primary');
+      // Edit and zones buttons use default NVIDIA green focus ring from IconButton
+      expect(editButton.className).toContain('focus-visible:ring-[#76B900]');
+      expect(zonesButton.className).toContain('focus-visible:ring-[#76B900]');
 
-      // Delete button should have red focus ring
-      expect(deleteButton).toHaveClass('focus:ring-red-500');
+      // Delete button has custom focus-visible:!ring-red-500 override
+      expect(deleteButton.className).toContain('focus-visible:!ring-red-500');
     });
 
     it('should have tooltips on action buttons', async () => {
