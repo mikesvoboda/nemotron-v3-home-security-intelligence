@@ -6,6 +6,8 @@
  * that control detection thresholds, batch processing, feature toggles,
  * rate limiting, queue management, and data retention.
  *
+ * Implements optimistic updates for instant UI feedback on mutations.
+ *
  * Phase 2.3: Frontend settings API hook (NEM-3121)
  * Part of the Orphaned Infrastructure Integration epic (NEM-3113).
  *
@@ -203,6 +205,17 @@ export interface SettingsUpdate {
 }
 
 // ============================================================================
+// Optimistic Update Context
+// ============================================================================
+
+/**
+ * Context for optimistic update rollback.
+ */
+interface SettingsOptimisticContext {
+  previousSettings: SettingsResponse | undefined;
+}
+
+// ============================================================================
 // Query Keys
 // ============================================================================
 
@@ -359,28 +372,6 @@ export interface UseUpdateSettingsReturn {
 
 /**
  * Hook to fetch current system settings using TanStack Query.
- *
- * Settings are cached with a static stale time (5 minutes) since they
- * change infrequently. The cache is automatically invalidated after
- * a successful update mutation.
- *
- * @param options - Configuration options
- * @returns Settings data and query state
- *
- * @example
- * ```tsx
- * const { settings, isLoading, error } = useSettingsQuery();
- *
- * if (isLoading) return <Spinner />;
- * if (error) return <Error message={error.message} />;
- *
- * return (
- *   <div>
- *     <p>Detection threshold: {settings.detection.confidence_threshold}</p>
- *     <p>Retention days: {settings.retention.days}</p>
- *   </div>
- * );
- * ```
  */
 export function useSettingsQuery(options: UseSettingsOptions = {}): UseSettingsReturn {
   const {
@@ -396,7 +387,6 @@ export function useSettingsQuery(options: UseSettingsOptions = {}): UseSettingsR
     enabled,
     refetchInterval,
     staleTime,
-    // Reduced retry for faster failure feedback
     retry,
   });
 
@@ -412,39 +402,63 @@ export function useSettingsQuery(options: UseSettingsOptions = {}): UseSettingsR
 }
 
 /**
- * Hook to update system settings using TanStack Query mutation.
- *
- * On successful update, the settings cache is automatically invalidated
- * to ensure the UI reflects the new values.
- *
- * @returns Mutation state and functions
- *
- * @example
- * ```tsx
- * const { mutate, isPending, error } = useUpdateSettings();
- *
- * const handleUpdateThreshold = () => {
- *   mutate({
- *     detection: { confidence_threshold: 0.6 }
- *   });
- * };
- *
- * return (
- *   <Button onClick={handleUpdateThreshold} disabled={isPending}>
- *     {isPending ? 'Saving...' : 'Save'}
- *   </Button>
- * );
- * ```
+ * Deep merge two settings objects for optimistic updates.
+ */
+function mergeSettings(current: SettingsResponse, updates: SettingsUpdate): SettingsResponse {
+  return {
+    detection: { ...current.detection, ...updates.detection },
+    batch: { ...current.batch, ...updates.batch },
+    severity: { ...current.severity, ...updates.severity },
+    features: { ...current.features, ...updates.features },
+    rate_limiting: { ...current.rate_limiting, ...updates.rate_limiting },
+    queue: { ...current.queue, ...updates.queue },
+    retention: { ...current.retention, ...updates.retention },
+  };
+}
+
+/**
+ * Hook to update system settings with optimistic updates.
  */
 export function useUpdateSettings(): UseUpdateSettingsReturn {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: updateSettings,
-    onSuccess: (data) => {
-      // Update the cache with the new settings
+
+    // Optimistic update: Apply changes immediately before API response
+    onMutate: async (update: SettingsUpdate): Promise<SettingsOptimisticContext> => {
+      await queryClient.cancelQueries({ queryKey: settingsQueryKeys.current() });
+
+      const previousSettings = queryClient.getQueryData<SettingsResponse>(
+        settingsQueryKeys.current()
+      );
+
+      if (previousSettings) {
+        const optimisticSettings = mergeSettings(previousSettings, update);
+        queryClient.setQueryData(settingsQueryKeys.current(), optimisticSettings);
+      }
+
+      return { previousSettings };
+    },
+
+    // Rollback on error
+    onError: (
+      _error: Error,
+      _update: SettingsUpdate,
+      context: SettingsOptimisticContext | undefined
+    ) => {
+      if (context?.previousSettings) {
+        queryClient.setQueryData(settingsQueryKeys.current(), context.previousSettings);
+      }
+    },
+
+    // On success, update cache with server response
+    onSuccess: (data: SettingsResponse) => {
       queryClient.setQueryData(settingsQueryKeys.current(), data);
-      // Invalidate to ensure any other components get the fresh data
+    },
+
+    // Always invalidate after mutation settles
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.all });
     },
   });
@@ -463,30 +477,12 @@ export function useUpdateSettings(): UseUpdateSettingsReturn {
 
 /**
  * Combined hook for settings API operations.
- *
- * Provides both query and mutation in a single hook for convenience
- * when components need both read and write access to settings.
- *
- * @param options - Configuration options for the query
- * @returns Settings data, query state, and mutation functions
- *
- * @example
- * ```tsx
- * const { settings, isLoading, updateMutation } = useSettingsApi();
- *
- * const handleSave = () => {
- *   updateMutation.mutate({
- *     features: { reid_enabled: false }
- *   });
- * };
- * ```
  */
 export function useSettingsApi(options: UseSettingsOptions = {}) {
   const settingsQuery = useSettingsQuery(options);
   const updateMutation = useUpdateSettings();
 
   return {
-    // Query state
     settings: settingsQuery.settings,
     isLoading: settingsQuery.isLoading,
     isFetching: settingsQuery.isFetching,
@@ -494,7 +490,6 @@ export function useSettingsApi(options: UseSettingsOptions = {}) {
     isError: settingsQuery.isError,
     isSuccess: settingsQuery.isSuccess,
     refetch: settingsQuery.refetch,
-    // Mutation
     updateMutation,
   };
 }
