@@ -8,18 +8,21 @@ This directory contains Grafana dashboard JSON definitions that are automaticall
 
 ```
 dashboards/
-  AGENTS.md        # This file
-  pipeline.json    # Main AI pipeline monitoring dashboard
-  operations.json  # Comprehensive operations dashboard with all metrics
+  AGENTS.md           # This file
+  consolidated.json   # Main unified monitoring dashboard
+  analytics.json      # Analytics dashboard
+  hsi-profiling.json  # Profiling dashboard
+  logs.json           # Logs dashboard
+  tracing.json        # Tracing dashboard
 ```
 
 ## Key Files
 
-### pipeline.json
+### consolidated.json
 
-**Purpose:** Primary monitoring dashboard for the AI security pipeline.
+**Purpose:** Main unified monitoring dashboard for the AI security pipeline.
 
-**Dashboard UID:** `hsi-pipeline`
+**Dashboard UID:** `hsi-consolidated`
 
 **Panels by Section:**
 
@@ -53,41 +56,29 @@ dashboards/
 - Default time range: Last 1 hour
 - Timezone: Browser
 
-### operations.json
+### analytics.json
 
-**Purpose:** Comprehensive operations dashboard exposing all available Prometheus metrics for real-time monitoring and troubleshooting.
+**Purpose:** Analytics dashboard for system metrics and trends.
 
-**Dashboard UID:** `hsi-operations`
+**Dashboard UID:** `hsi-analytics`
 
-**Dashboard Settings:**
+### hsi-profiling.json
 
-- Auto-refresh: 5 seconds
-- Default time range: Last 15 minutes
-- Timezone: Browser
-- Live mode: Enabled
+**Purpose:** Profiling dashboard for performance analysis.
 
-**Rows and Panels:**
+**Dashboard UID:** `hsi-profiling`
 
-| Row | Name                | State     | Panels | Description                                                   |
-| --- | ------------------- | --------- | ------ | ------------------------------------------------------------- |
-| 1   | Quick Time Range    | Expanded  | 1      | Time range selector buttons (15m/1h/6h/24h/7d)                |
-| 2   | System Health       | Expanded  | 6      | Health status, uptime, database, Redis, cameras, events       |
-| 3   | Pipeline Overview   | Expanded  | 6      | End-to-end latency, throughput, queue depths, stage breakdown |
-| 4   | GPU Resources       | Expanded  | 6      | GPU utilization, VRAM, temperature, inference FPS             |
-| 5   | AI Models           | Collapsed | 8      | RT-DETR, Nemotron, Florence, CLIP latency and request rates   |
-| 6   | Detection Analytics | Collapsed | 8      | Detections processed, confidence, by class/camera             |
-| 7   | Risk Analysis       | Collapsed | 8      | Risk scores, events by risk level, prompt usage               |
-| 8   | Queue Health        | Collapsed | 8      | Overflow, DLQ, dropped items, queue depths                    |
-| 9   | Model Zoo           | Collapsed | 10     | Enrichment model performance across all models                |
+### logs.json
 
-**Total: ~59 panels covering all available Prometheus metrics**
+**Purpose:** Log aggregation and viewing dashboard.
 
-**Key Features:**
+**Dashboard UID:** `hsi-logs`
 
-- Real-time focus with 5-second refresh
-- Collapsible rows for organized drill-down
-- Threshold-based coloring for queue depths and latency
-- Service-specific color coding (RT-DETR orange, Nemotron purple, etc.)
+### tracing.json
+
+**Purpose:** Distributed tracing dashboard.
+
+**Dashboard UID:** `hsi-tracing`
 
 ## Dashboard Structure
 
@@ -190,7 +181,7 @@ Grafana uses a 24-column grid:
 
 ### Dashboard Not Appearing
 
-1. Validate JSON syntax: `jq . pipeline.json`
+1. Validate JSON syntax: `jq . consolidated.json`
 2. Check for duplicate UIDs
 3. Verify provisioning config: `../provisioning/dashboards/dashboard.yml`
 4. Check Grafana logs: `docker compose logs grafana`

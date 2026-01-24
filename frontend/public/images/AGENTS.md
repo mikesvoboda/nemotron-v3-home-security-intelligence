@@ -106,8 +106,8 @@ All SVG files in this directory should:
 When adding images to this directory:
 
 1. **Choose the right location:**
-   - Use `public/` for static assets that don't need processing
-   - Use `src/assets/` for images imported in components (processed by Vite)
+   - Use the public directory for static assets that don't need processing
+   - Use the src directory for images imported in components (processed by Vite)
 
 2. **Optimize before adding:**
    ```bash

@@ -70,7 +70,7 @@ From `vite.config.ts`:
 | ------------- | --------------------- | ----------------------------------------- |
 | `globals`     | `true`                | `describe`, `it`, `expect` without import |
 | `environment` | `jsdom`               | Browser-like DOM environment              |
-| `setupFiles`  | `./src/test/setup.ts` | This setup file                           |
+| `setupFiles`  | This setup file       | Test initialization                       |
 | `css`         | `true`                | Process CSS for style-dependent tests     |
 | `pool`        | `forks`               | Fork pool for memory optimization         |
 | `singleFork`  | `true`                | Prevents heap out of memory errors        |
@@ -101,7 +101,7 @@ Vitest discovers tests matching these patterns:
 - `**/*.spec.ts`
 - `**/*.spec.tsx`
 
-E2E tests in `tests/e2e/` are excluded.
+E2E tests are excluded.
 
 ## Running Tests
 
@@ -116,7 +116,7 @@ npm test -- EventCard.test.tsx  # Specific file
 
 ## Coverage Configuration
 
-Coverage reports are generated to `./coverage/`:
+Coverage reports are generated:
 
 | Metric     | Threshold |
 | ---------- | --------- |
@@ -130,7 +130,7 @@ Note: Thresholds adjusted based on current coverage levels. See `vite.config.ts`
 **Excluded from Coverage:**
 
 - `src/test/**` - Test setup files
-- `src/main.tsx` - Entry point
+- Entry point files
 - `src/types/generated/**` - Auto-generated types
 - `**/*.d.ts` - Type declarations
 - `**/*.test.{ts,tsx}` - Test files

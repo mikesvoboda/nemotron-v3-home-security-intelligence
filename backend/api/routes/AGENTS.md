@@ -359,7 +359,7 @@ Secure media file serving for camera images and detection thumbnails.
 **Base Paths:**
 
 - Camera files: `{foscam_base_path}/{camera_id}/`
-- Thumbnails: `backend/data/thumbnails/`
+- Thumbnails: thumbnails directory under data (relative to backend)
 
 ### `dlq.py`
 

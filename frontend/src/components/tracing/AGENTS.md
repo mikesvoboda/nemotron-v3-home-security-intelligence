@@ -180,12 +180,12 @@ Unit tests cover:
 ## Design Document
 
 For detailed architecture decisions, feature rationale, and implementation notes, see:
-[Distributed Tracing Page Design](../../docs/plans/2026-01-20-distributed-tracing-page-design.md)
+[Distributed Tracing Page Design](../../../../docs/plans/2026-01-20-distributed-tracing-page-design.md)
 
 ## Pattern Reference
 
 This component follows the same iframe embedding pattern as:
-- `ai/AIPerformancePage.tsx` - Another Grafana-embedded page
+- `AIPerformancePage.tsx` in the ai directory - Another Grafana-embedded page
 
 Key pattern principles:
 - Use `resolveGrafanaUrl()` utility for URL resolution

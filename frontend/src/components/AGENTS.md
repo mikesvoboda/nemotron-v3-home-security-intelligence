@@ -415,7 +415,7 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 - `ExportModal.tsx` - Export modal component
 - `ExportProgress.tsx` - Export progress indicator
 - `index.ts` - Barrel exports
-- `__tests__/ExportProgress.test.tsx` - Test suite for ExportProgress
+- Tests located in the tests subdirectory
 
 ### feedback/
 

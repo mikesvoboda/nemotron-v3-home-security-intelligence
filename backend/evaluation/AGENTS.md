@@ -112,9 +112,9 @@ uv run python -m backend.evaluation.harness --mock --output reports/report.html 
 
 ## Related Documentation
 
-- [NeMo Data Designer Integration Design](/docs/plans/2026-01-21-nemo-data-designer-integration-design.md)
-- [Scenario Config Models](/tools/nemo_data_designer/config.py)
-- [Nemotron Prompt Templates](/backend/services/prompts.py)
+- [NeMo Data Designer Integration Design](../../docs/plans/2026-01-21-nemo-data-designer-integration-design.md)
+- [Scenario Config Models](../../tools/nemo_data_designer/config.py)
+- [Nemotron Prompt Templates](../services/prompts.py)
 
 ## Testing
 

@@ -945,7 +945,7 @@ Manages all application configuration using Pydantic Settings with environment v
 **Database Configuration:**
 
 - `database_url: str` - SQLAlchemy URL (required, no default - must be set)
-- Must use `postgresql+asyncpg://` scheme for async PostgreSQL driver
+- Must use the async PostgreSQL driver scheme (postgresql+asyncpg)
 - Example: `DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security` <!-- pragma: allowlist secret -->
 
 **Redis Configuration:**

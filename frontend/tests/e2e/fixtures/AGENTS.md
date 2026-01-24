@@ -272,7 +272,7 @@ test('with manual setup', async ({ page }) => {
 
 ## Notes for AI Agents
 
-- Always import from `fixtures/index.ts` (via `../fixtures`)
+- Always import from `index.ts` in this directory (via `../fixtures` from specs)
 - Use the `test` export for auto-mocking, or `setupApiMocks` for manual control
 - WebSocket is blocked by default (`wsConnectionFail: true`)
 - Mock data matches backend API response schemas

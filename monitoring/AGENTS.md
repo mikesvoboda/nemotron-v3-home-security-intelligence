@@ -316,5 +316,5 @@ relabel_configs:
 
 - `docker-compose.yml` - Service definitions
 - `backend/api/routes/system.py` - Backend endpoints for metrics
-- `grafana/dashboards/pipeline.json` - Main dashboard definition
+- `grafana/dashboards/consolidated.json` - Main unified monitoring dashboard
 - `grafana/provisioning/` - Auto-provisioning configs

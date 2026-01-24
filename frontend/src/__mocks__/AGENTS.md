@@ -10,10 +10,14 @@ Centralized mock infrastructure for frontend unit and integration tests. This di
 frontend/src/__mocks__/
   index.ts                       # Central re-export hub for all mocks
   AGENTS.md                      # This documentation file
+
+# Related mock directories (siblings, not subdirectories):
 frontend/src/hooks/__mocks__/
   useWebSocket.ts                # Mock for useWebSocket hook
   useEventStream.ts              # Mock for useEventStream hook
   useSystemStatus.ts             # Mock for useSystemStatus hook
+  webSocketManager.ts            # Mock for WebSocket manager
+
 frontend/src/services/__mocks__/
   api.ts                         # Comprehensive API mock with factory functions
 ```
@@ -23,10 +27,10 @@ frontend/src/services/__mocks__/
 | File | Purpose | Exports |
 |------|---------|---------|
 | `index.ts` | Central re-export point for all mocks | All mock factories and utilities |
-| `hooks/__mocks__/useWebSocket.ts` | Mock WebSocket connection state and callbacks | `createMockWebSocket`, `mockUseWebSocket` |
-| `hooks/__mocks__/useEventStream.ts` | Mock security event stream | `createMockEventStream`, `mockUseEventStream` |
-| `hooks/__mocks__/useSystemStatus.ts` | Mock system status updates | `createMockSystemStatus`, `mockUseSystemStatus` |
-| `services/__mocks__/api.ts` | Mock API client functions | All API mock factories |
+| `../hooks/__mocks__/useWebSocket.ts` | Mock WebSocket connection state and callbacks | `createMockWebSocket`, `mockUseWebSocket` |
+| `../hooks/__mocks__/useEventStream.ts` | Mock security event stream | `createMockEventStream`, `mockUseEventStream` |
+| `../hooks/__mocks__/useSystemStatus.ts` | Mock system status updates | `createMockSystemStatus`, `mockUseSystemStatus` |
+| `../services/__mocks__/api.ts` | Mock API client functions | All API mock factories |
 
 ## Usage Patterns
 
@@ -230,6 +234,6 @@ describe.each(RISK_LEVEL_TEST_CASES)(
 For AI agents exploring this codebase:
 
 1. **Start with `index.ts`** - Central export point for all mocks
-2. **Hook mocks**: `hooks/__mocks__/` contains WebSocket and stream mocks
-3. **API mocks**: `services/__mocks__/api.ts` provides endpoint mocks
+2. **Hook mocks**: `../hooks/__mocks__/` contains WebSocket and stream mocks
+3. **API mocks**: `../services/__mocks__/api.ts` provides endpoint mocks
 4. **Test examples**: See existing test files for usage patterns
