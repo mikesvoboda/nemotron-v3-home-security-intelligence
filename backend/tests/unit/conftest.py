@@ -42,3 +42,14 @@ def mock_transformers_for_speed(monkeypatch):
             "Can't load model for 'nonexistent'. Make sure that model path exists."
         )
         monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+
+
+@pytest.fixture(autouse=True)
+def set_test_environment(monkeypatch):
+    """Set ENVIRONMENT=test to bypass production password validation.
+
+    The Settings class defaults to environment='production', which triggers
+    password strength validation. Unit tests use weak/test passwords, so
+    setting ENVIRONMENT=test bypasses this validation.
+    """
+    monkeypatch.setenv("ENVIRONMENT", "test")
