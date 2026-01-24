@@ -789,7 +789,7 @@ See `scripts/setup-gpu-runner.sh` for runner configuration.
 
 ## Related Files
 
-- `../.github/AGENTS.md` - Parent directory overview
+- `../AGENTS.md` - Parent directory overview
 - `../codeql/AGENTS.md` - CodeQL directory guide
 - `../codeql/codeql-config.yml` - CodeQL configuration
 - `../prompts/code-review.prompt.md` - AI review prompt

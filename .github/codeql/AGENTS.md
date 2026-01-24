@@ -73,15 +73,9 @@ gh api /repos/{owner}/{repo}/code-scanning/alerts
 
 To add custom CodeQL queries:
 
-1. Create a `queries/` subdirectory
-2. Add `.ql` files with custom queries
-3. Reference in config:
-
-```yaml
-queries:
-  - uses: security-and-quality
-  - uses: ./queries
-```
+1. Create a `.ql` file in the appropriate `custom-queries/` subdirectory (e.g., `python/` or `javascript/`)
+2. Add the query with proper metadata
+3. The queries are already referenced in the config via `custom-queries/`
 
 ### Modifying Exclusions
 
@@ -110,6 +104,6 @@ paths-ignore:
 
 ## Related Files
 
-- `../.github/workflows/codeql.yml` - Workflow that uses this config
-- `../.github/AGENTS.md` - Parent directory overview
+- `../workflows/codeql.yml` - Workflow that uses this config
+- `../AGENTS.md` - Parent directory overview
 - `CLAUDE.md` - Project security requirements

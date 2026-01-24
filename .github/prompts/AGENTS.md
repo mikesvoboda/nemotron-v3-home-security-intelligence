@@ -120,6 +120,6 @@ The `ai-code-review.yml` workflow:
 
 ## Related Files
 
-- `../.github/workflows/ai-code-review.yml` - Workflow using this prompt
-- `../.github/copilot-instructions.md` - GitHub Copilot context
+- `../workflows/ai-code-review.yml` - Workflow using this prompt
+- `../copilot-instructions.md` - GitHub Copilot context
 - `CLAUDE.md` - Project development guidelines
