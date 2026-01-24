@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
+from sqlalchemy.orm import undefer
 
 from backend.core.logging import get_logger
 from backend.models.detection import Detection
@@ -92,7 +93,11 @@ async def batch_fetch_detections(
 
     # If all IDs fit in one batch, execute single query
     if len(unique_ids) <= effective_batch_size:
-        query = select(Detection).where(Detection.id.in_(unique_ids))
+        query = (
+            select(Detection)
+            .options(undefer(Detection.enrichment_data))
+            .where(Detection.id.in_(unique_ids))
+        )
         if order_by_time:
             query = query.order_by(Detection.detected_at.asc())
         result = await session.execute(query)
@@ -110,7 +115,11 @@ async def batch_fetch_detections(
         batch_ids = unique_ids[i : i + effective_batch_size]
         batch_count += 1
 
-        query = select(Detection).where(Detection.id.in_(batch_ids))
+        query = (
+            select(Detection)
+            .options(undefer(Detection.enrichment_data))
+            .where(Detection.id.in_(batch_ids))
+        )
         result = await session.execute(query)
         batch_detections = list(result.scalars().all())
         all_detections.extend(batch_detections)

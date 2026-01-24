@@ -526,12 +526,19 @@ async def get_detection_or_404(
         db: Database session
 
     Returns:
-        Detection object if found
+        Detection object if found with deferred columns loaded
 
     Raises:
         HTTPException: 404 if detection not found
     """
-    result = await db.execute(select(Detection).where(Detection.id == detection_id))
+    # Eagerly load deferred column (enrichment_data) to prevent lazy loading
+    # errors when the session is closed (NEM-XXXX)
+    query = (
+        select(Detection)
+        .options(undefer(Detection.enrichment_data))
+        .where(Detection.id == detection_id)
+    )
+    result = await db.execute(query)
     detection = result.scalar_one_or_none()
 
     if not detection:

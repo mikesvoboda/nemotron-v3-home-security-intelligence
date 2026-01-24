@@ -1784,7 +1784,11 @@ async def get_event_detections(
         )
 
     # Build query for detections
-    query = select(Detection).where(Detection.id.in_(detection_ids))
+    query = (
+        select(Detection)
+        .options(undefer(Detection.enrichment_data))
+        .where(Detection.id.in_(detection_ids))
+    )
 
     # Get total count (before pagination)
     count_query = select(func.count()).select_from(query.subquery())
