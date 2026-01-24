@@ -66,20 +66,33 @@ class MigrationFailedError(Exception):
 
 
 def get_database_url() -> str:
-    """Get database URL from centralized config or fallback to alembic.ini.
+    """Get database URL for Alembic migrations.
 
-    Priority:
-    1. Centralized config (backend.core.config.Settings.database_url)
-    2. alembic.ini sqlalchemy.url setting
-    3. Default development URL
+    Priority (NEM-3485):
+    1. DATABASE_URL environment variable (most explicit, used in CI/CD)
+    2. Centralized config (backend.core.config.Settings.database_url)
+    3. alembic.ini sqlalchemy.url setting (development fallback)
 
     Note: Only PostgreSQL is supported. SQLite URLs will cause runtime errors.
     The centralized config uses asyncpg URLs, which are converted to sync
     for Alembic compatibility.
 
-    Related Linear issue: NEM-2525
+    Related Linear issues: NEM-2525, NEM-3485
     """
-    # Use centralized config system (NEM-2525)
+    # Priority 1: Direct environment variable (most explicit, required for CI/CD)
+    # This takes precedence because CI workflows explicitly set DATABASE_URL
+    # and we don't want Settings validation failures to cause fallback to
+    # alembic.ini defaults.
+    env_url = os.getenv("DATABASE_URL")
+    if env_url:
+        # Convert async URL (asyncpg) to sync (psycopg2/plain postgresql)
+        if "+asyncpg" in env_url:
+            env_url = env_url.replace("+asyncpg", "")
+        logger.debug(f"Using DATABASE_URL from environment: {env_url[: env_url.find('@')]}")
+        return env_url
+
+    # Priority 2: Centralized config system (NEM-2525)
+    # This handles production deployments where settings are loaded from .env files
     try:
         settings = get_settings()
         url = settings.database_url
@@ -89,10 +102,11 @@ def get_database_url() -> str:
                 url = url.replace("+asyncpg", "")
             return url
     except Exception as e:
-        # Fall back to alembic.ini or default if config fails
+        # Fall back to alembic.ini if config fails
         # This can happen during initial setup or testing
-        logger.debug(f"Config loading failed, using fallback: {e}")
+        logger.debug(f"Config loading failed, using alembic.ini fallback: {e}")
 
+    # Priority 3: alembic.ini sqlalchemy.url (development fallback)
     ini_url = config.get_main_option("sqlalchemy.url")
     return ini_url if ini_url else DEFAULT_DATABASE_URL
 
