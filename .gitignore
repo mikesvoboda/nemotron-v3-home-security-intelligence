@@ -108,3 +108,4 @@ docker-compose.override.yml
 # GPU configuration (auto-generated)
 config/docker-compose.gpu-override.yml
 config/gpu-assignments.yml
+.eslintcache

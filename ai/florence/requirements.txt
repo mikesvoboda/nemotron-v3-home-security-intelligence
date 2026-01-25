@@ -8,6 +8,7 @@ python-multipart>=0.0.6
 # Deep learning frameworks
 torch>=2.0.0
 transformers>=4.35.0
+accelerate>=0.25.0
 
 # Florence-2 specific dependencies (required by model)
 einops>=0.7.0

@@ -70,6 +70,7 @@ from backend.api.routes import (
     system,
     webhooks,
     websocket,
+    zone_anomalies,
     zone_household,
     zones,
 )
@@ -1157,6 +1158,7 @@ app.include_router(summaries.router)
 app.include_router(system.router)
 app.include_router(webhooks.router)
 app.include_router(websocket.router)
+app.include_router(zone_anomalies.router)
 app.include_router(zone_household.router)
 app.include_router(zones.router)
 

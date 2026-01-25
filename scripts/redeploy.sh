@@ -61,7 +61,7 @@ SKIP_CI_CHECK="${SKIP_CI_CHECK:-false}"
 SKIP_SEED="${SKIP_SEED:-false}"
 SKIP_GIT_PULL="${SKIP_GIT_PULL:-false}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
-FRONTEND_PORT="${FRONTEND_PORT:-5173}"
+# Note: FRONTEND_PORT default is set after .env loading (line ~90)
 SEED_FILES_COUNT="${SEED_FILES_COUNT:-0}"
 FOSCAM_PATH="${FOSCAM_PATH:-/export/foscam}"
 # Timeout for compose up commands (in seconds) - prevents hanging on health checks
@@ -85,6 +85,9 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
     source "$PROJECT_ROOT/.env"
     set +a
 fi
+
+# Set FRONTEND_PORT default after .env loading so .env value takes precedence
+FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 
 # Ensure POSTGRES_PASSWORD is set
 if [ -z "$POSTGRES_PASSWORD" ]; then
@@ -868,46 +871,12 @@ build_images() {
 }
 
 run_migrations() {
-    print_header "Running Database Migrations"
-
-    cd "$PROJECT_ROOT"
-
-    # Wait for postgres to be ready
-    print_step "Waiting for PostgreSQL to be healthy..."
-    local max_attempts=30
-    local attempt=0
-    while [ $attempt -lt $max_attempts ]; do
-        if $CONTAINER_CMD exec "${PROJECT_NAME}_postgres_1" pg_isready -U "${POSTGRES_USER:-security}" > /dev/null 2>&1; then
-            print_success "PostgreSQL is ready"
-            break
-        fi
-        ((attempt++))
-        sleep 2
-    done
-
-    if [ $attempt -eq $max_attempts ]; then
-        print_fail "PostgreSQL did not become ready in time"
-        return 1
-    fi
-
-    # Check if uv is available
-    if ! command -v uv &> /dev/null; then
-        print_warn "uv not found - skipping migrations"
-        print_warn "Run manually: cd backend && uv run alembic upgrade head"
-        return 0
-    fi
-
-    # Run alembic migrations
-    print_step "Running alembic upgrade head..."
-    export PYTHONPATH="$PROJECT_ROOT"
-    export DATABASE_URL="postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB:-security}"
-
-    if (cd "$PROJECT_ROOT/backend" && uv run alembic upgrade head 2>&1 | grep -E "(INFO|ERROR|Running upgrade)"); then
-        print_success "Database migrations completed"
-    else
-        print_warn "Migration output unclear - check database state"
-    fi
-
+    # Schema is now managed by SQLAlchemy's create_all() in the backend app.
+    # The backend's init_db() handles schema creation on startup.
+    # Alembic migrations are no longer used to avoid DuplicateObject errors
+    # when enum types (like alert_severity) already exist.
+    print_header "Database Schema"
+    print_info "Schema creation is handled by backend on startup (create_all)"
     return 0
 }
 

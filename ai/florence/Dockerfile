@@ -35,7 +35,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --system --no-cache httpx
 
 # Install py-spy for continuous profiling
-RUN uv tool install py-spy && ln -s /root/.local/bin/py-spy /usr/local/bin/py-spy
+RUN uv tool install py-spy && \
+    cp /root/.local/bin/py-spy /usr/local/bin/py-spy && \
+    chmod +x /usr/local/bin/py-spy
 
 # Copy profiler and entrypoint scripts
 COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
@@ -47,6 +49,7 @@ RUN groupadd -g 1000 florence && \
 
 # Copy application files
 COPY ai/florence/model.py .
+COPY ai/torch_optimizations.py .
 
 # Environment variables
 ENV HOST=0.0.0.0

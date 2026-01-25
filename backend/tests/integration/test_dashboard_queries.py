@@ -584,13 +584,13 @@ class TestDashboardQueriesAgainstMetrics:
 
         # Metrics from external sources that are not exposed by /metrics endpoint
         # These come from GPU monitor, system health service, or runtime aggregates
+        # Note: hsi_inference_fps removed - dashboard now uses native rtdetr_inference_requests_total
         external_metrics = {
             # GPU metrics from nvidia-smi / GPU monitor
             "hsi_gpu_utilization",
             "hsi_gpu_memory_used_mb",
             "hsi_gpu_memory_total_mb",
             "hsi_gpu_temperature",
-            "hsi_inference_fps",
             # Runtime aggregate metrics (computed from DB/Redis)
             "hsi_total_events",
             "hsi_total_cameras",
