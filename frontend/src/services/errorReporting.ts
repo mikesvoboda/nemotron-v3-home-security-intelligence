@@ -199,7 +199,8 @@ function handleRejection(event: PromiseRejectionEvent): void {
   };
 
   const message = reason instanceof Error ? reason.message : safeStringify(reason);
-  const reasonString = reason instanceof Error ? `${reason.name}: ${reason.message}` : safeStringify(reason);
+  const reasonString =
+    reason instanceof Error ? `${reason.name}: ${reason.message}` : safeStringify(reason);
 
   // Filter out ignored errors
   if (isErrorIgnored(message) || isErrorIgnored(reasonString)) {

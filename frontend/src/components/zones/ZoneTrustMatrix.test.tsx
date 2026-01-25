@@ -262,9 +262,9 @@ describe('ZoneTrustMatrix', () => {
       error: null,
     });
 
-    (useZoneTrustMatrixModule.fetchZoneHouseholdConfig as ReturnType<typeof vi.fn>).mockResolvedValue(
-      null
-    );
+    (
+      useZoneTrustMatrixModule.fetchZoneHouseholdConfig as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -580,8 +580,8 @@ describe('ZoneTrustMatrix', () => {
         // The editor shows buttons with trust level names
         const allButtons = screen.getAllByRole('button');
         // Find a button that contains "Partial" text (from the editor, not the legend)
-        const editorButtons = allButtons.filter((btn) =>
-          btn.closest('.absolute.z-50') && btn.textContent?.includes('Partial')
+        const editorButtons = allButtons.filter(
+          (btn) => btn.closest('.absolute.z-50') && btn.textContent?.includes('Partial')
         );
 
         if (editorButtons.length > 0) {
@@ -650,8 +650,8 @@ describe('ZoneTrustMatrix', () => {
 
         // Find and click a trust level option button in the editor
         const allButtons = screen.getAllByRole('button');
-        const editorButtons = allButtons.filter((btn) =>
-          btn.closest('.absolute.z-50') && btn.textContent?.includes('Partial')
+        const editorButtons = allButtons.filter(
+          (btn) => btn.closest('.absolute.z-50') && btn.textContent?.includes('Partial')
         );
 
         if (editorButtons.length > 0) {
@@ -668,9 +668,7 @@ describe('ZoneTrustMatrix', () => {
 
   describe('Custom className', () => {
     it('applies custom className', () => {
-      const { container } = render(
-        <ZoneTrustMatrix zones={mockZones} className="custom-class" />
-      );
+      const { container } = render(<ZoneTrustMatrix zones={mockZones} className="custom-class" />);
 
       expect(container.firstChild).toHaveClass('custom-class');
     });

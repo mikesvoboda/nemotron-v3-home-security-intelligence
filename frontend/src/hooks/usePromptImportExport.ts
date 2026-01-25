@@ -188,15 +188,16 @@ export function useImportPreview(): UseImportPreviewReturn {
       const prompts = (data.prompts as Record<string, Record<string, unknown>>) || data;
 
       // If prompts is empty but we have other keys that look like model configs, use the whole object
-      const hasModelKeys = Object.keys(data).some(
-        (k) => ['nemotron', 'florence2', 'yolo_world', 'xclip', 'fashion_clip'].includes(k)
+      const hasModelKeys = Object.keys(data).some((k) =>
+        ['nemotron', 'florence2', 'yolo_world', 'xclip', 'fashion_clip'].includes(k)
       );
 
       const request: PromptsImportPreviewRequest = {
         version,
-        prompts: hasModelKeys && Object.keys(prompts).length === 0
-          ? (data as Record<string, Record<string, unknown>>)
-          : prompts,
+        prompts:
+          hasModelKeys && Object.keys(prompts).length === 0
+            ? (data as Record<string, Record<string, unknown>>)
+            : prompts,
       };
 
       return mutation.mutateAsync(request);

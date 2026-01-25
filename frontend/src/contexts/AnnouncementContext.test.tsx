@@ -9,7 +9,11 @@ import { act, render, renderHook, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AnnouncementProvider, useAnnounce, type AnnouncementProviderProps } from './AnnouncementContext';
+import {
+  AnnouncementProvider,
+  useAnnounce,
+  type AnnouncementProviderProps,
+} from './AnnouncementContext';
 
 /**
  * Helper to create a wrapper component for renderHook.

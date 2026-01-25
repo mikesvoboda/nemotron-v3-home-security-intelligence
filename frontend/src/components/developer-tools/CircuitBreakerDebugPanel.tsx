@@ -127,13 +127,7 @@ function LoadingState() {
 /**
  * Error state component
  */
-function ErrorState({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}) {
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div
       className="rounded-lg border border-red-500/30 bg-red-500/10 p-4"
@@ -165,7 +159,9 @@ function EmptyState() {
     <div className="flex flex-col items-center justify-center rounded-lg border border-gray-700 bg-gray-800/50 py-12">
       <Zap className="h-10 w-10 text-gray-500" />
       <Text className="mt-3 text-gray-400">No circuit breakers registered</Text>
-      <Text className="text-sm text-gray-500">Circuit breakers will appear here when registered</Text>
+      <Text className="text-sm text-gray-500">
+        Circuit breakers will appear here when registered
+      </Text>
     </div>
   );
 }
@@ -283,15 +279,8 @@ function CircuitBreakerRow({
 export default function CircuitBreakerDebugPanel({ className }: CircuitBreakerDebugPanelProps) {
   const { success, error: showError } = useToast();
 
-  const {
-    data,
-    isLoading,
-    isRefetching,
-    error,
-    refetch,
-    resetBreaker,
-    isResetPending,
-  } = useCircuitBreakerDebugQuery();
+  const { data, isLoading, isRefetching, error, refetch, resetBreaker, isResetPending } =
+    useCircuitBreakerDebugQuery();
 
   // Handle refresh
   const handleRefresh = useCallback(() => {
@@ -313,7 +302,7 @@ export default function CircuitBreakerDebugPanel({ className }: CircuitBreakerDe
 
   // Calculate summary stats
   const breakers = data?.circuit_breakers
-    ? Object.values(data.circuit_breakers) as CircuitBreakerInfo[]
+    ? (Object.values(data.circuit_breakers) as CircuitBreakerInfo[])
     : [];
   const healthyCount = breakers.filter((b) => b.state === 'closed').length;
   const totalCount = breakers.length;
@@ -331,10 +320,7 @@ export default function CircuitBreakerDebugPanel({ className }: CircuitBreakerDe
         <div className="flex items-center gap-2">
           {/* Summary Badge */}
           {data && totalCount > 0 && (
-            <Badge
-              color={healthyCount === totalCount ? 'green' : 'red'}
-              size="sm"
-            >
+            <Badge color={healthyCount === totalCount ? 'green' : 'red'} size="sm">
               {healthyCount}/{totalCount} Healthy
             </Badge>
           )}

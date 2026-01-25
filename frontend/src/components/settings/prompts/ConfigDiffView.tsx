@@ -54,7 +54,10 @@ function formatValue(value: unknown): string {
   }
   if (Array.isArray(value)) {
     if (value.length > 5) {
-      return `[${value.slice(0, 5).map((v) => formatValue(v)).join(', ')}, ...+${value.length - 5} more]`;
+      return `[${value
+        .slice(0, 5)
+        .map((v) => formatValue(v))
+        .join(', ')}, ...+${value.length - 5} more]`;
     }
     return `[${value.map((v) => formatValue(v)).join(', ')}]`;
   }
@@ -70,8 +73,18 @@ function formatValue(value: unknown): string {
 function computeDetailedDiff(
   current: Record<string, unknown> | undefined,
   imported: Record<string, unknown>
-): { key: string; type: 'added' | 'removed' | 'changed'; oldValue?: unknown; newValue?: unknown }[] {
-  const diffs: { key: string; type: 'added' | 'removed' | 'changed'; oldValue?: unknown; newValue?: unknown }[] = [];
+): {
+  key: string;
+  type: 'added' | 'removed' | 'changed';
+  oldValue?: unknown;
+  newValue?: unknown;
+}[] {
+  const diffs: {
+    key: string;
+    type: 'added' | 'removed' | 'changed';
+    oldValue?: unknown;
+    newValue?: unknown;
+  }[] = [];
 
   const currentKeys = current ? Object.keys(current) : [];
   const importedKeys = Object.keys(imported);
@@ -130,10 +143,7 @@ export default function ConfigDiffView({
   const detailedDiffs = computeDetailedDiff(diff.current_config, diff.imported_config);
 
   return (
-    <Card
-      className="border-gray-700 bg-gray-900/50"
-      data-testid={`config-diff-${diff.model}`}
-    >
+    <Card className="border-gray-700 bg-gray-900/50" data-testid={`config-diff-${diff.model}`}>
       {/* Header with model name and status */}
       <button
         type="button"
@@ -148,10 +158,7 @@ export default function ConfigDiffView({
             <span className="text-sm text-gray-400">v{diff.current_version}</span>
           )}
         </div>
-        <Badge
-          color={diff.has_changes ? 'amber' : 'gray'}
-          size="sm"
-        >
+        <Badge color={diff.has_changes ? 'amber' : 'gray'} size="sm">
           {diff.has_changes ? 'WILL CHANGE' : 'NO CHANGE'}
         </Badge>
       </button>

@@ -162,7 +162,9 @@ describe('useSummaries', () => {
     });
 
     it('handles null summaries (no events)', async () => {
-      (api.fetchSummaries as ReturnType<typeof vi.fn>).mockResolvedValue(mockEmptySummariesResponse);
+      (api.fetchSummaries as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockEmptySummariesResponse
+      );
 
       const { result } = renderHook(() => useSummaries({ enabled: true }), {
         wrapper: createQueryWrapper(),
@@ -347,10 +349,9 @@ describe('useSummaries', () => {
 
   describe('configuration options', () => {
     it('accepts custom staleTime', async () => {
-      const { result } = renderHook(
-        () => useSummaries({ enabled: true, staleTime: 60000 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useSummaries({ enabled: true, staleTime: 60000 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.hourly).toEqual(mockHourlySummary);
@@ -358,10 +359,9 @@ describe('useSummaries', () => {
     });
 
     it('accepts refetchInterval for polling', async () => {
-      const { result } = renderHook(
-        () => useSummaries({ enabled: true, refetchInterval: 30000 }),
-        { wrapper: createQueryWrapper() }
-      );
+      const { result } = renderHook(() => useSummaries({ enabled: true, refetchInterval: 30000 }), {
+        wrapper: createQueryWrapper(),
+      });
 
       await waitFor(() => {
         expect(result.current.hourly).toEqual(mockHourlySummary);

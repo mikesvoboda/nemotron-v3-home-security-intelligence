@@ -81,11 +81,7 @@ export default function ImportPreviewModal({
   const canApply = previewData.valid && modelsWithChanges > 0;
 
   return (
-    <Dialog
-      open={isOpen}
-      onClose={onClose}
-      static={true}
-    >
+    <Dialog open={isOpen} onClose={onClose} static={true}>
       <DialogPanel
         className="max-w-3xl border border-gray-700 bg-[#1A1A1A]"
         data-testid="import-preview-modal"
@@ -116,15 +112,12 @@ export default function ImportPreviewModal({
 
         {/* Validation errors */}
         {hasValidationErrors && (
-          <Callout
-            title="Validation Errors"
-            icon={AlertTriangle}
-            color="red"
-            className="mb-4"
-          >
+          <Callout title="Validation Errors" icon={AlertTriangle} color="red" className="mb-4">
             <span className="block">
               {previewData.validation_errors.map((error, idx) => (
-                <span key={idx} className="block ml-4">- {error}</span>
+                <span key={idx} className="ml-4 block">
+                  - {error}
+                </span>
               ))}
             </span>
           </Callout>
@@ -132,18 +125,15 @@ export default function ImportPreviewModal({
 
         {/* Unknown models warning */}
         {hasUnknownModels && (
-          <Callout
-            title="Unknown Models"
-            icon={AlertTriangle}
-            color="amber"
-            className="mb-4"
-          >
+          <Callout title="Unknown Models" icon={AlertTriangle} color="amber" className="mb-4">
             <span className="block">
               The following models in the import file are not recognized and will be skipped:
             </span>
-            <span className="block mt-1">
+            <span className="mt-1 block">
               {previewData.unknown_models.map((model, idx) => (
-                <span key={idx} className="block ml-4">- {model}</span>
+                <span key={idx} className="ml-4 block">
+                  - {model}
+                </span>
               ))}
             </span>
           </Callout>
@@ -151,15 +141,10 @@ export default function ImportPreviewModal({
 
         {/* No changes notice */}
         {modelsWithChanges === 0 && !hasValidationErrors && (
-          <Callout
-            title="No Changes Detected"
-            icon={CheckCircle}
-            color="gray"
-            className="mb-4"
-          >
+          <Callout title="No Changes Detected" icon={CheckCircle} color="gray" className="mb-4">
             <span className="block">
-              All configurations in the import file match the current configurations.
-              Nothing will be changed if you apply this import.
+              All configurations in the import file match the current configurations. Nothing will
+              be changed if you apply this import.
             </span>
           </Callout>
         )}
@@ -173,18 +158,10 @@ export default function ImportPreviewModal({
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
-          <Button
-            variant="secondary"
-            onClick={onClose}
-            disabled={isImporting}
-          >
+          <Button variant="secondary" onClick={onClose} disabled={isImporting}>
             Cancel
           </Button>
-          <Button
-            onClick={onApplyImport}
-            loading={isImporting}
-            disabled={isImporting || !canApply}
-          >
+          <Button onClick={onApplyImport} loading={isImporting} disabled={isImporting || !canApply}>
             Apply Import
           </Button>
         </div>

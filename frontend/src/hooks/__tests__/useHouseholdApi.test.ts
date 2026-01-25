@@ -158,10 +158,7 @@ describe('useMembersQuery', () => {
   it('handles fetch error', async () => {
     server.use(
       http.get(`${BASE_URL}/api/household/members`, () => {
-        return HttpResponse.json(
-          { detail: 'Internal server error' },
-          { status: 500 }
-        );
+        return HttpResponse.json({ detail: 'Internal server error' }, { status: 500 });
       })
     );
 
@@ -186,10 +183,7 @@ describe('useMembersQuery', () => {
     server.use(
       http.get(`${BASE_URL}/api/household/members`, () => {
         callCount++;
-        return HttpResponse.json(
-          { detail: 'Server error' },
-          { status: 500 }
-        );
+        return HttpResponse.json({ detail: 'Server error' }, { status: 500 });
       })
     );
 
@@ -222,7 +216,7 @@ describe('useCreateMember', () => {
 
     server.use(
       http.post(`${BASE_URL}/api/household/members`, async ({ request }) => {
-        const body = await request.json() as HouseholdMemberCreate;
+        const body = (await request.json()) as HouseholdMemberCreate;
         return HttpResponse.json({
           id: 3,
           ...body,
@@ -288,10 +282,7 @@ describe('useCreateMember', () => {
   it('handles creation error', async () => {
     server.use(
       http.post(`${BASE_URL}/api/household/members`, () => {
-        return HttpResponse.json(
-          { detail: 'Validation error' },
-          { status: 400 }
-        );
+        return HttpResponse.json({ detail: 'Validation error' }, { status: 400 });
       })
     );
 
@@ -369,7 +360,7 @@ describe('useUpdateMember', () => {
 
     server.use(
       http.patch(`${BASE_URL}/api/household/members/:id`, async ({ request, params }) => {
-        const body = await request.json() as HouseholdMemberUpdate;
+        const body = (await request.json()) as HouseholdMemberUpdate;
         const id = Number(params.id);
         return HttpResponse.json({
           ...mockMember,
@@ -424,10 +415,7 @@ describe('useUpdateMember', () => {
   it('handles update error for non-existent member', async () => {
     server.use(
       http.patch(`${BASE_URL}/api/household/members/:id`, () => {
-        return HttpResponse.json(
-          { detail: 'Member not found' },
-          { status: 404 }
-        );
+        return HttpResponse.json({ detail: 'Member not found' }, { status: 404 });
       })
     );
 
@@ -513,10 +501,7 @@ describe('useDeleteMember', () => {
   it('handles deletion error for non-existent member', async () => {
     server.use(
       http.delete(`${BASE_URL}/api/household/members/:id`, () => {
-        return HttpResponse.json(
-          { detail: 'Member not found' },
-          { status: 404 }
-        );
+        return HttpResponse.json({ detail: 'Member not found' }, { status: 404 });
       })
     );
 
@@ -585,10 +570,7 @@ describe('useVehiclesQuery', () => {
   it('handles fetch error', async () => {
     server.use(
       http.get(`${BASE_URL}/api/household/vehicles`, () => {
-        return HttpResponse.json(
-          { detail: 'Database error' },
-          { status: 500 }
-        );
+        return HttpResponse.json({ detail: 'Database error' }, { status: 500 });
       })
     );
 
@@ -620,7 +602,7 @@ describe('useCreateVehicle', () => {
 
     server.use(
       http.post(`${BASE_URL}/api/household/vehicles`, async ({ request }) => {
-        const body = await request.json() as RegisteredVehicleCreate;
+        const body = (await request.json()) as RegisteredVehicleCreate;
         return HttpResponse.json({
           id: 3,
           ...body,
@@ -700,10 +682,7 @@ describe('useCreateVehicle', () => {
   it('handles creation error', async () => {
     server.use(
       http.post(`${BASE_URL}/api/household/vehicles`, () => {
-        return HttpResponse.json(
-          { detail: 'Invalid vehicle type' },
-          { status: 400 }
-        );
+        return HttpResponse.json({ detail: 'Invalid vehicle type' }, { status: 400 });
       })
     );
 
@@ -741,7 +720,7 @@ describe('useUpdateVehicle', () => {
 
     server.use(
       http.patch(`${BASE_URL}/api/household/vehicles/:id`, async ({ request, params }) => {
-        const body = await request.json() as RegisteredVehicleUpdate;
+        const body = (await request.json()) as RegisteredVehicleUpdate;
         const id = Number(params.id);
         return HttpResponse.json({
           ...mockVehicle,
@@ -791,10 +770,7 @@ describe('useUpdateVehicle', () => {
   it('handles update error', async () => {
     server.use(
       http.patch(`${BASE_URL}/api/household/vehicles/:id`, () => {
-        return HttpResponse.json(
-          { detail: 'Vehicle not found' },
-          { status: 404 }
-        );
+        return HttpResponse.json({ detail: 'Vehicle not found' }, { status: 404 });
       })
     );
 
@@ -868,10 +844,7 @@ describe('useDeleteVehicle', () => {
   it('handles deletion error', async () => {
     server.use(
       http.delete(`${BASE_URL}/api/household/vehicles/:id`, () => {
-        return HttpResponse.json(
-          { detail: 'Vehicle not found' },
-          { status: 404 }
-        );
+        return HttpResponse.json({ detail: 'Vehicle not found' }, { status: 404 });
       })
     );
 
@@ -949,10 +922,7 @@ describe('useHouseholdsQuery', () => {
   it('handles fetch error', async () => {
     server.use(
       http.get(`${BASE_URL}/api/v1/households`, () => {
-        return HttpResponse.json(
-          { detail: 'Unauthorized' },
-          { status: 401 }
-        );
+        return HttpResponse.json({ detail: 'Unauthorized' }, { status: 401 });
       })
     );
 
@@ -984,7 +954,7 @@ describe('useCreateHousehold', () => {
 
     server.use(
       http.post(`${BASE_URL}/api/v1/households`, async ({ request }) => {
-        const body = await request.json() as HouseholdCreate;
+        const body = (await request.json()) as HouseholdCreate;
         return HttpResponse.json({
           id: 3,
           name: body.name,
@@ -1077,7 +1047,7 @@ describe('useUpdateHousehold', () => {
 
     server.use(
       http.patch(`${BASE_URL}/api/v1/households/:id`, async ({ request, params }) => {
-        const body = await request.json() as HouseholdUpdate;
+        const body = (await request.json()) as HouseholdUpdate;
         const id = Number(params.id);
         return HttpResponse.json({
           ...mockHousehold,
@@ -1132,10 +1102,7 @@ describe('useUpdateHousehold', () => {
   it('handles update error for non-existent household', async () => {
     server.use(
       http.patch(`${BASE_URL}/api/v1/households/:id`, () => {
-        return HttpResponse.json(
-          { detail: 'Household not found' },
-          { status: 404 }
-        );
+        return HttpResponse.json({ detail: 'Household not found' }, { status: 404 });
       })
     );
 

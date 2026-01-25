@@ -329,13 +329,17 @@ describe('DatabasesPanel', () => {
     });
 
     it('renders debug section when debugMode is true', () => {
-      render(<DatabasesPanel {...defaultProps} debugMode={true} redisDebugInfo={mockRedisDebugInfo} />);
+      render(
+        <DatabasesPanel {...defaultProps} debugMode={true} redisDebugInfo={mockRedisDebugInfo} />
+      );
 
       expect(screen.getByTestId('redis-debug-section')).toBeInTheDocument();
     });
 
     it('displays DEBUG badge when debugMode is true', () => {
-      render(<DatabasesPanel {...defaultProps} debugMode={true} redisDebugInfo={mockRedisDebugInfo} />);
+      render(
+        <DatabasesPanel {...defaultProps} debugMode={true} redisDebugInfo={mockRedisDebugInfo} />
+      );
 
       expect(screen.getByText('DEBUG')).toBeInTheDocument();
     });
@@ -376,7 +380,11 @@ describe('DatabasesPanel', () => {
 
     it('shows error state when redisDebugError is provided', () => {
       render(
-        <DatabasesPanel {...defaultProps} debugMode={true} redisDebugError="Failed to fetch Redis info" />
+        <DatabasesPanel
+          {...defaultProps}
+          debugMode={true}
+          redisDebugError="Failed to fetch Redis info"
+        />
       );
 
       expect(screen.getByText('Failed to fetch Redis info')).toBeInTheDocument();
@@ -408,7 +416,9 @@ describe('DatabasesPanel', () => {
     });
 
     it('applies orange accent styling to debug section', () => {
-      render(<DatabasesPanel {...defaultProps} debugMode={true} redisDebugInfo={mockRedisDebugInfo} />);
+      render(
+        <DatabasesPanel {...defaultProps} debugMode={true} redisDebugInfo={mockRedisDebugInfo} />
+      );
 
       const debugSection = screen.getByTestId('redis-debug-section');
       expect(debugSection.className).toContain('border-orange-500');

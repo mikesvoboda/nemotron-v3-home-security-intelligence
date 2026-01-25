@@ -82,19 +82,25 @@ describe('SummaryCard', () => {
 
     it('displays events analyzed count in footer', () => {
       render(<SummaryCard type="hourly" summary={mockHourlySummary} />);
-      expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent('1 event analyzed');
+      expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent(
+        '1 event analyzed'
+      );
     });
 
     it('pluralizes events analyzed correctly', () => {
       const multiEvent: Summary = { ...mockHourlySummary, eventCount: 3 };
       render(<SummaryCard type="hourly" summary={multiEvent} />);
-      expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent('3 events analyzed');
+      expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent(
+        '3 events analyzed'
+      );
     });
 
     it('handles undefined eventCount gracefully by defaulting to 0', () => {
       const undefinedEventCount: Summary = { ...mockHourlySummary, eventCount: undefined as any };
       render(<SummaryCard type="hourly" summary={undefinedEventCount} />);
-      expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent('0 events analyzed');
+      expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent(
+        '0 events analyzed'
+      );
     });
 
     it('renders summary content container', () => {
@@ -172,7 +178,9 @@ describe('SummaryCard', () => {
 
     it('shows contextual timeframe message for hourly', () => {
       render(<SummaryCard type="hourly" summary={null} />);
-      expect(screen.getByText(/No high-priority events detected the past hour/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/No high-priority events detected the past hour/)
+      ).toBeInTheDocument();
     });
 
     it('shows contextual timeframe message for daily', () => {
@@ -346,7 +354,9 @@ describe('SummaryCard', () => {
     it('displays metadata section for daily summary', () => {
       render(<SummaryCard type="daily" summary={summaryWithMetadata} />);
       expect(screen.getByTestId('summary-metadata-daily')).toBeInTheDocument();
-      expect(screen.getByTestId('summary-location-daily')).toHaveTextContent('Front Door, Driveway');
+      expect(screen.getByTestId('summary-location-daily')).toHaveTextContent(
+        'Front Door, Driveway'
+      );
       expect(screen.getByTestId('summary-time-range-daily')).toHaveTextContent('2:15 PM - 3:00 PM');
     });
 
@@ -373,7 +383,9 @@ describe('SummaryCard', () => {
       };
       render(<SummaryCard type="hourly" summary={summaryWithOnlyTime} />);
       expect(screen.queryByTestId('summary-location-hourly')).not.toBeInTheDocument();
-      expect(screen.getByTestId('summary-time-range-hourly')).toHaveTextContent('10:30 AM - 11:00 AM');
+      expect(screen.getByTestId('summary-time-range-hourly')).toHaveTextContent(
+        '10:30 AM - 11:00 AM'
+      );
     });
 
     it('location text has title attribute for full text on hover', () => {
@@ -493,12 +505,16 @@ describe('SummaryCards', () => {
 
       // Check initial count in badge
       const hourlyCard = screen.getByTestId('summary-card-hourly');
-      expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(1)');
+      expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent(
+        '(1)'
+      );
 
       const updatedHourly: Summary = { ...mockHourlySummary, eventCount: 5 };
       rerender(<SummaryCards hourly={updatedHourly} daily={mockDailySummary} />);
 
-      expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(5)');
+      expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent(
+        '(5)'
+      );
     });
 
     it('updates when daily summary changes', () => {
@@ -513,7 +529,9 @@ describe('SummaryCards', () => {
 
       // With 2 events, badge should show count
       const dailyCard = screen.getByTestId('summary-card-daily');
-      expect(dailyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(2)');
+      expect(dailyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent(
+        '(2)'
+      );
     });
 
     it('handles transition from loading to data', () => {
@@ -522,7 +540,9 @@ describe('SummaryCards', () => {
       expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
       expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
 
-      rerender(<SummaryCards hourly={mockHourlySummary} daily={mockDailySummary} isLoading={false} />);
+      rerender(
+        <SummaryCards hourly={mockHourlySummary} daily={mockDailySummary} isLoading={false} />
+      );
 
       expect(screen.queryByTestId('summary-card-skeleton-hourly')).not.toBeInTheDocument();
       expect(screen.queryByTestId('summary-card-skeleton-daily')).not.toBeInTheDocument();

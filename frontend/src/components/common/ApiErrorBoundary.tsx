@@ -256,17 +256,16 @@ export function ApiErrorFallback({
       className={`flex min-h-[200px] flex-col items-center justify-center rounded-lg border border-${colorClass}-500/20 bg-${colorClass}-500/5 p-8 text-center`}
       data-testid="api-error-fallback"
     >
-      <Icon
-        className={`mb-4 h-12 w-12 text-${colorClass}-500`}
-        aria-hidden="true"
-      />
+      <Icon className={`mb-4 h-12 w-12 text-${colorClass}-500`} aria-hidden="true" />
       <h2 className="mb-2 text-lg font-semibold text-white">{title}</h2>
       <p className="mb-4 max-w-md text-sm text-gray-400">{description}</p>
 
       {/* Show error code if available */}
       {(() => {
         const errorCode =
-          error instanceof ApiError ? (error.problemDetails?.error_code as string | undefined) : undefined;
+          error instanceof ApiError
+            ? (error.problemDetails?.error_code as string | undefined)
+            : undefined;
         return errorCode ? (
           <p className="mb-4 rounded bg-gray-800/50 px-3 py-1 font-mono text-xs text-gray-500">
             Code: {errorCode}

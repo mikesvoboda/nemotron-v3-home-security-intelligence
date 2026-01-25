@@ -50,32 +50,26 @@ vi.mock('../../services/api', async () => {
   const actual = await vi.importActual<typeof api>('../../services/api');
   return {
     ...actual,
-    fetchEventDetections: vi
-      .fn()
-      .mockResolvedValue({
-        items: [],
-        pagination: { total: 0, limit: 100, offset: 0, has_more: false },
-      }),
-    fetchEventEntityMatches: vi
-      .fn()
-      .mockResolvedValue({
-        event_id: 123,
-        person_matches: [],
-        vehicle_matches: [],
-        total_matches: 0,
-      }),
-    fetchEntity: vi
-      .fn()
-      .mockResolvedValue({
-        id: 'entity-1',
-        entity_type: 'person',
-        first_seen: '2024-01-15T10:00:00Z',
-        last_seen: '2024-01-15T10:30:00Z',
-        appearance_count: 1,
-        cameras_seen: [],
-        thumbnail_url: null,
-        appearances: [],
-      }),
+    fetchEventDetections: vi.fn().mockResolvedValue({
+      items: [],
+      pagination: { total: 0, limit: 100, offset: 0, has_more: false },
+    }),
+    fetchEventEntityMatches: vi.fn().mockResolvedValue({
+      event_id: 123,
+      person_matches: [],
+      vehicle_matches: [],
+      total_matches: 0,
+    }),
+    fetchEntity: vi.fn().mockResolvedValue({
+      id: 'entity-1',
+      entity_type: 'person',
+      first_seen: '2024-01-15T10:00:00Z',
+      last_seen: '2024-01-15T10:30:00Z',
+      appearance_count: 1,
+      cameras_seen: [],
+      thumbnail_url: null,
+      appearances: [],
+    }),
     getDetectionImageUrl: vi.fn((id: number) => `/api/detections/${id}/image`),
     getDetectionVideoUrl: vi.fn((id: number) => `/api/detections/${id}/video`),
     getDetectionVideoThumbnailUrl: vi.fn((id: number) => `/api/detections/${id}/video/thumbnail`),
@@ -2617,7 +2611,10 @@ describe('EventDetailModal', () => {
 
       // Wait for the error to be logged
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch entity details:', expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Failed to fetch entity details:',
+          expect.any(Error)
+        );
       });
 
       // EntityDetailModal should not open

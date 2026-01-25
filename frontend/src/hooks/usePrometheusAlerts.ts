@@ -38,7 +38,10 @@ import { toast } from 'sonner';
 import { useWebSocket } from './useWebSocket';
 import { buildWebSocketOptions } from '../services/api';
 import { logger } from '../services/logger';
-import { usePrometheusAlertStore, type StoredPrometheusAlert } from '../stores/prometheus-alert-store';
+import {
+  usePrometheusAlertStore,
+  type StoredPrometheusAlert,
+} from '../stores/prometheus-alert-store';
 
 import type { PrometheusAlertPayload, PrometheusAlertSeverity } from '../types/websocket-events';
 
@@ -200,9 +203,11 @@ function isPrometheusAlertMessage(data: unknown): data is {
 /**
  * Extract alert payload from message, supporting both formats.
  */
-function extractAlertPayload(
-  msg: { type: 'prometheus.alert'; payload?: PrometheusAlertPayload; data?: PrometheusAlertPayload }
-): PrometheusAlertPayload {
+function extractAlertPayload(msg: {
+  type: 'prometheus.alert';
+  payload?: PrometheusAlertPayload;
+  data?: PrometheusAlertPayload;
+}): PrometheusAlertPayload {
   return (msg.payload ?? msg.data) as PrometheusAlertPayload;
 }
 

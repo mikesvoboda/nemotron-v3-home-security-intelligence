@@ -76,8 +76,20 @@ const mockGpuConfig: GpuConfig = {
 const mockGpuStatus: GpuStatusResponse = {
   services: [
     { name: 'ai-llm', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
-    { name: 'ai-detector', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
-    { name: 'ai-enrichment', status: 'running', health: 'healthy', gpu_index: 1, restart_status: null },
+    {
+      name: 'ai-detector',
+      status: 'running',
+      health: 'healthy',
+      gpu_index: 0,
+      restart_status: null,
+    },
+    {
+      name: 'ai-enrichment',
+      status: 'running',
+      health: 'healthy',
+      gpu_index: 1,
+      restart_status: null,
+    },
   ],
 };
 
@@ -125,8 +137,12 @@ describe('GpuSettingsPage', () => {
 
     it('should show loading state initially', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
-      (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
-      (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+      (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockReturnValue(
+        new Promise(() => {})
+      );
+      (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockReturnValue(
+        new Promise(() => {})
+      );
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -387,7 +403,9 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
-      (gpuConfigApi.updateGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockUpdateResponse);
+      (gpuConfigApi.updateGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(
+        mockUpdateResponse
+      );
       (gpuConfigApi.applyGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockApplyResult);
 
       const { user } = renderWithProviders(<GpuSettingsPage />);

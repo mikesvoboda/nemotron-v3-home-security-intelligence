@@ -97,9 +97,7 @@ describe('ZoneEditorSidebar', () => {
   let queryClient: QueryClient;
 
   const renderWithProvider = (ui: React.ReactElement) => {
-    return render(
-      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-    );
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
   };
 
   beforeEach(() => {
@@ -199,9 +197,7 @@ describe('ZoneEditorSidebar', () => {
       const onTabChange = vi.fn();
       const user = userEvent.setup();
 
-      renderWithProvider(
-        <ZoneEditorSidebar {...defaultProps} onTabChange={onTabChange} />
-      );
+      renderWithProvider(<ZoneEditorSidebar {...defaultProps} onTabChange={onTabChange} />);
 
       await waitFor(() => {
         expect(screen.getByTestId('tab-configure')).toBeInTheDocument();
@@ -213,9 +209,7 @@ describe('ZoneEditorSidebar', () => {
     });
 
     it('should respect activeTab prop', async () => {
-      renderWithProvider(
-        <ZoneEditorSidebar {...defaultProps} activeTab="analytics" />
-      );
+      renderWithProvider(<ZoneEditorSidebar {...defaultProps} activeTab="analytics" />);
 
       await waitFor(() => {
         expect(screen.getByText('Select a zone for analytics')).toBeInTheDocument();
@@ -264,9 +258,7 @@ describe('ZoneEditorSidebar', () => {
 
     it('should show zone intelligence when zone selected', async () => {
       const user = userEvent.setup();
-      renderWithProvider(
-        <ZoneEditorSidebar {...defaultProps} selectedZoneId="zone-1" />
-      );
+      renderWithProvider(<ZoneEditorSidebar {...defaultProps} selectedZoneId="zone-1" />);
 
       await waitFor(() => {
         expect(screen.getByTestId('tab-configure')).toBeInTheDocument();
@@ -317,9 +309,7 @@ describe('ZoneEditorSidebar', () => {
 
     it('should show analytics when zone selected', async () => {
       const user = userEvent.setup();
-      renderWithProvider(
-        <ZoneEditorSidebar {...defaultProps} selectedZoneId="zone-1" />
-      );
+      renderWithProvider(<ZoneEditorSidebar {...defaultProps} selectedZoneId="zone-1" />);
 
       await waitFor(() => {
         expect(screen.getByTestId('tab-analytics')).toBeInTheDocument();
@@ -364,11 +354,7 @@ describe('ZoneEditorSidebar', () => {
       const onCollapseChange = vi.fn();
 
       renderWithProvider(
-        <ZoneEditorSidebar
-          {...defaultProps}
-          collapsed={true}
-          onCollapseChange={onCollapseChange}
-        />
+        <ZoneEditorSidebar {...defaultProps} collapsed={true} onCollapseChange={onCollapseChange} />
       );
 
       await waitFor(() => {
@@ -394,11 +380,7 @@ describe('ZoneEditorSidebar', () => {
       const onCollapseChange = vi.fn();
 
       renderWithProvider(
-        <ZoneEditorSidebar
-          {...defaultProps}
-          collapsed
-          onCollapseChange={onCollapseChange}
-        />
+        <ZoneEditorSidebar {...defaultProps} collapsed onCollapseChange={onCollapseChange} />
       );
 
       await waitFor(() => {
@@ -450,9 +432,7 @@ describe('ZoneEditorSidebar', () => {
       const onZoneSelect = vi.fn();
       const user = userEvent.setup();
 
-      renderWithProvider(
-        <ZoneEditorSidebar {...defaultProps} onZoneSelect={onZoneSelect} />
-      );
+      renderWithProvider(<ZoneEditorSidebar {...defaultProps} onZoneSelect={onZoneSelect} />);
 
       await waitFor(() => {
         expect(screen.getByText('Front Door')).toBeInTheDocument();
@@ -470,9 +450,7 @@ describe('ZoneEditorSidebar', () => {
       const onZoneEdit = vi.fn();
       const user = userEvent.setup();
 
-      renderWithProvider(
-        <ZoneEditorSidebar {...defaultProps} onZoneEdit={onZoneEdit} />
-      );
+      renderWithProvider(<ZoneEditorSidebar {...defaultProps} onZoneEdit={onZoneEdit} />);
 
       await waitFor(() => {
         expect(screen.getAllByTitle('Edit zone').length).toBeGreaterThan(0);
@@ -487,9 +465,7 @@ describe('ZoneEditorSidebar', () => {
       const onZoneDelete = vi.fn();
       const user = userEvent.setup();
 
-      renderWithProvider(
-        <ZoneEditorSidebar {...defaultProps} onZoneDelete={onZoneDelete} />
-      );
+      renderWithProvider(<ZoneEditorSidebar {...defaultProps} onZoneDelete={onZoneDelete} />);
 
       await waitFor(() => {
         expect(screen.getAllByTitle('Delete zone').length).toBeGreaterThan(0);
@@ -505,10 +481,7 @@ describe('ZoneEditorSidebar', () => {
       const user = userEvent.setup();
 
       renderWithProvider(
-        <ZoneEditorSidebar
-          {...defaultProps}
-          onZoneToggleEnabled={onZoneToggleEnabled}
-        />
+        <ZoneEditorSidebar {...defaultProps} onZoneToggleEnabled={onZoneToggleEnabled} />
       );
 
       await waitFor(() => {
@@ -541,9 +514,7 @@ describe('ZoneEditorSidebar', () => {
 
   describe('Custom Styling', () => {
     it('should apply custom className', async () => {
-      renderWithProvider(
-        <ZoneEditorSidebar {...defaultProps} className="custom-class" />
-      );
+      renderWithProvider(<ZoneEditorSidebar {...defaultProps} className="custom-class" />);
 
       await waitFor(() => {
         expect(screen.getByTestId('zone-editor-sidebar')).toHaveClass('custom-class');

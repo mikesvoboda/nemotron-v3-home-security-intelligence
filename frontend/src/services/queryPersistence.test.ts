@@ -70,8 +70,7 @@ describe('queryPersistence constants', () => {
 
     it('includes system.config prefix', () => {
       const hasSystemConfig = PERSISTABLE_QUERY_KEY_PREFIXES.some(
-        (prefix) =>
-          Array.isArray(prefix) && prefix[0] === 'system' && prefix[1] === 'config'
+        (prefix) => Array.isArray(prefix) && prefix[0] === 'system' && prefix[1] === 'config'
       );
       expect(hasSystemConfig).toBe(true);
     });
@@ -82,8 +81,7 @@ describe('queryPersistence constants', () => {
 
     it('includes alerts.rules prefix', () => {
       const hasAlertsRules = PERSISTABLE_QUERY_KEY_PREFIXES.some(
-        (prefix) =>
-          Array.isArray(prefix) && prefix[0] === 'alerts' && prefix[1] === 'rules'
+        (prefix) => Array.isArray(prefix) && prefix[0] === 'alerts' && prefix[1] === 'rules'
       );
       expect(hasAlertsRules).toBe(true);
     });

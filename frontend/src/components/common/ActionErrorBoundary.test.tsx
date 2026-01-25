@@ -7,11 +7,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  ActionErrorBoundary,
-  ActionErrorDisplay,
-  FormActionError,
-} from './ActionErrorBoundary';
+import { ActionErrorBoundary, ActionErrorDisplay, FormActionError } from './ActionErrorBoundary';
 
 import type { FormActionState } from '../../hooks/useFormAction';
 
@@ -170,10 +166,7 @@ describe('ActionErrorBoundary', () => {
         </ActionErrorBoundary>
       );
 
-      expect(onError).toHaveBeenCalledWith(
-        expect.any(Error),
-        'render'
-      );
+      expect(onError).toHaveBeenCalledWith(expect.any(Error), 'render');
     });
   });
 
@@ -282,11 +275,7 @@ describe('ActionErrorBoundary', () => {
 
       // First render with success state
       const { rerender } = render(
-        <ActionErrorBoundary
-          feature="Test"
-          actionState={{ status: 'success' }}
-          onError={onError}
-        >
+        <ActionErrorBoundary feature="Test" actionState={{ status: 'success' }} onError={onError}>
           <div>Content</div>
         </ActionErrorBoundary>
       );
@@ -473,27 +462,20 @@ describe('ActionErrorDisplay', () => {
 
 describe('FormActionError', () => {
   it('returns null when status is not error', () => {
-    const { container } = render(
-      <FormActionError state={{ status: 'idle' }} feature="Test" />
-    );
+    const { container } = render(<FormActionError state={{ status: 'idle' }} feature="Test" />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
   it('returns null when status is success', () => {
-    const { container } = render(
-      <FormActionError state={{ status: 'success' }} feature="Test" />
-    );
+    const { container } = render(<FormActionError state={{ status: 'success' }} feature="Test" />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
   it('renders error display when status is error', () => {
     render(
-      <FormActionError
-        state={{ status: 'error', error: 'Test error' }}
-        feature="Test Form"
-      />
+      <FormActionError state={{ status: 'error', error: 'Test error' }} feature="Test Form" />
     );
 
     expect(screen.getByRole('alert')).toBeInTheDocument();

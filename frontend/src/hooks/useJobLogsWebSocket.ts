@@ -136,7 +136,8 @@ function isJobLogMessage(data: unknown): data is JobLogMessage {
  * Get the WebSocket URL for job logs.
  */
 function getJobLogsWebSocketUrl(jobId: string): string {
-  const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const protocol =
+    typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = typeof window !== 'undefined' ? window.location.host : 'localhost:8000';
   return `${protocol}//${host}/ws/jobs/${jobId}/logs`;
 }

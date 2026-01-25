@@ -737,9 +737,7 @@ describe('CameraGrid', () => {
         { id: 'cam2', name: 'Backyard', status: 'online' },
       ];
 
-      render(
-        <CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1']} />
-      );
+      render(<CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1']} />);
 
       expect(screen.getByTestId('scene-change-indicator-cam1')).toBeInTheDocument();
       expect(screen.queryByTestId('scene-change-indicator-cam2')).not.toBeInTheDocument();
@@ -752,9 +750,7 @@ describe('CameraGrid', () => {
         { id: 'cam2', name: 'Backyard', status: 'online' },
       ];
 
-      render(
-        <CameraGrid cameras={cameras} sceneChangeActivityIds={new Set(['cam2'])} />
-      );
+      render(<CameraGrid cameras={cameras} sceneChangeActivityIds={new Set(['cam2'])} />);
 
       expect(screen.queryByTestId('scene-change-indicator-cam1')).not.toBeInTheDocument();
       expect(screen.getByTestId('scene-change-indicator-cam2')).toBeInTheDocument();
@@ -767,9 +763,7 @@ describe('CameraGrid', () => {
         { id: 'cam3', name: 'Garage', status: 'online' },
       ];
 
-      render(
-        <CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1', 'cam3']} />
-      );
+      render(<CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1', 'cam3']} />);
 
       expect(screen.getByTestId('scene-change-indicator-cam1')).toBeInTheDocument();
       expect(screen.queryByTestId('scene-change-indicator-cam2')).not.toBeInTheDocument();
@@ -779,9 +773,7 @@ describe('CameraGrid', () => {
     });
 
     it('should not show scene change indicator when sceneChangeActivityIds is undefined', () => {
-      const cameras: CameraStatus[] = [
-        { id: 'cam1', name: 'Front Door', status: 'online' },
-      ];
+      const cameras: CameraStatus[] = [{ id: 'cam1', name: 'Front Door', status: 'online' }];
 
       render(<CameraGrid cameras={cameras} />);
 
@@ -789,9 +781,7 @@ describe('CameraGrid', () => {
     });
 
     it('should not show scene change indicator when sceneChangeActivityIds is empty', () => {
-      const cameras: CameraStatus[] = [
-        { id: 'cam1', name: 'Front Door', status: 'online' },
-      ];
+      const cameras: CameraStatus[] = [{ id: 'cam1', name: 'Front Door', status: 'online' }];
 
       render(<CameraGrid cameras={cameras} sceneChangeActivityIds={[]} />);
 
@@ -799,13 +789,9 @@ describe('CameraGrid', () => {
     });
 
     it('should apply pulsing animation to scene change indicator', () => {
-      const cameras: CameraStatus[] = [
-        { id: 'cam1', name: 'Front Door', status: 'online' },
-      ];
+      const cameras: CameraStatus[] = [{ id: 'cam1', name: 'Front Door', status: 'online' }];
 
-      render(
-        <CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1']} />
-      );
+      render(<CameraGrid cameras={cameras} sceneChangeActivityIds={['cam1']} />);
 
       const indicator = screen.getByTestId('scene-change-indicator-cam1');
       // The AlertTriangle icon should have animate-pulse class

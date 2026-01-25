@@ -78,9 +78,7 @@ export default function SeedRow<T extends number>({
           <Database className="h-4 w-4 text-[#76B900]" />
           <Text className="font-medium text-white">{label}</Text>
         </div>
-        {description && (
-          <Text className="mt-1 text-xs text-gray-400">{description}</Text>
-        )}
+        {description && <Text className="mt-1 text-xs text-gray-400">{description}</Text>}
       </div>
 
       <div className="flex items-center gap-3">

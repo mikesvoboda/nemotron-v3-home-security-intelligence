@@ -258,9 +258,7 @@ describe('IconButton', () => {
     });
 
     it('shows tooltip on hover when tooltip prop is provided', async () => {
-      render(
-        <IconButton icon={<Settings />} aria-label="Open settings" tooltip="Settings" />
-      );
+      render(<IconButton icon={<Settings />} aria-label="Open settings" tooltip="Settings" />);
 
       const button = screen.getByRole('button');
       fireEvent.mouseEnter(button);

@@ -32,20 +32,11 @@ import { useCallback, useState } from 'react';
 import Button from '../components/common/Button';
 import EmptyState from '../components/common/EmptyState';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import {
-  useExportJobsQuery,
-  useStartExportJob,
-  useCancelExportJob,
-} from '../hooks/useExportJobs';
+import { useExportJobsQuery, useStartExportJob, useCancelExportJob } from '../hooks/useExportJobs';
 import { downloadExportFile } from '../services/api';
 import { formatFileSize } from '../types/export';
 
-import type {
-  ExportJob,
-  ExportType,
-  ExportFormat,
-  ExportJobCreateParams,
-} from '../types/export';
+import type { ExportJob, ExportType, ExportFormat, ExportJobCreateParams } from '../types/export';
 
 // ============================================================================
 // Types
@@ -463,7 +454,9 @@ export default function DataManagementPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-page-title">Data Management</h1>
-          <p className="text-body-sm mt-2">Export data and create backups of your security system</p>
+          <p className="text-body-sm mt-2">
+            Export data and create backups of your security system
+          </p>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-3">

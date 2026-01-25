@@ -116,8 +116,7 @@ export default function NemotronConfigForm({
           className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700"
         />
         <p className="mt-1 text-xs text-gray-400">
-          Lower values (0-0.5) produce more focused output. Higher values (1-2) increase
-          creativity.
+          Lower values (0-0.5) produce more focused output. Higher values (1-2) increase creativity.
         </p>
       </div>
 

@@ -13,16 +13,9 @@
  * separate from AI-generated security alerts.
  */
 
-import {
-  createImmerSelectorStore,
-  type ImmerSetState,
-} from './middleware';
+import { createImmerSelectorStore, type ImmerSetState } from './middleware';
 
-import type {
-  PrometheusAlertPayload,
-  PrometheusAlertSeverity,
-} from '../types/websocket-events';
-
+import type { PrometheusAlertPayload, PrometheusAlertSeverity } from '../types/websocket-events';
 
 // ============================================================================
 // Types
@@ -150,8 +143,16 @@ export const usePrometheusAlertStore = createImmerSelectorStore<PrometheusAlertS
     totalCount: 0,
 
     handlePrometheusAlert: (payload: PrometheusAlertPayload) => {
-      const { fingerprint, status, alertname, severity, labels, annotations, starts_at, received_at } =
-        payload;
+      const {
+        fingerprint,
+        status,
+        alertname,
+        severity,
+        labels,
+        annotations,
+        starts_at,
+        received_at,
+      } = payload;
 
       if (status === 'firing') {
         // Add or update the alert using Immer

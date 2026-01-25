@@ -280,7 +280,9 @@ export const handleGPUStatsEvent = createWebSocketEventHandler<
   GPUStatsEventPayload
 >(
   useRealtimeMetricsStore.setState as (
-    partial: Partial<RealtimeMetricsState> | ((state: RealtimeMetricsState) => Partial<RealtimeMetricsState>)
+    partial:
+      | Partial<RealtimeMetricsState>
+      | ((state: RealtimeMetricsState) => Partial<RealtimeMetricsState>)
   ) => void,
   (event) => ({
     gpu: {
@@ -308,7 +310,9 @@ export const handlePipelineMetricsEvent = createWebSocketEventHandler<
   PipelineMetricsEventPayload
 >(
   useRealtimeMetricsStore.setState as (
-    partial: Partial<RealtimeMetricsState> | ((state: RealtimeMetricsState) => Partial<RealtimeMetricsState>)
+    partial:
+      | Partial<RealtimeMetricsState>
+      | ((state: RealtimeMetricsState) => Partial<RealtimeMetricsState>)
   ) => void,
   (event) => ({
     pipeline: {
@@ -336,7 +340,9 @@ export const handleInferenceMetricsEvent = createWebSocketEventHandler<
   InferenceMetricsEventPayload
 >(
   useRealtimeMetricsStore.setState as (
-    partial: Partial<RealtimeMetricsState> | ((state: RealtimeMetricsState) => Partial<RealtimeMetricsState>)
+    partial:
+      | Partial<RealtimeMetricsState>
+      | ((state: RealtimeMetricsState) => Partial<RealtimeMetricsState>)
   ) => void,
   (event) => ({
     inference: {

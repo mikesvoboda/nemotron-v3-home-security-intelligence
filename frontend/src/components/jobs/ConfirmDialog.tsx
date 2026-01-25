@@ -77,12 +77,9 @@ const reducedMotionVariants = {
  * Confirm button styling based on variant
  */
 const confirmButtonStyles: Record<ConfirmDialogVariant, string> = {
-  default:
-    'bg-[#76B900] hover:bg-[#6aa800] text-white focus:ring-[#76B900]/50',
-  warning:
-    'bg-amber-600 hover:bg-amber-700 text-white focus:ring-amber-500/50',
-  danger:
-    'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500/50',
+  default: 'bg-[#76B900] hover:bg-[#6aa800] text-white focus:ring-[#76B900]/50',
+  warning: 'bg-amber-600 hover:bg-amber-700 text-white focus:ring-amber-500/50',
+  danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500/50',
 };
 
 /**
@@ -221,18 +218,12 @@ const ConfirmDialog = memo(function ConfirmDialog({
             onClick={handleDialogClick}
           >
             {/* Title */}
-            <h2
-              id={titleId}
-              className="text-lg font-semibold text-white"
-            >
+            <h2 id={titleId} className="text-lg font-semibold text-white">
               {title}
             </h2>
 
             {/* Description */}
-            <p
-              id={descriptionId}
-              className="mt-2 text-sm text-gray-400"
-            >
+            <p id={descriptionId} className="mt-2 text-sm text-gray-400">
               {description}
             </p>
 
@@ -258,10 +249,7 @@ const ConfirmDialog = memo(function ConfirmDialog({
                 className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-50 ${confirmButtonStyles[variant]}`}
               >
                 {isLoading && (
-                  <Loader2
-                    data-testid="loading-spinner"
-                    className="h-4 w-4 animate-spin"
-                  />
+                  <Loader2 data-testid="loading-spinner" className="h-4 w-4 animate-spin" />
                 )}
                 {isLoading && loadingText ? loadingText : confirmLabel}
               </button>

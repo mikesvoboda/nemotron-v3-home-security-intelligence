@@ -223,7 +223,7 @@ export default function ResponsiveChart({
             <button
               onClick={handleCloseFullscreen}
               className={clsx(
-                'flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-lg',
+                'flex h-11 min-h-11 w-11 min-w-11 items-center justify-center rounded-lg',
                 'text-gray-400 hover:bg-gray-800 hover:text-white',
                 'focus:outline-none focus:ring-2 focus:ring-[#76B900]'
               )}
@@ -252,7 +252,8 @@ export default function ResponsiveChart({
             <div className="flex items-center justify-center" style={{ minHeight: '60vh' }}>
               {children({
                 width: typeof window !== 'undefined' ? window.innerWidth - 32 : 400,
-                height: typeof window !== 'undefined' ? Math.min(window.innerHeight - 200, 500) : 300,
+                height:
+                  typeof window !== 'undefined' ? Math.min(window.innerHeight - 200, 500) : 300,
               })}
             </div>
           </div>
@@ -309,11 +310,7 @@ export default function ResponsiveChart({
     <>
       <figure
         data-testid="responsive-chart"
-        className={clsx(
-          'relative',
-          legendPosition === 'right' && 'flex items-start',
-          className
-        )}
+        className={clsx('relative', legendPosition === 'right' && 'flex items-start', className)}
         role="figure"
         aria-label={title}
       >
@@ -321,12 +318,8 @@ export default function ResponsiveChart({
         {(title || (enableFullscreen && isMobile)) && (
           <div className="mb-3 flex items-start justify-between">
             <div>
-              {title && (
-                <h3 className="text-sm font-medium text-white">{title}</h3>
-              )}
-              {subtitle && (
-                <p className="text-xs text-gray-400">{subtitle}</p>
-              )}
+              {title && <h3 className="text-sm font-medium text-white">{title}</h3>}
+              {subtitle && <p className="text-xs text-gray-400">{subtitle}</p>}
             </div>
 
             {/* Fullscreen button (mobile only) */}
@@ -334,7 +327,7 @@ export default function ResponsiveChart({
               <button
                 onClick={handleOpenFullscreen}
                 className={clsx(
-                  'flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-lg',
+                  'flex h-11 min-h-11 w-11 min-w-11 items-center justify-center rounded-lg',
                   'text-gray-400 hover:bg-gray-800 hover:text-white',
                   'focus:outline-none focus:ring-2 focus:ring-[#76B900]'
                 )}
@@ -348,9 +341,7 @@ export default function ResponsiveChart({
         )}
 
         {/* Main content */}
-        <div className={clsx(legendPosition === 'right' && 'flex-1')}>
-          {renderContent()}
-        </div>
+        <div className={clsx(legendPosition === 'right' && 'flex-1')}>{renderContent()}</div>
       </figure>
 
       {/* Fullscreen modal */}

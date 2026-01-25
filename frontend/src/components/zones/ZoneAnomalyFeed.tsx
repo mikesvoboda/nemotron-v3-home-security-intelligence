@@ -26,7 +26,11 @@ import { useZoneAnomalies } from '../../hooks/useZoneAnomalies';
 import { useZonesQuery } from '../../hooks/useZones';
 import { ANOMALY_SEVERITY_CONFIG } from '../../types/zoneAnomaly';
 
-import type { ZoneAnomalyFeedProps, ZoneAnomalyFeedFilters, ZoneAnomaly } from '../../types/zoneAnomaly';
+import type {
+  ZoneAnomalyFeedProps,
+  ZoneAnomalyFeedFilters,
+  ZoneAnomaly,
+} from '../../types/zoneAnomaly';
 
 // ============================================================================
 // Filter Components
@@ -258,8 +262,7 @@ function ZoneAnomalyFeedComponent({
   const queryOptions = useMemo(
     () => ({
       zoneId: filters.zoneId !== 'all' ? filters.zoneId : zoneId,
-      severity:
-        filters.severity !== 'all' ? (filters.severity) : undefined,
+      severity: filters.severity !== 'all' ? filters.severity : undefined,
       unacknowledgedOnly: filters.acknowledged === 'unacknowledged',
       since: sinceTime,
       enableRealtime,
@@ -293,9 +296,7 @@ function ZoneAnomalyFeedComponent({
 
   // Check if any filters are active
   const hasActiveFilters =
-    filters.severity !== 'all' ||
-    filters.zoneId !== 'all' ||
-    filters.acknowledged !== 'all';
+    filters.severity !== 'all' || filters.zoneId !== 'all' || filters.acknowledged !== 'all';
 
   // Handle filter change
   const handleFilterChange = useCallback((newFilters: ZoneAnomalyFeedFilters) => {
@@ -350,23 +351,19 @@ function ZoneAnomalyFeedComponent({
         <div>
           <h3 className="text-lg font-semibold text-text-primary">Zone Anomalies</h3>
           <p className="text-sm text-text-secondary">
-            {totalCount} {totalCount === 1 ? 'anomaly' : 'anomalies'} in the last{' '}
-            {hoursLookback} hours
+            {totalCount} {totalCount === 1 ? 'anomaly' : 'anomalies'} in the last {hoursLookback}{' '}
+            hours
           </p>
         </div>
 
         {/* Connection status */}
         <div className="flex items-center gap-2">
-          {isFetching && !isLoading && (
-            <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-          )}
+          {isFetching && !isLoading && <RefreshCw className="h-4 w-4 animate-spin text-primary" />}
           {enableRealtime && (
             <div
               className={clsx(
                 'flex items-center gap-1 rounded px-2 py-1 text-xs',
-                isConnected
-                  ? 'bg-green-500/10 text-green-400'
-                  : 'bg-gray-700 text-gray-400'
+                isConnected ? 'bg-green-500/10 text-green-400' : 'bg-gray-700 text-gray-400'
               )}
               title={isConnected ? 'Real-time updates active' : 'Connecting...'}
             >

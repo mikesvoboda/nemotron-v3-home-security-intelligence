@@ -151,9 +151,7 @@ describe('useDetectionStream', () => {
     });
 
     it('should filter detections by camera_id when provided', () => {
-      const { result } = renderHook(() =>
-        useDetectionStream({ filterCameraId: 'front_door' })
-      );
+      const { result } = renderHook(() => useDetectionStream({ filterCameraId: 'front_door' }));
 
       simulateMessage({
         type: 'detection.new',
@@ -264,9 +262,7 @@ describe('useDetectionStream', () => {
     });
 
     it('should filter batches by camera_id when provided', () => {
-      const { result } = renderHook(() =>
-        useDetectionStream({ filterCameraId: 'front_door' })
-      );
+      const { result } = renderHook(() => useDetectionStream({ filterCameraId: 'front_door' }));
 
       simulateMessage({
         type: 'detection.batch',

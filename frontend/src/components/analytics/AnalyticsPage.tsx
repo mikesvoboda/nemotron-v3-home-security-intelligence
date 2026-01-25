@@ -121,7 +121,10 @@ export default function AnalyticsPage() {
 
         <div className="flex items-center gap-3">
           {/* View Mode Toggle */}
-          <div className="flex overflow-hidden rounded-lg border border-gray-700" data-testid="view-mode-toggle">
+          <div
+            className="flex overflow-hidden rounded-lg border border-gray-700"
+            data-testid="view-mode-toggle"
+          >
             <button
               onClick={() => setViewMode('grafana')}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
@@ -200,7 +203,10 @@ export default function AnalyticsPage() {
 
       {/* Native analytics components */}
       {viewMode === 'native' && (
-        <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-2" data-testid="native-analytics-view">
+        <div
+          className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-2"
+          data-testid="native-analytics-view"
+        >
           <CameraUptimeCard dateRange={dateRange} />
           <PipelineLatencyPanel refreshInterval={30000} />
         </div>
@@ -224,8 +230,8 @@ function AnalyticsPageWithErrorBoundary() {
           <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
           <h3 className="mb-2 text-lg font-semibold text-red-400">Analytics Unavailable</h3>
           <p className="max-w-md text-center text-sm text-gray-400">
-            Unable to load analytics dashboard. Please refresh the page or try again later.
-            Other parts of the application should still work.
+            Unable to load analytics dashboard. Please refresh the page or try again later. Other
+            parts of the application should still work.
           </p>
         </div>
       }

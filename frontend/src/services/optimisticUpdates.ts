@@ -115,9 +115,7 @@ export function optimisticUpdateInList<T extends ItemWithId>(
 
   queryClient.setQueryData<T[]>(queryKey, (old) => {
     if (!old) return old;
-    return old.map((item) =>
-      item.id === id ? { ...item, ...updates } : item
-    );
+    return old.map((item) => (item.id === id ? { ...item, ...updates } : item));
   });
 
   return previousData;
@@ -269,10 +267,7 @@ export async function cancelOutgoingQueries(
  * @param queryClient - TanStack Query client
  * @param queryKeys - Array of query keys to invalidate
  */
-export function invalidateQueries(
-  queryClient: QueryClient,
-  queryKeys: readonly unknown[][]
-): void {
+export function invalidateQueries(queryClient: QueryClient, queryKeys: readonly unknown[][]): void {
   for (const queryKey of queryKeys) {
     void queryClient.invalidateQueries({ queryKey });
   }
@@ -328,17 +323,16 @@ export function createOptimisticAddConfig<T extends ItemWithId, TVariables>(
         rollbackList(queryClient, listQueryKey, context.previousData);
       }
     },
-    onSuccess: (
-      data: T,
-      _variables: TVariables,
-      context: OptimisticContext<T[]> | undefined
-    ) => {
+    onSuccess: (data: T, _variables: TVariables, context: OptimisticContext<T[]> | undefined) => {
       if (context?.optimisticId) {
         replaceOptimisticItem(queryClient, listQueryKey, context.optimisticId, data);
       }
     },
     onSettled: () => {
-      invalidateQueries(queryClient, [listQueryKey as unknown[], ...additionalInvalidations as unknown[][]]);
+      invalidateQueries(queryClient, [
+        listQueryKey as unknown[],
+        ...(additionalInvalidations as unknown[][]),
+      ]);
     },
   };
 }
@@ -378,7 +372,10 @@ export function createOptimisticUpdateConfig<T extends ItemWithId, TVariables>(
       }
     },
     onSettled: () => {
-      invalidateQueries(queryClient, [listQueryKey as unknown[], ...additionalInvalidations as unknown[][]]);
+      invalidateQueries(queryClient, [
+        listQueryKey as unknown[],
+        ...(additionalInvalidations as unknown[][]),
+      ]);
     },
   };
 }
@@ -417,7 +414,10 @@ export function createOptimisticDeleteConfig<T extends ItemWithId, TVariables>(
       }
     },
     onSettled: (_data: unknown, _error: Error | null, variables: TVariables) => {
-      const keysToInvalidate = [listQueryKey as unknown[], ...additionalInvalidations as unknown[][]];
+      const keysToInvalidate = [
+        listQueryKey as unknown[],
+        ...(additionalInvalidations as unknown[][]),
+      ];
       if (getDetailQueryKey) {
         const id = getIdFromVariables(variables);
         queryClient.removeQueries({ queryKey: getDetailQueryKey(id) });

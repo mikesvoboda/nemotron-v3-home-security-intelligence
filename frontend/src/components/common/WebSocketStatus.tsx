@@ -75,7 +75,12 @@ function ChannelStatusIcon({ state }: { state: ConnectionState }) {
     case 'connected':
       return <CheckCircle className="h-3 w-3 text-green-500" aria-hidden="true" />;
     case 'reconnecting':
-      return <RefreshCw className="h-3 w-3 motion-safe:animate-spin text-yellow-500" aria-hidden="true" />;
+      return (
+        <RefreshCw
+          className="h-3 w-3 text-yellow-500 motion-safe:animate-spin"
+          aria-hidden="true"
+        />
+      );
     case 'failed':
       return <AlertTriangle className="h-3 w-3 text-orange-500" aria-hidden="true" />;
     case 'disconnected':

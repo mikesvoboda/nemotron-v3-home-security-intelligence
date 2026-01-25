@@ -101,7 +101,11 @@ function jobsListItemPropsAreEqual(
   // on each parent render but the behavior is typically stable
 }
 
-const JobsListItem = memo(function JobsListItem({ job, isSelected = false, onClick }: JobsListItemProps) {
+const JobsListItem = memo(function JobsListItem({
+  job,
+  isSelected = false,
+  onClick,
+}: JobsListItemProps) {
   const handleClick = () => {
     onClick?.(job.job_id);
   };
@@ -123,7 +127,7 @@ const JobsListItem = memo(function JobsListItem({ job, isSelected = false, onCli
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       className={`cursor-pointer border-b border-gray-800 p-4 transition-colors hover:bg-gray-800/50 ${
-        isSelected ? 'bg-[#76B900]/10 border-l-2 border-l-[#76B900]' : ''
+        isSelected ? 'border-l-2 border-l-[#76B900] bg-[#76B900]/10' : ''
       }`}
     >
       <div className="flex items-start justify-between">
@@ -141,9 +145,7 @@ const JobsListItem = memo(function JobsListItem({ job, isSelected = false, onCli
           <span className="text-sm font-medium text-white">{formatJobType(job.job_type)}</span>
           <span className="text-xs text-gray-500">#{job.job_id.slice(-6)}</span>
         </div>
-        {job.message && (
-          <p className="mt-1 truncate text-xs text-gray-400">{job.message}</p>
-        )}
+        {job.message && <p className="mt-1 truncate text-xs text-gray-400">{job.message}</p>}
       </div>
 
       {/* Progress bar for running jobs */}

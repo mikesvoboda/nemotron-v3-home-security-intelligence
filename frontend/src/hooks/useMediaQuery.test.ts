@@ -131,14 +131,18 @@ describe('useMediaQuery', () => {
 
   describe('useIsMobile', () => {
     it('returns false for desktop viewports by default', () => {
-      matchMediaMock.mockReturnValue(createMediaQueryMock(false, `(max-width: ${MOBILE_BREAKPOINT}px)`));
+      matchMediaMock.mockReturnValue(
+        createMediaQueryMock(false, `(max-width: ${MOBILE_BREAKPOINT}px)`)
+      );
 
       const { result } = renderHook(() => useIsMobile());
       expect(result.current).toBe(false);
     });
 
     it('returns true for mobile viewports', () => {
-      matchMediaMock.mockReturnValue(createMediaQueryMock(true, `(max-width: ${MOBILE_BREAKPOINT}px)`));
+      matchMediaMock.mockReturnValue(
+        createMediaQueryMock(true, `(max-width: ${MOBILE_BREAKPOINT}px)`)
+      );
 
       const { result } = renderHook(() => useIsMobile());
       expect(result.current).toBe(true);
@@ -221,21 +225,27 @@ describe('useMediaQuery', () => {
 
   describe('usePrefersReducedMotion', () => {
     it('returns false when user does not prefer reduced motion', () => {
-      matchMediaMock.mockReturnValue(createMediaQueryMock(false, '(prefers-reduced-motion: reduce)'));
+      matchMediaMock.mockReturnValue(
+        createMediaQueryMock(false, '(prefers-reduced-motion: reduce)')
+      );
 
       const { result } = renderHook(() => usePrefersReducedMotion());
       expect(result.current).toBe(false);
     });
 
     it('returns true when user prefers reduced motion', () => {
-      matchMediaMock.mockReturnValue(createMediaQueryMock(true, '(prefers-reduced-motion: reduce)'));
+      matchMediaMock.mockReturnValue(
+        createMediaQueryMock(true, '(prefers-reduced-motion: reduce)')
+      );
 
       const { result } = renderHook(() => usePrefersReducedMotion());
       expect(result.current).toBe(true);
     });
 
     it('uses correct reduced motion query', () => {
-      matchMediaMock.mockReturnValue(createMediaQueryMock(false, '(prefers-reduced-motion: reduce)'));
+      matchMediaMock.mockReturnValue(
+        createMediaQueryMock(false, '(prefers-reduced-motion: reduce)')
+      );
 
       renderHook(() => usePrefersReducedMotion());
 

@@ -54,9 +54,7 @@ describe('useCameraUptimeQuery', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (api.fetchCameraUptime as ReturnType<typeof vi.fn>).mockResolvedValue(
-      mockCameraUptimeResponse
-    );
+    (api.fetchCameraUptime as ReturnType<typeof vi.fn>).mockResolvedValue(mockCameraUptimeResponse);
   });
 
   afterEach(() => {
@@ -176,13 +174,10 @@ describe('useCameraUptimeQuery', () => {
 
   describe('date range handling', () => {
     it('re-fetches when date range changes', async () => {
-      const { result, rerender } = renderHook(
-        ({ dateRange }) => useCameraUptimeQuery(dateRange),
-        {
-          wrapper: createQueryWrapper(),
-          initialProps: { dateRange: mockDateRange },
-        }
-      );
+      const { result, rerender } = renderHook(({ dateRange }) => useCameraUptimeQuery(dateRange), {
+        wrapper: createQueryWrapper(),
+        initialProps: { dateRange: mockDateRange },
+      });
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);

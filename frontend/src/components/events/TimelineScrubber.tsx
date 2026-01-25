@@ -304,7 +304,11 @@ export default function TimelineScrubber({
         const startDate = bucket.timestamp;
         // Estimate end date based on zoom level
         const bucketDuration =
-          zoomLevel === 'hour' ? 5 * 60 * 1000 : zoomLevel === 'day' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+          zoomLevel === 'hour'
+            ? 5 * 60 * 1000
+            : zoomLevel === 'day'
+              ? 60 * 60 * 1000
+              : 24 * 60 * 60 * 1000;
         const endDate = new Date(new Date(startDate).getTime() + bucketDuration).toISOString();
 
         setSelectedIndex(index);
@@ -368,7 +372,10 @@ export default function TimelineScrubber({
 
       const rect = containerRef.current.getBoundingClientRect();
       const x = event.clientX - rect.left;
-      const endIndex = Math.min(Math.max(0, Math.floor((x / rect.width) * buckets.length)), buckets.length - 1);
+      const endIndex = Math.min(
+        Math.max(0, Math.floor((x / rect.width) * buckets.length)),
+        buckets.length - 1
+      );
 
       const startIndex = Math.min(dragStartIndex, endIndex);
       const finalEndIndex = Math.max(dragStartIndex, endIndex);
@@ -376,7 +383,11 @@ export default function TimelineScrubber({
       if (startIndex !== finalEndIndex && buckets[startIndex] && buckets[finalEndIndex]) {
         const startDate = buckets[startIndex].timestamp;
         const bucketDuration =
-          zoomLevel === 'hour' ? 5 * 60 * 1000 : zoomLevel === 'day' ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+          zoomLevel === 'hour'
+            ? 5 * 60 * 1000
+            : zoomLevel === 'day'
+              ? 60 * 60 * 1000
+              : 24 * 60 * 60 * 1000;
         const endDate = new Date(
           new Date(buckets[finalEndIndex].timestamp).getTime() + bucketDuration
         ).toISOString();

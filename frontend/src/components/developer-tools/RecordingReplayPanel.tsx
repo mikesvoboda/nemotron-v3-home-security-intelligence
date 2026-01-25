@@ -40,14 +40,8 @@ export default function RecordingReplayPanel({ className = '' }: RecordingReplay
   } = useRecordingsQuery({ refetchInterval: false });
 
   // Mutations
-  const {
-    replayMutation,
-    deleteMutation,
-    clearAllMutation,
-    isReplaying,
-    isDeleting,
-    isClearing,
-  } = useRecordingMutations();
+  const { replayMutation, deleteMutation, clearAllMutation, isReplaying, isDeleting, isClearing } =
+    useRecordingMutations();
 
   // Modal state
   const [selectedRecordingId, setSelectedRecordingId] = useState<string | null>(null);
@@ -80,14 +74,17 @@ export default function RecordingReplayPanel({ className = '' }: RecordingReplay
   }, []);
 
   // Handle replay recording
-  const handleReplay = useCallback((recordingId: string) => {
-    replayMutation.mutate(recordingId, {
-      onSuccess: (data) => {
-        setReplayResult(data);
-        setIsReplayResultsModalOpen(true);
-      },
-    });
-  }, [replayMutation]);
+  const handleReplay = useCallback(
+    (recordingId: string) => {
+      replayMutation.mutate(recordingId, {
+        onSuccess: (data) => {
+          setReplayResult(data);
+          setIsReplayResultsModalOpen(true);
+        },
+      });
+    },
+    [replayMutation]
+  );
 
   // Handle close replay results modal
   const handleCloseReplayResultsModal = useCallback(() => {
@@ -96,11 +93,14 @@ export default function RecordingReplayPanel({ className = '' }: RecordingReplay
   }, []);
 
   // Handle delete recording
-  const handleDelete = useCallback((recordingId: string) => {
-    if (window.confirm(`Delete recording ${recordingId}? This action cannot be undone.`)) {
-      deleteMutation.mutate(recordingId);
-    }
-  }, [deleteMutation]);
+  const handleDelete = useCallback(
+    (recordingId: string) => {
+      if (window.confirm(`Delete recording ${recordingId}? This action cannot be undone.`)) {
+        deleteMutation.mutate(recordingId);
+      }
+    },
+    [deleteMutation]
+  );
 
   // Handle clear all recordings
   const handleClearAll = useCallback(() => {

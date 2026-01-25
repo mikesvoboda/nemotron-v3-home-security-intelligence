@@ -155,13 +155,15 @@ export function useMemoryStatsQuery(
   });
 
   // Start tracemalloc mutation
-  const startTracemallocMutation = useMutation<StartTracemallocResponse, Error, number | undefined>({
-    mutationFn: (nframes) => startTracemalloc(nframes),
-    onSuccess: () => {
-      // Refetch memory stats after starting tracemalloc
-      void queryClient.invalidateQueries({ queryKey: MEMORY_STATS_QUERY_KEY });
-    },
-  });
+  const startTracemallocMutation = useMutation<StartTracemallocResponse, Error, number | undefined>(
+    {
+      mutationFn: (nframes) => startTracemalloc(nframes),
+      onSuccess: () => {
+        // Refetch memory stats after starting tracemalloc
+        void queryClient.invalidateQueries({ queryKey: MEMORY_STATS_QUERY_KEY });
+      },
+    }
+  );
 
   // Stop tracemalloc mutation
   const stopTracemallocMutation = useMutation<StopTracemallocResponse>({

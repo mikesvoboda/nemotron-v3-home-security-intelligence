@@ -482,9 +482,7 @@ describe('PipelineMetricsPanel', () => {
     });
 
     it('shows loading state when errorsLoading is true', () => {
-      render(
-        <PipelineMetricsPanel queues={mockQueues} debugMode={true} errorsLoading={true} />
-      );
+      render(<PipelineMetricsPanel queues={mockQueues} debugMode={true} errorsLoading={true} />);
 
       expect(screen.getByTestId('errors-loading-skeleton')).toBeInTheDocument();
     });

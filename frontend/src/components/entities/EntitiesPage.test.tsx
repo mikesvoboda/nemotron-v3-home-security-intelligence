@@ -309,7 +309,10 @@ describe('EntitiesPage', () => {
       });
 
       // Click the Vehicles filter button (has aria-pressed attribute)
-      const vehiclesFilterButton = screen.getByRole('button', { name: /Vehicles/i, pressed: false });
+      const vehiclesFilterButton = screen.getByRole('button', {
+        name: /Vehicles/i,
+        pressed: false,
+      });
       await user.click(vehiclesFilterButton);
 
       await waitFor(() => {
@@ -361,7 +364,10 @@ describe('EntitiesPage', () => {
       });
 
       // Click the Vehicles filter button (has aria-pressed attribute)
-      const vehiclesFilterButton = screen.getByRole('button', { name: /Vehicles/i, pressed: false });
+      const vehiclesFilterButton = screen.getByRole('button', {
+        name: /Vehicles/i,
+        pressed: false,
+      });
       await user.click(vehiclesFilterButton);
 
       // API should be called with entity_type filter

@@ -310,8 +310,7 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
 
   // Track when disconnection started
   useEffect(() => {
-    const isConnected =
-      eventsChannel.state === 'connected' && systemChannel.state === 'connected';
+    const isConnected = eventsChannel.state === 'connected' && systemChannel.state === 'connected';
 
     if (isConnected) {
       // Clear disconnection time when reconnected

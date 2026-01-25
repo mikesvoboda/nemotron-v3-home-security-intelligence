@@ -1294,7 +1294,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Total notification failures",
+      "description": "Cumulative notification failures since Alertmanager start. This is a monotonically increasing counter that only resets on Alertmanager restart. Historical spikes (e.g., 103 failures in Jan 2025) were caused by ai-florence crash loop (NEM-3497) and Loki stream limit (NEM-3496), resolved in commit c0ce9fd65. To monitor recent failure trends, use the 'Notification Failures by Integration' time series panel below.",
       "fieldConfig": {
         "defaults": {
           "color": {

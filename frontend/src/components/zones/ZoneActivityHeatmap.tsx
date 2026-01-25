@@ -13,11 +13,7 @@
 
 import { Card, Title, Text, Select, SelectItem } from '@tremor/react';
 import { clsx } from 'clsx';
-import {
-  Calendar,
-  Clock,
-  RefreshCw,
-} from 'lucide-react';
+import { Calendar, Clock, RefreshCw } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
 // ============================================================================
@@ -177,9 +173,7 @@ function generateMockHourlyActivity(): HourlyActivity[] {
   return HOURS_OF_DAY.map((hour) => ({
     hour,
     count:
-      hour <= currentHour
-        ? Math.floor(Math.random() * 15) + (hour >= 7 && hour <= 22 ? 5 : 0)
-        : 0,
+      hour <= currentHour ? Math.floor(Math.random() * 15) + (hour >= 7 && hour <= 22 ? 5 : 0) : 0,
   }));
 }
 
@@ -212,10 +206,7 @@ function HeatmapSkeleton({ compact }: { compact?: boolean }) {
           <div key={hourIdx} className="contents">
             <div className="h-6 animate-pulse rounded bg-gray-700" />
             {DAYS_OF_WEEK.map((_, dayIdx) => (
-              <div
-                key={dayIdx}
-                className="h-6 animate-pulse rounded bg-gray-700"
-              />
+              <div key={dayIdx} className="h-6 animate-pulse rounded bg-gray-700" />
             ))}
           </div>
         ))}
@@ -270,10 +261,7 @@ function WeeklyHeatmapGrid({ data, compact, onCellClick }: WeeklyHeatmapGridProp
         {/* Header row */}
         <div className="text-xs text-gray-500" />
         {DAYS_OF_WEEK.map((day) => (
-          <div
-            key={day}
-            className="text-center text-xs font-medium text-gray-400"
-          >
+          <div key={day} className="text-center text-xs font-medium text-gray-400">
             {compact ? day.charAt(0) : day}
           </div>
         ))}
@@ -302,10 +290,7 @@ function WeeklyHeatmapGrid({ data, compact, onCellClick }: WeeklyHeatmapGridProp
                 >
                   {!compact && value > 0 && (
                     <span
-                      className={clsx(
-                        'text-xs font-medium',
-                        getHeatmapTextColor(value, maxValue)
-                      )}
+                      className={clsx('text-xs font-medium', getHeatmapTextColor(value, maxValue))}
                     >
                       {value}
                     </span>
@@ -335,9 +320,7 @@ function HourlyBarChart({ data, compact }: HourlyBarChartProps) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
-        <Text className={clsx('text-gray-400', compact && 'text-xs')}>
-          Today&apos;s Activity
-        </Text>
+        <Text className={clsx('text-gray-400', compact && 'text-xs')}>Today&apos;s Activity</Text>
         <Text className={clsx('text-gray-500', compact ? 'text-xs' : 'text-sm')}>
           <Clock className="mr-1 inline h-3 w-3" />
           {formatHour(currentHour)}
@@ -376,11 +359,7 @@ function HourlyBarChart({ data, compact }: HourlyBarChartProps) {
       {/* Hour labels */}
       <div className="flex gap-0.5 text-center">
         {HOURS_OF_DAY.filter((h) => h % 6 === 0).map((hour) => (
-          <div
-            key={hour}
-            className="text-xs text-gray-500"
-            style={{ width: `${(6 / 24) * 100}%` }}
-          >
+          <div key={hour} className="text-xs text-gray-500" style={{ width: `${(6 / 24) * 100}%` }}>
             {formatHour(hour)}
           </div>
         ))}
@@ -395,22 +374,19 @@ function HourlyBarChart({ data, compact }: HourlyBarChartProps) {
 function HeatmapLegend({ compact }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2">
-      <Text className={clsx('text-gray-500', compact ? 'text-xs' : 'text-sm')}>
-        Low
-      </Text>
+      <Text className={clsx('text-gray-500', compact ? 'text-xs' : 'text-sm')}>Low</Text>
       <div className="flex gap-0.5">
-        {['bg-[#76B900]/10', 'bg-[#76B900]/30', 'bg-[#76B900]/50', 'bg-[#76B900]/70', 'bg-[#76B900]/90'].map(
-          (color, idx) => (
-            <div
-              key={idx}
-              className={clsx('rounded', color, compact ? 'h-3 w-3' : 'h-4 w-4')}
-            />
-          )
-        )}
+        {[
+          'bg-[#76B900]/10',
+          'bg-[#76B900]/30',
+          'bg-[#76B900]/50',
+          'bg-[#76B900]/70',
+          'bg-[#76B900]/90',
+        ].map((color, idx) => (
+          <div key={idx} className={clsx('rounded', color, compact ? 'h-3 w-3' : 'h-4 w-4')} />
+        ))}
       </div>
-      <Text className={clsx('text-gray-500', compact ? 'text-xs' : 'text-sm')}>
-        High
-      </Text>
+      <Text className={clsx('text-gray-500', compact ? 'text-xs' : 'text-sm')}>High</Text>
     </div>
   );
 }
@@ -458,10 +434,7 @@ export default function ZoneActivityHeatmap({
   if (overlay) {
     return (
       <div
-        className={clsx(
-          'pointer-events-none absolute inset-0 opacity-50',
-          className
-        )}
+        className={clsx('pointer-events-none absolute inset-0 opacity-50', className)}
         data-testid="zone-activity-heatmap-overlay"
       >
         {/* Overlay grid would go here - simplified for now */}
@@ -536,14 +509,8 @@ export default function ZoneActivityHeatmap({
         <div className={clsx('space-y-4', compact && 'space-y-3')}>
           {/* Weekly heatmap */}
           <div>
-            <Text className={clsx('mb-2 text-gray-400', compact && 'text-xs')}>
-              Weekly Pattern
-            </Text>
-            <WeeklyHeatmapGrid
-              data={weeklyData}
-              compact={compact}
-              onCellClick={onCellClick}
-            />
+            <Text className={clsx('mb-2 text-gray-400', compact && 'text-xs')}>Weekly Pattern</Text>
+            <WeeklyHeatmapGrid data={weeklyData} compact={compact} onCellClick={onCellClick} />
           </div>
 
           {/* Hourly bar chart */}

@@ -163,9 +163,7 @@ function TrustCell({ cell, onClick, isEditing, readOnly }: TrustCellProps) {
           ))}
         </div>
       )}
-      {!readOnly && (
-        <div className="mt-2 text-xs text-gray-500">Click to edit</div>
-      )}
+      {!readOnly && <div className="mt-2 text-xs text-gray-500">Click to edit</div>}
     </div>
   );
 
@@ -175,12 +173,7 @@ function TrustCell({ cell, onClick, isEditing, readOnly }: TrustCellProps) {
         type="button"
         onClick={readOnly ? undefined : onClick}
         disabled={readOnly}
-        className={`
-          flex h-10 w-10 items-center justify-center rounded-lg border transition-all
-          ${config.bgColor} ${config.borderColor} ${!readOnly ? config.hoverColor : ''}
-          ${isEditing ? 'ring-2 ring-primary ring-offset-2 ring-offset-gray-900' : ''}
-          ${readOnly ? 'cursor-default' : 'cursor-pointer'}
-        `}
+        className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-all ${config.bgColor} ${config.borderColor} ${!readOnly ? config.hoverColor : ''} ${isEditing ? 'ring-2 ring-primary ring-offset-2 ring-offset-gray-900' : ''} ${readOnly ? 'cursor-default' : 'cursor-pointer'} `}
         aria-label={`${cell.entityName} has ${config.label} trust in ${cell.zoneName}`}
       >
         <span className={`text-xs font-medium ${config.textColor}`}>
@@ -204,9 +197,10 @@ interface TrustEditorProps {
 
 function TrustEditor({ currentLevel, entityType, onSelect, onClose, isLoading }: TrustEditorProps) {
   // Vehicles only support partial and none
-  const availableLevels = entityType === 'vehicle'
-    ? TRUST_LEVELS.filter(l => l === 'partial' || l === 'none')
-    : TRUST_LEVELS;
+  const availableLevels =
+    entityType === 'vehicle'
+      ? TRUST_LEVELS.filter((l) => l === 'partial' || l === 'none')
+      : TRUST_LEVELS;
 
   return (
     <div className="absolute z-50 mt-1 rounded-lg border border-gray-700 bg-gray-800 p-2 shadow-lg">
@@ -231,11 +225,7 @@ function TrustEditor({ currentLevel, entityType, onSelect, onClose, isLoading }:
               type="button"
               onClick={() => void onSelect(level)}
               disabled={isLoading}
-              className={`
-                flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm transition-colors
-                ${isSelected ? `${config.bgColor} ${config.textColor}` : 'text-gray-300 hover:bg-gray-700'}
-                ${isLoading ? 'cursor-wait opacity-50' : ''}
-              `}
+              className={`flex items-center gap-2 rounded px-3 py-1.5 text-left text-sm transition-colors ${isSelected ? `${config.bgColor} ${config.textColor}` : 'text-gray-300 hover:bg-gray-700'} ${isLoading ? 'cursor-wait opacity-50' : ''} `}
             >
               {config.icon && <span className={config.textColor}>{config.icon}</span>}
               {config.label}
@@ -262,7 +252,8 @@ interface FilterPanelProps {
 function FilterPanel({ filters, onFiltersChange, members, vehicles, viewMode }: FilterPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const hasFilters = filters.zoneType ||
+  const hasFilters =
+    filters.zoneType ||
     (filters.memberIds?.length ?? 0) > 0 ||
     (filters.vehicleIds?.length ?? 0) > 0 ||
     filters.trustLevel;
@@ -276,20 +267,24 @@ function FilterPanel({ filters, onFiltersChange, members, vehicles, viewMode }: 
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`
-          flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors
-          ${hasFilters
+        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+          hasFilters
             ? 'border-primary bg-primary/10 text-primary'
-            : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700'}
-        `}
+            : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700'
+        } `}
       >
         <Filter className="h-4 w-4" />
         Filters
         {hasFilters && (
           <span className="rounded-full bg-primary px-1.5 text-xs text-white">
-            {[filters.zoneType, filters.trustLevel,
-              ...(filters.memberIds ?? []),
-              ...(filters.vehicleIds ?? [])].filter(Boolean).length}
+            {
+              [
+                filters.zoneType,
+                filters.trustLevel,
+                ...(filters.memberIds ?? []),
+                ...(filters.vehicleIds ?? []),
+              ].filter(Boolean).length
+            }
           </span>
         )}
       </button>
@@ -311,33 +306,43 @@ function FilterPanel({ filters, onFiltersChange, members, vehicles, viewMode }: 
 
           {/* Zone Type Filter */}
           <div className="mb-4">
-            <label htmlFor="filter-zone-type" className="mb-1 block text-xs text-gray-400">Zone Type</label>
+            <label htmlFor="filter-zone-type" className="mb-1 block text-xs text-gray-400">
+              Zone Type
+            </label>
             <select
               id="filter-zone-type"
               value={filters.zoneType ?? ''}
-              onChange={(e) => onFiltersChange({
-                ...filters,
-                zoneType: e.target.value as ZoneType || undefined,
-              })}
+              onChange={(e) =>
+                onFiltersChange({
+                  ...filters,
+                  zoneType: (e.target.value as ZoneType) || undefined,
+                })
+              }
               className="w-full rounded border border-gray-600 bg-gray-700 px-2 py-1.5 text-sm text-gray-200"
             >
               <option value="">All Types</option>
               {ZONE_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>{type.label}</option>
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
               ))}
             </select>
           </div>
 
           {/* Trust Level Filter */}
           <div className="mb-4">
-            <label htmlFor="filter-trust-level" className="mb-1 block text-xs text-gray-400">Trust Level</label>
+            <label htmlFor="filter-trust-level" className="mb-1 block text-xs text-gray-400">
+              Trust Level
+            </label>
             <select
               id="filter-trust-level"
               value={filters.trustLevel ?? ''}
-              onChange={(e) => onFiltersChange({
-                ...filters,
-                trustLevel: e.target.value as TrustLevelResult || undefined,
-              })}
+              onChange={(e) =>
+                onFiltersChange({
+                  ...filters,
+                  trustLevel: (e.target.value as TrustLevelResult) || undefined,
+                })
+              }
               className="w-full rounded border border-gray-600 bg-gray-700 px-2 py-1.5 text-sm text-gray-200"
             >
               <option value="">All Levels</option>
@@ -352,19 +357,24 @@ function FilterPanel({ filters, onFiltersChange, members, vehicles, viewMode }: 
           {/* Member/Vehicle Filter */}
           {viewMode === 'members' && members.length > 0 && (
             <div role="group" aria-labelledby="filter-members-label">
-              <span id="filter-members-label" className="mb-1 block text-xs text-gray-400">Members</span>
+              <span id="filter-members-label" className="mb-1 block text-xs text-gray-400">
+                Members
+              </span>
               <div className="max-h-32 space-y-1 overflow-y-auto">
                 {members.map((member) => {
                   const isSelected = filters.memberIds?.includes(member.id);
                   return (
-                    <label key={member.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <label
+                      key={member.id}
+                      className="flex cursor-pointer items-center gap-2 text-sm"
+                    >
                       <input
                         type="checkbox"
                         checked={isSelected ?? false}
                         onChange={(e) => {
                           const newIds = e.target.checked
                             ? [...(filters.memberIds ?? []), member.id]
-                            : (filters.memberIds ?? []).filter(id => id !== member.id);
+                            : (filters.memberIds ?? []).filter((id) => id !== member.id);
                           onFiltersChange({
                             ...filters,
                             memberIds: newIds.length > 0 ? newIds : undefined,
@@ -382,19 +392,24 @@ function FilterPanel({ filters, onFiltersChange, members, vehicles, viewMode }: 
 
           {viewMode === 'vehicles' && vehicles.length > 0 && (
             <div role="group" aria-labelledby="filter-vehicles-label">
-              <span id="filter-vehicles-label" className="mb-1 block text-xs text-gray-400">Vehicles</span>
+              <span id="filter-vehicles-label" className="mb-1 block text-xs text-gray-400">
+                Vehicles
+              </span>
               <div className="max-h-32 space-y-1 overflow-y-auto">
                 {vehicles.map((vehicle) => {
                   const isSelected = filters.vehicleIds?.includes(vehicle.id);
                   return (
-                    <label key={vehicle.id} className="flex cursor-pointer items-center gap-2 text-sm">
+                    <label
+                      key={vehicle.id}
+                      className="flex cursor-pointer items-center gap-2 text-sm"
+                    >
                       <input
                         type="checkbox"
                         checked={isSelected ?? false}
                         onChange={(e) => {
                           const newIds = e.target.checked
                             ? [...(filters.vehicleIds ?? []), vehicle.id]
-                            : (filters.vehicleIds ?? []).filter(id => id !== vehicle.id);
+                            : (filters.vehicleIds ?? []).filter((id) => id !== vehicle.id);
                           onFiltersChange({
                             ...filters,
                             vehicleIds: newIds.length > 0 ? newIds : undefined,
@@ -440,13 +455,19 @@ export default function ZoneTrustMatrix({
   const [viewMode, setViewMode] = useState<MatrixViewMode>(initialViewMode);
   const [filters, setFilters] = useState<TrustMatrixFilters>({});
   const [editingCell, setEditingCell] = useState<{ zoneId: string; entityId: number } | null>(null);
-  const [zoneConfigs, setZoneConfigs] = useState<Map<string, ZoneHouseholdConfig | null>>(new Map());
+  const [zoneConfigs, setZoneConfigs] = useState<Map<string, ZoneHouseholdConfig | null>>(
+    new Map()
+  );
 
   // Fetch matrix data
-  const { zones: filteredZones, members, vehicles, cells, isLoading, error } = useZoneTrustMatrix(
-    zones,
-    filters
-  );
+  const {
+    zones: filteredZones,
+    members,
+    vehicles,
+    cells,
+    isLoading,
+    error,
+  } = useZoneTrustMatrix(zones, filters);
 
   // Mutations for updating trust
   const { updateMemberTrust, isLoading: isMemberUpdating } = useUpdateMemberTrust();
@@ -457,43 +478,49 @@ export default function ZoneTrustMatrix({
   const entityColumns = viewMode === 'members' ? members : vehicles;
 
   // Handle cell click for editing
-  const handleCellClick = useCallback((zoneId: string, entityId: number) => {
-    if (readOnly) return;
-    setEditingCell({ zoneId, entityId });
+  const handleCellClick = useCallback(
+    (zoneId: string, entityId: number) => {
+      if (readOnly) return;
+      setEditingCell({ zoneId, entityId });
 
-    // Fetch current config for the zone if not already cached
-    if (!zoneConfigs.has(zoneId)) {
-      void fetchZoneHouseholdConfig(zoneId).then((config) => {
-        setZoneConfigs((prev) => new Map(prev).set(zoneId, config));
-      });
-    }
-  }, [readOnly, zoneConfigs]);
+      // Fetch current config for the zone if not already cached
+      if (!zoneConfigs.has(zoneId)) {
+        void fetchZoneHouseholdConfig(zoneId).then((config) => {
+          setZoneConfigs((prev) => new Map(prev).set(zoneId, config));
+        });
+      }
+    },
+    [readOnly, zoneConfigs]
+  );
 
   // Handle trust level selection
-  const handleTrustSelect = useCallback(async (level: TrustLevelResult) => {
-    if (!editingCell) return;
+  const handleTrustSelect = useCallback(
+    async (level: TrustLevelResult) => {
+      if (!editingCell) return;
 
-    const { zoneId, entityId } = editingCell;
-    const currentConfig = zoneConfigs.get(zoneId) ?? null;
+      const { zoneId, entityId } = editingCell;
+      const currentConfig = zoneConfigs.get(zoneId) ?? null;
 
-    try {
-      if (viewMode === 'members') {
-        await updateMemberTrust(zoneId, entityId, level, currentConfig);
-      } else {
-        await updateVehicleTrust(zoneId, entityId, level, currentConfig);
+      try {
+        if (viewMode === 'members') {
+          await updateMemberTrust(zoneId, entityId, level, currentConfig);
+        } else {
+          await updateVehicleTrust(zoneId, entityId, level, currentConfig);
+        }
+
+        // Update cached config
+        const newConfig = await fetchZoneHouseholdConfig(zoneId);
+        setZoneConfigs((prev) => new Map(prev).set(zoneId, newConfig));
+
+        onTrustUpdated?.(zoneId, entityId, viewMode === 'members' ? 'member' : 'vehicle');
+      } catch (err) {
+        console.error('Failed to update trust level:', err);
       }
 
-      // Update cached config
-      const newConfig = await fetchZoneHouseholdConfig(zoneId);
-      setZoneConfigs((prev) => new Map(prev).set(zoneId, newConfig));
-
-      onTrustUpdated?.(zoneId, entityId, viewMode === 'members' ? 'member' : 'vehicle');
-    } catch (err) {
-      console.error('Failed to update trust level:', err);
-    }
-
-    setEditingCell(null);
-  }, [editingCell, viewMode, zoneConfigs, updateMemberTrust, updateVehicleTrust, onTrustUpdated]);
+      setEditingCell(null);
+    },
+    [editingCell, viewMode, zoneConfigs, updateMemberTrust, updateVehicleTrust, onTrustUpdated]
+  );
 
   // Close editor
   const handleCloseEditor = useCallback(() => {
@@ -516,9 +543,7 @@ export default function ZoneTrustMatrix({
   if (error) {
     return (
       <div className={`rounded-lg border border-red-500/50 bg-red-500/10 p-6 ${className}`}>
-        <div className="text-center text-red-400">
-          Failed to load trust matrix: {error.message}
-        </div>
+        <div className="text-center text-red-400">Failed to load trust matrix: {error.message}</div>
       </div>
     );
   }
@@ -600,9 +625,7 @@ export default function ZoneTrustMatrix({
           const config = TRUST_LEVEL_CONFIGS[level];
           return (
             <div key={level} className="flex items-center gap-1.5">
-              <div
-                className={`h-3 w-3 rounded ${config.bgColor} ${config.borderColor} border`}
-              />
+              <div className={`h-3 w-3 rounded ${config.bgColor} ${config.borderColor} border`} />
               <span className={`text-xs ${config.textColor}`}>{config.label}</span>
             </div>
           );
@@ -641,10 +664,7 @@ export default function ZoneTrustMatrix({
               <tr key={zone.id}>
                 <td className="sticky left-0 z-10 bg-gray-800 px-2 py-2">
                   <div className="flex items-center gap-2">
-                    <div
-                      className="h-3 w-3 rounded"
-                      style={{ backgroundColor: zone.color }}
-                    />
+                    <div className="h-3 w-3 rounded" style={{ backgroundColor: zone.color }} />
                     <span className="text-sm text-gray-200">{zone.name}</span>
                   </div>
                 </td>
@@ -652,7 +672,8 @@ export default function ZoneTrustMatrix({
                   const entityId = 'id' in entity ? entity.id : -1;
                   const cellKey = viewMode === 'members' ? entityId : -entityId;
                   const cell = cells.get(zone.id)?.get(cellKey);
-                  const isEditing = editingCell?.zoneId === zone.id && editingCell?.entityId === entityId;
+                  const isEditing =
+                    editingCell?.zoneId === zone.id && editingCell?.entityId === entityId;
 
                   if (!cell) return <td key={entityId} className="px-2 py-2" />;
 

@@ -63,9 +63,7 @@ describe('useServiceStatusWebSocket', () => {
     });
 
     it('should connect to WebSocket when enabled', () => {
-      const { result } = renderHook(() =>
-        useServiceStatusWebSocket({ enabled: true })
-      );
+      const { result } = renderHook(() => useServiceStatusWebSocket({ enabled: true }));
       expect(result.current.isConnected).toBe(true);
     });
   });
@@ -73,9 +71,7 @@ describe('useServiceStatusWebSocket', () => {
   describe('service.status_changed events', () => {
     it('should handle service status changed messages', () => {
       const onStatusChange = vi.fn();
-      const { result } = renderHook(() =>
-        useServiceStatusWebSocket({ onStatusChange })
-      );
+      const { result } = renderHook(() => useServiceStatusWebSocket({ onStatusChange }));
 
       const statusChange: ServiceStatusChangedPayload = {
         service: 'rtdetr',

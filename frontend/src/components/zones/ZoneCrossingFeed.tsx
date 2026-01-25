@@ -279,7 +279,7 @@ function EventCard({ event, onClick }: EventCardProps) {
         'flex items-start gap-3 rounded-lg border p-3',
         typeConfig.bgColor,
         typeConfig.borderColor,
-        onClick && 'cursor-pointer hover:bg-opacity-20 transition-colors'
+        onClick && 'cursor-pointer transition-colors hover:bg-opacity-20'
       )}
       onClick={onClick ? handleClick : undefined}
       onKeyDown={onClick ? handleKeyDown : undefined}
@@ -313,9 +313,7 @@ function EventCard({ event, onClick }: EventCardProps) {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-2">
           <EventIcon className={clsx('h-4 w-4', typeConfig.color)} />
-          <span className={clsx('text-sm font-medium', typeConfig.color)}>
-            {typeConfig.label}
-          </span>
+          <span className={clsx('text-sm font-medium', typeConfig.color)}>{typeConfig.label}</span>
           <span className="text-sm text-text-secondary">-</span>
           <span className="truncate text-sm text-text-primary" title={event.zone_name}>
             {event.zone_name}
@@ -462,9 +460,7 @@ function ZoneCrossingFeedComponent({
             <div
               className={clsx(
                 'flex items-center gap-1 rounded px-2 py-1 text-xs',
-                isConnected
-                  ? 'bg-green-500/10 text-green-400'
-                  : 'bg-gray-700 text-gray-400'
+                isConnected ? 'bg-green-500/10 text-green-400' : 'bg-gray-700 text-gray-400'
               )}
               title={isConnected ? 'Real-time updates active' : 'Connecting...'}
               data-testid="connection-status"

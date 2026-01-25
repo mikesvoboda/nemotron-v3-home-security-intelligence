@@ -2,17 +2,10 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import JobsSearchBar, {
-  type JobsSearchBarProps,
-  JOB_STATUSES,
-  JOB_TYPES,
-} from './JobsSearchBar';
+import JobsSearchBar, { type JobsSearchBarProps, JOB_STATUSES, JOB_TYPES } from './JobsSearchBar';
 
 // Wrap component with MemoryRouter for useSearchParams
-function renderWithRouter(
-  props: JobsSearchBarProps,
-  initialEntries: string[] = ['/jobs']
-) {
+function renderWithRouter(props: JobsSearchBarProps, initialEntries: string[] = ['/jobs']) {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
       <JobsSearchBar {...props} />

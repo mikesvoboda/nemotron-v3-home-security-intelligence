@@ -69,11 +69,7 @@ function SortHeader({
   className = '',
 }: SortHeaderProps) {
   const isActive = currentField === field;
-  const ariaSort = isActive
-    ? currentDirection === 'asc'
-      ? 'ascending'
-      : 'descending'
-    : undefined;
+  const ariaSort = isActive ? (currentDirection === 'asc' ? 'ascending' : 'descending') : undefined;
 
   const handleClick = () => {
     onSort?.(field);
@@ -203,9 +199,7 @@ const EventListView = memo(function EventListView({
   const someSelected = selectedIds.size > 0 && !allSelected;
 
   return (
-    <div
-      className={`overflow-hidden rounded-lg border border-gray-800 bg-[#1F1F1F] ${className}`}
-    >
+    <div className={`overflow-hidden rounded-lg border border-gray-800 bg-[#1F1F1F] ${className}`}>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-800">
           <thead className="bg-[#1A1A1A]">
@@ -314,9 +308,7 @@ const EventListView = memo(function EventListView({
                           <Eye className="h-4 w-4 text-gray-600" />
                         </div>
                       )}
-                      <span className="text-sm font-medium text-white">
-                        {event.camera_name}
-                      </span>
+                      <span className="text-sm font-medium text-white">{event.camera_name}</span>
                     </div>
                   </td>
 

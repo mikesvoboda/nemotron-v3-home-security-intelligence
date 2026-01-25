@@ -18,7 +18,6 @@ import { useZoneAnomalies } from '../../hooks/useZoneAnomalies';
 import { useZonePresence } from '../../hooks/useZonePresence';
 import { AnomalySeverity, AnomalyType } from '../../types/zoneAnomaly';
 
-
 // Mock the hooks
 vi.mock('../../hooks/useZonePresence', () => ({
   useZonePresence: vi.fn(),

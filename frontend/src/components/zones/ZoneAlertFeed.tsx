@@ -46,7 +46,12 @@ import {
   isAnomalyAlert,
   isTrustViolationAlert,
 } from '../../types/zoneAlert';
-import { ANOMALY_SEVERITY_CONFIG, AnomalyType, ANOMALY_TYPE_CONFIG, AnomalySeverity } from '../../types/zoneAnomaly';
+import {
+  ANOMALY_SEVERITY_CONFIG,
+  AnomalyType,
+  ANOMALY_TYPE_CONFIG,
+  AnomalySeverity,
+} from '../../types/zoneAnomaly';
 
 import type {
   ZoneAlertFeedProps,
@@ -56,7 +61,6 @@ import type {
   AlertSource,
   SeverityValue,
 } from '../../types/zoneAlert';
-
 
 // ============================================================================
 // Constants
@@ -72,13 +76,7 @@ const CRITICAL_ALERT_SOUND = '/sounds/critical-alert.mp3';
 /**
  * Get the severity icon component based on severity level.
  */
-function SeverityIcon({
-  severity,
-  className,
-}: {
-  severity: SeverityValue;
-  className?: string;
-}) {
+function SeverityIcon({ severity, className }: { severity: SeverityValue; className?: string }) {
   const iconProps = { className: clsx('h-5 w-5', className) };
 
   switch (severity) {
@@ -98,13 +96,7 @@ function SeverityIcon({
 /**
  * Get the source icon component based on alert source.
  */
-function SourceIcon({
-  alert,
-  className,
-}: {
-  alert: UnifiedZoneAlert;
-  className?: string;
-}) {
+function SourceIcon({ alert, className }: { alert: UnifiedZoneAlert; className?: string }) {
   const iconProps = { className: clsx('h-4 w-4', className) };
 
   if (isAnomalyAlert(alert)) {
@@ -452,7 +444,9 @@ function AlertCard({ alert, zoneName, onAcknowledge, onClick, isAcknowledging }:
                 <span
                   className={clsx(
                     'inline-flex items-center gap-1 rounded px-1.5 py-0.5',
-                    alert.source === 'anomaly' ? 'bg-blue-500/20 text-blue-400' : 'bg-orange-500/20 text-orange-400'
+                    alert.source === 'anomaly'
+                      ? 'bg-blue-500/20 text-blue-400'
+                      : 'bg-orange-500/20 text-orange-400'
                   )}
                 >
                   {alert.source === 'anomaly' ? 'Anomaly' : 'Trust Violation'}
@@ -754,9 +748,7 @@ function ZoneAlertFeedComponent({
   useEffect(() => {
     if (!soundEnabled) return;
 
-    const criticalCount = alerts.filter(
-      (a) => a.severity === 'critical' && !a.acknowledged
-    ).length;
+    const criticalCount = alerts.filter((a) => a.severity === 'critical' && !a.acknowledged).length;
 
     // Play sound if new critical alerts appeared
     if (criticalCount > previousCriticalCountRef.current) {
@@ -815,7 +807,9 @@ function ZoneAlertFeedComponent({
                 unacknowledged of {totalCount} alerts
               </>
             ) : (
-              <>{totalCount} alerts in the last {hoursLookback} hours</>
+              <>
+                {totalCount} alerts in the last {hoursLookback} hours
+              </>
             )}
           </p>
         </div>
@@ -828,9 +822,7 @@ function ZoneAlertFeedComponent({
             onClick={toggleSound}
             className={clsx(
               'flex items-center gap-1 rounded px-2 py-1 text-xs',
-              soundEnabled
-                ? 'bg-green-500/20 text-green-400'
-                : 'bg-gray-700 text-gray-400'
+              soundEnabled ? 'bg-green-500/20 text-green-400' : 'bg-gray-700 text-gray-400'
             )}
             title={soundEnabled ? 'Disable alert sounds' : 'Enable alert sounds'}
             aria-label={soundEnabled ? 'Disable alert sounds' : 'Enable alert sounds'}
@@ -858,17 +850,13 @@ function ZoneAlertFeedComponent({
           )}
 
           {/* Loading indicator */}
-          {isFetching && !isLoading && (
-            <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-          )}
+          {isFetching && !isLoading && <RefreshCw className="h-4 w-4 animate-spin text-primary" />}
 
           {/* Connection status */}
           <div
             className={clsx(
               'flex items-center gap-1 rounded px-2 py-1 text-xs',
-              isConnected
-                ? 'bg-green-500/10 text-green-400'
-                : 'bg-gray-700 text-gray-400'
+              isConnected ? 'bg-green-500/10 text-green-400' : 'bg-gray-700 text-gray-400'
             )}
             title={isConnected ? 'Real-time updates active' : 'Connecting...'}
           >

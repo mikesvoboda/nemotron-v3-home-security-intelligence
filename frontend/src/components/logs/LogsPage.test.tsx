@@ -182,7 +182,9 @@ describe('LogsPage', () => {
 
   describe('error states', () => {
     it('shows error message when config fetch fails', async () => {
-      (api.fetchConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Config fetch failed'));
+      (api.fetchConfig as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Config fetch failed')
+      );
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       renderWithRouter();
@@ -199,7 +201,9 @@ describe('LogsPage', () => {
     });
 
     it('still renders the page when config fetch fails', async () => {
-      (api.fetchConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Config fetch failed'));
+      (api.fetchConfig as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Config fetch failed')
+      );
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       renderWithRouter();
@@ -246,7 +250,9 @@ describe('LogsPage', () => {
     });
 
     it('uses default Grafana URL when config fetch fails', async () => {
-      (api.fetchConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Config fetch failed'));
+      (api.fetchConfig as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Config fetch failed')
+      );
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       renderWithRouter();
@@ -346,7 +352,10 @@ describe('LogsPage', () => {
 
       await waitFor(() => {
         const exploreLink = screen.getByTestId('explore-external-link');
-        expect(exploreLink).toHaveAttribute('href', expect.stringContaining('http://grafana.example.com/explore'));
+        expect(exploreLink).toHaveAttribute(
+          'href',
+          expect.stringContaining('http://grafana.example.com/explore')
+        );
       });
     });
 

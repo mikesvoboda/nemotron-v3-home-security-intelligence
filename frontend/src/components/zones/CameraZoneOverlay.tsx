@@ -198,11 +198,7 @@ function ZonePolygon({
     return null;
   }
 
-  const points = coordinatesToPoints(
-    zone.coordinates as Array<[number, number]>,
-    width,
-    height
-  );
+  const points = coordinatesToPoints(zone.coordinates as Array<[number, number]>, width, height);
 
   const fillColor = mode === 'heatmap' ? getHeatmapColor(zone.priority) : zone.color;
   const fillOpacity = getActivityOpacity(zone.priority, mode);
@@ -244,11 +240,7 @@ function ZoneLabel({ zone, width, height }: ZoneLabelProps) {
     return null;
   }
 
-  const [cx, cy] = calculateCentroid(
-    zone.coordinates as Array<[number, number]>,
-    width,
-    height
-  );
+  const [cx, cy] = calculateCentroid(zone.coordinates as Array<[number, number]>, width, height);
 
   return (
     <text
@@ -337,13 +329,7 @@ interface AlertBadgeProps {
   anomalyCount: number;
 }
 
-function AlertBadge({
-  zoneId,
-  width,
-  height,
-  coordinates,
-  anomalyCount,
-}: AlertBadgeProps) {
+function AlertBadge({ zoneId, width, height, coordinates, anomalyCount }: AlertBadgeProps) {
   if (anomalyCount === 0) {
     return null;
   }
@@ -468,7 +454,7 @@ export default function CameraZoneOverlay({
       width="100%"
       height="100%"
       className={clsx(
-        'absolute inset-0 pointer-events-auto',
+        'pointer-events-auto absolute inset-0',
         mode === 'draw' && 'mode-draw cursor-crosshair',
         mode === 'heatmap' && 'mode-heatmap',
         mode === 'presence' && 'mode-presence',
@@ -523,9 +509,7 @@ export default function CameraZoneOverlay({
             />
 
             {/* Zone label */}
-            {showLabels && (
-              <ZoneLabel zone={zone} width={videoWidth} height={videoHeight} />
-            )}
+            {showLabels && <ZoneLabel zone={zone} width={videoWidth} height={videoHeight} />}
 
             {/* Presence badge */}
             {showPresence && mode === 'presence' && (

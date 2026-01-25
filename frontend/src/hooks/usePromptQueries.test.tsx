@@ -14,7 +14,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-
 import {
   usePromptConfig,
   usePromptHistory,
@@ -156,10 +155,9 @@ describe('usePromptConfig', () => {
   });
 
   it('does not fetch when disabled', async () => {
-    const { result } = renderHook(
-      () => usePromptConfig(AIModelEnum.NEMOTRON, { enabled: false }),
-      { wrapper: createTestWrapper() }
-    );
+    const { result } = renderHook(() => usePromptConfig(AIModelEnum.NEMOTRON, { enabled: false }), {
+      wrapper: createTestWrapper(),
+    });
 
     // Wait a bit to ensure no fetch happens
     await new Promise((resolve) => setTimeout(resolve, 50));

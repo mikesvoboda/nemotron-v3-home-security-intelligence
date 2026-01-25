@@ -29,10 +29,7 @@ function TestConsumer() {
     <div>
       <span data-testid="debug-mode">{debugMode.toString()}</span>
       <span data-testid="debug-available">{isDebugAvailable.toString()}</span>
-      <button
-        data-testid="toggle-debug"
-        onClick={() => setDebugMode(!debugMode)}
-      >
+      <button data-testid="toggle-debug" onClick={() => setDebugMode(!debugMode)}>
         Toggle
       </button>
     </div>

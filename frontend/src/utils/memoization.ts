@@ -134,7 +134,10 @@ export function createPropsExcluder<T extends object>(
  * @param b - Second array
  * @returns true if arrays have same length and elements are strictly equal
  */
-export function arrayShallowEqual<T>(a: T[] | null | undefined, b: T[] | null | undefined): boolean {
+export function arrayShallowEqual<T>(
+  a: T[] | null | undefined,
+  b: T[] | null | undefined
+): boolean {
   if (a === b) return true;
   if (a === null || b === null) return false;
   if (a === undefined || b === undefined) return false;

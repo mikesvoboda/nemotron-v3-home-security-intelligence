@@ -117,14 +117,7 @@ describe('FormField', () => {
     });
 
     it('hides help text when error is shown', () => {
-      render(
-        <FormField
-          name="email"
-          label="Email"
-          helpText="Help text"
-          error="Error message"
-        />
-      );
+      render(<FormField name="email" label="Email" helpText="Help text" error="Error message" />);
 
       expect(screen.queryByText('Help text')).not.toBeInTheDocument();
       expect(screen.getByText('Error message')).toBeInTheDocument();
@@ -157,13 +150,7 @@ describe('FormField', () => {
     });
 
     it('applies padding for leading icon', () => {
-      render(
-        <FormField
-          name="search"
-          label="Search"
-          leadingIcon={<Search />}
-        />
-      );
+      render(<FormField name="search" label="Search" leadingIcon={<Search />} />);
 
       expect(screen.getByLabelText(/search/i)).toHaveClass('pl-10');
     });

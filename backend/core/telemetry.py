@@ -1384,6 +1384,13 @@ def init_profiling() -> None:
     - Missing pyroscope-io package (ImportError)
     - Configuration errors (logs warning, doesn't fail startup)
 
+    Compatibility Notes (NEM-3514):
+        The "unknown profile type: seconds" error was caused by a server-side bug
+        in Pyroscope's Speedscope profile type handling. Requirements:
+        - pyroscope-io SDK >= 0.8.7 (pyproject.toml specifies >=0.8.7)
+        - Pyroscope server >= 1.9.2 (docker-compose.prod.yml uses 1.18.0)
+        Fix: https://github.com/grafana/pyroscope/pull/4568
+
     Example:
         >>> from backend.core.telemetry import init_profiling
         >>> init_profiling()  # Called during app startup

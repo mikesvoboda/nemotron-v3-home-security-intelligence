@@ -177,7 +177,11 @@ describe('useZoneAlerts', () => {
       }
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } }),
+        json: () =>
+          Promise.resolve({
+            items: [],
+            pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+          }),
       });
     });
   });
@@ -219,7 +223,9 @@ describe('useZoneAlerts', () => {
     // Both critical alerts should appear before the warning alert
     const firstWarningIndex = result.current.alerts.findIndex((a) => a.severity === 'warning');
     // Find last critical index using reverse search
-    const lastCriticalIndex = result.current.alerts.length - 1 -
+    const lastCriticalIndex =
+      result.current.alerts.length -
+      1 -
       [...result.current.alerts].reverse().findIndex((a) => a.severity === 'critical');
 
     expect(lastCriticalIndex).toBeLessThan(firstWarningIndex);
@@ -245,10 +251,11 @@ describe('useZoneAlerts', () => {
       if (url.includes('/zones/zone-1/anomalies')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            items: [mockAnomaliesResponse.items[0]],
-            pagination: { total: 1, limit: 50, offset: 0, has_more: false },
-          }),
+          json: () =>
+            Promise.resolve({
+              items: [mockAnomaliesResponse.items[0]],
+              pagination: { total: 1, limit: 50, offset: 0, has_more: false },
+            }),
         });
       }
       if (url.includes('/zones/trust-violations')) {
@@ -259,7 +266,11 @@ describe('useZoneAlerts', () => {
       }
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } }),
+        json: () =>
+          Promise.resolve({
+            items: [],
+            pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+          }),
       });
     });
 
@@ -303,13 +314,16 @@ describe('useZoneAlerts', () => {
     mockFetch.mockImplementation(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({
-          items: Array(50).fill(mockAnomaliesResponse.items[0]).map((item, i) => ({
-            ...item,
-            id: `anomaly-${i}`,
-          })),
-          pagination: { total: 50, limit: 100, offset: 0, has_more: false },
-        }),
+        json: () =>
+          Promise.resolve({
+            items: Array(50)
+              .fill(mockAnomaliesResponse.items[0])
+              .map((item, i) => ({
+                ...item,
+                id: `anomaly-${i}`,
+              })),
+            pagination: { total: 50, limit: 100, offset: 0, has_more: false },
+          }),
       })
     );
 
@@ -410,9 +424,7 @@ describe('useZoneAlerts', () => {
   });
 
   it('handles fetch error gracefully', async () => {
-    mockFetch.mockImplementation(() =>
-      Promise.reject(new Error('Network error'))
-    );
+    mockFetch.mockImplementation(() => Promise.reject(new Error('Network error')));
 
     const { result } = renderHook(() => useZoneAlerts(), {
       wrapper: createTestWrapper(),
@@ -445,7 +457,11 @@ describe('useZoneAlerts', () => {
       }
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } }),
+        json: () =>
+          Promise.resolve({
+            items: [],
+            pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+          }),
       });
     });
 
@@ -550,24 +566,30 @@ describe('useZoneAlerts - WebSocket Integration', () => {
       if (url.includes('/zones/anomalies')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            items: [],
-            pagination: { total: 0, limit: 50, offset: 0, has_more: false },
-          }),
+          json: () =>
+            Promise.resolve({
+              items: [],
+              pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+            }),
         });
       }
       if (url.includes('/zones/trust-violations')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({
-            items: [],
-            pagination: { total: 0, limit: 50, offset: 0, has_more: false },
-          }),
+          json: () =>
+            Promise.resolve({
+              items: [],
+              pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+            }),
         });
       }
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ items: [], pagination: { total: 0, limit: 50, offset: 0, has_more: false } }),
+        json: () =>
+          Promise.resolve({
+            items: [],
+            pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+          }),
       });
     });
   });
@@ -669,7 +691,7 @@ describe('useZoneAlerts - WebSocket Integration', () => {
         handler(anomalyEvent);
       }
       // Allow async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
     });
 
     // Should have invalidated anomaly queries
@@ -709,7 +731,7 @@ describe('useZoneAlerts - WebSocket Integration', () => {
         handler(criticalEvent);
       }
       // Allow async operations to complete
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
     });
 
     // Should show error toast for critical alerts

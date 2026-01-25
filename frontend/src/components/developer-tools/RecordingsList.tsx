@@ -271,7 +271,10 @@ export default function RecordingsList({
                       {recording.path}
                     </span>
                     {recording.body_truncated && (
-                      <span className="ml-2 text-xs text-yellow-500" title="Request body was truncated">
+                      <span
+                        className="ml-2 text-xs text-yellow-500"
+                        title="Request body was truncated"
+                      >
                         (truncated)
                       </span>
                     )}

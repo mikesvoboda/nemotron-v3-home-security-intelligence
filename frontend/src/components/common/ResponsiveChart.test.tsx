@@ -23,20 +23,12 @@ vi.mock('framer-motion', () => ({
       [key: string]: unknown;
     }) => (
       // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
-      <div
-        className={className}
-        data-testid={testId}
-        onClick={onClick}
-        role={role}
-        {...props}
-      >
+      <div className={className} data-testid={testId} onClick={onClick} role={role} {...props}>
         {children}
       </div>
     ),
   },
-  AnimatePresence: ({ children }: { children?: React.ReactNode }) => (
-    <>{children}</>
-  ),
+  AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   useReducedMotion: vi.fn(() => false),
 }));
 
@@ -96,9 +88,7 @@ describe('ResponsiveChart', () => {
 
     it('renders title when provided', () => {
       render(
-        <ResponsiveChart title="Detection Distribution">
-          {() => <div>Chart</div>}
-        </ResponsiveChart>
+        <ResponsiveChart title="Detection Distribution">{() => <div>Chart</div>}</ResponsiveChart>
       );
 
       expect(screen.getByText('Detection Distribution')).toBeInTheDocument();
@@ -118,9 +108,7 @@ describe('ResponsiveChart', () => {
   describe('legend integration', () => {
     it('renders legend when legendItems provided', () => {
       render(
-        <ResponsiveChart legendItems={mockLegendItems}>
-          {() => <div>Chart</div>}
-        </ResponsiveChart>
+        <ResponsiveChart legendItems={mockLegendItems}>{() => <div>Chart</div>}</ResponsiveChart>
       );
 
       expect(screen.getByText('Person')).toBeInTheDocument();
@@ -246,11 +234,7 @@ describe('ResponsiveChart', () => {
     });
 
     it('uses default empty message when not provided', () => {
-      render(
-        <ResponsiveChart isEmpty>
-          {() => <div>Chart</div>}
-        </ResponsiveChart>
-      );
+      render(<ResponsiveChart isEmpty>{() => <div>Chart</div>}</ResponsiveChart>);
 
       expect(screen.getByText('No data to display')).toBeInTheDocument();
     });
@@ -274,11 +258,7 @@ describe('ResponsiveChart', () => {
         })),
       });
 
-      render(
-        <ResponsiveChart enableFullscreen>
-          {() => <div>Chart</div>}
-        </ResponsiveChart>
-      );
+      render(<ResponsiveChart enableFullscreen>{() => <div>Chart</div>}</ResponsiveChart>);
 
       expect(screen.getByRole('button', { name: /expand/i })).toBeInTheDocument();
     });
@@ -334,11 +314,7 @@ describe('ResponsiveChart', () => {
 
       const user = userEvent.setup();
 
-      render(
-        <ResponsiveChart enableFullscreen>
-          {() => <div>Chart</div>}
-        </ResponsiveChart>
-      );
+      render(<ResponsiveChart enableFullscreen>{() => <div>Chart</div>}</ResponsiveChart>);
 
       // Open fullscreen
       await user.click(screen.getByRole('button', { name: /expand/i }));
@@ -358,21 +334,13 @@ describe('ResponsiveChart', () => {
 
   describe('accessibility', () => {
     it('has accessible container role', () => {
-      render(
-        <ResponsiveChart title="Test Chart">
-          {() => <div>Chart</div>}
-        </ResponsiveChart>
-      );
+      render(<ResponsiveChart title="Test Chart">{() => <div>Chart</div>}</ResponsiveChart>);
 
       expect(screen.getByRole('figure')).toBeInTheDocument();
     });
 
     it('has aria-label when title is provided', () => {
-      render(
-        <ResponsiveChart title="Test Chart">
-          {() => <div>Chart</div>}
-        </ResponsiveChart>
-      );
+      render(<ResponsiveChart title="Test Chart">{() => <div>Chart</div>}</ResponsiveChart>);
 
       const figure = screen.getByRole('figure');
       expect(figure).toHaveAttribute('aria-label', 'Test Chart');
@@ -382,9 +350,7 @@ describe('ResponsiveChart', () => {
   describe('custom styling', () => {
     it('applies custom className', () => {
       render(
-        <ResponsiveChart className="custom-chart-class">
-          {() => <div>Chart</div>}
-        </ResponsiveChart>
+        <ResponsiveChart className="custom-chart-class">{() => <div>Chart</div>}</ResponsiveChart>
       );
 
       const container = screen.getByTestId('responsive-chart');

@@ -146,10 +146,7 @@ export { useIsMobile } from './useIsMobile';
 
 // Chart dimension hooks (NEM-2991)
 export { useChartDimensions, default as useChartDimensionsDefault } from './useChartDimensions';
-export type {
-  ChartDimensions,
-  UseChartDimensionsOptions,
-} from './useChartDimensions';
+export type { ChartDimensions, UseChartDimensionsOptions } from './useChartDimensions';
 
 export { useSwipeGesture } from './useSwipeGesture';
 export type { SwipeDirection, SwipeGestureOptions } from './useSwipeGesture';
@@ -383,31 +380,19 @@ export type { UseJobMutationsOptions, UseJobMutationsReturn } from './useJobMuta
 
 // Job logs query hooks (NEM-2710)
 export { useJobLogsQuery, jobLogsQueryKeys } from './useJobLogsQuery';
-export type {
-  UseJobLogsQueryOptions,
-  UseJobLogsQueryReturn,
-} from './useJobLogsQuery';
+export type { UseJobLogsQueryOptions, UseJobLogsQueryReturn } from './useJobLogsQuery';
 
 // Job logs WebSocket hooks (NEM-2711)
 export { useJobLogsWebSocket, default as useJobLogsWebSocketDefault } from './useJobLogsWebSocket';
-export type {
-  UseJobLogsWebSocketOptions,
-  UseJobLogsWebSocketReturn,
-} from './useJobLogsWebSocket';
+export type { UseJobLogsWebSocketOptions, UseJobLogsWebSocketReturn } from './useJobLogsWebSocket';
 
 // Job history query hooks (NEM-2713)
 export { useJobHistoryQuery, jobHistoryQueryKeys } from './useJobHistoryQuery';
-export type {
-  UseJobHistoryQueryOptions,
-  UseJobHistoryQueryReturn,
-} from './useJobHistoryQuery';
+export type { UseJobHistoryQueryOptions, UseJobHistoryQueryReturn } from './useJobHistoryQuery';
 
 // Jobs search query hooks (NEM-2709)
 export { useJobsSearchQuery, jobsSearchQueryKeys } from './useJobsSearchQuery';
-export type {
-  UseJobsSearchQueryOptions,
-  UseJobsSearchQueryReturn,
-} from './useJobsSearchQuery';
+export type { UseJobsSearchQueryOptions, UseJobsSearchQueryReturn } from './useJobsSearchQuery';
 
 // Prompt management hooks (NEM-2697)
 export {
@@ -505,17 +490,11 @@ export type { UseSummariesOptions } from './useSummaries';
 
 // Summary expansion state persistence (NEM-2925)
 export { useSummaryExpansion, default as useSummaryExpansionDefault } from './useSummaryExpansion';
-export type {
-  UseSummaryExpansionOptions,
-  UseSummaryExpansionReturn,
-} from './useSummaryExpansion';
+export type { UseSummaryExpansionOptions, UseSummaryExpansionReturn } from './useSummaryExpansion';
 
 // Pull-to-refresh hook (NEM-2970)
 export { usePullToRefresh, default as usePullToRefreshDefault } from './usePullToRefresh';
-export type {
-  PullToRefreshOptions,
-  PullToRefreshReturn,
-} from './usePullToRefresh';
+export type { PullToRefreshOptions, PullToRefreshReturn } from './usePullToRefresh';
 
 // Feature error boundary HOC for granular error isolation
 export {
@@ -620,7 +599,10 @@ export type {
 } from './useServiceStatusWebSocket';
 
 // GPU stats WebSocket hook (NEM-3169)
-export { useGpuStatsWebSocket, default as useGpuStatsWebSocketDefault } from './useGpuStatsWebSocket';
+export {
+  useGpuStatsWebSocket,
+  default as useGpuStatsWebSocketDefault,
+} from './useGpuStatsWebSocket';
 export type {
   GpuStatsEntry,
   GpuStatsUpdateHandler,
@@ -648,10 +630,7 @@ export {
   MEMORY_STATS_QUERY_KEY,
   default as useMemoryStatsQueryDefault,
 } from './useMemoryStatsQuery';
-export type {
-  UseMemoryStatsQueryOptions,
-  UseMemoryStatsQueryReturn,
-} from './useMemoryStatsQuery';
+export type { UseMemoryStatsQueryOptions, UseMemoryStatsQueryReturn } from './useMemoryStatsQuery';
 
 // Circuit breaker debug hook (NEM-3173)
 export {
@@ -733,7 +712,11 @@ export type {
 } from './useDashboardData';
 
 // React 19 performance optimization hooks (NEM-3421)
-export { useDeferredFilter, useDeferredSearch, default as useDeferredFilterDefault } from './useDeferredFilter';
+export {
+  useDeferredFilter,
+  useDeferredSearch,
+  default as useDeferredFilterDefault,
+} from './useDeferredFilter';
 export type {
   UseDeferredFilterOptions,
   UseDeferredFilterResult,
@@ -742,17 +725,11 @@ export type {
 
 // Virtualized list hook (NEM-3423)
 export { useVirtualizedList, default as useVirtualizedListDefault } from './useVirtualizedList';
-export type {
-  UseVirtualizedListOptions,
-  UseVirtualizedListReturn,
-} from './useVirtualizedList';
+export type { UseVirtualizedListOptions, UseVirtualizedListReturn } from './useVirtualizedList';
 
 // Route prefetching hook (NEM-3359)
 export { useRoutePrefetch, default as useRoutePrefetchDefault } from './useRoutePrefetch';
-export type {
-  UseRoutePrefetchOptions,
-  UseRoutePrefetchReturn,
-} from './useRoutePrefetch';
+export type { UseRoutePrefetchOptions, UseRoutePrefetchReturn } from './useRoutePrefetch';
 
 // Suspense query hooks (NEM-3360)
 export {

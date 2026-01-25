@@ -222,17 +222,14 @@ export default function BottomSheet({
           >
             {/* Drag Handle */}
             {showDragHandle && (
-              <div
-                className="flex justify-center pt-3 pb-2"
-                data-testid="bottom-sheet-drag-handle"
-              >
+              <div className="flex justify-center pb-2 pt-3" data-testid="bottom-sheet-drag-handle">
                 <div className="h-1.5 w-12 rounded-full bg-gray-600" />
               </div>
             )}
 
             {/* Header with title and close button */}
             {(title || showCloseButton) && (
-              <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+              <div className="flex items-center justify-between border-b border-gray-800 px-4 py-2">
                 {title ? (
                   <h2
                     id="bottom-sheet-title"

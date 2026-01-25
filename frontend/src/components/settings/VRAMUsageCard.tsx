@@ -48,7 +48,9 @@ function getUsageStatus(percent: number): 'low' | 'moderate' | 'high' | 'critica
 /**
  * Get Tremor color based on usage status
  */
-function getProgressColor(status: 'low' | 'moderate' | 'high' | 'critical'): 'emerald' | 'yellow' | 'orange' | 'red' {
+function getProgressColor(
+  status: 'low' | 'moderate' | 'high' | 'critical'
+): 'emerald' | 'yellow' | 'orange' | 'red' {
   switch (status) {
     case 'low':
       return 'emerald';

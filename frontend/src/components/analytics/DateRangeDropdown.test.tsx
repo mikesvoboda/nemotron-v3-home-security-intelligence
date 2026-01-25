@@ -71,7 +71,9 @@ describe('DateRangeDropdown', () => {
 
   it('shows checkmark on currently selected preset', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<DateRangeDropdown {...defaultProps} preset="7d" presetLabel="Last 7 days" />);
+    renderWithProviders(
+      <DateRangeDropdown {...defaultProps} preset="7d" presetLabel="Last 7 days" />
+    );
 
     const button = screen.getByTestId('date-range-dropdown');
     await user.click(button);

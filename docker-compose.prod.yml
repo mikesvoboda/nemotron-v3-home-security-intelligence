@@ -768,6 +768,17 @@ services:
       # Pin JSON API plugin to v1.3.0 for Grafana 10.x compatibility (v1.3.15+ requires Grafana 11.6.0+)
       # Note: grafana-pyroscope-datasource is a core plugin in Grafana 10.x and should not be installed
       - GF_INSTALL_PLUGINS=marcusolsson-json-datasource 1.3.0
+      # SMTP Configuration for Email Alerts (NEM-3511)
+      # Configure via .env file for email alerting capability
+      # See docs/operator/smtp-configuration.md for setup instructions
+      - GF_SMTP_ENABLED=${GF_SMTP_ENABLED:-false}
+      - GF_SMTP_HOST=${GF_SMTP_HOST:-smtp.example.com:587}
+      - GF_SMTP_USER=${GF_SMTP_USER:-}
+      - GF_SMTP_PASSWORD=${GF_SMTP_PASSWORD:-}
+      - GF_SMTP_FROM_ADDRESS=${GF_SMTP_FROM_ADDRESS:-grafana@example.com}
+      - GF_SMTP_FROM_NAME=${GF_SMTP_FROM_NAME:-Grafana Alerts}
+      - GF_SMTP_STARTTLS_POLICY=${GF_SMTP_STARTTLS_POLICY:-MandatoryStartTLS}
+      - GF_SMTP_SKIP_VERIFY=${GF_SMTP_SKIP_VERIFY:-false}
     depends_on:
       prometheus:
         condition: service_healthy
@@ -909,8 +920,10 @@ services:
   # Pyroscope for continuous profiling (NEM-3097)
   # Custom image with py-spy for Python process profiling
   # Services push profiles via py-spy when PYROSCOPE_ENABLED=true
+  # NEM-3514: Upgraded from 1.4.0 to 1.18.0 to fix "unknown profile type: seconds" error.
+  # Fix: https://github.com/grafana/pyroscope/pull/4568 (released in v1.9.2+)
   pyroscope:
-    image: docker.io/grafana/pyroscope:1.4.0
+    image: docker.io/grafana/pyroscope:1.18.0
     container_name: pyroscope
     volumes:
       - ./monitoring/pyroscope/pyroscope-config.yml:/etc/pyroscope/config.yml:ro,z

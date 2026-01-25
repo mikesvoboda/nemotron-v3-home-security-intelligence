@@ -169,7 +169,8 @@ describe('worker-status-store', () => {
 
   describe('handleWorkerHealthCheckFailed', () => {
     it('keeps running state with low failure count', () => {
-      const { handleWorkerStarted, handleWorkerHealthCheckFailed } = useWorkerStatusStore.getState();
+      const { handleWorkerStarted, handleWorkerHealthCheckFailed } =
+        useWorkerStatusStore.getState();
 
       // Start a worker
       handleWorkerStarted({
@@ -196,7 +197,8 @@ describe('worker-status-store', () => {
     });
 
     it('changes to error state with high failure count', () => {
-      const { handleWorkerStarted, handleWorkerHealthCheckFailed } = useWorkerStatusStore.getState();
+      const { handleWorkerStarted, handleWorkerHealthCheckFailed } =
+        useWorkerStatusStore.getState();
 
       // Start a worker
       handleWorkerStarted({
@@ -529,7 +531,8 @@ describe('worker-status-store', () => {
 
       // Subscribe to specific worker
       const unsub = (useWorkerStatusStore.subscribe as any)(
-        (state: { workers: Record<string, { state: string }> }) => state.workers['detection-worker-1']?.state,
+        (state: { workers: Record<string, { state: string }> }) =>
+          state.workers['detection-worker-1']?.state,
         callback
       );
 

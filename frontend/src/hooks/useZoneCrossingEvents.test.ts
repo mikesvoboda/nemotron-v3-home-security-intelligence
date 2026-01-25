@@ -43,7 +43,9 @@ vi.mock('./useWebSocketEvent', () => ({
 
 describe('useZoneCrossingEvents', () => {
   // Helper to create a valid event payload
-  const createPayload = (overrides: Partial<ZoneCrossingEventPayload> = {}): ZoneCrossingEventPayload => ({
+  const createPayload = (
+    overrides: Partial<ZoneCrossingEventPayload> = {}
+  ): ZoneCrossingEventPayload => ({
     zone_id: 'zone-1',
     zone_name: 'Front Door',
     entity_id: 'entity-123',
@@ -251,9 +253,7 @@ describe('useZoneCrossingEvents', () => {
     });
 
     it('respects maxEvents limit', async () => {
-      const { result } = renderHook(() =>
-        useZoneCrossingEvents({ maxEvents: 3 })
-      );
+      const { result } = renderHook(() => useZoneCrossingEvents({ maxEvents: 3 }));
 
       act(() => {
         for (let i = 0; i < 5; i++) {
@@ -390,7 +390,9 @@ describe('useZoneCrossingEvents', () => {
 
       act(() => {
         capturedHandlers['zone.enter'](createPayload({ zone_id: 'zone-1', entity_type: 'person' }));
-        capturedHandlers['zone.enter'](createPayload({ zone_id: 'zone-1', entity_type: 'vehicle' }));
+        capturedHandlers['zone.enter'](
+          createPayload({ zone_id: 'zone-1', entity_type: 'vehicle' })
+        );
         capturedHandlers['zone.exit'](createPayload({ zone_id: 'zone-1', entity_type: 'person' }));
         capturedHandlers['zone.enter'](createPayload({ zone_id: 'zone-2', entity_type: 'person' }));
       });

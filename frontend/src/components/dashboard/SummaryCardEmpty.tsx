@@ -52,11 +52,7 @@ export interface SummaryCardEmptyProps {
  * <SummaryCardEmpty type="hourly" className="mb-4" />
  * ```
  */
-export function SummaryCardEmpty({
-  type,
-  onViewEvents,
-  className,
-}: SummaryCardEmptyProps) {
+export function SummaryCardEmpty({ type, onViewEvents, className }: SummaryCardEmptyProps) {
   const isHourly = type === 'hourly';
   const title = isHourly ? 'Hourly Summary' : 'Daily Summary';
   const Icon = isHourly ? Clock : Calendar;
@@ -88,9 +84,7 @@ export function SummaryCardEmpty({
           <Icon className="h-6 w-6 text-gray-500" />
         </div>
 
-        <Text className="mb-1 font-medium text-gray-300">
-          No activity to summarize
-        </Text>
+        <Text className="mb-1 font-medium text-gray-300">No activity to summarize</Text>
 
         <Text className="text-sm text-gray-500">
           No high-priority events detected {timeframeText}.

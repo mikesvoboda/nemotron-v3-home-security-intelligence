@@ -101,9 +101,9 @@ function SeverityHeader({ severity, count }: SeverityHeaderProps) {
       )}
       data-testid={`alert-drawer-severity-header-${severity}`}
     >
-      <Icon className="w-4 h-4" />
+      <Icon className="h-4 w-4" />
       <span>{config.label}</span>
-      <span className="ml-auto rounded-full bg-nvidia-surface px-2 py-0.5 text-xs font-medium">
+      <span className="bg-nvidia-surface ml-auto rounded-full px-2 py-0.5 text-xs font-medium">
         {count}
       </span>
     </div>
@@ -145,45 +145,48 @@ function AlertCard({ alert, isResolved = false }: AlertCardProps) {
     >
       {/* Header with alertname and resolved badge */}
       <div className="flex items-start justify-between gap-2">
-        <h4 className="text-sm font-semibold text-nvidia-text-primary" data-testid="alert-card-name">
+        <h4
+          className="text-nvidia-text-primary text-sm font-semibold"
+          data-testid="alert-card-name"
+        >
           {alert.alertname}
         </h4>
         {isResolved && (
           <span
             className={clsx(
               'inline-flex items-center gap-1 rounded-full px-2 py-0.5',
-              'bg-risk-low/20 text-risk-low text-xs font-medium'
+              'bg-risk-low/20 text-xs font-medium text-risk-low'
             )}
             data-testid="alert-card-resolved-badge"
           >
-            <CheckCircle2 className="w-3 h-3" />
+            <CheckCircle2 className="h-3 w-3" />
             Resolved
           </span>
         )}
       </div>
 
       {/* Summary */}
-      <p className="mt-1 text-sm text-nvidia-text-secondary" data-testid="alert-card-summary">
+      <p className="text-nvidia-text-secondary mt-1 text-sm" data-testid="alert-card-summary">
         {summary}
       </p>
 
       {/* Description (if different from summary) */}
       {description && description !== summary && (
-        <p className="mt-1 text-xs text-nvidia-text-muted" data-testid="alert-card-description">
+        <p className="text-nvidia-text-muted mt-1 text-xs" data-testid="alert-card-description">
           {description}
         </p>
       )}
 
       {/* Timestamp */}
-      <div className="mt-2 flex items-center gap-1 text-xs text-nvidia-text-muted">
-        <Clock className="w-3 h-3" />
+      <div className="text-nvidia-text-muted mt-2 flex items-center gap-1 text-xs">
+        <Clock className="h-3 w-3" />
         <span data-testid="alert-card-timestamp">{timeAgo}</span>
       </div>
 
       {/* Labels (optional, show key ones) */}
       {alert.labels.instance && (
         <div className="mt-2 flex flex-wrap gap-1">
-          <span className="rounded bg-nvidia-surface-light px-1.5 py-0.5 text-[10px] text-nvidia-text-muted">
+          <span className="bg-nvidia-surface-light text-nvidia-text-muted rounded px-1.5 py-0.5 text-[10px]">
             {alert.labels.instance}
           </span>
         </div>
@@ -216,12 +219,7 @@ export default function AlertDrawer({
 
   return (
     <Transition show={isOpen} as={Fragment}>
-      <Dialog
-        as="div"
-        className="relative z-50"
-        onClose={onClose}
-        data-testid="alert-drawer"
-      >
+      <Dialog as="div" className="relative z-50" onClose={onClose} data-testid="alert-drawer">
         {/* Backdrop */}
         <Transition.Child
           as={Fragment}
@@ -255,16 +253,16 @@ export default function AlertDrawer({
                 <Dialog.Panel
                   className={clsx(
                     'pointer-events-auto w-screen max-w-md',
-                    'bg-nvidia-bg border-l border-nvidia-border',
-                    'flex flex-col h-full',
+                    'bg-nvidia-bg border-nvidia-border border-l',
+                    'flex h-full flex-col',
                     className
                   )}
                   data-testid="alert-drawer-panel"
                 >
                   {/* Header */}
-                  <div className="flex items-center justify-between border-b border-nvidia-border px-4 py-4">
+                  <div className="border-nvidia-border flex items-center justify-between border-b px-4 py-4">
                     <Dialog.Title
-                      className="text-lg font-semibold text-nvidia-text-primary"
+                      className="text-nvidia-text-primary text-lg font-semibold"
                       data-testid="alert-drawer-title"
                     >
                       Active Alerts
@@ -316,10 +314,10 @@ export default function AlertDrawer({
                         {/* Resolved alerts (if any) */}
                         {hasResolved && (
                           <div className="mt-4" data-testid="alert-drawer-resolved-section">
-                            <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-nvidia-text-muted bg-nvidia-surface">
-                              <CheckCircle2 className="w-4 h-4" />
+                            <div className="text-nvidia-text-muted bg-nvidia-surface flex items-center gap-2 px-4 py-2 text-sm font-semibold uppercase tracking-wide">
+                              <CheckCircle2 className="h-4 w-4" />
                               <span>Recently Resolved</span>
-                              <span className="ml-auto rounded-full bg-nvidia-surface-light px-2 py-0.5 text-xs font-medium">
+                              <span className="bg-nvidia-surface-light ml-auto rounded-full px-2 py-0.5 text-xs font-medium">
                                 {resolvedAlerts.length}
                               </span>
                             </div>
@@ -335,11 +333,11 @@ export default function AlertDrawer({
                         className="flex flex-col items-center justify-center py-16 text-center"
                         data-testid="alert-drawer-empty"
                       >
-                        <CheckCircle2 className="w-12 h-12 text-risk-low mb-4" />
-                        <h3 className="text-lg font-medium text-nvidia-text-primary">
+                        <CheckCircle2 className="mb-4 h-12 w-12 text-risk-low" />
+                        <h3 className="text-nvidia-text-primary text-lg font-medium">
                           No Active Alerts
                         </h3>
-                        <p className="mt-1 text-sm text-nvidia-text-muted">
+                        <p className="text-nvidia-text-muted mt-1 text-sm">
                           All systems are operating normally.
                         </p>
                       </div>
@@ -348,7 +346,7 @@ export default function AlertDrawer({
 
                   {/* Footer with alert count */}
                   {hasAlerts && (
-                    <div className="border-t border-nvidia-border px-4 py-3 text-sm text-nvidia-text-muted">
+                    <div className="border-nvidia-border text-nvidia-text-muted border-t px-4 py-3 text-sm">
                       {alerts.length} active alert{alerts.length !== 1 ? 's' : ''}
                     </div>
                   )}

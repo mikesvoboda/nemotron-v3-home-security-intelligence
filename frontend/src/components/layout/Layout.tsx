@@ -67,60 +67,60 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <CommandPaletteContext.Provider value={commandPaletteContextValue}>
       <SidebarContext.Provider value={sidebarContextValue}>
-      <div className="flex min-h-screen flex-col bg-[#0E0E0E]">
-        {/* Skip link for keyboard navigation accessibility */}
-        <SkipLink />
-        <Header />
-        <div className="flex flex-1 overflow-hidden">
-          {/* Hide sidebar on mobile, show MobileBottomNav instead */}
-          {!isMobile && <Sidebar />}
+        <div className="flex min-h-screen flex-col bg-[#0E0E0E]">
+          {/* Skip link for keyboard navigation accessibility */}
+          <SkipLink />
+          <Header />
+          <div className="flex flex-1 overflow-hidden">
+            {/* Hide sidebar on mobile, show MobileBottomNav instead */}
+            {!isMobile && <Sidebar />}
 
-          {/* Mobile overlay backdrop */}
-          {isMobileMenuOpen && (
-            <div
-              className="fixed inset-0 z-30 bg-black/50 md:hidden"
-              onClick={() => setMobileMenuOpen(false)}
-              aria-hidden="true"
-              data-testid="mobile-overlay"
-            />
-          )}
-          <main
-            id="main-content"
-            tabIndex={-1}
-            className={`flex-1 overflow-auto focus:outline-none ${isMobile ? 'pb-14' : ''}`}
-            data-testid="main-content"
-          >
-            {/* Connection status banner - shows when WebSocket is disconnected */}
-            <div className="px-4 pt-2">
-              <ConnectionStatusBanner
-                connectionState={summary.overallState}
-                disconnectedSince={summary.disconnectedSince}
-                reconnectAttempts={summary.totalReconnectAttempts}
-                maxReconnectAttempts={
-                  summary.eventsChannel.maxReconnectAttempts +
-                  summary.systemChannel.maxReconnectAttempts
-                }
-                onRetry={retryConnection}
-                isPollingFallback={isPollingFallback}
+            {/* Mobile overlay backdrop */}
+            {isMobileMenuOpen && (
+              <div
+                className="fixed inset-0 z-30 bg-black/50 md:hidden"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-hidden="true"
+                data-testid="mobile-overlay"
               />
-            </div>
-            {!isDismissed && <ServiceStatusAlert services={services} onDismiss={handleDismiss} />}
-            {children}
-          </main>
+            )}
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className={`flex-1 overflow-auto focus:outline-none ${isMobile ? 'pb-14' : ''}`}
+              data-testid="main-content"
+            >
+              {/* Connection status banner - shows when WebSocket is disconnected */}
+              <div className="px-4 pt-2">
+                <ConnectionStatusBanner
+                  connectionState={summary.overallState}
+                  disconnectedSince={summary.disconnectedSince}
+                  reconnectAttempts={summary.totalReconnectAttempts}
+                  maxReconnectAttempts={
+                    summary.eventsChannel.maxReconnectAttempts +
+                    summary.systemChannel.maxReconnectAttempts
+                  }
+                  onRetry={retryConnection}
+                  isPollingFallback={isPollingFallback}
+                />
+              </div>
+              {!isDismissed && <ServiceStatusAlert services={services} onDismiss={handleDismiss} />}
+              {children}
+            </main>
+          </div>
+
+          {/* Command Palette */}
+          <CommandPalette open={isCommandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
+
+          {/* Keyboard Shortcuts Help Modal */}
+          <ShortcutsHelpModal
+            open={isShortcutsHelpOpen}
+            onClose={() => setShortcutsHelpOpen(false)}
+          />
+
+          {/* Show mobile bottom navigation on mobile viewports */}
+          {isMobile && <MobileBottomNav />}
         </div>
-
-        {/* Command Palette */}
-        <CommandPalette open={isCommandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
-
-        {/* Keyboard Shortcuts Help Modal */}
-        <ShortcutsHelpModal
-          open={isShortcutsHelpOpen}
-          onClose={() => setShortcutsHelpOpen(false)}
-        />
-
-        {/* Show mobile bottom navigation on mobile viewports */}
-        {isMobile && <MobileBottomNav />}
-      </div>
       </SidebarContext.Provider>
     </CommandPaletteContext.Provider>
   );

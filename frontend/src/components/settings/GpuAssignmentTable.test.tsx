@@ -47,7 +47,13 @@ const mockAssignments: GpuAssignment[] = [
 const mockServiceStatuses: ServiceStatus[] = [
   { name: 'ai-llm', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
   { name: 'ai-detector', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
-  { name: 'ai-enrichment', status: 'running', health: 'unhealthy', gpu_index: 1, restart_status: null },
+  {
+    name: 'ai-enrichment',
+    status: 'running',
+    health: 'unhealthy',
+    gpu_index: 1,
+    restart_status: null,
+  },
 ];
 
 // ============================================================================
@@ -202,7 +208,13 @@ describe('GpuAssignmentTable', () => {
 
     it('should display restart status when restarting', () => {
       const statusesWithRestart: ServiceStatus[] = [
-        { name: 'ai-llm', status: 'running', health: 'healthy', gpu_index: 0, restart_status: 'Restarting' },
+        {
+          name: 'ai-llm',
+          status: 'running',
+          health: 'healthy',
+          gpu_index: 0,
+          restart_status: 'Restarting',
+        },
       ];
 
       renderWithProviders(
@@ -254,7 +266,9 @@ describe('GpuAssignmentTable', () => {
     it('should not show note when strategy is manual', () => {
       renderWithProviders(<GpuAssignmentTable {...defaultProps} strategy="manual" />);
 
-      expect(screen.queryByText(/GPU assignments are managed automatically/)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/GPU assignments are managed automatically/)
+      ).not.toBeInTheDocument();
     });
   });
 

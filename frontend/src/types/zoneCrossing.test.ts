@@ -203,15 +203,9 @@ describe('isZoneCrossingEvent', () => {
   });
 
   it('returns true for all event types', () => {
-    expect(
-      isZoneCrossingEvent({ ...validEvent, type: ZoneCrossingType.ENTER })
-    ).toBe(true);
-    expect(
-      isZoneCrossingEvent({ ...validEvent, type: ZoneCrossingType.EXIT })
-    ).toBe(true);
-    expect(
-      isZoneCrossingEvent({ ...validEvent, type: ZoneCrossingType.DWELL })
-    ).toBe(true);
+    expect(isZoneCrossingEvent({ ...validEvent, type: ZoneCrossingType.ENTER })).toBe(true);
+    expect(isZoneCrossingEvent({ ...validEvent, type: ZoneCrossingType.EXIT })).toBe(true);
+    expect(isZoneCrossingEvent({ ...validEvent, type: ZoneCrossingType.DWELL })).toBe(true);
   });
 
   it('returns true for event with optional fields', () => {

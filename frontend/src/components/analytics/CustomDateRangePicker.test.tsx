@@ -74,10 +74,7 @@ describe('CustomDateRangePicker', () => {
     const applyButton = screen.getByRole('button', { name: /apply/i });
     await user.click(applyButton);
 
-    expect(mockOnApply).toHaveBeenCalledWith(
-      expect.any(Date),
-      expect.any(Date)
-    );
+    expect(mockOnApply).toHaveBeenCalledWith(expect.any(Date), expect.any(Date));
   });
 
   it('allows changing start date', async () => {
@@ -159,11 +156,7 @@ describe('CustomDateRangePicker', () => {
 
   it('handles null initial dates gracefully', () => {
     renderWithProviders(
-      <CustomDateRangePicker
-        {...defaultProps}
-        initialStartDate={null}
-        initialEndDate={null}
-      />
+      <CustomDateRangePicker {...defaultProps} initialStartDate={null} initialEndDate={null} />
     );
 
     const startInput = screen.getByLabelText(/start date/i);

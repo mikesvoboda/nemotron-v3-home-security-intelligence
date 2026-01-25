@@ -57,9 +57,30 @@ describe('useSceneChangeEvents', () => {
     // Mock useCamerasQuery with some test cameras
     vi.spyOn(useCamerasQueryModule, 'useCamerasQuery').mockReturnValue({
       cameras: [
-        { id: 'front_door', name: 'Front Door Camera', folder_path: '/cameras/front', status: 'online', last_seen_at: null, created_at: '2026-01-01T00:00:00Z' },
-        { id: 'back_yard', name: 'Back Yard Camera', folder_path: '/cameras/back', status: 'online', last_seen_at: null, created_at: '2026-01-01T00:00:00Z' },
-        { id: 'garage', name: 'Garage Camera', folder_path: '/cameras/garage', status: 'online', last_seen_at: null, created_at: '2026-01-01T00:00:00Z' },
+        {
+          id: 'front_door',
+          name: 'Front Door Camera',
+          folder_path: '/cameras/front',
+          status: 'online',
+          last_seen_at: null,
+          created_at: '2026-01-01T00:00:00Z',
+        },
+        {
+          id: 'back_yard',
+          name: 'Back Yard Camera',
+          folder_path: '/cameras/back',
+          status: 'online',
+          last_seen_at: null,
+          created_at: '2026-01-01T00:00:00Z',
+        },
+        {
+          id: 'garage',
+          name: 'Garage Camera',
+          folder_path: '/cameras/garage',
+          status: 'online',
+          last_seen_at: null,
+          created_at: '2026-01-01T00:00:00Z',
+        },
       ],
       isLoading: false,
       isRefetching: false,
@@ -290,9 +311,7 @@ describe('useSceneChangeEvents', () => {
   });
 
   it('clears activity after timeout', () => {
-    const { result } = renderHook(() =>
-      useSceneChangeEvents({ activityTimeoutMs: 5000 })
-    );
+    const { result } = renderHook(() => useSceneChangeEvents({ activityTimeoutMs: 5000 }));
 
     act(() => {
       onMessageCallback!({

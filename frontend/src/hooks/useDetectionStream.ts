@@ -331,10 +331,7 @@ export function useDetectionStream(
     [detections]
   );
 
-  const latestBatch = useMemo(
-    () => (batches.length > 0 ? batches[0] : null),
-    [batches]
-  );
+  const latestBatch = useMemo(() => (batches.length > 0 ? batches[0] : null), [batches]);
 
   return {
     detections,

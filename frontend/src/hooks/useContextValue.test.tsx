@@ -4,7 +4,7 @@
  * Tests React 19 use() hook utilities.
  */
 
-import { render, screen, waitFor , renderHook } from '@testing-library/react';
+import { render, screen, waitFor, renderHook } from '@testing-library/react';
 import { Suspense, createContext } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -186,11 +186,7 @@ describe('useConditionalContext', () => {
   it('can be called conditionally in component', () => {
     function Consumer({ enabled }: { enabled: boolean }) {
       const { isAvailable, value } = useConditionalContext(TestContext, enabled);
-      return (
-        <div data-testid="result">
-          {isAvailable ? value?.value : 'disabled'}
-        </div>
-      );
+      return <div data-testid="result">{isAvailable ? value?.value : 'disabled'}</div>;
     }
 
     const { rerender } = render(
@@ -216,9 +212,7 @@ describe('useContextOrDefault', () => {
 
   it('returns context value when available', () => {
     const wrapper = ({ children }: { children: ReactNode }) => (
-      <NullableContext.Provider value={{ value: 'provided' }}>
-        {children}
-      </NullableContext.Provider>
+      <NullableContext.Provider value={{ value: 'provided' }}>{children}</NullableContext.Provider>
     );
 
     const { result } = renderHook(
@@ -230,9 +224,7 @@ describe('useContextOrDefault', () => {
   });
 
   it('returns default when context is null', () => {
-    const { result } = renderHook(() =>
-      useContextOrDefault(NullableContext, { value: 'default' })
-    );
+    const { result } = renderHook(() => useContextOrDefault(NullableContext, { value: 'default' }));
 
     expect(result.current).toEqual({ value: 'default' });
   });

@@ -19,7 +19,11 @@ vi.mock('../../services/api', () => ({
 // Mock native analytics components to avoid their dependencies
 vi.mock('./CameraUptimeCard', () => ({
   default: ({ dateRange }: { dateRange: { startDate: string; endDate: string } }) => (
-    <div data-testid="camera-uptime-card" data-start={dateRange.startDate} data-end={dateRange.endDate}>
+    <div
+      data-testid="camera-uptime-card"
+      data-start={dateRange.startDate}
+      data-end={dateRange.endDate}
+    >
       Camera Uptime Mock
     </div>
   ),

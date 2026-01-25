@@ -100,9 +100,7 @@ describe('TimelineScrubber', () => {
       const lowOnlyBuckets: TimelineBucket[] = [
         { timestamp: '2024-01-15T06:00:00Z', eventCount: 5, maxSeverity: 'low' },
       ];
-      const { container } = render(
-        <TimelineScrubber {...defaultProps} buckets={lowOnlyBuckets} />
-      );
+      const { container } = render(<TimelineScrubber {...defaultProps} buckets={lowOnlyBuckets} />);
       const bar = container.querySelector('[data-severity="low"]');
       expect(bar).toHaveClass('bg-green-500');
     });
@@ -301,9 +299,7 @@ describe('TimelineScrubber', () => {
       const labels = screen.getAllByTestId('time-label');
       expect(labels.length).toBeGreaterThan(0);
       // At least one label should contain a time format
-      const hasTimeFormat = labels.some(label =>
-        /\d{1,2}:\d{2}/.test(label.textContent || '')
-      );
+      const hasTimeFormat = labels.some((label) => /\d{1,2}:\d{2}/.test(label.textContent || ''));
       expect(hasTimeFormat).toBe(true);
     });
 
@@ -313,9 +309,7 @@ describe('TimelineScrubber', () => {
       const labels = screen.getAllByTestId('time-label');
       expect(labels.length).toBeGreaterThan(0);
       // At least one label should contain AM/PM
-      const hasAMPMFormat = labels.some(label =>
-        /AM|PM/i.test(label.textContent || '')
-      );
+      const hasAMPMFormat = labels.some((label) => /AM|PM/i.test(label.textContent || ''));
       expect(hasAMPMFormat).toBe(true);
     });
 
@@ -326,7 +320,7 @@ describe('TimelineScrubber', () => {
       const labels = screen.getAllByTestId('time-label');
       expect(labels.length).toBeGreaterThan(0);
       // At least one label should contain a day abbreviation
-      const hasDayFormat = labels.some(label =>
+      const hasDayFormat = labels.some((label) =>
         /Mon|Tue|Wed|Thu|Fri|Sat|Sun/i.test(label.textContent || '')
       );
       expect(hasDayFormat).toBe(true);
@@ -458,9 +452,7 @@ describe('TimelineScrubber', () => {
       const singleBucket: TimelineBucket[] = [
         { timestamp: '2024-01-15T06:00:00Z', eventCount: 5, maxSeverity: 'low' },
       ];
-      const { container } = render(
-        <TimelineScrubber {...defaultProps} buckets={singleBucket} />
-      );
+      const { container } = render(<TimelineScrubber {...defaultProps} buckets={singleBucket} />);
       const bars = container.querySelectorAll('[data-testid="timeline-bar"]');
       expect(bars.length).toBe(1);
     });
@@ -481,9 +473,7 @@ describe('TimelineScrubber', () => {
 
     it('handles large number of buckets', () => {
       const manyBuckets = createMockBuckets(100);
-      const { container } = render(
-        <TimelineScrubber {...defaultProps} buckets={manyBuckets} />
-      );
+      const { container } = render(<TimelineScrubber {...defaultProps} buckets={manyBuckets} />);
       const bars = container.querySelectorAll('[data-testid="timeline-bar"]');
       expect(bars.length).toBe(100);
     });

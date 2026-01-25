@@ -382,7 +382,10 @@ export default function DashboardPage() {
             analysisQueueDepth: aiMetrics.analysisQueueDepth,
             totalDetections: aiMetrics.totalDetections,
             totalEvents: aiMetrics.totalEvents,
-            totalErrors: Object.values(aiMetrics.pipelineErrors).reduce((sum, count) => sum + count, 0),
+            totalErrors: Object.values(aiMetrics.pipelineErrors).reduce(
+              (sum, count) => sum + count,
+              0
+            ),
             throughputPerMinute: aiMetrics.eventsPerMinute,
           },
           cameraGrid: {
@@ -502,8 +505,8 @@ function DashboardPageWithErrorBoundary() {
           <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
           <h3 className="mb-2 text-lg font-semibold text-red-400">Dashboard Unavailable</h3>
           <p className="max-w-md text-center text-sm text-gray-400">
-            Unable to load the security dashboard. Please refresh the page or try again later.
-            You can still navigate to other sections using the sidebar.
+            Unable to load the security dashboard. Please refresh the page or try again later. You
+            can still navigate to other sections using the sidebar.
           </p>
         </div>
       }

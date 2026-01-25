@@ -65,10 +65,7 @@ export default function ImportExportButtons({
     isPending: isPreviewPending,
     clearPreview,
   } = useImportPreview();
-  const {
-    importFromPreview,
-    isPending: isImportPending,
-  } = useImportPrompts();
+  const { importFromPreview, isPending: isImportPending } = useImportPrompts();
 
   // Handle export click
   const handleExport = useCallback(async () => {
@@ -96,9 +93,7 @@ export default function ImportExportButtons({
         await previewFromFile(file);
         setIsPreviewOpen(true);
       } catch (error) {
-        onImportError?.(
-          error instanceof Error ? error : new Error('Failed to parse import file')
-        );
+        onImportError?.(error instanceof Error ? error : new Error('Failed to parse import file'));
       }
 
       // Reset file input so the same file can be selected again
@@ -117,9 +112,7 @@ export default function ImportExportButtons({
       clearPreview();
       onImportSuccess?.();
     } catch (error) {
-      onImportError?.(
-        error instanceof Error ? error : new Error('Failed to apply import')
-      );
+      onImportError?.(error instanceof Error ? error : new Error('Failed to apply import'));
     }
   }, [previewData, importFromPreview, clearPreview, onImportSuccess, onImportError]);
 

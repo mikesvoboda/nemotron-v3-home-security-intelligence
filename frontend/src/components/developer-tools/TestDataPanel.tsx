@@ -18,7 +18,6 @@ import { Card, Title, Text, Callout } from '@tremor/react';
 import { AlertTriangle, Database } from 'lucide-react';
 import { useCallback } from 'react';
 
-
 import CleanupRow from './CleanupRow';
 import SeedRow from './SeedRow';
 import {
@@ -57,7 +56,8 @@ export default function TestDataPanel({ className }: TestDataPanelProps) {
       try {
         const result = await seedCamerasMutation.mutateAsync({ count });
         toast.success(`Created ${result.created} cameras`, {
-          description: result.cleared > 0 ? `Cleared ${result.cleared} existing cameras` : undefined,
+          description:
+            result.cleared > 0 ? `Cleared ${result.cleared} existing cameras` : undefined,
         });
       } catch (error) {
         toast.error('Failed to seed cameras', {
@@ -154,8 +154,8 @@ export default function TestDataPanel({ className }: TestDataPanelProps) {
         className="mb-6"
       >
         <span className="text-tremor-default text-amber-200/80">
-          Seeding creates test data for development. Cleanup operations are destructive and
-          require confirmation.
+          Seeding creates test data for development. Cleanup operations are destructive and require
+          confirmation.
         </span>
       </Callout>
 

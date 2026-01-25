@@ -66,9 +66,7 @@ describe('useSystemHealthWebSocket', () => {
     });
 
     it('should connect to WebSocket when enabled', () => {
-      const { result } = renderHook(() =>
-        useSystemHealthWebSocket({ enabled: true })
-      );
+      const { result } = renderHook(() => useSystemHealthWebSocket({ enabled: true }));
       expect(result.current.isConnected).toBe(true);
     });
   });
@@ -76,9 +74,7 @@ describe('useSystemHealthWebSocket', () => {
   describe('system.health_changed events', () => {
     it('should handle system health changed messages', () => {
       const onHealthChange = vi.fn();
-      const { result } = renderHook(() =>
-        useSystemHealthWebSocket({ onHealthChange })
-      );
+      const { result } = renderHook(() => useSystemHealthWebSocket({ onHealthChange }));
 
       const healthChange: SystemHealthChangedPayload = {
         health: 'healthy',
@@ -155,9 +151,7 @@ describe('useSystemHealthWebSocket', () => {
     });
 
     it('should maintain transition history', () => {
-      const { result } = renderHook(() =>
-        useSystemHealthWebSocket({ maxHistory: 3 })
-      );
+      const { result } = renderHook(() => useSystemHealthWebSocket({ maxHistory: 3 }));
 
       simulateMessage({
         type: 'system.health_changed',

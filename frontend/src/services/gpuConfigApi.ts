@@ -227,7 +227,10 @@ async function fetchGpuConfigApi<T>(endpoint: string, options?: RequestInit): Pr
     if (error instanceof GpuConfigApiError) {
       throw error;
     }
-    throw new GpuConfigApiError(0, error instanceof Error ? error.message : 'Network request failed');
+    throw new GpuConfigApiError(
+      0,
+      error instanceof Error ? error.message : 'Network request failed'
+    );
   }
 }
 
@@ -398,5 +401,7 @@ export async function previewStrategy(strategy: string): Promise<StrategyPreview
   const queryParams = new URLSearchParams();
   queryParams.append('strategy', strategy);
 
-  return fetchGpuConfigApi<StrategyPreviewResponse>(`/gpu-config/preview?${queryParams.toString()}`);
+  return fetchGpuConfigApi<StrategyPreviewResponse>(
+    `/gpu-config/preview?${queryParams.toString()}`
+  );
 }

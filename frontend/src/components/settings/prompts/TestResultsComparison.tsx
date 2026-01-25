@@ -122,9 +122,7 @@ function ResultCard({ title, result, isLoading = false, variant }: ResultCardPro
         <div className={`-m-6 mb-4 p-3 ${headerBg}`}>
           <h4 className="text-sm font-medium text-white">{title}</h4>
         </div>
-        <div className="flex h-40 items-center justify-center text-gray-400">
-          No results yet
-        </div>
+        <div className="flex h-40 items-center justify-center text-gray-400">No results yet</div>
       </Card>
     );
   }
@@ -214,9 +212,7 @@ export default function TestResultsComparison({
 }: TestResultsComparisonProps) {
   // Calculate delta if both results are available
   const scoreDelta =
-    currentResult && modifiedResult
-      ? modifiedResult.riskScore - currentResult.riskScore
-      : null;
+    currentResult && modifiedResult ? modifiedResult.riskScore - currentResult.riskScore : null;
 
   const timeDelta =
     currentResult && modifiedResult
@@ -288,7 +284,9 @@ export default function TestResultsComparison({
                 ) : timeDelta < -100 ? (
                   <>
                     <ArrowDown className="h-4 w-4 text-green-400" />
-                    <span className="font-medium text-green-400">{formatTime(Math.abs(timeDelta))}</span>
+                    <span className="font-medium text-green-400">
+                      {formatTime(Math.abs(timeDelta))}
+                    </span>
                   </>
                 ) : (
                   <>

@@ -33,11 +33,7 @@ function createMockCluster(overrides: Partial<EventCluster> = {}): EventCluster 
     clusterId: 'cluster-test-123',
     cameraId: 'camera_123',
     cameraName: hasCameraNameOverride ? overrides.cameraName : 'Front Door',
-    events: [
-      createMockEvent({ id: 1 }),
-      createMockEvent({ id: 2 }),
-      createMockEvent({ id: 3 }),
-    ],
+    events: [createMockEvent({ id: 1 }), createMockEvent({ id: 2 }), createMockEvent({ id: 3 })],
     eventCount: 3,
     startTime: '2024-01-15T10:00:00Z',
     endTime: '2024-01-15T10:04:00Z',
@@ -66,25 +62,35 @@ describe('EventClusterCard', () => {
     });
 
     it('displays highest risk level badge', () => {
-      renderWithProviders(<EventClusterCard cluster={createMockCluster({ highestRiskLevel: 'critical' })} />);
+      renderWithProviders(
+        <EventClusterCard cluster={createMockCluster({ highestRiskLevel: 'critical' })} />
+      );
       const riskBadge = screen.getByTestId('risk-badge');
       expect(riskBadge).toHaveTextContent(/critical/i);
     });
 
     it('shows highest risk score', () => {
-      renderWithProviders(<EventClusterCard cluster={createMockCluster({ highestRiskScore: 92 })} />);
+      renderWithProviders(
+        <EventClusterCard cluster={createMockCluster({ highestRiskScore: 92 })} />
+      );
       expect(screen.getByText('92')).toBeInTheDocument();
     });
 
     it('displays Unknown Camera when cameraName is undefined', () => {
-      renderWithProviders(<EventClusterCard cluster={createMockCluster({ cameraName: undefined })} />);
+      renderWithProviders(
+        <EventClusterCard cluster={createMockCluster({ cameraName: undefined })} />
+      );
       expect(screen.getByText('Unknown Camera')).toBeInTheDocument();
     });
   });
 
   describe('Thumbnail Strip', () => {
     it('renders thumbnail images', () => {
-      renderWithProviders(<EventClusterCard cluster={createMockCluster({ thumbnails: ['a.jpg', 'b.jpg', 'c.jpg'] })} />);
+      renderWithProviders(
+        <EventClusterCard
+          cluster={createMockCluster({ thumbnails: ['a.jpg', 'b.jpg', 'c.jpg'] })}
+        />
+      );
       const images = screen.getAllByRole('img');
       expect(images.length).toBeGreaterThanOrEqual(3);
     });
@@ -97,22 +103,30 @@ describe('EventClusterCard', () => {
 
   describe('Risk Level Styling', () => {
     it('applies critical styling', () => {
-      renderWithProviders(<EventClusterCard cluster={createMockCluster({ highestRiskLevel: 'critical' })} />);
+      renderWithProviders(
+        <EventClusterCard cluster={createMockCluster({ highestRiskLevel: 'critical' })} />
+      );
       expect(screen.getByTestId('risk-badge')).toHaveTextContent(/critical/i);
     });
 
     it('applies high styling', () => {
-      renderWithProviders(<EventClusterCard cluster={createMockCluster({ highestRiskLevel: 'high' })} />);
+      renderWithProviders(
+        <EventClusterCard cluster={createMockCluster({ highestRiskLevel: 'high' })} />
+      );
       expect(screen.getByTestId('risk-badge')).toHaveTextContent(/high/i);
     });
 
     it('applies medium styling', () => {
-      renderWithProviders(<EventClusterCard cluster={createMockCluster({ highestRiskLevel: 'medium' })} />);
+      renderWithProviders(
+        <EventClusterCard cluster={createMockCluster({ highestRiskLevel: 'medium' })} />
+      );
       expect(screen.getByTestId('risk-badge')).toHaveTextContent(/medium/i);
     });
 
     it('applies low styling', () => {
-      renderWithProviders(<EventClusterCard cluster={createMockCluster({ highestRiskLevel: 'low' })} />);
+      renderWithProviders(
+        <EventClusterCard cluster={createMockCluster({ highestRiskLevel: 'low' })} />
+      );
       expect(screen.getByTestId('risk-badge')).toHaveTextContent(/low/i);
     });
   });
@@ -222,7 +236,9 @@ describe('EventClusterCard', () => {
     });
 
     it('handles 0 risk score', () => {
-      renderWithProviders(<EventClusterCard cluster={createMockCluster({ highestRiskScore: 0 })} />);
+      renderWithProviders(
+        <EventClusterCard cluster={createMockCluster({ highestRiskScore: 0 })} />
+      );
       expect(screen.getByText('0')).toBeInTheDocument();
     });
   });

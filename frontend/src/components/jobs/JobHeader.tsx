@@ -160,10 +160,7 @@ const JobHeader = memo(function JobHeader({ job }: JobHeaderProps) {
         >
           <div
             data-testid="progress-fill"
-            className={clsx(
-              'h-full transition-all duration-300',
-              getProgressFillClass(status)
-            )}
+            className={clsx('h-full transition-all duration-300', getProgressFillClass(status))}
             style={{ width: `${progress}%` }}
           />
         </div>

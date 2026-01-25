@@ -61,12 +61,14 @@ export default function AuditFilters({
 
   // State for non-date filters - initialized from controlled filters if provided
   const [filters, setFilters] = useState<Omit<AuditFilterParams, 'startDate' | 'endDate'>>(
-    controlledFilters ? {
-      action: controlledFilters.action,
-      resourceType: controlledFilters.resourceType,
-      actor: controlledFilters.actor,
-      status: controlledFilters.status,
-    } : {}
+    controlledFilters
+      ? {
+          action: controlledFilters.action,
+          resourceType: controlledFilters.resourceType,
+          actor: controlledFilters.actor,
+          status: controlledFilters.status,
+        }
+      : {}
   );
   const [showFilters, setShowFilters] = useState(false);
 
@@ -83,8 +85,12 @@ export default function AuditFilters({
 
       // Update date filters if provided
       if (controlledFilters.startDate || controlledFilters.endDate) {
-        const startDate = controlledFilters.startDate ? new Date(controlledFilters.startDate + 'T00:00:00') : dateRange.startDate;
-        const endDate = controlledFilters.endDate ? new Date(controlledFilters.endDate + 'T23:59:59') : dateRange.endDate;
+        const startDate = controlledFilters.startDate
+          ? new Date(controlledFilters.startDate + 'T00:00:00')
+          : dateRange.startDate;
+        const endDate = controlledFilters.endDate
+          ? new Date(controlledFilters.endDate + 'T23:59:59')
+          : dateRange.endDate;
         setDateRangeCustom(startDate, endDate);
       }
 
@@ -114,7 +120,10 @@ export default function AuditFilters({
   }, [filters, dateRangeApiParams, controlledFilters, onFilterChange]);
 
   // Handle non-date filter changes
-  const handleFilterChange = (key: keyof Omit<AuditFilterParams, 'startDate' | 'endDate'>, value: string) => {
+  const handleFilterChange = (
+    key: keyof Omit<AuditFilterParams, 'startDate' | 'endDate'>,
+    value: string
+  ) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value === '' ? undefined : value,

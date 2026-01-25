@@ -317,10 +317,7 @@ describe('useTrustCheckQuery', () => {
       expect(result.current.data).toBeTruthy();
     });
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('at_time='),
-      expect.any(Object)
-    );
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('at_time='), expect.any(Object));
   });
 });
 
@@ -557,10 +554,9 @@ describe('useZoneTrustMatrix', () => {
       json: () => Promise.resolve(createMockConfig('zone-1', { owner_id: 1 })),
     });
 
-    const { result } = renderHook(
-      () => useZoneTrustMatrix(mockZones, { trustLevel: 'full' }),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useZoneTrustMatrix(mockZones, { trustLevel: 'full' }), {
+      wrapper: createQueryWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);

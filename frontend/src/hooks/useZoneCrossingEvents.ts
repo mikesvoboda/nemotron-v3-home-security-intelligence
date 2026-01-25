@@ -17,10 +17,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { useWebSocketEvents } from './useWebSocketEvent';
-import {
-  ZoneCrossingType,
-  isZoneCrossingEventPayload,
-} from '../types/zoneCrossing';
+import { ZoneCrossingType, isZoneCrossingEventPayload } from '../types/zoneCrossing';
 
 import type { WebSocketEventKey } from '../types/websocket-events';
 import type {

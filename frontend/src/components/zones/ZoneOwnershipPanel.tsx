@@ -73,7 +73,10 @@ interface ScheduleFormData {
 // Constants
 // ============================================================================
 
-const TRUST_LEVEL_INFO: Record<TrustLevel | 'full_owner', { label: string; color: 'green' | 'yellow' | 'gray' }> = {
+const TRUST_LEVEL_INFO: Record<
+  TrustLevel | 'full_owner',
+  { label: string; color: 'green' | 'yellow' | 'gray' }
+> = {
   full_owner: { label: 'Owner', color: 'green' },
   full: { label: 'Full Trust', color: 'green' },
   partial: { label: 'Partial', color: 'yellow' },
@@ -154,13 +157,7 @@ function ErrorState({
 /**
  * Empty state when no config exists.
  */
-function EmptyState({
-  onConfigure,
-  compact,
-}: {
-  onConfigure?: () => void;
-  compact?: boolean;
-}) {
+function EmptyState({ onConfigure, compact }: { onConfigure?: () => void; compact?: boolean }) {
   return (
     <div
       className={clsx(
@@ -173,7 +170,9 @@ function EmptyState({
       <Text className={clsx('font-medium text-gray-300', compact && 'text-sm')}>
         No ownership configured
       </Text>
-      <Text className={clsx('text-center text-gray-500', compact ? 'mb-3 text-xs' : 'mb-4 text-sm')}>
+      <Text
+        className={clsx('text-center text-gray-500', compact ? 'mb-3 text-xs' : 'mb-4 text-sm')}
+      >
         Set an owner and allowed members for this zone.
       </Text>
       {onConfigure && (
@@ -415,16 +414,8 @@ export default function ZoneOwnershipPanel({
   const toast = useToast();
 
   // API hooks
-  const {
-    config,
-    isLoading,
-    isError,
-    error,
-    refetch,
-    upsertConfig,
-    patchConfig,
-    deleteConfig,
-  } = useZoneHouseholdConfig(zoneId);
+  const { config, isLoading, isError, error, refetch, upsertConfig, patchConfig, deleteConfig } =
+    useZoneHouseholdConfig(zoneId);
 
   const { data: members = [], isLoading: membersLoading } = useMembersQuery();
   const { data: vehicles = [], isLoading: vehiclesLoading } = useVehiclesQuery();
@@ -449,12 +440,8 @@ export default function ZoneOwnershipPanel({
 
   // Get referenced entities
   const owner = config?.owner_id ? members.find((m) => m.id === config.owner_id) : null;
-  const allowedMembers = members.filter((m) =>
-    config?.allowed_member_ids?.includes(m.id)
-  );
-  const allowedVehicles = vehicles.filter((v) =>
-    config?.allowed_vehicle_ids?.includes(v.id)
-  );
+  const allowedMembers = members.filter((m) => config?.allowed_member_ids?.includes(m.id));
+  const allowedVehicles = vehicles.filter((v) => config?.allowed_vehicle_ids?.includes(v.id));
 
   // ============================================================================
   // Handlers
@@ -960,13 +947,17 @@ export default function ZoneOwnershipPanel({
                           >
                             <input
                               type="checkbox"
-                              checked={configForm.allowed_vehicle_ids?.includes(vehicle.id) ?? false}
+                              checked={
+                                configForm.allowed_vehicle_ids?.includes(vehicle.id) ?? false
+                              }
                               onChange={(e) => {
                                 setConfigForm((f) => ({
                                   ...f,
                                   allowed_vehicle_ids: e.target.checked
                                     ? [...(f.allowed_vehicle_ids ?? []), vehicle.id]
-                                    : (f.allowed_vehicle_ids ?? []).filter((id) => id !== vehicle.id),
+                                    : (f.allowed_vehicle_ids ?? []).filter(
+                                        (id) => id !== vehicle.id
+                                      ),
                                 }));
                               }}
                               className="h-4 w-4 rounded border-gray-600 bg-[#121212] text-[#76B900] focus:ring-[#76B900]"

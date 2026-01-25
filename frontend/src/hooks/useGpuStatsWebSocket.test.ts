@@ -63,9 +63,7 @@ describe('useGpuStatsWebSocket', () => {
     });
 
     it('should connect to WebSocket when enabled', () => {
-      const { result } = renderHook(() =>
-        useGpuStatsWebSocket({ enabled: true })
-      );
+      const { result } = renderHook(() => useGpuStatsWebSocket({ enabled: true }));
       expect(result.current.isConnected).toBe(true);
     });
   });
@@ -73,9 +71,7 @@ describe('useGpuStatsWebSocket', () => {
   describe('gpu.stats_updated events', () => {
     it('should handle gpu stats updated messages', () => {
       const onStatsUpdate = vi.fn();
-      const { result } = renderHook(() =>
-        useGpuStatsWebSocket({ onStatsUpdate })
-      );
+      const { result } = renderHook(() => useGpuStatsWebSocket({ onStatsUpdate }));
 
       const stats: GpuStatsUpdatedPayload = {
         utilization: 75,
@@ -125,9 +121,7 @@ describe('useGpuStatsWebSocket', () => {
     });
 
     it('should respect maxHistory limit', () => {
-      const { result } = renderHook(() =>
-        useGpuStatsWebSocket({ maxHistory: 3 })
-      );
+      const { result } = renderHook(() => useGpuStatsWebSocket({ maxHistory: 3 }));
 
       for (let i = 1; i <= 5; i++) {
         simulateMessage({
@@ -186,9 +180,7 @@ describe('useGpuStatsWebSocket', () => {
     });
 
     it('should detect high utilization', () => {
-      const { result } = renderHook(() =>
-        useGpuStatsWebSocket({ highUtilizationThreshold: 80 })
-      );
+      const { result } = renderHook(() => useGpuStatsWebSocket({ highUtilizationThreshold: 80 }));
 
       simulateMessage({
         type: 'gpu.stats_updated',
@@ -218,9 +210,7 @@ describe('useGpuStatsWebSocket', () => {
     });
 
     it('should detect high temperature', () => {
-      const { result } = renderHook(() =>
-        useGpuStatsWebSocket({ highTemperatureThreshold: 80 })
-      );
+      const { result } = renderHook(() => useGpuStatsWebSocket({ highTemperatureThreshold: 80 }));
 
       simulateMessage({
         type: 'gpu.stats_updated',

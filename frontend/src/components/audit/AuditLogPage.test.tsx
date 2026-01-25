@@ -375,7 +375,9 @@ describe('AuditLogPage', () => {
       // Find the "Actions by Type" stats card and get the badge within it
       const actionsSection = screen.getByText('Actions by Type').closest('div')?.parentElement;
       expect(actionsSection).toBeInTheDocument();
-      const eventReviewedBadge = within(actionsSection!).getByRole('button', { name: /Event Reviewed/i });
+      const eventReviewedBadge = within(actionsSection!).getByRole('button', {
+        name: /Event Reviewed/i,
+      });
       await user.click(eventReviewedBadge);
 
       // Verify the API was called with action filter
@@ -425,7 +427,9 @@ describe('AuditLogPage', () => {
       // Find the "Actions by Type" stats card and get the badge within it
       const actionsSection = screen.getByText('Actions by Type').closest('div')?.parentElement;
       expect(actionsSection).toBeInTheDocument();
-      const eventReviewedBadge = within(actionsSection!).getByRole('button', { name: /Event Reviewed/i });
+      const eventReviewedBadge = within(actionsSection!).getByRole('button', {
+        name: /Event Reviewed/i,
+      });
 
       // Click to activate filter - filter chip should appear
       await user.click(eventReviewedBadge);
@@ -716,9 +720,12 @@ describe('AuditLogPage', () => {
       renderWithProviders(<AuditLogPage />);
 
       // Wait for error to appear (React Query may retry before failing)
-      await waitFor(() => {
-        expect(screen.getByText('Error Loading Audit Logs')).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText('Error Loading Audit Logs')).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
 
       expect(screen.getByText('Network error')).toBeInTheDocument();
     });

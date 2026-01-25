@@ -105,10 +105,7 @@ export function CameraProvider({
   }, [cameras]);
 
   // Helper to get camera by ID
-  const getCameraById = useMemo(
-    () => (id: string) => cameras.find((c) => c.id === id),
-    [cameras]
-  );
+  const getCameraById = useMemo(() => (id: string) => cameras.find((c) => c.id === id), [cameras]);
 
   // Helper to get camera name with fallback
   const getCameraName = useMemo(

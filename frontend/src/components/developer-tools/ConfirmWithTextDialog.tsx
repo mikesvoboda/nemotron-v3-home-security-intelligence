@@ -62,7 +62,7 @@ function getButtonStyles(variant: ConfirmDialogVariant, isDisabled: boolean): st
     return clsx(
       baseClasses,
       'bg-red-600 hover:bg-red-700 focus:ring-red-500',
-      isDisabled && 'opacity-50 cursor-not-allowed'
+      isDisabled && 'cursor-not-allowed opacity-50'
     );
   }
 
@@ -70,7 +70,7 @@ function getButtonStyles(variant: ConfirmDialogVariant, isDisabled: boolean): st
   return clsx(
     baseClasses,
     'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500',
-    isDisabled && 'opacity-50 cursor-not-allowed'
+    isDisabled && 'cursor-not-allowed opacity-50'
   );
 }
 
@@ -143,23 +143,14 @@ export default function ConfirmWithTextDialog({
             )}
           >
             <AlertTriangle
-              className={clsx(
-                'h-5 w-5',
-                variant === 'danger' ? 'text-red-400' : 'text-amber-400'
-              )}
+              className={clsx('h-5 w-5', variant === 'danger' ? 'text-red-400' : 'text-amber-400')}
             />
           </div>
           <div>
-            <h2
-              id="confirm-dialog-title"
-              className="text-lg font-semibold text-white"
-            >
+            <h2 id="confirm-dialog-title" className="text-lg font-semibold text-white">
               {title}
             </h2>
-            <p
-              id="confirm-dialog-description"
-              className="mt-1 text-sm text-gray-400"
-            >
+            <p id="confirm-dialog-description" className="mt-1 text-sm text-gray-400">
               {description}
             </p>
           </div>
@@ -184,21 +175,13 @@ export default function ConfirmWithTextDialog({
 
         {/* Action buttons */}
         <div className="flex gap-3">
-          <Button
-            onClick={onCancel}
-            disabled={isLoading}
-            variant="secondary"
-            className="flex-1"
-          >
+          <Button onClick={onCancel} disabled={isLoading} variant="secondary" className="flex-1">
             Cancel
           </Button>
           <Button
             onClick={handleConfirm}
             disabled={!canConfirm}
-            className={clsx(
-              'flex-1',
-              getButtonStyles(variant, !canConfirm)
-            )}
+            className={clsx('flex-1', getButtonStyles(variant, !canConfirm))}
           >
             {isLoading ? loadingText : confirmButtonText}
           </Button>

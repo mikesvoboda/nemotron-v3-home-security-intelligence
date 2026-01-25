@@ -109,9 +109,7 @@ describe('useFormAction', () => {
 
     it('handles array indices in FastAPI format', () => {
       const error = new ApiError(422, 'Validation error', {
-        detail: [
-          { loc: ['body', 'items', 0, 'name'], msg: 'Required', type: 'value_error' },
-        ],
+        detail: [{ loc: ['body', 'items', 0, 'name'], msg: 'Required', type: 'value_error' }],
       });
 
       const errors = extractValidationErrors(error);
@@ -236,9 +234,7 @@ describe('useFormAction', () => {
 
     it('extracts field errors from ApiError', async () => {
       const apiError = new ApiError(422, 'Validation failed', {
-        validation_errors: [
-          { field: 'email', message: 'Invalid format' },
-        ],
+        validation_errors: [{ field: 'email', message: 'Invalid format' }],
       });
       const handler = vi.fn().mockRejectedValue(apiError);
       const action = createFormAction(handler);
@@ -276,10 +272,9 @@ describe('useFormAction', () => {
     it('returns a memoized action function', () => {
       const handler = vi.fn().mockResolvedValue({});
 
-      const { result, rerender } = renderHook(
-        ({ handler }) => useFormAction(handler),
-        { initialProps: { handler } }
-      );
+      const { result, rerender } = renderHook(({ handler }) => useFormAction(handler), {
+        initialProps: { handler },
+      });
 
       const firstAction = result.current;
       rerender({ handler });
@@ -296,7 +291,10 @@ describe('useFormAction', () => {
 
       let actionResult: FormActionState<{ result: string }> | undefined;
       await act(async () => {
-        actionResult = await result.current({ status: 'idle' }, new FormData()) as FormActionState<{ result: string }>;
+        actionResult = (await result.current(
+          { status: 'idle' },
+          new FormData()
+        )) as FormActionState<{ result: string }>;
       });
 
       expect(actionResult!.status).toBe('success');
@@ -322,9 +320,7 @@ describe('useFormAction', () => {
       const onError = vi.fn();
       const handler = vi.fn().mockResolvedValue({ ok: true });
 
-      const { result } = renderHook(() =>
-        useFormAction(handler, { onSuccess, onError })
-      );
+      const { result } = renderHook(() => useFormAction(handler, { onSuccess, onError }));
 
       await act(async () => {
         await result.current({ status: 'idle' }, new FormData());

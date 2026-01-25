@@ -25,7 +25,6 @@ import {
   startService as startServiceApi,
   stopService as stopServiceApi,
   enableService as enableServiceApi,
-
   type HealthResponse,
 } from '../services/api';
 import { queryKeys } from '../services/queryClient';
@@ -56,9 +55,7 @@ function updateServiceStatus(
     services: Object.fromEntries(
       Object.entries(health.services).map(([name, service]) => [
         name,
-        name === serviceName
-          ? { ...service, status, message: `Service ${status}...` }
-          : service,
+        name === serviceName ? { ...service, status, message: `Service ${status}...` } : service,
       ])
     ),
   };
@@ -82,15 +79,18 @@ export function useRestartServiceMutation() {
 
       const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
 
-      queryClient.setQueryData<HealthResponse>(
-        queryKeys.system.health,
-        (old) => updateServiceStatus(old, serviceName, 'restarting')
+      queryClient.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
+        updateServiceStatus(old, serviceName, 'restarting')
       );
 
       return { previousHealth };
     },
 
-    onError: (_error: Error, _serviceName: string, context: ServiceOptimisticContext | undefined) => {
+    onError: (
+      _error: Error,
+      _serviceName: string,
+      context: ServiceOptimisticContext | undefined
+    ) => {
       if (context?.previousHealth) {
         queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
       }
@@ -116,15 +116,18 @@ export function useStartServiceMutation() {
 
       const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
 
-      queryClient.setQueryData<HealthResponse>(
-        queryKeys.system.health,
-        (old) => updateServiceStatus(old, serviceName, 'starting')
+      queryClient.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
+        updateServiceStatus(old, serviceName, 'starting')
       );
 
       return { previousHealth };
     },
 
-    onError: (_error: Error, _serviceName: string, context: ServiceOptimisticContext | undefined) => {
+    onError: (
+      _error: Error,
+      _serviceName: string,
+      context: ServiceOptimisticContext | undefined
+    ) => {
       if (context?.previousHealth) {
         queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
       }
@@ -150,15 +153,18 @@ export function useStopServiceMutation() {
 
       const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
 
-      queryClient.setQueryData<HealthResponse>(
-        queryKeys.system.health,
-        (old) => updateServiceStatus(old, serviceName, 'stopping')
+      queryClient.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
+        updateServiceStatus(old, serviceName, 'stopping')
       );
 
       return { previousHealth };
     },
 
-    onError: (_error: Error, _serviceName: string, context: ServiceOptimisticContext | undefined) => {
+    onError: (
+      _error: Error,
+      _serviceName: string,
+      context: ServiceOptimisticContext | undefined
+    ) => {
       if (context?.previousHealth) {
         queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
       }
@@ -184,15 +190,18 @@ export function useEnableServiceMutation() {
 
       const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
 
-      queryClient.setQueryData<HealthResponse>(
-        queryKeys.system.health,
-        (old) => updateServiceStatus(old, serviceName, 'starting')
+      queryClient.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
+        updateServiceStatus(old, serviceName, 'starting')
       );
 
       return { previousHealth };
     },
 
-    onError: (_error: Error, _serviceName: string, context: ServiceOptimisticContext | undefined) => {
+    onError: (
+      _error: Error,
+      _serviceName: string,
+      context: ServiceOptimisticContext | undefined
+    ) => {
       if (context?.previousHealth) {
         queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
       }

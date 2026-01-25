@@ -14,10 +14,7 @@ export interface AlertCardSkeletonProps {
 export default function AlertCardSkeleton({ className }: AlertCardSkeletonProps) {
   return (
     <article
-      className={clsx(
-        'relative rounded-lg border-2 border-gray-700 bg-[#1F1F1F] p-4',
-        className
-      )}
+      className={clsx('relative rounded-lg border-2 border-gray-700 bg-[#1F1F1F] p-4', className)}
       data-testid="alert-card-skeleton"
       aria-hidden="true"
       role="presentation"

@@ -85,15 +85,7 @@ export interface UseJobLogsQueryReturn {
  * });
  */
 export function useJobLogsQuery(options: UseJobLogsQueryOptions): UseJobLogsQueryReturn {
-  const {
-    jobId,
-    enabled = true,
-    refetchInterval,
-    retry = 1,
-    limit,
-    offset,
-    level,
-  } = options;
+  const { jobId, enabled = true, refetchInterval, retry = 1, limit, offset, level } = options;
 
   // Build query params from options
   const queryParams: JobLogsQueryParams | undefined =
@@ -105,21 +97,16 @@ export function useJobLogsQuery(options: UseJobLogsQueryOptions): UseJobLogsQuer
   const isValidJobId = Boolean(jobId && jobId.trim());
   const queryEnabled = enabled && isValidJobId;
 
-  const {
-    data,
-    isLoading,
-    isFetching,
-    error,
-    isError,
-    refetch,
-  } = useQuery<JobLogsResponse, Error>({
-    queryKey: jobLogsQueryKeys.byJobWithParams(jobId ?? '', queryParams),
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- queryEnabled ensures jobId is valid
-    queryFn: () => fetchJobLogs(jobId!, queryParams),
-    enabled: queryEnabled,
-    refetchInterval: queryEnabled ? refetchInterval : undefined,
-    retry,
-  });
+  const { data, isLoading, isFetching, error, isError, refetch } = useQuery<JobLogsResponse, Error>(
+    {
+      queryKey: jobLogsQueryKeys.byJobWithParams(jobId ?? '', queryParams),
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- queryEnabled ensures jobId is valid
+      queryFn: () => fetchJobLogs(jobId!, queryParams),
+      enabled: queryEnabled,
+      refetchInterval: queryEnabled ? refetchInterval : undefined,
+      retry,
+    }
+  );
 
   return {
     logs: data?.logs ?? [],

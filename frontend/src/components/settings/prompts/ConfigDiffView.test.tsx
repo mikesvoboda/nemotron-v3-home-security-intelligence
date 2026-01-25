@@ -135,12 +135,7 @@ describe('ConfigDiffView', () => {
       const user = userEvent.setup();
       const onToggle = vi.fn();
 
-      render(
-        <ConfigDiffView
-          diff={mockDiffWithChanges}
-          onToggleCollapse={onToggle}
-        />
-      );
+      render(<ConfigDiffView diff={mockDiffWithChanges} onToggleCollapse={onToggle} />);
 
       await user.click(screen.getByRole('button'));
 
@@ -148,12 +143,7 @@ describe('ConfigDiffView', () => {
     });
 
     it('has accessible toggle button', () => {
-      render(
-        <ConfigDiffView
-          diff={mockDiffWithChanges}
-          onToggleCollapse={vi.fn()}
-        />
-      );
+      render(<ConfigDiffView diff={mockDiffWithChanges} onToggleCollapse={vi.fn()} />);
 
       const button = screen.getByRole('button');
       expect(button).toHaveAttribute('aria-expanded', 'true');

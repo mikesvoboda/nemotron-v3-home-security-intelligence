@@ -19,10 +19,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useToast } from './useToast';
 import { useWebSocketEvents } from './useWebSocketEvent';
 import { DEFAULT_STALE_TIME } from '../services/queryClient';
-import {
-  isZoneAnomalyEventPayload,
-  ANOMALY_SEVERITY_CONFIG,
-} from '../types/zoneAnomaly';
+import { isZoneAnomalyEventPayload, ANOMALY_SEVERITY_CONFIG } from '../types/zoneAnomaly';
 
 import type { WebSocketEventKey } from '../types/websocket-events';
 import type {
@@ -57,9 +54,7 @@ async function fetchZoneAnomalies(
   const params = new URLSearchParams();
 
   if (options.severity) {
-    const severities = Array.isArray(options.severity)
-      ? options.severity
-      : [options.severity];
+    const severities = Array.isArray(options.severity) ? options.severity : [options.severity];
     severities.forEach((s) => params.append('severity', s));
   }
   if (options.unacknowledgedOnly) {
@@ -105,9 +100,7 @@ async function fetchAllAnomalies(
   const params = new URLSearchParams();
 
   if (options.severity) {
-    const severities = Array.isArray(options.severity)
-      ? options.severity
-      : [options.severity];
+    const severities = Array.isArray(options.severity) ? options.severity : [options.severity];
     severities.forEach((s) => params.append('severity', s));
   }
   if (options.unacknowledgedOnly) {
@@ -140,9 +133,7 @@ async function fetchAllAnomalies(
 /**
  * Acknowledge an anomaly.
  */
-async function acknowledgeAnomaly(
-  anomalyId: string
-): Promise<ZoneAnomalyAcknowledgeResponse> {
+async function acknowledgeAnomaly(anomalyId: string): Promise<ZoneAnomalyAcknowledgeResponse> {
   const response = await fetch(`${API_BASE}/zones/anomalies/${anomalyId}/acknowledge`, {
     method: 'POST',
     headers: {
@@ -198,9 +189,7 @@ export const zoneAnomalyQueryKeys = {
  * });
  * ```
  */
-export function useZoneAnomalies(
-  options: UseZoneAnomaliesOptions = {}
-): UseZoneAnomaliesReturn {
+export function useZoneAnomalies(options: UseZoneAnomaliesOptions = {}): UseZoneAnomaliesReturn {
   const {
     zoneId,
     severity,
@@ -252,9 +241,7 @@ export function useZoneAnomalies(
         offset,
       };
 
-      return zoneId
-        ? fetchZoneAnomalies(zoneId, fetchOptions)
-        : fetchAllAnomalies(fetchOptions);
+      return zoneId ? fetchZoneAnomalies(zoneId, fetchOptions) : fetchAllAnomalies(fetchOptions);
     },
     enabled,
     staleTime,

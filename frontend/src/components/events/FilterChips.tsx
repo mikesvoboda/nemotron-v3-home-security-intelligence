@@ -59,7 +59,8 @@ export function FilterChip({
   };
 
   // Inactive state - gray border and text
-  const inactiveClasses = 'border-gray-700 text-gray-400 hover:border-gray-500 hover:bg-gray-800/50';
+  const inactiveClasses =
+    'border-gray-700 text-gray-400 hover:border-gray-500 hover:bg-gray-800/50';
 
   // Disabled state
   const disabledClasses = 'opacity-50 cursor-not-allowed';
@@ -317,12 +318,7 @@ export default function FilterChips({
               isActive={filters.reviewed === false}
               onClick={handleUnreviewedClick}
             />
-            <FilterChip
-              label="With Video"
-              isActive={false}
-              onClick={() => {}}
-              disabled={true}
-            />
+            <FilterChip label="With Video" isActive={false} onClick={() => {}} disabled={true} />
           </div>
         </div>
 
@@ -347,10 +343,7 @@ export default function FilterChips({
         <div className="flex flex-wrap items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-3">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-gray-400" />
-            <label
-              htmlFor="filter-chips-start-date"
-              className="text-sm font-medium text-gray-300"
-            >
+            <label htmlFor="filter-chips-start-date" className="text-sm font-medium text-gray-300">
               Start Date
             </label>
             <input

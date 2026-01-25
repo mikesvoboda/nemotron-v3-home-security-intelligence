@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import FilterChips, { FilterChip } from './FilterChips';
-import { renderWithProviders, screen, userEvent, waitFor } from '../../test-utils/renderWithProviders';
+import {
+  renderWithProviders,
+  screen,
+  userEvent,
+  waitFor,
+} from '../../test-utils/renderWithProviders';
 
 import type { RiskLevel } from '../../utils/risk';
 

@@ -94,7 +94,9 @@ describe('useJobMutations', () => {
       const pendingPromise = new Promise((resolve) => {
         resolvePromise = resolve;
       });
-      vi.mocked(api.cancelJob).mockReturnValue(pendingPromise as Promise<typeof mockCancelResponse>);
+      vi.mocked(api.cancelJob).mockReturnValue(
+        pendingPromise as Promise<typeof mockCancelResponse>
+      );
 
       const queryClient = createTestQueryClient();
       const { result } = renderHook(() => useJobMutations(), {
@@ -390,7 +392,9 @@ describe('useJobMutations', () => {
       const pendingPromise = new Promise((resolve) => {
         resolvePromise = resolve;
       });
-      vi.mocked(api.deleteJob).mockReturnValue(pendingPromise as Promise<typeof mockDeleteResponse>);
+      vi.mocked(api.deleteJob).mockReturnValue(
+        pendingPromise as Promise<typeof mockDeleteResponse>
+      );
 
       const queryClient = createTestQueryClient();
       const { result } = renderHook(() => useJobMutations(), {
@@ -474,7 +478,9 @@ describe('useJobMutations', () => {
       const pendingPromise = new Promise((resolve) => {
         resolvePromise = resolve;
       });
-      vi.mocked(api.cancelJob).mockReturnValue(pendingPromise as Promise<typeof mockCancelResponse>);
+      vi.mocked(api.cancelJob).mockReturnValue(
+        pendingPromise as Promise<typeof mockCancelResponse>
+      );
 
       const queryClient = createTestQueryClient();
       const { result } = renderHook(() => useJobMutations(), {

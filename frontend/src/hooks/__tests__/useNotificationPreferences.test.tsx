@@ -51,8 +51,7 @@ vi.mock('../../services/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/api')>();
   return {
     ...actual,
-    fetchNotificationPreferences: (...args: unknown[]) =>
-      mockFetchNotificationPreferences(...args),
+    fetchNotificationPreferences: (...args: unknown[]) => mockFetchNotificationPreferences(...args),
     updateNotificationPreferences: (...args: unknown[]) =>
       mockUpdateNotificationPreferences(...args),
     fetchCameraNotificationSettings: (...args: unknown[]) =>

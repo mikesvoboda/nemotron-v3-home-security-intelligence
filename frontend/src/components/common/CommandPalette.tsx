@@ -244,24 +244,24 @@ export default function CommandPalette({ open, onOpenChange }: CommandPalettePro
             className="px-2 [&_[cmdk-group-heading]]:mb-2 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-[#666]"
           >
             {NAVIGATION_ITEMS.map((item) => (
-                <Command.Item
-                  key={item.path}
-                  value={item.name}
-                  keywords={item.keywords}
-                  onSelect={() => handleSelect(item.path)}
-                  className="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-[#999] transition-colors hover:bg-[#2a2a2a] hover:text-white aria-selected:bg-[#2a2a2a] aria-selected:text-white"
-                >
-                  <div className="flex items-center gap-3">
-                    <item.icon className="h-4 w-4" aria-hidden="true" />
-                    <span>{item.name}</span>
-                  </div>
-                  {item.shortcut && (
-                    <kbd className="rounded bg-[#333] px-2 py-0.5 text-xs text-[#ccc]">
-                      {item.shortcut}
-                    </kbd>
-                  )}
-                </Command.Item>
-              ))}
+              <Command.Item
+                key={item.path}
+                value={item.name}
+                keywords={item.keywords}
+                onSelect={() => handleSelect(item.path)}
+                className="flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm text-[#999] transition-colors hover:bg-[#2a2a2a] hover:text-white aria-selected:bg-[#2a2a2a] aria-selected:text-white"
+              >
+                <div className="flex items-center gap-3">
+                  <item.icon className="h-4 w-4" aria-hidden="true" />
+                  <span>{item.name}</span>
+                </div>
+                {item.shortcut && (
+                  <kbd className="rounded bg-[#333] px-2 py-0.5 text-xs text-[#ccc]">
+                    {item.shortcut}
+                  </kbd>
+                )}
+              </Command.Item>
+            ))}
           </Command.Group>
         </Command.List>
 

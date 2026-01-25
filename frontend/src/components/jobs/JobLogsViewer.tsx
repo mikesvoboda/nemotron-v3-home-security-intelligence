@@ -110,17 +110,22 @@ function LogEntryRow({ log }: LogEntryRowProps) {
   const timestamp = formatTimestamp(log.timestamp);
 
   return (
-    <div className="flex items-start gap-3 py-1.5 px-3 hover:bg-gray-800/30 font-mono text-sm">
+    <div className="flex items-start gap-3 px-3 py-1.5 font-mono text-sm hover:bg-gray-800/30">
       {/* Timestamp */}
-      <span className="text-gray-500 text-xs whitespace-nowrap">{timestamp}</span>
+      <span className="whitespace-nowrap text-xs text-gray-500">{timestamp}</span>
 
       {/* Level badge */}
-      <span className={clsx('px-1.5 py-0.5 rounded text-xs font-medium whitespace-nowrap', levelClasses)}>
+      <span
+        className={clsx(
+          'whitespace-nowrap rounded px-1.5 py-0.5 text-xs font-medium',
+          levelClasses
+        )}
+      >
         {log.level}
       </span>
 
       {/* Message */}
-      <span className="text-gray-200 break-words flex-1">{log.message}</span>
+      <span className="flex-1 break-words text-gray-200">{log.message}</span>
     </div>
   );
 }
@@ -161,9 +166,9 @@ function LevelFilterDropdown({ value, onChange }: LevelFilterDropdownProps) {
       <button
         type="button"
         className={clsx(
-          'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium',
-          'bg-gray-800 border border-gray-700 text-gray-300',
-          'hover:bg-gray-700 hover:border-gray-600 transition-colors',
+          'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium',
+          'border border-gray-700 bg-gray-800 text-gray-300',
+          'transition-colors hover:border-gray-600 hover:bg-gray-700',
           'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-gray-900'
         )}
         onClick={() => setIsOpen(!isOpen)}
@@ -177,7 +182,7 @@ function LevelFilterDropdown({ value, onChange }: LevelFilterDropdownProps) {
 
       {isOpen && (
         <div
-          className="absolute right-0 mt-1 z-50 min-w-[120px] bg-gray-800 border border-gray-700 rounded-lg shadow-lg py-1"
+          className="absolute right-0 z-50 mt-1 min-w-[120px] rounded-lg border border-gray-700 bg-gray-800 py-1 shadow-lg"
           role="listbox"
         >
           {options.map((option) => (
@@ -187,7 +192,7 @@ function LevelFilterDropdown({ value, onChange }: LevelFilterDropdownProps) {
               role="option"
               aria-selected={value === option.value}
               className={clsx(
-                'w-full text-left px-3 py-1.5 text-xs transition-colors',
+                'w-full px-3 py-1.5 text-left text-xs transition-colors',
                 value === option.value
                   ? 'bg-[#76B900]/20 text-[#76B900]'
                   : 'text-gray-300 hover:bg-gray-700'
@@ -257,14 +262,11 @@ export default function JobLogsViewer({
 
   return (
     <div
-      className={clsx(
-        'rounded-lg border border-gray-800 bg-[#1A1A1A]',
-        className
-      )}
+      className={clsx('rounded-lg border border-gray-800 bg-[#1A1A1A]', className)}
       data-testid="job-logs-viewer"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+      <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-gray-400" aria-hidden="true" />
@@ -294,9 +296,9 @@ export default function JobLogsViewer({
           <button
             type="button"
             className={clsx(
-              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium',
-              'bg-gray-800 border border-gray-700',
-              'hover:bg-gray-700 hover:border-gray-600 transition-colors',
+              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium',
+              'border border-gray-700 bg-gray-800',
+              'transition-colors hover:border-gray-600 hover:bg-gray-700',
               'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-gray-900',
               autoScroll ? 'text-[#76B900]' : 'text-gray-400'
             )}
@@ -311,11 +313,11 @@ export default function JobLogsViewer({
           <button
             type="button"
             className={clsx(
-              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium',
-              'bg-gray-800 border border-gray-700 text-gray-300',
-              'hover:bg-gray-700 hover:border-gray-600 transition-colors',
+              'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium',
+              'border border-gray-700 bg-gray-800 text-gray-300',
+              'transition-colors hover:border-gray-600 hover:bg-gray-700',
               'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-gray-900',
-              'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-800 disabled:hover:border-gray-700'
+              'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-gray-700 disabled:hover:bg-gray-800'
             )}
             onClick={handleClearLogs}
             disabled={logs.length === 0}
@@ -338,14 +340,14 @@ export default function JobLogsViewer({
       >
         {filteredLogs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <FileText className="h-8 w-8 text-gray-600 mb-3" aria-hidden="true" />
+            <FileText className="mb-3 h-8 w-8 text-gray-600" aria-hidden="true" />
             <p className="text-sm text-gray-500">
               {logs.length === 0
                 ? 'No logs available yet'
                 : `No logs matching filter "${levelFilter}"`}
             </p>
             {enabled && logs.length === 0 && (
-              <p className="text-xs text-gray-600 mt-1">Waiting for log entries...</p>
+              <p className="mt-1 text-xs text-gray-600">Waiting for log entries...</p>
             )}
           </div>
         ) : (

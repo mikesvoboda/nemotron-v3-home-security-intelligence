@@ -382,9 +382,11 @@ describe('ServicesPanel', () => {
     it('calls onRestart callback when restart succeeds', async () => {
       const onRestart = vi.fn();
       // Mock the mutation to call onSuccess immediately
-      mockRestartMutate.mockImplementation((name: string, options: { onSuccess?: (response: { message: string }) => void }) => {
-        options.onSuccess?.({ message: `Service '${name}' restart initiated` });
-      });
+      mockRestartMutate.mockImplementation(
+        (name: string, options: { onSuccess?: (response: { message: string }) => void }) => {
+          options.onSuccess?.({ message: `Service '${name}' restart initiated` });
+        }
+      );
 
       renderWithProviders(<ServicesPanel {...defaultProps} onRestart={onRestart} />);
 
@@ -417,9 +419,11 @@ describe('ServicesPanel', () => {
 
     it('shows error toast when restart fails', async () => {
       // Mock the mutation to call onError
-      mockRestartMutate.mockImplementation((_name: string, options: { onError?: (error: Error) => void }) => {
-        options.onError?.(new Error('Network error'));
-      });
+      mockRestartMutate.mockImplementation(
+        (_name: string, options: { onError?: (error: Error) => void }) => {
+          options.onError?.(new Error('Network error'));
+        }
+      );
 
       renderWithProviders(<ServicesPanel {...defaultProps} />);
 
@@ -437,10 +441,15 @@ describe('ServicesPanel', () => {
 
     it('re-enables restart button after restart completes', async () => {
       // Mock the mutation to call onSettled
-      mockRestartMutate.mockImplementation((name: string, options: { onSuccess?: (response: { message: string }) => void; onSettled?: () => void }) => {
-        options.onSuccess?.({ message: `Service '${name}' restart initiated` });
-        options.onSettled?.();
-      });
+      mockRestartMutate.mockImplementation(
+        (
+          name: string,
+          options: { onSuccess?: (response: { message: string }) => void; onSettled?: () => void }
+        ) => {
+          options.onSuccess?.({ message: `Service '${name}' restart initiated` });
+          options.onSettled?.();
+        }
+      );
 
       renderWithProviders(<ServicesPanel {...defaultProps} />);
 
@@ -485,11 +494,16 @@ describe('ServicesPanel', () => {
     it('calls onToggle callback when toggle is clicked', async () => {
       const onToggle = vi.fn();
       // Mock confirmation dialog to accept
-      vi.stubGlobal('confirm', vi.fn(() => true));
+      vi.stubGlobal(
+        'confirm',
+        vi.fn(() => true)
+      );
       // Mock mutation to call onSuccess
-      mockStopMutate.mockImplementation((name: string, options: { onSuccess?: (response: { message: string }) => void }) => {
-        options.onSuccess?.({ message: `Service '${name}' disabled` });
-      });
+      mockStopMutate.mockImplementation(
+        (name: string, options: { onSuccess?: (response: { message: string }) => void }) => {
+          options.onSuccess?.({ message: `Service '${name}' disabled` });
+        }
+      );
 
       renderWithProviders(<ServicesPanel {...defaultProps} onToggle={onToggle} />);
 
@@ -523,7 +537,10 @@ describe('ServicesPanel', () => {
 
     it('disables restart button when service is disabled', async () => {
       // Mock confirmation dialog to accept
-      vi.stubGlobal('confirm', vi.fn(() => true));
+      vi.stubGlobal(
+        'confirm',
+        vi.fn(() => true)
+      );
 
       renderWithProviders(<ServicesPanel {...defaultProps} />);
 
@@ -705,7 +722,10 @@ describe('ServicesPanel', () => {
   describe('accessibility', () => {
     it('toggle buttons have aria-pressed attribute', async () => {
       // Mock confirmation dialog to accept
-      vi.stubGlobal('confirm', vi.fn(() => true));
+      vi.stubGlobal(
+        'confirm',
+        vi.fn(() => true)
+      );
 
       renderWithProviders(<ServicesPanel {...defaultProps} />);
 

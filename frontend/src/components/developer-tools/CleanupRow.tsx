@@ -53,11 +53,11 @@ function getButtonStyles(variant: ConfirmDialogVariant): string {
   const baseClasses = 'text-white transition-colors';
 
   if (variant === 'danger') {
-    return clsx(baseClasses, 'bg-red-600 hover:bg-red-700 border-red-600');
+    return clsx(baseClasses, 'border-red-600 bg-red-600 hover:bg-red-700');
   }
 
   // warning variant
-  return clsx(baseClasses, 'bg-amber-600 hover:bg-amber-700 border-amber-600');
+  return clsx(baseClasses, 'border-amber-600 bg-amber-600 hover:bg-amber-700');
 }
 
 /**

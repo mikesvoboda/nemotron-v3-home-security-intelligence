@@ -34,11 +34,7 @@ export type {
 } from './ApiErrorBoundary';
 
 // Action error boundary for React 19 form actions (NEM-3358)
-export {
-  ActionErrorBoundary,
-  ActionErrorDisplay,
-  FormActionError,
-} from './ActionErrorBoundary';
+export { ActionErrorBoundary, ActionErrorDisplay, FormActionError } from './ActionErrorBoundary';
 export type {
   ActionErrorBoundaryProps,
   ActionErrorBoundaryState,
@@ -169,11 +165,7 @@ export { default as Tooltip } from './Tooltip';
 export type { TooltipProps } from './Tooltip';
 
 export { default as ChartLegend } from './ChartLegend';
-export type {
-  ChartLegendProps,
-  ChartLegendItem,
-  ChartLegendOrientation,
-} from './ChartLegend';
+export type { ChartLegendProps, ChartLegendItem, ChartLegendOrientation } from './ChartLegend';
 
 export { default as ResponsiveChart } from './ResponsiveChart';
 export type {

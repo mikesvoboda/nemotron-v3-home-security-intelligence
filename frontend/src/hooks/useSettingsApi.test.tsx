@@ -196,9 +196,9 @@ describe('updateSettings', () => {
       })
     );
 
-    await expect(
-      updateSettings({ severity: { low_max: 50, medium_max: 40 } })
-    ).rejects.toThrow('low_max (50) must be less than medium_max (40)');
+    await expect(updateSettings({ severity: { low_max: 50, medium_max: 40 } })).rejects.toThrow(
+      'low_max (50) must be less than medium_max (40)'
+    );
   });
 });
 
@@ -293,13 +293,10 @@ describe('useSettingsQuery', () => {
         })
       );
 
-      const { result, rerender } = renderHook(
-        ({ enabled }) => useSettingsQuery({ enabled }),
-        {
-          wrapper: createWrapper(),
-          initialProps: { enabled: false },
-        }
-      );
+      const { result, rerender } = renderHook(({ enabled }) => useSettingsQuery({ enabled }), {
+        wrapper: createWrapper(),
+        initialProps: { enabled: false },
+      });
 
       expect(result.current.isLoading).toBe(false);
       expect(result.current.settings).toBeUndefined();
@@ -372,10 +369,7 @@ describe('useUpdateSettings', () => {
   it('should set error on update failure', async () => {
     server.use(
       http.patch('/api/v1/settings', () => {
-        return HttpResponse.json(
-          { detail: 'Invalid threshold value' },
-          { status: 422 }
-        );
+        return HttpResponse.json({ detail: 'Invalid threshold value' }, { status: 422 });
       })
     );
 

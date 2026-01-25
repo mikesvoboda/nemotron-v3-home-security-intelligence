@@ -55,7 +55,9 @@ function formatRelativeTime(dateString: string): string {
 /**
  * Get badge color for risk level
  */
-function getRiskBadgeColor(riskLevel: string | null | undefined): 'gray' | 'green' | 'yellow' | 'orange' | 'red' {
+function getRiskBadgeColor(
+  riskLevel: string | null | undefined
+): 'gray' | 'green' | 'yellow' | 'orange' | 'red' {
   switch (riskLevel?.toLowerCase()) {
     case 'low':
       return 'green';
@@ -74,9 +76,7 @@ function getRiskBadgeColor(riskLevel: string | null | undefined): 'gray' | 'gree
  * Format camera ID for display
  */
 function formatCameraName(cameraId: string): string {
-  return cameraId
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return cameraId.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 // ============================================================================
@@ -131,12 +131,9 @@ export default function EventSelector({
   );
 
   // Handle search input
-  const handleSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setSearchQuery(e.target.value);
-    },
-    []
-  );
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
 
   return (
     <div className="space-y-4" data-testid="event-selector">
@@ -159,9 +156,7 @@ export default function EventSelector({
         aria-label="Select an event for testing"
       >
         {isLoading ? (
-          <div className="py-8 text-center text-gray-400">
-            Loading events...
-          </div>
+          <div className="py-8 text-center text-gray-400">Loading events...</div>
         ) : filteredEvents.length === 0 ? (
           <div className="py-8 text-center text-gray-400">
             {searchQuery ? 'No events match your search' : 'No events available'}
@@ -189,12 +184,11 @@ export default function EventSelector({
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-white">
-                          Event #{event.id}
-                        </span>
+                        <span className="font-medium text-white">Event #{event.id}</span>
                         {event.risk_level && (
                           <Badge color={getRiskBadgeColor(event.risk_level)} size="xs">
-                            {event.risk_level.charAt(0).toUpperCase() + event.risk_level.slice(1)} Risk
+                            {event.risk_level.charAt(0).toUpperCase() + event.risk_level.slice(1)}{' '}
+                            Risk
                           </Badge>
                         )}
                       </div>
@@ -211,7 +205,9 @@ export default function EventSelector({
                     </div>
                   </div>
                   <div className="text-right text-sm text-gray-400">
-                    <div>{event.detection_count} detection{event.detection_count !== 1 ? 's' : ''}</div>
+                    <div>
+                      {event.detection_count} detection{event.detection_count !== 1 ? 's' : ''}
+                    </div>
                     {event.risk_score !== null && event.risk_score !== undefined && (
                       <div className="text-xs">Score: {event.risk_score}</div>
                     )}
