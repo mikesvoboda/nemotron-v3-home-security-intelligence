@@ -5,6 +5,8 @@ import {
   Bell,
   Brain,
   Camera,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   FileText,
   HardDrive,
@@ -13,6 +15,7 @@ import {
   Sliders,
   Wrench,
 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { FeatureErrorBoundary, SecureContextWarning } from '../common';
 import AdminSettings from './AdminSettings';
@@ -26,6 +29,130 @@ import ProcessingSettings from './ProcessingSettings';
 import { PromptManagementPage } from './prompts';
 import { DebugModeProvider } from '../../contexts/DebugModeContext';
 import FileOperationsPanel from '../system/FileOperationsPanel';
+
+/**
+ * ScrollableTabList component that handles horizontal tab overflow
+ *
+ * Features:
+ * - Horizontal scrolling when tabs overflow the container
+ * - Left/right scroll indicators (chevron buttons) when content is clipped
+ * - Fade shadows to indicate scrollable content
+ * - Keyboard-accessible scroll buttons
+ * - Smooth scroll animation
+ *
+ * @see NEM-3520 - Fix Settings page tab overflow
+ */
+interface ScrollableTabListProps {
+  children: React.ReactNode;
+}
+
+function ScrollableTabList({ children }: ScrollableTabListProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollState = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    // Use a small threshold (2px) to account for rounding errors
+    setCanScrollLeft(scrollLeft > 2);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // Initial check
+    updateScrollState();
+
+    // Check on scroll
+    container.addEventListener('scroll', updateScrollState);
+
+    // Check on resize
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(container);
+
+    return () => {
+      container.removeEventListener('scroll', updateScrollState);
+      resizeObserver.disconnect();
+    };
+  }, [updateScrollState]);
+
+  const scroll = (direction: 'left' | 'right') => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const scrollAmount = 200; // pixels to scroll
+    const newScrollLeft =
+      direction === 'left'
+        ? container.scrollLeft - scrollAmount
+        : container.scrollLeft + scrollAmount;
+
+    container.scrollTo({
+      left: newScrollLeft,
+      behavior: 'smooth',
+    });
+  };
+
+  return (
+    <div className="relative mb-8" data-testid="scrollable-tab-container">
+      {/* Left scroll indicator */}
+      {canScrollLeft && (
+        <>
+          {/* Fade shadow */}
+          <div
+            className="pointer-events-none absolute left-0 top-0 z-10 h-full w-12 bg-gradient-to-r from-[#1A1A1A] to-transparent"
+            aria-hidden="true"
+          />
+          {/* Scroll button */}
+          <button
+            type="button"
+            onClick={() => scroll('left')}
+            className="absolute left-1 top-1/2 z-20 -translate-y-1/2 rounded-full bg-[#76B900] p-1.5 text-gray-950 shadow-lg transition-all hover:bg-[#8AD000] focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]"
+            aria-label="Scroll tabs left"
+            data-testid="scroll-left-button"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        </>
+      )}
+
+      {/* Scrollable tab container */}
+      <div
+        ref={scrollContainerRef}
+        className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-700 hover:scrollbar-thumb-gray-600 overflow-x-auto"
+      >
+        <Tab.List className="flex min-w-max space-x-2 rounded-lg border border-gray-800 bg-[#1A1A1A] p-1">
+          {children}
+        </Tab.List>
+      </div>
+
+      {/* Right scroll indicator */}
+      {canScrollRight && (
+        <>
+          {/* Fade shadow */}
+          <div
+            className="pointer-events-none absolute right-0 top-0 z-10 h-full w-12 bg-gradient-to-l from-[#1A1A1A] to-transparent"
+            aria-hidden="true"
+          />
+          {/* Scroll button */}
+          <button
+            type="button"
+            onClick={() => scroll('right')}
+            className="absolute right-1 top-1/2 z-20 -translate-y-1/2 rounded-full bg-[#76B900] p-1.5 text-gray-950 shadow-lg transition-all hover:bg-[#8AD000] focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]"
+            aria-label="Scroll tabs right"
+            data-testid="scroll-right-button"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
 
 /**
  * SettingsPage component with tabbed interface
@@ -150,7 +277,7 @@ export default function SettingsPage() {
 
           {/* Tabs */}
           <Tab.Group>
-            <Tab.List className="mb-8 flex space-x-2 rounded-lg border border-gray-800 bg-[#1A1A1A] p-1">
+            <ScrollableTabList>
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -159,7 +286,7 @@ export default function SettingsPage() {
                     title={tabDescriptions[tab.id]}
                     className={({ selected }) =>
                       clsx(
-                        'flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
+                        'flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200',
                         'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
                         selected
                           ? 'bg-[#76B900] text-gray-950 shadow-md'
@@ -172,7 +299,7 @@ export default function SettingsPage() {
                   </Tab>
                 );
               })}
-            </Tab.List>
+            </ScrollableTabList>
 
             <Tab.Panels>
               {tabs.map((tab) => {

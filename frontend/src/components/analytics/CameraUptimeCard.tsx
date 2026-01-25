@@ -7,10 +7,12 @@
  * - Yellow: 80-94% - Degraded
  * - Orange: 60-79% - Warning
  * - Red: < 60% - Critical
+ *
+ * Also displays trend indicators comparing to previous period.
  */
 
 import { Card, Title, Text } from '@tremor/react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { useCameraUptimeQuery, type CameraUptimeDateRange } from '../../hooks/useCameraUptimeQuery';
@@ -22,7 +24,14 @@ import { useCameraUptimeQuery, type CameraUptimeDateRange } from '../../hooks/us
 interface CameraUptimeCardProps {
   /** Date range for uptime calculation */
   dateRange: CameraUptimeDateRange;
+  /** Whether to show trend indicators comparing to previous period */
+  showTrend?: boolean;
 }
+
+/**
+ * Trend direction for uptime comparison.
+ */
+type TrendDirection = 'up' | 'down' | 'stable';
 
 /**
  * Health status based on uptime percentage.
@@ -61,6 +70,61 @@ function getUptimeStatus(percentage: number): UptimeStatus {
 }
 
 /**
+ * Calculate trend direction and change percentage.
+ *
+ * @param current - Current uptime percentage
+ * @param previous - Previous period uptime percentage (if available)
+ * @returns Trend direction and change value
+ */
+function calculateTrend(
+  current: number,
+  previous: number | undefined
+): { direction: TrendDirection; change: number } {
+  if (previous === undefined) {
+    return { direction: 'stable', change: 0 };
+  }
+
+  const change = current - previous;
+  const threshold = 0.5; // Consider stable if change is within 0.5%
+
+  if (Math.abs(change) < threshold) {
+    return { direction: 'stable', change: 0 };
+  }
+
+  return {
+    direction: change > 0 ? 'up' : 'down',
+    change: Math.abs(change),
+  };
+}
+
+/**
+ * Calculate previous period date range based on current range.
+ *
+ * @param dateRange - Current date range
+ * @returns Previous period date range with same duration
+ */
+function getPreviousPeriodRange(dateRange: CameraUptimeDateRange): CameraUptimeDateRange {
+  const startDate = new Date(dateRange.startDate + 'T00:00:00');
+  const endDate = new Date(dateRange.endDate + 'T00:00:00');
+
+  // Calculate duration in days
+  const durationMs = endDate.getTime() - startDate.getTime();
+  const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24)) + 1;
+
+  // Calculate previous period
+  const prevEndDate = new Date(startDate);
+  prevEndDate.setDate(prevEndDate.getDate() - 1);
+
+  const prevStartDate = new Date(prevEndDate);
+  prevStartDate.setDate(prevStartDate.getDate() - durationDays + 1);
+
+  return {
+    startDate: prevStartDate.toISOString().split('T')[0],
+    endDate: prevEndDate.toISOString().split('T')[0],
+  };
+}
+
+/**
  * Format a date string for display (e.g., "Jan 10").
  *
  * @param dateStr - ISO date string (YYYY-MM-DD)
@@ -84,22 +148,47 @@ function formatDate(dateStr: string): string {
  * @param props - Component props
  * @returns React element
  */
-export default function CameraUptimeCard({ dateRange }: CameraUptimeCardProps) {
+export default function CameraUptimeCard({ dateRange, showTrend = true }: CameraUptimeCardProps) {
   const { cameras, isLoading, error } = useCameraUptimeQuery(dateRange);
+
+  // Calculate previous period for trend comparison
+  const previousPeriodRange = useMemo(() => getPreviousPeriodRange(dateRange), [dateRange]);
+
+  // Fetch previous period data for trend indicators
+  const { cameras: previousCameras } = useCameraUptimeQuery(previousPeriodRange, {
+    enabled: showTrend,
+  });
+
+  // Build a lookup map for previous period uptime by camera_id
+  const previousUptimeMap = useMemo(() => {
+    const map = new Map<string, number>();
+    previousCameras.forEach((cam) => {
+      map.set(cam.camera_id, cam.uptime_percentage);
+    });
+    return map;
+  }, [previousCameras]);
 
   // Sort cameras by uptime percentage (highest first) and prepare BarList data
   const barListData = useMemo(() => {
     return [...cameras]
       .sort((a, b) => b.uptime_percentage - a.uptime_percentage)
-      .map((cam) => ({
-        name: cam.camera_name,
-        value: cam.uptime_percentage,
-        color: STATUS_COLORS[getUptimeStatus(cam.uptime_percentage)],
-        // Store original data for test assertions
-        cameraId: cam.camera_id,
-        status: getUptimeStatus(cam.uptime_percentage),
-      }));
-  }, [cameras]);
+      .map((cam) => {
+        const previousUptime = previousUptimeMap.get(cam.camera_id);
+        const trend = calculateTrend(cam.uptime_percentage, previousUptime);
+
+        return {
+          name: cam.camera_name,
+          value: cam.uptime_percentage,
+          color: STATUS_COLORS[getUptimeStatus(cam.uptime_percentage)],
+          // Store original data for test assertions
+          cameraId: cam.camera_id,
+          status: getUptimeStatus(cam.uptime_percentage),
+          // Trend data
+          trend,
+          previousUptime,
+        };
+      });
+  }, [cameras, previousUptimeMap]);
 
   // Format date range for display
   const dateRangeLabel = `${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}`;
@@ -161,11 +250,40 @@ export default function CameraUptimeCard({ dateRange }: CameraUptimeCardProps) {
               key={item.cameraId}
               data-testid={`camera-uptime-item-${item.cameraId}`}
               data-uptime-status={status}
+              data-trend-direction={item.trend.direction}
               className="group"
             >
               <div className="mb-1 flex items-center justify-between text-sm">
                 <span className="text-gray-300">{item.name}</span>
-                <span className="font-medium text-white">{percentage.toFixed(1)}%</span>
+                <div className="flex items-center gap-2">
+                  {/* Trend indicator */}
+                  {showTrend && item.trend.direction !== 'stable' && (
+                    <span
+                      className={`flex items-center gap-0.5 text-xs ${
+                        item.trend.direction === 'up' ? 'text-green-400' : 'text-red-400'
+                      }`}
+                      data-testid={`trend-indicator-${item.cameraId}`}
+                      title={`${item.trend.direction === 'up' ? '+' : '-'}${item.trend.change.toFixed(1)}% vs previous period`}
+                    >
+                      {item.trend.direction === 'up' ? (
+                        <TrendingUp className="h-3.5 w-3.5" />
+                      ) : (
+                        <TrendingDown className="h-3.5 w-3.5" />
+                      )}
+                      <span>{item.trend.change.toFixed(1)}%</span>
+                    </span>
+                  )}
+                  {showTrend && item.trend.direction === 'stable' && item.previousUptime !== undefined && (
+                    <span
+                      className="flex items-center gap-0.5 text-xs text-gray-500"
+                      data-testid={`trend-indicator-${item.cameraId}`}
+                      title="No change vs previous period"
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </span>
+                  )}
+                  <span className="font-medium text-white">{percentage.toFixed(1)}%</span>
+                </div>
               </div>
               <div className="h-6 overflow-hidden rounded bg-gray-800">
                 <div

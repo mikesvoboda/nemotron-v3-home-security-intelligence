@@ -29,105 +29,101 @@ import type { ABTestResult, EnrichedSuggestion } from '../../../services/api';
 import type { PromptPlaygroundProps } from '../index';
 
 // Mock the API functions
-vi.mock('../../../services/api', () => ({
-  fetchAllPrompts: vi.fn(() =>
-    Promise.resolve({
-      prompts: {
-        nemotron: {
-          model_name: 'nemotron',
-          config: {
-            system_prompt: 'You are a security analyzer.',
-            temperature: 0.7,
-            max_tokens: 2048,
+vi.mock('../../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/api')>();
+  return {
+    ...actual,
+    fetchAllPrompts: vi.fn(() =>
+      Promise.resolve({
+        prompts: {
+          nemotron: {
+            model_name: 'nemotron',
+            config: {
+              system_prompt: 'You are a security analyzer.',
+              temperature: 0.7,
+              max_tokens: 2048,
+            },
+            version: 1,
+            updated_at: '2024-01-01T00:00:00Z',
           },
-          version: 1,
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        florence2: {
-          model_name: 'florence2',
-          config: {
-            vqa_queries: ['What is happening?', 'Are there people?'],
+          florence2: {
+            model_name: 'florence2',
+            config: {
+              vqa_queries: ['What is happening?', 'Are there people?'],
+            },
+            version: 1,
+            updated_at: '2024-01-01T00:00:00Z',
           },
-          version: 1,
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        yolo_world: {
-          model_name: 'yolo_world',
-          config: {
-            object_classes: ['person', 'vehicle'],
-            confidence_threshold: 0.5,
+          yolo_world: {
+            model_name: 'yolo_world',
+            config: {
+              object_classes: ['person', 'vehicle'],
+              confidence_threshold: 0.5,
+            },
+            version: 1,
+            updated_at: '2024-01-01T00:00:00Z',
           },
-          version: 1,
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        xclip: {
-          model_name: 'xclip',
-          config: {
-            action_classes: ['walking', 'running'],
+          xclip: {
+            model_name: 'xclip',
+            config: {
+              action_classes: ['walking', 'running'],
+            },
+            version: 1,
+            updated_at: '2024-01-01T00:00:00Z',
           },
-          version: 1,
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        fashion_clip: {
-          model_name: 'fashion_clip',
-          config: {
-            clothing_categories: ['casual', 'formal'],
-            suspicious_indicators: ['all black', 'face mask'],
+          fashion_clip: {
+            model_name: 'fashion_clip',
+            config: {
+              clothing_categories: ['casual', 'formal'],
+              suspicious_indicators: ['all black', 'face mask'],
+            },
+            version: 1,
+            updated_at: '2024-01-01T00:00:00Z',
           },
-          version: 1,
-          updated_at: '2024-01-01T00:00:00Z',
         },
-      },
-    })
-  ),
-  updateModelPrompt: vi.fn(() =>
-    Promise.resolve({
-      model_name: 'nemotron',
-      version: 2,
-      message: 'Configuration updated to version 2',
-      config: { system_prompt: 'Updated prompt' },
-    })
-  ),
-  testPrompt: vi.fn(() =>
-    Promise.resolve({
-      before: { score: 50, risk_level: 'medium', summary: 'Before summary' },
-      after: { score: 75, risk_level: 'high', summary: 'After summary' },
-      improved: true,
-      inference_time_ms: 150,
-    })
-  ),
-  exportPrompts: vi.fn(() =>
-    Promise.resolve({
-      exported_at: '2024-01-01T00:00:00Z',
-      version: '1.0',
-      prompts: {
-        nemotron: { system_prompt: 'Test' },
-      },
-    })
-  ),
-  importPrompts: vi.fn(() =>
-    Promise.resolve({
-      imported_count: 1,
-      skipped_count: 0,
-      errors: [],
-      message: 'Imported 1 model(s)',
-    })
-  ),
-  fetchEvents: vi.fn(() =>
-    Promise.resolve({
-      events: [],
-      total: 0,
-    })
-  ),
-  ApiError: class ApiError extends Error {
-    status: number;
-    constructor(status: number, message: string) {
-      super(message);
-      this.status = status;
-      this.name = 'ApiError';
-    }
-  },
-}));
+      })
+    ),
+    updateModelPrompt: vi.fn(() =>
+      Promise.resolve({
+        model_name: 'nemotron',
+        version: 2,
+        message: 'Configuration updated to version 2',
+        config: { system_prompt: 'Updated prompt' },
+      })
+    ),
+    testPrompt: vi.fn(() =>
+      Promise.resolve({
+        before: { score: 50, risk_level: 'medium', summary: 'Before summary' },
+        after: { score: 75, risk_level: 'high', summary: 'After summary' },
+        improved: true,
+        inference_time_ms: 150,
+      })
+    ),
+    exportPrompts: vi.fn(() =>
+      Promise.resolve({
+        exported_at: '2024-01-01T00:00:00Z',
+        version: '1.0',
+        prompts: {
+          nemotron: { system_prompt: 'Test' },
+        },
+      })
+    ),
+    importPrompts: vi.fn(() =>
+      Promise.resolve({
+        imported_count: 1,
+        skipped_count: 0,
+        errors: [],
+        message: 'Imported 1 model(s)',
+      })
+    ),
+    fetchEvents: vi.fn(() =>
+      Promise.resolve({
+        events: [],
+        total: 0,
+      })
+    ),
+  };
+});
 
 describe('PromptPlayground - Barrel Export Verification (NEM-1894)', () => {
   const defaultProps: PromptPlaygroundProps = {

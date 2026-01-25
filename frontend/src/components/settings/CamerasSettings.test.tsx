@@ -163,8 +163,66 @@ describe('CamerasSettings', () => {
         expect(screen.getByText('Front Door')).toBeInTheDocument();
       });
 
-      // Camera with null last_seen_at should show "Awaiting first image"
-      expect(screen.getByText('Awaiting first image')).toBeInTheDocument(); // For cam-2
+      // NEM-3519: Camera with null last_seen_at and offline status shows "Never connected"
+      expect(screen.getByText('Never connected')).toBeInTheDocument(); // For cam-2 (offline)
+    });
+
+    it('should display status-specific last seen messages (NEM-3519)', async () => {
+      const camerasWithDifferentStatuses: Camera[] = [
+        {
+          id: 'cam-online-no-timestamp',
+          name: 'Online Camera No Timestamp',
+          folder_path: '/export/foscam/online',
+          status: 'online',
+          created_at: '2025-01-01T00:00:00Z',
+          last_seen_at: null, // Online but no timestamp
+        },
+        {
+          id: 'cam-offline-no-timestamp',
+          name: 'Offline Camera No Timestamp',
+          folder_path: '/export/foscam/offline',
+          status: 'offline',
+          created_at: '2025-01-01T00:00:00Z',
+          last_seen_at: null, // Offline with no timestamp
+        },
+        {
+          id: 'cam-error-no-timestamp',
+          name: 'Error Camera No Timestamp',
+          folder_path: '/export/foscam/error',
+          status: 'error',
+          created_at: '2025-01-01T00:00:00Z',
+          last_seen_at: null, // Error with no timestamp
+        },
+        {
+          id: 'cam-unknown-no-timestamp',
+          name: 'Unknown Camera No Timestamp',
+          folder_path: '/export/foscam/unknown',
+          status: 'unknown',
+          created_at: '2025-01-01T00:00:00Z',
+          last_seen_at: null, // Unknown status
+        },
+      ];
+
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: camerasWithDifferentStatuses,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+        isPlaceholderData: false,
+      });
+
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Online Camera No Timestamp')).toBeInTheDocument();
+      });
+
+      // NEM-3519: Each status should have an appropriate last seen message
+      expect(screen.getByText('Recently active')).toBeInTheDocument(); // Online but no timestamp
+      expect(screen.getByText('Never connected')).toBeInTheDocument(); // Offline
+      expect(screen.getByText('No data available')).toBeInTheDocument(); // Error
+      expect(screen.getByText('Awaiting first image')).toBeInTheDocument(); // Unknown (fallback)
     });
 
     it('should display error state when fetch fails', async () => {

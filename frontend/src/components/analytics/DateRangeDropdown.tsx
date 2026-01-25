@@ -51,6 +51,8 @@ interface PresetOption {
  * Available preset options.
  */
 const PRESET_OPTIONS: PresetOption[] = [
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
   { value: '7d', label: 'Last 7 days' },
   { value: '30d', label: 'Last 30 days' },
   { value: '90d', label: 'Last 90 days' },

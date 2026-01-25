@@ -275,13 +275,13 @@ describe('SystemMonitoringPage (Operations)', () => {
       });
     });
 
-    it('displays reload button in error state', async () => {
+    it('displays retry button in error state', async () => {
       mockFetchTelemetry.mockRejectedValue(new Error('Network error'));
 
       render(<SystemMonitoringPage />);
 
       await waitFor(() => {
-        expect(screen.getByText('Reload Page')).toBeInTheDocument();
+        expect(screen.getByTestId('operations-error-state-retry')).toBeInTheDocument();
       });
     });
   });

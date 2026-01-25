@@ -62,11 +62,47 @@ describe('DateRangeDropdown', () => {
     await user.click(button);
 
     await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: /Today/ })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: /Yesterday/ })).toBeInTheDocument();
       expect(screen.getByRole('menuitem', { name: /Last 7 days/ })).toBeInTheDocument();
       expect(screen.getByRole('menuitem', { name: /Last 30 days/ })).toBeInTheDocument();
       expect(screen.getByRole('menuitem', { name: /Last 90 days/ })).toBeInTheDocument();
       expect(screen.getByRole('menuitem', { name: /Custom range/ })).toBeInTheDocument();
     });
+  });
+
+  it('calls setPreset with "today" when Today option is selected', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DateRangeDropdown {...defaultProps} />);
+
+    const button = screen.getByTestId('date-range-dropdown');
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+    });
+
+    const todayOption = screen.getByRole('menuitem', { name: /Today/ });
+    await user.click(todayOption);
+
+    expect(mockSetPreset).toHaveBeenCalledWith('today');
+  });
+
+  it('calls setPreset with "yesterday" when Yesterday option is selected', async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DateRangeDropdown {...defaultProps} />);
+
+    const button = screen.getByTestId('date-range-dropdown');
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+    });
+
+    const yesterdayOption = screen.getByRole('menuitem', { name: /Yesterday/ });
+    await user.click(yesterdayOption);
+
+    expect(mockSetPreset).toHaveBeenCalledWith('yesterday');
   });
 
   it('shows checkmark on currently selected preset', async () => {
