@@ -122,6 +122,8 @@ export interface EventDetailModalProps {
   onSnooze?: (eventId: string, seconds: number) => void;
   /** Callback to clear the snooze on the event (NEM-3640) */
   onUnsnooze?: (eventId: string) => void;
+  /** Initial tab to display when modal opens (NEM-3590) */
+  initialTab?: 'details' | 'audit' | 'clip';
 }
 
 /**
@@ -138,9 +140,17 @@ export default function EventDetailModal({
   onDownloadMedia,
   onSnooze,
   onUnsnooze,
+  initialTab,
 }: EventDetailModalProps) {
   // State for active tab (Details vs AI Audit vs Video Clip)
-  const [activeTab, setActiveTab] = useState<'details' | 'audit' | 'clip'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'audit' | 'clip'>(initialTab ?? 'details');
+
+  // Update activeTab when initialTab or modal visibility changes (NEM-3590)
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   // State for notes editing
   const [notesText, setNotesText] = useState<string>('');
