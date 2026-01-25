@@ -1,5 +1,7 @@
 # Fallback Strategies
 
+![Fallback Chain Concept](../../images/architecture/ai-orchestration/concept-fallback-chain.png)
+
 The AI fallback system provides graceful degradation when AI services become unavailable. It integrates with circuit breakers and the degradation manager to maintain service continuity.
 
 ## Source File
@@ -7,6 +9,8 @@ The AI fallback system provides graceful degradation when AI services become una
 `backend/services/ai_fallback.py`
 
 ## Architecture Overview
+
+![Fallback Execution Flow](../../images/architecture/ai-orchestration/flow-fallback-execution.png)
 
 ```
 +------------------+     +--------------------+     +------------------+

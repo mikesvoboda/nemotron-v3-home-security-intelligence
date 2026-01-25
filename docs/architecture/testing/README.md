@@ -1,8 +1,12 @@
 # Testing Hub
 
+![Testing Hub Hero](../../images/architecture/testing/hero-testing.png)
+
 This hub documents the comprehensive testing infrastructure for the AI-powered home security monitoring system. The system follows **Test-Driven Development (TDD)** practices with a multi-layered testing strategy.
 
 ## Test Pyramid
+
+![Test Pyramid Concept](../../images/architecture/testing/concept-test-pyramid.png)
 
 ```
                     /\
@@ -31,6 +35,8 @@ This hub documents the comprehensive testing infrastructure for the AI-powered h
 ## Quick Reference
 
 ### Running Tests
+
+![Test Execution Flow](../../images/architecture/testing/flow-test-execution.png)
 
 ```bash
 # Full validation (recommended before PRs)
@@ -96,6 +102,8 @@ frontend/
 ## Testing Philosophy
 
 ### TDD Workflow
+
+![TDD Cycle Flow](../../images/architecture/testing/flow-tdd-cycle.png)
 
 1. **RED**: Write a failing test that defines expected behavior
 2. **GREEN**: Implement minimal code to make the test pass

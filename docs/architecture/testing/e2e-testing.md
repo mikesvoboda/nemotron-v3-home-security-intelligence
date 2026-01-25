@@ -1,8 +1,12 @@
 # End-to-End Testing
 
+![E2E Test Architecture](../../images/architecture/testing/technical-e2e-architecture.png)
+
 End-to-end (E2E) tests verify complete user flows through the application. The frontend uses Playwright for browser automation, while the backend has pipeline integration tests.
 
 ## Overview
+
+![E2E Test Flow](../../images/architecture/testing/flow-e2e-test.png)
 
 E2E tests sit at the top of the test pyramid (<2% of tests). They:
 

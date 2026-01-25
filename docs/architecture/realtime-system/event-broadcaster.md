@@ -10,6 +10,8 @@ The EventBroadcaster acts as a bridge between Redis pub/sub events and WebSocket
 
 ## Class Structure
 
+![EventBroadcaster Technical Architecture](../../images/architecture/realtime-system/technical-broadcaster.png)
+
 ```python
 # backend/services/event_broadcaster.py:335
 class EventBroadcaster:
@@ -122,6 +124,8 @@ async def broadcast_event(self, event_data: dict[str, Any]) -> int:
 ```
 
 ## Message Routing
+
+![Broadcast Process Flow](../../images/architecture/realtime-system/flow-broadcast-process.png)
 
 ### Sending to All Clients
 

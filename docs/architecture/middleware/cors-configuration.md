@@ -16,6 +16,8 @@ The CORS middleware is provided by FastAPI/Starlette and configured with explici
 
 ## Architecture
 
+![CORS Preflight Flow](../../images/architecture/middleware/flow-cors-preflight.png)
+
 ```mermaid
 sequenceDiagram
     participant Browser
@@ -36,6 +38,8 @@ sequenceDiagram
 ```
 
 ## CORS Middleware Configuration
+
+![CORS Middleware Technical Details](../../images/architecture/middleware/technical-cors-middleware.png)
 
 The CORS middleware is configured in `backend/main.py:1041-1053`:
 

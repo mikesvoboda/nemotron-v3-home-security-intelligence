@@ -1,5 +1,7 @@
 # Resilience Patterns Hub
 
+![Resilience Patterns Overview](../../images/architecture/resilience-patterns/hero-resilience-patterns.png)
+
 This directory contains comprehensive documentation for the resilience patterns implemented in the Home Security Intelligence system. These patterns ensure reliable operation even when external services (RT-DETRv2, Nemotron LLM, Redis) experience failures.
 
 ## Pattern Overview
@@ -13,6 +15,8 @@ This directory contains comprehensive documentation for the resilience patterns 
 | [Health Monitoring](health-monitoring.md)       | Automatic service recovery                       | `backend/services/health_monitor.py`      |
 
 ## Architecture Diagram
+
+![Defense Layers - Resilience Pattern Stack](../../images/architecture/resilience-patterns/concept-defense-layers.png)
 
 ```
                           +-------------------+
@@ -46,6 +50,8 @@ This directory contains comprehensive documentation for the resilience patterns 
                     | remaining)           |      | (max retries hit)    |
                     +----------------------+      +----------------------+
 ```
+
+![Failure Cascade Prevention](../../images/architecture/resilience-patterns/flow-failure-cascade.png)
 
 ## Quick Reference
 

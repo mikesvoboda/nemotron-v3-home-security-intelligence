@@ -1,5 +1,7 @@
 # Data Model Hub
 
+![Data Model Overview](../../images/architecture/data-model/hero-data-model.png)
+
 > Documentation hub for the Home Security Intelligence System database architecture.
 
 This directory contains comprehensive documentation for the data model, including PostgreSQL tables, Redis data structures, indexes, and migration patterns.
@@ -15,6 +17,8 @@ This directory contains comprehensive documentation for the data model, includin
 | [Redis Data Structures](./redis-data-structures.md)     | Queues, batch state, pub/sub channels         |
 
 ## Entity Relationship Overview
+
+![Entity Relationships](../../images/architecture/data-model/technical-entity-relationships.png)
 
 ```mermaid
 erDiagram
@@ -81,6 +85,8 @@ erDiagram
 
 ## Storage Architecture
 
+![Dual Storage Architecture](../../images/architecture/data-model/concept-dual-storage.png)
+
 The system uses a dual-storage architecture optimized for different workloads:
 
 | Storage        | Technology | Purpose                                     | Persistence           |
@@ -89,6 +95,8 @@ The system uses a dual-storage architecture optimized for different workloads:
 | **Cache/MQ**   | Redis      | Queues, pub/sub, batch state, deduplication | Ephemeral (TTL-based) |
 
 ### Data Flow
+
+![Data Routing Flow](../../images/architecture/data-model/flow-data-routing.png)
 
 ```mermaid
 flowchart LR

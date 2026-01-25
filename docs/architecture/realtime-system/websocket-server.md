@@ -8,6 +8,8 @@ Documentation for WebSocket endpoints, connection lifecycle, and message handlin
 
 The WebSocket server provides real-time bidirectional communication between the backend and frontend clients. It handles connection lifecycle management, message validation, heartbeat mechanisms, and graceful disconnection.
 
+![WebSocket Server Technical Architecture](../../images/architecture/realtime-system/technical-websocket-server.png)
+
 ## Endpoints
 
 ### Events Endpoint (`/ws/events`)
@@ -70,6 +72,10 @@ async def websocket_job_logs(
 **Purpose**: Streams log entries for active processing jobs.
 
 ## Connection Lifecycle
+
+![Connection Lifecycle Concept](../../images/architecture/realtime-system/concept-connection-lifecycle.png)
+
+![Connection Handling Flow](../../images/architecture/realtime-system/flow-connection-handling.png)
 
 ```mermaid
 stateDiagram-v2

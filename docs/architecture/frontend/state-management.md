@@ -1,5 +1,7 @@
 # State Management
 
+![State Structure Overview](../../images/architecture/frontend/technical-state-structure.png)
+
 > React Query patterns for server state and local state management strategies
 
 ## Key Files
@@ -375,6 +377,8 @@ export function AnnouncementProvider({ children }: { children: ReactNode }) {
 ```
 
 ## State Flow Diagram
+
+![State Management Flow](../../images/architecture/frontend/flow-state-management.png)
 
 ```mermaid
 flowchart TB

@@ -10,6 +10,8 @@ The SubscriptionManager enables clients to subscribe to specific event patterns,
 
 ## Pattern Matching
 
+![Subscription Filters Concept](../../images/architecture/realtime-system/concept-subscription-filters.png)
+
 ### Pattern Syntax
 
 The manager uses `fnmatch` for wildcard matching:
@@ -38,6 +40,8 @@ def _matches_any_pattern(self, event_type: str, patterns: set[str]) -> bool:
 ```
 
 ## Dual Index Structure
+
+![SubscriptionManager Technical Architecture](../../images/architecture/realtime-system/technical-subscription-manager.png)
 
 The manager maintains two data structures for efficient lookups:
 

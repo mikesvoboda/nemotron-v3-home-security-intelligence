@@ -4,6 +4,8 @@ The `GPUMonitor` service collects NVIDIA GPU statistics at regular intervals for
 
 **Source File:** `backend/services/gpu_monitor.py`
 
+![GPU Monitor Technical Overview](../../images/architecture/background-services/technical-gpu-monitor.png)
+
 ## Overview
 
 The GPU monitor:
@@ -370,6 +372,8 @@ async def _broadcast_stats(self, stats_list: list[GPUStatsData]) -> None:
 ```
 
 ## Metrics Schema
+
+![GPU Metrics Concept](../../images/architecture/background-services/concept-gpu-metrics.png)
 
 The `GPUStatsData` dataclass (`backend/services/gpu_monitor.py:1062-1093`):
 

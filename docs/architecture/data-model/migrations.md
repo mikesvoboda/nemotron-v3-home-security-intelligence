@@ -4,6 +4,8 @@
 
 ## Overview
 
+![Migration Lifecycle](../../images/architecture/data-model/flow-migration-lifecycle.png)
+
 Database migrations are managed using Alembic with PostgreSQL-specific features. The migration environment is configured in `backend/alembic/env.py`.
 
 ### Migration Directory Structure
@@ -383,6 +385,8 @@ def get_current_revision(connection: Connection) -> str | None:
 ---
 
 ## Best Practices
+
+![Migration Safety Patterns](../../images/architecture/data-model/concept-migration-safety.png)
 
 ### 1. Always Include Downgrade
 

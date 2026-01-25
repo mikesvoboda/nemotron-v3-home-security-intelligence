@@ -1,5 +1,7 @@
 # Custom Hooks
 
+![Hook Patterns Overview](../../images/architecture/frontend/concept-hook-patterns.png)
+
 > Documentation for useEvents, useWebSocket, useSystemStatus, and other custom React hooks
 
 ## Key Files
@@ -508,6 +510,8 @@ const { data, isPolling, pause, resume } = usePolling({
 ```
 
 ## Hook Composition Pattern
+
+![Hook Dependencies Diagram](../../images/architecture/frontend/technical-hook-dependencies.png)
 
 Hooks are designed to be composed together:
 

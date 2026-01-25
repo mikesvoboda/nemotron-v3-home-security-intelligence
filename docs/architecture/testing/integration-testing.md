@@ -1,5 +1,7 @@
 # Integration Testing
 
+![Integration Test Setup](../../images/architecture/testing/technical-integration-setup.png)
+
 Integration tests verify multi-component workflows with real database connections. They ensure that services, repositories, and APIs work together correctly.
 
 ## Overview
@@ -251,6 +253,8 @@ async def client(integration_db: str, mock_redis: AsyncMock):
 ```
 
 ## Test Patterns
+
+![Integration Test Flow](../../images/architecture/testing/flow-integration-test.png)
 
 ### API Endpoint Testing
 

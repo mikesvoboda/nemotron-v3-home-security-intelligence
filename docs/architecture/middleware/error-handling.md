@@ -63,6 +63,8 @@ graph TD
 
 ## Exception Handler Registration
 
+![Error Handling Technical Details](../../images/architecture/middleware/technical-error-handling.png)
+
 Exception handlers are registered in order of specificity in `backend/api/exception_handlers.py:695-770`:
 
 ```python
@@ -166,6 +168,8 @@ Request validation errors include field-level details (`backend/api/exception_ha
 ```
 
 ## Exception Hierarchy
+
+![Error Types Concept](../../images/architecture/middleware/concept-error-types.png)
 
 ### Application Exceptions
 

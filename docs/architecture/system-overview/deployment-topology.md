@@ -2,6 +2,8 @@
 
 This document describes the container architecture, network configuration, GPU passthrough, and resource allocation for the Home Security Intelligence system.
 
+![Deployment Topology](../../images/architecture/system-overview/technical-deployment-topology.png)
+
 ## Container Architecture
 
 All services run as containers on a single Docker/Podman network (`security-net`), enabling service discovery by container name.
@@ -89,6 +91,8 @@ networks:
 | alloy         | 12345         | 12345         | HTTP       |
 
 ## GPU Passthrough Configuration
+
+![GPU Passthrough Architecture](../../images/architecture/system-overview/concept-gpu-passthrough.png)
 
 All AI services use NVIDIA Container Toolkit (CDI) for GPU access.
 
@@ -259,6 +263,8 @@ AI services have longer start periods due to model loading:
 **Note:** AI services (ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment) do not have CPU/memory limits to allow full GPU utilization.
 
 ## Service Dependencies
+
+![Container Startup Flow](../../images/architecture/system-overview/flow-container-startup.png)
 
 **Source:** `docker-compose.prod.yml:353-376`
 

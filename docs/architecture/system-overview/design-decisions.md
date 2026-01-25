@@ -16,6 +16,8 @@ This document captures the key architectural decisions in ADR (Architecture Deci
 
 ## DD-001: LLM-Determined Risk Scoring
 
+![LLM Risk Scoring Concept](../../images/architecture/system-overview/concept-llm-risk-scoring.png)
+
 **Status:** Accepted
 **Date:** 2024-12-21
 
@@ -52,6 +54,8 @@ Let the **Nemotron LLM determine risk scores** based on contextual analysis rath
 ---
 
 ## DD-002: 90-Second Batch Windows
+
+![Batch vs Real-Time Processing](../../images/architecture/system-overview/concept-batch-vs-realtime.png)
 
 **Status:** Accepted
 **Date:** 2024-12-21
@@ -362,6 +366,8 @@ NemotronAnalyzer --> Redis PUBLISH --> EventBroadcaster(s) --> WebSocket --> Das
 ---
 
 ## DD-007: Single-User No-Auth MVP
+
+![Single-User Local Deployment](../../images/architecture/system-overview/concept-single-user-local.png)
 
 **Status:** Accepted
 **Date:** 2024-12-21

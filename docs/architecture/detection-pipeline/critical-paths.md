@@ -1,5 +1,7 @@
 # Critical Paths and Latency Optimization
 
+![Critical Paths Overview](../../images/architecture/detection-pipeline/concept-critical-paths.png)
+
 This document describes the performance-critical paths through the detection pipeline, latency targets, and optimization strategies.
 
 ## Latency Targets
@@ -220,6 +222,8 @@ self._circuit_breaker = CircuitBreaker(
 - Prevents cascading delays during outages
 
 ## Timeout Configuration
+
+![Timeout Budgets](../../images/architecture/detection-pipeline/technical-timeout-budgets.png)
 
 ### Detector Timeouts
 

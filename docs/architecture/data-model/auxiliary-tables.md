@@ -4,6 +4,8 @@
 
 ## Overview
 
+![Auxiliary Tables Overview](../../images/architecture/data-model/technical-auxiliary-tables.png)
+
 Auxiliary tables support system monitoring, auditing, alerting, and machine learning baseline tracking.
 
 ```mermaid

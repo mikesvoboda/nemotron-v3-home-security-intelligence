@@ -1,5 +1,7 @@
 # Styling Patterns
 
+![Styling System Overview](../../images/architecture/frontend/concept-styling-system.png)
+
 > Tailwind CSS configuration, Tremor components, and NVIDIA dark theme implementation
 
 ## Key Files
@@ -92,6 +94,8 @@ status: {
 ```
 
 ## Typography
+
+![Design Tokens Reference](../../images/architecture/frontend/technical-design-tokens.png)
 
 ### Font Families
 

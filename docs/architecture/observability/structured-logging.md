@@ -1,5 +1,7 @@
 # Structured Logging
 
+![Log Pipeline Overview](../../images/architecture/observability/technical-log-pipeline.png)
+
 > JSON-formatted logging with automatic context propagation, trace correlation, and secure credential handling.
 
 **Key Files:**
@@ -142,6 +144,8 @@ async def process_detection(camera_id: str, image_path: str):
 
 ### Trace Context Integration
 
+![Log Context Enrichment](../../images/architecture/observability/technical-log-context.png)
+
 Trace context is extracted from OpenTelemetry automatically (`backend/core/logging.py:214-259`):
 
 ```python
@@ -164,6 +168,8 @@ def get_current_trace_context() -> dict[str, str | None]:
 ```
 
 ## Log Levels
+
+![Log Levels Concept](../../images/architecture/observability/concept-log-levels.png)
 
 | Level      | Value | Usage                                    |
 | ---------- | ----- | ---------------------------------------- |

@@ -21,6 +21,8 @@ flowchart LR
 
 ## Camera Model
 
+![Camera Table Schema](../../images/architecture/data-model/technical-camera-table.png)
+
 **Source:** `backend/models/camera.py:63-195`
 
 **Table Name:** `cameras`
@@ -109,6 +111,8 @@ def restore(self) -> None:
 
 ## Detection Model
 
+![Detection Table Schema](../../images/architecture/data-model/technical-detection-table.png)
+
 **Source:** `backend/models/detection.py:28-193`
 
 **Table Name:** `detections`
@@ -193,6 +197,8 @@ action_result: Mapped[ActionResult | None]
 ---
 
 ## Event Model
+
+![Event Table Schema](../../images/architecture/data-model/technical-event-table.png)
 
 **Source:** `backend/models/event.py:21-243`
 

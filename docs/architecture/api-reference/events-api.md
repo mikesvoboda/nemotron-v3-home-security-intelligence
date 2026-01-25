@@ -4,6 +4,8 @@ The Events API provides endpoints for managing security events in the NEM home s
 
 **Source:** `backend/api/routes/events.py`
 
+![Events API Endpoints](../../images/architecture/api-reference/technical-events-endpoints.png)
+
 ## Overview
 
 Events are created when the AI pipeline detects security-relevant activity. Each event:
@@ -16,6 +18,8 @@ Events are created when the AI pipeline detects security-relevant activity. Each
 ## Endpoints
 
 ### List Events
+
+![Event Query Flow](../../images/architecture/api-reference/flow-event-query.png)
 
 ```
 GET /api/events
@@ -76,7 +80,7 @@ List security events with optional filtering and pagination.
     "total": 150,
     "limit": 50,
     "offset": 0,
-    "next_cursor": "eyJpZCI6IDUwLCAiY3JlYXRlZF9hdCI6ICIyMDI2LTAxLTIzVDEyOjAwOjAwWiJ9",  // pragma: allowlist secret
+    "next_cursor": "eyJpZCI6IDUwLCAiY3JlYXRlZF9hdCI6ICIyMDI2LTAxLTIzVDEyOjAwOjAwWiJ9", // pragma: allowlist secret
     "has_more": true
   },
   "deprecation_warning": null

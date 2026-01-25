@@ -1,5 +1,7 @@
 # Distributed Tracing
 
+![Trace Visualization Concept](../../images/architecture/observability/concept-trace-visualization.png)
+
 > OpenTelemetry-based distributed tracing with automatic instrumentation, span context propagation, and Jaeger visualization.
 
 **Key Files:**
@@ -236,6 +238,8 @@ async def create_async_span(
 
 ## Span Names and Attributes
 
+![Span Structure](../../images/architecture/observability/technical-span-structure.png)
+
 ### Pipeline Spans
 
 | Span Name              | Kind       | Key Attributes                                               |
@@ -283,6 +287,8 @@ Auto-instrumented by Redis instrumentor:
 | `net.peer.port`           | Redis port                     |
 
 ## Context Propagation
+
+![Trace Propagation Flow](../../images/architecture/observability/flow-trace-propagation.png)
 
 ### W3C Trace Context
 

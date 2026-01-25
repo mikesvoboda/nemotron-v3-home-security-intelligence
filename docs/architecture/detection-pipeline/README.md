@@ -1,8 +1,12 @@
 # Detection Pipeline Architecture
 
+![Detection Pipeline Architecture](../../images/architecture/detection-pipeline/hero-detection-pipeline.png)
+
 This hub documents the complete flow from camera image upload to analyzed security event, including queue architecture, batch aggregation, and worker processes.
 
 ## Pipeline Overview
+
+![End-to-End Pipeline Flow](../../images/architecture/detection-pipeline/flow-end-to-end.png)
 
 ```
 Camera FTP --> FileWatcher --> detection_queue --> DetectionQueueWorker -->
@@ -21,6 +25,8 @@ Enrichment --> Nemotron --> Event --> EventBroadcaster --> WebSocket
 | [critical-paths.md](critical-paths.md)     | Latency targets and optimization paths         |
 
 ## Pipeline Stages
+
+![Pipeline Stages Overview](../../images/architecture/detection-pipeline/concept-pipeline-stages.png)
 
 ### Stage 1: File Detection (FileWatcher)
 

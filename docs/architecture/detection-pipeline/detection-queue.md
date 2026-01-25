@@ -1,5 +1,7 @@
 # Detection Queue Architecture
 
+![Detection Queue Technical Architecture](../../images/architecture/detection-pipeline/technical-detection-queue.png)
+
 The detection queue receives file upload notifications from the FileWatcher and routes them through object detection before batch aggregation.
 
 ## Overview
@@ -113,6 +115,8 @@ self._retry_handler = retry_handler or RetryHandler(
 ```
 
 ## Processing Loop
+
+![Queue Consumer Flow](../../images/architecture/detection-pipeline/flow-queue-consumer.png)
 
 ### Main Loop (Lines 342-382)
 

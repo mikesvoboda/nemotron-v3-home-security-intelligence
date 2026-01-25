@@ -2,6 +2,8 @@
 
 This document describes the settings architecture, environment variables, and configuration patterns for the Home Security Intelligence system.
 
+![Configuration Loading Flow](../../images/architecture/system-overview/flow-config-loading.png)
+
 ## Settings Architecture
 
 The application uses **Pydantic Settings** for type-safe configuration management with environment variable support.
@@ -211,6 +213,8 @@ Default CORS origins:
 **Source:** `backend/core/config.py:968-999`
 
 ## Nested Settings Classes
+
+![Configuration Hierarchy](../../images/architecture/system-overview/technical-config-hierarchy.png)
 
 ### OrchestratorSettings
 

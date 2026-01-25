@@ -1,5 +1,7 @@
 # Grafana Dashboards
 
+![Dashboard Types Overview](../../images/architecture/observability/concept-dashboard-types.png)
+
 > Pre-configured Grafana dashboards for monitoring pipeline health, AI service performance, and system observability.
 
 **Key Files:**
@@ -142,6 +144,8 @@ Continuous profiling with trace correlation (`monitoring/grafana/provisioning/da
 ## Consolidated Operations Dashboard
 
 The main dashboard (`monitoring/grafana/dashboards/consolidated.json`) provides system-wide visibility.
+
+![Dashboard Layout](../../images/architecture/observability/technical-dashboard-layout.png)
 
 ### Executive Summary Row
 

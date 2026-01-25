@@ -1,8 +1,12 @@
 # Real-time System Hub
 
+![Real-time System Architecture Overview](../../images/architecture/realtime-system/hero-realtime-system.png)
+
 Documentation hub for the WebSocket-based real-time event broadcasting system.
 
 ## System Overview
+
+![Pub/Sub Pattern for Event Distribution](../../images/architecture/realtime-system/concept-pubsub-pattern.png)
 
 ```
 Publishers --> Redis Pub/Sub --> EventBroadcaster --> SubscriptionManager --> WebSocketManager --> Clients
@@ -68,6 +72,8 @@ flowchart LR
 | `/ws/jobs/{job_id}/logs` | Real-time job log streaming  | On log emission   |
 
 ## Data Flow
+
+![Event Broadcast Flow](../../images/architecture/realtime-system/flow-event-broadcast.png)
 
 1. **Event Creation**: AI pipeline components (NemotronAnalyzer, health monitors) create events
 2. **Redis Publishing**: Events are published to the `security_events` Redis channel

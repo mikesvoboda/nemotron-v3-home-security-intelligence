@@ -1,5 +1,7 @@
 # FileWatcher Service
 
+![FileWatcher Technical Architecture](../../images/architecture/detection-pipeline/technical-file-watcher.png)
+
 The FileWatcher service monitors camera upload directories for new image and video files, validates them, and queues them for AI processing.
 
 ## Overview
@@ -104,6 +106,8 @@ The `is_valid_image_async()` function runs PIL operations in a thread pool to av
 
 ## File Stability Check
 
+![File Event Handling Flow](../../images/architecture/detection-pipeline/flow-file-event-handling.png)
+
 FTP uploads may arrive in chunks. The stability check ensures files are complete before processing (lines 560-621).
 
 ```python
@@ -119,6 +123,8 @@ async def _wait_for_file_stability(self, file_path: str, stability_time: float =
 4. Return False after 20 checks (~10 seconds) if never stable
 
 ## Debounce Logic
+
+![Debouncing Concept](../../images/architecture/detection-pipeline/concept-debouncing.png)
 
 Watchdog may fire multiple events for a single file write. The debounce logic consolidates these (lines 667-711).
 

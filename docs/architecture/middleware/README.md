@@ -1,5 +1,7 @@
 # Middleware Hub
 
+![Middleware Hub Overview](../../images/architecture/middleware/hero-middleware.png)
+
 > Request processing pipeline and cross-cutting concerns for the Home Security Intelligence API
 
 ## Overview
@@ -21,6 +23,10 @@ The middleware architecture follows defense-in-depth principles, with multiple l
 | [rate-limiting.md](./rate-limiting.md)           | Rate limit configuration and tiers                    | `backend/api/middleware/rate_limit.py`                                                          |
 
 ## Architecture Diagram
+
+![Middleware Stack Concept](../../images/architecture/middleware/concept-middleware-stack.png)
+
+![Request-Response Flow](../../images/architecture/middleware/flow-request-response.png)
 
 ```mermaid
 graph TD

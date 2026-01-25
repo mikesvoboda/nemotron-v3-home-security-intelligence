@@ -4,6 +4,8 @@ The System API provides endpoints for health monitoring, system configuration, G
 
 **Source:** `backend/api/routes/system.py`
 
+![System API Endpoints](../../images/architecture/api-reference/technical-system-endpoints.png)
+
 ## Overview
 
 The System API provides:
@@ -15,6 +17,8 @@ The System API provides:
 - Worker monitoring
 
 ## Health Check Endpoints
+
+![Health Check Flow](../../images/architecture/api-reference/flow-health-check.png)
 
 ### Detailed Health Check
 

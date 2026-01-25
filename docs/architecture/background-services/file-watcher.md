@@ -4,6 +4,8 @@ The `FileWatcher` monitors camera upload directories for new image and video fil
 
 **Source File:** `backend/services/file_watcher.py`
 
+![FileWatcher Technical Overview](../../images/architecture/background-services/technical-file-watcher.png)
+
 ## Overview
 
 The FileWatcher service:
@@ -162,6 +164,8 @@ async def stop(self) -> None:
 ```
 
 ## File Processing Flow
+
+![File Event Flow](../../images/architecture/background-services/flow-file-event.png)
 
 ```
 +-------------------+

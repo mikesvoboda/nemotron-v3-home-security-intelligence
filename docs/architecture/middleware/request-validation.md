@@ -17,6 +17,8 @@ The validation system provides detailed error messages with field-level informat
 
 ## Architecture
 
+![Validation Process Flow](../../images/architecture/middleware/flow-validation-process.png)
+
 ```mermaid
 graph TD
     subgraph "Middleware Validation"
@@ -52,6 +54,8 @@ graph TD
 ## Content-Type Validation
 
 ### ContentTypeValidationMiddleware
+
+![Validation Middleware Technical Details](../../images/architecture/middleware/technical-validation-middleware.png)
 
 The `ContentTypeValidationMiddleware` (`backend/api/middleware/content_type_validator.py:28-195`) validates Content-Type headers for requests with bodies:
 

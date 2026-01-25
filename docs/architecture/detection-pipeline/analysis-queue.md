@@ -1,5 +1,7 @@
 # Analysis Queue Architecture
 
+![Analysis Queue Technical Architecture](../../images/architecture/detection-pipeline/technical-analysis-queue.png)
+
 The analysis queue receives closed batches from the BatchAggregator and routes them through LLM risk analysis to create security events.
 
 ## Overview
@@ -145,6 +147,8 @@ async def _process_analysis_item(self, item: dict[str, Any]) -> None:
 ```
 
 ## NemotronAnalyzer
+
+![Analysis Processing Flow](../../images/architecture/detection-pipeline/flow-analysis-processing.png)
 
 **Source:** `backend/services/nemotron_analyzer.py`
 

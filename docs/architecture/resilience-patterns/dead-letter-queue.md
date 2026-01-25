@@ -1,5 +1,7 @@
 # Dead-Letter Queue (DLQ) Management
 
+![DLQ Monitoring Concept](../../images/architecture/resilience-patterns/concept-dlq-monitoring.png)
+
 The dead-letter queue system captures failed jobs that have exhausted all retry attempts, providing inspection, reprocessing, and management capabilities.
 
 **Source:** `backend/services/retry_handler.py`, `backend/api/routes/dlq.py`, `backend/core/constants.py`
@@ -14,6 +16,8 @@ Jobs that fail after all retry attempts are moved to dead-letter queues for:
 - **Cleanup**: Clear queues when issues are unrecoverable
 
 ## DLQ Architecture
+
+![DLQ Processing Flow](../../images/architecture/resilience-patterns/flow-dlq-processing.png)
 
 ```
 Processing Queues                    Dead-Letter Queues
@@ -140,6 +144,8 @@ class DLQStats:
 ```
 
 ## REST API Endpoints
+
+![DLQ Architecture and API](../../images/architecture/resilience-patterns/technical-dlq-architecture.png)
 
 The DLQ API is defined in `backend/api/routes/dlq.py:1-391`.
 

@@ -1,8 +1,12 @@
 # System Overview Hub
 
+![System Overview](../../images/architecture/system-overview/hero-system-overview.png)
+
 This hub provides high-level architecture understanding of the Home Security Intelligence system.
 
 ## Component Architecture
+
+![Three-Tier Architecture](../../images/architecture/system-overview/concept-three-tier.png)
 
 ```mermaid
 flowchart TB
@@ -60,6 +64,8 @@ flowchart TB
 | **Alertmanager** | 9093                    | `alertmanager`  | `docker-compose.prod.yml:656` | Alert routing                           |
 
 ## Technology Stack
+
+![Technology Stack](../../images/architecture/system-overview/concept-technology-stack.png)
 
 ```mermaid
 flowchart TB

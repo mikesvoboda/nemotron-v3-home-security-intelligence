@@ -1,5 +1,7 @@
 # Graceful Degradation
 
+![Graceful Degradation Concept](../../images/architecture/resilience-patterns/concept-graceful-degradation.png)
+
 The DegradationManager provides graceful degradation capabilities when dependent services become unavailable, allowing the system to continue operating in a degraded mode.
 
 **Source:** `backend/services/degradation_manager.py`
@@ -171,6 +173,8 @@ async def _evaluate_mode_transition(self) -> None:
 ```
 
 ### State Transition Diagram
+
+![Degradation Decision Flow](../../images/architecture/resilience-patterns/flow-degradation-decision.png)
 
 ```
                     +------------------+
@@ -486,6 +490,8 @@ def get_status(self) -> dict[str, Any]:
 ```
 
 ### Available Features by Mode
+
+![Feature Toggles by Degradation Mode](../../images/architecture/resilience-patterns/technical-feature-toggles.png)
 
 The `get_available_features()` method (`backend/services/degradation_manager.py:1034-1049`):
 

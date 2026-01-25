@@ -196,6 +196,10 @@ unsubscribe(); // Removes subscriber, closes connection if last
 
 ## Reconnection Flow
 
+![Client Reconnection Concept](../../images/architecture/realtime-system/concept-reconnection.png)
+
+![Client Reconnection Flow](../../images/architecture/realtime-system/flow-client-reconnection.png)
+
 ```mermaid
 sequenceDiagram
     participant Client
@@ -355,6 +359,8 @@ interface ChannelStatus {
 - "Retries exhausted" badge when failed
 
 ## Connection States
+
+![Client State Management](../../images/architecture/realtime-system/technical-client-state.png)
 
 ```typescript
 type ConnectionState =

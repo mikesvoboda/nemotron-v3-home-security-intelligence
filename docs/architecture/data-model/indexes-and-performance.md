@@ -4,6 +4,8 @@
 
 ## Overview
 
+![Index Strategy Overview](../../images/architecture/data-model/technical-index-strategy.png)
+
 The data model uses several PostgreSQL-specific index types to optimize different query patterns:
 
 | Index Type | Best For                            | Size       | Update Cost |
@@ -289,6 +291,8 @@ CREATE INDEX idx_events_export_covering ON events (
 ---
 
 ## Query Patterns and Optimization
+
+![Query Patterns](../../images/architecture/data-model/concept-query-patterns.png)
 
 ### Dashboard Event List
 

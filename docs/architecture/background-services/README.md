@@ -1,5 +1,7 @@
 # Background Services Hub
 
+![Background Services Overview](../../images/architecture/background-services/hero-background-services.png)
+
 This documentation covers the background services that power the AI-powered home security monitoring system. These services run continuously during application runtime, handling file monitoring, detection batching, GPU statistics collection, data retention, and service health checks.
 
 ## Services Overview
@@ -39,6 +41,8 @@ This documentation covers the background services that power the AI-powered home
 
 ## Lifespan Management
 
+![Service Lifecycle Concept](../../images/architecture/background-services/concept-service-lifecycle.png)
+
 All background services are managed through FastAPI's lifespan context in `backend/main.py:461-929`. The lifespan manager handles:
 
 1. **Startup**: Initialize services in dependency order
@@ -46,6 +50,8 @@ All background services are managed through FastAPI's lifespan context in `backe
 3. **Shutdown**: Stop services in reverse order, ensuring clean resource cleanup
 
 ### Startup Sequence
+
+![Lifespan Management Flow](../../images/architecture/background-services/flow-lifespan-management.png)
 
 The following services are started during application lifespan initialization:
 

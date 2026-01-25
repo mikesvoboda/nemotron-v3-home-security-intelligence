@@ -6,9 +6,13 @@ Documentation for WebSocket message schemas and JSON formats.
 
 ## Overview
 
+![WebSocket Message Types](../../images/architecture/realtime-system/concept-message-types.png)
+
 All WebSocket messages follow a consistent envelope format with a `type` field identifying the message kind and a `data` field containing the payload. Messages may include optional metadata fields like `seq` (sequence number) and `timestamp`.
 
 ## Base Message Format
+
+![Message Envelope Structure](../../images/architecture/realtime-system/technical-message-envelope.png)
 
 ```json
 {

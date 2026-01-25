@@ -4,6 +4,8 @@ The `BatchAggregator` groups detections from the same camera into time-based bat
 
 **Source File:** `backend/services/batch_aggregator.py`
 
+![BatchAggregator Technical Overview](../../images/architecture/background-services/technical-batch-aggregator.png)
+
 ## Overview
 
 The BatchAggregator service:
@@ -26,6 +28,8 @@ The BatchAggregator service:
 | `FAST_PATH_OBJECT_TYPES`         | `["person"]` | Object types eligible for fast path |
 
 ## Batch Lifecycle
+
+![Batch Lifecycle Flow](../../images/architecture/background-services/flow-batch-lifecycle.png)
 
 ```
 +------------------+

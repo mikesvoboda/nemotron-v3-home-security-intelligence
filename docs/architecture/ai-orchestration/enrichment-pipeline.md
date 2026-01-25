@@ -1,5 +1,7 @@
 # Enrichment Pipeline
 
+![Enrichment Pipeline Flow](../../images/architecture/ai-orchestration/flow-enrichment-pipeline.png)
+
 The enrichment pipeline extracts additional context from detections using a multi-model architecture. It runs specialized models for person analysis, vehicle classification, and other enrichment tasks.
 
 ## Source Files
@@ -85,6 +87,8 @@ class EnrichmentClient:
 | `ENRICHMENT_CB_RECOVERY_TIMEOUT`  | 60.0s                       | Circuit breaker recovery  |
 
 ## Person Enrichment Pipeline
+
+![Enrichment Types and Models](../../images/architecture/ai-orchestration/concept-enrichment-types.png)
 
 For person detections, the following models are applied:
 
@@ -358,6 +362,8 @@ self._circuit_breaker.record_failure()  # On failure
 ```
 
 ## Model Triggering Logic
+
+![Enrichment Routing Architecture](../../images/architecture/ai-orchestration/technical-enrichment-routing.png)
 
 Models are loaded based on detection type:
 

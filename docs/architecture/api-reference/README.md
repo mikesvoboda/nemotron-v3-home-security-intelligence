@@ -1,6 +1,10 @@
 # API Reference Hub
 
+![API Reference Overview](../../images/architecture/api-reference/hero-api-reference.png)
+
 This section provides comprehensive documentation for all REST API endpoints in the NEM home security monitoring system.
+
+![API Domain Organization](../../images/architecture/api-reference/concept-api-domains.png)
 
 ## Quick Reference
 
@@ -150,6 +154,8 @@ Rate limits are applied per endpoint tier:
 **Source:** `backend/api/middleware/rate_limit.py`
 
 ## Response Envelope
+
+![Request Lifecycle Flow](../../images/architecture/api-reference/flow-request-lifecycle.png)
 
 All list endpoints use a standardized response envelope:
 

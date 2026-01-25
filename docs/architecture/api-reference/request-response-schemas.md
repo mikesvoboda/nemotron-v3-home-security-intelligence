@@ -14,6 +14,8 @@ All API schemas are defined using Pydantic v2 and are located in `backend/api/sc
 
 ### Pagination Envelope
 
+![Response Envelope Structure](../../images/architecture/api-reference/concept-response-envelope.png)
+
 All list endpoints use a standardized pagination envelope.
 
 **Source:** `backend/api/schemas/pagination.py`
@@ -46,6 +48,8 @@ All list endpoints use a standardized pagination envelope.
 ---
 
 ### Cursor-Based Pagination
+
+![Pagination Concepts](../../images/architecture/api-reference/concept-pagination.png)
 
 Cursors are base64-encoded JSON containing:
 
@@ -594,6 +598,8 @@ All fields are optional for partial updates.
 ---
 
 ## Validation Rules
+
+![Schema Validation](../../images/architecture/api-reference/technical-schema-validation.png)
 
 ### Date Range Validation
 

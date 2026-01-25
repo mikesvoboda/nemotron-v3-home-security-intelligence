@@ -1,5 +1,7 @@
 # Frontend Architecture Hub
 
+![Frontend Architecture Overview](../../images/architecture/frontend/hero-frontend.png)
+
 > React-based dashboard for AI-powered home security monitoring with real-time WebSocket updates, Tremor data visualizations, and NVIDIA-themed dark UI
 
 ## Key Files
@@ -21,6 +23,8 @@ The frontend is a React 19 single-page application built with Vite, providing a 
 5. **Accessibility**: WCAG 2.1 AA compliance with proper contrast ratios and ARIA attributes
 
 ## Component Architecture
+
+![Component Architecture Overview](../../images/architecture/frontend/concept-architecture-overview.png)
 
 ```mermaid
 graph TB
@@ -145,6 +149,8 @@ The application wraps components in a specific provider order (`frontend/src/App
 | `/jobs`       | `JobsPage`             | Background job monitoring         |
 
 ## Data Flow Architecture
+
+![Data Flow Diagram](../../images/architecture/frontend/flow-data-flow.png)
 
 ```mermaid
 flowchart LR

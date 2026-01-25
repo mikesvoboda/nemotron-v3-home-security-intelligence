@@ -1,5 +1,7 @@
 # Component Hierarchy
 
+![Component Hierarchy Diagram](../../images/architecture/frontend/technical-component-hierarchy.png)
+
 > Page components, layout structure, and React component composition patterns
 
 ## Key Files
@@ -274,6 +276,8 @@ function loadExpansionState(): Record<string, boolean> {
 ```
 
 ## Common Components
+
+![Component Types Overview](../../images/architecture/frontend/concept-component-types.png)
 
 Shared components in `frontend/src/components/common/`:
 

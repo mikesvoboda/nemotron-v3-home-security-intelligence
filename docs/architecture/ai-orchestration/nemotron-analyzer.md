@@ -1,5 +1,7 @@
 # Nemotron Analyzer
 
+![Nemotron Pipeline Architecture](../../images/architecture/ai-orchestration/technical-nemotron-pipeline.png)
+
 The `NemotronAnalyzer` service uses the Nemotron 70B LLM (via llama.cpp server) to analyze detection batches and generate risk assessments with natural language reasoning.
 
 ## Source Files
@@ -53,6 +55,8 @@ class NemotronAnalyzer:
 
 ## Analysis Flow
 
+![Batch to Event Processing](../../images/architecture/ai-orchestration/concept-batch-to-event.png)
+
 ```
 1. analyze_batch(batch_id, camera_id, detection_ids)
    |
@@ -83,6 +87,8 @@ class NemotronAnalyzer:
 ```
 
 ## Prompt Building
+
+![Prompt Template Structure](../../images/architecture/ai-orchestration/concept-prompt-template.png)
 
 ### System Prompt
 
@@ -151,6 +157,8 @@ The prompt includes multiple context sections:
 
 ## Response Parsing
 
+![LLM Request-Response Flow](../../images/architecture/ai-orchestration/flow-llm-request-response.png)
+
 The LLM outputs JSON with optional `<think>` reasoning blocks:
 
 ```python
@@ -205,6 +213,8 @@ def _validate_risk_data(self, risk_data: dict[str, Any]) -> dict[str, Any]:
 ```
 
 ## Risk Scoring Guidelines
+
+![Risk Scoring Concept](../../images/architecture/ai-orchestration/concept-risk-scoring.png)
 
 | Risk Level | Score Range | Description                |
 | ---------- | ----------- | -------------------------- |

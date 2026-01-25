@@ -55,6 +55,8 @@ sequenceDiagram
 
 ### RequestLoggingMiddleware
 
+![Request Logging Technical Details](../../images/architecture/middleware/technical-request-logging.png)
+
 The `RequestLoggingMiddleware` (`backend/api/middleware/request_logging.py:136-321`) provides structured logging for HTTP requests:
 
 ```python
@@ -172,6 +174,8 @@ async def dispatch(
 ```
 
 ## Structured Log Format
+
+![Log Fields Concept](../../images/architecture/middleware/concept-log-fields.png)
 
 The `format_request_log` function (`backend/api/middleware/request_logging.py:60-117`) creates structured log entries:
 

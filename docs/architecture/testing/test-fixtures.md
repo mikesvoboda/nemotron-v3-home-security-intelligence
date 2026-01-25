@@ -1,5 +1,7 @@
 # Test Fixtures
 
+![Fixture Hierarchy](../../images/architecture/testing/technical-fixture-hierarchy.png)
+
 Test fixtures provide reusable test data and setup patterns. This document covers factory-boy factories for model instances and Hypothesis strategies for property-based testing.
 
 ## Overview
@@ -12,6 +14,8 @@ The testing infrastructure uses two complementary approaches for test data:
 **Location**: `backend/tests/factories.py`, `backend/tests/hypothesis_strategies.py`, `backend/tests/strategies.py`
 
 ## Factory-Boy Factories
+
+![Fixture Patterns Concept](../../images/architecture/testing/concept-fixture-patterns.png)
 
 ### Core Concept
 

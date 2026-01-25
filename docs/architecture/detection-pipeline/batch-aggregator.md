@@ -1,10 +1,14 @@
 # Batch Aggregator
 
+![Batch State Technical Architecture](../../images/architecture/detection-pipeline/technical-batch-state.png)
+
 The BatchAggregator groups detections by camera into time-based batches before LLM analysis, optimizing GPU utilization and context coherence.
 
 ## Overview
 
 **Source:** `backend/services/batch_aggregator.py`
+
+![Batch Windows Concept](../../images/architecture/detection-pipeline/concept-batch-windows.png)
 
 The aggregator provides:
 
@@ -161,6 +165,8 @@ self._batch_close_lock = asyncio.Lock()
 
 ## Batch Timeout Checking
 
+![Batch Lifecycle Flow](../../images/architecture/detection-pipeline/flow-batch-lifecycle.png)
+
 **Source:** Lines 549-703
 
 The `check_batch_timeouts()` method uses Redis pipelining to efficiently check all batches:
@@ -308,6 +314,8 @@ async def _close_batch_for_size_limit(self, batch_id: str) -> dict[str, Any] | N
 ```
 
 ## Memory Pressure Backpressure
+
+![Queue Backpressure Concept](../../images/architecture/detection-pipeline/concept-queue-backpressure.png)
 
 **Source:** Lines 1084-1119
 

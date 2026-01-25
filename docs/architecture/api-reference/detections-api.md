@@ -4,6 +4,8 @@ The Detections API provides endpoints for accessing object detection data and as
 
 **Source:** `backend/api/routes/detections.py`
 
+![Detections API Endpoints](../../images/architecture/api-reference/technical-detections-endpoints.png)
+
 ## Overview
 
 Detections are individual object detections from the RT-DETR AI model. Each detection:
@@ -51,6 +53,8 @@ duration, video_codec, video_width, video_height, enrichment_data
 
 #### Response
 
+![Detection Response Structure](../../images/architecture/api-reference/concept-detection-response.png)
+
 ```json
 {
   "items": [
@@ -90,7 +94,7 @@ duration, video_codec, video_width, video_height, enrichment_data
     "total": 1000,
     "limit": 50,
     "offset": 0,
-    "next_cursor": "eyJpZCI6IDUwLCAiY3JlYXRlZF9hdCI6ICIyMDI2LTAxLTIzVDEyOjAwOjAwWiJ9",  // pragma: allowlist secret
+    "next_cursor": "eyJpZCI6IDUwLCAiY3JlYXRlZF9hdCI6ICIyMDI2LTAxLTIzVDEyOjAwOjAwWiJ9", // pragma: allowlist secret
     "has_more": true
   },
   "deprecation_warning": null

@@ -1,8 +1,12 @@
 # Observability Hub
 
+![Observability Hub Overview](../../images/architecture/observability/hero-observability.png)
+
 > Comprehensive observability stack providing structured logging, distributed tracing, metrics collection, and alerting for the home security intelligence system.
 
 ## Overview
+
+![Four Pillars of Observability](../../images/architecture/observability/concept-four-pillars.png)
 
 The observability infrastructure provides full visibility into system operation through four pillars: structured logging with JSON output and trace correlation, Prometheus metrics for quantitative monitoring, distributed tracing via OpenTelemetry for request flow analysis, and Grafana dashboards with Alertmanager for visualization and alerting.
 
@@ -21,6 +25,8 @@ The stack runs entirely in containers alongside the application services, with P
 | [alertmanager.md](./alertmanager.md)               | Alert routing, notification channels, inhibition rules  | `monitoring/alertmanager.yml:1-215`    |
 
 ## Architecture Diagram
+
+![Observability Data Flow](../../images/architecture/observability/flow-observability-data.png)
 
 ```mermaid
 graph TD

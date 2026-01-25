@@ -1,5 +1,7 @@
 # Coverage Requirements
 
+![Coverage Layers Concept](../../images/architecture/testing/concept-coverage-layers.png)
+
 This document specifies the test coverage requirements enforced in CI/CD pipelines for both backend and frontend code.
 
 ## Overview

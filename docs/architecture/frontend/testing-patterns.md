@@ -1,5 +1,7 @@
 # Testing Patterns
 
+![Testing Strategy Overview](../../images/architecture/frontend/concept-testing-strategy.png)
+
 > Vitest configuration, React Testing Library patterns, and MSW mock handlers
 
 ## Key Files
@@ -564,6 +566,8 @@ it('has accessible labels for interactive elements', () => {
 ```
 
 ## Running Tests
+
+![Test Execution Flow](../../images/architecture/frontend/flow-test-execution.png)
 
 ```bash
 # Run all tests

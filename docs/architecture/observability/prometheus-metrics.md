@@ -1,5 +1,7 @@
 # Prometheus Metrics
 
+![Metrics Types Overview](../../images/architecture/observability/concept-metrics-types.png)
+
 > Custom Prometheus metrics for pipeline monitoring, AI service performance, and business intelligence.
 
 **Key Files:**
@@ -18,6 +20,8 @@ All metrics use the `hsi_` prefix (home security intelligence) and follow Promet
 Label cardinality is controlled through sanitization functions that validate values against allowlists before recording. This prevents unbounded metric growth from unexpected values.
 
 ## Architecture
+
+![Metrics Collection Architecture](../../images/architecture/observability/technical-metrics-collection.png)
 
 ```mermaid
 graph TD
@@ -381,6 +385,8 @@ rate(hsi_queue_items_moved_to_dlq_total[5m])
 ```
 
 ## MetricsService Class
+
+![Custom Metrics Implementation](../../images/architecture/observability/technical-custom-metrics.png)
 
 The `MetricsService` (`backend/core/metrics.py:696-1244`) provides a centralized interface for recording metrics with automatic sanitization:
 

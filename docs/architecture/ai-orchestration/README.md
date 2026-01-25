@@ -1,5 +1,7 @@
 # AI Orchestration Hub
 
+![AI Orchestration Hub Overview](../../images/architecture/ai-orchestration/hero-ai-orchestration.png)
+
 This hub documents the AI model infrastructure that powers the home security intelligence system. The system uses a multi-model architecture with dedicated services for object detection, risk analysis, and context enrichment.
 
 ## Model Inventory
@@ -12,6 +14,8 @@ This hub documents the AI model infrastructure that powers the home security int
 | Enrichment Service | 8094 | `ai-enrichment` | ~6.8GB (budget) | Multi-model enrichment      |
 
 ## Architecture Overview
+
+![AI Orchestration Architecture Flow](../../images/architecture/ai-orchestration/flow-orchestration-overview.png)
 
 ```
                                     +------------------+

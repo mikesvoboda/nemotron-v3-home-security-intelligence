@@ -1,5 +1,7 @@
 # RT-DETRv2 Detector Client
 
+![RT-DETR Client Architecture](../../images/architecture/ai-orchestration/technical-rtdetr-client.png)
+
 The `DetectorClient` provides HTTP communication with the RT-DETRv2 object detection service. It handles image preprocessing, request/response flow, retry logic, and circuit breaker integration.
 
 ## Source File
@@ -44,6 +46,8 @@ class DetectorClient:
 | `RTDETR_READ_TIMEOUT`            | 60.0s                   | Read timeout for inference          |
 
 ## Detection Flow
+
+![Detection Inference Flow](../../images/architecture/ai-orchestration/flow-detection-inference.png)
 
 ```
 1. validate_image_for_detection()
@@ -95,6 +99,8 @@ def _validate_image_for_detection(self, image_path: str, camera_id: str) -> bool
 ```
 
 ## Request/Response Flow
+
+![Detection Output Format](../../images/architecture/ai-orchestration/concept-detection-outputs.png)
 
 ### Request Format
 

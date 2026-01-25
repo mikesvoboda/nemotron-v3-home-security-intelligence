@@ -1,5 +1,7 @@
 # Model Zoo
 
+![Model Zoo Architecture](../../images/architecture/ai-orchestration/concept-model-zoo.png)
+
 The Model Zoo provides on-demand loading of AI models for detection enrichment. It manages VRAM efficiently through LRU eviction and reference counting.
 
 ## Source Files
@@ -24,6 +26,8 @@ The system has two model management layers:
 ```
 
 ## Backend Model Registry
+
+![Model Registry Architecture](../../images/architecture/ai-orchestration/technical-model-registry.png)
 
 The backend maintains a registry of available models in `MODEL_ZOO`:
 
@@ -226,6 +230,8 @@ enrichment_model_load_time_seconds{model_name}
 ```
 
 ## Status Reporting
+
+![Model Health Monitoring](../../images/architecture/ai-orchestration/technical-model-health.png)
 
 Get current manager status for health checks:
 

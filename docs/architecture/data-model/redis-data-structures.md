@@ -4,6 +4,8 @@
 
 ## Overview
 
+![Redis Data Structures](../../images/architecture/data-model/concept-redis-structures.png)
+
 Redis provides ephemeral storage for the AI pipeline, handling queues, pub/sub messaging, batch state management, and deduplication caching. All Redis data is reconstructable from PostgreSQL, allowing recovery after Redis restarts.
 
 **Source:** `backend/core/redis.py:1-1654`
@@ -23,6 +25,8 @@ The Redis client supports dedicated connection pools for different workload type
 ---
 
 ## Processing Queues
+
+![Redis Queue Operations](../../images/architecture/data-model/flow-redis-queue-operations.png)
 
 ### Detection Queue
 
@@ -440,6 +444,8 @@ metrics = await redis.get_queue_pressure(
 ---
 
 ## Key Naming Conventions
+
+![Redis Key Patterns](../../images/architecture/data-model/technical-redis-keys.png)
 
 | Pattern                     | Example                        | Purpose               |
 | --------------------------- | ------------------------------ | --------------------- |

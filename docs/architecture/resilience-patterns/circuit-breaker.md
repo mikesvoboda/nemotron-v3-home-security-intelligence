@@ -1,5 +1,7 @@
 # Circuit Breaker Pattern
 
+![Circuit Breaker Pattern Concept](../../images/architecture/resilience-patterns/concept-circuit-breaker.png)
+
 The circuit breaker pattern protects external services from cascading failures by monitoring failure rates and temporarily blocking calls to unhealthy services.
 
 **Source:** `backend/services/circuit_breaker.py`
@@ -13,6 +15,8 @@ The `CircuitBreaker` class (`backend/services/circuit_breaker.py:258-982`) imple
 - **HALF_OPEN**: Testing recovery, limited calls allowed
 
 ## State Diagram
+
+![Circuit Breaker State Transitions](../../images/architecture/resilience-patterns/flow-circuit-states.png)
 
 ```
                     +-------------------+
@@ -50,6 +54,8 @@ The `CircuitBreaker` class (`backend/services/circuit_breaker.py:258-982`) imple
 ```
 
 ## Configuration
+
+![Circuit Breaker Configuration](../../images/architecture/resilience-patterns/technical-circuit-config.png)
 
 The `CircuitBreakerConfig` dataclass (`backend/services/circuit_breaker.py:126-142`) defines circuit breaker behavior:
 

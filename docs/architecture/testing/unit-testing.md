@@ -1,5 +1,7 @@
 # Unit Testing
 
+![Unit Test Structure](../../images/architecture/testing/technical-unit-test-structure.png)
+
 Unit tests verify individual components in isolation with all external dependencies mocked. This document covers pytest patterns, fixtures, and mocking strategies used in the backend test suite.
 
 ## Overview
@@ -199,6 +201,8 @@ def event_factory():
 ```
 
 ## Mocking Patterns
+
+![Mock Strategies Concept](../../images/architecture/testing/concept-mock-strategies.png)
 
 ### Patching External Dependencies
 

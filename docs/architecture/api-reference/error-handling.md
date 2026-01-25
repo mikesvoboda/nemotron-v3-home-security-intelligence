@@ -4,6 +4,8 @@ This document describes the error handling patterns and response formats used in
 
 ## Overview
 
+![Error Response Flow](../../images/architecture/api-reference/flow-error-response.png)
+
 The API uses standardized error responses to ensure consistent error handling across all endpoints. Two formats are supported:
 
 1. **Flat Error Response** (recommended) - Used by `raise_http_error()` helper
@@ -68,6 +70,8 @@ Standards-compliant format for HTTP APIs.
 ---
 
 ## Error Codes
+
+![Error Codes Reference](../../images/architecture/api-reference/technical-error-codes.png)
 
 ### Resource Not Found (404)
 

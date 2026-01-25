@@ -111,7 +111,11 @@ rate_limit_burst: int = Field(
 
 ## Implementation
 
+![Rate Limit Window Concept](../../images/architecture/middleware/concept-rate-limit-window.png)
+
 ### RateLimiter Class
+
+![Rate Limiter Technical Details](../../images/architecture/middleware/technical-rate-limiter.png)
 
 The `RateLimiter` class (`backend/api/middleware/rate_limit.py:266-436`) implements the sliding window algorithm:
 

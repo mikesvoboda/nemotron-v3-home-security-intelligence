@@ -4,6 +4,8 @@ The Cameras API provides endpoints for managing security cameras in the NEM home
 
 **Source:** `backend/api/routes/cameras.py`
 
+![Cameras API Endpoints](../../images/architecture/api-reference/technical-cameras-endpoints.png)
+
 ## Overview
 
 Cameras are the primary data source in the system. Each camera:
@@ -75,6 +77,8 @@ Results are cached in Redis with cache-aside pattern. Cache key includes status 
 ---
 
 ### Create Camera
+
+![Camera Registration Flow](../../images/architecture/api-reference/flow-camera-registration.png)
 
 ```
 POST /api/cameras

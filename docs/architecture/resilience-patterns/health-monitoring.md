@@ -1,5 +1,7 @@
 # Health Monitoring and Auto-Recovery
 
+![Health Aggregation Flow](../../images/architecture/resilience-patterns/flow-health-aggregation.png)
+
 The ServiceHealthMonitor provides continuous health monitoring and automatic recovery of dependent services with exponential backoff restart strategies.
 
 **Source:** `backend/services/health_monitor.py`
@@ -27,6 +29,8 @@ The `ServiceHealthMonitor` class (`backend/services/health_monitor.py:44-401`) p
 | `failed`           | Max retries exceeded, giving up        |
 
 ## Configuration
+
+![Health Check Configuration](../../images/architecture/resilience-patterns/technical-health-checks.png)
 
 ### ServiceConfig
 

@@ -1,5 +1,7 @@
 # Retry Handler with Exponential Backoff
 
+![Retry Logic Flow](../../images/architecture/resilience-patterns/flow-retry-logic.png)
+
 The retry handler provides automatic retries with exponential backoff for transient failures, integrating with dead-letter queues for persistent failure handling.
 
 **Source:** `backend/services/retry_handler.py`
@@ -52,6 +54,8 @@ class RetryConfig:
 
 ## Exponential Backoff Algorithm
 
+![Jitter Concept for Thundering Herd Prevention](../../images/architecture/resilience-patterns/concept-jitter.png)
+
 The delay calculation (`backend/services/retry_handler.py:74-96`):
 
 ```
@@ -62,6 +66,8 @@ if jitter:
 ```
 
 ### Delay Timing Table
+
+![Retry Backoff Timing](../../images/architecture/resilience-patterns/technical-retry-backoff.png)
 
 | Attempt | Base Delay     | With Jitter (0-25%) |
 | ------- | -------------- | ------------------- |

@@ -4,6 +4,8 @@ The `ServiceHealthMonitor` performs periodic health checks on dependent services
 
 **Source File:** `backend/services/health_monitor.py`
 
+![Health Worker Technical Overview](../../images/architecture/background-services/technical-health-worker.png)
+
 ## Overview
 
 The ServiceHealthMonitor:
@@ -120,6 +122,8 @@ async def stop(self) -> None:
 ## Health Check Loop
 
 The main monitoring loop (`backend/services/health_monitor.py:130-185`):
+
+![Health Check Loop Flow](../../images/architecture/background-services/flow-health-check-loop.png)
 
 ```
 +------------------+

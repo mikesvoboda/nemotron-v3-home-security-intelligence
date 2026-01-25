@@ -4,6 +4,8 @@ The `CleanupService` automatically enforces data retention policies by deleting 
 
 **Source File:** `backend/services/cleanup_service.py`
 
+![Cleanup and Retention Concept](../../images/architecture/background-services/concept-cleanup-retention.png)
+
 ## Overview
 
 The cleanup service handles:
@@ -167,6 +169,8 @@ def _calculate_next_cleanup(self) -> datetime:
 ```
 
 ## Cleanup Operations
+
+![Cleanup Process Flow](../../images/architecture/background-services/flow-cleanup-process.png)
 
 The `run_cleanup()` method (`backend/services/cleanup_service.py:233-345`) performs cleanup in this order:
 

@@ -1,5 +1,7 @@
 # Alertmanager
 
+![Alert Lifecycle Flow](../../images/architecture/observability/flow-alert-lifecycle.png)
+
 > Alert routing, notification channels, and inhibition rules for the home security intelligence system.
 
 **Key Files:**
@@ -18,6 +20,8 @@ Alerts are categorized by severity (critical, warning, info) and component (pipe
 The configuration supports both self-hosted and cloud deployments with flexible notification targets including webhooks, email, Slack, and PagerDuty.
 
 ## Architecture
+
+![Alert Routing Architecture](../../images/architecture/observability/technical-alert-routing.png)
 
 ```mermaid
 graph TD
