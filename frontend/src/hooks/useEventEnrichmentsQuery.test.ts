@@ -8,9 +8,9 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { createQueryWrapper } from '../test-utils/renderWithProviders';
 import { useEventEnrichmentsQuery } from './useEventEnrichmentsQuery';
 import * as api from '../services/api';
+import { createQueryWrapper } from '../test-utils/renderWithProviders';
 
 // Mock the API module
 vi.mock('../services/api', () => ({

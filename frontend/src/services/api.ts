@@ -315,6 +315,9 @@ export type {
   ObjectDistributionDataPoint,
 } from '../types/analytics';
 
+// Re-export pipeline and system status types for consumers of this module
+export type { PipelineStatusResponse, QueuesStatusResponse } from '../types/generated';
+
 // ============================================================================
 // Additional types not in OpenAPI (client-side only)
 // ============================================================================
@@ -1519,6 +1522,125 @@ export interface AnomalyConfigUpdate {
   min_samples?: number;
 }
 
+/**
+ * Human-readable interpretation of deviation from baseline.
+ * Used to categorize how much current activity deviates from established patterns.
+ */
+export type DeviationInterpretation =
+  | 'far_below_normal'
+  | 'below_normal'
+  | 'normal'
+  | 'slightly_above_normal'
+  | 'above_normal'
+  | 'far_above_normal';
+
+/**
+ * Current deviation status from baseline.
+ */
+export interface CurrentDeviation {
+  /** Deviation score (standard deviations from mean, can be negative) */
+  score: number;
+  /** Human-readable interpretation of the deviation */
+  interpretation: DeviationInterpretation;
+  /** Factors contributing to current deviation */
+  contributing_factors: string[];
+}
+
+/**
+ * Hourly activity pattern statistics.
+ * Matches backend HourlyPattern schema.
+ */
+export interface HourlyPattern {
+  /** Average number of detections during this hour */
+  avg_detections: number;
+  /** Number of samples used for this calculation */
+  sample_count: number;
+  /** Standard deviation of detection count */
+  std_dev: number;
+}
+
+/**
+ * Daily activity pattern statistics.
+ * Matches backend DailyPattern schema.
+ */
+export interface DailyPattern {
+  /** Average number of detections for this day */
+  avg_detections: number;
+  /** Hour with most activity (0-23) */
+  peak_hour: number;
+  /** Total samples for this day */
+  total_samples: number;
+}
+
+/**
+ * Object-specific baseline statistics.
+ * Matches backend ObjectBaseline schema.
+ */
+export interface ObjectBaseline {
+  /** Average hourly detection count for this object type */
+  avg_hourly: number;
+  /** Hour with most detections of this type (0-23) */
+  peak_hour: number;
+  /** Total detections of this type in the baseline period */
+  total_detections: number;
+}
+
+/**
+ * Comprehensive baseline summary response for a camera.
+ * Contains activity patterns, object baselines, and current deviation status.
+ */
+export interface BaselineSummaryResponse {
+  /** Camera ID */
+  camera_id: string;
+  /** Human-readable camera name */
+  camera_name: string;
+  /** Total number of data points in baseline */
+  data_points: number;
+  /** When baseline data collection started (null if no data) */
+  baseline_established: string | null;
+  /** Current deviation from baseline (null if insufficient data) */
+  current_deviation: CurrentDeviation | null;
+  /** Activity patterns by hour (0-23) */
+  hourly_patterns?: Record<string, HourlyPattern>;
+  /** Activity patterns by day of week (monday-sunday) */
+  daily_patterns?: Record<string, DailyPattern>;
+  /** Baseline statistics by object type */
+  object_baselines?: Record<string, ObjectBaseline>;
+}
+
+/**
+ * A single anomaly event detected for a camera.
+ * Represents activity that significantly deviated from established baseline patterns.
+ */
+export interface CameraAnomalyEvent {
+  /** When the anomaly was detected */
+  timestamp: string;
+  /** Object class that triggered the anomaly */
+  detection_class: string;
+  /** Anomaly score (0.0-1.0, higher is more anomalous) */
+  anomaly_score: number;
+  /** Expected frequency for this class at this time */
+  expected_frequency: number;
+  /** Observed frequency that triggered the anomaly */
+  observed_frequency: number;
+  /** Human-readable explanation of why this is anomalous */
+  reason: string;
+}
+
+/**
+ * Response for camera anomaly list endpoint.
+ */
+export interface CameraAnomaliesResponse {
+  /** Camera ID */
+  camera_id: string;
+  /** Number of days covered by this query */
+  period_days: number;
+  /** Total number of anomalies returned */
+  count: number;
+  /** List of recent anomaly events */
+  anomalies: CameraAnomalyEvent[];
+}
+
 // ============================================================================
 // Baseline Analytics Endpoints
 // ============================================================================
@@ -1549,6 +1671,36 @@ export async function fetchCameraActivityBaseline(
 export async function fetchCameraClassBaseline(cameraId: string): Promise<ClassBaselineResponse> {
   return fetchApi<ClassBaselineResponse>(
     `/api/cameras/${encodeURIComponent(cameraId)}/baseline/classes`
+  );
+}
+
+/**
+ * Fetch comprehensive baseline summary for a camera.
+ * Returns activity patterns, object baselines, and current deviation status.
+ *
+ * @param cameraId - Camera ID
+ * @returns BaselineSummaryResponse with all baseline data
+ */
+export async function fetchCameraBaseline(cameraId: string): Promise<BaselineSummaryResponse> {
+  return fetchApi<BaselineSummaryResponse>(
+    `/api/cameras/${encodeURIComponent(cameraId)}/baseline`
+  );
+}
+
+/**
+ * Fetch anomaly events for a camera.
+ * Returns recent activity that deviated significantly from established baseline patterns.
+ *
+ * @param cameraId - Camera ID
+ * @param days - Number of days to look back for anomalies (default: 7)
+ * @returns CameraAnomaliesResponse with list of anomaly events
+ */
+export async function fetchCameraAnomalies(
+  cameraId: string,
+  days: number = 7
+): Promise<CameraAnomaliesResponse> {
+  return fetchApi<CameraAnomaliesResponse>(
+    `/api/cameras/${encodeURIComponent(cameraId)}/anomalies?days=${days}`
   );
 }
 
@@ -3671,6 +3823,91 @@ export async function updateNotificationConfig(
     method: 'PATCH',
     body: JSON.stringify(update),
   });
+}
+
+/**
+ * Query parameters for fetching notification history
+ */
+export interface NotificationHistoryQueryParams {
+  /** Filter by alert ID */
+  alert_id?: string;
+  /** Filter by notification channel */
+  channel?: NotificationChannel;
+  /** Filter by success status */
+  success?: boolean;
+  /** Maximum number of results to return (1-100, default 50) */
+  limit?: number;
+  /** Number of results to skip for pagination (default 0) */
+  offset?: number;
+}
+
+/**
+ * A notification delivery history entry
+ */
+export interface NotificationHistoryEntry {
+  /** Notification delivery ID */
+  id: string;
+  /** Associated alert ID */
+  alert_id: string;
+  /** Notification channel */
+  channel: NotificationChannel;
+  /** Recipient identifier */
+  recipient?: string | null;
+  /** Whether delivery was successful */
+  success: boolean;
+  /** Error message if failed */
+  error?: string | null;
+  /** Delivery timestamp */
+  delivered_at?: string | null;
+  /** Record creation timestamp */
+  created_at: string;
+}
+
+/**
+ * Response for notification history list
+ */
+export interface NotificationHistoryResponse {
+  /** Total number of entries matching filters */
+  count: number;
+  /** Notification history entries */
+  entries: NotificationHistoryEntry[];
+  /** Maximum number of results returned */
+  limit: number;
+  /** Number of results skipped */
+  offset: number;
+}
+
+/**
+ * Fetch notification delivery history with optional filters.
+ *
+ * @param params - Query parameters for filtering and pagination
+ * @returns NotificationHistoryResponse with delivery history entries
+ */
+export async function fetchNotificationHistory(
+  params?: NotificationHistoryQueryParams
+): Promise<NotificationHistoryResponse> {
+  const searchParams = new URLSearchParams();
+
+  if (params?.alert_id) {
+    searchParams.set('alert_id', params.alert_id);
+  }
+  if (params?.channel) {
+    searchParams.set('channel', params.channel);
+  }
+  if (params?.success !== undefined) {
+    searchParams.set('success', String(params.success));
+  }
+  if (params?.limit !== undefined) {
+    searchParams.set('limit', String(params.limit));
+  }
+  if (params?.offset !== undefined) {
+    searchParams.set('offset', String(params.offset));
+  }
+
+  const queryString = searchParams.toString();
+  const url = queryString ? `/api/notification/history?${queryString}` : '/api/notification/history';
+
+  return fetchApi<NotificationHistoryResponse>(url);
 }
 
 // ============================================================================

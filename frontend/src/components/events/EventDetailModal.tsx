@@ -67,6 +67,7 @@ import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { EntityDetail } from '../../services/api';
 import type { EnrichmentData } from '../../types/enrichment';
 import type { FeedbackType, EventFeedbackResponse } from '../../types/generated';
+import type { RiskEntity, RiskFlag, ConfidenceFactors } from '../../types/risk-analysis';
 import type { LightboxImage } from '../common/Lightbox';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 

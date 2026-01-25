@@ -8,7 +8,7 @@
  * NEM-3615: Add bulk actions to EventTimeline and EntitiesPage
  */
 
-import { Check, Download, Eye, EyeOff, Trash2, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 
 import type { ReactNode } from 'react';
 
@@ -159,73 +159,4 @@ export default function BulkActionBar({
       </div>
     </div>
   );
-}
-
-// ============================================================================
-// Pre-built action factories for common operations
-// ============================================================================
-
-/**
- * Create a "Mark Reviewed" action configuration
- */
-export function createMarkReviewedAction(
-  onClick: () => void,
-  options: { loading?: boolean; disabled?: boolean } = {}
-): BulkAction {
-  return {
-    id: 'mark-reviewed',
-    label: 'Mark Reviewed',
-    icon: <Eye className="h-4 w-4" />,
-    onClick,
-    ...options,
-  };
-}
-
-/**
- * Create a "Mark Not Reviewed" action configuration
- */
-export function createMarkNotReviewedAction(
-  onClick: () => void,
-  options: { loading?: boolean; disabled?: boolean } = {}
-): BulkAction {
-  return {
-    id: 'mark-not-reviewed',
-    label: 'Mark Not Reviewed',
-    icon: <EyeOff className="h-4 w-4" />,
-    onClick,
-    ...options,
-  };
-}
-
-/**
- * Create an "Export" action configuration
- */
-export function createExportAction(
-  onClick: () => void,
-  options: { loading?: boolean; disabled?: boolean } = {}
-): BulkAction {
-  return {
-    id: 'export',
-    label: 'Export',
-    icon: <Download className="h-4 w-4" />,
-    onClick,
-    ...options,
-  };
-}
-
-/**
- * Create a "Delete" action configuration
- */
-export function createDeleteAction(
-  onClick: () => void,
-  options: { loading?: boolean; disabled?: boolean } = {}
-): BulkAction {
-  return {
-    id: 'delete',
-    label: 'Delete',
-    icon: <Trash2 className="h-4 w-4" />,
-    onClick,
-    destructive: true,
-    ...options,
-  };
 }

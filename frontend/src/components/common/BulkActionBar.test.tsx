@@ -7,11 +7,12 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { Check, Trash2 } from 'lucide-react';
 import { describe, expect, it, vi } from 'vitest';
 
-import BulkActionBar, {
+import BulkActionBar from './BulkActionBar';
+import {
   createDeleteAction,
   createExportAction,
   createMarkReviewedAction,
-} from './BulkActionBar';
+} from './BulkActionBar.utils';
 
 import type { BulkAction } from './BulkActionBar';
 
