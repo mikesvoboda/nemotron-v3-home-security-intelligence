@@ -15,7 +15,10 @@ import { BarChart3, RefreshCw, ExternalLink, AlertCircle, AlertTriangle } from '
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
 import CameraUptimeCard from './CameraUptimeCard';
+import DetectionTrendsCard from './DetectionTrendsCard';
+import ObjectDistributionCard from './ObjectDistributionCard';
 import PipelineLatencyPanel from './PipelineLatencyPanel';
+import RiskHistoryCard from './RiskHistoryCard';
 import { fetchConfig } from '../../services/api';
 import { resolveGrafanaUrl } from '../../utils/grafanaUrl';
 import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
@@ -204,11 +207,16 @@ export default function AnalyticsPage() {
       {/* Native analytics components */}
       {viewMode === 'native' && (
         <div
-          className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-2"
+          className="grid grid-cols-1 gap-6 p-6 md:grid-cols-2 xl:grid-cols-4"
           data-testid="native-analytics-view"
         >
+          <DetectionTrendsCard dateRange={dateRange} />
+          <RiskHistoryCard dateRange={dateRange} />
+          <ObjectDistributionCard dateRange={dateRange} />
           <CameraUptimeCard dateRange={dateRange} />
-          <PipelineLatencyPanel refreshInterval={30000} />
+          <div className="md:col-span-2 xl:col-span-4">
+            <PipelineLatencyPanel refreshInterval={30000} />
+          </div>
         </div>
       )}
     </div>

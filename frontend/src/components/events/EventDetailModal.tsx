@@ -56,6 +56,8 @@ import { EventAuditDetail } from '../audit';
 import IconButton from '../common/IconButton';
 import Lightbox from '../common/Lightbox';
 import RiskBadge from '../common/RiskBadge';
+import SnoozeBadge from '../common/SnoozeBadge';
+import SnoozeButton from '../common/SnoozeButton';
 import DetectionImage from '../detection/DetectionImage';
 import EntityDetailModal from '../entities/EntityDetailModal';
 import VideoPlayer from '../video/VideoPlayer';
@@ -94,6 +96,8 @@ export interface Event {
   entity_id?: string | null;
   /** Florence-2 generated scene caption describing the overall scene */
   scene_caption?: string | null;
+  /** ISO timestamp until which alerts for this event are snoozed (NEM-3640) */
+  snooze_until?: string | null;
 }
 
 export interface EventDetailModalProps {
@@ -105,6 +109,10 @@ export interface EventDetailModalProps {
   onSaveNotes?: (eventId: string, notes: string) => Promise<void>;
   onFlagEvent?: (eventId: string, flagged: boolean) => Promise<void>;
   onDownloadMedia?: (eventId: string) => Promise<void>;
+  /** Callback to snooze the event for a duration in seconds (NEM-3640) */
+  onSnooze?: (eventId: string, seconds: number) => void;
+  /** Callback to clear the snooze on the event (NEM-3640) */
+  onUnsnooze?: (eventId: string) => void;
 }
 
 /**
@@ -119,6 +127,8 @@ export default function EventDetailModal({
   onSaveNotes,
   onFlagEvent,
   onDownloadMedia,
+  onSnooze,
+  onUnsnooze,
 }: EventDetailModalProps) {
   // State for active tab (Details vs AI Audit vs Video Clip)
   const [activeTab, setActiveTab] = useState<'details' | 'audit' | 'clip'>('details');
@@ -582,6 +592,12 @@ export default function EventDetailModal({
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
+                    {/* Snooze Status Badge (NEM-3640) */}
+                    <SnoozeBadge
+                      snoozeUntil={event.snooze_until}
+                      size="md"
+                      showEndTime={true}
+                    />
                     <div data-testid="risk-score">
                       <RiskBadge
                         level={riskLevel}
@@ -1197,6 +1213,17 @@ export default function EventDetailModal({
 
                   {/* Action buttons */}
                   <div className="flex items-center gap-2">
+                    {/* Snooze Button (NEM-3640) */}
+                    {onSnooze && onUnsnooze && (
+                      <SnoozeButton
+                        snoozeUntil={event.snooze_until}
+                        onSnooze={(seconds) => onSnooze(event.id, seconds)}
+                        onUnsnooze={() => onUnsnooze(event.id)}
+                        size="md"
+                        data-testid="snooze-button"
+                      />
+                    )}
+
                     {/* Flag Event button */}
                     {onFlagEvent && (
                       <button

@@ -302,3 +302,57 @@ export type {
 } from './summary';
 
 export { isSummary, isSummaryUpdateMessage } from './summary';
+
+// ============================================================================
+// Bulk Operation Types
+// ============================================================================
+
+export type {
+  BulkOperationStatus,
+  BulkItemResult,
+  BulkOperationResponse,
+  DetectionBulkCreateItem,
+  DetectionBulkUpdateItem,
+  DetectionBulkCreateResponse,
+  DetectionBulkCreateRequest,
+  DetectionBulkUpdateRequest,
+  DetectionBulkDeleteRequest,
+} from './bulk';
+
+export {
+  isAllSucceeded,
+  hasFailures,
+  isPartialSuccess,
+  getFailedResults,
+  getSuccessfulResults,
+  getSuccessfulIds,
+} from './bulk';
+
+// ============================================================================
+// Queue Status Types
+// ============================================================================
+
+export type {
+  QueueHealthStatus,
+  ThroughputMetrics,
+  OldestJobInfo,
+  QueueStatus,
+  QueueStatusSummary,
+  QueuesStatusResponse,
+  BatchInfoResponse,
+  BatchAggregatorStatusResponse,
+  PipelineStatusResponse,
+  DerivedQueueState,
+  BatchAggregatorUIState,
+} from './queue';
+
+export {
+  computeDerivedQueueState,
+  computeBatchAggregatorState,
+  isCriticalStatus,
+  isWarningStatus,
+  isHealthyStatus,
+  getHealthStatusBadgeColor,
+  formatWaitTime,
+  formatThroughput,
+} from './queue';

@@ -215,4 +215,48 @@ describe('Missing Coverage Tests', () => {
     await importPrompts({});
     expect(fetch).toHaveBeenCalled();
   });
+
+  it('covers acknowledgeAlert', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      mockResponse({
+        id: 'alert-uuid-123',
+        event_id: 123,
+        rule_id: 'rule-uuid-123',
+        severity: 'high',
+        status: 'acknowledged',
+        dedup_key: 'front_door:person:entry_zone',
+        channels: ['pushover'],
+        metadata: { camera_name: 'Front Door' },
+        created_at: '2025-12-28T12:00:00Z',
+        updated_at: '2025-12-28T12:01:00Z',
+        delivered_at: '2025-12-28T12:00:30Z',
+      })
+    );
+    const { acknowledgeAlert } = await import('./api');
+    const result = await acknowledgeAlert('alert-uuid-123');
+    expect(fetch).toHaveBeenCalled();
+    expect(result.status).toBe('acknowledged');
+  });
+
+  it('covers dismissAlert', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      mockResponse({
+        id: 'alert-uuid-456',
+        event_id: 456,
+        rule_id: 'rule-uuid-456',
+        severity: 'medium',
+        status: 'dismissed',
+        dedup_key: 'backyard:vehicle:driveway_zone',
+        channels: ['email'],
+        metadata: { camera_name: 'Backyard' },
+        created_at: '2025-12-28T13:00:00Z',
+        updated_at: '2025-12-28T13:05:00Z',
+        delivered_at: '2025-12-28T13:00:15Z',
+      })
+    );
+    const { dismissAlert } = await import('./api');
+    const result = await dismissAlert('alert-uuid-456');
+    expect(fetch).toHaveBeenCalled();
+    expect(result.status).toBe('dismissed');
+  });
 });

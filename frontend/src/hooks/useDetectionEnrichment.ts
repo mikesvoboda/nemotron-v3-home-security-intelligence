@@ -1,13 +1,27 @@
 /**
- * Hook for fetching enrichment data for a specific detection.
+ * Hook for fetching enrichment data for a specific detection using TanStack Query.
  *
  * Fetches structured enrichment results from the backend enrichment endpoint,
  * which contains results from the 18+ vision models run during detection processing.
+ *
+ * Uses TanStack Query for:
+ * - Automatic caching (5 minutes stale time)
+ * - Background refetching
+ * - Deduplication of concurrent requests
+ * - Optimistic updates and cache invalidation
+ *
+ * @module hooks/useDetectionEnrichment
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
 import { fetchDetectionEnrichment, type EnrichmentResponse } from '../services/api';
+import { queryKeys, STATIC_STALE_TIME } from '../services/queryClient';
+
+// ============================================================================
+// Types
+// ============================================================================
 
 /**
  * Options for the useDetectionEnrichment hook.
@@ -19,6 +33,7 @@ export interface UseDetectionEnrichmentOptions {
 
 /**
  * Return type for the useDetectionEnrichment hook.
+ * Maintains backward compatibility with the previous useState/useEffect implementation.
  */
 export interface UseDetectionEnrichmentReturn {
   /** The enrichment data, or null if not loaded or loading */
@@ -31,8 +46,40 @@ export interface UseDetectionEnrichmentReturn {
   refetch: () => Promise<void>;
 }
 
+// ============================================================================
+// Query Key Factory
+// ============================================================================
+
+/**
+ * Query key factory for detection enrichment queries.
+ *
+ * Provides type-safe, hierarchical cache keys that enable:
+ * - Granular cache invalidation
+ * - Consistent key structure
+ *
+ * @example
+ * // Invalidate all enrichment queries
+ * queryClient.invalidateQueries({ queryKey: detectionEnrichmentKeys.all });
+ *
+ * // Invalidate specific detection enrichment
+ * queryClient.invalidateQueries({ queryKey: detectionEnrichmentKeys.detail(123) });
+ */
+export const detectionEnrichmentKeys = {
+  /** Base key for all enrichment queries - use for bulk invalidation */
+  all: ['detectionEnrichment'] as const,
+  /** Single detection enrichment by ID */
+  detail: (detectionId: number) => [...detectionEnrichmentKeys.all, 'detail', detectionId] as const,
+};
+
+// ============================================================================
+// Hook Implementation
+// ============================================================================
+
 /**
  * Hook for fetching and managing enrichment data for a detection.
+ *
+ * Uses TanStack Query with a 5-minute stale time (STATIC_STALE_TIME) since
+ * enrichment data doesn't change once computed.
  *
  * @param detectionId - The detection ID to fetch enrichment for, or null/undefined to skip
  * @param options - Optional configuration
@@ -46,64 +93,49 @@ export interface UseDetectionEnrichmentReturn {
  * if (error) return <ErrorMessage error={error} />;
  * if (data) return <EnrichmentPanel enrichment_data={data} />;
  * ```
+ *
+ * @example
+ * // Conditional fetching
+ * const { data, isLoading } = useDetectionEnrichment(detectionId, {
+ *   enabled: isDetailsPanelOpen,
+ * });
  */
 export function useDetectionEnrichment(
   detectionId: number | null | undefined,
   options?: UseDetectionEnrichmentOptions
 ): UseDetectionEnrichmentReturn {
-  const [data, setData] = useState<EnrichmentResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   // Determine if fetching is enabled
-  const enabled = options?.enabled ?? true;
-  const shouldFetch = enabled && detectionId !== null && detectionId !== undefined;
+  const enabled =
+    (options?.enabled ?? true) && detectionId !== null && detectionId !== undefined;
 
-  const fetchData = useCallback(async () => {
-    if (detectionId === null || detectionId === undefined) {
-      setData(null);
-      setIsLoading(false);
-      setError(null);
-      return;
-    }
+  // Safe to cast since enabled guards against null/undefined
+  const safeDetectionId = detectionId ?? 0;
 
-    setIsLoading(true);
-    setError(null);
+  const query = useQuery({
+    // Use query keys from queryClient for consistency with the rest of the app
+    queryKey: queryKeys.detections.enrichment(safeDetectionId),
+    queryFn: () => fetchDetectionEnrichment(safeDetectionId),
+    enabled,
+    // Enrichment data doesn't change once computed, so use longer cache time
+    staleTime: STATIC_STALE_TIME, // 5 minutes
+    // Don't retry too aggressively for enrichment data (optional, missing data is fine)
+    retry: 1,
+  });
 
-    try {
-      const enrichmentData = await fetchDetectionEnrichment(detectionId);
-      setData(enrichmentData);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch enrichment data';
-      setError(errorMessage);
-      setData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [detectionId]);
-
-  // Fetch data when detectionId changes or enabled changes
-  useEffect(() => {
-    if (shouldFetch) {
-      void fetchData();
-    } else {
-      // Reset state when disabled or no detectionId
-      setData(null);
-      setIsLoading(false);
-      setError(null);
-    }
-  }, [shouldFetch, fetchData]);
-
-  const refetch = useCallback(async () => {
+  // Wrap refetch to maintain the original async signature
+  const refetch = useCallback(async (): Promise<void> => {
     if (detectionId !== null && detectionId !== undefined) {
-      await fetchData();
+      await query.refetch();
     }
-  }, [detectionId, fetchData]);
+  }, [detectionId, query]);
 
+  // Transform the query result to maintain backward compatibility
+  // The previous implementation returned null for data when not loaded
   return {
-    data,
-    isLoading,
-    error,
+    data: query.data ?? null,
+    isLoading: query.isLoading,
+    // Transform Error to string for backward compatibility
+    error: query.error ? (query.error.message || 'Failed to fetch enrichment data') : null,
     refetch,
   };
 }
