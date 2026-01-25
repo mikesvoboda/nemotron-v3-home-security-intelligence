@@ -1082,6 +1082,7 @@ async def search_events_endpoint(
                 "detection_ids": r.detection_ids,
                 "object_types": r.object_types,
                 "relevance_score": r.relevance_score,
+                "thumbnail_url": r.thumbnail_url,
             }
             for r in search_response.results
         ],

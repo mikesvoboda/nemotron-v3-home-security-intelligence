@@ -425,9 +425,14 @@ class ConfigResponse(BaseModel):
     )
     detection_confidence_threshold: float = Field(
         ...,
-        description="Minimum confidence threshold for detections (0.0-1.0)",
+        description=(
+            "DEPRECATED: Use /api/v1/settings detection.confidence_threshold instead. "
+            "Minimum confidence threshold for detections (0.0-1.0). "
+            "This field will be removed in a future version."
+        ),
         ge=0.0,
         le=1.0,
+        deprecated=True,
     )
     grafana_url: str = Field(
         ...,
@@ -478,9 +483,14 @@ class ConfigUpdateRequest(BaseModel):
     )
     detection_confidence_threshold: float | None = Field(
         None,
-        description="Minimum confidence threshold for detections (0.0-1.0)",
+        description=(
+            "DEPRECATED: Use /api/v1/settings detection.confidence_threshold instead. "
+            "Minimum confidence threshold for detections (0.0-1.0). "
+            "This field will be removed in a future version."
+        ),
         ge=0.0,
         le=1.0,
+        deprecated=True,
     )
 
 
