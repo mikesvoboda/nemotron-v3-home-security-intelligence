@@ -488,12 +488,7 @@ export type RecordingResponse = components['schemas']['RecordingResponse'];
 export type RecordingsListResponse = components['schemas']['RecordingsListResponse'];
 export type ReplayResponse = components['schemas']['ReplayResponse'];
 
-// Pipeline Status types (NEM-3653)
-export type PipelineStatusResponse = components['schemas']['PipelineStatusResponse'];
-export type BatchAggregatorStatusResponse = components['schemas']['BatchAggregatorStatusResponse'];
-export type BatchInfoResponse = components['schemas']['BatchInfoResponse'];
-export type FileWatcherStatusResponse = components['schemas']['FileWatcherStatusResponse'];
-export type DegradationStatusResponse = components['schemas']['DegradationStatusResponse'];
+// Degradation Mode enum (NEM-3653)
 export type DegradationModeEnum = components['schemas']['DegradationModeEnum'];
 
 // Import the components type for use in type aliases
