@@ -75,6 +75,7 @@ router = APIRouter(prefix="/api/cameras", tags=["cameras"])
 snapshot_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
 # Valid fields for sparse fieldsets on list_cameras endpoint (NEM-1434)
+# NEM-3597: Added property_id and areas for camera organization
 VALID_CAMERA_LIST_FIELDS = frozenset(
     {
         "id",
@@ -83,6 +84,8 @@ VALID_CAMERA_LIST_FIELDS = frozenset(
         "status",
         "created_at",
         "last_seen_at",
+        "property_id",
+        "areas",
     }
 )
 
@@ -175,16 +178,19 @@ async def list_cameras(
         logger.warning(f"Cache read failed, falling back to database: {e}")
 
     # Cache miss - query database
-    query = select(Camera)
+    # NEM-3597: Eager load areas relationship for camera organization
+    query = select(Camera).options(joinedload(Camera.areas))
 
     # Apply status filter if provided
     if status_filter:
         query = query.where(Camera.status == status_filter)
 
     result = await db.execute(query)
-    cameras = result.scalars().all()
+    # NEM-3597: Use unique() to deduplicate results from joinedload
+    cameras = result.unique().scalars().all()
 
     # Serialize cameras for cache (SQLAlchemy objects can't be directly cached)
+    # NEM-3597: Include property_id and areas for camera organization
     cameras_data = [
         {
             "id": c.id,
@@ -193,6 +199,11 @@ async def list_cameras(
             "status": c.status,
             "created_at": c.created_at.isoformat() if c.created_at else None,
             "last_seen_at": c.last_seen_at.isoformat() if c.last_seen_at else None,
+            "property_id": c.property_id,
+            "areas": [
+                {"id": area.id, "name": area.name, "color": area.color}
+                for area in c.areas
+            ],
         }
         for c in cameras
     ]
@@ -358,7 +369,8 @@ async def get_camera(
     Raises:
         HTTPException: 404 if camera not found
     """
-    return await get_camera_or_404(camera_id, db)
+    # NEM-3597: Load areas relationship for camera organization
+    return await get_camera_or_404(camera_id, db, load_areas=True)
 
 
 @router.post("", response_model=CameraResponse, status_code=status.HTTP_201_CREATED)
@@ -409,11 +421,13 @@ async def create_camera(
     # This ensures the camera ID matches what FileWatcher will use when processing files
     # from this camera's folder_path. Without this, detector_client can't update last_seen_at.
     camera_id = normalize_camera_id(camera_data.name)
+    # NEM-3597: Include property_id for multi-property organization
     camera = Camera(
         id=camera_id,
         name=camera_data.name,
         folder_path=camera_data.folder_path,
         status=camera_data.status,
+        property_id=camera_data.property_id,
     )
 
     db.add(camera)
@@ -477,13 +491,16 @@ async def update_camera(
     Raises:
         HTTPException: 404 if camera not found
     """
-    camera = await get_camera_or_404(camera_id, db)
+    # NEM-3597: Load areas for response after update
+    camera = await get_camera_or_404(camera_id, db, load_areas=True)
 
     # Track changes for audit log
+    # NEM-3597: Include property_id in tracked fields
     old_values = {
         "name": camera.name,
         "folder_path": camera.folder_path,
         "status": camera.status,
+        "property_id": camera.property_id,
     }
 
     # Update only provided fields
