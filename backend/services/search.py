@@ -64,6 +64,7 @@ class SearchResult:
     detection_ids: list[int]
     object_types: str | None
     relevance_score: float
+    thumbnail_url: str | None = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -82,6 +83,7 @@ class SearchResult:
             "detection_ids": self.detection_ids,
             "object_types": self.object_types,
             "relevance_score": self.relevance_score,
+            "thumbnail_url": self.thumbnail_url,
         }
 
 
@@ -358,6 +360,9 @@ def _row_to_search_result(row: Any) -> SearchResult:
     camera_name = row[2]
     detection_ids = _get_detection_ids_from_event(event)
 
+    # Compute thumbnail_url from first detection ID (NEM-3614)
+    thumbnail_url = f"/api/detections/{detection_ids[0]}/image" if detection_ids else None
+
     return SearchResult(
         id=event.id,
         camera_id=event.camera_id,
@@ -373,6 +378,7 @@ def _row_to_search_result(row: Any) -> SearchResult:
         detection_ids=detection_ids,
         object_types=event.object_types,
         relevance_score=float(relevance_score) if relevance_score else 0.0,
+        thumbnail_url=thumbnail_url,
     )
 
 

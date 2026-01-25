@@ -14,8 +14,7 @@ from backend.models.camera import Camera
 from backend.models.event import Event
 from backend.tests.conftest import unique_id
 
-# Skip all tests - search API route not yet implemented
-pytestmark = pytest.mark.skip(reason="Search API route not yet implemented")
+# Search API is implemented at /api/events/search
 
 
 @pytest.fixture
@@ -104,7 +103,7 @@ async def setup_searchable_events(db_session):
 @pytest.mark.asyncio
 async def test_search_basic_query(client, setup_searchable_events):
     """Test basic search query."""
-    response = await client.get("/api/search/events?q=person")
+    response = await client.get("/api/events/search?q=person")
 
     assert response.status_code == 200
     data = response.json()
@@ -123,7 +122,7 @@ async def test_search_basic_query(client, setup_searchable_events):
 async def test_search_phrase_query(client, setup_searchable_events):
     """Test phrase search with quotes."""
     # Note: PostgreSQL FTS handles phrase search differently
-    response = await client.get("/api/search/events?q=suspicious")
+    response = await client.get("/api/events/search?q=suspicious")
 
     assert response.status_code == 200
     data = response.json()
@@ -135,7 +134,7 @@ async def test_search_phrase_query(client, setup_searchable_events):
 async def test_search_boolean_or(client, setup_searchable_events):
     """Test OR boolean search."""
     # Note: The API uses AND by default, not OR
-    response = await client.get("/api/search/events?q=person")
+    response = await client.get("/api/events/search?q=person")
 
     assert response.status_code == 200
     data = response.json()
@@ -147,7 +146,7 @@ async def test_search_boolean_or(client, setup_searchable_events):
 async def test_search_with_camera_filter(client, setup_searchable_events):
     """Test search with camera filter."""
     front_door_id = setup_searchable_events["front_door_id"]
-    response = await client.get(f"/api/search/events?q=detected&camera_id={front_door_id}")
+    response = await client.get(f"/api/events/search?q=detected&camera_id={front_door_id}")
 
     assert response.status_code == 200
     data = response.json()
@@ -160,7 +159,7 @@ async def test_search_with_camera_filter(client, setup_searchable_events):
 @pytest.mark.asyncio
 async def test_search_with_risk_level_filter(client, setup_searchable_events):
     """Test search with risk_level filter."""
-    response = await client.get("/api/search/events?q=vehicle&risk_level=critical")
+    response = await client.get("/api/events/search?q=vehicle&risk_level=critical")
 
     assert response.status_code == 200
     data = response.json()
@@ -177,7 +176,7 @@ async def test_search_with_date_range(client, setup_searchable_events):
     end_date = datetime.now(UTC).isoformat()
 
     response = await client.get(
-        f"/api/search/events?q=detected&start_date={start_date}&end_date={end_date}"
+        f"/api/events/search?q=detected&start_date={start_date}&end_date={end_date}"
     )
 
     assert response.status_code == 200
@@ -193,12 +192,12 @@ async def test_search_with_date_range(client, setup_searchable_events):
 async def test_search_pagination(client, setup_searchable_events):
     """Test search pagination."""
     # First page
-    response1 = await client.get("/api/search/events?q=detected&limit=2&offset=0")
+    response1 = await client.get("/api/events/search?q=detected&limit=2&offset=0")
     assert response1.status_code == 200
     data1 = response1.json()
 
     # Second page
-    response2 = await client.get("/api/search/events?q=detected&limit=2&offset=2")
+    response2 = await client.get("/api/events/search?q=detected&limit=2&offset=2")
     assert response2.status_code == 200
     data2 = response2.json()
 
@@ -215,7 +214,7 @@ async def test_search_pagination(client, setup_searchable_events):
 @pytest.mark.asyncio
 async def test_search_relevance_scoring(client, setup_searchable_events):
     """Test that results include relevance scores."""
-    response = await client.get("/api/search/events?q=suspicious")
+    response = await client.get("/api/events/search?q=suspicious")
 
     assert response.status_code == 200
     data = response.json()
@@ -229,7 +228,7 @@ async def test_search_relevance_scoring(client, setup_searchable_events):
 @pytest.mark.asyncio
 async def test_search_returns_camera_name(client, setup_searchable_events):
     """Test that results include camera name."""
-    response = await client.get("/api/search/events?q=detected")
+    response = await client.get("/api/events/search?q=detected")
 
     assert response.status_code == 200
     data = response.json()
@@ -242,7 +241,7 @@ async def test_search_returns_camera_name(client, setup_searchable_events):
 @pytest.mark.asyncio
 async def test_search_empty_query_rejected(client):
     """Test that empty query is rejected."""
-    response = await client.get("/api/search/events?q=")
+    response = await client.get("/api/events/search?q=")
 
     # FastAPI should reject empty query due to min_length=1
     assert response.status_code == 422  # Validation error
@@ -251,7 +250,7 @@ async def test_search_empty_query_rejected(client):
 @pytest.mark.asyncio
 async def test_search_returns_highlights(client, setup_searchable_events):
     """Test that results include highlights."""
-    response = await client.get("/api/search/events?q=suspicious")
+    response = await client.get("/api/events/search?q=suspicious")
 
     assert response.status_code == 200
     data = response.json()
@@ -265,7 +264,7 @@ async def test_search_returns_highlights(client, setup_searchable_events):
 @pytest.mark.asyncio
 async def test_search_returns_query_in_response(client, setup_searchable_events):
     """Test that response includes the original query."""
-    response = await client.get("/api/search/events?q=person")
+    response = await client.get("/api/events/search?q=person")
 
     assert response.status_code == 200
     data = response.json()

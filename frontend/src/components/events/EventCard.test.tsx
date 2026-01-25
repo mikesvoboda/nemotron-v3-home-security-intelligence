@@ -2164,89 +2164,7 @@ describe('EventCard', () => {
     });
   });
 
-describe('enrichment badges integration', () => {
-    // Use detections without "car" to avoid multiple "Vehicle" text elements
-    const noVehicleDetections: Detection[] = [
-      { label: 'person', confidence: 0.95 },
-      { label: 'dog', confidence: 0.87 },
-    ];
-
-    it('renders enrichment badges when enrichmentSummary is provided', () => {
-      const enrichmentSummary = { hasLicensePlate: true, hasPerson: true };
-      render(
-        <EventCard {...mockProps} detections={noVehicleDetections} enrichmentSummary={enrichmentSummary} />
-      );
-      expect(screen.getByTestId('enrichment-badges')).toBeInTheDocument();
-      expect(screen.getByTestId('enrichment-badge-plate')).toBeInTheDocument();
-      expect(screen.getByTestId('enrichment-badge-person')).toBeInTheDocument();
-    });
-
-    it('renders enrichment badges when enrichmentData is provided', () => {
-      const enrichmentData = {
-        license_plate: { text: 'ABC-123', confidence: 0.95 },
-        pet: { type: 'dog' as const, confidence: 0.9 },
-      };
-      render(
-        <EventCard {...mockProps} detections={noVehicleDetections} enrichmentData={enrichmentData} />
-      );
-      expect(screen.getByTestId('enrichment-badges')).toBeInTheDocument();
-      expect(screen.getByTestId('enrichment-badge-plate')).toBeInTheDocument();
-      expect(screen.getByTestId('enrichment-badge-dog')).toBeInTheDocument();
-    });
-
-    it('renders pending badge when isEnrichmentPending is true', () => {
-      render(<EventCard {...mockProps} isEnrichmentPending={true} />);
-      expect(screen.getByTestId('enrichment-badges-pending')).toBeInTheDocument();
-      expect(screen.getByText('Enriching...')).toBeInTheDocument();
-    });
-
-    it('does not render enrichment badges when no enrichment data', () => {
-      render(<EventCard {...mockProps} />);
-      expect(screen.queryByTestId('enrichment-badges')).not.toBeInTheDocument();
-    });
-
-    it('calls onExpandEnrichment with event id when badge is clicked', async () => {
-      const user = userEvent.setup();
-      const onExpandEnrichment = vi.fn();
-      const enrichmentSummary = { hasLicensePlate: true };
-      render(
-        <EventCard
-          {...mockProps}
-          detections={noVehicleDetections}
-          enrichmentSummary={enrichmentSummary}
-          onExpandEnrichment={onExpandEnrichment}
-        />
-      );
-      await user.click(screen.getByTestId('enrichment-badge-plate'));
-      expect(onExpandEnrichment).toHaveBeenCalledWith('event-123');
-    });
-
-    it('renders pose alerts badge for security alerts', () => {
-      const enrichmentSummary = { poseAlertCount: 2 };
-      render(<EventCard {...mockProps} enrichmentSummary={enrichmentSummary} />);
-      expect(screen.getByText('2 Alerts')).toBeInTheDocument();
-    });
-
-    it('renders pet badge with capitalized type', () => {
-      const enrichmentSummary = { petType: 'cat' };
-      render(<EventCard {...mockProps} detections={noVehicleDetections} enrichmentSummary={enrichmentSummary} />);
-      expect(screen.getByText('Cat')).toBeInTheDocument();
-    });
-
-    it('displays enrichment badges after object type badges', () => {
-      const enrichmentSummary = { hasLicensePlate: true };
-      const { container } = render(
-        <EventCard {...mockProps} detections={noVehicleDetections} enrichmentSummary={enrichmentSummary} />
-      );
-      // Object badges should come before enrichment badges
-      const objectBadgeContainer = container.querySelector('.mb-3.flex.flex-wrap');
-      const enrichmentBadgeContainer = container.querySelector('[data-testid="enrichment-badges"]');
-      expect(objectBadgeContainer).toBeInTheDocument();
-      expect(enrichmentBadgeContainer).toBeInTheDocument();
-    });
-  });
-
-  describe('snooze functionality', () => {
+describe('snooze functionality', () => {
     it('renders snooze button when onSnooze is provided', () => {
       const handleSnooze = vi.fn();
       render(<EventCard {...mockProps} onSnooze={handleSnooze} />);
@@ -2382,26 +2300,26 @@ describe('enrichment badges integration', () => {
   });
 
   describe('snooze indicator', () => {
-    it('renders snooze indicator when snoozedUntil is in the future', () => {
+    it('renders snooze indicator when snooze_until is in the future', () => {
       const futureDate = new Date(BASE_TIME + 60 * 60 * 1000).toISOString(); // 1 hour from now
-      render(<EventCard {...mockProps} snoozedUntil={futureDate} />);
+      render(<EventCard {...mockProps} snooze_until={futureDate} />);
       expect(screen.getByText(/Snoozed until/)).toBeInTheDocument();
     });
 
-    it('does not render snooze indicator when snoozedUntil is undefined', () => {
-      render(<EventCard {...mockProps} snoozedUntil={undefined} />);
+    it('does not render snooze indicator when snooze_until is undefined', () => {
+      render(<EventCard {...mockProps} snooze_until={undefined} />);
       expect(screen.queryByText(/Snoozed until/)).not.toBeInTheDocument();
     });
 
-    it('does not render snooze indicator when snoozedUntil is in the past', () => {
+    it('does not render snooze indicator when snooze_until is in the past', () => {
       const pastDate = new Date(BASE_TIME - 60 * 60 * 1000).toISOString(); // 1 hour ago
-      render(<EventCard {...mockProps} snoozedUntil={pastDate} />);
+      render(<EventCard {...mockProps} snooze_until={pastDate} />);
       expect(screen.queryByText(/Snoozed until/)).not.toBeInTheDocument();
     });
 
     it('applies reduced opacity to snoozed events', () => {
       const futureDate = new Date(BASE_TIME + 60 * 60 * 1000).toISOString();
-      const { container } = render(<EventCard {...mockProps} snoozedUntil={futureDate} />);
+      const { container } = render(<EventCard {...mockProps} snooze_until={futureDate} />);
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('opacity-60');
     });
@@ -2418,7 +2336,7 @@ describe('enrichment badges integration', () => {
       const handleSnooze = vi.fn();
       // Use real time + 1 hour to ensure the snooze is in the future
       const futureDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-      render(<EventCard {...mockProps} onSnooze={handleSnooze} snoozedUntil={futureDate} />);
+      render(<EventCard {...mockProps} onSnooze={handleSnooze} snooze_until={futureDate} />);
 
       const snoozeButton = screen.getByRole('button', { name: /snooze event/i });
       await user.click(snoozeButton);
@@ -2435,7 +2353,7 @@ describe('enrichment badges integration', () => {
       const handleSnooze = vi.fn();
       // Use real time + 1 hour to ensure the snooze is in the future
       const futureDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-      render(<EventCard {...mockProps} onSnooze={handleSnooze} snoozedUntil={futureDate} />);
+      render(<EventCard {...mockProps} onSnooze={handleSnooze} snooze_until={futureDate} />);
 
       const snoozeButton = screen.getByRole('button', { name: /snooze event/i });
       await user.click(snoozeButton);

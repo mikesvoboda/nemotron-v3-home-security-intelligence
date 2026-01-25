@@ -67,6 +67,7 @@ function formatTime(dateString: string): string {
  *
  * Features:
  * - Prominent relevance score display
+ * - Thumbnail image preview (NEM-3614)
  * - Risk level badge
  * - Camera and timestamp info
  * - Object types display
@@ -98,27 +99,53 @@ export default function SearchResultCard({
       .map((t) => t.trim())
       .filter(Boolean) || [];
 
+  // Get thumbnail URL with type safety (NEM-3614)
+  const thumbnailUrl = (result as unknown as { thumbnail_url?: string }).thumbnail_url;
+
   return (
     <div
       role="button"
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      className={`group cursor-pointer rounded-lg border bg-[#1F1F1F] p-4 transition-all hover:border-[#76B900]/50 hover:shadow-lg ${
+      className={`group cursor-pointer rounded-lg border bg-[#1F1F1F] transition-all hover:border-[#76B900]/50 hover:shadow-lg ${
         isSelected ? 'border-[#76B900] ring-1 ring-[#76B900]' : 'border-gray-800'
       } ${className}`}
       aria-pressed={isSelected}
     >
-      {/* Header Row: Relevance Score + Risk Badge */}
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Star className={`h-4 w-4 ${getRelevanceColor(result.relevance_score)}`} />
-          <span className={`text-sm font-semibold ${getRelevanceColor(result.relevance_score)}`}>
-            {formatRelevanceScore(result.relevance_score)} match
-          </span>
+      {/* Thumbnail Image (NEM-3614) */}
+      {thumbnailUrl && (
+        <div className="relative h-40 w-full overflow-hidden rounded-t-lg bg-gray-900">
+          <img
+            src={thumbnailUrl}
+            alt={`Thumbnail for event ${result.id}`}
+            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+            loading="lazy"
+            onError={(e) => {
+              // Hide image on error
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+          {/* Risk badge overlay on thumbnail */}
+          <div className="absolute right-2 top-2">
+            <RiskBadge level={(result.risk_level as RiskLevel) || 'low'} size="sm" animated={false} />
+          </div>
         </div>
-        <RiskBadge level={(result.risk_level as RiskLevel) || 'low'} size="sm" animated={false} />
-      </div>
+      )}
+
+      <div className="p-4">
+        {/* Header Row: Relevance Score + Risk Badge (shown when no thumbnail) */}
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Star className={`h-4 w-4 ${getRelevanceColor(result.relevance_score)}`} />
+            <span className={`text-sm font-semibold ${getRelevanceColor(result.relevance_score)}`}>
+              {formatRelevanceScore(result.relevance_score)} match
+            </span>
+          </div>
+          {!thumbnailUrl && (
+            <RiskBadge level={(result.risk_level as RiskLevel) || 'low'} size="sm" animated={false} />
+          )}
+        </div>
 
       {/* Summary */}
       <h3 className="mb-2 line-clamp-2 text-base font-medium text-white">
@@ -177,6 +204,7 @@ export default function SearchResultCard({
           <span>Reviewed</span>
         </div>
       )}
+      </div>
     </div>
   );
 }

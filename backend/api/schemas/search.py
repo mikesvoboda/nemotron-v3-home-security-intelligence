@@ -68,6 +68,9 @@ class SearchResult(BaseModel):
     relevance_score: float = Field(
         0.0, description="Full-text search relevance score (higher is more relevant)"
     )
+    thumbnail_url: str | None = Field(
+        None, description="URL to event thumbnail image (from first detection)"
+    )
 
 
 class SearchResponse(BaseModel):

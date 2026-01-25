@@ -189,6 +189,30 @@ class WebSocketEventType(StrEnum):
     """Prometheus/Alertmanager alert received (infrastructure monitoring)."""
 
     # ==========================================================================
+    # Enrichment Events - Detection enrichment pipeline (NEM-3627)
+    # ==========================================================================
+    ENRICHMENT_STARTED = "enrichment.started"
+    """Enrichment pipeline started processing a detection batch."""
+
+    ENRICHMENT_PROGRESS = "enrichment.progress"
+    """Enrichment pipeline progress update (step completion)."""
+
+    ENRICHMENT_COMPLETED = "enrichment.completed"
+    """Enrichment pipeline completed processing successfully."""
+
+    ENRICHMENT_FAILED = "enrichment.failed"
+    """Enrichment pipeline failed with error."""
+
+    # ==========================================================================
+    # Queue Metrics Events - Pipeline queue status (NEM-3637)
+    # ==========================================================================
+    QUEUE_STATUS = "queue.status"
+    """Pipeline queue status update (depths, workers, health)."""
+
+    PIPELINE_THROUGHPUT = "pipeline.throughput"
+    """Pipeline throughput metrics (detections/events per minute)."""
+
+    # ==========================================================================
     # Connection Events - WebSocket connection lifecycle
     # ==========================================================================
     CONNECTION_ESTABLISHED = "connection.established"
@@ -517,6 +541,44 @@ EVENT_TYPE_METADATA: dict[WebSocketEventType, dict[str, Any]] = {
         "channel": "alerts",
         "requires_payload": True,
         "payload_fields": ["fingerprint", "status", "alertname", "severity", "starts_at"],
+    },
+    # Enrichment events (NEM-3627)
+    WebSocketEventType.ENRICHMENT_STARTED: {
+        "description": "Enrichment pipeline started processing a detection batch",
+        "channel": "enrichment",
+        "requires_payload": True,
+        "payload_fields": ["batch_id", "camera_id", "detection_count", "timestamp"],
+    },
+    WebSocketEventType.ENRICHMENT_PROGRESS: {
+        "description": "Enrichment pipeline progress update",
+        "channel": "enrichment",
+        "requires_payload": True,
+        "payload_fields": ["batch_id", "progress", "current_step", "total_steps"],
+    },
+    WebSocketEventType.ENRICHMENT_COMPLETED: {
+        "description": "Enrichment pipeline completed processing",
+        "channel": "enrichment",
+        "requires_payload": True,
+        "payload_fields": ["batch_id", "status", "enriched_count", "duration_ms"],
+    },
+    WebSocketEventType.ENRICHMENT_FAILED: {
+        "description": "Enrichment pipeline failed with error",
+        "channel": "enrichment",
+        "requires_payload": True,
+        "payload_fields": ["batch_id", "error", "error_type", "timestamp"],
+    },
+    # Queue metrics events (NEM-3637)
+    WebSocketEventType.QUEUE_STATUS: {
+        "description": "Pipeline queue status update",
+        "channel": "system",
+        "requires_payload": True,
+        "payload_fields": ["queues", "total_queued", "total_processing", "overall_status"],
+    },
+    WebSocketEventType.PIPELINE_THROUGHPUT: {
+        "description": "Pipeline throughput metrics",
+        "channel": "system",
+        "requires_payload": True,
+        "payload_fields": ["detections_per_minute", "events_per_minute", "timestamp"],
     },
     # Connection events
     WebSocketEventType.CONNECTION_ESTABLISHED: {

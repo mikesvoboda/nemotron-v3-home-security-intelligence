@@ -213,6 +213,22 @@ export interface WebSocketEventMap {
   // Prometheus alert events (NEM-3123)
   /** Prometheus/Alertmanager infrastructure alert */
   'prometheus.alert': PrometheusAlertPayload;
+
+  // Enrichment events (NEM-3627)
+  /** Enrichment started event */
+  'enrichment.started': EnrichmentStartedPayload;
+  /** Enrichment progress event */
+  'enrichment.progress': EnrichmentProgressPayload;
+  /** Enrichment completed event */
+  'enrichment.completed': EnrichmentCompletedPayload;
+  /** Enrichment failed event */
+  'enrichment.failed': EnrichmentFailedPayload;
+
+  // Queue metrics events (NEM-3637)
+  /** Queue status event */
+  'queue.status': QueueStatusPayload;
+  /** Pipeline throughput event */
+  'pipeline.throughput': PipelineThroughputPayload;
 }
 
 // ============================================================================
@@ -326,6 +342,14 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'worker.recovered',
   // Prometheus alert events (NEM-3123)
   'prometheus.alert',
+  // Enrichment events (NEM-3627)
+  'enrichment.started',
+  'enrichment.progress',
+  'enrichment.completed',
+  'enrichment.failed',
+  // Queue metrics events (NEM-3637)
+  'queue.status',
+  'pipeline.throughput',
 ] as const;
 
 /**
@@ -537,6 +561,16 @@ export enum WSEventType {
 
   // Prometheus alert events - Infrastructure monitoring (NEM-3124)
   PROMETHEUS_ALERT = 'prometheus.alert',
+
+  // Enrichment events - Detection enrichment pipeline (NEM-3627)
+  ENRICHMENT_STARTED = 'enrichment.started',
+  ENRICHMENT_PROGRESS = 'enrichment.progress',
+  ENRICHMENT_COMPLETED = 'enrichment.completed',
+  ENRICHMENT_FAILED = 'enrichment.failed',
+
+  // Queue metrics events - Pipeline queue status (NEM-3637)
+  QUEUE_STATUS = 'queue.status',
+  PIPELINE_THROUGHPUT = 'pipeline.throughput',
 
   // Legacy event types for backward compatibility
   // These map to the existing message types in the codebase
@@ -960,6 +994,137 @@ export interface GpuStatsUpdatedPayload {
   inference_fps: number | null;
 }
 
+// =============================================================================
+// Enrichment Event Payloads (NEM-3627)
+// =============================================================================
+
+/**
+ * Enrichment status values
+ */
+export type EnrichmentStatus = 'full' | 'partial' | 'failed' | 'skipped';
+
+/**
+ * Payload for enrichment.started events
+ */
+export interface EnrichmentStartedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Camera identifier */
+  camera_id: string;
+  /** Number of detections to enrich */
+  detection_count: number;
+  /** ISO 8601 timestamp when started */
+  timestamp: string;
+  /** List of enabled enrichment models */
+  enabled_models?: string[];
+}
+
+/**
+ * Payload for enrichment.progress events
+ */
+export interface EnrichmentProgressPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Progress percentage (0-100) */
+  progress: number;
+  /** Current enrichment step name */
+  current_step: string;
+  /** Total number of enrichment steps */
+  total_steps?: number;
+  /** List of completed step names */
+  completed_steps?: string[];
+  /** ISO 8601 timestamp */
+  timestamp?: string;
+}
+
+/**
+ * Payload for enrichment.completed events
+ */
+export interface EnrichmentCompletedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Enrichment status (full, partial, failed) */
+  status: EnrichmentStatus;
+  /** Number of successfully enriched detections */
+  enriched_count: number;
+  /** Total processing duration in milliseconds */
+  duration_ms?: number;
+  /** ISO 8601 timestamp when completed */
+  timestamp?: string;
+  /** Enrichment summary details */
+  summary?: Record<string, unknown>;
+}
+
+/**
+ * Payload for enrichment.failed events
+ */
+export interface EnrichmentFailedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Error message */
+  error: string;
+  /** Categorized error type */
+  error_type?: string;
+  /** ISO 8601 timestamp */
+  timestamp?: string;
+  /** Additional error details */
+  details?: Record<string, unknown>;
+  /** Whether the error is recoverable */
+  recoverable?: boolean;
+}
+
+// =============================================================================
+// Queue Metrics Event Payloads (NEM-3637)
+// =============================================================================
+
+/**
+ * Information about a single queue
+ */
+export interface QueueInfo {
+  /** Queue name (detection, analysis, etc.) */
+  name: string;
+  /** Number of items in queue */
+  depth: number;
+  /** Number of active workers */
+  workers: number;
+  /** Queue health status */
+  status?: string;
+}
+
+/**
+ * Payload for queue.status events
+ */
+export interface QueueStatusPayload {
+  /** List of queue statuses */
+  queues: QueueInfo[];
+  /** Total items across all queues */
+  total_queued: number;
+  /** Total items being processed */
+  total_processing: number;
+  /** Total active workers */
+  total_workers?: number;
+  /** Overall system status (healthy/warning/critical) */
+  overall_status: string;
+  /** ISO 8601 timestamp */
+  timestamp?: string;
+}
+
+/**
+ * Payload for pipeline.throughput events
+ */
+export interface PipelineThroughputPayload {
+  /** Detections processed per minute */
+  detections_per_minute: number;
+  /** Events created per minute */
+  events_per_minute: number;
+  /** Enrichments per minute */
+  enrichments_per_minute?: number;
+  /** ISO 8601 timestamp */
+  timestamp?: string;
+  /** Measurement window in seconds */
+  window_seconds?: number;
+}
+
 /**
  * Payload for service.status_changed events.
  */
@@ -1243,6 +1408,14 @@ export interface WSEventPayloadMap {
   [WSEventType.WORKER_RECOVERED]: WorkerRecoveredPayload;
   // Prometheus alert events (NEM-3123)
   [WSEventType.PROMETHEUS_ALERT]: PrometheusAlertPayload;
+  // Enrichment events (NEM-3627)
+  [WSEventType.ENRICHMENT_STARTED]: EnrichmentStartedPayload;
+  [WSEventType.ENRICHMENT_PROGRESS]: EnrichmentProgressPayload;
+  [WSEventType.ENRICHMENT_COMPLETED]: EnrichmentCompletedPayload;
+  [WSEventType.ENRICHMENT_FAILED]: EnrichmentFailedPayload;
+  // Queue metrics events (NEM-3637)
+  [WSEventType.QUEUE_STATUS]: QueueStatusPayload;
+  [WSEventType.PIPELINE_THROUGHPUT]: PipelineThroughputPayload;
   // Legacy types
   [WSEventType.EVENT]: SecurityEventData;
   [WSEventType.SERVICE_STATUS]: ServiceStatusData;

@@ -27,18 +27,22 @@ export interface CameraBaselinePanelProps {
 }
 
 /**
+ * Labels mapping deviation interpretations to human-readable text.
+ */
+const DEVIATION_LABELS: Record<DeviationInterpretation, string> = {
+  far_below_normal: 'Far Below Normal',
+  below_normal: 'Below Normal',
+  normal: 'Normal',
+  slightly_above_normal: 'Slightly Above Normal',
+  above_normal: 'Above Normal',
+  far_above_normal: 'Far Above Normal',
+} as const;
+
+/**
  * Format deviation interpretation for display.
  */
 function formatInterpretation(interpretation: DeviationInterpretation): string {
-  const labels: Record<DeviationInterpretation, string> = {
-    far_below_normal: 'Far Below Normal',
-    below_normal: 'Below Normal',
-    normal: 'Normal',
-    slightly_above_normal: 'Slightly Above Normal',
-    above_normal: 'Above Normal',
-    far_above_normal: 'Far Above Normal',
-  };
-  return labels[interpretation];
+  return DEVIATION_LABELS[interpretation];
 }
 
 /**
@@ -107,20 +111,20 @@ export default function CameraBaselinePanel({
   cameraName,
 }: CameraBaselinePanelProps) {
   // Fetch baseline summary and activity data
-  const {
-    data: baselineData,
-    isLoading: isLoadingBaseline,
-    error: baselineError,
-    hasBaseline,
-  } = useCameraBaselineQuery(cameraId);
+  const baselineQuery = useCameraBaselineQuery(cameraId);
+  const activityQuery = useCameraActivityBaselineQuery(cameraId);
 
-  const {
-    entries,
-    learningComplete,
-    minSamplesRequired,
-    isLoading: isLoadingActivity,
-    error: activityError,
-  } = useCameraActivityBaselineQuery(cameraId);
+  // Extract values with explicit types to satisfy ESLint type safety rules
+  const baselineData = baselineQuery.data;
+  const isLoadingBaseline = baselineQuery.isLoading;
+  const baselineError = baselineQuery.error;
+  const hasBaseline = baselineQuery.hasBaseline;
+
+  const { entries } = activityQuery;
+  const learningComplete = activityQuery.learningComplete;
+  const minSamplesRequired = activityQuery.minSamplesRequired;
+  const isLoadingActivity = activityQuery.isLoading;
+  const activityError = activityQuery.error;
 
   const isLoading = isLoadingBaseline || isLoadingActivity;
   const error = baselineError || activityError;

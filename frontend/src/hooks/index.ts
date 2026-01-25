@@ -228,6 +228,13 @@ export type {
   UseEventDetectionsQueryReturn,
 } from './useEventDetectionsQuery';
 
+// Event enrichments batch query hook (NEM-3596)
+export { useEventEnrichmentsQuery, eventEnrichmentsQueryKeys } from './useEventEnrichmentsQuery';
+export type {
+  UseEventEnrichmentsQueryOptions,
+  UseEventEnrichmentsQueryReturn,
+} from './useEventEnrichmentsQuery';
+
 export { useAlertsInfiniteQuery, alertsQueryKeys } from './useAlertsQuery';
 export type {
   AlertRiskFilter,
@@ -864,3 +871,27 @@ export type {
   UseCameraClassBaselineQueryOptions,
   UseCameraClassBaselineQueryReturn,
 } from './useCameraBaselineQuery';
+
+// Enrichment WebSocket hook (NEM-3627)
+export {
+  useEventEnrichmentWebSocket,
+  default as useEventEnrichmentWebSocketDefault,
+} from './useEventEnrichmentWebSocket';
+export type {
+  ActiveEnrichment,
+  EnrichmentHistoryEntry,
+  UseEventEnrichmentWebSocketOptions,
+  UseEventEnrichmentWebSocketReturn,
+} from './useEventEnrichmentWebSocket';
+
+// Queue metrics WebSocket hook (NEM-3637)
+export {
+  useQueueMetricsWebSocket,
+  default as useQueueMetricsWebSocketDefault,
+} from './useQueueMetricsWebSocket';
+export type {
+  QueueStatusEntry,
+  ThroughputEntry,
+  UseQueueMetricsWebSocketOptions,
+  UseQueueMetricsWebSocketReturn,
+} from './useQueueMetricsWebSocket';
