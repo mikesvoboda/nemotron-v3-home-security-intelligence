@@ -511,7 +511,9 @@ class TestGetEventDetectionsRoute:
         mock_event.detection_id_list = []
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
-            result = await get_event_detections(event_id=1, limit=50, offset=0, db=mock_db)
+            result = await get_event_detections(
+                event_id=1, limit=50, offset=0, order_detections_by="detected_at", db=mock_db
+            )
 
         assert result.items == []
         assert result.pagination.total == 0
@@ -1112,7 +1114,9 @@ class TestGetEventDetectionsRouteComprehensive:
         mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_detections_result])
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
-            result = await get_event_detections(event_id=1, limit=2, offset=1, db=mock_db)
+            result = await get_event_detections(
+                event_id=1, limit=2, offset=1, order_detections_by="detected_at", db=mock_db
+            )
 
         assert result.pagination.total == 5
         assert result.pagination.limit == 2

@@ -243,4 +243,157 @@ describe('EventClusterCard', () => {
       expect(screen.getByText('0')).toBeInTheDocument();
     });
   });
+
+  describe('Thumbnail Grid (NEM-3620)', () => {
+    it('displays thumbnails in a grid layout', () => {
+      const thumbnails = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg'];
+      renderWithProviders(
+        <EventClusterCard cluster={createMockCluster({ thumbnails })} />
+      );
+      const grid = screen.getByTestId('thumbnail-grid');
+      expect(grid).toBeInTheDocument();
+      expect(grid.querySelectorAll('img').length).toBe(5);
+    });
+
+    it('shows "+N more" indicator when more than 6 thumbnails', () => {
+      const thumbnails = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg', '7.jpg', '8.jpg'];
+      renderWithProviders(
+        <EventClusterCard cluster={createMockCluster({ thumbnails })} />
+      );
+      expect(screen.getByTestId('thumbnail-more-indicator')).toBeInTheDocument();
+      expect(screen.getByText('+2 more')).toBeInTheDocument();
+    });
+
+    it('does not show "+N more" when 6 or fewer thumbnails', () => {
+      const thumbnails = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg'];
+      renderWithProviders(
+        <EventClusterCard cluster={createMockCluster({ thumbnails })} />
+      );
+      expect(screen.queryByTestId('thumbnail-more-indicator')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Risk Level Breakdown (NEM-3620)', () => {
+    it('displays aggregated risk level counts', () => {
+      const cluster = createMockCluster({
+        events: [
+          createMockEvent({ id: 1, risk_level: 'critical', risk_score: 90 }),
+          createMockEvent({ id: 2, risk_level: 'high', risk_score: 75 }),
+          createMockEvent({ id: 3, risk_level: 'high', risk_score: 70 }),
+          createMockEvent({ id: 4, risk_level: 'medium', risk_score: 50 }),
+          createMockEvent({ id: 5, risk_level: 'low', risk_score: 20 }),
+        ],
+        eventCount: 5,
+      });
+      renderWithProviders(<EventClusterCard cluster={cluster} />);
+
+      const breakdown = screen.getByTestId('risk-breakdown');
+      expect(breakdown).toBeInTheDocument();
+      expect(screen.getByText('1 critical')).toBeInTheDocument();
+      expect(screen.getByText('2 high')).toBeInTheDocument();
+      expect(screen.getByText('1 medium')).toBeInTheDocument();
+      expect(screen.getByText('1 low')).toBeInTheDocument();
+    });
+
+    it('only shows risk levels that have events', () => {
+      const cluster = createMockCluster({
+        events: [
+          createMockEvent({ id: 1, risk_level: 'high', risk_score: 75 }),
+          createMockEvent({ id: 2, risk_level: 'high', risk_score: 70 }),
+        ],
+        eventCount: 2,
+      });
+      renderWithProviders(<EventClusterCard cluster={cluster} />);
+
+      expect(screen.getByText('2 high')).toBeInTheDocument();
+      expect(screen.queryByText(/critical/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/medium/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/low/i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Bulk Actions (NEM-3620)', () => {
+    it('shows bulk mark reviewed button when onBulkMarkReviewed is provided', () => {
+      const onBulkMarkReviewed = vi.fn();
+      const cluster = createMockCluster({
+        events: [
+          createMockEvent({ id: 1, reviewed: false }),
+          createMockEvent({ id: 2, reviewed: false }),
+          createMockEvent({ id: 3, reviewed: false }),
+        ],
+      });
+      renderWithProviders(
+        <EventClusterCard cluster={cluster} onBulkMarkReviewed={onBulkMarkReviewed} />
+      );
+
+      expect(screen.getByTestId('bulk-mark-reviewed-btn')).toBeInTheDocument();
+    });
+
+    it('hides bulk mark reviewed button when all events are reviewed', () => {
+      const onBulkMarkReviewed = vi.fn();
+      const cluster = createMockCluster({
+        events: [
+          createMockEvent({ id: 1, reviewed: true }),
+          createMockEvent({ id: 2, reviewed: true }),
+          createMockEvent({ id: 3, reviewed: true }),
+        ],
+      });
+      renderWithProviders(
+        <EventClusterCard cluster={cluster} onBulkMarkReviewed={onBulkMarkReviewed} />
+      );
+
+      expect(screen.queryByTestId('bulk-mark-reviewed-btn')).not.toBeInTheDocument();
+    });
+
+    it('calls onBulkMarkReviewed with all event IDs when clicked', async () => {
+      const user = userEvent.setup();
+      const onBulkMarkReviewed = vi.fn();
+      const cluster = createMockCluster({
+        events: [
+          createMockEvent({ id: 10, reviewed: false }),
+          createMockEvent({ id: 20, reviewed: false }),
+          createMockEvent({ id: 30, reviewed: false }),
+        ],
+      });
+      renderWithProviders(
+        <EventClusterCard cluster={cluster} onBulkMarkReviewed={onBulkMarkReviewed} />
+      );
+
+      await user.click(screen.getByTestId('bulk-mark-reviewed-btn'));
+
+      expect(onBulkMarkReviewed).toHaveBeenCalledWith([10, 20, 30]);
+    });
+
+    it('shows loading state during bulk action', () => {
+      const onBulkMarkReviewed = vi.fn();
+      const cluster = createMockCluster({
+        events: [
+          createMockEvent({ id: 1, reviewed: false }),
+          createMockEvent({ id: 2, reviewed: false }),
+        ],
+      });
+      renderWithProviders(
+        <EventClusterCard
+          cluster={cluster}
+          onBulkMarkReviewed={onBulkMarkReviewed}
+          bulkActionLoading={true}
+        />
+      );
+
+      const btn = screen.getByTestId('bulk-mark-reviewed-btn');
+      expect(btn).toBeDisabled();
+    });
+
+    it('does not show bulk button when onBulkMarkReviewed is not provided', () => {
+      const cluster = createMockCluster({
+        events: [
+          createMockEvent({ id: 1, reviewed: false }),
+          createMockEvent({ id: 2, reviewed: false }),
+        ],
+      });
+      renderWithProviders(<EventClusterCard cluster={cluster} />);
+
+      expect(screen.queryByTestId('bulk-mark-reviewed-btn')).not.toBeInTheDocument();
+    });
+  });
 });

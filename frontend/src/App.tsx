@@ -16,6 +16,7 @@ import {
   ToastProvider,
 } from './components/common';
 import Layout from './components/layout/Layout';
+import { InstallPrompt } from './components/pwa';
 import RetryingIndicator from './components/RetryingIndicator';
 import { AnnouncementProvider, ThemeProvider } from './contexts';
 import { queryClient } from './services/queryClient';
@@ -180,6 +181,8 @@ export default function App() {
           <RateLimitIndicator />
           {/* Retrying indicator - shows when rate limited AND requests in flight */}
           <RetryingIndicator />
+          {/* PWA install prompt - shows after engagement criteria met */}
+          <InstallPrompt />
         </AnnouncementProvider>
         {/* React Query DevTools - only shown in development */}
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />

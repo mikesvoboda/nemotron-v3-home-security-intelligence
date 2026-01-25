@@ -1769,7 +1769,9 @@ async def test_get_event_detections_returns_detections() -> None:
 
     db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
-    response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, limit=50, offset=0, order_detections_by="detected_at", db=db
+    )
 
     assert len(response.items) == 3
     assert response.pagination.total == 3
@@ -1787,7 +1789,9 @@ async def test_get_event_detections_returns_404_when_event_not_found() -> None:
     db.execute = AsyncMock(return_value=result)
 
     with pytest.raises(Exception) as exc_info:
-        await events_routes.get_event_detections(event_id=999, limit=50, offset=0, db=db)
+        await events_routes.get_event_detections(
+            event_id=999, limit=50, offset=0, order_detections_by="detected_at", db=db
+        )
 
     assert exc_info.value.status_code == 404
     assert "999" in str(exc_info.value.detail)
@@ -1804,7 +1808,9 @@ async def test_get_event_detections_returns_empty_list_when_no_detections() -> N
     event_result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=event_result)
 
-    response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, limit=50, offset=0, order_detections_by="detected_at", db=db
+    )
 
     assert response.items == []
     assert response.pagination.total == 0
@@ -1821,7 +1827,9 @@ async def test_get_event_detections_returns_empty_list_when_empty_string() -> No
     event_result.scalar_one_or_none.return_value = mock_event
     db.execute = AsyncMock(return_value=event_result)
 
-    response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, limit=50, offset=0, order_detections_by="detected_at", db=db
+    )
 
     assert response.items == []
     assert response.pagination.total == 0
@@ -1853,7 +1861,9 @@ async def test_get_event_detections_with_pagination() -> None:
 
     db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
-    response = await events_routes.get_event_detections(event_id=1, limit=2, offset=2, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, limit=2, offset=2, order_detections_by="detected_at", db=db
+    )
 
     assert len(response.items) == 2
     assert response.pagination.total == 5
@@ -1888,7 +1898,9 @@ async def test_get_event_detections_handles_whitespace_in_detection_ids() -> Non
 
     db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
-    response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, limit=50, offset=0, order_detections_by="detected_at", db=db
+    )
 
     assert len(response.items) == 3
     assert response.pagination.total == 3
@@ -1917,7 +1929,9 @@ async def test_get_event_detections_custom_limit() -> None:
 
     db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
-    response = await events_routes.get_event_detections(event_id=1, limit=5, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, limit=5, offset=0, order_detections_by="detected_at", db=db
+    )
 
     assert len(response.items) == 5
     assert response.pagination.limit == 5
@@ -2052,7 +2066,9 @@ async def test_get_event_detections_count_returns_zero_on_none() -> None:
 
     db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
-    response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
+    response = await events_routes.get_event_detections(
+        event_id=1, limit=50, offset=0, order_detections_by="detected_at", db=db
+    )
 
     assert response.pagination.total == 0
 
