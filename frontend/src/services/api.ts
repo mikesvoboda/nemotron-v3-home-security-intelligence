@@ -237,6 +237,7 @@ import type {
   EventFeedbackResponse,
   FeedbackType,
   FeedbackStatsResponse,
+  ActualThreatLevel,
   CalibrationResponse,
   CalibrationUpdate,
   CalibrationDefaultsResponse,
@@ -279,7 +280,13 @@ export type {
 };
 
 // Re-export feedback types for consumers of this module
-export type { EventFeedbackCreate, EventFeedbackResponse, FeedbackType, FeedbackStatsResponse };
+export type {
+  EventFeedbackCreate,
+  EventFeedbackResponse,
+  FeedbackType,
+  FeedbackStatsResponse,
+  ActualThreatLevel,
+};
 
 // Re-export calibration types for consumers of this module
 export type {
