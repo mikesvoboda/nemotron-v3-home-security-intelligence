@@ -17,7 +17,6 @@ import { getSeverityConfig } from '../../utils/severityColors';
 import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
-import SnoozeBadge from '../common/SnoozeBadge';
 import TruncatedText from '../common/TruncatedText';
 
 export interface Detection {
@@ -351,7 +350,7 @@ const EventCard = memo(function EventCard({
             </div>
           </div>
 
-          {/* Risk Badge, Duration, and Snooze Status Row */}
+          {/* Risk Badge and Duration Row */}
           <div className={`mb-3 flex items-center gap-3 ${hasCheckboxOverlay ? 'ml-8' : ''}`}>
             <RiskBadge level={riskLevel} score={risk_score} showScore={true} size="md" />
             {(started_at || ended_at !== undefined) && (
@@ -362,8 +361,6 @@ const EventCard = memo(function EventCard({
                 </span>
               </div>
             )}
-            {/* Snooze Badge (NEM-3640) */}
-            <SnoozeBadge snoozeUntil={snooze_until} size="sm" />
           </div>
 
           {/* Object Type Badges */}
