@@ -52,6 +52,7 @@ from backend.core.config import get_settings
 from backend.core.constants import CacheInvalidationReason
 from backend.core.database import get_db
 from backend.core.logging import get_logger, sanitize_log_value
+from backend.core.websocket.event_types import WebSocketEventType
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera, normalize_camera_id
 from backend.models.scene_change import SceneChange
@@ -62,6 +63,7 @@ from backend.services.cache_service import (
     CacheKeys,
     CacheService,
 )
+from backend.services.websocket_emitter import get_websocket_emitter
 
 # Type alias for dependency injection
 BaselineServiceDep = BaselineService
@@ -1413,6 +1415,27 @@ async def acknowledge_scene_change(
         scene_change.acknowledged_at = acknowledged_at
         await db.commit()
     await db.refresh(scene_change)
+
+    # NEM-3555: Broadcast scene change acknowledgment via WebSocket
+    try:
+        emitter = await get_websocket_emitter()
+        await emitter.emit(
+            WebSocketEventType.SCENE_CHANGE_ACKNOWLEDGED,
+            {
+                "id": scene_change.id,
+                "camera_id": camera_id,
+                "acknowledged": scene_change.acknowledged,
+                "acknowledged_at": scene_change.acknowledged_at.isoformat()
+                if scene_change.acknowledged_at
+                else None,
+            },
+        )
+    except Exception:
+        logger.warning(
+            "Failed to broadcast scene change acknowledgment",
+            exc_info=True,
+            extra={"scene_change_id": scene_change_id, "camera_id": camera_id},
+        )
 
     return SceneChangeAcknowledgeResponse(
         id=scene_change.id,
