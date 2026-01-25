@@ -7,13 +7,19 @@ import {
   Edit2,
   MapPin,
   Plus,
+  RotateCcw,
   Search,
   Trash2,
   X,
 } from 'lucide-react';
 import { Fragment, useState } from 'react';
 
-import { useCamerasQuery, useCameraMutation } from '../../hooks';
+import {
+  useCamerasQuery,
+  useCameraMutation,
+  useDeletedCamerasQuery,
+  useRestoreCameraMutation,
+} from '../../hooks';
 import {
   cameraFormSchema,
   CAMERA_NAME_CONSTRAINTS,
@@ -46,12 +52,17 @@ interface CameraFormErrors {
  * - List all cameras with status indicators
  * - Add new camera
  * - Edit existing camera
- * - Delete camera with confirmation
+ * - Delete camera with confirmation (soft delete with restore)
+ * - View and restore deleted cameras (trash view)
  */
 export default function CamerasSettings() {
   // React Query hooks for data fetching and mutations
   const { cameras, isLoading, error: queryError, refetch } = useCamerasQuery();
   const { createMutation, updateMutation, deleteMutation } = useCameraMutation();
+
+  // Deleted cameras hooks (soft delete feature - NEM-3643)
+  const { deletedCameras, isLoading: isLoadingDeleted } = useDeletedCamerasQuery();
+  const { restoreMutation } = useRestoreCameraMutation();
 
   // Modal and form state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -66,6 +77,12 @@ export default function CamerasSettings() {
   const [formErrors, setFormErrors] = useState<CameraFormErrors>({});
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Delete confirmation state (type camera name to confirm)
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+
+  // Show deleted cameras toggle (trash view)
+  const [showDeletedCameras, setShowDeletedCameras] = useState(false);
+
   // Zone editor state
   const [zoneEditorCamera, setZoneEditorCamera] = useState<Camera | null>(null);
 
@@ -79,7 +96,13 @@ export default function CamerasSettings() {
   const loading = isLoading;
   const error = queryError?.message ?? mutationError;
   const submitting =
-    createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending ||
+    restoreMutation.isPending;
+
+  // Check if delete confirmation matches camera name
+  const isDeleteConfirmed = deletingCamera?.name === deleteConfirmInput;
 
   // Filter cameras based on search query
   const filteredCameras = cameras.filter((camera) =>
@@ -130,12 +153,14 @@ export default function CamerasSettings() {
 
   const handleOpenDeleteModal = (camera: Camera) => {
     setDeletingCamera(camera);
+    setDeleteConfirmInput('');
     setIsDeleteModalOpen(true);
   };
 
   const handleCloseDeleteModal = () => {
     setIsDeleteModalOpen(false);
     setDeletingCamera(null);
+    setDeleteConfirmInput('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -178,7 +203,7 @@ export default function CamerasSettings() {
   };
 
   const handleDelete = async () => {
-    if (!deletingCamera) return;
+    if (!deletingCamera || !isDeleteConfirmed) return;
 
     try {
       await deleteMutation.mutateAsync(deletingCamera.id);
@@ -188,6 +213,15 @@ export default function CamerasSettings() {
       // Set the error to display in the main error section
       setMutationError(err instanceof Error ? err.message : 'Failed to delete camera');
       handleCloseDeleteModal();
+    }
+  };
+
+  const handleRestore = async (camera: Camera) => {
+    try {
+      await restoreMutation.mutateAsync(camera.id);
+      // Cache is automatically invalidated by the mutation
+    } catch (err) {
+      setMutationError(err instanceof Error ? err.message : 'Failed to restore camera');
     }
   };
 
@@ -444,6 +478,102 @@ export default function CamerasSettings() {
         </div>
       )}
 
+      {/* Show Deleted Cameras Toggle */}
+      {(deletedCameras.length > 0 || showDeletedCameras) && (
+        <div className="border-t border-gray-800 pt-6">
+          <button
+            onClick={() => setShowDeletedCameras(!showDeletedCameras)}
+            className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
+            data-testid="show-deleted-toggle"
+          >
+            <Trash2 className="h-4 w-4" />
+            {showDeletedCameras ? 'Hide deleted cameras' : 'Show deleted cameras'}
+            {deletedCameras.length > 0 && (
+              <span className="ml-1 rounded-full bg-gray-800 px-2 py-0.5 text-xs">
+                {deletedCameras.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Deleted Cameras Section (Trash View) */}
+      {showDeletedCameras && (
+        <div className="space-y-4" data-testid="deleted-cameras-section">
+          <div className="flex items-center gap-2">
+            <Trash2 className="h-5 w-5 text-gray-400" />
+            <h3 className="text-lg font-semibold text-text-primary">Deleted Cameras</h3>
+          </div>
+
+          {isLoadingDeleted ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-text-secondary">Loading deleted cameras...</div>
+            </div>
+          ) : deletedCameras.length === 0 ? (
+            <div className="rounded-lg border border-gray-800 bg-card p-6 text-center">
+              <Trash2 className="mx-auto h-10 w-10 text-gray-600" />
+              <p className="mt-3 text-sm text-text-secondary">No deleted cameras</p>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-gray-800">
+              <table className="w-full">
+                <thead className="bg-gray-900">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">
+                      Folder Path
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800 bg-card">
+                  {deletedCameras.map((camera) => (
+                    <tr
+                      key={camera.id}
+                      className="opacity-60"
+                      data-testid={`deleted-camera-row-${camera.id}`}
+                    >
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <CameraIcon className="h-5 w-5 text-gray-500" />
+                          <span className="font-medium text-text-secondary line-through">
+                            {camera.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4">
+                        <span className="font-mono text-sm text-text-secondary line-through">
+                          {camera.folder_path}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-right">
+                        <IconButton
+                          icon={<RotateCcw />}
+                          aria-label={`Restore ${camera.name}`}
+                          onClick={() => {
+                            void handleRestore(camera);
+                          }}
+                          variant="ghost"
+                          size="md"
+                          tooltip="Restore camera"
+                          disabled={restoreMutation.isPending}
+                          className="hover:!text-green-500 focus-visible:!ring-green-500"
+                          data-testid={`restore-camera-${camera.id}`}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Add/Edit Camera Modal */}
       <Transition appear show={isModalOpen} as={Fragment}>
         <Dialog as="div" className="relative z-50" onClose={handleCloseModal}>
@@ -643,9 +773,49 @@ export default function CamerasSettings() {
                         <span className="font-medium text-text-primary">
                           {deletingCamera?.name}
                         </span>
-                        ? This action cannot be undone.
+                        ?
                       </p>
                     </div>
+                  </div>
+
+                  {/* Warning about related data */}
+                  <div className="mt-4 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-3">
+                    <div className="flex gap-2 text-sm text-yellow-300">
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium">This will affect related data</p>
+                        <ul className="mt-1 list-disc pl-4 text-yellow-300/80">
+                          <li>All detections from this camera will be hidden</li>
+                          <li>Events associated with this camera will be affected</li>
+                          <li>Zone configurations will be preserved</li>
+                        </ul>
+                        <p className="mt-2">
+                          The camera can be restored from the &quot;Show deleted cameras&quot; section.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Type to confirm */}
+                  <div className="mt-4">
+                    <label
+                      htmlFor="delete-confirm"
+                      className="block text-sm font-medium text-text-primary"
+                    >
+                      Type{' '}
+                      <span className="font-mono text-red-400">{deletingCamera?.name}</span>{' '}
+                      to confirm
+                    </label>
+                    <input
+                      type="text"
+                      id="delete-confirm"
+                      data-testid="delete-confirm-input"
+                      value={deleteConfirmInput}
+                      onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                      className="mt-1 block w-full rounded-lg border border-gray-800 bg-card px-3 py-2 text-text-primary focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder={deletingCamera?.name}
+                      autoComplete="off"
+                    />
                   </div>
 
                   <div className="mt-6 flex justify-end gap-3">
@@ -662,8 +832,9 @@ export default function CamerasSettings() {
                       onClick={() => {
                         void handleDelete();
                       }}
-                      disabled={submitting}
-                      className="rounded-lg bg-red-700 px-4 py-2 font-medium text-white transition-all hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-700 disabled:opacity-50"
+                      disabled={submitting || !isDeleteConfirmed}
+                      data-testid="confirm-delete-button"
+                      className="rounded-lg bg-red-700 px-4 py-2 font-medium text-white transition-all hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {submitting ? 'Deleting...' : 'Delete Camera'}
                     </button>

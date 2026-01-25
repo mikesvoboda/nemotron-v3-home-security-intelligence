@@ -25,6 +25,7 @@
 // Render utilities
 export {
   renderWithProviders,
+  createQueryWrapper,
   screen,
   within,
   waitFor,

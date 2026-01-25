@@ -132,6 +132,23 @@ export type PipelineStageLatency = components['schemas']['PipelineStageLatency']
 export type LatencyHistorySnapshot = components['schemas']['LatencyHistorySnapshot'];
 export type LatencyHistoryStageStats = components['schemas']['LatencyHistoryStageStats'];
 
+// Pipeline Status types
+export type PipelineStatusResponse = components['schemas']['PipelineStatusResponse'];
+export type FileWatcherStatusResponse = components['schemas']['FileWatcherStatusResponse'];
+export type DegradationStatusResponse = components['schemas']['DegradationStatusResponse'];
+
+// Queue Status types
+export type QueueHealthStatus = components['schemas']['QueueHealthStatus'];
+export type ThroughputMetrics = components['schemas']['ThroughputMetrics'];
+export type OldestJobInfo = components['schemas']['OldestJobInfo'];
+export type QueueStatus = components['schemas']['QueueStatus'];
+export type QueueStatusSummary = components['schemas']['QueueStatusSummary'];
+export type QueuesStatusResponse = components['schemas']['QueuesStatusResponse'];
+
+// Batch Aggregator types
+export type BatchInfoResponse = components['schemas']['BatchInfoResponse'];
+export type BatchAggregatorStatusResponse = components['schemas']['BatchAggregatorStatusResponse'];
+
 // DLQ types
 export type DLQJobResponse = components['schemas']['DLQJobResponse'];
 export type DLQJobsResponse = components['schemas']['DLQJobsResponse'];
@@ -175,6 +192,10 @@ export type SearchResponse = components['schemas']['SearchResponse'];
 export type AuditLogResponse = components['schemas']['AuditLogResponse'];
 export type AuditLogListResponse = components['schemas']['AuditLogListResponse'];
 export type AuditLogStats = components['schemas']['AuditLogStats'];
+
+// Alert types
+export type AlertResponse = components['schemas']['AlertResponse'];
+export type AlertStatus = components['schemas']['AlertStatus'];
 
 // Alert Rule types - base generated types
 type GeneratedAlertRuleResponse = components['schemas']['AlertRuleResponse'];

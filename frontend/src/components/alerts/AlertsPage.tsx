@@ -74,7 +74,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
   const { cameras } = useCamerasQuery();
 
   // Snooze mutation
-  const { snooze } = useSnoozeEvent();
+  const { snooze, unsnooze } = useSnoozeEvent();
 
   // Fetch alerts with infinite scroll support
   const {
@@ -268,6 +268,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
       onSnooze: handleSnooze,
       hasCheckboxOverlay: true,
+      snooze_until: event.snooze_until,
     };
   };
 
@@ -321,12 +322,18 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       ended_at: event.ended_at,
       reviewed: event.reviewed,
       notes: event.notes,
+      snooze_until: event.snooze_until,
     };
   };
 
   // Handle snooze action
   const handleSnooze = (eventId: string, seconds: number) => {
     void snooze(parseInt(eventId, 10), seconds);
+  };
+
+  // Handle unsnooze action
+  const handleUnsnooze = (eventId: string) => {
+    void unsnooze(parseInt(eventId, 10));
   };
 
   // Handle filter change - resets to first page
@@ -599,6 +606,8 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
         onClose={handleModalClose}
         onMarkReviewed={(eventId) => void handleMarkReviewed(eventId)}
         onNavigate={handleNavigate}
+        onSnooze={handleSnooze}
+        onUnsnooze={handleUnsnooze}
       />
     </div>
   );

@@ -29,6 +29,42 @@ vi.mock('./CameraUptimeCard', () => ({
   ),
 }));
 
+vi.mock('./DetectionTrendsCard', () => ({
+  default: ({ dateRange }: { dateRange: { startDate: string; endDate: string } }) => (
+    <div
+      data-testid="detection-trends-card"
+      data-start={dateRange.startDate}
+      data-end={dateRange.endDate}
+    >
+      Detection Trends Mock
+    </div>
+  ),
+}));
+
+vi.mock('./RiskHistoryCard', () => ({
+  default: ({ dateRange }: { dateRange: { startDate: string; endDate: string } }) => (
+    <div
+      data-testid="risk-history-card"
+      data-start={dateRange.startDate}
+      data-end={dateRange.endDate}
+    >
+      Risk History Mock
+    </div>
+  ),
+}));
+
+vi.mock('./ObjectDistributionCard', () => ({
+  default: ({ dateRange }: { dateRange: { startDate: string; endDate: string } }) => (
+    <div
+      data-testid="object-distribution-card"
+      data-start={dateRange.startDate}
+      data-end={dateRange.endDate}
+    >
+      Object Distribution Mock
+    </div>
+  ),
+}));
+
 vi.mock('./PipelineLatencyPanel', () => ({
   default: ({ refreshInterval }: { refreshInterval?: number }) => (
     <div data-testid="pipeline-latency-panel" data-refresh={refreshInterval}>
