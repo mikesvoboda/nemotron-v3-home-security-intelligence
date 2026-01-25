@@ -684,14 +684,16 @@ export const handlers = [
   // -------------------------------------------------------------------------
 
   /**
-   * POST /api/ai-audit/events/:id/evaluate - Trigger evaluation for an event
+   * GET /api/ai-audit/events/:id - Get audit for a specific event
    */
-  http.post<IdParams>('/api/ai-audit/events/:id/evaluate', () => {
-    // Return mock evaluation result
+  http.get<IdParams>('/api/ai-audit/events/:id', ({ params }: { params: IdParams }) => {
+    const eventId = parseInt(params.id, 10);
     return HttpResponse.json({
-      event_id: 1,
-      evaluated: true,
-      model_contributions: {
+      id: 1,
+      event_id: eventId,
+      audited_at: new Date().toISOString(),
+      is_fully_evaluated: false,
+      contributions: {
         rtdetr: true,
         florence: false,
         clip: false,
@@ -705,22 +707,175 @@ export const handlers = [
         baseline: false,
         cross_camera: false,
       },
-      quality_scores: {
+      prompt_length: 1000,
+      prompt_token_estimate: 250,
+      enrichment_utilization: 0.5,
+      scores: {
         context_usage: null,
         reasoning_coherence: null,
         risk_justification: null,
         consistency: null,
         overall: null,
       },
-      prompt_improvements: {
+      consistency_risk_score: null,
+      consistency_diff: null,
+      self_eval_critique: null,
+      improvements: {
         missing_context: [],
         confusing_sections: [],
         unused_data: [],
         format_suggestions: [],
         model_gaps: [],
       },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+    });
+  }),
+
+  /**
+   * POST /api/ai-audit/events/:id/evaluate - Trigger evaluation for an event
+   */
+  http.post<IdParams>('/api/ai-audit/events/:id/evaluate', ({ params }: { params: IdParams }) => {
+    const eventId = parseInt(params.id, 10);
+    // Return mock evaluation result
+    return HttpResponse.json({
+      id: 1,
+      event_id: eventId,
+      audited_at: new Date().toISOString(),
+      is_fully_evaluated: true,
+      contributions: {
+        rtdetr: true,
+        florence: false,
+        clip: false,
+        violence: false,
+        clothing: false,
+        vehicle: false,
+        pet: false,
+        weather: false,
+        image_quality: false,
+        zones: false,
+        baseline: false,
+        cross_camera: false,
+      },
+      prompt_length: 1000,
+      prompt_token_estimate: 250,
+      enrichment_utilization: 0.5,
+      scores: {
+        context_usage: 4,
+        reasoning_coherence: 4,
+        risk_justification: 3,
+        consistency: 4,
+        overall: 4,
+      },
+      consistency_risk_score: 75,
+      consistency_diff: 0,
+      self_eval_critique: 'Good analysis',
+      improvements: {
+        missing_context: [],
+        confusing_sections: [],
+        unused_data: [],
+        format_suggestions: [],
+        model_gaps: [],
+      },
+    });
+  }),
+
+  /**
+   * GET /api/ai-audit/stats - AI audit statistics
+   */
+  http.get('/api/ai-audit/stats', () => {
+    return HttpResponse.json({
+      total_events: 100,
+      audited_events: 80,
+      fully_evaluated_events: 50,
+      avg_quality_score: 4.2,
+      avg_consistency_rate: 0.95,
+      avg_enrichment_utilization: 0.75,
+      model_contribution_rates: {
+        rtdetr: 1.0,
+        florence: 0.5,
+        clip: 0.3,
+        violence: 0.1,
+        clothing: 0.2,
+        vehicle: 0.15,
+        pet: 0.05,
+        weather: 0.1,
+        image_quality: 0.4,
+        zones: 0.6,
+        baseline: 0.3,
+        cross_camera: 0.2,
+      },
+      audits_by_day: [
+        { date: '2024-01-01', count: 10 },
+        { date: '2024-01-02', count: 15 },
+        { date: '2024-01-03', count: 12 },
+      ],
+    });
+  }),
+
+  /**
+   * GET /api/ai-audit/leaderboard - Model leaderboard
+   */
+  http.get('/api/ai-audit/leaderboard', () => {
+    return HttpResponse.json({
+      entries: [
+        {
+          model_name: 'rtdetr',
+          contribution_rate: 1.0,
+          quality_correlation: 0.8,
+          event_count: 100,
+        },
+        {
+          model_name: 'zones',
+          contribution_rate: 0.6,
+          quality_correlation: 0.7,
+          event_count: 60,
+        },
+        {
+          model_name: 'florence',
+          contribution_rate: 0.5,
+          quality_correlation: 0.6,
+          event_count: 50,
+        },
+      ],
+      period_days: 7,
+    });
+  }),
+
+  /**
+   * GET /api/ai-audit/recommendations - Prompt improvement recommendations
+   */
+  http.get('/api/ai-audit/recommendations', () => {
+    return HttpResponse.json({
+      recommendations: [
+        {
+          category: 'missing_context',
+          suggestion: 'Add weather context to prompts',
+          frequency: 25,
+          priority: 'high',
+        },
+        {
+          category: 'unused_data',
+          suggestion: 'Remove redundant zone information',
+          frequency: 15,
+          priority: 'medium',
+        },
+        {
+          category: 'model_gaps',
+          suggestion: 'Add vehicle classification model',
+          frequency: 10,
+          priority: 'low',
+        },
+      ],
+      total_events_analyzed: 100,
+    });
+  }),
+
+  /**
+   * POST /api/ai-audit/batch - Trigger batch audit processing
+   */
+  http.post('/api/ai-audit/batch', () => {
+    return HttpResponse.json({
+      queued_count: 50,
+      message: 'Batch audit processing started',
     });
   }),
 ];
