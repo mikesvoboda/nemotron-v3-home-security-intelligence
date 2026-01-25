@@ -200,10 +200,7 @@ async def list_cameras(
             "created_at": c.created_at.isoformat() if c.created_at else None,
             "last_seen_at": c.last_seen_at.isoformat() if c.last_seen_at else None,
             "property_id": c.property_id,
-            "areas": [
-                {"id": area.id, "name": area.name, "color": area.color}
-                for area in c.areas
-            ],
+            "areas": [{"id": area.id, "name": area.name, "color": area.color} for area in c.areas],
         }
         for c in cameras
     ]

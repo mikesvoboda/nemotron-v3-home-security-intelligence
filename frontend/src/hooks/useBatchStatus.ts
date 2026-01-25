@@ -10,6 +10,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 import { useDetectionStream } from './useDetectionStream';
+
 import type { DetectionBatchData } from '../types/websocket';
 
 export interface ActiveBatch {

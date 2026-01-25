@@ -15,6 +15,7 @@ import {
 } from '../../utils/confidence';
 import { getRiskLevel } from '../../utils/risk';
 import { getSeverityConfig } from '../../utils/severityColors';
+import { isSnoozed } from '../../utils/snooze';
 import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
@@ -170,6 +171,10 @@ const EventCard = memo(function EventCard({
   className = '',
   hasCheckboxOverlay = false,
   snooze_until,
+  enrichmentSummary,
+  enrichmentData,
+  isEnrichmentPending,
+  onExpandEnrichment,
 }: EventCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
@@ -190,6 +195,9 @@ const EventCard = memo(function EventCard({
 
   // Get severity configuration for styling
   const severityConfig = getSeverityConfig(risk_score);
+
+  // Check if event is currently snoozed
+  const isEventSnoozed = isSnoozed(snooze_until);
 
   // Handle snooze action
   const handleSnooze = (seconds: number) => {
@@ -316,7 +324,7 @@ const EventCard = memo(function EventCard({
   return (
     /* eslint-disable jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-tabindex -- Card is accessible via nested buttons (View Details, Snooze) when they exist; role="button" intentionally omitted to avoid WCAG nested-interactive violation */
     <div
-      className={`rounded-lg border border-gray-800 ${getBorderWidthClass()} shadow-lg transition-all hover:border-gray-700 ${getSeverityClasses()} ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
+      className={`rounded-lg border border-gray-800 ${getBorderWidthClass()} shadow-lg transition-all hover:border-gray-700 ${getSeverityClasses()} ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${isEventSnoozed ? 'opacity-60' : ''} ${className}`}
       data-testid={`event-card-${id}`}
       data-severity={severityConfig.level}
       onClick={isClickable ? handleCardClick : undefined}
@@ -365,9 +373,10 @@ const EventCard = memo(function EventCard({
             </div>
           </div>
 
-          {/* Risk Badge and Duration Row */}
+          {/* Risk Badge, Snooze Badge, and Duration Row */}
           <div className={`mb-3 flex items-center gap-3 ${hasCheckboxOverlay ? 'ml-8' : ''}`}>
             <RiskBadge level={riskLevel} score={risk_score} showScore={true} size="md" />
+            {isEventSnoozed && <SnoozeBadge snoozeUntil={snooze_until} size="sm" />}
             {(started_at || ended_at !== undefined) && (
               <div className="flex items-center gap-1.5 text-sm text-gray-400">
                 <Timer className="h-3.5 w-3.5" />
@@ -380,10 +389,22 @@ const EventCard = memo(function EventCard({
 
           {/* Object Type Badges */}
           {uniqueObjectTypes.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1.5">
+            <div className="mb-3 flex flex-wrap gap-1.5" data-testid="object-type-badges">
               {uniqueObjectTypes.map((type) => (
                 <ObjectTypeBadge key={type} type={type} size="sm" />
               ))}
+            </div>
+          )}
+
+          {/* Enrichment Badges */}
+          {(enrichmentSummary || enrichmentData || isEnrichmentPending) && (
+            <div className="mb-3">
+              <EnrichmentBadges
+                enrichmentSummary={enrichmentSummary}
+                enrichmentData={enrichmentData}
+                isEnrichmentPending={isEnrichmentPending}
+                onExpandEnrichment={onExpandEnrichment ? () => onExpandEnrichment(id) : undefined}
+              />
             </div>
           )}
 
@@ -480,6 +501,14 @@ const EventCard = memo(function EventCard({
                 </button>
                 {showSnoozeMenu && (
                   <div className="absolute right-0 z-10 mt-1 w-40 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg">
+                    {isEventSnoozed && (
+                      <button
+                        onClick={() => handleSnooze(0)}
+                        className="block w-full px-4 py-2 text-left text-sm text-indigo-400 hover:bg-gray-700"
+                      >
+                        Clear snooze
+                      </button>
+                    )}
                     <button
                       onClick={() => handleSnooze(900)}
                       className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
@@ -503,6 +532,12 @@ const EventCard = memo(function EventCard({
                       className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
                     >
                       8 hours
+                    </button>
+                    <button
+                      onClick={() => handleSnooze(86400)}
+                      className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
+                    >
+                      24 hours
                     </button>
                   </div>
                 )}
