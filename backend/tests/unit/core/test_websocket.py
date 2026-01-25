@@ -44,9 +44,9 @@ class MockEventBroadcaster:
     - broadcast_worker_status(worker_status_data) -> int (NEM-2461)
     - broadcast_detection_new(detection_data) -> int (NEM-2506)
     - broadcast_detection_batch(batch_data) -> int (NEM-2506)
-    - broadcast_batch_analysis_started(batch_data) -> int
-    - broadcast_batch_analysis_completed(batch_data) -> int
-    - broadcast_batch_analysis_failed(batch_data) -> int
+    - broadcast_batch_analysis_started(batch_data) -> int (NEM-3607)
+    - broadcast_batch_analysis_completed(batch_data) -> int (NEM-3607)
+    - broadcast_batch_analysis_failed(batch_data) -> int (NEM-3607)
     - get_circuit_state() -> str
     - get_broadcast_metrics() -> dict (NEM-2984)
     - get_instance() -> EventBroadcaster (class method)
@@ -380,66 +380,6 @@ class MockEventBroadcaster:
                 pass
         return count
 
-    async def broadcast_batch_analysis_started(self, batch_data: dict[str, Any]) -> int:
-        """Broadcast a batch.analysis_started message to all connected WebSocket clients.
-
-        Args:
-            batch_data: Batch data dictionary containing batch analysis details
-
-        Returns:
-            Number of clients that received the message
-        """
-        message = {"type": "batch.analysis_started", "data": batch_data}
-        self.messages.append(message)
-        count = 0
-        for connection in self._connections:
-            try:
-                await connection.send_json(message)
-                count += 1
-            except Exception:  # Intentionally ignore send failures
-                pass
-        return count
-
-    async def broadcast_batch_analysis_completed(self, batch_data: dict[str, Any]) -> int:
-        """Broadcast a batch.analysis_completed message to all connected WebSocket clients.
-
-        Args:
-            batch_data: Batch data dictionary containing batch analysis completion details
-
-        Returns:
-            Number of clients that received the message
-        """
-        message = {"type": "batch.analysis_completed", "data": batch_data}
-        self.messages.append(message)
-        count = 0
-        for connection in self._connections:
-            try:
-                await connection.send_json(message)
-                count += 1
-            except Exception:  # Intentionally ignore send failures
-                pass
-        return count
-
-    async def broadcast_batch_analysis_failed(self, batch_data: dict[str, Any]) -> int:
-        """Broadcast a batch.analysis_failed message to all connected WebSocket clients.
-
-        Args:
-            batch_data: Batch data dictionary containing batch analysis failure details
-
-        Returns:
-            Number of clients that received the message
-        """
-        message = {"type": "batch.analysis_failed", "data": batch_data}
-        self.messages.append(message)
-        count = 0
-        for connection in self._connections:
-            try:
-                await connection.send_json(message)
-                count += 1
-            except Exception:  # Intentionally ignore send failures
-                pass
-        return count
-
     async def broadcast_summary_update(
         self,
         hourly: dict[str, Any] | None = None,
@@ -463,6 +403,75 @@ class MockEventBroadcaster:
         for connection in self._connections:
             try:
                 await connection.send_json(message)
+                count += 1
+            except Exception:  # Intentionally ignore send failures
+                pass
+        return count
+
+    async def broadcast_batch_analysis_started(self, batch_data: dict[str, Any]) -> int:
+        """Broadcast a batch.analysis_started message to all connected WebSocket clients (NEM-3607).
+
+        Args:
+            batch_data: Batch data dictionary containing analysis status details
+
+        Returns:
+            Number of clients that received the message
+        """
+        # Ensure the message has the correct structure (matches real implementation)
+        if "type" not in batch_data:
+            batch_data = {"type": "batch.analysis_started", "data": batch_data}
+
+        self.messages.append(batch_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(batch_data)
+                count += 1
+            except Exception:  # Intentionally ignore send failures
+                pass
+        return count
+
+    async def broadcast_batch_analysis_completed(self, batch_data: dict[str, Any]) -> int:
+        """Broadcast a batch.analysis_completed message to all connected WebSocket clients (NEM-3607).
+
+        Args:
+            batch_data: Batch data dictionary containing analysis result details
+
+        Returns:
+            Number of clients that received the message
+        """
+        # Ensure the message has the correct structure (matches real implementation)
+        if "type" not in batch_data:
+            batch_data = {"type": "batch.analysis_completed", "data": batch_data}
+
+        self.messages.append(batch_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(batch_data)
+                count += 1
+            except Exception:  # Intentionally ignore send failures
+                pass
+        return count
+
+    async def broadcast_batch_analysis_failed(self, batch_data: dict[str, Any]) -> int:
+        """Broadcast a batch.analysis_failed message to all connected WebSocket clients (NEM-3607).
+
+        Args:
+            batch_data: Batch data dictionary containing failure details
+
+        Returns:
+            Number of clients that received the message
+        """
+        # Ensure the message has the correct structure (matches real implementation)
+        if "type" not in batch_data:
+            batch_data = {"type": "batch.analysis_failed", "data": batch_data}
+
+        self.messages.append(batch_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(batch_data)
                 count += 1
             except Exception:  # Intentionally ignore send failures
                 pass
