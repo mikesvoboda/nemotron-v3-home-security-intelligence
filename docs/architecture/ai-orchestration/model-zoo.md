@@ -113,6 +113,12 @@ class ModelPriority(IntEnum):
     LOW = 3       # Depth, action recognition
 ```
 
+### Model Lifecycle State Machine
+
+![Model Zoo State Machine](../../images/architecture/model-zoo-state-machine.png)
+
+_State machine diagram showing model lifecycle transitions: unloaded, loading, loaded, and eviction states with VRAM budget constraints._
+
 ### LRU Eviction Algorithm
 
 When VRAM is constrained, models are evicted in order of:

@@ -51,6 +51,8 @@ cd frontend && npx playwright test
 
 ### Test Structure
 
+![Test Suite Organization](../../images/architecture/test-suite-organization.png)
+
 ```
 backend/tests/
   conftest.py              # Root fixtures (database, Redis, HTTP client)
@@ -109,12 +111,20 @@ frontend/
 
 ### Parallel Execution
 
+![Test Shard Distribution Matrix](../../images/architecture/test-shard-matrix.png)
+
 Backend tests support parallel execution via pytest-xdist:
 
 - **Unit tests**: `-n auto --dist=worksteal` (fully parallel)
 - **Integration tests**: `-n8 --dist=worksteal` (worker-isolated databases)
 
 Each pytest-xdist worker gets its own PostgreSQL database (`security_test_gw0`, etc.) for complete isolation.
+
+## CI/CD Pipeline
+
+![CI/CD Pipeline DAG showing test stages, dependencies, and parallel execution paths](../../images/architecture/ci-cd-pipeline-dag.png)
+
+The CI/CD pipeline orchestrates test execution across multiple stages with parallelization for optimal performance. The DAG structure ensures proper ordering of build, lint, unit test, integration test, and deployment stages.
 
 ## Related Documentation
 
