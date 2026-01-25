@@ -588,7 +588,8 @@ class TestUpdateCamera:
     ) -> None:
         """Test updating camera name."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.patch(
@@ -606,7 +607,8 @@ class TestUpdateCamera:
     ) -> None:
         """Test updating camera status."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.patch(
@@ -623,7 +625,8 @@ class TestUpdateCamera:
     ) -> None:
         """Test updating camera folder path."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.patch(
@@ -640,7 +643,8 @@ class TestUpdateCamera:
     ) -> None:
         """Test updating multiple camera fields at once."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.patch(
@@ -661,7 +665,8 @@ class TestUpdateCamera:
     def test_update_camera_not_found(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test updating a non-existent camera returns 404."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = None
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         fake_id = str(uuid.uuid4())
@@ -680,7 +685,8 @@ class TestUpdateCamera:
     ) -> None:
         """Test updating camera with empty payload."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.patch(f"/api/cameras/{sample_camera.id}", json={})
@@ -697,7 +703,8 @@ class TestUpdateCamera:
     ) -> None:
         """Test updating camera with empty name fails validation."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.patch(
@@ -712,7 +719,8 @@ class TestUpdateCamera:
     ) -> None:
         """Test updating camera with empty folder_path fails validation."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.patch(
@@ -736,7 +744,8 @@ class TestDeleteCamera:
     ) -> None:
         """Test successful camera deletion."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: delete_camera uses unique().scalar_one_or_none() for consistency
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.delete(f"/api/cameras/{sample_camera.id}")
@@ -750,7 +759,8 @@ class TestDeleteCamera:
     def test_delete_camera_not_found(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test deleting a non-existent camera returns 404."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = None
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         fake_id = str(uuid.uuid4())
@@ -777,7 +787,8 @@ class TestGetCameraSnapshot:
     ) -> None:
         """Test snapshot endpoint returns 404 if camera doesn't exist."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = None
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         fake_id = str(uuid.uuid4())
@@ -801,6 +812,7 @@ class TestGetCameraSnapshot:
             last_seen_at=None,
         )
         mock_result = MagicMock()
+        # Snapshot endpoint doesn't use joinedload for areas
         mock_result.scalar_one_or_none.return_value = camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
@@ -846,6 +858,7 @@ class TestGetCameraSnapshot:
             last_seen_at=None,
         )
         mock_result = MagicMock()
+        # Snapshot endpoint doesn't use joinedload for areas
         mock_result.scalar_one_or_none.return_value = camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
@@ -892,6 +905,7 @@ class TestGetCameraSnapshot:
             last_seen_at=None,
         )
         mock_result = MagicMock()
+        # Snapshot endpoint doesn't use joinedload for areas
         mock_result.scalar_one_or_none.return_value = camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
@@ -924,6 +938,7 @@ class TestGetCameraSnapshot:
             last_seen_at=None,
         )
         mock_result = MagicMock()
+        # Snapshot endpoint doesn't use joinedload for areas
         mock_result.scalar_one_or_none.return_value = camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
@@ -957,6 +972,7 @@ class TestGetCameraSnapshot:
             last_seen_at=None,
         )
         mock_result = MagicMock()
+        # Snapshot endpoint doesn't use joinedload for areas
         mock_result.scalar_one_or_none.return_value = camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
@@ -999,6 +1015,7 @@ class TestGetCameraSnapshot:
             last_seen_at=None,
         )
         mock_result = MagicMock()
+        # Snapshot endpoint doesn't use joinedload for areas
         mock_result.scalar_one_or_none.return_value = camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
@@ -1035,6 +1052,7 @@ class TestGetCameraSnapshot:
             last_seen_at=None,
         )
         mock_result = MagicMock()
+        # Snapshot endpoint doesn't use joinedload for areas
         mock_result.scalar_one_or_none.return_value = camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
@@ -1070,6 +1088,7 @@ class TestGetCameraSnapshot:
             last_seen_at=None,
         )
         mock_result = MagicMock()
+        # Snapshot endpoint doesn't use joinedload for areas
         mock_result.scalar_one_or_none.return_value = camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
@@ -1107,6 +1126,7 @@ class TestGetCameraSnapshot:
             last_seen_at=None,
         )
         mock_result = MagicMock()
+        # Snapshot endpoint doesn't use joinedload for areas
         mock_result.scalar_one_or_none.return_value = camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
@@ -1141,6 +1161,7 @@ class TestGetCameraSnapshot:
             last_seen_at=None,
         )
         mock_result = MagicMock()
+        # Snapshot endpoint doesn't use joinedload for areas
         mock_result.scalar_one_or_none.return_value = camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
@@ -1524,7 +1545,8 @@ class TestCameraStatusAPIValidation:
     ) -> None:
         """Test updating a camera with invalid status returns 422."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.patch(
@@ -1712,7 +1734,8 @@ class TestFolderPathAPIValidation:
     ) -> None:
         """Test updating a camera with path traversal returns 422."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.patch(
@@ -1727,7 +1750,8 @@ class TestFolderPathAPIValidation:
     ) -> None:
         """Test updating a camera with valid path succeeds."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.patch(
