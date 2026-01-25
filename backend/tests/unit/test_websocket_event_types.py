@@ -403,7 +403,16 @@ class TestGetAllChannels:
     def test_returns_expected_channels(self):
         """Verify expected channels are returned."""
         channels = get_all_channels()
-        expected = {"alerts", "cameras", "jobs", "system", "events", "detections", "workers", "enrichment"}
+        expected = {
+            "alerts",
+            "cameras",
+            "jobs",
+            "system",
+            "events",
+            "detections",
+            "workers",
+            "enrichment",
+        }
         assert set(channels) == expected
 
     def test_returns_sorted_list(self):

@@ -781,9 +781,13 @@ class EnrichmentCompletedPayload(BasePayload):
     """Payload for enrichment.completed events."""
 
     batch_id: str = Field(..., description="Unique batch identifier")
-    status: EnrichmentStatusEnum = Field(..., description="Enrichment status (full, partial, failed)")
+    status: EnrichmentStatusEnum = Field(
+        ..., description="Enrichment status (full, partial, failed)"
+    )
     enriched_count: int = Field(..., ge=0, description="Number of successfully enriched detections")
-    duration_ms: float | None = Field(None, ge=0, description="Total processing duration in milliseconds")
+    duration_ms: float | None = Field(
+        None, ge=0, description="Total processing duration in milliseconds"
+    )
     timestamp: str | None = Field(None, description="ISO 8601 timestamp when completed")
     summary: dict[str, Any] | None = Field(None, description="Enrichment summary details")
 

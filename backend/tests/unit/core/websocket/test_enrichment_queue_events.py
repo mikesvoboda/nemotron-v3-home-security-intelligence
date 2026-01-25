@@ -7,14 +7,11 @@ Tests for the new enrichment and queue-related WebSocket event types
 including validation, metadata, and channel routing.
 """
 
-import pytest
-
 from backend.core.websocket import (
     EVENT_TYPE_METADATA,
     WebSocketEventType,
     create_event,
     get_event_channel,
-    get_event_description,
     get_required_payload_fields,
     validate_event_type,
 )
@@ -103,7 +100,9 @@ class TestEnrichmentEventTypes:
         """Verify enrichment event type strings can be validated."""
         assert validate_event_type("enrichment.started") == WebSocketEventType.ENRICHMENT_STARTED
         assert validate_event_type("enrichment.progress") == WebSocketEventType.ENRICHMENT_PROGRESS
-        assert validate_event_type("enrichment.completed") == WebSocketEventType.ENRICHMENT_COMPLETED
+        assert (
+            validate_event_type("enrichment.completed") == WebSocketEventType.ENRICHMENT_COMPLETED
+        )
         assert validate_event_type("enrichment.failed") == WebSocketEventType.ENRICHMENT_FAILED
 
     def test_create_enrichment_started_event(self):
