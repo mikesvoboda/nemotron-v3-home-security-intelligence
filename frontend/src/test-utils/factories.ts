@@ -107,6 +107,8 @@ export interface Event {
   detections: Detection[];
   started_at?: string;
   ended_at?: string | null;
+  /** ISO timestamp until which alerts for this event are snoozed (NEM-3640) */
+  snooze_until?: string | null;
 }
 
 /**

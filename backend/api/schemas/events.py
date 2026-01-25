@@ -7,7 +7,6 @@ from functools import cached_property
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from backend.api.schemas.llm_response import ConfidenceFactors, RiskFactor
-from backend.api.schemas.llm_response import ConfidenceFactors, RiskFactor
 from backend.api.schemas.pagination import PaginationMeta
 
 # Default severity thresholds (matches backend.services.severity)

@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Clock, Eye, Film, Moon, Timer, TrendingUp } from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 
+import EnrichmentBadges, { type EnrichmentSummary } from './EnrichmentBadges';
 import {
   calculateAverageConfidence,
   calculateMaxConfidence,
@@ -17,7 +18,10 @@ import { getSeverityConfig } from '../../utils/severityColors';
 import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
+import SnoozeBadge from '../common/SnoozeBadge';
 import TruncatedText from '../common/TruncatedText';
+
+import type { EnrichmentData } from '../../types/enrichment';
 
 export interface Detection {
   label: string;
@@ -135,6 +139,14 @@ export interface EventCardProps {
   hasCheckboxOverlay?: boolean;
   /** ISO timestamp until which alerts for this event are snoozed (NEM-3640) */
   snooze_until?: string | null;
+  /** Enrichment summary data for badge display */
+  enrichmentSummary?: EnrichmentSummary;
+  /** Full enrichment data (alternative to enrichmentSummary) */
+  enrichmentData?: EnrichmentData | null;
+  /** Whether enrichment is currently being processed */
+  isEnrichmentPending?: boolean;
+  /** Callback when enrichment badges are clicked to expand full EnrichmentPanel */
+  onExpandEnrichment?: (eventId: string) => void;
 }
 
 /**
