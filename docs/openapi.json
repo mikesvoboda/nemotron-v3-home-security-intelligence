@@ -5152,6 +5152,119 @@
         "title": "ClothingEnrichment",
         "type": "object"
       },
+      "ClusterEventSummary": {
+        "description": "Abbreviated event object for cluster response.",
+        "example": {
+          "camera_id": "front_door",
+          "id": 1,
+          "risk_level": "high",
+          "risk_score": 75,
+          "started_at": "2026-01-25T10:00:00Z",
+          "summary": "Person detected at front entrance"
+        },
+        "properties": {
+          "camera_id": {
+            "description": "Camera ID that captured this event",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "id": {
+            "description": "Event ID",
+            "title": "Id",
+            "type": "integer"
+          },
+          "risk_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Risk level (low, medium, high, critical)",
+            "title": "Risk Level"
+          },
+          "risk_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Risk score (0-100)",
+            "title": "Risk Score"
+          },
+          "started_at": {
+            "description": "Event start timestamp",
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Brief event summary",
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "id",
+          "camera_id",
+          "started_at"
+        ],
+        "title": "ClusterEventSummary",
+        "type": "object"
+      },
+      "ClusterRiskLevels": {
+        "description": "Schema for aggregated risk levels within a cluster.",
+        "example": {
+          "critical": 1,
+          "high": 2,
+          "low": 0,
+          "medium": 2
+        },
+        "properties": {
+          "critical": {
+            "default": 0,
+            "description": "Number of critical risk events in the cluster",
+            "minimum": 0.0,
+            "title": "Critical",
+            "type": "integer"
+          },
+          "high": {
+            "default": 0,
+            "description": "Number of high risk events in the cluster",
+            "minimum": 0.0,
+            "title": "High",
+            "type": "integer"
+          },
+          "low": {
+            "default": 0,
+            "description": "Number of low risk events in the cluster",
+            "minimum": 0.0,
+            "title": "Low",
+            "type": "integer"
+          },
+          "medium": {
+            "default": 0,
+            "description": "Number of medium risk events in the cluster",
+            "minimum": 0.0,
+            "title": "Medium",
+            "type": "integer"
+          }
+        },
+        "title": "ClusterRiskLevels",
+        "type": "object"
+      },
       "ConfidenceFactors": {
         "description": "Factors affecting confidence in the risk analysis.\n\nThese factors help explain the reliability of the risk assessment\nand can be used to understand when additional review may be needed.\n\nAttributes:\n    detection_quality: Quality of the detection data (good, fair, poor)\n    weather_impact: Impact of weather on detection accuracy\n    enrichment_coverage: Completeness of enrichment data used",
         "example": {
@@ -9061,6 +9174,161 @@
           "events"
         ],
         "title": "EventBulkUpdateRequest",
+        "type": "object"
+      },
+      "EventCluster": {
+        "description": "Schema for an event cluster.",
+        "example": {
+          "cameras": [
+            "front_door",
+            "back_door"
+          ],
+          "cluster_id": "123e4567-e89b-12d3-a456-426614174000",
+          "end_time": "2026-01-25T10:05:00Z",
+          "event_count": 5,
+          "events": [
+            {
+              "camera_id": "front_door",
+              "id": 1,
+              "risk_level": "critical",
+              "risk_score": 85,
+              "started_at": "2026-01-25T10:00:00Z",
+              "summary": "Unknown person at door"
+            }
+          ],
+          "object_types": {
+            "person": 3,
+            "vehicle": 2
+          },
+          "risk_levels": {
+            "critical": 1,
+            "high": 2,
+            "low": 0,
+            "medium": 2
+          },
+          "start_time": "2026-01-25T10:00:00Z"
+        },
+        "properties": {
+          "cameras": {
+            "description": "List of camera IDs with events in this cluster",
+            "items": {
+              "type": "string"
+            },
+            "title": "Cameras",
+            "type": "array"
+          },
+          "cluster_id": {
+            "description": "Unique identifier for the cluster",
+            "title": "Cluster Id",
+            "type": "string"
+          },
+          "end_time": {
+            "description": "End time of the last event in the cluster",
+            "format": "date-time",
+            "title": "End Time",
+            "type": "string"
+          },
+          "event_count": {
+            "description": "Total number of events in the cluster",
+            "minimum": 1.0,
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "events": {
+            "description": "Abbreviated event objects in the cluster",
+            "items": {
+              "$ref": "#/components/schemas/ClusterEventSummary"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "object_types": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Count of events by detected object type",
+            "title": "Object Types",
+            "type": "object"
+          },
+          "risk_levels": {
+            "$ref": "#/components/schemas/ClusterRiskLevels",
+            "description": "Count of events by risk level in the cluster"
+          },
+          "start_time": {
+            "description": "Start time of the first event in the cluster",
+            "format": "date-time",
+            "title": "Start Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_time",
+          "end_time",
+          "event_count",
+          "cameras",
+          "risk_levels",
+          "events"
+        ],
+        "title": "EventCluster",
+        "type": "object"
+      },
+      "EventClustersResponse": {
+        "description": "Schema for event clusters API response.",
+        "example": {
+          "clusters": [
+            {
+              "cameras": [
+                "front_door",
+                "back_door"
+              ],
+              "cluster_id": "123e4567-e89b-12d3-a456-426614174000",
+              "end_time": "2026-01-25T10:05:00Z",
+              "event_count": 5,
+              "events": [],
+              "object_types": {
+                "person": 3,
+                "vehicle": 2
+              },
+              "risk_levels": {
+                "critical": 1,
+                "high": 2,
+                "low": 0,
+                "medium": 2
+              },
+              "start_time": "2026-01-25T10:00:00Z"
+            }
+          ],
+          "total_clusters": 10,
+          "unclustered_events": 15
+        },
+        "properties": {
+          "clusters": {
+            "description": "List of event clusters matching the query",
+            "items": {
+              "$ref": "#/components/schemas/EventCluster"
+            },
+            "title": "Clusters",
+            "type": "array"
+          },
+          "total_clusters": {
+            "description": "Total number of clusters found",
+            "minimum": 0.0,
+            "title": "Total Clusters",
+            "type": "integer"
+          },
+          "unclustered_events": {
+            "description": "Number of events not belonging to any cluster",
+            "minimum": 0.0,
+            "title": "Unclustered Events",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "clusters",
+          "total_clusters",
+          "unclustered_events"
+        ],
+        "title": "EventClustersResponse",
         "type": "object"
       },
       "EventEnrichmentsResponse": {
@@ -21008,6 +21276,26 @@
         "title": "ReplayResponse",
         "type": "object"
       },
+      "ReportFormat": {
+        "description": "Output format options for scheduled reports.\n\nValues:\n    PDF: Portable Document Format with charts and summaries\n    CSV: Comma-separated values for data analysis\n    JSON: Machine-readable JSON format",
+        "enum": [
+          "pdf",
+          "csv",
+          "json"
+        ],
+        "title": "ReportFormat",
+        "type": "string"
+      },
+      "ReportFrequency": {
+        "description": "Frequency options for scheduled reports.\n\nValues:\n    DAILY: Report runs every day at specified time\n    WEEKLY: Report runs on specified day of week\n    MONTHLY: Report runs on specified day of month",
+        "enum": [
+          "daily",
+          "weekly",
+          "monthly"
+        ],
+        "title": "ReportFrequency",
+        "type": "string"
+      },
       "RestartHistoryEvent": {
         "description": "A single restart event in the history.\n\nRecords when a worker was restarted (automatically or manually).",
         "example": {
@@ -21977,6 +22265,573 @@
           "similarity_score"
         ],
         "title": "SceneChangeResponse",
+        "type": "object"
+      },
+      "ScheduledReportCreate": {
+        "description": "Schema for creating a new scheduled report.\n\nUsed when setting up a new automated report schedule.",
+        "example": {
+          "day_of_week": 1,
+          "email_recipients": [
+            "admin@example.com"
+          ],
+          "enabled": true,
+          "format": "pdf",
+          "frequency": "weekly",
+          "hour": 8,
+          "include_charts": true,
+          "include_event_details": true,
+          "minute": 0,
+          "name": "Weekly Security Summary",
+          "timezone": "America/New_York"
+        },
+        "properties": {
+          "day_of_month": {
+            "anyOf": [
+              {
+                "maximum": 31.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Day of month (1-31) for monthly reports",
+            "title": "Day Of Month"
+          },
+          "day_of_week": {
+            "anyOf": [
+              {
+                "maximum": 6.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Day of week (0=Monday, 6=Sunday) for weekly reports",
+            "title": "Day Of Week"
+          },
+          "email_recipients": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Email addresses to send report to (max 10)",
+            "title": "Email Recipients"
+          },
+          "enabled": {
+            "default": true,
+            "description": "Whether the scheduled report is active",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "format": {
+            "$ref": "#/components/schemas/ReportFormat",
+            "default": "pdf",
+            "description": "Output format for the report (pdf, csv, json)"
+          },
+          "frequency": {
+            "$ref": "#/components/schemas/ReportFrequency",
+            "description": "How often the report should run (daily, weekly, monthly)"
+          },
+          "hour": {
+            "default": 8,
+            "description": "Hour of day to run report (0-23, default 8)",
+            "maximum": 23.0,
+            "minimum": 0.0,
+            "title": "Hour",
+            "type": "integer"
+          },
+          "include_charts": {
+            "default": true,
+            "description": "Include visual charts in the report",
+            "title": "Include Charts",
+            "type": "boolean"
+          },
+          "include_event_details": {
+            "default": true,
+            "description": "Include detailed event breakdowns",
+            "title": "Include Event Details",
+            "type": "boolean"
+          },
+          "minute": {
+            "default": 0,
+            "description": "Minute of hour to run report (0-59, default 0)",
+            "maximum": 59.0,
+            "minimum": 0.0,
+            "title": "Minute",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Name/title of the scheduled report",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "timezone": {
+            "default": "UTC",
+            "description": "Timezone for schedule (e.g., 'America/New_York', 'UTC')",
+            "maxLength": 50,
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "frequency"
+        ],
+        "title": "ScheduledReportCreate",
+        "type": "object"
+      },
+      "ScheduledReportListResponse": {
+        "description": "Schema for scheduled report list response.\n\nReturns a list of scheduled reports with total count.",
+        "example": {
+          "items": [
+            {
+              "created_at": "2025-01-01T12:00:00Z",
+              "day_of_week": 1,
+              "email_recipients": [
+                "admin@example.com"
+              ],
+              "enabled": true,
+              "format": "pdf",
+              "frequency": "weekly",
+              "hour": 8,
+              "id": 1,
+              "include_charts": true,
+              "include_event_details": true,
+              "last_run_at": "2025-01-20T08:00:00Z",
+              "minute": 0,
+              "name": "Weekly Security Summary",
+              "next_run_at": "2025-01-27T08:00:00Z",
+              "timezone": "America/New_York",
+              "updated_at": "2025-01-15T09:30:00Z"
+            }
+          ],
+          "total": 1
+        },
+        "properties": {
+          "items": {
+            "description": "List of scheduled reports",
+            "items": {
+              "$ref": "#/components/schemas/ScheduledReportResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of scheduled reports",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ScheduledReportListResponse",
+        "type": "object"
+      },
+      "ScheduledReportResponse": {
+        "description": "Schema for scheduled report response.\n\nReturned when retrieving or creating a scheduled report.",
+        "example": {
+          "created_at": "2025-01-01T12:00:00Z",
+          "day_of_week": 1,
+          "email_recipients": [
+            "admin@example.com"
+          ],
+          "enabled": true,
+          "format": "pdf",
+          "frequency": "weekly",
+          "hour": 8,
+          "id": 1,
+          "include_charts": true,
+          "include_event_details": true,
+          "last_run_at": "2025-01-20T08:00:00Z",
+          "minute": 0,
+          "name": "Weekly Security Summary",
+          "next_run_at": "2025-01-27T08:00:00Z",
+          "timezone": "America/New_York",
+          "updated_at": "2025-01-15T09:30:00Z"
+        },
+        "properties": {
+          "created_at": {
+            "description": "When the report was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "day_of_month": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Day of month (1-31) for monthly reports",
+            "title": "Day Of Month"
+          },
+          "day_of_week": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Day of week (0=Monday, 6=Sunday) for weekly reports",
+            "title": "Day Of Week"
+          },
+          "email_recipients": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Email addresses to send report to",
+            "title": "Email Recipients"
+          },
+          "enabled": {
+            "description": "Whether the scheduled report is active",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportFormat"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Output format for the report",
+            "title": "Format"
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportFrequency"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "How often the report runs",
+            "title": "Frequency"
+          },
+          "hour": {
+            "description": "Hour of day to run report (0-23)",
+            "title": "Hour",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Scheduled report ID",
+            "title": "Id",
+            "type": "integer"
+          },
+          "include_charts": {
+            "description": "Include visual charts in the report",
+            "title": "Include Charts",
+            "type": "boolean"
+          },
+          "include_event_details": {
+            "description": "Include detailed event breakdowns",
+            "title": "Include Event Details",
+            "type": "boolean"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the report last ran successfully",
+            "title": "Last Run At"
+          },
+          "minute": {
+            "description": "Minute of hour to run report (0-59)",
+            "title": "Minute",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Name/title of the scheduled report",
+            "title": "Name",
+            "type": "string"
+          },
+          "next_run_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the report is scheduled to run next",
+            "title": "Next Run At"
+          },
+          "timezone": {
+            "description": "Timezone for schedule",
+            "title": "Timezone",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "When the report was last updated",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "frequency",
+          "hour",
+          "minute",
+          "timezone",
+          "format",
+          "enabled",
+          "include_charts",
+          "include_event_details",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ScheduledReportResponse",
+        "type": "object"
+      },
+      "ScheduledReportRunResponse": {
+        "description": "Schema for manual report run response.\n\nReturned when a report is manually triggered.",
+        "example": {
+          "message": "Report generation started",
+          "report_id": 1,
+          "started_at": "2025-01-25T10:30:00Z",
+          "status": "running"
+        },
+        "properties": {
+          "message": {
+            "description": "Status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "report_id": {
+            "description": "ID of the report being run",
+            "title": "Report Id",
+            "type": "integer"
+          },
+          "started_at": {
+            "description": "When the run was initiated",
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "description": "Status of the run (running, queued, failed)",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report_id",
+          "status",
+          "message",
+          "started_at"
+        ],
+        "title": "ScheduledReportRunResponse",
+        "type": "object"
+      },
+      "ScheduledReportUpdate": {
+        "description": "Schema for updating an existing scheduled report.\n\nAll fields are optional for partial updates.",
+        "example": {
+          "enabled": false,
+          "name": "Updated Weekly Report"
+        },
+        "properties": {
+          "day_of_month": {
+            "anyOf": [
+              {
+                "maximum": 31.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Day of month (1-31) for monthly reports",
+            "title": "Day Of Month"
+          },
+          "day_of_week": {
+            "anyOf": [
+              {
+                "maximum": 6.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Day of week (0=Monday, 6=Sunday) for weekly reports",
+            "title": "Day Of Week"
+          },
+          "email_recipients": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 10,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Email addresses to send report to (max 10)",
+            "title": "Email Recipients"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the scheduled report is active",
+            "title": "Enabled"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportFormat"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Output format for the report (pdf, csv, json)"
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportFrequency"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How often the report should run (daily, weekly, monthly)"
+          },
+          "hour": {
+            "anyOf": [
+              {
+                "maximum": 23.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Hour of day to run report (0-23)",
+            "title": "Hour"
+          },
+          "include_charts": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Include visual charts in the report",
+            "title": "Include Charts"
+          },
+          "include_event_details": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Include detailed event breakdowns",
+            "title": "Include Event Details"
+          },
+          "minute": {
+            "anyOf": [
+              {
+                "maximum": 59.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Minute of hour to run report (0-59)",
+            "title": "Minute"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name/title of the scheduled report",
+            "title": "Name"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timezone for schedule (e.g., 'America/New_York', 'UTC')",
+            "title": "Timezone"
+          }
+        },
+        "title": "ScheduledReportUpdate",
         "type": "object"
       },
       "SearchResponse": {
@@ -32278,6 +33133,110 @@
         ]
       }
     },
+    "/api/events/clusters": {
+      "get": {
+        "description": "Cluster events by temporal proximity (NEM-3620).\n\nGroups events that occur within a specified time window into clusters.\nEvents from the same camera within `time_window_minutes` are grouped together.\nEvents from different cameras within 2 minutes are also grouped (cross-camera clusters).\n\nClustering algorithm:\n1. Sort all events by timestamp\n2. For each event, check if it fits in an existing cluster:\n   - Same camera: within time_window_minutes of cluster end\n   - Different camera: within 2 minutes of cluster end (correlating activity)\n3. If no matching cluster, start a new potential cluster\n4. Only return clusters with >= min_cluster_size events\n\nUses read replica for linear scalability (NEM-3392).\n\nArgs:\n    start_date: Start of time range to analyze (required)\n    end_date: End of time range to analyze (required)\n    camera_id: Optional filter to only cluster events from specific camera\n    time_window_minutes: Time window for same-camera clustering (1-60, default 5)\n    min_cluster_size: Minimum events to form a cluster (2-100, default 2)\n    db: Database session (read replica)\n\nReturns:\n    EventClustersResponse with clusters and unclustered event count\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
+        "operationId": "events_get_event_clusters",
+        "parameters": [
+          {
+            "description": "Start date for clustering (ISO format)",
+            "in": "query",
+            "name": "start_date",
+            "required": true,
+            "schema": {
+              "description": "Start date for clustering (ISO format)",
+              "format": "date-time",
+              "title": "Start Date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "End date for clustering (ISO format)",
+            "in": "query",
+            "name": "end_date",
+            "required": true,
+            "schema": {
+              "description": "End date for clustering (ISO format)",
+              "format": "date-time",
+              "title": "End Date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
+            }
+          },
+          {
+            "description": "Time window in minutes for clustering events (default: 5)",
+            "in": "query",
+            "name": "time_window_minutes",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "description": "Time window in minutes for clustering events (default: 5)",
+              "maximum": 60,
+              "minimum": 1,
+              "title": "Time Window Minutes",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Minimum events required to form a cluster (default: 2)",
+            "in": "query",
+            "name": "min_cluster_size",
+            "required": false,
+            "schema": {
+              "default": 2,
+              "description": "Minimum events required to form a cluster (default: 2)",
+              "maximum": 100,
+              "minimum": 2,
+              "title": "Min Cluster Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventClustersResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Event Clusters",
+        "tags": [
+          "events"
+        ]
+      }
+    },
     "/api/events/deleted": {
       "get": {
         "description": "List all soft-deleted events for trash view.\n\nReturns events that have been soft-deleted (deleted_at is not null),\nordered by deleted_at descending (most recently deleted first).\n\nThis endpoint enables a \"trash\" view where users can see deleted events\nand optionally restore them.\n\nArgs:\n    db: Database session\n\nReturns:\n    DeletedEventsListResponse containing list of deleted events and count",
@@ -36708,6 +37667,265 @@
         "summary": "Ingest RUM metrics",
         "tags": [
           "rum"
+        ]
+      }
+    },
+    "/api/scheduled-reports": {
+      "get": {
+        "description": "Get a list of all scheduled reports with their configurations.",
+        "operationId": "scheduled-reports_list_scheduled_reports",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "enabled",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Enabled"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledReportListResponse"
+                }
+              }
+            },
+            "description": "List of scheduled reports"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List all scheduled reports",
+        "tags": [
+          "scheduled-reports"
+        ]
+      },
+      "post": {
+        "description": "Create a new scheduled report with the specified configuration. Reports can be daily, weekly, or monthly, and can be delivered via email.",
+        "operationId": "scheduled-reports_create_scheduled_report",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduledReportCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledReportResponse"
+                }
+              }
+            },
+            "description": "Scheduled report created successfully"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Create a scheduled report",
+        "tags": [
+          "scheduled-reports"
+        ]
+      }
+    },
+    "/api/scheduled-reports/{report_id}": {
+      "delete": {
+        "description": "Delete a scheduled report by ID.",
+        "operationId": "scheduled-reports_delete_scheduled_report",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Scheduled report deleted successfully"
+          },
+          "404": {
+            "description": "Scheduled report not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete a scheduled report",
+        "tags": [
+          "scheduled-reports"
+        ]
+      },
+      "get": {
+        "description": "Get details of a specific scheduled report by ID.",
+        "operationId": "scheduled-reports_get_scheduled_report",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledReportResponse"
+                }
+              }
+            },
+            "description": "Scheduled report details"
+          },
+          "404": {
+            "description": "Scheduled report not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get a scheduled report",
+        "tags": [
+          "scheduled-reports"
+        ]
+      },
+      "put": {
+        "description": "Update an existing scheduled report configuration. All fields are optional - only provided fields will be updated.",
+        "operationId": "scheduled-reports_update_scheduled_report",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduledReportUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledReportResponse"
+                }
+              }
+            },
+            "description": "Scheduled report updated successfully"
+          },
+          "404": {
+            "description": "Scheduled report not found"
+          },
+          "422": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Update a scheduled report",
+        "tags": [
+          "scheduled-reports"
+        ]
+      }
+    },
+    "/api/scheduled-reports/{report_id}/run": {
+      "post": {
+        "description": "Manually trigger a scheduled report to run immediately, regardless of its schedule.",
+        "operationId": "scheduled-reports_run_scheduled_report",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "title": "Report Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledReportRunResponse"
+                }
+              }
+            },
+            "description": "Report run initiated"
+          },
+          "404": {
+            "description": "Scheduled report not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Manually trigger a report",
+        "tags": [
+          "scheduled-reports"
         ]
       }
     },

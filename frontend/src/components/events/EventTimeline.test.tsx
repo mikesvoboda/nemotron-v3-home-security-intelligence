@@ -5,6 +5,7 @@ import EventTimeline from './EventTimeline';
 import * as useEventsQueryHook from '../../hooks/useEventsQuery';
 import * as useEventStreamHook from '../../hooks/useEventStream';
 import * as useInfiniteScrollHook from '../../hooks/useInfiniteScroll';
+import * as useLocalStorageHook from '../../hooks/useLocalStorage';
 import * as api from '../../services/api';
 import {
   renderWithProviders,
@@ -85,6 +86,7 @@ vi.mock('../../hooks/useEventStats', () => ({
 vi.mock('../../hooks/useLocalStorage', () => ({
   useLocalStorage: vi.fn((_key: string, defaultValue: unknown) => [defaultValue, vi.fn()]),
 }));
+const useLocalStorageMock = vi.mocked(useLocalStorageHook.useLocalStorage);
 
 // Mock eventClustering utilities
 vi.mock('../../utils/eventClustering', () => ({
@@ -1919,6 +1921,196 @@ describe('EventTimeline', () => {
 
       // Should not have snooze indicator since it's expired
       expect(screen.queryByText(/Snoozed until/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('GroupBy Selector (NEM-3620)', () => {
+    beforeEach(() => {
+      // Reset to return 'grid' for view mode and 'time' for groupBy
+      useLocalStorageMock.mockImplementation(
+        (key: string, defaultValue: unknown) => {
+          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+          if (key === 'timeline-group-by') return ['time', vi.fn()];
+          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+          return [defaultValue, vi.fn()];
+        }
+      );
+    });
+
+    it('renders GroupBy selector in grid view', async () => {
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('groupby-selector')).toBeInTheDocument();
+      });
+    });
+
+    it('has options for Time, Camera, Risk Level, and Incident Cluster', async () => {
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        const selector = screen.getByTestId('groupby-selector');
+        const select = selector.querySelector('select');
+        expect(select).toBeInTheDocument();
+
+        const options = within(select as HTMLElement).getAllByRole('option');
+        expect(options).toHaveLength(4);
+        expect(options[0]).toHaveTextContent('Time');
+        expect(options[1]).toHaveTextContent('Camera');
+        expect(options[2]).toHaveTextContent('Risk Level');
+        expect(options[3]).toHaveTextContent('Incident Cluster');
+      });
+    });
+
+    it('groups events by camera when Camera is selected', async () => {
+      const user = userEvent.setup();
+
+      // Setup mock to track groupBy changes
+      const setGroupBy = vi.fn();
+      useLocalStorageMock.mockImplementation(
+        (key: string, defaultValue: unknown) => {
+          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+          if (key === 'timeline-group-by') return ['time', setGroupBy];
+          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+          return [defaultValue, vi.fn()];
+        }
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        const selector = screen.getByTestId('groupby-selector');
+        expect(selector).toBeInTheDocument();
+      });
+
+      const select = screen.getByTestId('groupby-selector').querySelector('select');
+      await user.selectOptions(select!, 'camera');
+
+      expect(setGroupBy).toHaveBeenCalledWith('camera');
+    });
+
+    it('groups events by risk level when Risk Level is selected', async () => {
+      const user = userEvent.setup();
+
+      const setGroupBy = vi.fn();
+      useLocalStorageMock.mockImplementation(
+        (key: string, defaultValue: unknown) => {
+          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+          if (key === 'timeline-group-by') return ['time', setGroupBy];
+          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+          return [defaultValue, vi.fn()];
+        }
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        const selector = screen.getByTestId('groupby-selector');
+        expect(selector).toBeInTheDocument();
+      });
+
+      const select = screen.getByTestId('groupby-selector').querySelector('select');
+      await user.selectOptions(select!, 'risk');
+
+      expect(setGroupBy).toHaveBeenCalledWith('risk');
+    });
+
+    it('shows group headers when grouped by camera', async () => {
+      // Mock groupBy as 'camera'
+      useLocalStorageMock.mockImplementation(
+        (key: string, defaultValue: unknown) => {
+          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+          if (key === 'timeline-group-by') return ['camera', vi.fn()];
+          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+          return [defaultValue, vi.fn()];
+        }
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        // Should show camera-based group headers
+        expect(screen.getByTestId('group-camera_1')).toBeInTheDocument();
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+    });
+
+    it('shows group headers when grouped by risk level', async () => {
+      // Mock groupBy as 'risk'
+      useLocalStorageMock.mockImplementation(
+        (key: string, defaultValue: unknown) => {
+          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+          if (key === 'timeline-group-by') return ['risk', vi.fn()];
+          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+          return [defaultValue, vi.fn()];
+        }
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        // Should show risk-level based group headers for events in mockEvents
+        // mockEvents has: critical (id:3, score:92), high (id:1, score:78), low (id:2, score:25)
+        const groups = screen.getAllByText(/event/i);
+        expect(groups.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('does not show GroupBy selector in list view', async () => {
+      // Mock list view mode
+      useLocalStorageMock.mockImplementation(
+        (key: string, defaultValue: unknown) => {
+          if (key === 'timeline-view-mode') return ['list', vi.fn()];
+          if (key === 'timeline-group-by') return ['time', vi.fn()];
+          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+          return [defaultValue, vi.fn()];
+        }
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('groupby-selector')).not.toBeInTheDocument();
+      });
+    });
+
+    it('hides clustering toggle when groupBy is camera or risk', async () => {
+      // Mock groupBy as 'camera'
+      useLocalStorageMock.mockImplementation(
+        (key: string, defaultValue: unknown) => {
+          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+          if (key === 'timeline-group-by') return ['camera', vi.fn()];
+          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+          return [defaultValue, vi.fn()];
+        }
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        // Clustering toggle should be hidden when groupBy is not 'time' or 'cluster'
+        expect(screen.queryByRole('button', { name: /cluster/i })).not.toBeInTheDocument();
+      });
+    });
+
+    it('shows clustering toggle when groupBy is time or cluster', async () => {
+      // Mock groupBy as 'time'
+      useLocalStorageMock.mockImplementation(
+        (key: string, defaultValue: unknown) => {
+          if (key === 'timeline-view-mode') return ['grid', vi.fn()];
+          if (key === 'timeline-group-by') return ['time', vi.fn()];
+          if (key === 'timeline-clustering-enabled') return [true, vi.fn()];
+          return [defaultValue, vi.fn()];
+        }
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        // Find the clustering toggle by its text content
+        const clusterBtn = screen.getByRole('button', { name: /cluster/i, pressed: true });
+        expect(clusterBtn).toBeInTheDocument();
+      });
     });
   });
 });

@@ -3421,6 +3421,54 @@ export interface paths {
         patch: operations["events_bulk_update_events"];
         trace?: never;
     };
+    "/api/events/clusters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Event Clusters
+         * @description Cluster events by temporal proximity (NEM-3620).
+         *
+         *     Groups events that occur within a specified time window into clusters.
+         *     Events from the same camera within `time_window_minutes` are grouped together.
+         *     Events from different cameras within 2 minutes are also grouped (cross-camera clusters).
+         *
+         *     Clustering algorithm:
+         *     1. Sort all events by timestamp
+         *     2. For each event, check if it fits in an existing cluster:
+         *        - Same camera: within time_window_minutes of cluster end
+         *        - Different camera: within 2 minutes of cluster end (correlating activity)
+         *     3. If no matching cluster, start a new potential cluster
+         *     4. Only return clusters with >= min_cluster_size events
+         *
+         *     Uses read replica for linear scalability (NEM-3392).
+         *
+         *     Args:
+         *         start_date: Start of time range to analyze (required)
+         *         end_date: End of time range to analyze (required)
+         *         camera_id: Optional filter to only cluster events from specific camera
+         *         time_window_minutes: Time window for same-camera clustering (1-60, default 5)
+         *         min_cluster_size: Minimum events to form a cluster (2-100, default 2)
+         *         db: Database session (read replica)
+         *
+         *     Returns:
+         *         EventClustersResponse with clusters and unclustered event count
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
+         */
+        get: operations["events_get_event_clusters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events/deleted": {
         parameters: {
             query?: never;
@@ -5391,6 +5439,78 @@ export interface paths {
          * @description Receive Core Web Vitals metrics from the frontend for Real User Monitoring.
          */
         post: operations["rum_ingest_rum_metrics"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scheduled-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List all scheduled reports
+         * @description Get a list of all scheduled reports with their configurations.
+         */
+        get: operations["scheduled-reports_list_scheduled_reports"];
+        put?: never;
+        /**
+         * Create a scheduled report
+         * @description Create a new scheduled report with the specified configuration. Reports can be daily, weekly, or monthly, and can be delivered via email.
+         */
+        post: operations["scheduled-reports_create_scheduled_report"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scheduled-reports/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a scheduled report
+         * @description Get details of a specific scheduled report by ID.
+         */
+        get: operations["scheduled-reports_get_scheduled_report"];
+        /**
+         * Update a scheduled report
+         * @description Update an existing scheduled report configuration. All fields are optional - only provided fields will be updated.
+         */
+        put: operations["scheduled-reports_update_scheduled_report"];
+        post?: never;
+        /**
+         * Delete a scheduled report
+         * @description Delete a scheduled report by ID.
+         */
+        delete: operations["scheduled-reports_delete_scheduled_report"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scheduled-reports/{report_id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manually trigger a report
+         * @description Manually trigger a scheduled report to run immediately, regardless of its schedule.
+         */
+        post: operations["scheduled-reports_run_scheduled_report"];
         delete?: never;
         options?: never;
         head?: never;
@@ -11666,6 +11786,87 @@ export interface components {
             upper?: string | null;
         };
         /**
+         * ClusterEventSummary
+         * @description Abbreviated event object for cluster response.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "id": 1,
+         *       "risk_level": "high",
+         *       "risk_score": 75,
+         *       "started_at": "2026-01-25T10:00:00Z",
+         *       "summary": "Person detected at front entrance"
+         *     }
+         */
+        ClusterEventSummary: {
+            /**
+             * Camera Id
+             * @description Camera ID that captured this event
+             */
+            camera_id: string;
+            /**
+             * Id
+             * @description Event ID
+             */
+            id: number;
+            /**
+             * Risk Level
+             * @description Risk level (low, medium, high, critical)
+             */
+            risk_level?: string | null;
+            /**
+             * Risk Score
+             * @description Risk score (0-100)
+             */
+            risk_score?: number | null;
+            /**
+             * Started At
+             * Format: date-time
+             * @description Event start timestamp
+             */
+            started_at: string;
+            /**
+             * Summary
+             * @description Brief event summary
+             */
+            summary?: string | null;
+        };
+        /**
+         * ClusterRiskLevels
+         * @description Schema for aggregated risk levels within a cluster.
+         * @example {
+         *       "critical": 1,
+         *       "high": 2,
+         *       "low": 0,
+         *       "medium": 2
+         *     }
+         */
+        ClusterRiskLevels: {
+            /**
+             * Critical
+             * @description Number of critical risk events in the cluster
+             * @default 0
+             */
+            critical: number;
+            /**
+             * High
+             * @description Number of high risk events in the cluster
+             * @default 0
+             */
+            high: number;
+            /**
+             * Low
+             * @description Number of low risk events in the cluster
+             * @default 0
+             */
+            low: number;
+            /**
+             * Medium
+             * @description Number of medium risk events in the cluster
+             * @default 0
+             */
+            medium: number;
+        };
+        /**
          * ConfidenceFactors
          * @description Factors affecting confidence in the risk analysis.
          *
@@ -14405,6 +14606,131 @@ export interface components {
              * @description Event updates (max 100)
              */
             events: components["schemas"]["EventBulkUpdateItem"][];
+        };
+        /**
+         * EventCluster
+         * @description Schema for an event cluster.
+         * @example {
+         *       "cameras": [
+         *         "front_door",
+         *         "back_door"
+         *       ],
+         *       "cluster_id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "end_time": "2026-01-25T10:05:00Z",
+         *       "event_count": 5,
+         *       "events": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "id": 1,
+         *           "risk_level": "critical",
+         *           "risk_score": 85,
+         *           "started_at": "2026-01-25T10:00:00Z",
+         *           "summary": "Unknown person at door"
+         *         }
+         *       ],
+         *       "object_types": {
+         *         "person": 3,
+         *         "vehicle": 2
+         *       },
+         *       "risk_levels": {
+         *         "critical": 1,
+         *         "high": 2,
+         *         "low": 0,
+         *         "medium": 2
+         *       },
+         *       "start_time": "2026-01-25T10:00:00Z"
+         *     }
+         */
+        EventCluster: {
+            /**
+             * Cameras
+             * @description List of camera IDs with events in this cluster
+             */
+            cameras: string[];
+            /**
+             * Cluster Id
+             * @description Unique identifier for the cluster
+             */
+            cluster_id?: string;
+            /**
+             * End Time
+             * Format: date-time
+             * @description End time of the last event in the cluster
+             */
+            end_time: string;
+            /**
+             * Event Count
+             * @description Total number of events in the cluster
+             */
+            event_count: number;
+            /**
+             * Events
+             * @description Abbreviated event objects in the cluster
+             */
+            events: components["schemas"]["ClusterEventSummary"][];
+            /**
+             * Object Types
+             * @description Count of events by detected object type
+             */
+            object_types?: {
+                [key: string]: number;
+            };
+            /** @description Count of events by risk level in the cluster */
+            risk_levels: components["schemas"]["ClusterRiskLevels"];
+            /**
+             * Start Time
+             * Format: date-time
+             * @description Start time of the first event in the cluster
+             */
+            start_time: string;
+        };
+        /**
+         * EventClustersResponse
+         * @description Schema for event clusters API response.
+         * @example {
+         *       "clusters": [
+         *         {
+         *           "cameras": [
+         *             "front_door",
+         *             "back_door"
+         *           ],
+         *           "cluster_id": "123e4567-e89b-12d3-a456-426614174000",
+         *           "end_time": "2026-01-25T10:05:00Z",
+         *           "event_count": 5,
+         *           "events": [],
+         *           "object_types": {
+         *             "person": 3,
+         *             "vehicle": 2
+         *           },
+         *           "risk_levels": {
+         *             "critical": 1,
+         *             "high": 2,
+         *             "low": 0,
+         *             "medium": 2
+         *           },
+         *           "start_time": "2026-01-25T10:00:00Z"
+         *         }
+         *       ],
+         *       "total_clusters": 10,
+         *       "unclustered_events": 15
+         *     }
+         */
+        EventClustersResponse: {
+            /**
+             * Clusters
+             * @description List of event clusters matching the query
+             */
+            clusters: components["schemas"]["EventCluster"][];
+            /**
+             * Total Clusters
+             * @description Total number of clusters found
+             */
+            total_clusters: number;
+            /**
+             * Unclustered Events
+             * @description Number of events not belonging to any cluster
+             */
+            unclustered_events: number;
         };
         /**
          * EventEnrichmentsResponse
@@ -22492,6 +22818,28 @@ export interface components {
             timestamp: string;
         };
         /**
+         * ReportFormat
+         * @description Output format options for scheduled reports.
+         *
+         *     Values:
+         *         PDF: Portable Document Format with charts and summaries
+         *         CSV: Comma-separated values for data analysis
+         *         JSON: Machine-readable JSON format
+         * @enum {string}
+         */
+        ReportFormat: "pdf" | "csv" | "json";
+        /**
+         * ReportFrequency
+         * @description Frequency options for scheduled reports.
+         *
+         *     Values:
+         *         DAILY: Report runs every day at specified time
+         *         WEEKLY: Report runs on specified day of week
+         *         MONTHLY: Report runs on specified day of month
+         * @enum {string}
+         */
+        ReportFrequency: "daily" | "weekly" | "monthly";
+        /**
          * RestartHistoryEvent
          * @description A single restart event in the history.
          *
@@ -23258,6 +23606,351 @@ export interface components {
              * @description SSIM similarity score (0-1, lower means more different)
              */
             similarity_score: number;
+        };
+        /**
+         * ScheduledReportCreate
+         * @description Schema for creating a new scheduled report.
+         *
+         *     Used when setting up a new automated report schedule.
+         * @example {
+         *       "day_of_week": 1,
+         *       "email_recipients": [
+         *         "admin@example.com"
+         *       ],
+         *       "enabled": true,
+         *       "format": "pdf",
+         *       "frequency": "weekly",
+         *       "hour": 8,
+         *       "include_charts": true,
+         *       "include_event_details": true,
+         *       "minute": 0,
+         *       "name": "Weekly Security Summary",
+         *       "timezone": "America/New_York"
+         *     }
+         */
+        ScheduledReportCreate: {
+            /**
+             * Day Of Month
+             * @description Day of month (1-31) for monthly reports
+             */
+            day_of_month?: number | null;
+            /**
+             * Day Of Week
+             * @description Day of week (0=Monday, 6=Sunday) for weekly reports
+             */
+            day_of_week?: number | null;
+            /**
+             * Email Recipients
+             * @description Email addresses to send report to (max 10)
+             */
+            email_recipients?: string[] | null;
+            /**
+             * Enabled
+             * @description Whether the scheduled report is active
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * @description Output format for the report (pdf, csv, json)
+             * @default pdf
+             */
+            format: components["schemas"]["ReportFormat"];
+            /** @description How often the report should run (daily, weekly, monthly) */
+            frequency: components["schemas"]["ReportFrequency"];
+            /**
+             * Hour
+             * @description Hour of day to run report (0-23, default 8)
+             * @default 8
+             */
+            hour: number;
+            /**
+             * Include Charts
+             * @description Include visual charts in the report
+             * @default true
+             */
+            include_charts: boolean;
+            /**
+             * Include Event Details
+             * @description Include detailed event breakdowns
+             * @default true
+             */
+            include_event_details: boolean;
+            /**
+             * Minute
+             * @description Minute of hour to run report (0-59, default 0)
+             * @default 0
+             */
+            minute: number;
+            /**
+             * Name
+             * @description Name/title of the scheduled report
+             */
+            name: string;
+            /**
+             * Timezone
+             * @description Timezone for schedule (e.g., 'America/New_York', 'UTC')
+             * @default UTC
+             */
+            timezone: string;
+        };
+        /**
+         * ScheduledReportListResponse
+         * @description Schema for scheduled report list response.
+         *
+         *     Returns a list of scheduled reports with total count.
+         * @example {
+         *       "items": [
+         *         {
+         *           "created_at": "2025-01-01T12:00:00Z",
+         *           "day_of_week": 1,
+         *           "email_recipients": [
+         *             "admin@example.com"
+         *           ],
+         *           "enabled": true,
+         *           "format": "pdf",
+         *           "frequency": "weekly",
+         *           "hour": 8,
+         *           "id": 1,
+         *           "include_charts": true,
+         *           "include_event_details": true,
+         *           "last_run_at": "2025-01-20T08:00:00Z",
+         *           "minute": 0,
+         *           "name": "Weekly Security Summary",
+         *           "next_run_at": "2025-01-27T08:00:00Z",
+         *           "timezone": "America/New_York",
+         *           "updated_at": "2025-01-15T09:30:00Z"
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        ScheduledReportListResponse: {
+            /**
+             * Items
+             * @description List of scheduled reports
+             */
+            items: components["schemas"]["ScheduledReportResponse"][];
+            /**
+             * Total
+             * @description Total number of scheduled reports
+             */
+            total: number;
+        };
+        /**
+         * ScheduledReportResponse
+         * @description Schema for scheduled report response.
+         *
+         *     Returned when retrieving or creating a scheduled report.
+         * @example {
+         *       "created_at": "2025-01-01T12:00:00Z",
+         *       "day_of_week": 1,
+         *       "email_recipients": [
+         *         "admin@example.com"
+         *       ],
+         *       "enabled": true,
+         *       "format": "pdf",
+         *       "frequency": "weekly",
+         *       "hour": 8,
+         *       "id": 1,
+         *       "include_charts": true,
+         *       "include_event_details": true,
+         *       "last_run_at": "2025-01-20T08:00:00Z",
+         *       "minute": 0,
+         *       "name": "Weekly Security Summary",
+         *       "next_run_at": "2025-01-27T08:00:00Z",
+         *       "timezone": "America/New_York",
+         *       "updated_at": "2025-01-15T09:30:00Z"
+         *     }
+         */
+        ScheduledReportResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the report was created
+             */
+            created_at: string;
+            /**
+             * Day Of Month
+             * @description Day of month (1-31) for monthly reports
+             */
+            day_of_month?: number | null;
+            /**
+             * Day Of Week
+             * @description Day of week (0=Monday, 6=Sunday) for weekly reports
+             */
+            day_of_week?: number | null;
+            /**
+             * Email Recipients
+             * @description Email addresses to send report to
+             */
+            email_recipients?: string[] | null;
+            /**
+             * Enabled
+             * @description Whether the scheduled report is active
+             */
+            enabled: boolean;
+            /**
+             * Format
+             * @description Output format for the report
+             */
+            format: components["schemas"]["ReportFormat"] | string;
+            /**
+             * Frequency
+             * @description How often the report runs
+             */
+            frequency: components["schemas"]["ReportFrequency"] | string;
+            /**
+             * Hour
+             * @description Hour of day to run report (0-23)
+             */
+            hour: number;
+            /**
+             * Id
+             * @description Scheduled report ID
+             */
+            id: number;
+            /**
+             * Include Charts
+             * @description Include visual charts in the report
+             */
+            include_charts: boolean;
+            /**
+             * Include Event Details
+             * @description Include detailed event breakdowns
+             */
+            include_event_details: boolean;
+            /**
+             * Last Run At
+             * @description When the report last ran successfully
+             */
+            last_run_at?: string | null;
+            /**
+             * Minute
+             * @description Minute of hour to run report (0-59)
+             */
+            minute: number;
+            /**
+             * Name
+             * @description Name/title of the scheduled report
+             */
+            name: string;
+            /**
+             * Next Run At
+             * @description When the report is scheduled to run next
+             */
+            next_run_at?: string | null;
+            /**
+             * Timezone
+             * @description Timezone for schedule
+             */
+            timezone: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the report was last updated
+             */
+            updated_at: string;
+        };
+        /**
+         * ScheduledReportRunResponse
+         * @description Schema for manual report run response.
+         *
+         *     Returned when a report is manually triggered.
+         * @example {
+         *       "message": "Report generation started",
+         *       "report_id": 1,
+         *       "started_at": "2025-01-25T10:30:00Z",
+         *       "status": "running"
+         *     }
+         */
+        ScheduledReportRunResponse: {
+            /**
+             * Message
+             * @description Status message
+             */
+            message: string;
+            /**
+             * Report Id
+             * @description ID of the report being run
+             */
+            report_id: number;
+            /**
+             * Started At
+             * Format: date-time
+             * @description When the run was initiated
+             */
+            started_at: string;
+            /**
+             * Status
+             * @description Status of the run (running, queued, failed)
+             */
+            status: string;
+        };
+        /**
+         * ScheduledReportUpdate
+         * @description Schema for updating an existing scheduled report.
+         *
+         *     All fields are optional for partial updates.
+         * @example {
+         *       "enabled": false,
+         *       "name": "Updated Weekly Report"
+         *     }
+         */
+        ScheduledReportUpdate: {
+            /**
+             * Day Of Month
+             * @description Day of month (1-31) for monthly reports
+             */
+            day_of_month?: number | null;
+            /**
+             * Day Of Week
+             * @description Day of week (0=Monday, 6=Sunday) for weekly reports
+             */
+            day_of_week?: number | null;
+            /**
+             * Email Recipients
+             * @description Email addresses to send report to (max 10)
+             */
+            email_recipients?: string[] | null;
+            /**
+             * Enabled
+             * @description Whether the scheduled report is active
+             */
+            enabled?: boolean | null;
+            /** @description Output format for the report (pdf, csv, json) */
+            format?: components["schemas"]["ReportFormat"] | null;
+            /** @description How often the report should run (daily, weekly, monthly) */
+            frequency?: components["schemas"]["ReportFrequency"] | null;
+            /**
+             * Hour
+             * @description Hour of day to run report (0-23)
+             */
+            hour?: number | null;
+            /**
+             * Include Charts
+             * @description Include visual charts in the report
+             */
+            include_charts?: boolean | null;
+            /**
+             * Include Event Details
+             * @description Include detailed event breakdowns
+             */
+            include_event_details?: boolean | null;
+            /**
+             * Minute
+             * @description Minute of hour to run report (0-59)
+             */
+            minute?: number | null;
+            /**
+             * Name
+             * @description Name/title of the scheduled report
+             */
+            name?: string | null;
+            /**
+             * Timezone
+             * @description Timezone for schedule (e.g., 'America/New_York', 'UTC')
+             */
+            timezone?: string | null;
         };
         /**
          * SearchResponse
@@ -30715,6 +31408,46 @@ export interface operations {
             };
         };
     };
+    events_get_event_clusters: {
+        parameters: {
+            query: {
+                /** @description Start date for clustering (ISO format) */
+                start_date: string;
+                /** @description End date for clustering (ISO format) */
+                end_date: string;
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Time window in minutes for clustering events (default: 5) */
+                time_window_minutes?: number;
+                /** @description Minimum events required to form a cluster (default: 2) */
+                min_cluster_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventClustersResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     events_list_deleted_events: {
         parameters: {
             query?: never;
@@ -33809,6 +34542,220 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "scheduled-reports_list_scheduled_reports": {
+        parameters: {
+            query?: {
+                enabled?: boolean | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of scheduled reports */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledReportListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "scheduled-reports_create_scheduled_report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduledReportCreate"];
+            };
+        };
+        responses: {
+            /** @description Scheduled report created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledReportResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "scheduled-reports_get_scheduled_report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scheduled report details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledReportResponse"];
+                };
+            };
+            /** @description Scheduled report not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "scheduled-reports_update_scheduled_report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduledReportUpdate"];
+            };
+        };
+        responses: {
+            /** @description Scheduled report updated successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledReportResponse"];
+                };
+            };
+            /** @description Scheduled report not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "scheduled-reports_delete_scheduled_report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scheduled report deleted successfully */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Scheduled report not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "scheduled-reports_run_scheduled_report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Report run initiated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduledReportRunResponse"];
+                };
+            };
+            /** @description Scheduled report not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

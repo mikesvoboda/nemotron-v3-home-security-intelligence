@@ -10,6 +10,8 @@ Contains components for displaying, filtering, and interacting with security eve
 | ----------------------------------- | ---------------------------------------------- |
 | `DeletedEventCard.tsx`              | Card display for soft-deleted events           |
 | `DeletedEventCard.test.tsx`         | Test suite for DeletedEventCard                |
+| `DetectionFeedback.tsx`             | Detection-level feedback buttons (NEM-3622)    |
+| `DetectionFeedback.test.tsx`        | Test suite for DetectionFeedback               |
 | `EnrichmentPanel.tsx`               | AI enrichment data accordion display           |
 | `EnrichmentPanel.test.tsx`          | Test suite for EnrichmentPanel                 |
 | `EntityTrackingPanel.tsx`           | Panel for entity tracking within events        |

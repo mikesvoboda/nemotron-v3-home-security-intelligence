@@ -41,6 +41,12 @@ from backend.api.schemas.clips import (
 )
 from backend.api.schemas.detections import DetectionListResponse
 from backend.api.schemas.enrichment import EventEnrichmentsResponse
+from backend.api.schemas.event_cluster import (
+    ClusterEventSummary,
+    ClusterRiskLevels,
+    EventCluster,
+    EventClustersResponse,
+)
 from backend.api.schemas.events import (
     DeletedEventsListResponse,
     EventListResponse,
@@ -784,6 +790,190 @@ async def get_timeline_summary(
         logger.warning(f"Cache write failed: {e}")
 
     return response
+
+
+@router.get("/clusters", response_model=EventClustersResponse)
+async def get_event_clusters(
+    start_date: datetime = Query(..., description="Start date for clustering (ISO format)"),
+    end_date: datetime = Query(..., description="End date for clustering (ISO format)"),
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
+    time_window_minutes: int = Query(
+        5, ge=1, le=60, description="Time window in minutes for clustering events (default: 5)"
+    ),
+    min_cluster_size: int = Query(
+        2, ge=2, le=100, description="Minimum events required to form a cluster (default: 2)"
+    ),
+    db: AsyncSession = Depends(get_read_db),
+) -> EventClustersResponse:
+    """Cluster events by temporal proximity (NEM-3620).
+
+    Groups events that occur within a specified time window into clusters.
+    Events from the same camera within `time_window_minutes` are grouped together.
+    Events from different cameras within 2 minutes are also grouped (cross-camera clusters).
+
+    Clustering algorithm:
+    1. Sort all events by timestamp
+    2. For each event, check if it fits in an existing cluster:
+       - Same camera: within time_window_minutes of cluster end
+       - Different camera: within 2 minutes of cluster end (correlating activity)
+    3. If no matching cluster, start a new potential cluster
+    4. Only return clusters with >= min_cluster_size events
+
+    Uses read replica for linear scalability (NEM-3392).
+
+    Args:
+        start_date: Start of time range to analyze (required)
+        end_date: End of time range to analyze (required)
+        camera_id: Optional filter to only cluster events from specific camera
+        time_window_minutes: Time window for same-camera clustering (1-60, default 5)
+        min_cluster_size: Minimum events to form a cluster (2-100, default 2)
+        db: Database session (read replica)
+
+    Returns:
+        EventClustersResponse with clusters and unclustered event count
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date
+    """
+    from uuid import uuid4
+
+    # Validate date range
+    validate_date_range(start_date, end_date)
+
+    # Normalize end_date to end of day if it's at midnight (date-only input)
+    normalized_end_date = normalize_end_date_to_end_of_day(end_date)
+
+    # Build query for events in the time range
+    query = (
+        select(Event)
+        .options(joinedload(Event.camera))
+        .where(
+            Event.started_at >= start_date,
+            Event.started_at <= normalized_end_date,
+            Event.deleted_at.is_(None),  # Exclude soft-deleted events
+        )
+        .order_by(Event.started_at.asc())
+    )
+
+    if camera_id:
+        query = query.where(Event.camera_id == camera_id)
+
+    result = await db.execute(query)
+    events = list(result.scalars().unique().all())
+
+    if not events:
+        return EventClustersResponse(
+            clusters=[],
+            total_clusters=0,
+            unclustered_events=0,
+        )
+
+    # Clustering algorithm
+    time_window = timedelta(minutes=time_window_minutes)
+    cross_camera_window = timedelta(minutes=2)  # Shorter window for cross-camera correlation
+
+    # Each cluster is represented as a dict with events list and metadata
+    clusters: list[dict] = []
+
+    for event in events:
+        # Ensure event timestamp is timezone-aware
+        event_ts = event.started_at
+        if event_ts.tzinfo is None:
+            event_ts = event_ts.replace(tzinfo=UTC)
+
+        # Try to find a matching cluster
+        matched_cluster = None
+        for cluster in clusters:
+            cluster_end = cluster["end_time"]
+            if cluster_end.tzinfo is None:
+                cluster_end = cluster_end.replace(tzinfo=UTC)
+
+            # Check if event belongs to this cluster
+            # Same camera: use full time window
+            # Different camera: use cross-camera window (for correlated activity detection)
+            if event.camera_id in cluster["cameras"]:
+                # Same camera - use full window
+                if event_ts <= cluster_end + time_window:
+                    matched_cluster = cluster
+                    break
+            # Different camera - use shorter window for correlation
+            elif event_ts <= cluster_end + cross_camera_window:
+                matched_cluster = cluster
+                break
+
+        if matched_cluster:
+            # Add event to existing cluster
+            matched_cluster["events"].append(event)
+            matched_cluster["cameras"].add(event.camera_id)
+            # Update end time if this event is later
+            matched_cluster["end_time"] = max(matched_cluster["end_time"], event_ts)
+        else:
+            # Start a new cluster
+            clusters.append(
+                {
+                    "start_time": event_ts,
+                    "end_time": event_ts,
+                    "cameras": {event.camera_id},
+                    "events": [event],
+                }
+            )
+
+    # Filter clusters by minimum size and build response
+    valid_clusters: list[EventCluster] = []
+    unclustered_count = 0
+
+    for cluster in clusters:
+        if len(cluster["events"]) >= min_cluster_size:
+            # Build aggregated stats
+            risk_levels = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+            object_types: dict[str, int] = {}
+
+            event_summaries: list[ClusterEventSummary] = []
+            for event in cluster["events"]:
+                # Count risk levels
+                if event.risk_level and event.risk_level in risk_levels:
+                    risk_levels[event.risk_level] += 1
+
+                # Count object types
+                if event.object_types:
+                    for raw_obj_type in event.object_types.split(","):
+                        obj_type = raw_obj_type.strip()
+                        if obj_type:
+                            object_types[obj_type] = object_types.get(obj_type, 0) + 1
+
+                # Build event summary
+                event_summaries.append(
+                    ClusterEventSummary(
+                        id=event.id,
+                        camera_id=event.camera_id,
+                        started_at=event.started_at,
+                        risk_score=event.risk_score,
+                        risk_level=event.risk_level,
+                        summary=event.summary,
+                    )
+                )
+
+            valid_clusters.append(
+                EventCluster(
+                    cluster_id=str(uuid4()),
+                    start_time=cluster["start_time"],
+                    end_time=cluster["end_time"],
+                    event_count=len(cluster["events"]),
+                    cameras=sorted(cluster["cameras"]),
+                    risk_levels=ClusterRiskLevels(**risk_levels),
+                    object_types=object_types,
+                    events=event_summaries,
+                )
+            )
+        else:
+            # Events that don't meet cluster threshold
+            unclustered_count += len(cluster["events"])
+
+    return EventClustersResponse(
+        clusters=valid_clusters,
+        total_clusters=len(valid_clusters),
+        unclustered_events=unclustered_count,
+    )
 
 
 @router.get("/search", response_model=SearchResponseSchema)

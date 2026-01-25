@@ -1,11 +1,15 @@
 import {
   ArrowDownUp,
   Calendar,
+  Camera as CameraIcon,
   CheckSquare,
+  ChevronDown,
   Clock,
   Download,
   Filter,
   Layers,
+  LayoutGrid,
+  ShieldAlert,
   Square,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -70,6 +74,9 @@ import type { RiskLevel } from '../../utils/risk';
 // Confidence filter threshold options
 type ConfidenceFilter = '' | 'high' | 'medium' | 'any';
 
+// GroupBy options for organizing events in the timeline
+export type GroupByOption = 'time' | 'camera' | 'risk' | 'cluster';
+
 // SortOption type is imported from '../../utils/pipeline'
 
 export interface EventTimelineProps {
@@ -106,6 +113,12 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const [clusteringEnabled, setClusteringEnabled] = useLocalStorage<boolean>(
     'timeline-clustering-enabled',
     true
+  );
+
+  // State for groupBy option - persisted in localStorage
+  const [groupBy, setGroupBy] = useLocalStorage<GroupByOption>(
+    'timeline-group-by',
+    'time'
   );
 
   // State for list view sorting (separate from the main sortOption which is dropdown-based)
@@ -547,6 +560,59 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const clusterStats = useMemo(() => {
     return getClusterStats(filteredEvents, clusteredItemsWithNames);
   }, [filteredEvents, clusteredItemsWithNames]);
+
+  // Group events based on selected groupBy option
+  type GroupedEvents = { key: string; label: string; events: Event[] }[];
+  const groupedEventsByOption = useMemo<GroupedEvents>(() => {
+    if (groupBy === 'time' || viewMode === 'list') {
+      // Time grouping is handled by TimeGroupedEvents component or default sorting
+      return [];
+    }
+
+    if (groupBy === 'camera') {
+      // Group by camera
+      const groups = new Map<string, Event[]>();
+      for (const event of filteredEvents) {
+        const key = event.camera_id;
+        const group = groups.get(key) ?? [];
+        if (!groups.has(key)) {
+          groups.set(key, group);
+        }
+        group.push(event);
+      }
+      return Array.from(groups.entries()).map(([key, events]) => ({
+        key,
+        label: cameraNameMap.get(key) || 'Unknown Camera',
+        events,
+      }));
+    }
+
+    if (groupBy === 'risk') {
+      // Group by risk level
+      const groups: Record<RiskLevel, Event[]> = {
+        critical: [],
+        high: [],
+        medium: [],
+        low: [],
+      };
+      for (const event of filteredEvents) {
+        const level = (event.risk_level || getRiskLevel(event.risk_score || 0)) as RiskLevel;
+        groups[level].push(event);
+      }
+      // Return in severity order (critical first)
+      const orderedLevels: RiskLevel[] = ['critical', 'high', 'medium', 'low'];
+      return orderedLevels
+        .filter((level) => groups[level].length > 0)
+        .map((level) => ({
+          key: level,
+          label: level.charAt(0).toUpperCase() + level.slice(1),
+          events: groups[level],
+        }));
+    }
+
+    // Cluster grouping uses the existing clusteredItemsWithNames
+    return [];
+  }, [groupBy, filteredEvents, cameraNameMap, viewMode]);
 
   // Calculate risk level counts for the currently displayed events
   const riskCountsPartial = countBy(
@@ -1176,7 +1242,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
             {/* View Toggle and Bulk Actions Bar */}
             {!loading && !error && filteredEvents.length > 0 && (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 {/* View Mode Toggle */}
                 <ViewToggle
                   viewMode={viewMode}
@@ -1184,8 +1250,29 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                   persistKey="timeline-view-mode"
                 />
 
-                {/* Clustering Toggle - only show in grid view */}
+                {/* GroupBy Selector - only show in grid view */}
                 {viewMode === 'grid' && (
+                  <div className="relative" data-testid="groupby-selector">
+                    <div className="flex items-center gap-1.5 rounded-md border border-gray-700 bg-[#1A1A1A]">
+                      <LayoutGrid className="ml-2 h-4 w-4 text-gray-400" />
+                      <select
+                        value={groupBy}
+                        onChange={(e) => setGroupBy(e.target.value as GroupByOption)}
+                        className="w-32 appearance-none bg-transparent py-1.5 pr-8 text-sm text-gray-300 focus:outline-none focus:ring-0"
+                        aria-label="Group events by"
+                      >
+                        <option value="time">Time</option>
+                        <option value="camera">Camera</option>
+                        <option value="risk">Risk Level</option>
+                        <option value="cluster">Incident Cluster</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-2 h-4 w-4 text-gray-400" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Clustering Toggle - only show in grid view with time or cluster grouping */}
+                {viewMode === 'grid' && (groupBy === 'time' || groupBy === 'cluster') && (
                   <button
                     onClick={() => setClusteringEnabled(!clusteringEnabled)}
                     className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors ${
@@ -1386,55 +1473,121 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
               </>
             ) : (
               <>
-                {/* Grid View - Responsive columns optimized for tablet (NEM-3610) */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                  {clusteredItemsWithNames.map((item) => {
-                    // Render cluster card for clusters
-                    if (isEventCluster(item)) {
-                      return (
-                        <EventClusterCard
-                          key={item.clusterId}
-                          cluster={item}
-                          onEventClick={(eventId) => setSelectedEventForModal(eventId)}
-                          hasCheckboxOverlay={false}
-                        />
-                      );
-                    }
-
-                    // Render regular event card for individual events
-                    const event = item;
-
-                    // Mobile: Use MobileEventCard with swipe gestures (NEM-3070)
-                    if (isMobile) {
-                      return <MobileEventCard key={event.id} {...getMobileEventCardProps(event)} />;
-                    }
-
-                    // Desktop: Use EventCard with selection checkbox
-                    return (
-                      <div key={event.id} className="relative">
-                        {/* Selection Checkbox */}
-                        <div className="absolute left-2 top-2 z-10">
-                          <button
-                            onClick={() => handleToggleSelection(event.id)}
-                            className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 bg-[#1A1A1A]/90 backdrop-blur-sm transition-colors hover:border-gray-600 hover:bg-[#252525]/90"
-                            aria-label={
-                              selectedEventIds.has(event.id)
-                                ? `Deselect event ${event.id}`
-                                : `Select event ${event.id}`
-                            }
-                          >
-                            {selectedEventIds.has(event.id) ? (
-                              <CheckSquare className="h-5 w-5 text-[#76B900]" />
-                            ) : (
-                              <Square className="h-5 w-5 text-gray-400" />
-                            )}
-                          </button>
+                {/* Grid View with GroupBy support - Responsive columns optimized for tablet (NEM-3610) */}
+                {(groupBy === 'camera' || groupBy === 'risk') && groupedEventsByOption.length > 0 ? (
+                  /* Grouped display by camera or risk level */
+                  <div className="space-y-8">
+                    {groupedEventsByOption.map((group) => (
+                      <div key={group.key} data-testid={`group-${group.key}`}>
+                        {/* Group Header */}
+                        <div className="mb-4 flex items-center gap-3">
+                          {groupBy === 'camera' && <CameraIcon className="h-5 w-5 text-[#76B900]" />}
+                          {groupBy === 'risk' && <ShieldAlert className="h-5 w-5 text-[#76B900]" />}
+                          <h3 className="text-lg font-semibold text-white">{group.label}</h3>
+                          <span className="rounded-full bg-gray-800 px-2 py-0.5 text-sm text-gray-400">
+                            {group.events.length} event{group.events.length !== 1 ? 's' : ''}
+                          </span>
                         </div>
-                        <EventCard {...getEventCardProps(event)} hasCheckboxOverlay />
+                        {/* Events Grid for this group */}
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                          {group.events.map((event) => {
+                            // Mobile: Use MobileEventCard with swipe gestures
+                            if (isMobile) {
+                              return <MobileEventCard key={event.id} {...getMobileEventCardProps(event)} />;
+                            }
+                            // Desktop: Use EventCard with selection checkbox
+                            return (
+                              <div key={event.id} className="relative">
+                                <div className="absolute left-2 top-2 z-10">
+                                  <button
+                                    onClick={() => handleToggleSelection(event.id)}
+                                    className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 bg-[#1A1A1A]/90 backdrop-blur-sm transition-colors hover:border-gray-600 hover:bg-[#252525]/90"
+                                    aria-label={
+                                      selectedEventIds.has(event.id)
+                                        ? `Deselect event ${event.id}`
+                                        : `Select event ${event.id}`
+                                    }
+                                  >
+                                    {selectedEventIds.has(event.id) ? (
+                                      <CheckSquare className="h-5 w-5 text-[#76B900]" />
+                                    ) : (
+                                      <Square className="h-5 w-5 text-gray-400" />
+                                    )}
+                                  </button>
+                                </div>
+                                <EventCard {...getEventCardProps(event)} hasCheckboxOverlay />
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* Default grid view with clustering (time or cluster grouping) */
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                    {clusteredItemsWithNames.map((item) => {
+                      // Render cluster card for clusters
+                      if (isEventCluster(item)) {
+                        return (
+                          <EventClusterCard
+                            key={item.clusterId}
+                            cluster={item}
+                            onEventClick={(eventId) => setSelectedEventForModal(eventId)}
+                            onBulkMarkReviewed={(eventIds) => {
+                              setBulkActionLoading(true);
+                              bulkUpdateEvents(eventIds, { reviewed: true })
+                                .then(() => {
+                                  void refetch();
+                                })
+                                .catch((err) => {
+                                  console.error('Failed to bulk mark events:', err);
+                                })
+                                .finally(() => {
+                                  setBulkActionLoading(false);
+                                });
+                            }}
+                            bulkActionLoading={bulkActionLoading}
+                            hasCheckboxOverlay={false}
+                          />
+                        );
+                      }
+
+                      // Render regular event card for individual events
+                      const event = item;
+
+                      // Mobile: Use MobileEventCard with swipe gestures (NEM-3070)
+                      if (isMobile) {
+                        return <MobileEventCard key={event.id} {...getMobileEventCardProps(event)} />;
+                      }
+
+                      // Desktop: Use EventCard with selection checkbox
+                      return (
+                        <div key={event.id} className="relative">
+                          {/* Selection Checkbox */}
+                          <div className="absolute left-2 top-2 z-10">
+                            <button
+                              onClick={() => handleToggleSelection(event.id)}
+                              className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 bg-[#1A1A1A]/90 backdrop-blur-sm transition-colors hover:border-gray-600 hover:bg-[#252525]/90"
+                              aria-label={
+                                selectedEventIds.has(event.id)
+                                  ? `Deselect event ${event.id}`
+                                  : `Select event ${event.id}`
+                              }
+                            >
+                              {selectedEventIds.has(event.id) ? (
+                                <CheckSquare className="h-5 w-5 text-[#76B900]" />
+                              ) : (
+                                <Square className="h-5 w-5 text-gray-400" />
+                              )}
+                            </button>
+                          </div>
+                          <EventCard {...getEventCardProps(event)} hasCheckboxOverlay />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Infinite Scroll Status */}
                 <InfiniteScrollStatus

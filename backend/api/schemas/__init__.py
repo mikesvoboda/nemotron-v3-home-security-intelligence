@@ -116,6 +116,12 @@ from .errors import (
     ValidationErrorResponse,
     raise_http_error,
 )
+from .event_cluster import (
+    ClusterEventSummary,
+    ClusterRiskLevels,
+    EventCluster,
+    EventClustersResponse,
+)
 from .export import (
     ExportDownloadResponse,
     ExportFormatEnum,
@@ -367,6 +373,11 @@ __all__ = [  # noqa: RUF022
     "EventBulkDeleteRequest",
     "EventBulkUpdateItem",
     "EventBulkUpdateRequest",
+    # Event clustering schemas (NEM-3620)
+    "ClusterEventSummary",
+    "ClusterRiskLevels",
+    "EventCluster",
+    "EventClustersResponse",
     "EventEnrichmentsResponse",
     "EventFeedbackCreate",
     "EventFeedbackResponse",
