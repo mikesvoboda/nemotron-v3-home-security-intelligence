@@ -81,6 +81,7 @@ def client(mock_db_session: AsyncMock, mock_cache_service: AsyncMock) -> TestCli
         mock_event.detections = []
         mock_event.deleted_at = None
         mock_event.clip_path = None
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
         return mock_event
 
     # Override the rate limiter dependency (NEM-2600)
@@ -590,6 +591,7 @@ class TestUpdateEvent:
         mock_event.risk_level = "high"
         mock_event.summary = "Test"
         mock_event.reasoning = "Test"
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         mock_get_event.return_value = mock_event
         mock_audit.return_value = AsyncMock()
@@ -619,6 +621,7 @@ class TestUpdateEvent:
         mock_event.risk_level = "high"
         mock_event.summary = "Test"
         mock_event.reasoning = "Test"
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         mock_get_event.return_value = mock_event
 
@@ -993,6 +996,7 @@ class TestRestoreEvent:
         mock_event.notes = None
         mock_event.detection_id_list = [1, 2]
         mock_event.detections = []
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         mock_service = Mock()
         mock_service.restore_event = AsyncMock(return_value=mock_event)
@@ -1331,6 +1335,7 @@ class TestUpdateEventBranches:
         mock_event.risk_level = "high"
         mock_event.summary = "Test"
         mock_event.reasoning = "Test"
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         mock_get_event.return_value = mock_event
         mock_audit.return_value = AsyncMock()
@@ -1359,6 +1364,7 @@ class TestUpdateEventBranches:
         mock_event.risk_level = "high"
         mock_event.summary = "Test"
         mock_event.reasoning = "Test"
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         mock_get_event.return_value = mock_event
         mock_metric.side_effect = Exception("Metric error")
@@ -1391,6 +1397,7 @@ class TestUpdateEventBranches:
         mock_event.risk_level = "high"
         mock_event.summary = "Test"
         mock_event.reasoning = "Test"
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         mock_get_event.return_value = mock_event
         mock_cache_service.invalidate_events.side_effect = Exception("Cache error")
@@ -1482,6 +1489,7 @@ class TestDeleteRestoreCacheFailures:
         mock_event.notes = None
         mock_event.detection_id_list = [1, 2]
         mock_event.detections = []
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         mock_service = Mock()
         mock_service.restore_event = AsyncMock(return_value=mock_event)
