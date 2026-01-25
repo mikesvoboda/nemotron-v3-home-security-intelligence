@@ -743,6 +743,108 @@ class ErrorPayload(BasePayload):
 
 
 # =============================================================================
+# Enrichment Event Payloads (NEM-3627)
+# =============================================================================
+
+
+class EnrichmentStatusEnum(StrEnum):
+    """Enrichment status values."""
+
+    FULL = "full"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class EnrichmentStartedPayload(BasePayload):
+    """Payload for enrichment.started events."""
+
+    batch_id: str = Field(..., description="Unique batch identifier")
+    camera_id: str = Field(..., description="Camera identifier")
+    detection_count: int = Field(..., ge=0, description="Number of detections to enrich")
+    timestamp: str = Field(..., description="ISO 8601 timestamp when started")
+    enabled_models: list[str] | None = Field(None, description="List of enabled enrichment models")
+
+
+class EnrichmentProgressPayload(BasePayload):
+    """Payload for enrichment.progress events."""
+
+    batch_id: str = Field(..., description="Unique batch identifier")
+    progress: int = Field(..., ge=0, le=100, description="Progress percentage (0-100)")
+    current_step: str = Field(..., description="Current enrichment step name")
+    total_steps: int | None = Field(None, ge=1, description="Total number of enrichment steps")
+    completed_steps: list[str] | None = Field(None, description="List of completed step names")
+    timestamp: str | None = Field(None, description="ISO 8601 timestamp")
+
+
+class EnrichmentCompletedPayload(BasePayload):
+    """Payload for enrichment.completed events."""
+
+    batch_id: str = Field(..., description="Unique batch identifier")
+    status: EnrichmentStatusEnum = Field(..., description="Enrichment status (full, partial, failed)")
+    enriched_count: int = Field(..., ge=0, description="Number of successfully enriched detections")
+    duration_ms: float | None = Field(None, ge=0, description="Total processing duration in milliseconds")
+    timestamp: str | None = Field(None, description="ISO 8601 timestamp when completed")
+    summary: dict[str, Any] | None = Field(None, description="Enrichment summary details")
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def validate_status(cls, v: str | EnrichmentStatusEnum) -> EnrichmentStatusEnum:
+        """Convert string to EnrichmentStatusEnum enum."""
+        if isinstance(v, EnrichmentStatusEnum):
+            return v
+        if isinstance(v, str):
+            return EnrichmentStatusEnum(v.lower())
+        raise ValueError(f"Invalid enrichment status: {v}")
+
+
+class EnrichmentFailedPayload(BasePayload):
+    """Payload for enrichment.failed events."""
+
+    batch_id: str = Field(..., description="Unique batch identifier")
+    error: str = Field(..., description="Error message")
+    error_type: str | None = Field(None, description="Categorized error type")
+    timestamp: str | None = Field(None, description="ISO 8601 timestamp")
+    details: dict[str, Any] | None = Field(None, description="Additional error details")
+    recoverable: bool = Field(True, description="Whether the error is recoverable")
+
+
+# =============================================================================
+# Queue Metrics Event Payloads (NEM-3637)
+# =============================================================================
+
+
+class QueueInfo(BasePayload):
+    """Information about a single queue."""
+
+    name: str = Field(..., description="Queue name (detection, analysis, etc.)")
+    depth: int = Field(..., ge=0, description="Number of items in queue")
+    workers: int = Field(..., ge=0, description="Number of active workers")
+    status: str | None = Field(None, description="Queue health status")
+
+
+class QueueStatusPayload(BasePayload):
+    """Payload for queue.status events."""
+
+    queues: list[QueueInfo] = Field(..., description="List of queue statuses")
+    total_queued: int = Field(..., ge=0, description="Total items across all queues")
+    total_processing: int = Field(..., ge=0, description="Total items being processed")
+    total_workers: int | None = Field(None, ge=0, description="Total active workers")
+    overall_status: str = Field(..., description="Overall system status (healthy/warning/critical)")
+    timestamp: str | None = Field(None, description="ISO 8601 timestamp")
+
+
+class PipelineThroughputPayload(BasePayload):
+    """Payload for pipeline.throughput events."""
+
+    detections_per_minute: float = Field(..., ge=0, description="Detections processed per minute")
+    events_per_minute: float = Field(..., ge=0, description="Events created per minute")
+    enrichments_per_minute: float | None = Field(None, ge=0, description="Enrichments per minute")
+    timestamp: str | None = Field(None, description="ISO 8601 timestamp")
+    window_seconds: int | None = Field(None, description="Measurement window in seconds")
+
+
+# =============================================================================
 # Payload Type Mapping
 # =============================================================================
 
@@ -799,6 +901,14 @@ EVENT_PAYLOAD_SCHEMAS: dict[WebSocketEventType, type[BasePayload]] = {
     WebSocketEventType.CONNECTION_ERROR: ConnectionErrorPayload,
     # Control messages
     WebSocketEventType.ERROR: ErrorPayload,
+    # Enrichment events (NEM-3627)
+    WebSocketEventType.ENRICHMENT_STARTED: EnrichmentStartedPayload,
+    WebSocketEventType.ENRICHMENT_PROGRESS: EnrichmentProgressPayload,
+    WebSocketEventType.ENRICHMENT_COMPLETED: EnrichmentCompletedPayload,
+    WebSocketEventType.ENRICHMENT_FAILED: EnrichmentFailedPayload,
+    # Queue metrics events (NEM-3637)
+    WebSocketEventType.QUEUE_STATUS: QueueStatusPayload,
+    WebSocketEventType.PIPELINE_THROUGHPUT: PipelineThroughputPayload,
 }
 
 

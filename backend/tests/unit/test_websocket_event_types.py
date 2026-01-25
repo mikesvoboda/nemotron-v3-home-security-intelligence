@@ -178,6 +178,7 @@ class TestEventTypeMetadata:
             "events",
             "detections",
             "workers",  # NEM-2461: Worker events channel
+            "enrichment",  # NEM-3627: Enrichment events channel
             None,
         }
         for event_type, metadata in EVENT_TYPE_METADATA.items():
@@ -402,7 +403,7 @@ class TestGetAllChannels:
     def test_returns_expected_channels(self):
         """Verify expected channels are returned."""
         channels = get_all_channels()
-        expected = {"alerts", "cameras", "jobs", "system", "events", "detections", "workers"}
+        expected = {"alerts", "cameras", "jobs", "system", "events", "detections", "workers", "enrichment"}
         assert set(channels) == expected
 
     def test_returns_sorted_list(self):
