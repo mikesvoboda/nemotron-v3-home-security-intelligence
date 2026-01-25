@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Clock, Eye, Moon, Timer, TrendingUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, Eye, Film, Moon, Timer, TrendingUp } from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 
 import {
@@ -128,6 +128,8 @@ export interface EventCardProps {
   onClick?: (eventId: string) => void;
   /** Callback to snooze the event for a duration in seconds */
   onSnooze?: (eventId: string, seconds: number) => void;
+  /** Callback to open clip generation for this event (NEM-3590) */
+  onGenerateClip?: (eventId: string) => void;
   className?: string;
   /** When true, adds left margin to header to accommodate an overlaying checkbox */
   hasCheckboxOverlay?: boolean;
@@ -152,6 +154,7 @@ const EventCard = memo(function EventCard({
   onViewDetails,
   onClick,
   onSnooze,
+  onGenerateClip,
   className = '',
   hasCheckboxOverlay = false,
   snooze_until,
@@ -492,6 +495,19 @@ const EventCard = memo(function EventCard({
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Clip Button (NEM-3590) */}
+            {onGenerateClip && (
+              <button
+                onClick={() => onGenerateClip(id)}
+                className="flex items-center gap-2 rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-[#76B900]/50 hover:bg-gray-700 hover:text-[#76B900]"
+                aria-label={`Generate video clip for event ${id}`}
+                title="Generate Video Clip"
+              >
+                <Film className="h-4 w-4" />
+                Clip
+              </button>
             )}
 
             {/* View Details Button */}
