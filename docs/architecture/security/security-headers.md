@@ -2,6 +2,8 @@
 
 > HTTP security headers, Content Security Policy, and defense-in-depth configuration
 
+![Security Headers Overview](../../images/architecture/security/technical-security-headers.png)
+
 ## Key Files
 
 - `backend/api/middleware/security_headers.py` - Security headers middleware implementation
@@ -144,6 +146,8 @@ export HSTS_PRELOAD=true
 ```
 
 ## Content Security Policy (CSP)
+
+![Content Security Policy](../../images/architecture/security/concept-csp-policy.png)
 
 ### Backend CSP Policy
 

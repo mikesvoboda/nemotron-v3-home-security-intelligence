@@ -2,6 +2,8 @@
 
 This document describes the complete lifecycle of a security event from creation through archival, including state transitions, data transformations, and retention policies.
 
+![Event Lifecycle Overview](../../images/architecture/dataflows/flow-event-lifecycle.png)
+
 ## Event State Machine
 
 ```mermaid
@@ -17,6 +19,8 @@ stateDiagram-v2
 ```
 
 ## Event Creation
+
+![Event States](../../images/architecture/dataflows/concept-event-states.png)
 
 **Source:** `backend/services/nemotron_analyzer.py:6-17`
 

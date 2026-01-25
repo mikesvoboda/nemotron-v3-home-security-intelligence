@@ -2,6 +2,8 @@
 
 This document describes the Nemotron LLM analysis process, including prompt construction, request handling, retry logic, and response parsing.
 
+![LLM Analysis Overview](../../images/architecture/dataflows/flow-llm-analysis.png)
+
 ## Analysis Flow Overview
 
 **Source:** `backend/services/nemotron_analyzer.py:1-28`
@@ -166,6 +168,8 @@ Request 5: WAIT (count: 0) -> Acquire when available -> Process -> Release
 | Validation error         | No        | Invalid response data   |
 
 ## Prompt Construction
+
+![Prompt Construction](../../images/architecture/dataflows/concept-prompt-construction.png)
 
 ### Prompt Templates
 

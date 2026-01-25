@@ -2,6 +2,8 @@
 
 This document describes the error handling and recovery mechanisms used throughout the system, including circuit breakers, retry logic, and graceful degradation.
 
+![Error Recovery Overview](../../images/architecture/dataflows/flow-error-recovery.png)
+
 ## Circuit Breaker Pattern
 
 **Source:** `backend/services/circuit_breaker.py:1-42`
@@ -30,6 +32,8 @@ Features:
 ```
 
 ## Circuit Breaker State Machine
+
+![Circuit Breaker](../../images/architecture/dataflows/flow-circuit-breaker.png)
 
 ```mermaid
 stateDiagram-v2

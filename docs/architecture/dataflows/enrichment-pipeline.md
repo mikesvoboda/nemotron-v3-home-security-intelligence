@@ -2,6 +2,8 @@
 
 This document describes the enrichment pipeline that enhances detections with additional AI-generated context before LLM analysis.
 
+![Enrichment Pipeline Overview](../../images/architecture/dataflows/flow-enrichment-pipeline.png)
+
 ## Pipeline Overview
 
 **Source:** `backend/services/enrichment_pipeline.py:1-17`
@@ -301,6 +303,8 @@ from backend.services.xclip_loader import (
 | **Pet Classifier**         | Animal crop  | Species/breed       | Pet identification       |
 
 ## Enrichment Flow by Detection Type
+
+![Enrichment Routing](../../images/architecture/dataflows/technical-enrichment-routing.png)
 
 ### Vehicle Detections
 
