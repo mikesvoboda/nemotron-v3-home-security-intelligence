@@ -30,9 +30,23 @@ const availableStrategies = [
 ];
 
 const mockPreviewResponse: StrategyPreviewResponse = {
+  strategy: 'balanced',
   proposed_assignments: [
     { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
     { service: 'ai-detector', gpu_index: 1, vram_budget_override: null },
+  ],
+  warnings: [],
+};
+
+const mockPreviewResponseWithWarnings: StrategyPreviewResponse = {
+  strategy: 'vram_based',
+  proposed_assignments: [
+    { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
+    { service: 'ai-enrichment', gpu_index: 1, vram_budget_override: 3.5 },
+  ],
+  warnings: [
+    'ai-enrichment VRAM budget (6.8 GB) exceeds GPU 1 (4 GB). Suggested budget: 3.5 GB.',
+    'Some services may experience memory pressure.',
   ],
 };
 
@@ -223,6 +237,59 @@ describe('GpuStrategySelector', () => {
       );
 
       expect(screen.getByTestId('preview-strategy-button')).toBeDisabled();
+    });
+  });
+
+  describe('preview warnings', () => {
+    it('should display warnings from preview response', () => {
+      renderWithProviders(
+        <GpuStrategySelector
+          {...defaultProps}
+          selectedStrategy="vram_based"
+          previewData={mockPreviewResponseWithWarnings}
+        />
+      );
+
+      expect(
+        screen.getByText(/ai-enrichment VRAM budget \(6\.8 GB\) exceeds GPU 1/)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Some services may experience memory pressure/)).toBeInTheDocument();
+    });
+
+    it('should show warning icon for each warning', () => {
+      renderWithProviders(
+        <GpuStrategySelector
+          {...defaultProps}
+          selectedStrategy="vram_based"
+          previewData={mockPreviewResponseWithWarnings}
+        />
+      );
+
+      expect(screen.getByTestId('preview-warnings')).toBeInTheDocument();
+    });
+
+    it('should not show warnings section when no warnings', () => {
+      renderWithProviders(
+        <GpuStrategySelector
+          {...defaultProps}
+          selectedStrategy="balanced"
+          previewData={mockPreviewResponse}
+        />
+      );
+
+      expect(screen.queryByTestId('preview-warnings')).not.toBeInTheDocument();
+    });
+
+    it('should show strategy name in preview results', () => {
+      renderWithProviders(
+        <GpuStrategySelector
+          {...defaultProps}
+          selectedStrategy="vram_based"
+          previewData={mockPreviewResponseWithWarnings}
+        />
+      );
+
+      expect(screen.getByText(/vram_based/i)).toBeInTheDocument();
     });
   });
 });

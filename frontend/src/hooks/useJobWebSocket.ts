@@ -18,11 +18,19 @@ import {
 import type { JobProgressData, JobCompletedData, JobFailedData } from '../types/websocket';
 
 export interface UseJobWebSocketOptions {
+  /** Base URL for the WebSocket connection (defaults to window.location) */
   baseUrl?: string;
+  /** Whether to enable the WebSocket connection (default: true) */
+  enabled?: boolean;
+  /** Callback when job progress updates are received */
   onJobProgress?: (data: JobProgressData) => void;
+  /** Callback when a job completes successfully */
   onJobCompleted?: (data: JobCompletedData) => void;
+  /** Callback when a job fails */
   onJobFailed?: (data: JobFailedData) => void;
+  /** Whether to show toast notifications for job completion/failure (default: true) */
   showToasts?: boolean;
+  /** Whether to invalidate React Query caches on job completion (default: true) */
   invalidateQueries?: boolean;
 }
 
@@ -71,6 +79,7 @@ function getJobsWebSocketUrl(baseUrl?: string): string {
 export function useJobWebSocket(options: UseJobWebSocketOptions = {}): UseJobWebSocketReturn {
   const {
     baseUrl,
+    enabled = true,
     onJobProgress,
     onJobCompleted,
     onJobFailed,
@@ -164,13 +173,20 @@ export function useJobWebSocket(options: UseJobWebSocketOptions = {}): UseJobWeb
     [queryClient, success, error, showToasts, invalidateQueries]
   );
 
-  const wsUrl = useMemo(() => getJobsWebSocketUrl(baseUrl), [baseUrl]);
+  // Only compute URL when enabled to avoid unnecessary WebSocket connections
+  const wsUrl = useMemo(
+    () => (enabled ? getJobsWebSocketUrl(baseUrl) : ''),
+    [baseUrl, enabled]
+  );
+
+  // useWebSocket with an empty URL effectively disables the connection
+  // We pass a valid URL only when enabled
   const { isConnected } = useWebSocket({
-    url: wsUrl,
-    onMessage: handleMessage,
-    reconnect: true,
+    url: wsUrl || 'ws://disabled',
+    onMessage: enabled ? handleMessage : () => {},
+    reconnect: enabled,
     reconnectInterval: 1000,
-    reconnectAttempts: 15,
+    reconnectAttempts: enabled ? 15 : 0,
   });
 
   const isJobRunning = useCallback(
@@ -193,10 +209,10 @@ export function useJobWebSocket(options: UseJobWebSocketOptions = {}): UseJobWeb
   );
 
   return {
-    activeJobs: activeJobsArray,
-    isJobRunning,
-    hasActiveJobs,
-    isConnected,
+    activeJobs: enabled ? activeJobsArray : [],
+    isJobRunning: enabled ? isJobRunning : () => false,
+    hasActiveJobs: enabled ? hasActiveJobs : false,
+    isConnected: enabled ? isConnected : false,
   };
 }
 

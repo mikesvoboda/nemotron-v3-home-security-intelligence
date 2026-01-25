@@ -782,4 +782,125 @@ describe('EventListView', () => {
       expect(wrapper).toHaveClass('custom-class');
     });
   });
+
+  describe('snooze functionality (NEM-3592)', () => {
+    it('renders snooze button when onSnooze is provided', () => {
+      const onSnooze = vi.fn();
+      render(
+        <EventListView
+          events={mockEvents}
+          selectedIds={new Set()}
+          onToggleSelection={vi.fn()}
+          onToggleSelectAll={vi.fn()}
+          onEventClick={vi.fn()}
+          onMarkReviewed={vi.fn()}
+          onSnooze={onSnooze}
+        />
+      );
+
+      // Should have snooze buttons for each event
+      const snoozeButtons = screen.getAllByRole('button', { name: /snooze/i });
+      expect(snoozeButtons.length).toBe(mockEvents.length);
+    });
+
+    it('does not render snooze button when onSnooze is not provided', () => {
+      render(
+        <EventListView
+          events={mockEvents}
+          selectedIds={new Set()}
+          onToggleSelection={vi.fn()}
+          onToggleSelectAll={vi.fn()}
+          onEventClick={vi.fn()}
+          onMarkReviewed={vi.fn()}
+        />
+      );
+
+      expect(screen.queryByRole('button', { name: /snooze/i })).not.toBeInTheDocument();
+    });
+
+    it('displays snooze indicator for snoozed events', () => {
+      vi.useRealTimers();
+      const snoozedEvents = [
+        {
+          ...mockEvents[0],
+          snooze_until: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        },
+        ...mockEvents.slice(1),
+      ];
+
+      render(
+        <EventListView
+          events={snoozedEvents}
+          selectedIds={new Set()}
+          onToggleSelection={vi.fn()}
+          onToggleSelectAll={vi.fn()}
+          onEventClick={vi.fn()}
+          onMarkReviewed={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText(/snoozed/i)).toBeInTheDocument();
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('applies reduced opacity to snoozed event rows', () => {
+      vi.useRealTimers();
+      const snoozedEvents = [
+        {
+          ...mockEvents[0],
+          snooze_until: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        },
+        ...mockEvents.slice(1),
+      ];
+
+      render(
+        <EventListView
+          events={snoozedEvents}
+          selectedIds={new Set()}
+          onToggleSelection={vi.fn()}
+          onToggleSelectAll={vi.fn()}
+          onEventClick={vi.fn()}
+          onMarkReviewed={vi.fn()}
+        />
+      );
+
+      const snoozedRow = screen.getByTestId('event-list-row-1');
+      expect(snoozedRow).toHaveClass('opacity-60');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('calls onSnooze with event ID and duration when snooze option is selected', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const onSnooze = vi.fn();
+
+      render(
+        <EventListView
+          events={mockEvents}
+          selectedIds={new Set()}
+          onToggleSelection={vi.fn()}
+          onToggleSelectAll={vi.fn()}
+          onEventClick={vi.fn()}
+          onMarkReviewed={vi.fn()}
+          onSnooze={onSnooze}
+        />
+      );
+
+      // Click the first snooze button
+      const snoozeButtons = screen.getAllByRole('button', { name: /snooze/i });
+      await user.click(snoozeButtons[0]);
+
+      // Select 1 hour option
+      await user.click(screen.getByText('1 hour'));
+
+      expect(onSnooze).toHaveBeenCalledWith(1, 3600);
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+  });
 });

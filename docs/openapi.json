@@ -5152,6 +5152,51 @@
         "title": "ClothingEnrichment",
         "type": "object"
       },
+      "ConfidenceFactors": {
+        "description": "Factors affecting confidence in the risk analysis.\n\nThese factors help explain the reliability of the risk assessment\nand can be used to understand when additional review may be needed.\n\nAttributes:\n    detection_quality: Quality of the detection data (good, fair, poor)\n    weather_impact: Impact of weather on detection accuracy\n    enrichment_coverage: Completeness of enrichment data used",
+        "example": {
+          "detection_quality": "good",
+          "enrichment_coverage": "full",
+          "weather_impact": "none"
+        },
+        "properties": {
+          "detection_quality": {
+            "default": "good",
+            "description": "Quality of the detection data",
+            "enum": [
+              "good",
+              "fair",
+              "poor"
+            ],
+            "title": "Detection Quality",
+            "type": "string"
+          },
+          "enrichment_coverage": {
+            "default": "full",
+            "description": "Completeness of enrichment data available",
+            "enum": [
+              "full",
+              "partial",
+              "minimal"
+            ],
+            "title": "Enrichment Coverage",
+            "type": "string"
+          },
+          "weather_impact": {
+            "default": "none",
+            "description": "Impact of weather conditions on detection accuracy",
+            "enum": [
+              "none",
+              "minor",
+              "significant"
+            ],
+            "title": "Weather Impact",
+            "type": "string"
+          }
+        },
+        "title": "ConfidenceFactors",
+        "type": "object"
+      },
       "ConfigResponse": {
         "description": "Response schema for configuration endpoint.\n\nOnly includes public, non-sensitive configuration values.",
         "example": {
@@ -9467,6 +9512,11 @@
         "description": "Schema for event response.",
         "example": {
           "camera_id": "front_door",
+          "confidence_factors": {
+            "detection_quality": "good",
+            "enrichment_coverage": "full",
+            "weather_impact": "none"
+          },
           "detection_count": 5,
           "detection_ids": [
             1,
@@ -9488,6 +9538,14 @@
               "clothing"
             ]
           },
+          "entities": [
+            {
+              "description": "Individual in casual clothing",
+              "threat_level": "low",
+              "type": "person"
+            }
+          ],
+          "flags": [],
           "id": 1,
           "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
           "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
@@ -9503,6 +9561,17 @@
             "description": "Normalized camera ID (e.g., 'front_door')",
             "title": "Camera Id",
             "type": "string"
+          },
+          "confidence_factors": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConfidenceFactors"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Factors affecting confidence in the analysis"
           },
           "deleted_at": {
             "anyOf": [
@@ -9555,6 +9624,22 @@
             ],
             "description": "Enrichment pipeline status (NEM-1672) - shows which models succeeded/failed"
           },
+          "entities": {
+            "description": "Entities identified in the analysis (people, vehicles, objects)",
+            "items": {
+              "$ref": "#/components/schemas/RiskEntity"
+            },
+            "title": "Entities",
+            "type": "array"
+          },
+          "flags": {
+            "description": "Risk flags raised during analysis",
+            "items": {
+              "$ref": "#/components/schemas/RiskFlag"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
           "id": {
             "description": "Event ID",
             "title": "Id",
@@ -9595,6 +9680,18 @@
             ],
             "description": "LLM reasoning for risk score",
             "title": "Reasoning"
+          },
+          "recommended_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Suggested action based on the analysis",
+            "title": "Recommended Action"
           },
           "reviewed": {
             "default": false,
@@ -20893,6 +20990,80 @@
           "count"
         ],
         "title": "RiskDistributionItem",
+        "type": "object"
+      },
+      "RiskEntity": {
+        "description": "Entity identified during risk analysis.\n\nEntities represent objects of interest detected in the scene that\ncontribute to the overall risk assessment (e.g., people, vehicles,\npackages).\n\nAttributes:\n    type: Category of entity (e.g., \"person\", \"vehicle\", \"package\")\n    description: Detailed description of the entity\n    threat_level: Risk level attributed to this entity",
+        "example": {
+          "description": "Unknown individual near front entrance",
+          "threat_level": "medium",
+          "type": "person"
+        },
+        "properties": {
+          "description": {
+            "description": "Detailed description of the entity",
+            "title": "Description",
+            "type": "string"
+          },
+          "threat_level": {
+            "description": "Risk level attributed to this entity",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Threat Level",
+            "type": "string"
+          },
+          "type": {
+            "description": "Category of entity (e.g., person, vehicle, package)",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "description",
+          "threat_level"
+        ],
+        "title": "RiskEntity",
+        "type": "object"
+      },
+      "RiskFlag": {
+        "description": "Risk flag indicating a specific concern or anomaly.\n\nFlags represent specific behaviors, patterns, or conditions that\nwarrant attention (e.g., loitering, nighttime activity, weapon detected).\n\nAttributes:\n    type: Category of flag (e.g., \"loitering\", \"weapon_detected\")\n    description: Explanation of the flag\n    severity: How severe this flag is (warning, alert, critical)",
+        "example": {
+          "description": "Person has been stationary for over 5 minutes",
+          "severity": "warning",
+          "type": "loitering"
+        },
+        "properties": {
+          "description": {
+            "description": "Explanation of the flag",
+            "title": "Description",
+            "type": "string"
+          },
+          "severity": {
+            "description": "Severity level of this flag",
+            "enum": [
+              "warning",
+              "alert",
+              "critical"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "type": {
+            "description": "Category of flag (e.g., loitering, weapon_detected)",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "description",
+          "severity"
+        ],
+        "title": "RiskFlag",
         "type": "object"
       },
       "RiskHistoryDataPoint": {

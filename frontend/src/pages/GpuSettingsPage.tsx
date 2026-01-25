@@ -138,6 +138,16 @@ export default function GpuSettingsPage() {
     setLastApplyResult(null);
   }, []);
 
+  const handleVramOverrideChange = useCallback((service: string, vramOverride: number | null) => {
+    setLocalAssignments((prev) =>
+      prev.map((a) =>
+        a.service === service ? { ...a, vram_budget_override: vramOverride } : a
+      )
+    );
+    setHasChanges(true);
+    setLastApplyResult(null);
+  }, []);
+
   const handlePreview = useCallback(
     async (strategy: string) => {
       return previewStrategy(strategy);
@@ -328,6 +338,7 @@ export default function GpuSettingsPage() {
               serviceStatuses={statusData?.services ?? []}
               strategy={localStrategy}
               onAssignmentChange={handleAssignmentChange}
+              onVramOverrideChange={handleVramOverrideChange}
               isLoading={isLoadingConfig || isLoadingStatus}
               hasPendingChanges={hasChanges}
             />

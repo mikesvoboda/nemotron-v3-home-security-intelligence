@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronUp, Eye } from 'lucide-react';
-import { memo, useCallback, useEffect, useRef } from 'react';
+import { ChevronDown, ChevronUp, Eye, Moon } from 'lucide-react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 
 import { getRiskLevel, type RiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
@@ -22,6 +22,8 @@ export interface EventListItem {
   summary: string | null;
   thumbnail_url: string | null;
   reviewed: boolean;
+  /** ISO timestamp until which alerts for this event are snoozed (NEM-3592) */
+  snooze_until?: string | null;
 }
 
 export interface EventListViewProps {
@@ -37,6 +39,8 @@ export interface EventListViewProps {
   onEventClick: (eventId: number) => void;
   /** Callback when mark reviewed action is triggered */
   onMarkReviewed: (eventId: number) => void;
+  /** Callback when snooze action is triggered (NEM-3592) */
+  onSnooze?: (eventId: number, seconds: number) => void;
   /** Current sort field */
   sortField?: SortField;
   /** Current sort direction */
@@ -144,12 +148,28 @@ const EventListView = memo(function EventListView({
   onToggleSelectAll,
   onEventClick,
   onMarkReviewed,
+  onSnooze,
   sortField,
   sortDirection,
   onSort,
   className = '',
 }: EventListViewProps) {
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
+  const [openSnoozeMenuId, setOpenSnoozeMenuId] = useState<number | null>(null);
+
+  // Handle snooze action
+  const handleSnooze = useCallback(
+    (eventId: number, seconds: number) => {
+      onSnooze?.(eventId, seconds);
+      setOpenSnoozeMenuId(null);
+    },
+    [onSnooze]
+  );
+
+  // Check if event is currently snoozed
+  const isSnoozed = useCallback((snoozeUntil?: string | null) => {
+    return snoozeUntil ? new Date(snoozeUntil) > new Date() : false;
+  }, []);
 
   // Update indeterminate state of header checkbox
   useEffect(() => {
@@ -266,6 +286,7 @@ const EventListView = memo(function EventListView({
             {events.map((event) => {
               const isSelected = selectedIds.has(event.id);
               const riskLevel = (event.risk_level || getRiskLevel(event.risk_score)) as RiskLevel;
+              const eventIsSnoozed = isSnoozed(event.snooze_until);
 
               return (
                 <tr
@@ -274,7 +295,7 @@ const EventListView = memo(function EventListView({
                   onKeyDown={(e) => handleRowKeyDown(event.id, e)}
                   tabIndex={0}
                   className={`cursor-pointer transition-colors hover:bg-[#252525] ${
-                    event.reviewed ? 'opacity-60' : ''
+                    event.reviewed || eventIsSnoozed ? 'opacity-60' : ''
                   } ${isSelected ? 'bg-[#76B900]/10' : ''}`}
                   data-testid={`event-list-row-${event.id}`}
                 >
@@ -291,7 +312,16 @@ const EventListView = memo(function EventListView({
 
                   {/* Time */}
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-300">
-                    {formatTimestamp(event.started_at)}
+                    <div className="flex flex-col gap-1">
+                      <span>{formatTimestamp(event.started_at)}</span>
+                      {/* Snooze indicator (NEM-3592) */}
+                      {eventIsSnoozed && (
+                        <span className="flex items-center gap-1 text-xs text-purple-400">
+                          <Moon className="h-3 w-3" />
+                          <span>Snoozed</span>
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* Camera with mini thumbnail */}
@@ -348,6 +378,64 @@ const EventListView = memo(function EventListView({
                         >
                           Mark Reviewed
                         </button>
+                      )}
+                      {/* Snooze Dropdown (NEM-3592) */}
+                      {onSnooze && (
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setOpenSnoozeMenuId(openSnoozeMenuId === event.id ? null : event.id)}
+                            className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                            aria-label={`Snooze event ${event.id}`}
+                            aria-expanded={openSnoozeMenuId === event.id}
+                            aria-haspopup="true"
+                          >
+                            <Moon className="h-3 w-3" />
+                            Snooze
+                          </button>
+                          {openSnoozeMenuId === event.id && (
+                            <div className="absolute right-0 z-10 mt-1 w-32 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg">
+                              {eventIsSnoozed && (
+                                <button
+                                  onClick={() => handleSnooze(event.id, 0)}
+                                  className="block w-full px-3 py-1.5 text-left text-xs text-purple-400 hover:bg-gray-700"
+                                >
+                                  Clear snooze
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleSnooze(event.id, 900)}
+                                className="block w-full px-3 py-1.5 text-left text-xs text-gray-300 hover:bg-gray-700"
+                              >
+                                15 minutes
+                              </button>
+                              <button
+                                onClick={() => handleSnooze(event.id, 3600)}
+                                className="block w-full px-3 py-1.5 text-left text-xs text-gray-300 hover:bg-gray-700"
+                              >
+                                1 hour
+                              </button>
+                              <button
+                                onClick={() => handleSnooze(event.id, 14400)}
+                                className="block w-full px-3 py-1.5 text-left text-xs text-gray-300 hover:bg-gray-700"
+                              >
+                                4 hours
+                              </button>
+                              <button
+                                onClick={() => handleSnooze(event.id, 28800)}
+                                className="block w-full px-3 py-1.5 text-left text-xs text-gray-300 hover:bg-gray-700"
+                              >
+                                8 hours
+                              </button>
+                              <button
+                                onClick={() => handleSnooze(event.id, 86400)}
+                                className="block w-full px-3 py-1.5 text-left text-xs text-gray-300 hover:bg-gray-700"
+                              >
+                                24 hours
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </td>

@@ -15,7 +15,17 @@
 
 import { Card, Title, Text } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Settings2, HardDrive, Zap, Shield, Scale, Eye, Loader2, AlertCircle } from 'lucide-react';
+import {
+  Settings2,
+  HardDrive,
+  Zap,
+  Shield,
+  Scale,
+  Eye,
+  Loader2,
+  AlertCircle,
+  AlertTriangle,
+} from 'lucide-react';
 
 import Button from '../common/Button';
 
@@ -215,11 +225,14 @@ function PreviewResults({
     return null;
   }
 
+  const hasWarnings = previewData.warnings && previewData.warnings.length > 0;
+
   return (
     <div className="mt-4 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
       <div className="mb-2 flex items-center gap-2">
         <Eye className="h-4 w-4 text-[#76B900]" />
         <Text className="font-medium text-white">Proposed Assignments</Text>
+        <Text className="text-xs text-gray-500">({previewData.strategy})</Text>
       </div>
       <div className="space-y-2">
         {previewData.proposed_assignments.map((assignment: GpuAssignment) => (
@@ -228,12 +241,40 @@ function PreviewResults({
             className="flex items-center justify-between rounded bg-gray-800 px-3 py-2 text-sm"
           >
             <span className="text-gray-300">{assignment.service}</span>
-            <span className="font-mono text-[#76B900]">
-              {assignment.gpu_index !== null ? `GPU ${assignment.gpu_index}` : 'Auto'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[#76B900]">
+                {assignment.gpu_index !== null ? `GPU ${assignment.gpu_index}` : 'Auto'}
+              </span>
+              {assignment.vram_budget_override !== null &&
+                assignment.vram_budget_override !== undefined && (
+                  <span className="text-xs text-gray-400">
+                    ({assignment.vram_budget_override} GB)
+                  </span>
+                )}
+            </div>
           </div>
         ))}
       </div>
+
+      {/* Warnings section */}
+      {hasWarnings && (
+        <div
+          className="mt-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3"
+          data-testid="preview-warnings"
+        >
+          <div className="mb-2 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            <Text className="text-sm font-medium text-yellow-400">Warnings</Text>
+          </div>
+          <div className="space-y-1">
+            {previewData.warnings.map((warning, idx) => (
+              <p key={idx} className="text-sm text-yellow-300">
+                {warning}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

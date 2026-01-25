@@ -5,15 +5,16 @@
  * - Listing export jobs
  * - Starting new export jobs
  * - Cancelling export jobs
- * - Polling for job status updates
+ * - Real-time job status updates via WebSocket with HTTP polling fallback
  *
  * @module hooks/useExportJobs
- * @see NEM-3177
+ * @see NEM-3177, NEM-3570
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
+import { useJobWebSocket } from './useJobWebSocket';
 import { listExportJobs, startExportJob, cancelExportJob, getExportStatus } from '../services/api';
 import { DEFAULT_STALE_TIME } from '../services/queryClient';
 
@@ -101,13 +102,17 @@ export interface UseExportJobStatusOptions {
   enabled?: boolean;
   /** Poll interval in milliseconds (set to false or 0 to disable) */
   pollInterval?: number | false;
+  /** Whether to enable WebSocket for real-time updates (default: true) */
+  enableWebSocket?: boolean;
+  /** Whether to show toast notifications for job completion/failure (default: false for status hook) */
+  showToasts?: boolean;
 }
 
 /**
  * Return type for useExportJobStatus
  */
 export interface UseExportJobStatusReturn {
-  /** The export job data */
+  /** The export job data (merged with WebSocket updates when available) */
   job: ExportJob | null;
   /** Whether the query is loading */
   isLoading: boolean;
@@ -123,6 +128,8 @@ export interface UseExportJobStatusReturn {
   isRunning: boolean;
   /** Function to refetch the data */
   refetch: () => Promise<unknown>;
+  /** Whether WebSocket is connected (for real-time updates) */
+  wsConnected: boolean;
 }
 
 /**
@@ -213,20 +220,48 @@ export function useExportJobsQuery(
 /**
  * Hook to fetch and poll status for a specific export job.
  *
+ * Integrates WebSocket for real-time progress updates when available,
+ * falling back to HTTP polling when WebSocket is disconnected.
+ *
  * @param jobId - The export job ID to fetch
- * @param options - Query options including poll interval
- * @returns Export job data and query state
+ * @param options - Query options including poll interval and WebSocket settings
+ * @returns Export job data and query state with WebSocket connection status
  *
  * @example
  * ```tsx
- * const { job, isComplete, isRunning } = useExportJobStatus('job-123', { pollInterval: 2000 });
+ * // With WebSocket real-time updates (default)
+ * const { job, isComplete, isRunning, wsConnected } = useExportJobStatus('job-123');
+ *
+ * // With HTTP polling fallback
+ * const { job } = useExportJobStatus('job-123', { pollInterval: 2000 });
+ *
+ * // Disable WebSocket for HTTP-only polling
+ * const { job } = useExportJobStatus('job-123', { enableWebSocket: false, pollInterval: 2000 });
  * ```
  */
 export function useExportJobStatus(
   jobId: string,
   options: UseExportJobStatusOptions = {}
 ): UseExportJobStatusReturn {
-  const { enabled = true, pollInterval = false } = options;
+  const {
+    enabled = true,
+    pollInterval = 2000,
+    enableWebSocket = true,
+    showToasts = false,
+  } = options;
+
+  // Use WebSocket for real-time updates
+  const { activeJobs, isConnected: wsConnected } = useJobWebSocket({
+    enabled: enabled && enableWebSocket,
+    showToasts,
+    invalidateQueries: false, // We handle updates ourselves via merging
+  });
+
+  // Find this job in the active WebSocket jobs
+  const wsJobState = useMemo(
+    () => activeJobs.find((j) => j.job_id === jobId),
+    [activeJobs, jobId]
+  );
 
   const query = useQuery<ExportJob, Error>({
     queryKey: exportJobsQueryKeys.detail(jobId),
@@ -239,22 +274,60 @@ export function useExportJobStatus(
       if (data?.status === 'completed' || data?.status === 'failed') {
         return false;
       }
+
+      // If WebSocket is connected and has this job, reduce polling frequency
+      // WebSocket provides real-time updates, so HTTP is just a fallback
+      if (wsConnected && wsJobState) {
+        // Poll less frequently when WebSocket is handling updates
+        return pollInterval ? Math.max(pollInterval * 2, 5000) : false;
+      }
+
+      // Standard polling when WebSocket is not available
       return pollInterval;
     },
   });
 
+  // Merge WebSocket state with query data
+  // WebSocket provides more up-to-date progress, so prefer it when available
+  const mergedJob = useMemo((): ExportJob | null => {
+    if (!query.data) return null;
+    if (!wsJobState) return query.data;
+
+    // Merge WebSocket progress with HTTP data
+    // Use the higher progress value (WebSocket is typically more current)
+    const wsProgress = wsJobState.progress;
+    const httpProgress = query.data.progress.progress_percent;
+    const mergedProgress = Math.max(httpProgress, wsProgress);
+
+    // Determine status: prefer WebSocket for running status
+    // If WebSocket shows running but HTTP doesn't show completed, use running
+    const mergedStatus: ExportJob['status'] =
+      wsJobState.status === 'running' && query.data.status !== 'completed'
+        ? 'running'
+        : query.data.status;
+
+    return {
+      ...query.data,
+      status: mergedStatus,
+      progress: {
+        ...query.data.progress,
+        progress_percent: mergedProgress,
+      },
+    };
+  }, [query.data, wsJobState]);
+
   const isComplete = useMemo(
-    () => query.data?.status === 'completed' || query.data?.status === 'failed',
-    [query.data?.status]
+    () => mergedJob?.status === 'completed' || mergedJob?.status === 'failed',
+    [mergedJob?.status]
   );
 
   const isRunning = useMemo(
-    () => query.data?.status === 'running' || query.data?.status === 'pending',
-    [query.data?.status]
+    () => mergedJob?.status === 'running' || mergedJob?.status === 'pending',
+    [mergedJob?.status]
   );
 
   return {
-    job: query.data ?? null,
+    job: mergedJob,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
     isError: query.isError,
@@ -262,6 +335,7 @@ export function useExportJobStatus(
     isComplete,
     isRunning,
     refetch: query.refetch,
+    wsConnected,
   };
 }
 

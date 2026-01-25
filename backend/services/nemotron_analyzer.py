@@ -1725,7 +1725,7 @@ class NemotronAnalyzer:
         # This is a new, short-lived session for writing results to the database.
         # =========================================================================
         async with get_session() as session:
-            # Create Event record
+            # Create Event record with advanced risk analysis fields (NEM-3601)
             event = Event(
                 batch_id=batch_id,
                 camera_id=camera_id,
@@ -1737,6 +1737,11 @@ class NemotronAnalyzer:
                 reasoning=risk_data.get("reasoning", "No reasoning available"),
                 llm_prompt=risk_data.get("llm_prompt"),
                 reviewed=False,
+                # Advanced risk analysis fields (NEM-3601)
+                entities=risk_data.get("entities"),
+                flags=risk_data.get("flags"),
+                confidence_factors=risk_data.get("confidence_factors"),
+                recommended_action=risk_data.get("recommended_action"),
             )
 
             # NEM-2574: Batch database commits to reduce transaction overhead
@@ -2070,7 +2075,7 @@ class NemotronAnalyzer:
         # This is a new, short-lived session for writing results to the database.
         # =========================================================================
         async with get_session() as session:
-            # Create Event record with is_fast_path=True
+            # Create Event record with is_fast_path=True and advanced risk fields (NEM-3601)
             event = Event(
                 batch_id=batch_id,
                 camera_id=camera_id,
@@ -2083,6 +2088,11 @@ class NemotronAnalyzer:
                 llm_prompt=risk_data.get("llm_prompt"),
                 reviewed=False,
                 is_fast_path=True,
+                # Advanced risk analysis fields (NEM-3601)
+                entities=risk_data.get("entities"),
+                flags=risk_data.get("flags"),
+                confidence_factors=risk_data.get("confidence_factors"),
+                recommended_action=risk_data.get("recommended_action"),
             )
 
             # NEM-2574: Batch database commits to reduce transaction overhead

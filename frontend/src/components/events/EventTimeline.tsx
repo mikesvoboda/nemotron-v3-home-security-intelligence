@@ -11,23 +11,14 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import EventCard from './EventCard';
-import EventClusterCard from './EventClusterCard';
-import EventDetailModal from './EventDetailModal';
-import EventListView, { type SortField, type SortDirection } from './EventListView';
-import FilterChips from './FilterChips';
-import MobileEventCard from './MobileEventCard';
-import { ExportButton } from '../ExportButton';
-import LiveActivitySection from './LiveActivitySection';
-import TimeGroupedEvents from './TimeGroupedEvents';
-import TimelineScrubber, { type TimeRange, type ZoomLevel } from './TimelineScrubber';
-import ViewToggle, { type ViewMode } from './ViewToggle';
 import { useEventsInfiniteQuery, type EventFilters } from '../../hooks/useEventsQuery';
+import { useEventStats } from '../../hooks/useEventStats';
 import { useEventStream } from '../../hooks/useEventStream';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { usePaginationState } from '../../hooks/usePaginationState';
+import { useSnoozeEvent } from '../../hooks/useSnoozeEvent';
 import { useTimelineData } from '../../hooks/useTimelineData';
 import { bulkUpdateEvents, fetchCameras, searchEvents, updateEvent } from '../../services/api';
 import {
@@ -49,8 +40,20 @@ import {
 } from '../common';
 import RiskBadge from '../common/RiskBadge';
 import { type ActivityEvent } from '../dashboard/ActivityFeed';
+import { ExportButton } from '../ExportButton';
 import ExportModal from '../exports/ExportModal';
 import { SearchBar, SearchResultsPanel } from '../search';
+import EventCard from './EventCard';
+import EventClusterCard from './EventClusterCard';
+import EventDetailModal from './EventDetailModal';
+import EventListView, { type SortField, type SortDirection } from './EventListView';
+import EventStatsPanel from './EventStatsPanel';
+import FilterChips from './FilterChips';
+import LiveActivitySection from './LiveActivitySection';
+import MobileEventCard from './MobileEventCard';
+import TimeGroupedEvents from './TimeGroupedEvents';
+import TimelineScrubber, { type TimeRange, type ZoomLevel } from './TimelineScrubber';
+import ViewToggle, { type ViewMode } from './ViewToggle';
 
 import type { Detection } from './EventCard';
 import type { SearchFilters } from '../search';
@@ -163,6 +166,32 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     cameraId: eventFilters.camera_id,
     enabled: !isSearchMode,
   });
+
+  // Event statistics hook (NEM-3587) - Uses server-side stats for accuracy
+  const { stats: eventStats, isLoading: statsLoading } = useEventStats({
+    startDate: eventFilters.start_date,
+    endDate: eventFilters.end_date,
+    cameraId: eventFilters.camera_id,
+    enabled: !isSearchMode,
+  });
+
+  // Snooze event hook (NEM-3592)
+  const { snooze, unsnooze } = useSnoozeEvent();
+
+  // Handle snooze action for EventCard
+  const handleSnooze = useCallback(
+    (eventId: string, seconds: number) => {
+      const id = parseInt(eventId, 10);
+      if (seconds === 0) {
+        // Clear snooze
+        void unsnooze(id);
+      } else {
+        // Snooze for the specified duration
+        void snooze(id, seconds);
+      }
+    },
+    [snooze, unsnooze]
+  );
 
   // Convert query error to string
   const error = queryError?.message ?? bulkActionError;
@@ -556,6 +585,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       ended_at: event.ended_at,
       onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
       onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
+      // Snooze functionality (NEM-3592)
+      onSnooze: handleSnooze,
+      snoozedUntil: event.snooze_until || undefined,
     };
   };
 
@@ -751,6 +783,15 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
           }}
           initialStartDate={eventFilters.start_date}
           initialEndDate={eventFilters.end_date}
+        />
+      )}
+
+      {/* Event Statistics Panel (NEM-3587) - Server-side accurate stats */}
+      {!isSearchMode && (
+        <EventStatsPanel
+          stats={eventStats}
+          isLoading={statsLoading}
+          className="mb-6"
         />
       )}
 
@@ -1255,12 +1296,14 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                     summary: event.summary || null,
                     thumbnail_url: event.thumbnail_url || null,
                     reviewed: event.reviewed || false,
+                    snooze_until: event.snooze_until || null,
                   }))}
                   selectedIds={selectedEventIds}
                   onToggleSelection={handleToggleSelection}
                   onToggleSelectAll={handleToggleSelectAll}
                   onEventClick={(eventId) => setSelectedEventForModal(eventId)}
                   onMarkReviewed={(eventId) => void handleListMarkReviewed(eventId)}
+                  onSnooze={(eventId, seconds) => handleSnooze(String(eventId), seconds)}
                   sortField={listSortField}
                   sortDirection={listSortDirection}
                   onSort={handleListSort}

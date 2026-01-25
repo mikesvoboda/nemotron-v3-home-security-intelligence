@@ -50,6 +50,37 @@ vi.mock('../../hooks/useTimelineData', () => ({
   })),
 }));
 
+// Mock useEventStats hook (NEM-3587)
+vi.mock('../../hooks/useEventStats', () => ({
+  useEventStats: vi.fn(() => ({
+    stats: {
+      total_events: 44,
+      events_by_risk_level: {
+        critical: 2,
+        high: 5,
+        medium: 12,
+        low: 25,
+      },
+      risk_distribution: [
+        { risk_level: 'critical', count: 2 },
+        { risk_level: 'high', count: 5 },
+        { risk_level: 'medium', count: 12 },
+        { risk_level: 'low', count: 25 },
+      ],
+      events_by_camera: [],
+    },
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
+  eventStatsQueryKeys: {
+    all: ['event-stats'] as const,
+    stats: () => ['event-stats', 'stats', {}] as const,
+  },
+}));
+
 // Mock useLocalStorage hook
 vi.mock('../../hooks/useLocalStorage', () => ({
   useLocalStorage: vi.fn((_key: string, defaultValue: unknown) => [defaultValue, vi.fn()]),
@@ -1792,6 +1823,95 @@ describe('EventTimeline', () => {
 
       // Modal should not be open by default
       expect(screen.queryByTestId('export-modal')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Snooze Functionality (NEM-3592)', () => {
+    it('renders snooze button on EventCard components', async () => {
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should have snooze buttons for each event card
+      const snoozeButtons = screen.getAllByRole('button', { name: /snooze event/i });
+      expect(snoozeButtons.length).toBeGreaterThan(0);
+    });
+
+    it('displays snooze indicator for snoozed events', async () => {
+      const snoozedEvents: Event[] = [
+        {
+          ...mockEvents[0],
+          snooze_until: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from now
+        },
+        ...mockEvents.slice(1),
+      ];
+
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ events: snoozedEvents })
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Snoozed until/)).toBeInTheDocument();
+      });
+    });
+
+    it('applies reduced opacity to snoozed event cards', async () => {
+      const snoozedEvents: Event[] = [
+        {
+          ...mockEvents[0],
+          snooze_until: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        },
+        ...mockEvents.slice(1),
+      ];
+
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ events: snoozedEvents })
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        const snoozedCard = screen.getByTestId('event-card-1');
+        expect(snoozedCard).toHaveClass('opacity-60');
+      });
+    });
+
+    it('does not show snooze indicator for events without snooze_until', async () => {
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should not have any snooze indicators by default
+      expect(screen.queryByText(/Snoozed until/)).not.toBeInTheDocument();
+    });
+
+    it('does not show snooze indicator for events with expired snooze_until', async () => {
+      const expiredSnoozedEvents: Event[] = [
+        {
+          ...mockEvents[0],
+          snooze_until: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1 hour ago (expired)
+        },
+        ...mockEvents.slice(1),
+      ];
+
+      vi.mocked(useEventsQueryHook.useEventsInfiniteQuery).mockReturnValue(
+        createMockEventsQueryReturn({ events: expiredSnoozedEvents })
+      );
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should not have snooze indicator since it's expired
+      expect(screen.queryByText(/Snoozed until/)).not.toBeInTheDocument();
     });
   });
 });
