@@ -13,7 +13,7 @@ import {
   getConfidenceTextColorClass,
   sortDetectionsByConfidence,
 } from '../../utils/confidence';
-import { getRiskLevel } from '../../utils/risk';
+import { getRiskColor, getRiskLevel } from '../../utils/risk';
 import { getSeverityConfig } from '../../utils/severityColors';
 import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
