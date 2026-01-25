@@ -28,7 +28,22 @@ vi.mock('../../hooks/useSummaries', () => ({
   })),
 }));
 
+// Mock useCameraAnalytics hook
+vi.mock('../../hooks/useCameraAnalytics', () => ({
+  useCameraAnalytics: vi.fn(() => ({
+    totalDetections: 100,
+    detectionsByClass: { person: 50, vehicle: 30, animal: 20 },
+    averageConfidence: 85,
+    isLoadingStats: false,
+    statsError: null,
+    selectedCamera: null,
+  })),
+}));
+
 // Mock native analytics components to avoid their dependencies
+vi.mock('./CameraAnalyticsDetail', () => ({
+  default: () => <div data-testid="camera-analytics-detail">Camera Analytics Detail Mock</div>,
+}));
 vi.mock('./CameraUptimeCard', () => ({
   default: ({ dateRange }: { dateRange: { startDate: string; endDate: string } }) => (
     <div

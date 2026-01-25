@@ -22,20 +22,23 @@
 import { BarChart3, RefreshCw, ExternalLink, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
+import CameraAnalyticsDetail from './CameraAnalyticsDetail';
 import CameraUptimeCard from './CameraUptimeCard';
 import ConfidenceMetricsCard from './ConfidenceMetricsCard';
+import DetectionTrendsCard from './DetectionTrendsCard';
 import DetectionTrendsChart from './DetectionTrendsChart';
+import ObjectDistributionCard from './ObjectDistributionCard';
 import PipelineLatencyPanel from './PipelineLatencyPanel';
 import RiskHistoryCard from './RiskHistoryCard';
 import RiskScoreDistributionCard from './RiskScoreDistributionCard';
 import RiskScoreTrendCard from './RiskScoreTrendCard';
-import InsightsCharts from '../ai/InsightsCharts';
-import { SummaryCards } from '../dashboard/SummaryCards';
 import { useCameraAnalytics } from '../../hooks/useCameraAnalytics';
-import { fetchConfig } from '../../services/api';
 import { useSummaries } from '../../hooks/useSummaries';
+import { fetchConfig } from '../../services/api';
 import { resolveGrafanaUrl } from '../../utils/grafanaUrl';
+import InsightsCharts from '../ai/InsightsCharts';
 import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
+import { SummaryCards } from '../dashboard/SummaryCards';
 
 /** View mode for analytics display */
 type ViewMode = 'grafana' | 'native';
@@ -60,6 +63,15 @@ export default function AnalyticsPage() {
     refetch: refetchSummaries,
   } = useSummaries();
 
+  // Camera analytics for detection stats
+  const {
+    totalDetections,
+    detectionsByClass,
+    averageConfidence,
+    isLoadingStats,
+    statsError,
+    selectedCamera,
+  } = useCameraAnalytics();
 
   // Fetch Grafana URL from config and resolve for remote access
   useEffect(() => {
