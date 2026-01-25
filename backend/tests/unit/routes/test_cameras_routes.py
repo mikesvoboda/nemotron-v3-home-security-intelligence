@@ -744,8 +744,8 @@ class TestDeleteCamera:
     ) -> None:
         """Test successful camera deletion."""
         mock_result = MagicMock()
-        # NEM-3597: delete_camera uses unique().scalar_one_or_none() for consistency
-        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
+        # delete_camera doesn't use load_areas, so use scalar_one_or_none directly
+        mock_result.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.delete(f"/api/cameras/{sample_camera.id}")
@@ -759,8 +759,8 @@ class TestDeleteCamera:
     def test_delete_camera_not_found(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test deleting a non-existent camera returns 404."""
         mock_result = MagicMock()
-        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
-        mock_result.unique.return_value.scalar_one_or_none.return_value = None
+        # delete_camera doesn't use load_areas, so use scalar_one_or_none directly
+        mock_result.scalar_one_or_none.return_value = None
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         fake_id = str(uuid.uuid4())
@@ -787,8 +787,8 @@ class TestGetCameraSnapshot:
     ) -> None:
         """Test snapshot endpoint returns 404 if camera doesn't exist."""
         mock_result = MagicMock()
-        # NEM-3597: update_camera uses unique().scalar_one_or_none() due to joinedload(areas)
-        mock_result.unique.return_value.scalar_one_or_none.return_value = None
+        # Snapshot endpoint doesn't use load_areas, so use scalar_one_or_none directly
+        mock_result.scalar_one_or_none.return_value = None
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         fake_id = str(uuid.uuid4())
@@ -1771,8 +1771,8 @@ class TestValidateCameraPaths:
     ) -> None:
         """Test validation endpoint with no cameras in database."""
         mock_result = MagicMock()
-        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
-        mock_result.unique.return_value.scalars.return_value.all.return_value = []
+        # validate_camera_paths uses scalars().all() directly (no joinedload)
+        mock_result.scalars.return_value.all.return_value = []
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.get("/api/cameras/validation/paths")
@@ -1804,8 +1804,8 @@ class TestValidateCameraPaths:
             last_seen_at=None,
         )
         mock_result = MagicMock()
-        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
-        mock_result.unique.return_value.scalars.return_value.all.return_value = [camera]
+        # validate_camera_paths uses scalars().all() directly (no joinedload)
+        mock_result.scalars.return_value.all.return_value = [camera]
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         mock_settings = MagicMock()
@@ -1841,8 +1841,8 @@ class TestValidateCameraPaths:
             last_seen_at=None,
         )
         mock_result = MagicMock()
-        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
-        mock_result.unique.return_value.scalars.return_value.all.return_value = [camera]
+        # validate_camera_paths uses scalars().all() directly (no joinedload)
+        mock_result.scalars.return_value.all.return_value = [camera]
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         mock_settings = MagicMock()
@@ -1877,8 +1877,8 @@ class TestValidateCameraPaths:
             last_seen_at=None,
         )
         mock_result = MagicMock()
-        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
-        mock_result.unique.return_value.scalars.return_value.all.return_value = [camera]
+        # validate_camera_paths uses scalars().all() directly (no joinedload)
+        mock_result.scalars.return_value.all.return_value = [camera]
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         mock_settings = MagicMock()
@@ -1911,8 +1911,8 @@ class TestValidateCameraPaths:
             last_seen_at=None,
         )
         mock_result = MagicMock()
-        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
-        mock_result.unique.return_value.scalars.return_value.all.return_value = [camera]
+        # validate_camera_paths uses scalars().all() directly (no joinedload)
+        mock_result.scalars.return_value.all.return_value = [camera]
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         mock_settings = MagicMock()
@@ -1956,8 +1956,8 @@ class TestValidateCameraPaths:
             last_seen_at=None,
         )
         mock_result = MagicMock()
-        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
-        mock_result.unique.return_value.scalars.return_value.all.return_value = [valid_camera, invalid_camera]
+        # validate_camera_paths uses scalars().all() directly (no joinedload)
+        mock_result.scalars.return_value.all.return_value = [valid_camera, invalid_camera]
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         mock_settings = MagicMock()
