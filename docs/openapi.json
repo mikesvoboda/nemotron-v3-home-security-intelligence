@@ -26635,7 +26635,10 @@
           "event_enriched",
           "entity_discovered",
           "anomaly_detected",
-          "system_health_changed"
+          "system_health_changed",
+          "batch_analysis_started",
+          "batch_analysis_completed",
+          "batch_analysis_failed"
         ],
         "title": "WebhookEventType",
         "type": "string"
