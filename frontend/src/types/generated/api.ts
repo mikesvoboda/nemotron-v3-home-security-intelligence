@@ -9714,7 +9714,7 @@ export interface components {
          *       "pagination": {
          *         "has_more": false,
          *         "limit": 50,
-         *         "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=",
+         *         "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjYtMDEtMDNUMTA6MzA6MDBaIn0=", // pragma: allowlist secret
          *         "offset": 0,
          *         "total": 1
          *       }
@@ -12801,7 +12801,7 @@ export interface components {
          *       "pagination": {
          *         "has_more": false,
          *         "limit": 50,
-         *         "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=",
+         *         "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=", // pragma: allowlist secret
          *         "offset": 0,
          *         "total": 1
          *       }
@@ -14650,7 +14650,7 @@ export interface components {
          *       "pagination": {
          *         "has_more": false,
          *         "limit": 50,
-         *         "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=",
+         *         "next_cursor": "eyJpZCI6IDEsICJjcmVhdGVkX2F0IjogIjIwMjUtMTItMjNUMTI6MDA6MDBaIn0=", // pragma: allowlist secret
          *         "offset": 0,
          *         "total": 1
          *       }
@@ -18591,7 +18591,7 @@ export interface components {
          *       "pagination": {
          *         "has_more": true,
          *         "limit": 50,
-         *         "next_cursor": "eyJpZCI6IDEyMzQ1fQ==",
+         *         "next_cursor": "eyJpZCI6IDEyMzQ1fQ==", // pragma: allowlist secret
          *         "offset": 0,
          *         "total": 1500
          *       }
