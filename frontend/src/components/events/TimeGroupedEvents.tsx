@@ -3,6 +3,7 @@ import { isToday, isYesterday, isThisWeek, format, parseISO } from 'date-fns';
 import { CheckSquare, ChevronDown, ChevronRight, Square } from 'lucide-react';
 import { memo, useCallback, useMemo, useState } from 'react';
 
+import { usePrefetchEventDetections } from '../../hooks/useEventDetectionsQuery';
 import { getRiskLevel, type RiskLevel } from '../../utils/risk';
 import { EventCardSkeleton } from '../common';
 import EventCard, { type Detection } from './EventCard';
@@ -180,6 +181,8 @@ interface TimeGroupSectionProps {
   onEventClick?: (eventId: number) => void;
   onToggleSelection: (eventId: number) => void;
   onViewEventDetails?: (eventId: number) => void;
+  /** Callback to prefetch event detections on hover (NEM-3594) */
+  onPrefetchDetections?: (eventId: number) => void;
 }
 
 function TimeGroupSection({
@@ -191,6 +194,7 @@ function TimeGroupSection({
   onEventClick,
   onToggleSelection,
   onViewEventDetails,
+  onPrefetchDetections,
 }: TimeGroupSectionProps) {
   const ChevronIcon = isExpanded ? ChevronDown : ChevronRight;
   const testIdKey = group.key;
@@ -250,7 +254,12 @@ function TimeGroupSection({
             const detections: Detection[] = [];
 
             return (
-              <div key={event.id} className="relative" role="listitem">
+              <div
+                key={event.id}
+                className="relative"
+                role="listitem"
+                onMouseEnter={() => onPrefetchDetections?.(event.id)}
+              >
                 <div className="absolute left-2 top-2 z-10">
                   <button
                     onClick={(e) => {
@@ -320,6 +329,9 @@ const TimeGroupedEvents = memo(function TimeGroupedEvents({
     () => new Set<TimeGroupKey>(['today'])
   );
 
+  // Prefetch hook for event detections (NEM-3594)
+  const { prefetchDetections } = usePrefetchEventDetections();
+
   const handleToggleGroup = useCallback((key: TimeGroupKey) => {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
@@ -369,6 +381,7 @@ const TimeGroupedEvents = memo(function TimeGroupedEvents({
           onEventClick={onEventClick}
           onToggleSelection={onToggleSelection}
           onViewEventDetails={onViewEventDetails}
+          onPrefetchDetections={prefetchDetections}
         />
       ))}
     </div>

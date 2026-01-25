@@ -21,6 +21,8 @@ import DetectionTrendsCard from './DetectionTrendsCard';
 import ObjectDistributionCard from './ObjectDistributionCard';
 import PipelineLatencyPanel from './PipelineLatencyPanel';
 import RiskHistoryCard from './RiskHistoryCard';
+import RiskScoreDistributionCard from './RiskScoreDistributionCard';
+import RiskScoreTrendCard from './RiskScoreTrendCard';
 import { useCameraAnalytics } from '../../hooks/useCameraAnalytics';
 import { fetchConfig } from '../../services/api';
 import { resolveGrafanaUrl } from '../../utils/grafanaUrl';
@@ -252,6 +254,8 @@ export default function AnalyticsPage() {
             <RiskHistoryCard dateRange={dateRange} />
             <ObjectDistributionCard dateRange={dateRange} />
             <CameraUptimeCard dateRange={dateRange} />
+            <RiskScoreDistributionCard dateRange={dateRange} />
+            <RiskScoreTrendCard dateRange={dateRange} />
 
             {/* Pipeline latency (full width) */}
             <div className="md:col-span-2 xl:col-span-4">

@@ -149,3 +149,86 @@ export interface ObjectDistributionResponse {
   /** End date of the range (ISO format) */
   end_date: string;
 }
+
+// ============================================================================
+// Risk Score Distribution Types (NEM-3602)
+// ============================================================================
+
+/**
+ * A single bucket in the risk score distribution histogram.
+ */
+export interface RiskScoreDistributionBucket {
+  /** Minimum score in this bucket (inclusive) */
+  min_score: number;
+  /** Maximum score in this bucket (exclusive, except last bucket includes 100) */
+  max_score: number;
+  /** Number of events in this bucket */
+  count: number;
+}
+
+/**
+ * Response from GET /api/analytics/risk-score-distribution endpoint.
+ */
+export interface RiskScoreDistributionResponse {
+  /** Risk score distribution buckets */
+  buckets: RiskScoreDistributionBucket[];
+  /** Total events with risk scores in date range */
+  total_events: number;
+  /** Start date of the range (ISO format) */
+  start_date: string;
+  /** End date of the range (ISO format) */
+  end_date: string;
+  /** Size of each bucket */
+  bucket_size: number;
+}
+
+/**
+ * Query parameters for the risk score distribution endpoint.
+ */
+export interface RiskScoreDistributionParams {
+  /** Start date in ISO format (YYYY-MM-DD) */
+  start_date: string;
+  /** End date in ISO format (YYYY-MM-DD) */
+  end_date: string;
+  /** Size of each bucket (default: 10) */
+  bucket_size?: number;
+}
+
+// ============================================================================
+// Risk Score Trends Types (NEM-3602)
+// ============================================================================
+
+/**
+ * A single data point in the risk score trends response.
+ * Represents average risk score for a specific date.
+ */
+export interface RiskScoreTrendDataPoint {
+  /** Date in ISO format (YYYY-MM-DD) */
+  date: string;
+  /** Average risk score on this date */
+  avg_score: number;
+  /** Number of events on this date */
+  count: number;
+}
+
+/**
+ * Response from GET /api/analytics/risk-score-trends endpoint.
+ */
+export interface RiskScoreTrendsResponse {
+  /** Average risk score aggregated by day */
+  data_points: RiskScoreTrendDataPoint[];
+  /** Start date of the range (ISO format) */
+  start_date: string;
+  /** End date of the range (ISO format) */
+  end_date: string;
+}
+
+/**
+ * Query parameters for the risk score trends endpoint.
+ */
+export interface RiskScoreTrendsParams {
+  /** Start date in ISO format (YYYY-MM-DD) */
+  start_date: string;
+  /** End date in ISO format (YYYY-MM-DD) */
+  end_date: string;
+}

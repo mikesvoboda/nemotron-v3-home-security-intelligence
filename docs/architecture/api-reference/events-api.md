@@ -76,7 +76,7 @@ List security events with optional filtering and pagination.
     "total": 150,
     "limit": 50,
     "offset": 0,
-    "next_cursor": "eyJpZCI6IDUwLCAiY3JlYXRlZF9hdCI6ICIyMDI2LTAxLTIzVDEyOjAwOjAwWiJ9",  // pragma: allowlist secret
+    "next_cursor": "eyJpZCI6IDUwLCAiY3JlYXRlZF9hdCI6ICIyMDI2LTAxLTIzVDEyOjAwOjAwWiJ9", // pragma: allowlist secret
     "has_more": true
   },
   "deprecation_warning": null

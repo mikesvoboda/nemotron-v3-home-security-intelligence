@@ -2562,3 +2562,424 @@ async def test_broadcast_camera_status_logs_debug_info(
         and "error" in record.message
         for record in caplog.records
     )
+
+
+# ==============================================================================
+# Batch Analysis Status Broadcast Tests (NEM-3607)
+# ==============================================================================
+
+
+def _create_valid_batch_analysis_started_data(
+    batch_id: str = "batch_abc123",
+    camera_id: str = "front_door",
+    detection_count: int = 3,
+    queue_position: int | None = 0,
+    started_at: str = "2026-01-13T12:01:30.000Z",
+) -> dict[str, Any]:
+    """Create valid batch analysis started data for testing."""
+    return {
+        "batch_id": batch_id,
+        "camera_id": camera_id,
+        "detection_count": detection_count,
+        "queue_position": queue_position,
+        "started_at": started_at,
+    }
+
+
+def _create_valid_batch_analysis_completed_data(
+    batch_id: str = "batch_abc123",
+    camera_id: str = "front_door",
+    event_id: int = 42,
+    risk_score: int = 75,
+    risk_level: str = "high",
+    duration_ms: int = 2500,
+    completed_at: str = "2026-01-13T12:01:35.000Z",
+) -> dict[str, Any]:
+    """Create valid batch analysis completed data for testing."""
+    return {
+        "batch_id": batch_id,
+        "camera_id": camera_id,
+        "event_id": event_id,
+        "risk_score": risk_score,
+        "risk_level": risk_level,
+        "duration_ms": duration_ms,
+        "completed_at": completed_at,
+    }
+
+
+def _create_valid_batch_analysis_failed_data(
+    batch_id: str = "batch_abc123",
+    camera_id: str = "front_door",
+    error: str = "LLM service timeout after 120 seconds",
+    error_type: str = "timeout",
+    retryable: bool = True,
+    failed_at: str = "2026-01-13T12:03:30.000Z",
+) -> dict[str, Any]:
+    """Create valid batch analysis failed data for testing."""
+    return {
+        "batch_id": batch_id,
+        "camera_id": camera_id,
+        "error": error,
+        "error_type": error_type,
+        "retryable": retryable,
+        "failed_at": failed_at,
+    }
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_started_validates_message() -> None:
+    """Test broadcast_batch_analysis_started validates message format before broadcasting.
+
+    NEM-3607: Test that valid batch analysis started messages are validated and broadcast.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Valid batch analysis started message
+    data = _create_valid_batch_analysis_started_data()
+
+    count = await broadcaster.broadcast_batch_analysis_started(data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    channel, published = redis.publish.await_args.args
+    assert channel == broadcaster.channel_name
+    assert published["type"] == "batch.analysis_started"
+    assert published["data"]["batch_id"] == "batch_abc123"
+    assert published["data"]["camera_id"] == "front_door"
+    assert published["data"]["detection_count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_started_wraps_missing_type() -> None:
+    """Test broadcast_batch_analysis_started wraps data without type field.
+
+    NEM-3607: When data is passed directly without envelope, it should be wrapped.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Data without type field (should be wrapped)
+    data = _create_valid_batch_analysis_started_data()
+
+    count = await broadcaster.broadcast_batch_analysis_started(data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    assert published["type"] == "batch.analysis_started"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_started_accepts_null_queue_position() -> None:
+    """Test broadcast_batch_analysis_started accepts null queue_position.
+
+    NEM-3607: queue_position is optional and can be null.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    data = _create_valid_batch_analysis_started_data(queue_position=None)
+
+    count = await broadcaster.broadcast_batch_analysis_started(data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    assert published["data"]["queue_position"] is None
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_started_rejects_missing_required_fields(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_batch_analysis_started rejects messages missing required fields.
+
+    NEM-3607: Required fields like batch_id, camera_id must be present.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Missing batch_id
+    invalid_data = {
+        "camera_id": "front_door",
+        "detection_count": 3,
+        "started_at": "2026-01-13T12:01:30.000Z",
+    }
+
+    with pytest.raises(ValueError, match="Invalid batch analysis started message format"):
+        await broadcaster.broadcast_batch_analysis_started(invalid_data)
+
+    redis.publish.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_completed_validates_message() -> None:
+    """Test broadcast_batch_analysis_completed validates message format before broadcasting.
+
+    NEM-3607: Test that valid batch analysis completed messages are validated and broadcast.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Valid batch analysis completed message
+    data = _create_valid_batch_analysis_completed_data()
+
+    count = await broadcaster.broadcast_batch_analysis_completed(data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    channel, published = redis.publish.await_args.args
+    assert channel == broadcaster.channel_name
+    assert published["type"] == "batch.analysis_completed"
+    assert published["data"]["batch_id"] == "batch_abc123"
+    assert published["data"]["event_id"] == 42
+    assert published["data"]["risk_score"] == 75
+    assert published["data"]["risk_level"] == "high"
+    assert published["data"]["duration_ms"] == 2500
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_completed_validates_all_risk_levels() -> None:
+    """Test broadcast_batch_analysis_completed accepts all valid risk levels.
+
+    NEM-3607: Verify all valid risk_level values are accepted.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    for risk_level in ["low", "medium", "high", "critical"]:
+        redis.publish.reset_mock()
+        data = _create_valid_batch_analysis_completed_data(risk_level=risk_level)
+        count = await broadcaster.broadcast_batch_analysis_completed(data)
+        assert count == 1
+        _, published = redis.publish.await_args.args
+        assert published["data"]["risk_level"] == risk_level
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_completed_validates_risk_score_bounds() -> None:
+    """Test broadcast_batch_analysis_completed validates risk_score is 0-100.
+
+    NEM-3607: risk_score must be within valid bounds.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Valid boundary values
+    for score in [0, 50, 100]:
+        redis.publish.reset_mock()
+        data = _create_valid_batch_analysis_completed_data(risk_score=score)
+        count = await broadcaster.broadcast_batch_analysis_completed(data)
+        assert count == 1
+
+    # Invalid values
+    for score in [-1, 101]:
+        redis.publish.reset_mock()
+        data = _create_valid_batch_analysis_completed_data(risk_score=score)
+        with pytest.raises(ValueError):
+            await broadcaster.broadcast_batch_analysis_completed(data)
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_completed_rejects_missing_event_id(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_batch_analysis_completed rejects messages missing event_id.
+
+    NEM-3607: event_id is required for completed messages.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Missing event_id
+    invalid_data = {
+        "batch_id": "batch_abc123",
+        "camera_id": "front_door",
+        "risk_score": 75,
+        "risk_level": "high",
+        "duration_ms": 2500,
+        "completed_at": "2026-01-13T12:01:35.000Z",
+    }
+
+    with pytest.raises(ValueError, match="Invalid batch analysis completed message format"):
+        await broadcaster.broadcast_batch_analysis_completed(invalid_data)
+
+    redis.publish.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_failed_validates_message() -> None:
+    """Test broadcast_batch_analysis_failed validates message format before broadcasting.
+
+    NEM-3607: Test that valid batch analysis failed messages are validated and broadcast.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Valid batch analysis failed message
+    data = _create_valid_batch_analysis_failed_data()
+
+    count = await broadcaster.broadcast_batch_analysis_failed(data)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    channel, published = redis.publish.await_args.args
+    assert channel == broadcaster.channel_name
+    assert published["type"] == "batch.analysis_failed"
+    assert published["data"]["batch_id"] == "batch_abc123"
+    assert published["data"]["error"] == "LLM service timeout after 120 seconds"
+    assert published["data"]["error_type"] == "timeout"
+    assert published["data"]["retryable"] is True
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_failed_accepts_various_error_types() -> None:
+    """Test broadcast_batch_analysis_failed accepts various error types.
+
+    NEM-3607: Various error_type values should be accepted.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    for error_type in ["timeout", "connection", "validation", "processing", "unknown"]:
+        redis.publish.reset_mock()
+        data = _create_valid_batch_analysis_failed_data(error_type=error_type)
+        count = await broadcaster.broadcast_batch_analysis_failed(data)
+        assert count == 1
+        _, published = redis.publish.await_args.args
+        assert published["data"]["error_type"] == error_type
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_failed_retryable_boolean() -> None:
+    """Test broadcast_batch_analysis_failed properly serializes retryable boolean.
+
+    NEM-3607: retryable should be a proper boolean in the output.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Test both true and false
+    for retryable in [True, False]:
+        redis.publish.reset_mock()
+        data = _create_valid_batch_analysis_failed_data(retryable=retryable)
+        count = await broadcaster.broadcast_batch_analysis_failed(data)
+        assert count == 1
+        _, published = redis.publish.await_args.args
+        assert published["data"]["retryable"] is retryable
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_failed_rejects_missing_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_batch_analysis_failed rejects messages missing error field.
+
+    NEM-3607: error field is required for failed messages.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Missing error
+    invalid_data = {
+        "batch_id": "batch_abc123",
+        "camera_id": "front_door",
+        "error_type": "timeout",
+        "retryable": True,
+        "failed_at": "2026-01-13T12:03:30.000Z",
+    }
+
+    with pytest.raises(ValueError, match="Invalid batch analysis failed message format"):
+        await broadcaster.broadcast_batch_analysis_failed(invalid_data)
+
+    redis.publish.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_started_logs_debug_info(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_batch_analysis_started logs debug information.
+
+    NEM-3607: Debug logs should include batch_id and camera_id for troubleshooting.
+    """
+    caplog.set_level(logging.DEBUG)
+
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    data = _create_valid_batch_analysis_started_data(
+        batch_id="test_batch_123",
+        camera_id="test_cam",
+    )
+
+    await broadcaster.broadcast_batch_analysis_started(data)
+
+    # Check debug log includes relevant info
+    assert any(
+        "Batch analysis started broadcast" in record.message
+        and "test_batch_123" in record.message
+        and "test_cam" in record.message
+        for record in caplog.records
+    )
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_completed_logs_debug_info(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_batch_analysis_completed logs debug information.
+
+    NEM-3607: Debug logs should include batch_id, event_id, and risk_score.
+    """
+    caplog.set_level(logging.DEBUG)
+
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    data = _create_valid_batch_analysis_completed_data(
+        batch_id="test_batch_456",
+        event_id=99,
+        risk_score=80,
+    )
+
+    await broadcaster.broadcast_batch_analysis_completed(data)
+
+    # Check debug log includes relevant info
+    assert any(
+        "Batch analysis completed broadcast" in record.message
+        and "test_batch_456" in record.message
+        and "99" in record.message
+        and "80" in record.message
+        for record in caplog.records
+    )
+
+
+@pytest.mark.asyncio
+async def test_broadcast_batch_analysis_failed_logs_debug_info(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test broadcast_batch_analysis_failed logs debug information.
+
+    NEM-3607: Debug logs should include batch_id and error_type.
+    """
+    caplog.set_level(logging.DEBUG)
+
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    data = _create_valid_batch_analysis_failed_data(
+        batch_id="test_batch_789",
+        error_type="connection",
+    )
+
+    await broadcaster.broadcast_batch_analysis_failed(data)
+
+    # Check debug log includes relevant info
+    assert any(
+        "Batch analysis failed broadcast" in record.message
+        and "test_batch_789" in record.message
+        and "connection" in record.message
+        for record in caplog.records
+    )

@@ -16,6 +16,17 @@ vi.mock('../../hooks/useSidebarContext', () => ({
   }),
 }));
 
+// Mock the useViewport hook to return desktop by default
+vi.mock('../../hooks/useIsMobile', () => ({
+  useViewport: () => ({
+    isMobile: false,
+    isTablet: false,
+    isDesktop: true,
+    width: 1200,
+    breakpoint: 'lg' as const,
+  }),
+}));
+
 // Helper to render with router
 const renderWithRouter = (initialEntries: string[] = ['/']) => {
   return render(
@@ -95,7 +106,8 @@ describe('Sidebar', () => {
     renderWithRouter();
     expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /timeline/i })).toHaveAttribute('href', '/timeline');
-    expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/settings');
+    // Use exact match for settings since there's also GPU Settings (/settings/gpu)
+    expect(screen.getByRole('link', { name: /^settings$/i })).toHaveAttribute('href', '/settings');
   });
 
   it('renders icons for all navigation items', () => {
@@ -138,14 +150,16 @@ describe('Sidebar', () => {
   it('highlights settings when on settings route', () => {
     renderWithRouter(['/settings']);
 
-    const settingsLink = screen.getByRole('link', { name: /settings/i });
+    // Use exact match to avoid conflict with GPU Settings (/settings/gpu)
+    const settingsLink = screen.getByRole('link', { name: /^settings$/i });
     expect(settingsLink).toHaveClass('bg-[#76B900]');
   });
 
-  it('renders all 15 navigation items', () => {
+  it('renders all 17 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(16);
+    // 4 monitoring + 4 analytics + 4 operations + 5 admin = 17 items
+    expect(links).toHaveLength(17);
   });
 
   it('jobs link has correct href', () => {
@@ -212,7 +226,8 @@ describe('Sidebar', () => {
     it('has responsive transform classes', () => {
       renderWithRouter();
       const sidebar = screen.getByTestId('sidebar');
-      expect(sidebar).toHaveClass('transform', 'transition-transform', 'duration-300');
+      // Updated to use transition-all for smooth width + transform animations (NEM-3610)
+      expect(sidebar).toHaveClass('transform', 'transition-all', 'duration-300');
       expect(sidebar).toHaveClass('md:relative', 'md:translate-x-0');
     });
 
@@ -387,10 +402,12 @@ describe('Sidebar', () => {
     });
 
     it('exports navItems as flattened list of all items', () => {
-      expect(navItems).toHaveLength(16);
+      // 4 monitoring + 4 analytics + 4 operations + 5 admin = 17 items
+      expect(navItems).toHaveLength(17);
       expect(navItems.some((item) => item.id === 'dashboard')).toBe(true);
       expect(navItems.some((item) => item.id === 'settings')).toBe(true);
       expect(navItems.some((item) => item.id === 'data')).toBe(true);
+      expect(navItems.some((item) => item.id === 'gpu-settings')).toBe(true);
     });
 
     it('exports STORAGE_KEY constant', () => {

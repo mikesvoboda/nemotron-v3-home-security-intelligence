@@ -68,6 +68,59 @@ const DAYS_OF_WEEK = [
   { value: 'sunday', label: 'Sun' },
 ];
 
+/** Risk level score ranges for threshold conflict detection */
+const RISK_LEVEL_RANGES = {
+  critical: { min: 80, max: 100 },
+  high: { min: 60, max: 79 },
+  medium: { min: 40, max: 59 },
+  low: { min: 0, max: 39 },
+} as const;
+
+/**
+ * Check if a camera threshold might conflict with global risk filters.
+ * A conflict exists when:
+ * - Camera threshold is below the minimum score of enabled risk levels
+ * - This means some alerts the user expects might not be delivered due to global filter
+ *
+ * @returns Object with hasConflict flag and explanation message
+ */
+function detectThresholdConflict(
+  cameraThreshold: number,
+  globalRiskFilters: string[]
+): { hasConflict: boolean; message: string } {
+  if (!globalRiskFilters || globalRiskFilters.length === 0) {
+    return { hasConflict: false, message: '' };
+  }
+
+  // Find the minimum score that would pass global filters
+  const enabledRanges = globalRiskFilters
+    .filter((f) => f in RISK_LEVEL_RANGES)
+    .map((f) => RISK_LEVEL_RANGES[f as keyof typeof RISK_LEVEL_RANGES]);
+
+  if (enabledRanges.length === 0) {
+    return { hasConflict: false, message: '' };
+  }
+
+  const minEnabledScore = Math.min(...enabledRanges.map((r) => r.min));
+
+  // Conflict: camera threshold is below the minimum enabled level
+  // This means the camera threshold setting would allow alerts that global filter blocks
+  if (cameraThreshold < minEnabledScore) {
+    const blockedLevels = Object.entries(RISK_LEVEL_RANGES)
+      .filter(([level, range]) => !globalRiskFilters.includes(level) && range.max >= cameraThreshold)
+      .map(([level]) => level);
+
+    if (blockedLevels.length > 0) {
+      return {
+        hasConflict: true,
+        message: `Alerts below ${minEnabledScore}% are blocked by global risk filters (${blockedLevels.join(', ')} levels disabled)`,
+      };
+    }
+  }
+
+  return { hasConflict: false, message: '' };
+}
+
 /**
  * NotificationSettings component displays notification configuration status
  * and provides UI for managing notification preferences.
@@ -494,10 +547,17 @@ export default function NotificationSettings({ className }: NotificationSettings
 
           {/* Per-Camera Notification Settings */}
           <div className="rounded-lg border border-gray-800 bg-[#121212] p-4">
-            <div className="mb-4 flex items-center gap-2">
+            <div className="mb-2 flex items-center gap-2">
               <Camera className="h-5 w-5 text-blue-400" />
               <Text className="font-medium text-gray-300">Camera Notifications</Text>
             </div>
+
+            {/* Helper text explaining filter precedence */}
+            <Text className="mb-4 text-xs text-gray-500">
+              Per-camera thresholds work with global risk filters. An alert must pass both the
+              global risk level filter AND meet the camera&apos;s minimum threshold to trigger a
+              notification.
+            </Text>
 
             {cameraSettingsLoading ? (
               <div className="skeleton h-24 w-full"></div>
@@ -510,50 +570,70 @@ export default function NotificationSettings({ className }: NotificationSettings
                   const isEnabled = setting?.enabled ?? true;
                   const threshold = setting?.risk_threshold ?? 0;
 
+                  // Detect potential conflicts between camera threshold and global filters
+                  const conflict = detectThresholdConflict(
+                    threshold,
+                    preferences?.risk_filters ?? []
+                  );
+
                   return (
                     <div
                       key={camera.id}
-                      className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-900/50 p-3"
+                      className={`rounded-lg border bg-gray-900/50 p-3 ${
+                        conflict.hasConflict && isEnabled
+                          ? 'border-amber-500/50'
+                          : 'border-gray-700'
+                      }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => handleToggleCameraNotification(camera.id, isEnabled)}
-                          disabled={cameraSettingUpdateMutation.isPending}
-                          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-                            isEnabled
-                              ? 'bg-[#76B900]/20 text-[#76B900]'
-                              : 'bg-gray-700 text-gray-500'
-                          }`}
-                          aria-label={`Toggle notifications for ${camera.name}`}
-                        >
-                          {isEnabled ? (
-                            <Bell className="h-4 w-4" />
-                          ) : (
-                            <BellOff className="h-4 w-4" />
-                          )}
-                        </button>
-                        <div>
-                          <Text className="font-medium text-white">{camera.name}</Text>
-                          <Text className="text-xs text-gray-500">{camera.id}</Text>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleToggleCameraNotification(camera.id, isEnabled)}
+                            disabled={cameraSettingUpdateMutation.isPending}
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                              isEnabled
+                                ? 'bg-[#76B900]/20 text-[#76B900]'
+                                : 'bg-gray-700 text-gray-500'
+                            }`}
+                            aria-label={`Toggle notifications for ${camera.name}`}
+                          >
+                            {isEnabled ? (
+                              <Bell className="h-4 w-4" />
+                            ) : (
+                              <BellOff className="h-4 w-4" />
+                            )}
+                          </button>
+                          <div>
+                            <Text className="font-medium text-white">{camera.name}</Text>
+                            <Text className="text-xs text-gray-500">{camera.id}</Text>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Text className="text-xs text-gray-500">Min Risk:</Text>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={threshold}
+                            onChange={(e) =>
+                              handleCameraThresholdChange(camera.id, parseInt(e.target.value, 10))
+                            }
+                            disabled={!isEnabled || cameraSettingUpdateMutation.isPending}
+                            className="h-2 w-20 cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
+                          />
+                          <Badge color={isEnabled ? 'green' : 'gray'} size="sm">
+                            {threshold}%
+                          </Badge>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Text className="text-xs text-gray-500">Min Risk:</Text>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={threshold}
-                          onChange={(e) =>
-                            handleCameraThresholdChange(camera.id, parseInt(e.target.value, 10))
-                          }
-                          disabled={!isEnabled || cameraSettingUpdateMutation.isPending}
-                          className="h-2 w-20 cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
-                        />
-                        <Badge color={isEnabled ? 'green' : 'gray'} size="sm">
-                          {threshold}%
-                        </Badge>
-                      </div>
+
+                      {/* Show warning when camera threshold conflicts with global filters */}
+                      {conflict.hasConflict && isEnabled && (
+                        <div className="mt-2 flex items-start gap-2 rounded bg-amber-500/10 px-2 py-1.5">
+                          <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
+                          <Text className="text-xs text-amber-400">{conflict.message}</Text>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

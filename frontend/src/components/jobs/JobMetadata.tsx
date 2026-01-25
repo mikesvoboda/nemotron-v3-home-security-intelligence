@@ -14,11 +14,13 @@ import { clsx } from 'clsx';
 import { Clock, AlertCircle } from 'lucide-react';
 import { memo } from 'react';
 
-import type { JobResponse } from '../../services/api';
+import { isJobDetailResponse } from '../../types/job';
+
+import type { JobResponse, JobDetailResponse } from '../../services/api';
 
 export interface JobMetadataProps {
   /** The job to display metadata for */
-  job: JobResponse;
+  job: JobResponse | JobDetailResponse;
 }
 
 /**
@@ -130,7 +132,15 @@ function MetadataItem({ label, children, testId, className }: MetadataItemProps)
  * }} />
  */
 const JobMetadata = memo(function JobMetadata({ job }: JobMetadataProps) {
-  const { job_type, status, created_at, started_at, completed_at, message, error } = job;
+  // Extract fields depending on job type (JobResponse vs JobDetailResponse)
+  const { job_type, status } = job;
+  const isDetailed = isJobDetailResponse(job);
+
+  const created_at = isDetailed ? job.timing.created_at : job.created_at;
+  const started_at = isDetailed ? job.timing.started_at : job.started_at;
+  const completed_at = isDetailed ? job.timing.completed_at : job.completed_at;
+  const message = isDetailed ? null : job.message; // JobDetailResponse doesn't have message
+  const error = job.error;
 
   const isCompleted = status === 'completed' || status === 'failed';
   const showDuration = isCompleted && started_at && completed_at;

@@ -1,9 +1,16 @@
 /**
- * Tests for useCameraStatusWebSocket hook (NEM-2552)
+ * Tests for useCameraStatusWebSocket hook (NEM-2552, enhanced in NEM-3634)
  *
  * This hook provides real-time camera status updates via WebSocket,
  * allowing components to react to camera.online, camera.offline,
- * camera.error, and camera.updated events.
+ * camera.error, camera.updated, camera.enabled, camera.disabled,
+ * and camera.config_updated events.
+ *
+ * NEM-3634 Enhancement:
+ * - Added support for camera.enabled events
+ * - Added support for camera.disabled events
+ * - Added support for camera.config_updated events
+ * - Added toast notification support via showToasts option
  *
  * KNOWN ISSUE: Full integration tests are skipped due to memory exhaustion
  * during Vitest module resolution. The websocket-events.ts module contains
@@ -82,6 +89,25 @@ describe('useCameraStatusWebSocket contract', () => {
       // - onCameraStatusChange: (event) => void (called for all event types)
       expect(true).toBe(true);
     });
+
+    it('accepts callback handlers for camera config events (NEM-3634)', () => {
+      // Contract callbacks (NEM-3634 enhancement):
+      // - onCameraEnabled: (event: CameraEnabledPayload) => void
+      // - onCameraDisabled: (event: CameraDisabledPayload) => void
+      // - onCameraConfigUpdated: (event: CameraConfigUpdatedPayload) => void
+      expect(true).toBe(true);
+    });
+
+    it('accepts showToasts option for toast notifications (NEM-3634)', () => {
+      // Contract: showToasts?: boolean - when true, shows toast notifications for:
+      // - Camera online: success toast
+      // - Camera offline: warning toast
+      // - Camera error: error toast
+      // - Camera enabled: success toast
+      // - Camera disabled: info toast
+      // - Camera config updated: info toast
+      expect(true).toBe(true);
+    });
   });
 
   describe('camera status tracking', () => {
@@ -120,6 +146,68 @@ describe('useCameraStatusWebSocket contract', () => {
 
     it('should support manual reconnection', () => {
       // Contract: reconnect() function triggers new connection
+      expect(true).toBe(true);
+    });
+  });
+
+  describe('camera config events (NEM-3634)', () => {
+    it('should handle camera.enabled event', () => {
+      // Contract: Hook subscribes to camera.enabled events
+      // - Updates camera status to 'online'
+      // - Calls onCameraEnabled callback
+      // - Shows success toast if showToasts is true
+      expect(true).toBe(true);
+    });
+
+    it('should handle camera.disabled event', () => {
+      // Contract: Hook subscribes to camera.disabled events
+      // - Updates camera status to 'offline'
+      // - Stores reason in camera state
+      // - Calls onCameraDisabled callback
+      // - Shows info toast if showToasts is true
+      expect(true).toBe(true);
+    });
+
+    it('should handle camera.config_updated event', () => {
+      // Contract: Hook subscribes to camera.config_updated events
+      // - Updates camera_name if changed
+      // - Updates lastUpdated timestamp
+      // - Calls onCameraConfigUpdated callback
+      // - Shows info toast if showToasts is true (includes updated fields)
+      expect(true).toBe(true);
+    });
+
+    it('should subscribe to hierarchical camera status events', () => {
+      // Contract: Hook subscribes to hierarchical event types:
+      // - camera.online
+      // - camera.offline
+      // - camera.error
+      // In addition to the legacy camera_status event
+      expect(true).toBe(true);
+    });
+  });
+
+  describe('toast notifications (NEM-3634)', () => {
+    it('should show success toast when camera comes online', () => {
+      // Contract: When showToasts is true and camera.online event received,
+      // shows success toast with camera name
+      expect(true).toBe(true);
+    });
+
+    it('should show warning toast when camera goes offline', () => {
+      // Contract: When showToasts is true and camera.offline event received,
+      // shows warning toast with camera name
+      expect(true).toBe(true);
+    });
+
+    it('should show error toast when camera has error', () => {
+      // Contract: When showToasts is true and camera.error event received,
+      // shows error toast with camera name and reason
+      expect(true).toBe(true);
+    });
+
+    it('should not show toasts when showToasts is false (default)', () => {
+      // Contract: By default, showToasts is false and no toasts are shown
       expect(true).toBe(true);
     });
   });

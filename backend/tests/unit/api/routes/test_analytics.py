@@ -678,3 +678,354 @@ class TestObjectDistribution:
         # Verify percentages sum to approximately 100% (allowing for rounding)
         total_percentage = sum(obj.percentage for obj in result.object_types)
         assert 99.9 <= total_percentage <= 100.1
+
+
+class TestRiskScoreDistribution:
+    """Tests for GET /api/analytics/risk-score-distribution endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_risk_score_distribution_with_data(self, mock_db_session: AsyncMock) -> None:
+        """Test risk score distribution returns histogram buckets."""
+        from backend.api.routes.analytics import get_risk_score_distribution
+        from backend.api.schemas.analytics import RiskScoreDistributionResponse
+
+        start_date = date(2025, 1, 1)
+        end_date = date(2025, 1, 7)
+        bucket_size = 10
+
+        # Mock database query result with risk scores in various ranges
+        mock_row_1 = MagicMock()
+        mock_row_1.bucket = 0  # 0-10
+        mock_row_1.count = 5
+
+        mock_row_2 = MagicMock()
+        mock_row_2.bucket = 2  # 20-30
+        mock_row_2.count = 10
+
+        mock_row_3 = MagicMock()
+        mock_row_3.bucket = 5  # 50-60
+        mock_row_3.count = 3
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row_1, mock_row_2, mock_row_3]
+        mock_db_session.execute.return_value = mock_result
+
+        result = await get_risk_score_distribution(
+            start_date=start_date, end_date=end_date, bucket_size=bucket_size, db=mock_db_session
+        )
+
+        # Verify response structure
+        assert isinstance(result, RiskScoreDistributionResponse)
+        assert result.start_date == start_date
+        assert result.end_date == end_date
+        assert result.bucket_size == bucket_size
+        assert result.total_events == 18  # 5 + 10 + 3
+        assert len(result.buckets) == 10  # 0-10, 10-20, ..., 90-100
+
+        # Verify specific buckets
+        assert result.buckets[0].min_score == 0
+        assert result.buckets[0].max_score == 10
+        assert result.buckets[0].count == 5
+
+        assert result.buckets[2].min_score == 20
+        assert result.buckets[2].max_score == 30
+        assert result.buckets[2].count == 10
+
+        assert result.buckets[5].min_score == 50
+        assert result.buckets[5].max_score == 60
+        assert result.buckets[5].count == 3
+
+        # Empty buckets should have 0 count
+        assert result.buckets[1].count == 0  # 10-20
+
+    @pytest.mark.asyncio
+    async def test_risk_score_distribution_no_data(self, mock_db_session: AsyncMock) -> None:
+        """Test risk score distribution returns all zeros when no events exist."""
+        from backend.api.routes.analytics import get_risk_score_distribution
+
+        start_date = date(2025, 1, 1)
+        end_date = date(2025, 1, 7)
+        bucket_size = 10
+
+        # Mock empty database query result
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_db_session.execute.return_value = mock_result
+
+        result = await get_risk_score_distribution(
+            start_date=start_date, end_date=end_date, bucket_size=bucket_size, db=mock_db_session
+        )
+
+        # Verify all buckets have zero counts
+        assert result.total_events == 0
+        assert len(result.buckets) == 10
+        for bucket in result.buckets:
+            assert bucket.count == 0
+
+    @pytest.mark.asyncio
+    async def test_risk_score_distribution_custom_bucket_size(
+        self, mock_db_session: AsyncMock
+    ) -> None:
+        """Test risk score distribution with custom bucket size."""
+        from backend.api.routes.analytics import get_risk_score_distribution
+
+        start_date = date(2025, 1, 1)
+        end_date = date(2025, 1, 7)
+        bucket_size = 20  # Larger buckets
+
+        # Mock data
+        mock_row = MagicMock()
+        mock_row.bucket = 2  # 40-60
+        mock_row.count = 15
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_db_session.execute.return_value = mock_result
+
+        result = await get_risk_score_distribution(
+            start_date=start_date, end_date=end_date, bucket_size=bucket_size, db=mock_db_session
+        )
+
+        # Verify 5 buckets for bucket_size=20 (0-20, 20-40, 40-60, 60-80, 80-100)
+        assert result.bucket_size == 20
+        assert len(result.buckets) == 5
+        assert result.buckets[2].min_score == 40
+        assert result.buckets[2].max_score == 60
+        assert result.buckets[2].count == 15
+
+    @pytest.mark.asyncio
+    async def test_risk_score_distribution_invalid_date_range(
+        self, mock_db_session: AsyncMock
+    ) -> None:
+        """Test risk score distribution raises 400 when start_date is after end_date."""
+        from backend.api.routes.analytics import get_risk_score_distribution
+
+        start_date = date(2025, 1, 10)
+        end_date = date(2025, 1, 1)
+
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_risk_score_distribution(
+                start_date=start_date, end_date=end_date, bucket_size=10, db=mock_db_session
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "start_date must be before or equal to end_date" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_risk_score_distribution_handles_last_bucket(
+        self, mock_db_session: AsyncMock
+    ) -> None:
+        """Test risk score distribution handles score=100 in the last bucket correctly."""
+        from backend.api.routes.analytics import get_risk_score_distribution
+
+        start_date = date(2025, 1, 1)
+        end_date = date(2025, 1, 7)
+        bucket_size = 10
+
+        # Mock data with events in the last bucket (90-100)
+        mock_row = MagicMock()
+        mock_row.bucket = 9  # 90-100
+        mock_row.count = 7
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_db_session.execute.return_value = mock_result
+
+        result = await get_risk_score_distribution(
+            start_date=start_date, end_date=end_date, bucket_size=bucket_size, db=mock_db_session
+        )
+
+        # Verify last bucket includes 100
+        assert result.buckets[9].min_score == 90
+        assert result.buckets[9].max_score == 100
+        assert result.buckets[9].count == 7
+
+
+class TestRiskScoreTrends:
+    """Tests for GET /api/analytics/risk-score-trends endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_risk_score_trends_with_data(self, mock_db_session: AsyncMock) -> None:
+        """Test risk score trends returns daily average scores."""
+        from backend.api.routes.analytics import get_risk_score_trends
+        from backend.api.schemas.analytics import RiskScoreTrendsResponse
+
+        start_date = date(2025, 1, 1)
+        end_date = date(2025, 1, 3)
+
+        # Mock database query result with daily averages
+        mock_row_1 = MagicMock()
+        mock_row_1.event_date = date(2025, 1, 1)
+        mock_row_1.avg_score = 35.5
+        mock_row_1.count = 10
+
+        mock_row_2 = MagicMock()
+        mock_row_2.event_date = date(2025, 1, 3)
+        mock_row_2.avg_score = 42.8
+        mock_row_2.count = 15
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row_1, mock_row_2]
+        mock_db_session.execute.return_value = mock_result
+
+        result = await get_risk_score_trends(
+            start_date=start_date, end_date=end_date, db=mock_db_session
+        )
+
+        # Verify response structure
+        assert isinstance(result, RiskScoreTrendsResponse)
+        assert result.start_date == start_date
+        assert result.end_date == end_date
+        assert len(result.data_points) == 3  # All 3 days
+
+        # Verify data points (should fill gaps with 0)
+        assert result.data_points[0].date == date(2025, 1, 1)
+        assert result.data_points[0].avg_score == 35.5
+        assert result.data_points[0].count == 10
+
+        assert result.data_points[1].date == date(2025, 1, 2)
+        assert result.data_points[1].avg_score == 0.0  # Gap filled
+        assert result.data_points[1].count == 0
+
+        assert result.data_points[2].date == date(2025, 1, 3)
+        assert result.data_points[2].avg_score == 42.8
+        assert result.data_points[2].count == 15
+
+    @pytest.mark.asyncio
+    async def test_risk_score_trends_no_data(self, mock_db_session: AsyncMock) -> None:
+        """Test risk score trends returns zeros when no events exist."""
+        from backend.api.routes.analytics import get_risk_score_trends
+
+        start_date = date(2025, 1, 1)
+        end_date = date(2025, 1, 3)
+
+        # Mock empty database query result
+        mock_result = MagicMock()
+        mock_result.all.return_value = []
+        mock_db_session.execute.return_value = mock_result
+
+        result = await get_risk_score_trends(
+            start_date=start_date, end_date=end_date, db=mock_db_session
+        )
+
+        # Verify all days have zero averages
+        assert len(result.data_points) == 3
+        for data_point in result.data_points:
+            assert data_point.avg_score == 0.0
+            assert data_point.count == 0
+
+    @pytest.mark.asyncio
+    async def test_risk_score_trends_single_day(self, mock_db_session: AsyncMock) -> None:
+        """Test risk score trends works for single day date range."""
+        from backend.api.routes.analytics import get_risk_score_trends
+
+        start_date = date(2025, 1, 1)
+        end_date = date(2025, 1, 1)
+
+        # Mock database query result
+        mock_row = MagicMock()
+        mock_row.event_date = date(2025, 1, 1)
+        mock_row.avg_score = 55.0
+        mock_row.count = 20
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_db_session.execute.return_value = mock_result
+
+        result = await get_risk_score_trends(
+            start_date=start_date, end_date=end_date, db=mock_db_session
+        )
+
+        # Verify single data point
+        assert len(result.data_points) == 1
+        assert result.data_points[0].avg_score == 55.0
+        assert result.data_points[0].count == 20
+
+    @pytest.mark.asyncio
+    async def test_risk_score_trends_invalid_date_range(self, mock_db_session: AsyncMock) -> None:
+        """Test risk score trends raises 400 when start_date is after end_date."""
+        from backend.api.routes.analytics import get_risk_score_trends
+
+        start_date = date(2025, 1, 10)
+        end_date = date(2025, 1, 1)
+
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_risk_score_trends(
+                start_date=start_date, end_date=end_date, db=mock_db_session
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "start_date must be before or equal to end_date" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_risk_score_trends_rounds_average(self, mock_db_session: AsyncMock) -> None:
+        """Test risk score trends rounds averages to 1 decimal place."""
+        from backend.api.routes.analytics import get_risk_score_trends
+
+        start_date = date(2025, 1, 1)
+        end_date = date(2025, 1, 1)
+
+        # Mock database query result with long decimal average
+        mock_row = MagicMock()
+        mock_row.event_date = date(2025, 1, 1)
+        mock_row.avg_score = 45.666666666
+        mock_row.count = 3
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row]
+        mock_db_session.execute.return_value = mock_result
+
+        result = await get_risk_score_trends(
+            start_date=start_date, end_date=end_date, db=mock_db_session
+        )
+
+        # Verify rounding to 1 decimal place
+        assert result.data_points[0].avg_score == 45.7
+
+    @pytest.mark.asyncio
+    async def test_risk_score_trends_long_range(self, mock_db_session: AsyncMock) -> None:
+        """Test risk score trends handles long date ranges correctly."""
+        from backend.api.routes.analytics import get_risk_score_trends
+
+        start_date = date(2025, 1, 1)
+        end_date = date(2025, 1, 31)  # 31 days
+
+        # Mock sparse data (only 3 days with events)
+        mock_row_1 = MagicMock()
+        mock_row_1.event_date = date(2025, 1, 5)
+        mock_row_1.avg_score = 30.0
+        mock_row_1.count = 5
+
+        mock_row_2 = MagicMock()
+        mock_row_2.event_date = date(2025, 1, 15)
+        mock_row_2.avg_score = 50.0
+        mock_row_2.count = 10
+
+        mock_row_3 = MagicMock()
+        mock_row_3.event_date = date(2025, 1, 25)
+        mock_row_3.avg_score = 70.0
+        mock_row_3.count = 8
+
+        mock_result = MagicMock()
+        mock_result.all.return_value = [mock_row_1, mock_row_2, mock_row_3]
+        mock_db_session.execute.return_value = mock_result
+
+        result = await get_risk_score_trends(
+            start_date=start_date, end_date=end_date, db=mock_db_session
+        )
+
+        # Verify all 31 days are present
+        assert len(result.data_points) == 31
+
+        # Verify specific days
+        assert result.data_points[4].avg_score == 30.0  # Jan 5
+        assert result.data_points[14].avg_score == 50.0  # Jan 15
+        assert result.data_points[24].avg_score == 70.0  # Jan 25
+
+        # Verify other days are zero
+        assert result.data_points[0].avg_score == 0.0  # Jan 1
+        assert result.data_points[10].avg_score == 0.0  # Jan 11

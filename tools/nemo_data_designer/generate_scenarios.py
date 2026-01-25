@@ -320,7 +320,7 @@ def create_judge_scores_schema() -> str:
 # =============================================================================
 
 
-def generate_combinatorial_samples(  # noqa: PLR0912
+def generate_combinatorial_samples(
     num_rows: int,
     prioritize_coverage: bool = True,  # noqa: ARG001 - reserved for future coverage modes
 ) -> list[dict[str, str]]:

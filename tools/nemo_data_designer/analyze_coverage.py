@@ -441,7 +441,7 @@ def run_analysis(
     return analysis
 
 
-def print_analysis(analysis: dict[str, Any], detailed: bool = False) -> None:  # noqa: PLR0912
+def print_analysis(analysis: dict[str, Any], detailed: bool = False) -> None:
     """Print analysis results to console.
 
     Args:

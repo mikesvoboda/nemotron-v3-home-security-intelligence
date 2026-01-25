@@ -69,6 +69,7 @@ from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.models.event_detection import EventDetection
 from backend.services.audit import AuditService
 from backend.services.batch_fetch import batch_fetch_detections, batch_fetch_file_paths
 from backend.services.cache_service import SHORT_TTL, CacheKeys, CacheService
@@ -1820,19 +1821,33 @@ async def update_event(  # Allow branches for audit logging logic
     )
 
 
+# Valid values for order_detections_by parameter (NEM-3629)
+VALID_DETECTION_ORDER_BY = frozenset({"detected_at", "created_at"})
+
+
 @router.get("/{event_id}/detections", response_model=DetectionListResponse)
 async def get_event_detections(
     event_id: int,
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
+    order_detections_by: str = Query(
+        "detected_at",
+        description="Order detections by: 'detected_at' (detection timestamp, default) "
+        "or 'created_at' (when associated with event - shows detection sequence in event)",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> DetectionListResponse:
     """Get detections for a specific event.
+
+    NEM-3629: Supports ordering by EventDetection.created_at to show detection
+    order within the event (first, second, etc.). When using order_detections_by=created_at,
+    the association_created_at field will be populated in each detection response.
 
     Args:
         event_id: Event ID
         limit: Maximum number of results to return (1-1000, default 50)
         offset: Number of results to skip for pagination (default 0)
+        order_detections_by: Order by 'detected_at' (default) or 'created_at'
         db: Database session
 
     Returns:
@@ -1840,7 +1855,16 @@ async def get_event_detections(
 
     Raises:
         HTTPException: 404 if event not found
+        HTTPException: 400 if invalid order_detections_by value
     """
+    # Validate order_detections_by parameter
+    if order_detections_by not in VALID_DETECTION_ORDER_BY:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid order_detections_by value: {order_detections_by}. "
+            f"Valid values are: {', '.join(sorted(VALID_DETECTION_ORDER_BY))}",
+        )
+
     event = await get_event_or_404(event_id, db)
 
     # Parse detection_ids using helper function
@@ -1858,33 +1882,88 @@ async def get_event_detections(
             ),
         )
 
-    # Build query for detections
-    query = (
-        select(Detection)
-        .options(undefer(Detection.enrichment_data))
-        .where(Detection.id.in_(detection_ids))
-    )
+    # NEM-3629: Use different query strategies based on ordering
+    # Build response items based on query type
+    items: list[Detection | dict[str, Any]]
+    if order_detections_by == "created_at":
+        # Join with EventDetection to get association timestamp and order by it
+        junction_query = (
+            select(Detection, EventDetection.created_at.label("association_created_at"))
+            .join(EventDetection, EventDetection.detection_id == Detection.id)
+            .options(undefer(Detection.enrichment_data))
+            .where(EventDetection.event_id == event_id)
+            .order_by(EventDetection.created_at.asc())
+        )
 
-    # Get total count (before pagination)
-    count_query = select(func.count()).select_from(query.subquery())
-    count_result = await db.execute(count_query)
-    total_count = count_result.scalar() or 0
+        # Get total count
+        count_query = (
+            select(func.count())
+            .select_from(EventDetection)
+            .where(EventDetection.event_id == event_id)
+        )
+        count_result = await db.execute(count_query)
+        total_count = count_result.scalar() or 0
 
-    # Sort by detected_at ascending (chronological order within event)
-    query = query.order_by(Detection.detected_at.asc())
+        # Apply pagination and execute
+        junction_query = junction_query.limit(limit).offset(offset)
+        result = await db.execute(junction_query)
 
-    # Apply pagination
-    query = query.limit(limit).offset(offset)
+        # Result contains tuples of (Detection, association_created_at)
+        items = []
+        for row in result.all():
+            detection = row[0]
+            association_created_at = row[1]
+            # Build detection dict with association timestamp
+            detection_dict: dict[str, Any] = {
+                "id": detection.id,
+                "camera_id": detection.camera_id,
+                "file_path": detection.file_path,
+                "file_type": detection.file_type,
+                "detected_at": detection.detected_at,
+                "object_type": detection.object_type,
+                "confidence": detection.confidence,
+                "bbox_x": detection.bbox_x,
+                "bbox_y": detection.bbox_y,
+                "bbox_width": detection.bbox_width,
+                "bbox_height": detection.bbox_height,
+                "thumbnail_path": detection.thumbnail_path,
+                "media_type": detection.media_type,
+                "duration": detection.duration,
+                "video_codec": detection.video_codec,
+                "video_width": detection.video_width,
+                "video_height": detection.video_height,
+                "enrichment_data": detection.enrichment_data,
+                "association_created_at": association_created_at,
+            }
+            items.append(detection_dict)
+    else:
+        # Default: order by Detection.detected_at
+        simple_query = (
+            select(Detection)
+            .options(undefer(Detection.enrichment_data))
+            .where(Detection.id.in_(detection_ids))
+            .order_by(Detection.detected_at.asc())
+        )
 
-    # Execute query
-    result = await db.execute(query)
-    detections = result.scalars().all()
+        # Get total count
+        count_query = select(func.count()).select_from(
+            select(Detection.id).where(Detection.id.in_(detection_ids)).subquery()
+        )
+        count_result = await db.execute(count_query)
+        total_count = count_result.scalar() or 0
+
+        # Apply pagination and execute
+        simple_query = simple_query.limit(limit).offset(offset)
+        result = await db.execute(simple_query)
+
+        # Standard detection response (no association timestamp)
+        items = list(result.scalars().all())
 
     # Calculate has_more for pagination
-    has_more = (offset + len(detections)) < total_count
+    has_more = (offset + len(items)) < total_count
 
     return DetectionListResponse(
-        items=detections,
+        items=items,
         pagination=PaginationMeta(
             total=total_count,
             limit=limit,
