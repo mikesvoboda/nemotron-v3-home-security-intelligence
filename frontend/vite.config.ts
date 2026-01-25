@@ -185,7 +185,7 @@ export default defineConfig(({ mode }) => {
           './src/components/layout/Layout.tsx',
           './src/components/layout/Sidebar.tsx',
           // Core hooks and services
-          './src/hooks/useEvents.ts',
+          './src/hooks/useEventsQuery.ts',
           './src/hooks/useWebSocket.ts',
           './src/services/api.ts',
           // Style entry point

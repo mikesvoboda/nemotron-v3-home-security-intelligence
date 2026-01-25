@@ -401,7 +401,7 @@ def _get_postgres_url(container: PostgresContainer | LocalPostgresService) -> st
     """Get PostgreSQL URL from container or local service."""
     if isinstance(container, LocalPostgresService):
         # Check for explicit environment variable override (e.g., CI environment)
-        env_url = os.environ.get("TEST_DATABASE_URL")
+        env_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
         if env_url:
             # Ensure asyncpg driver
             if "postgresql://" in env_url and "asyncpg" not in env_url:

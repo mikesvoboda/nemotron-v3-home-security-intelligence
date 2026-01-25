@@ -625,4 +625,102 @@ export const handlers = [
       thresholds: { low_max: 30, medium_max: 60, high_max: 85 },
     });
   }),
+
+  // -------------------------------------------------------------------------
+  // Logging Endpoints
+  // -------------------------------------------------------------------------
+
+  /**
+   * POST /api/logs/frontend/batch - Batch frontend logging endpoint
+   * Accepts batched log entries from the frontend logger service.
+   */
+  http.post('/api/logs/frontend/batch', () => {
+    // Silently accept logs (no-op in tests)
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  /**
+   * POST /api/logs/frontend - Individual frontend logging endpoint (fallback)
+   */
+  http.post('/api/logs/frontend', () => {
+    // Silently accept logs (no-op in tests)
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  // -------------------------------------------------------------------------
+  // Event Clip Endpoints
+  // -------------------------------------------------------------------------
+
+  /**
+   * GET /api/events/:id/clip - Get clip info for an event
+   */
+  http.get<IdParams>('/api/events/:id/clip', () => {
+    // Return clip not available by default
+    return HttpResponse.json({
+      event_id: 1,
+      clip_available: false,
+      clip_url: null,
+      duration_seconds: null,
+      generated_at: null,
+      file_size_bytes: null,
+    });
+  }),
+
+  /**
+   * POST /api/events/:id/clip/generate - Generate a clip for an event
+   */
+  http.post<IdParams>('/api/events/:id/clip/generate', () => {
+    // Return clip generation pending
+    return HttpResponse.json({
+      status: 'pending',
+      message: 'Clip generation queued',
+      clip_url: null,
+      generated_at: null,
+    });
+  }),
+
+  // -------------------------------------------------------------------------
+  // AI Audit Endpoints
+  // -------------------------------------------------------------------------
+
+  /**
+   * POST /api/ai-audit/events/:id/evaluate - Trigger evaluation for an event
+   */
+  http.post<IdParams>('/api/ai-audit/events/:id/evaluate', () => {
+    // Return mock evaluation result
+    return HttpResponse.json({
+      event_id: 1,
+      evaluated: true,
+      model_contributions: {
+        rtdetr: true,
+        florence: false,
+        clip: false,
+        violence: false,
+        clothing: false,
+        vehicle: false,
+        pet: false,
+        weather: false,
+        image_quality: false,
+        zones: false,
+        baseline: false,
+        cross_camera: false,
+      },
+      quality_scores: {
+        context_usage: null,
+        reasoning_coherence: null,
+        risk_justification: null,
+        consistency: null,
+        overall: null,
+      },
+      prompt_improvements: {
+        missing_context: [],
+        confusing_sections: [],
+        unused_data: [],
+        format_suggestions: [],
+        model_gaps: [],
+      },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  }),
 ];
