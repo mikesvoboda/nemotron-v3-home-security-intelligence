@@ -5226,6 +5226,17 @@
             "description": "Lower body clothing description",
             "title": "Lower"
           },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichmentModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model that produced this result"
+          },
           "upper": {
             "anyOf": [
               {
@@ -6600,6 +6611,17 @@
             ],
             "description": "Estimated distance in meters",
             "title": "Estimated Distance M"
+          },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichmentModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model that produced this result"
           }
         },
         "title": "DepthEnrichment",
@@ -7763,6 +7785,51 @@
         ],
         "title": "DeviationInterpretation",
         "type": "string"
+      },
+      "EnrichmentModelInfo": {
+        "description": "Information about the AI model that produced an enrichment result (NEM-3535).\n\nExposes which model processed each enrichment, enabling model performance\ntracking and debugging.",
+        "example": {
+          "inference_time_ms": 25.3,
+          "model_name": "yolov11-face",
+          "model_version": "1.0.0"
+        },
+        "properties": {
+          "inference_time_ms": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Time taken for model inference in milliseconds",
+            "title": "Inference Time Ms"
+          },
+          "model_name": {
+            "description": "Name of the AI model that produced this enrichment",
+            "title": "Model Name",
+            "type": "string"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Version of the model (if available)",
+            "title": "Model Version"
+          }
+        },
+        "required": [
+          "model_name"
+        ],
+        "title": "EnrichmentModelInfo",
+        "type": "object"
       },
       "EnrichmentResponse": {
         "description": "Structured enrichment data for a single detection.\n\nContains results from all vision models run during the enrichment pipeline.",
@@ -11273,6 +11340,17 @@
             "description": "Whether faces were detected",
             "title": "Detected",
             "type": "boolean"
+          },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichmentModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model that produced this result"
           }
         },
         "title": "FaceEnrichment",
@@ -13759,6 +13837,17 @@
             "description": "Whether image has low quality",
             "title": "Is Low Quality"
           },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichmentModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model that produced this result"
+          },
           "quality_change_detected": {
             "anyOf": [
               {
@@ -15459,6 +15548,17 @@
             "description": "Whether a license plate was detected",
             "title": "Detected",
             "type": "boolean"
+          },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichmentModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model that produced this result"
           },
           "ocr_confidence": {
             "anyOf": [
@@ -18272,6 +18372,17 @@
             "description": "Whether classified as household pet",
             "title": "Is Household Pet"
           },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichmentModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model that produced this result"
+          },
           "type": {
             "anyOf": [
               {
@@ -18945,6 +19056,17 @@
             ],
             "description": "Body keypoints [[x, y, conf], ...]",
             "title": "Keypoints"
+          },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichmentModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model that produced this result"
           },
           "posture": {
             "anyOf": [
@@ -25719,6 +25841,17 @@
             "description": "Whether vehicle is commercial/delivery",
             "title": "Is Commercial"
           },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichmentModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model that produced this result"
+          },
           "type": {
             "anyOf": [
               {
@@ -25776,6 +25909,17 @@
             "title": "Detected",
             "type": "boolean"
           },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichmentModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model that produced this result"
+          },
           "score": {
             "default": 0.0,
             "description": "Violence probability score",
@@ -25820,6 +25964,17 @@
             ],
             "description": "Classification confidence",
             "title": "Confidence"
+          },
+          "model_info": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichmentModelInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Model that produced this result"
           }
         },
         "title": "WeatherEnrichment",
