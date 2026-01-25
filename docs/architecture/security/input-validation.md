@@ -25,6 +25,12 @@ The Home Security Intelligence system uses a layered input validation approach:
 
 This follows OWASP guidelines for input validation: validate on the server side, use allowlists where possible, and sanitize output.
 
+![Path Traversal Protection](../../images/architecture/security/concept-path-traversal-protection.png)
+
+![Validation Rules](../../images/architecture/security/concept-validation-rules.png)
+
+![Input Validation Technical](../../images/architecture/security/technical-input-validation.png)
+
 ## Pydantic Schema Validation
 
 ![Pydantic Validation](../../images/architecture/security/technical-pydantic-validation.png)

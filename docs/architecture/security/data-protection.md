@@ -13,6 +13,10 @@
 - `backend/api/middleware/request_recorder.py` - Request body redaction
 - `backend/core/logging.py` - Structured logging with sensitive data filtering
 
+![Data Classification](../../images/architecture/security/concept-data-classification.png)
+
+![Sensitive Data Handling](../../images/architecture/security/flow-sensitive-data-handling.png)
+
 ## Overview
 
 The Home Security Intelligence system handles sensitive data including camera images, video footage, and detection records. This document covers the protection mechanisms for:

@@ -248,6 +248,8 @@ Provide your risk assessment as JSON:
 <|im_end|>
 ```
 
+![Prompt Response](../../images/architecture/dataflows/technical-prompt-response.png)
+
 ## LLM Request
 
 **Source:** `backend/services/nemotron_analyzer.py:455-487`
@@ -292,6 +294,8 @@ async def _call_llm_with_version(
 | `top_p`       | 0.95         | Nucleus sampling threshold |
 | `max_tokens`  | Configurable | Limit response length      |
 | `stop`        | `["<         | im_end                     | >", "< | im_start | >"]` | Stop generation at chat markers |
+
+![Response Parsing](../../images/architecture/dataflows/technical-response-parsing.png)
 
 ## Response Parsing
 

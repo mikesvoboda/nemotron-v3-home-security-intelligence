@@ -228,6 +228,10 @@ class EnrichmentTrackingResult:
         return len(self.successful_models) / total
 ```
 
+![Enrichment Routing Concept](../../images/architecture/dataflows/concept-enrichment-routing.png)
+
+![Enrichment Detail](../../images/architecture/dataflows/flow-enrichment-detail.png)
+
 ## Model Dependencies
 
 **Source:** `backend/services/enrichment_pipeline.py:67-147`

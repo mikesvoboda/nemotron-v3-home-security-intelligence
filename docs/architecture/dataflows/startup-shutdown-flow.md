@@ -4,6 +4,8 @@ This document describes the application lifecycle, including startup initializat
 
 ![Startup Shutdown Overview](../../images/architecture/dataflows/flow-startup.png)
 
+![Lifespan Phases](../../images/architecture/dataflows/concept-lifespan-phases.png)
+
 ## Application Lifecycle Overview
 
 **Source:** `backend/main.py:461-479`
@@ -85,6 +87,8 @@ sequenceDiagram
     Lifespan-->>Uvicorn: Context exited
     Uvicorn-->>Container: Process exit
 ```
+
+![Startup Sequence](../../images/architecture/dataflows/flow-startup-sequence.png)
 
 ## Startup Initialization Order
 
@@ -318,6 +322,8 @@ def get_shutdown_event() -> asyncio.Event:
 ## Shutdown Sequence
 
 ![Shutdown Sequence](../../images/architecture/dataflows/flow-shutdown-sequence.png)
+
+![Shutdown Flow](../../images/architecture/dataflows/flow-shutdown.png)
 
 ### Graceful Shutdown Order
 

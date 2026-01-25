@@ -202,6 +202,8 @@ match message_type:
 {"type": "resync_ack", "channel": "events", "last_sequence": 42}
 ```
 
+![Message Routing](../../images/architecture/dataflows/technical-message-routing.png)
+
 ## Server-to-Client Messages
 
 ### Event Message
@@ -435,6 +437,8 @@ total_delay = delay + jitter
 | 1       | 1s + jitter | 30s       |
 | 2       | 2s + jitter | 30s       |
 | 3       | 4s + jitter | 30s       |
+
+![WebSocket Lifecycle](../../images/architecture/dataflows/flow-websocket-lifecycle.png)
 
 ## Connection Lifecycle
 

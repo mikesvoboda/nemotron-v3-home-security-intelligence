@@ -58,6 +58,8 @@ sequenceDiagram
     EB->>WS: Broadcast to clients
 ```
 
+![Detection Transformation](../../images/architecture/dataflows/concept-detection-transformation.png)
+
 ## Stage 1: File Detection
 
 **Source:** `backend/services/file_watcher.py:330-400`

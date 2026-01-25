@@ -19,6 +19,10 @@ While the system does not require authentication by default (configurable via `A
 | No internet exposure     | CORS allows local origins by default             |
 | Camera data is sensitive | Path traversal protection on all media endpoints |
 
+![Security Layers](../../images/architecture/security/concept-security-layers.png)
+
+![Security Request Flow](../../images/architecture/security/flow-security-request.png)
+
 ## Security Architecture
 
 ![Security Middleware Stack](../../images/architecture/security/flow-security-middleware.png)

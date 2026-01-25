@@ -44,6 +44,8 @@ Events are created after successful LLM analysis of a detection batch:
 #     11. Broadcast via WebSocket (if available)
 ```
 
+![Event Creation](../../images/architecture/dataflows/technical-event-creation.png)
+
 ### Event Data Model
 
 ```python

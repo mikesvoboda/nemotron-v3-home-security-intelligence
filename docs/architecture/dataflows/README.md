@@ -4,7 +4,11 @@ This hub documents the end-to-end data flows within the Home Security Intelligen
 
 ![Dataflows Overview](../../images/architecture/dataflows/hero-dataflows.png)
 
+![Dataflow Overview](../../images/architecture/dataflows/concept-dataflow-overview.png)
+
 ## End-to-End Flow Summary
+
+![End-to-End Overview](../../images/architecture/dataflows/flow-end-to-end-overview.png)
 
 ```
 Camera Upload (FTP)

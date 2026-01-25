@@ -22,6 +22,8 @@ The Home Security Intelligence system implements HTTP security headers as a defe
 
 Security headers are applied by the `SecurityHeadersMiddleware` on all HTTP responses.
 
+![Header Application](../../images/architecture/security/flow-header-application.png)
+
 ## Security Headers Middleware
 
 ### Implementation

@@ -391,6 +391,8 @@ async def list_events(
     ...
 ```
 
+![API Response Flow](../../images/architecture/dataflows/flow-api-response.png)
+
 ## Response Serialization
 
 ### Response Models

@@ -199,7 +199,11 @@ self._circuit_breaker = CircuitBreaker(
 )
 ```
 
+![Recovery Strategies](../../images/architecture/dataflows/concept-recovery-strategies.png)
+
 ## Retry Logic
+
+![Retry Strategy](../../images/architecture/dataflows/concept-retry-strategy.png)
 
 ### Exponential Backoff with Jitter
 
@@ -271,6 +275,8 @@ async def broadcast_with_retry[T](
     - Raises the final exception if all retries are exhausted
     """
 ```
+
+![Error Categories](../../images/architecture/dataflows/technical-error-categories.png)
 
 ## Error Recovery Matrix
 

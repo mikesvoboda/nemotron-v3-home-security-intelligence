@@ -4,7 +4,11 @@ This document describes the detection batching mechanism, including timing windo
 
 ![Batch Aggregation Overview](../../images/architecture/dataflows/flow-batch-aggregation.png)
 
+![Batch Window Concept](../../images/architecture/dataflows/concept-batch-window.png)
+
 ## Batch Aggregation Overview
+
+![Aggregation Rules](../../images/architecture/dataflows/concept-aggregation-rules.png)
 
 **Source:** `backend/services/batch_aggregator.py:1-40`
 
@@ -181,6 +185,8 @@ class BatchAggregator:
         # Lock for the camera_locks dict itself
         self._locks_lock = asyncio.Lock()
 ```
+
+![Timing Parameters](../../images/architecture/dataflows/concept-timing-parameters.png)
 
 ### Configuration Parameters
 

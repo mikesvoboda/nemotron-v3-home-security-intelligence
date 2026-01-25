@@ -12,6 +12,10 @@
 - `backend/core/sanitization.py:515-657` - URL validation for monitoring services
 - `backend/api/middleware/rate_limit.py` - Rate limiting configuration
 
+![Network Boundary](../../images/architecture/security/concept-network-boundary.png)
+
+![Trusted Network](../../images/architecture/security/concept-trusted-network.png)
+
 ## Overview
 
 The Home Security Intelligence system is designed for **trusted local network deployment**. It assumes:
