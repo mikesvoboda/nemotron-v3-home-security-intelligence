@@ -1,40 +1,44 @@
 #!/bin/bash
 # Backend entrypoint script
-# Runs Alembic migrations before starting the uvicorn server
+# Waits for database to be ready before starting the uvicorn server
+# Schema is created via SQLAlchemy's create_all() in init_db()
 #
 # This script ensures:
-# 1. Database schema is up-to-date via Alembic migrations
-# 2. Migrations complete before FastAPI app starts
-# 3. The logs table exists before database logging is enabled
+# 1. Database is reachable before app starts
+# 2. Schema creation happens via create_all() in the app
 #
 # Usage: This script is called by the Dockerfile CMD
 
 set -e
 
-echo "Running Alembic migrations..."
+echo "Waiting for database to be ready..."
 
-# Set PYTHONPATH so alembic can find the backend module
+# Set PYTHONPATH so Python can find the backend module
 export PYTHONPATH=/app:${PYTHONPATH:-}
 
-# Change to backend directory where alembic.ini is located
-cd /app/backend
-
-# Run migrations with retry logic for database startup race conditions
+# Wait for database to be ready with retry logic
 MAX_RETRIES=30
 RETRY_INTERVAL=2
 RETRY_COUNT=0
 
+# Extract host and port from DATABASE_URL
+DB_HOST=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:/]*\).*|\1|p')
+DB_PORT=$(echo "$DATABASE_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
+DB_PORT=${DB_PORT:-5432}
+
+echo "Checking database at $DB_HOST:$DB_PORT..."
+
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if alembic upgrade head 2>&1; then
-        echo "Alembic migrations completed successfully"
+    if python -c "import socket; s=socket.socket(); s.settimeout(2); s.connect(('$DB_HOST', $DB_PORT)); s.close()" 2>/dev/null; then
+        echo "Database is reachable"
         break
     else
         RETRY_COUNT=$((RETRY_COUNT + 1))
         if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-            echo "Migration failed (attempt $RETRY_COUNT/$MAX_RETRIES), retrying in ${RETRY_INTERVAL}s..."
+            echo "Database not ready (attempt $RETRY_COUNT/$MAX_RETRIES), retrying in ${RETRY_INTERVAL}s..."
             sleep $RETRY_INTERVAL
         else
-            echo "ERROR: Alembic migrations failed after $MAX_RETRIES attempts"
+            echo "ERROR: Database not reachable after $MAX_RETRIES attempts"
             exit 1
         fi
     fi

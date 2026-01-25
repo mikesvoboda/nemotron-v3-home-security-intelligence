@@ -160,7 +160,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "hsi_inference_fps",
+          "expr": "sum(rate(rtdetr_inference_requests_total{status=\"success\"}[1m])) or vector(0)",
           "legendFormat": "Inference FPS",
           "refId": "A"
         }
@@ -2395,7 +2395,7 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "hsi_inference_fps",
+          "expr": "sum(rate(rtdetr_inference_requests_total{status=\"success\"}[1m])) or vector(0)",
           "legendFormat": "Inference FPS",
           "refId": "A"
         }

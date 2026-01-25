@@ -98,17 +98,12 @@ loki.process "parse" {
   stage.labels {
     values = {
       level = "",
-      camera = "",
-      trace_id = "",
-      span_id = "",
-      batch_id = "",
-      duration_ms = "",
-      pg_duration_ms = "",
-      pg_pid = "",
-      pg_user = "",
       pg_database = "",
-      pg_slow_query = "",
+      pg_user = "",
       pg_event = "",
+      // High-cardinality values removed from labels - they remain in log content
+      // and can be queried with | json or | logfmt parsers:
+      // trace_id, span_id, batch_id, duration_ms, pg_duration_ms, pg_pid, pg_slow_query, camera
     }
   }
 
@@ -135,6 +130,11 @@ loki.write "local" {
 // ============================================
 
 // Receive OTLP traces from backend services
+// NOTE: Binding to 0.0.0.0 is intentional for Docker network access.
+// Other containers (backend, AI services) connect via service name "alloy"
+// which requires the receiver to listen on all interfaces within the container.
+// Security context: OTLP ports are NOT exposed to the host (internal Docker network only),
+// so the 0.0.0.0 binding is safe. See docker-compose.prod.yml ports section.
 otelcol.receiver.otlp "default" {
   grpc {
     endpoint = "0.0.0.0:4317"

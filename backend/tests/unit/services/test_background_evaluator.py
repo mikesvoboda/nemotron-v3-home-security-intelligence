@@ -84,6 +84,8 @@ def mock_audit_service():
     """Create a mock AuditService."""
     service = MagicMock()
     service.run_full_evaluation = AsyncMock()
+    # New method for split-session pattern (NEM-3505)
+    service.run_evaluation_llm_calls = AsyncMock()
     return service
 
 
@@ -274,6 +276,7 @@ class TestEvaluationProcessing:
         mock_event.id = 123
 
         mock_event_audit = MagicMock()
+        mock_event_audit.id = 1
         mock_event_audit.event_id = 123
 
         mock_evaluation_queue.dequeue.return_value = 123
@@ -281,6 +284,8 @@ class TestEvaluationProcessing:
         with patch("backend.services.background_evaluator.get_session") as mock_get_session:
             mock_session = AsyncMock()
             mock_session.execute = AsyncMock()
+            mock_session.expunge = MagicMock()  # expunge is sync
+            mock_session.merge = AsyncMock(return_value=mock_event_audit)
 
             # Mock event query result
             mock_result = MagicMock()
@@ -303,7 +308,8 @@ class TestEvaluationProcessing:
 
             assert result is True
             mock_evaluation_queue.dequeue.assert_called_once()
-            mock_audit_service.run_full_evaluation.assert_called_once()
+            # NEM-3505: Now calls run_evaluation_llm_calls instead of run_full_evaluation
+            mock_audit_service.run_evaluation_llm_calls.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_process_returns_false_when_queue_empty(
@@ -375,16 +381,19 @@ class TestEvaluationProcessing:
     ):
         """Test handling of exceptions during evaluation."""
         mock_evaluation_queue.dequeue.return_value = 123
-        mock_audit_service.run_full_evaluation.side_effect = RuntimeError("AI service error")
+        # NEM-3505: Now raises on run_evaluation_llm_calls instead of run_full_evaluation
+        mock_audit_service.run_evaluation_llm_calls.side_effect = RuntimeError("AI service error")
 
         mock_event = MagicMock()
         mock_event.id = 123
 
         mock_audit = MagicMock()
+        mock_audit.id = 1
         mock_audit.event_id = 123
 
         with patch("backend.services.background_evaluator.get_session") as mock_get_session:
             mock_session = AsyncMock()
+            mock_session.expunge = MagicMock()  # expunge is sync
 
             mock_event_result = MagicMock()
             mock_event_result.scalar_one_or_none.return_value = mock_event
@@ -796,11 +805,15 @@ class TestProcessingLoop:
         mock_event = MagicMock()
         mock_event.id = 123
         mock_audit = MagicMock()
+        mock_audit.id = 1
         mock_audit.event_id = 123
         mock_audit.overall_quality_score = 85.0
 
         with patch("backend.services.background_evaluator.get_session") as mock_get_session:
             mock_session = AsyncMock()
+            mock_session.expunge = MagicMock()  # expunge is sync
+            mock_session.merge = AsyncMock(return_value=mock_audit)
+
             mock_event_result = MagicMock()
             mock_event_result.scalar_one_or_none.return_value = mock_event
             mock_audit_result = MagicMock()
@@ -822,8 +835,8 @@ class TestProcessingLoop:
             # Stop the loop
             await evaluator.stop()
 
-            # Verify audit service was called
-            mock_audit_service.run_full_evaluation.assert_called_once()
+            # NEM-3505: Verify audit service was called with new method
+            mock_audit_service.run_evaluation_llm_calls.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_run_loop_handles_non_asyncio_exception(
@@ -987,11 +1000,15 @@ class TestJobTrackingIntegration:
         mock_event.id = 123
 
         mock_audit = MagicMock()
+        mock_audit.id = 1
         mock_audit.event_id = 123
         mock_audit.overall_quality_score = 85.0
 
         with patch("backend.services.background_evaluator.get_session") as mock_get_session:
             mock_session = AsyncMock()
+            mock_session.expunge = MagicMock()  # expunge is sync
+            mock_session.merge = AsyncMock(return_value=mock_audit)
+
             mock_event_result = MagicMock()
             mock_event_result.scalar_one_or_none.return_value = mock_event
             mock_audit_result = MagicMock()
@@ -1020,16 +1037,20 @@ class TestJobTrackingIntegration:
     ):
         """Test that process_one fails the job when an exception occurs."""
         mock_evaluation_queue.dequeue.return_value = 123
-        mock_audit_service.run_full_evaluation.side_effect = RuntimeError("AI service error")
+        # NEM-3505: Now raises on run_evaluation_llm_calls instead of run_full_evaluation
+        mock_audit_service.run_evaluation_llm_calls.side_effect = RuntimeError("AI service error")
 
         mock_event = MagicMock()
         mock_event.id = 123
 
         mock_audit = MagicMock()
+        mock_audit.id = 1
         mock_audit.event_id = 123
 
         with patch("backend.services.background_evaluator.get_session") as mock_get_session:
             mock_session = AsyncMock()
+            mock_session.expunge = MagicMock()  # expunge is sync
+
             mock_event_result = MagicMock()
             mock_event_result.scalar_one_or_none.return_value = mock_event
             mock_audit_result = MagicMock()

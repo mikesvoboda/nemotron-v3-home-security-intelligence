@@ -336,6 +336,7 @@
         "type": "marcusolsson-json-datasource",
         "uid": "Backend-API"
       },
+      "description": "Shows detection counts aggregated by day for the last 7 days. This panel uses a fixed 7-day time range regardless of dashboard time picker selection, as the backend API returns daily aggregates for the last 7 days.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -429,6 +430,7 @@
           "urlPath": "/api/detections/stats"
         }
       ],
+      "timeFrom": "7d",
       "title": "Detection Trend Over Time",
       "type": "timeseries"
     },

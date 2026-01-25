@@ -7408,6 +7408,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/zones/anomalies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List All Anomalies
+         * @description List all zone anomalies across all zones.
+         *
+         *     Returns a paginated list of anomalies with optional filtering by severity,
+         *     acknowledgment status, and time range.
+         *
+         *     Args:
+         *         severity: Filter by one or more severity levels (info, warning, critical)
+         *         unacknowledged_only: If True, only return unacknowledged anomalies
+         *         since: Start time for the query (defaults to 24 hours ago)
+         *         until: End time for the query (defaults to now)
+         *         limit: Maximum number of results to return
+         *         offset: Number of results to skip for pagination
+         *         db: Database session
+         *
+         *     Returns:
+         *         ZoneAnomalyListResponse with list of anomalies and pagination info
+         */
+        get: operations["zone-anomalies_list_all_anomalies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zones/anomalies/{anomaly_id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Acknowledge Anomaly
+         * @description Acknowledge a zone anomaly.
+         *
+         *     Marks the specified anomaly as acknowledged, indicating that a user
+         *     has reviewed and acknowledged the alert.
+         *
+         *     Args:
+         *         anomaly_id: The anomaly ID to acknowledge
+         *         db: Database session
+         *
+         *     Returns:
+         *         ZoneAnomalyAcknowledgeResponse with updated acknowledgment status
+         *
+         *     Raises:
+         *         HTTPException: 404 if anomaly not found
+         */
+        post: operations["zone-anomalies_acknowledge_anomaly"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/zones/member/{member_id}/zones": {
         parameters: {
             query?: never;
@@ -7461,6 +7529,42 @@ export interface paths {
          *         List of zones with trust information
          */
         get: operations["zone-household_get_vehicle_zones"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/zones/{zone_id}/anomalies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Zone Anomalies
+         * @description List anomalies for a specific zone.
+         *
+         *     Returns a paginated list of anomalies for the specified zone with optional
+         *     filtering by severity, acknowledgment status, and time range.
+         *
+         *     Args:
+         *         zone_id: The zone ID to fetch anomalies for
+         *         severity: Filter by one or more severity levels (info, warning, critical)
+         *         unacknowledged_only: If True, only return unacknowledged anomalies
+         *         since: Start time for the query (defaults to 24 hours ago)
+         *         until: End time for the query (defaults to now)
+         *         limit: Maximum number of results to return
+         *         offset: Number of results to skip for pagination
+         *         db: Database session
+         *
+         *     Returns:
+         *         ZoneAnomalyListResponse with list of anomalies and pagination info
+         */
+        get: operations["zone-anomalies_list_zone_anomalies"];
         put?: never;
         post?: never;
         delete?: never;
@@ -24570,6 +24674,196 @@ export interface components {
             workers?: components["schemas"]["SupervisedWorkerInfo"][];
         };
         /**
+         * ZoneAnomalyAcknowledgeResponse
+         * @description Response schema for acknowledging an anomaly.
+         * @example {
+         *       "acknowledged": true,
+         *       "acknowledged_at": "2025-01-24T04:00:00Z",
+         *       "id": "123e4567-e89b-12d3-a456-426614174000"
+         *     }
+         */
+        ZoneAnomalyAcknowledgeResponse: {
+            /**
+             * Acknowledged
+             * @description Whether the anomaly is now acknowledged
+             */
+            acknowledged: boolean;
+            /**
+             * Acknowledged At
+             * Format: date-time
+             * @description When the anomaly was acknowledged
+             */
+            acknowledged_at: string;
+            /**
+             * Acknowledged By
+             * @description Who acknowledged the anomaly
+             */
+            acknowledged_by?: string | null;
+            /**
+             * Id
+             * @description Anomaly ID
+             */
+            id: string;
+        };
+        /**
+         * ZoneAnomalyListResponse
+         * @description Response schema for zone anomaly list endpoint.
+         * @example {
+         *       "items": [
+         *         {
+         *           "acknowledged": false,
+         *           "actual_value": 1,
+         *           "anomaly_type": "unusual_time",
+         *           "camera_id": "front_door",
+         *           "created_at": "2025-01-24T03:15:00Z",
+         *           "description": "Activity detected in Front Door at 03:15.",
+         *           "detection_id": 12345,
+         *           "deviation": 3.5,
+         *           "expected_value": 0.1,
+         *           "id": "123e4567-e89b-12d3-a456-426614174000",
+         *           "severity": "warning",
+         *           "thumbnail_url": "/api/detections/12345/image",
+         *           "timestamp": "2025-01-24T03:15:00Z",
+         *           "title": "Unusual activity at 03:15",
+         *           "updated_at": "2025-01-24T03:15:00Z",
+         *           "zone_id": "456e7890-e89b-12d3-a456-426614174001"
+         *         }
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
+         *     }
+         */
+        ZoneAnomalyListResponse: {
+            /**
+             * Items
+             * @description List of anomalies
+             */
+            items: components["schemas"]["ZoneAnomalyResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
+        };
+        /**
+         * ZoneAnomalyResponse
+         * @description Response schema for a single zone anomaly.
+         * @example {
+         *       "acknowledged": false,
+         *       "actual_value": 1,
+         *       "anomaly_type": "unusual_time",
+         *       "camera_id": "front_door",
+         *       "created_at": "2025-01-24T03:15:00Z",
+         *       "description": "Activity detected in Front Door at 03:15 when typical activity is 0.1.",
+         *       "detection_id": 12345,
+         *       "deviation": 3.5,
+         *       "expected_value": 0.1,
+         *       "id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "severity": "warning",
+         *       "thumbnail_url": "/api/detections/12345/image",
+         *       "timestamp": "2025-01-24T03:15:00Z",
+         *       "title": "Unusual activity at 03:15",
+         *       "updated_at": "2025-01-24T03:15:00Z",
+         *       "zone_id": "456e7890-e89b-12d3-a456-426614174001"
+         *     }
+         */
+        ZoneAnomalyResponse: {
+            /**
+             * Acknowledged
+             * @description Whether the anomaly has been acknowledged
+             */
+            acknowledged: boolean;
+            /**
+             * Acknowledged At
+             * @description When the anomaly was acknowledged
+             */
+            acknowledged_at?: string | null;
+            /**
+             * Acknowledged By
+             * @description Who acknowledged the anomaly
+             */
+            acknowledged_by?: string | null;
+            /**
+             * Actual Value
+             * @description Actual observed value
+             */
+            actual_value?: number | null;
+            /**
+             * Anomaly Type
+             * @description Type of anomaly detected
+             */
+            anomaly_type: string;
+            /**
+             * Camera Id
+             * @description Camera ID associated with the zone
+             */
+            camera_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the record was created
+             */
+            created_at: string;
+            /**
+             * Description
+             * @description Detailed description of the anomaly
+             */
+            description?: string | null;
+            /**
+             * Detection Id
+             * @description Related detection ID if applicable
+             */
+            detection_id?: number | null;
+            /**
+             * Deviation
+             * @description Statistical deviation from baseline
+             */
+            deviation?: number | null;
+            /**
+             * Expected Value
+             * @description Expected value from baseline
+             */
+            expected_value?: number | null;
+            /**
+             * Id
+             * @description Unique identifier for the anomaly
+             */
+            id: string;
+            /**
+             * Severity
+             * @description Severity level of the anomaly
+             */
+            severity: string;
+            /**
+             * Thumbnail Url
+             * @description URL to thumbnail image for visual context
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the anomaly occurred
+             */
+            timestamp: string;
+            /**
+             * Title
+             * @description Human-readable title
+             */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the record was last updated
+             */
+            updated_at: string;
+            /**
+             * Zone Id
+             * @description Zone ID where anomaly was detected
+             */
+            zone_id: string;
+        };
+        /**
          * ZoneCreate
          * @description Schema for creating a new zone.
          * @example {
@@ -34706,6 +35000,79 @@ export interface operations {
             };
         };
     };
+    "zone-anomalies_list_all_anomalies": {
+        parameters: {
+            query?: {
+                /** @description Filter by severity level(s) */
+                severity?: string[] | null;
+                /** @description Only return unacknowledged anomalies */
+                unacknowledged_only?: boolean;
+                /** @description Filter anomalies from this time (ISO 8601) */
+                since?: string | null;
+                /** @description Filter anomalies until this time (ISO 8601) */
+                until?: string | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneAnomalyListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "zone-anomalies_acknowledge_anomaly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                anomaly_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneAnomalyAcknowledgeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "zone-household_get_member_zones": {
         parameters: {
             query?: never;
@@ -34759,6 +35126,50 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "zone-anomalies_list_zone_anomalies": {
+        parameters: {
+            query?: {
+                /** @description Filter by severity level(s) */
+                severity?: string[] | null;
+                /** @description Only return unacknowledged anomalies */
+                unacknowledged_only?: boolean;
+                /** @description Filter anomalies from this time (ISO 8601) */
+                since?: string | null;
+                /** @description Filter anomalies until this time (ISO 8601) */
+                until?: string | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                zone_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneAnomalyListResponse"];
                 };
             };
             /** @description Validation Error */

@@ -304,6 +304,15 @@ class BackgroundEvaluator:
                 tracker_job_id, job_service, job_id, 10, "Fetching event data"
             )
 
+            # =========================================================================
+            # SESSION 1 (READ): Fetch event and audit data
+            # This session is short-lived - we only read data, then close it before
+            # making external calls (LLM evaluation) that can take minutes.
+            # This prevents SQLAlchemy MissingGreenlet errors.
+            # =========================================================================
+            event: Event | None = None
+            audit: EventAudit | None = None
+
             async with get_session() as session:
                 # Fetch event
                 result = await session.execute(select(Event).where(Event.id == event_id))
@@ -352,34 +361,65 @@ class BackgroundEvaluator:
                     )
                     return True
 
-                # Update progress: running evaluation
-                await self._update_job_progress(
-                    tracker_job_id, job_service, job_id, 40, "Running AI evaluation"
-                )
+                # Expunge objects from session so they can be used outside the session context
+                # This prevents detached instance errors when accessing attributes
+                session.expunge(event)
+                session.expunge(audit)
 
-                # Run full evaluation (4 LLM calls)
-                await self._audit_service.run_full_evaluation(audit, event, session)
+            # Session 1 is now closed - connection returned to pool
+            # =========================================================================
 
-                # Complete job
-                await self._complete_job(
-                    tracker_job_id,
-                    job_service,
-                    job_id,
-                    {
-                        "event_id": event_id,
-                        "overall_quality_score": audit.overall_quality_score,
-                    },
-                )
+            # Update progress: running evaluation
+            await self._update_job_progress(
+                tracker_job_id, job_service, job_id, 40, "Running AI evaluation"
+            )
 
-                logger.info(
-                    f"Completed background evaluation for event {event_id}",
-                    extra={
-                        "event_id": event_id,
-                        "overall_quality_score": audit.overall_quality_score,
-                    },
-                )
+            # =========================================================================
+            # EXTERNAL CALLS (NO SESSION): Run LLM evaluation
+            # This can take 60-480+ seconds (4 LLM calls at up to 120s each).
+            # We do NOT hold a DB connection during this to prevent:
+            # - SQLAlchemy MissingGreenlet errors
+            # - PostgreSQL idle-in-transaction timeout errors
+            # =========================================================================
 
-                return True
+            # Run LLM evaluation calls - updates detached audit object in memory
+            # This method does NOT require a session or perform any DB operations
+            await self._audit_service.run_evaluation_llm_calls(audit, event)
+
+            # =========================================================================
+            # SESSION 2 (WRITE): Persist evaluation results
+            # This is a new, short-lived session for writing results to the database.
+            # =========================================================================
+            async with get_session() as write_session:
+                # Re-attach audit to the new session by merging
+                # merge() copies the state from the detached object to a new instance
+                # that is attached to the current session
+                audit = await write_session.merge(audit)
+                # Commit is handled by the get_session() context manager
+
+            # Session 2 is now closed - connection returned to pool
+            # =========================================================================
+
+            # Complete job
+            await self._complete_job(
+                tracker_job_id,
+                job_service,
+                job_id,
+                {
+                    "event_id": event_id,
+                    "overall_quality_score": audit.overall_quality_score,
+                },
+            )
+
+            logger.info(
+                f"Completed background evaluation for event {event_id}",
+                extra={
+                    "event_id": event_id,
+                    "overall_quality_score": audit.overall_quality_score,
+                },
+            )
+
+            return True
 
         except Exception as e:
             logger.error(
