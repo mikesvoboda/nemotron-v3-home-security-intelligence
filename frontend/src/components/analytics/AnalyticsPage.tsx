@@ -14,8 +14,6 @@
 import { BarChart3, RefreshCw, ExternalLink, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
-import CameraAnalyticsDetail from './CameraAnalyticsDetail';
-import CameraAnalyticsSelector from './CameraAnalyticsSelector';
 import CameraUptimeCard from './CameraUptimeCard';
 import DetectionTrendsCard from './DetectionTrendsCard';
 import ObjectDistributionCard from './ObjectDistributionCard';
@@ -41,20 +39,6 @@ export default function AnalyticsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grafana');
   const iframeRef = useRef<HTMLIFrameElement>(null);
-
-  // Camera analytics hook for native view
-  const {
-    camerasWithAll,
-    selectedCameraId,
-    setSelectedCameraId,
-    selectedCamera,
-    totalDetections,
-    detectionsByClass,
-    averageConfidence,
-    isLoadingCameras,
-    isLoadingStats,
-    statsError,
-  } = useCameraAnalytics();
 
   // Fetch Grafana URL from config and resolve for remote access
   useEffect(() => {

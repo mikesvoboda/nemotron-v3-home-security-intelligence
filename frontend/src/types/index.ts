@@ -373,6 +373,7 @@ export type {
 } from './alerts';
 
 export { isOptimisticLockError } from './alerts';
+
 // Job Types (NEM-3593)
 
 export type {
