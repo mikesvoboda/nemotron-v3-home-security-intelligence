@@ -5,13 +5,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import CamerasSettings from './CamerasSettings';
 import * as hooks from '../../hooks';
 
-import type { UseCameraMutationReturn } from '../../hooks';
+import type { UseCameraMutationReturn, UseRestoreCameraMutationReturn } from '../../hooks';
 import type { Camera } from '../../services/api';
 
 // Mock the hooks module
 vi.mock('../../hooks', () => ({
   useCamerasQuery: vi.fn(),
   useCameraMutation: vi.fn(),
+  useDeletedCamerasQuery: vi.fn(),
+  useRestoreCameraMutation: vi.fn(),
 }));
 
 // Helper to create mock mutation object - uses type assertions for TanStack Query compatibility
@@ -79,11 +81,26 @@ describe('CamerasSettings', () => {
   ];
 
   let mockMutationReturn: UseCameraMutationReturn;
+  let mockRestoreMutationReturn: UseRestoreCameraMutationReturn;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockMutationReturn = createDefaultMutationReturn();
     vi.mocked(hooks.useCameraMutation).mockReturnValue(mockMutationReturn);
+
+    // Mock deleted cameras hooks (NEM-3643)
+    vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
+      deletedCameras: [],
+      isLoading: false,
+      isRefetching: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    mockRestoreMutationReturn = {
+      restoreMutation: createMockMutation<Camera, Error, string>() as UseRestoreCameraMutationReturn['restoreMutation'],
+    };
+    vi.mocked(hooks.useRestoreCameraMutation).mockReturnValue(mockRestoreMutationReturn);
   });
 
   afterEach(() => {
@@ -750,6 +767,10 @@ describe('CamerasSettings', () => {
         expect(screen.getByRole('heading', { name: 'Delete Camera' })).toBeInTheDocument();
       });
 
+      // Type the camera name to confirm deletion (NEM-3643)
+      const confirmInput = screen.getByTestId('delete-confirm-input');
+      await user.type(confirmInput, 'Front Door');
+
       const confirmButton = screen.getByRole('button', { name: 'Delete Camera' });
       await user.click(confirmButton);
 
@@ -786,6 +807,10 @@ describe('CamerasSettings', () => {
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Delete Camera' })).toBeInTheDocument();
       });
+
+      // Type the camera name to confirm deletion (NEM-3643)
+      const confirmInput = screen.getByTestId('delete-confirm-input');
+      await user.type(confirmInput, 'Front Door');
 
       const confirmButton = screen.getByRole('button', { name: 'Delete Camera' });
       await user.click(confirmButton);
@@ -1076,6 +1101,244 @@ describe('CamerasSettings', () => {
       await user.selectOptions(statusSelect, 'offline');
 
       expect(statusSelect).toHaveValue('offline');
+    });
+  });
+
+  describe('Soft Delete UI (NEM-3643)', () => {
+    const mockDeletedCameras: Camera[] = [
+      {
+        id: 'deleted-cam-1',
+        name: 'Deleted Front Door',
+        folder_path: '/export/foscam/front_door',
+        status: 'offline',
+        created_at: '2025-01-01T00:00:00Z',
+        last_seen_at: '2025-01-15T12:00:00Z',
+      },
+    ];
+
+    beforeEach(() => {
+      vi.mocked(hooks.useCamerasQuery).mockReturnValue({
+        cameras: mockCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+        isPlaceholderData: false,
+      });
+    });
+
+    it('should show "Show deleted cameras" toggle when deleted cameras exist', async () => {
+      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
+        deletedCameras: mockDeletedCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('show-deleted-toggle')).toBeInTheDocument();
+      expect(screen.getByText(/Show deleted cameras/)).toBeInTheDocument();
+      expect(screen.getByText('1')).toBeInTheDocument(); // Badge showing count
+    });
+
+    it('should hide toggle when no deleted cameras exist', async () => {
+      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
+        deletedCameras: [],
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId('show-deleted-toggle')).not.toBeInTheDocument();
+    });
+
+    it('should toggle deleted cameras section visibility', async () => {
+      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
+        deletedCameras: mockDeletedCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+
+      // Initially deleted section should be hidden
+      expect(screen.queryByTestId('deleted-cameras-section')).not.toBeInTheDocument();
+
+      // Click toggle to show deleted cameras
+      await user.click(screen.getByTestId('show-deleted-toggle'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('deleted-cameras-section')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Deleted Cameras')).toBeInTheDocument();
+      expect(screen.getByText('Deleted Front Door')).toBeInTheDocument();
+
+      // Click toggle again to hide
+      await user.click(screen.getByTestId('show-deleted-toggle'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('deleted-cameras-section')).not.toBeInTheDocument();
+      });
+    });
+
+    it('should show restore button for deleted cameras', async () => {
+      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
+        deletedCameras: mockDeletedCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      await user.click(screen.getByTestId('show-deleted-toggle'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('deleted-cameras-section')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('restore-camera-deleted-cam-1')).toBeInTheDocument();
+      expect(screen.getByLabelText('Restore Deleted Front Door')).toBeInTheDocument();
+    });
+
+    it('should call restore mutation when restore button is clicked', async () => {
+      const mockRestoreMutateAsync = vi.fn().mockResolvedValue(mockDeletedCameras[0]);
+      mockRestoreMutationReturn.restoreMutation = createMockMutation({
+        mutateAsync: mockRestoreMutateAsync,
+      }) as UseRestoreCameraMutationReturn['restoreMutation'];
+      vi.mocked(hooks.useRestoreCameraMutation).mockReturnValue(mockRestoreMutationReturn);
+
+      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
+        deletedCameras: mockDeletedCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      await user.click(screen.getByTestId('show-deleted-toggle'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('deleted-cameras-section')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('restore-camera-deleted-cam-1'));
+
+      await waitFor(() => {
+        expect(mockRestoreMutateAsync).toHaveBeenCalledWith('deleted-cam-1');
+      });
+    });
+
+    it('should style deleted cameras with strikethrough', async () => {
+      vi.mocked(hooks.useDeletedCamerasQuery).mockReturnValue({
+        deletedCameras: mockDeletedCameras,
+        isLoading: false,
+        isRefetching: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      await user.click(screen.getByTestId('show-deleted-toggle'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('deleted-cameras-section')).toBeInTheDocument();
+      });
+
+      const deletedCameraName = screen.getByText('Deleted Front Door');
+      expect(deletedCameraName).toHaveClass('line-through');
+    });
+
+    it('should require typing camera name to confirm delete', async () => {
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      const deleteButtons = screen.getAllByLabelText(/Delete/);
+      await user.click(deleteButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Delete Camera' })).toBeInTheDocument();
+      });
+
+      // Delete button should be disabled initially
+      const confirmButton = screen.getByTestId('confirm-delete-button');
+      expect(confirmButton).toBeDisabled();
+
+      // Type partial name - button should still be disabled
+      const confirmInput = screen.getByTestId('delete-confirm-input');
+      await user.type(confirmInput, 'Front');
+      expect(confirmButton).toBeDisabled();
+
+      // Type full name - button should be enabled
+      await user.clear(confirmInput);
+      await user.type(confirmInput, 'Front Door');
+      expect(confirmButton).not.toBeDisabled();
+    });
+
+    it('should show warning about soft delete behavior', async () => {
+      render(<CamerasSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      const user = userEvent.setup();
+      const deleteButtons = screen.getAllByLabelText(/Delete/);
+      await user.click(deleteButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Delete Camera' })).toBeInTheDocument();
+      });
+
+      // Check for soft delete warning messages
+      expect(screen.getByText('This will affect related data')).toBeInTheDocument();
+      expect(screen.getByText(/All detections from this camera will be hidden/)).toBeInTheDocument();
+      expect(screen.getByText(/Show deleted cameras/)).toBeInTheDocument();
     });
   });
 });

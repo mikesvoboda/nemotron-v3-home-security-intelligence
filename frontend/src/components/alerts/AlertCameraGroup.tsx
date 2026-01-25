@@ -118,6 +118,7 @@ export default function AlertCameraGroup({
       thumbnail_url: event.thumbnail_url ?? undefined,
       onClick: onAlertClick ? () => onAlertClick(event.id) : undefined,
       onSnooze,
+      snooze_until: event.snooze_until,
     };
   };
 

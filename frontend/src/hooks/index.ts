@@ -50,6 +50,22 @@ export type {
   UseCameraCountsQueryReturn,
 } from './useCamerasQuery';
 
+// Camera soft delete hooks (NEM-3643)
+export {
+  useDeletedCamerasQuery,
+  useDeleteCameraMutation,
+  useRestoreCameraMutation,
+  useCameraDeleteRestore,
+  deletedCamerasQueryKeys,
+} from './useCameraDelete';
+export type {
+  UseDeletedCamerasQueryOptions,
+  UseDeletedCamerasQueryReturn,
+  UseDeleteCameraMutationReturn,
+  UseRestoreCameraMutationReturn,
+  UseCameraDeleteRestoreReturn,
+} from './useCameraDelete';
+
 export { useGpuStatsQuery, useGpuHistoryQuery } from './useGpuStatsQuery';
 export type {
   UseGpuStatsQueryOptions,
@@ -102,11 +118,17 @@ export type {
   UseAIMetricsOptions,
 } from './useAIMetrics';
 
-export { useDetectionEnrichment } from './useDetectionEnrichment';
+export { useDetectionEnrichment, detectionEnrichmentKeys } from './useDetectionEnrichment';
 export type {
   UseDetectionEnrichmentOptions,
   UseDetectionEnrichmentReturn,
 } from './useDetectionEnrichment';
+
+export { useDetectionLabelsQuery, detectionLabelsKeys } from './useDetectionLabelsQuery';
+export type {
+  UseDetectionLabelsQueryOptions,
+  UseDetectionLabelsQueryReturn,
+} from './useDetectionLabelsQuery';
 
 export { useSavedSearches } from './useSavedSearches';
 export type { SavedSearch, LoadedSearch, UseSavedSearchesReturn } from './useSavedSearches';
@@ -212,6 +234,22 @@ export type {
   UseAlertsInfiniteQueryOptions,
   UseAlertsInfiniteQueryReturn,
 } from './useAlertsQuery';
+
+// Alert instance management hooks (NEM-3647)
+export {
+  useAcknowledgeAlert,
+  useDismissAlert,
+  useAlertMutations,
+  default as useAlertMutationsDefault,
+} from './useAlerts';
+export type {
+  AlertMutationContext,
+  UseAcknowledgeAlertOptions,
+  UseAcknowledgeAlertReturn,
+  UseDismissAlertOptions,
+  UseDismissAlertReturn,
+  UseAlertMutationsReturn,
+} from './useAlerts';
 
 export { useAlertWebSocket } from './useAlertWebSocket';
 export type {

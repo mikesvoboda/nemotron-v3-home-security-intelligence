@@ -126,9 +126,16 @@ import type {
   CameraUptimeResponse,
   DetectionTrendsParams,
   DetectionTrendsResponse,
+  ObjectDistributionResponse,
   RiskHistoryQueryParams,
   RiskHistoryResponse,
 } from '../types/analytics';
+import type {
+  BulkOperationResponse,
+  DetectionBulkCreateItem,
+  DetectionBulkCreateResponse,
+  DetectionBulkUpdateItem,
+} from '../types/bulk';
 import type {
   ExportJob,
   ExportJobCreateParams,
@@ -143,11 +150,13 @@ import type {
   AiAuditLeaderboardResponse,
   AiAuditRecommendationsResponse,
   AiAuditStatsResponse,
+  AlertResponse,
   AlertRule,
   AlertRuleCreate,
   AlertRuleListResponse,
   AlertRuleUpdate,
   AlertSeverity,
+  AlertStatus,
   AuditLogListResponse as GeneratedAuditLogListResponse,
   AuditLogResponse as GeneratedAuditLogResponse,
   AuditLogStats as GeneratedAuditLogStats,
@@ -178,6 +187,8 @@ import type {
   SceneChangeListResponse,
   PipelineLatencyResponse,
   PipelineLatencyHistoryResponse,
+  PipelineStatusResponse,
+  QueuesStatusResponse,
   SearchResponse as GeneratedSearchResponse,
   SeverityMetadataResponse as GeneratedSeverityMetadataResponse,
   SystemConfig,
@@ -274,6 +285,9 @@ export type {
   CalibrationDefaultsResponse,
   CalibrationResetResponse,
 };
+
+// Re-export alert types for consumers of this module
+export type { AlertResponse, AlertStatus };
 
 // Re-export enrichment types for consumers of this module
 // Note: EnrichmentResponse is already defined in this file (see fetchDetectionEnrichment)
@@ -1357,6 +1371,35 @@ export async function deleteCamera(id: string): Promise<void> {
 }
 
 /**
+ * Fetch all soft-deleted cameras (trash view).
+ *
+ * Returns cameras that have been soft-deleted (deleted_at is not null),
+ * ordered by deleted_at descending (most recently deleted first).
+ *
+ * @returns Array of soft-deleted Camera objects
+ */
+export async function fetchDeletedCameras(): Promise<Camera[]> {
+  const response = await fetchApi<GeneratedCameraListResponse>('/api/cameras/deleted');
+  return response.items;
+}
+
+/**
+ * Restore a soft-deleted camera.
+ *
+ * Clears the deleted_at timestamp on a soft-deleted camera, making it
+ * visible again in normal queries.
+ *
+ * @param id - The camera ID to restore
+ * @returns The restored Camera object
+ * @throws ApiError if camera not found (404) or not deleted (400)
+ */
+export async function restoreCamera(id: string): Promise<Camera> {
+  return fetchApi<Camera>(`/api/cameras/${id}/restore`, {
+    method: 'POST',
+  });
+}
+
+/**
  * Get the URL for a camera's latest snapshot.
  * This URL can be used directly in an img src attribute.
  *
@@ -1705,6 +1748,26 @@ export async function fetchPipelineLatencyHistory(
   return fetchApi<PipelineLatencyHistoryResponse>(
     `/api/system/pipeline-latency/history?${queryParams.toString()}`
   );
+}
+
+/**
+ * Fetch queue status for all job queues.
+ * Returns detailed metrics including depth, workers, throughput, and health status.
+ *
+ * @returns QueuesStatusResponse with status of all queues and summary
+ */
+export async function fetchQueuesStatus(): Promise<QueuesStatusResponse> {
+  return fetchApi<QueuesStatusResponse>('/api/queues/status');
+}
+
+/**
+ * Fetch pipeline status including FileWatcher, BatchAggregator, and DegradationManager.
+ * Returns real-time visibility into the AI processing pipeline.
+ *
+ * @returns PipelineStatusResponse with status of all pipeline services
+ */
+export async function fetchPipelineStatus(): Promise<PipelineStatusResponse> {
+  return fetchApi<PipelineStatusResponse>('/api/system/pipeline');
 }
 
 // ============================================================================
@@ -2162,6 +2225,113 @@ export async function fetchDetectionLabels(): Promise<GeneratedDetectionLabelsRe
  */
 export async function fetchDetection(detectionId: number): Promise<GeneratedDetection> {
   return fetchApi<GeneratedDetection>(`/api/detections/${detectionId}`);
+}
+
+// ============================================================================
+// Detection Bulk Operations (NEM-3649)
+// ============================================================================
+
+// Import bulk operation types
+
+// Re-export bulk types for consumers of this module
+export type {
+  BulkOperationResponse,
+  BulkOperationStatus,
+  BulkItemResult,
+  DetectionBulkCreateItem,
+  DetectionBulkCreateResponse,
+  DetectionBulkUpdateItem,
+} from '../types/bulk';
+
+/**
+ * Bulk create detections (up to 100 items per request).
+ *
+ * Uses HTTP 207 Multi-Status for partial success handling.
+ * The response includes per-item results indicating which detections
+ * were created successfully and which failed.
+ *
+ * @param detections - Array of detection items to create (max 100)
+ * @returns BulkOperationResponse with per-item results
+ * @throws ApiError if the request fails (validation error, server error)
+ *
+ * @example
+ * ```typescript
+ * const response = await bulkCreateDetections([
+ *   { camera_id: 'cam-1', object_type: 'person', ... },
+ *   { camera_id: 'cam-2', object_type: 'vehicle', ... },
+ * ]);
+ *
+ * if (response.succeeded === response.total) {
+ *   console.log('All detections created!');
+ * } else {
+ *   console.log(`${response.failed} detections failed`);
+ * }
+ * ```
+ */
+export async function bulkCreateDetections(
+  detections: DetectionBulkCreateItem[]
+): Promise<DetectionBulkCreateResponse> {
+  const response = await fetchApi<DetectionBulkCreateResponse>('/api/detections/bulk', {
+    method: 'POST',
+    body: JSON.stringify({ detections }),
+  });
+  return response;
+}
+
+/**
+ * Bulk update detections (up to 100 items per request).
+ *
+ * Uses HTTP 207 Multi-Status for partial success handling.
+ * Only provided fields will be updated for each detection.
+ *
+ * @param detections - Array of detection updates with IDs
+ * @returns BulkOperationResponse with per-item results
+ * @throws ApiError if the request fails (validation error, server error)
+ *
+ * @example
+ * ```typescript
+ * const response = await bulkUpdateDetections([
+ *   { id: 1, object_type: 'vehicle' }, // Correct misclassification
+ *   { id: 2, confidence: 0.99 },
+ * ]);
+ * ```
+ */
+export async function bulkUpdateDetections(
+  detections: DetectionBulkUpdateItem[]
+): Promise<BulkOperationResponse> {
+  const response = await fetchApi<BulkOperationResponse>('/api/detections/bulk', {
+    method: 'PATCH',
+    body: JSON.stringify({ detections }),
+  });
+  return response;
+}
+
+/**
+ * Bulk delete detections (up to 100 items per request).
+ *
+ * Uses HTTP 207 Multi-Status for partial success handling.
+ * This is a hard delete - detections cannot be recovered.
+ *
+ * @param detectionIds - Array of detection IDs to delete (max 100)
+ * @returns BulkOperationResponse with per-item results
+ * @throws ApiError if the request fails (validation error, server error)
+ *
+ * @example
+ * ```typescript
+ * const response = await bulkDeleteDetections([1, 2, 3, 4, 5]);
+ *
+ * if (response.failed > 0) {
+ *   const failed = response.results.filter(r => r.status === 'failed');
+ *   console.log('Failed to delete:', failed);
+ * }
+ * ```
+ */
+export async function bulkDeleteDetections(detectionIds: number[]): Promise<BulkOperationResponse> {
+  const response = await fetchApi<BulkOperationResponse>('/api/detections/bulk', {
+    method: 'DELETE',
+    body: JSON.stringify({ detection_ids: detectionIds }),
+  });
+  return response;
 }
 
 // ============================================================================
@@ -3665,6 +3835,44 @@ export async function testAlertRule(
   return fetchApi<RuleTestResponse>(`/api/alerts/rules/${id}/test`, {
     method: 'POST',
     body: JSON.stringify(request || { limit: 10 }),
+  });
+}
+
+// ============================================================================
+// Alert Instance Endpoints
+// ============================================================================
+
+/**
+ * Acknowledge an alert.
+ *
+ * Marks the alert as acknowledged and broadcasts the state change via WebSocket.
+ * Only alerts with status PENDING or DELIVERED can be acknowledged.
+ *
+ * @param alertId - Alert UUID
+ * @returns Updated AlertResponse with status 'acknowledged'
+ * @throws ApiError with status 404 if alert not found
+ * @throws ApiError with status 409 if alert cannot be acknowledged (wrong status or concurrent modification)
+ */
+export async function acknowledgeAlert(alertId: string): Promise<AlertResponse> {
+  return fetchApi<AlertResponse>(`/api/alerts/${alertId}/acknowledge`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Dismiss an alert.
+ *
+ * Marks the alert as dismissed and broadcasts the state change via WebSocket.
+ * Only alerts with status PENDING, DELIVERED, or ACKNOWLEDGED can be dismissed.
+ *
+ * @param alertId - Alert UUID
+ * @returns Updated AlertResponse with status 'dismissed'
+ * @throws ApiError with status 404 if alert not found
+ * @throws ApiError with status 409 if alert cannot be dismissed (wrong status or concurrent modification)
+ */
+export async function dismissAlert(alertId: string): Promise<AlertResponse> {
+  return fetchApi<AlertResponse>(`/api/alerts/${alertId}/dismiss`, {
+    method: 'POST',
   });
 }
 
@@ -5775,6 +5983,48 @@ export async function fetchCameraUptime(params: CameraUptimeParams): Promise<Cam
   searchParams.append('end_date', params.end_date);
 
   return fetchApi<CameraUptimeResponse>(`/api/analytics/camera-uptime?${searchParams.toString()}`);
+}
+
+/**
+ * Query parameters for the object distribution endpoint.
+ */
+export interface ObjectDistributionParams {
+  /** Start date in ISO format (YYYY-MM-DD) */
+  start_date: string;
+  /** End date in ISO format (YYYY-MM-DD) */
+  end_date: string;
+}
+
+/**
+ * Fetch object distribution for a date range.
+ *
+ * Returns detection counts grouped by object type (person, car, etc.)
+ * for the specified date range. Includes percentage of total detections.
+ *
+ * @param params - Date range parameters with start_date and end_date
+ * @returns ObjectDistributionResponse with object type breakdown
+ *
+ * @example
+ * ```typescript
+ * // Get object distribution for the last 7 days
+ * const endDate = new Date().toISOString().split('T')[0];
+ * const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+ * const distribution = await fetchObjectDistribution({ start_date: startDate, end_date: endDate });
+ * distribution.object_types.forEach(obj => {
+ *   console.log(`${obj.object_type}: ${obj.count} (${obj.percentage.toFixed(1)}%)`);
+ * });
+ * ```
+ */
+export async function fetchObjectDistribution(
+  params: ObjectDistributionParams
+): Promise<ObjectDistributionResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.append('start_date', params.start_date);
+  searchParams.append('end_date', params.end_date);
+
+  return fetchApi<ObjectDistributionResponse>(
+    `/api/analytics/object-distribution?${searchParams.toString()}`
+  );
 }
 
 // ============================================================================
