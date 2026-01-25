@@ -321,8 +321,8 @@ describe('GpuAssignmentTable', () => {
         />
       );
 
-      const input = screen.getByTestId('vram-override-ai-llm') as HTMLInputElement;
-      expect(input.value).toBe('10.5');
+      const input = screen.getByTestId('vram-override-ai-llm');
+      expect(input).toHaveValue('10.5');
     });
 
     it('should show default VRAM when no override', () => {
@@ -330,9 +330,9 @@ describe('GpuAssignmentTable', () => {
         <GpuAssignmentTable {...defaultProps} onVramOverrideChange={onVramOverrideChangeMock} />
       );
 
-      const input = screen.getByTestId('vram-override-ai-llm') as HTMLInputElement;
+      const input = screen.getByTestId('vram-override-ai-llm');
       // Default for ai-llm is 8.0 GB, value may be '8' or '8.0'
-      expect(parseFloat(input.value)).toBe(8.0);
+      expect(input).toHaveValue(8);
     });
 
     it('should call onVramOverrideChange when input changes', async () => {
