@@ -2,15 +2,26 @@
 
 ## Purpose
 
-This directory contains API governance documentation including deprecation policies, migration guides, and versioning standards. It complements the `docs/developer/api/` directory which contains endpoint-specific documentation.
+This directory contains API governance documentation including deprecation policies, migration guides, versioning standards, and WebSocket documentation. It complements the `docs/developer/api/` directory which contains endpoint-specific documentation.
 
 ## Directory Structure
 
 ```
 docs/api/
   AGENTS.md                    # This file - directory guide
+  DEPRECATION_POLICY.md        # API deprecation policy
+  websocket-endpoints.md       # WebSocket endpoint reference (NEW)
+  websocket-feature-gaps.md    # WebSocket feature gap analysis (NEW)
   migrations/                  # Migration guides for deprecated endpoints
 ```
+
+## Key Files
+
+| File                        | Purpose                                        |
+| --------------------------- | ---------------------------------------------- |
+| `websocket-endpoints.md`    | Comprehensive WebSocket endpoint documentation |
+| `websocket-feature-gaps.md` | Analysis of 8 WebSocket feature gaps           |
+| `DEPRECATION_POLICY.md`     | API deprecation and migration policy           |
 
 ## Key Directories
 
