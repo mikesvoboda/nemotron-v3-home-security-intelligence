@@ -336,6 +336,11 @@ export const queryKeys = {
     /** Camera class baseline */
     classBaseline: (cameraId: string) =>
       [...queryKeys.cameras.all, 'baseline', 'classes', cameraId] as const,
+    /** Camera baseline anomalies (NEM-3577) */
+    anomalies: (cameraId: string, days?: number) =>
+      days !== undefined
+        ? ([...queryKeys.cameras.all, 'baseline', 'anomalies', cameraId, { days }] as const)
+        : ([...queryKeys.cameras.all, 'baseline', 'anomalies', cameraId] as const),
   },
 
   /**
@@ -586,6 +591,16 @@ export const queryKeys = {
         /** List of quiet hours periods */
         list: () => [...queryKeys.notifications.preferences.quietHours.all, 'list'] as const,
       },
+    },
+    /** Notification delivery history */
+    history: {
+      /** All history queries */
+      all: ['notifications', 'history'] as const,
+      /** List of history entries with optional filters */
+      list: (filters?: { alert_id?: string; channel?: string; success?: boolean }) =>
+        filters
+          ? ([...queryKeys.notifications.history.all, 'list', filters] as const)
+          : ([...queryKeys.notifications.history.all, 'list'] as const),
     },
   },
 

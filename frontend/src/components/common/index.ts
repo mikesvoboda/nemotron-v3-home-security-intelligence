@@ -191,3 +191,7 @@ export type { AlertDrawerProps } from './AlertDrawer';
 // Virtualized list component (NEM-3423)
 export { VirtualizedList, default as VirtualizedListDefault } from './VirtualizedList';
 export type { VirtualizedListProps } from './VirtualizedList';
+
+// Theme toggle component (NEM-3609)
+export { default as ThemeToggle } from './ThemeToggle';
+export type { ThemeToggleProps, ThemeToggleComponentProps } from './ThemeToggle';

@@ -4,8 +4,14 @@
  * This component uses Zod validation schemas that mirror the backend Pydantic schemas
  * in backend/api/schemas/alerts.py for consistent validation.
  *
+ * Features:
+ * - Visual risk threshold slider with severity zone indicators
+ * - Real-time preview of events that would trigger at selected threshold
+ * - Full validation matching backend constraints
+ *
  * @see frontend/src/schemas/alertRule.ts - Zod validation schemas
  * @see backend/api/schemas/alerts.py - Backend Pydantic schemas
+ * @see NEM-3604 Alert Threshold Configuration
  */
 
 import { Switch } from '@headlessui/react';
@@ -15,13 +21,15 @@ import { AlertCircle, AlertTriangle, Bell, Calendar, Loader2, X } from 'lucide-r
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
+import RiskThresholdSlider from './RiskThresholdSlider';
+import ThresholdPreview from './ThresholdPreview';
+import { useThresholdPreview } from '../../hooks/useThresholdPreview';
 import {
   alertRuleFormSchema,
   ALERT_RULE_NAME_CONSTRAINTS,
   ALERT_SEVERITY_VALUES,
   COOLDOWN_SECONDS_CONSTRAINTS,
   MIN_CONFIDENCE_CONSTRAINTS,
-  RISK_THRESHOLD_CONSTRAINTS,
   type AlertRuleFormInput,
   type AlertRuleFormOutput,
   type AlertSeverityValue,
@@ -29,6 +37,7 @@ import {
 } from '../../schemas/alertRule';
 
 import type { Camera } from '../../services/api';
+
 
 // =============================================================================
 // Types
@@ -83,6 +92,8 @@ export interface AlertRuleFormProps {
   camerasError?: string | null;
   /** Callback to retry loading cameras */
   onRetryCameras?: () => void;
+  /** Alert rule ID (for existing rules, enables threshold preview) */
+  ruleId?: string | null;
 }
 
 // =============================================================================
@@ -186,6 +197,7 @@ export default function AlertRuleForm({
   camerasLoading = false,
   camerasError,
   onRetryCameras,
+  ruleId,
 }: AlertRuleFormProps) {
   const {
     register,
@@ -205,6 +217,18 @@ export default function AlertRuleForm({
 
   // Watch for schedule_enabled to conditionally render schedule fields
   const scheduleEnabled = watch('schedule_enabled');
+
+  // Watch risk_threshold for preview updates
+  const riskThreshold = watch('risk_threshold');
+
+  // Threshold preview hook for real-time event match preview
+  const thresholdPreviewState = useThresholdPreview({
+    ruleId,
+    threshold: typeof riskThreshold === 'number' ? riskThreshold : null,
+    debounceMs: 500,
+    testLimit: 100,
+    enabled: !!ruleId,
+  });
 
   // Update form when initial data changes (for edit mode)
   useEffect(() => {
@@ -363,66 +387,70 @@ export default function AlertRuleForm({
           Trigger Conditions
         </h3>
 
-        {/* Risk Threshold & Min Confidence Row */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Risk Threshold */}
-          <div>
-            <label
-              htmlFor="alert-rule-risk-threshold"
-              className="block text-sm font-medium text-text-primary"
-            >
-              Risk Threshold ({RISK_THRESHOLD_CONSTRAINTS.min}-{RISK_THRESHOLD_CONSTRAINTS.max})
-            </label>
-            <input
-              type="number"
-              id="alert-rule-risk-threshold"
-              data-testid="alert-rule-risk-threshold-input"
-              {...register('risk_threshold', { valueAsNumber: true })}
-              min={RISK_THRESHOLD_CONSTRAINTS.min}
-              max={RISK_THRESHOLD_CONSTRAINTS.max}
-              className={clsx(
-                'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
-                errors.risk_threshold
-                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-700 focus:border-primary focus:ring-primary'
-              )}
-              placeholder="70"
-              disabled={isSubmitting}
-            />
-            {errors.risk_threshold && (
-              <p className="mt-1 text-sm text-red-500">{errors.risk_threshold.message}</p>
+        {/* Risk Threshold with Slider */}
+        <div className="space-y-2">
+          <label
+            htmlFor="risk-threshold-slider"
+            className="block text-sm font-medium text-text-primary"
+          >
+            Risk Threshold (0-100)
+          </label>
+          <p className="text-xs text-text-secondary">
+            Events with risk scores at or above this threshold will trigger alerts
+          </p>
+          <Controller
+            name="risk_threshold"
+            control={control}
+            render={({ field }) => (
+              <RiskThresholdSlider
+                value={typeof field.value === 'number' ? field.value : null}
+                onChange={(newValue) => field.onChange(newValue)}
+                disabled={isSubmitting}
+                testIdPrefix="alert-rule-risk-threshold"
+              />
             )}
-          </div>
+          />
+          {errors.risk_threshold && (
+            <p className="mt-1 text-sm text-red-500">{errors.risk_threshold.message}</p>
+          )}
 
-          {/* Min Confidence */}
-          <div>
-            <label
-              htmlFor="alert-rule-min-confidence"
-              className="block text-sm font-medium text-text-primary"
-            >
-              Min Confidence ({MIN_CONFIDENCE_CONSTRAINTS.min}-{MIN_CONFIDENCE_CONSTRAINTS.max})
-            </label>
-            <input
-              type="number"
-              id="alert-rule-min-confidence"
-              data-testid="alert-rule-min-confidence-input"
-              {...register('min_confidence', { valueAsNumber: true })}
-              min={MIN_CONFIDENCE_CONSTRAINTS.min}
-              max={MIN_CONFIDENCE_CONSTRAINTS.max}
-              step={0.1}
-              className={clsx(
-                'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
-                errors.min_confidence
-                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-700 focus:border-primary focus:ring-primary'
-              )}
-              placeholder="0.8"
-              disabled={isSubmitting}
-            />
-            {errors.min_confidence && (
-              <p className="mt-1 text-sm text-red-500">{errors.min_confidence.message}</p>
+          {/* Threshold Preview */}
+          <ThresholdPreview
+            previewState={thresholdPreviewState}
+            showRefresh={!!ruleId}
+            className="mt-3"
+            testId="alert-rule-threshold-preview"
+          />
+        </div>
+
+        {/* Min Confidence */}
+        <div>
+          <label
+            htmlFor="alert-rule-min-confidence"
+            className="block text-sm font-medium text-text-primary"
+          >
+            Min Confidence ({MIN_CONFIDENCE_CONSTRAINTS.min}-{MIN_CONFIDENCE_CONSTRAINTS.max})
+          </label>
+          <input
+            type="number"
+            id="alert-rule-min-confidence"
+            data-testid="alert-rule-min-confidence-input"
+            {...register('min_confidence', { valueAsNumber: true })}
+            min={MIN_CONFIDENCE_CONSTRAINTS.min}
+            max={MIN_CONFIDENCE_CONSTRAINTS.max}
+            step={0.1}
+            className={clsx(
+              'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
+              errors.min_confidence
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                : 'border-gray-700 focus:border-primary focus:ring-primary'
             )}
-          </div>
+            placeholder="0.8"
+            disabled={isSubmitting}
+          />
+          {errors.min_confidence && (
+            <p className="mt-1 text-sm text-red-500">{errors.min_confidence.message}</p>
+          )}
         </div>
 
         {/* Object Types */}

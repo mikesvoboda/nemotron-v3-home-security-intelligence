@@ -24,6 +24,7 @@ vi.mock('../../services/api', () => ({
   fetchEvents: vi.fn(),
   fetchEventStats: vi.fn(),
   getCameraSnapshotUrl: vi.fn(),
+  buildWebSocketOptions: vi.fn(() => ({ url: 'ws://localhost:8000/ws/events', protocols: [] })),
 }));
 vi.mock('../../hooks/useEventStream', () => ({
   useEventStream: vi.fn(),
@@ -36,6 +37,19 @@ vi.mock('../../hooks/useSystemStatus', () => ({
 }));
 vi.mock('../../hooks/useAIMetrics', () => ({
   useAIMetrics: vi.fn(),
+}));
+vi.mock('../../hooks/useSceneChangeEvents', () => ({
+  useSceneChangeEvents: vi.fn(() => ({
+    cameraActivity: {},
+    activeCameraIds: [],
+    recentEvents: [],
+    isConnected: true,
+    totalEventCount: 0,
+    hasRecentActivity: () => false,
+    getActivityState: () => undefined,
+    clearActivity: vi.fn(),
+    clearAllActivity: vi.fn(),
+  })),
 }));
 
 // Mock child components

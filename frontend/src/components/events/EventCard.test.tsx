@@ -2163,4 +2163,86 @@ describe('EventCard', () => {
       vi.setSystemTime(BASE_TIME);
     });
   });
+
+  describe('enrichment badges integration', () => {
+    // Use detections without "car" to avoid multiple "Vehicle" text elements
+    const noVehicleDetections: Detection[] = [
+      { label: 'person', confidence: 0.95 },
+      { label: 'dog', confidence: 0.87 },
+    ];
+
+    it('renders enrichment badges when enrichmentSummary is provided', () => {
+      const enrichmentSummary = { hasLicensePlate: true, hasPerson: true };
+      render(
+        <EventCard {...mockProps} detections={noVehicleDetections} enrichmentSummary={enrichmentSummary} />
+      );
+      expect(screen.getByTestId('enrichment-badges')).toBeInTheDocument();
+      expect(screen.getByTestId('enrichment-badge-plate')).toBeInTheDocument();
+      expect(screen.getByTestId('enrichment-badge-person')).toBeInTheDocument();
+    });
+
+    it('renders enrichment badges when enrichmentData is provided', () => {
+      const enrichmentData = {
+        license_plate: { text: 'ABC-123', confidence: 0.95 },
+        pet: { type: 'dog' as const, confidence: 0.9 },
+      };
+      render(
+        <EventCard {...mockProps} detections={noVehicleDetections} enrichmentData={enrichmentData} />
+      );
+      expect(screen.getByTestId('enrichment-badges')).toBeInTheDocument();
+      expect(screen.getByTestId('enrichment-badge-plate')).toBeInTheDocument();
+      expect(screen.getByTestId('enrichment-badge-dog')).toBeInTheDocument();
+    });
+
+    it('renders pending badge when isEnrichmentPending is true', () => {
+      render(<EventCard {...mockProps} isEnrichmentPending={true} />);
+      expect(screen.getByTestId('enrichment-badges-pending')).toBeInTheDocument();
+      expect(screen.getByText('Enriching...')).toBeInTheDocument();
+    });
+
+    it('does not render enrichment badges when no enrichment data', () => {
+      render(<EventCard {...mockProps} />);
+      expect(screen.queryByTestId('enrichment-badges')).not.toBeInTheDocument();
+    });
+
+    it('calls onExpandEnrichment with event id when badge is clicked', async () => {
+      const user = userEvent.setup();
+      const onExpandEnrichment = vi.fn();
+      const enrichmentSummary = { hasLicensePlate: true };
+      render(
+        <EventCard
+          {...mockProps}
+          detections={noVehicleDetections}
+          enrichmentSummary={enrichmentSummary}
+          onExpandEnrichment={onExpandEnrichment}
+        />
+      );
+      await user.click(screen.getByTestId('enrichment-badge-plate'));
+      expect(onExpandEnrichment).toHaveBeenCalledWith('event-123');
+    });
+
+    it('renders pose alerts badge for security alerts', () => {
+      const enrichmentSummary = { poseAlertCount: 2 };
+      render(<EventCard {...mockProps} enrichmentSummary={enrichmentSummary} />);
+      expect(screen.getByText('2 Alerts')).toBeInTheDocument();
+    });
+
+    it('renders pet badge with capitalized type', () => {
+      const enrichmentSummary = { petType: 'cat' };
+      render(<EventCard {...mockProps} detections={noVehicleDetections} enrichmentSummary={enrichmentSummary} />);
+      expect(screen.getByText('Cat')).toBeInTheDocument();
+    });
+
+    it('displays enrichment badges after object type badges', () => {
+      const enrichmentSummary = { hasLicensePlate: true };
+      const { container } = render(
+        <EventCard {...mockProps} detections={noVehicleDetections} enrichmentSummary={enrichmentSummary} />
+      );
+      // Object badges should come before enrichment badges
+      const objectBadgeContainer = container.querySelector('.mb-3.flex.flex-wrap');
+      const enrichmentBadgeContainer = container.querySelector('[data-testid="enrichment-badges"]');
+      expect(objectBadgeContainer).toBeInTheDocument();
+      expect(enrichmentBadgeContainer).toBeInTheDocument();
+    });
+  });
 });

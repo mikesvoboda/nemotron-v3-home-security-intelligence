@@ -733,6 +733,24 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
           onZoomChange={setTimelineZoomLevel}
           isLoading={timelineLoading}
           className="mb-6"
+          /* Custom date range support (NEM-3585) */
+          onCustomRangeSelect={(startDate, endDate) => {
+            setEventFilters((prev) => ({
+              ...prev,
+              start_date: startDate,
+              end_date: endDate,
+            }));
+          }}
+          isCustomRangeActive={!!(eventFilters.start_date || eventFilters.end_date)}
+          onReset={() => {
+            setEventFilters((prev) => ({
+              ...prev,
+              start_date: undefined,
+              end_date: undefined,
+            }));
+          }}
+          initialStartDate={eventFilters.start_date}
+          initialEndDate={eventFilters.end_date}
         />
       )}
 
