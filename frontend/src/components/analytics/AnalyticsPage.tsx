@@ -7,6 +7,12 @@
  * - Camera activity metrics
  * - Activity patterns and baselines
  *
+ * Native view includes:
+ * - Camera uptime metrics
+ * - Pipeline latency monitoring
+ * - Event patterns and insights visualization (NEM-3618)
+ * - Hourly/daily summaries (NEM-3595)
+ *
  * All detailed metrics are rendered by Grafana for consistency with
  * other monitoring dashboards and reduced frontend complexity.
  */
@@ -15,13 +21,15 @@ import { BarChart3, RefreshCw, ExternalLink, AlertCircle, AlertTriangle } from '
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
 import CameraUptimeCard from './CameraUptimeCard';
-import DetectionTrendsCard from './DetectionTrendsCard';
-import ObjectDistributionCard from './ObjectDistributionCard';
 import PipelineLatencyPanel from './PipelineLatencyPanel';
 import RiskHistoryCard from './RiskHistoryCard';
 import RiskScoreDistributionCard from './RiskScoreDistributionCard';
 import RiskScoreTrendCard from './RiskScoreTrendCard';
+import InsightsCharts from '../ai/InsightsCharts';
+import { SummaryCards } from '../dashboard/SummaryCards';
+import { useCameraAnalytics } from '../../hooks/useCameraAnalytics';
 import { fetchConfig } from '../../services/api';
+import { useSummaries } from '../../hooks/useSummaries';
 import { resolveGrafanaUrl } from '../../utils/grafanaUrl';
 import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
 
@@ -38,6 +46,16 @@ export default function AnalyticsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grafana');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Fetch summaries for insights display (NEM-3595)
+  const {
+    hourly: hourlySummary,
+    daily: dailySummary,
+    isLoading: summariesLoading,
+    error: summariesError,
+    refetch: refetchSummaries,
+  } = useSummaries();
+
 
   // Fetch Grafana URL from config and resolve for remote access
   useEffect(() => {
@@ -208,17 +226,50 @@ export default function AnalyticsPage() {
 
       {/* Native analytics components */}
       {viewMode === 'native' && (
-        <div
-          className="grid grid-cols-1 gap-6 p-6 md:grid-cols-2 xl:grid-cols-4"
-          data-testid="native-analytics-view"
-        >
-          <DetectionTrendsCard dateRange={dateRange} />
-          <RiskHistoryCard dateRange={dateRange} />
-          <ObjectDistributionCard dateRange={dateRange} />
-          <CameraUptimeCard dateRange={dateRange} />
-          <RiskScoreDistributionCard dateRange={dateRange} />
-          <RiskScoreTrendCard dateRange={dateRange} />
-          <div className="md:col-span-2 xl:col-span-4">
+        <div className="p-6" data-testid="native-analytics-view">
+          {/* Summary Cards Section - Hourly/Daily summaries (NEM-3595) */}
+          <div className="mb-6">
+            <h2 className="mb-4 text-lg font-semibold text-white">Event Summaries</h2>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <SummaryCards
+                hourly={hourlySummary}
+                daily={dailySummary}
+                isLoading={summariesLoading}
+                error={summariesError}
+                onRetry={() => void refetchSummaries()}
+              />
+            </div>
+          </div>
+
+          {/* Analytics cards grid */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {/* Camera-specific detection analytics */}
+            <CameraAnalyticsDetail
+              totalDetections={totalDetections}
+              detectionsByClass={detectionsByClass}
+              averageConfidence={averageConfidence}
+              isLoading={isLoadingStats}
+              error={statsError}
+              cameraName={selectedCamera?.name}
+            />
+            <DetectionTrendsCard dateRange={dateRange} />
+            <RiskHistoryCard dateRange={dateRange} />
+            <ObjectDistributionCard dateRange={dateRange} />
+            <CameraUptimeCard dateRange={dateRange} />
+            <RiskScoreDistributionCard dateRange={dateRange} />
+            <RiskScoreTrendCard dateRange={dateRange} />
+          </div>
+
+          {/* Insights Charts Section - Event Patterns Visualization (NEM-3618) */}
+          <div className="mb-6 mt-6">
+            <h2 className="mb-4 text-lg font-semibold text-white">Event Patterns & Insights</h2>
+            <InsightsCharts data-testid="insights-charts" />
+          </div>
+
+          {/* Infrastructure Metrics */}
+          <h2 className="mb-4 text-lg font-semibold text-white">Infrastructure Metrics</h2>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <CameraUptimeCard dateRange={dateRange} />
             <PipelineLatencyPanel refreshInterval={30000} />
           </div>
         </div>

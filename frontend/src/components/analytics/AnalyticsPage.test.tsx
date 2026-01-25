@@ -3,6 +3,7 @@
  * Tests the Grafana iframe embed implementation
  */
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -16,23 +17,15 @@ vi.mock('../../services/api', () => ({
   fetchConfig: vi.fn(() => Promise.resolve({ grafana_url: '/grafana' })),
 }));
 
-// Mock useCameraAnalytics hook
-vi.mock('../../hooks/useCameraAnalytics', () => ({
-  useCameraAnalytics: () => ({
-    camerasWithAll: [
-      { id: '', name: 'All Cameras' },
-      { id: 'front-door', name: 'Front Door' },
-    ],
-    selectedCameraId: undefined,
-    setSelectedCameraId: vi.fn(),
-    selectedCamera: undefined,
-    totalDetections: 1250,
-    detectionsByClass: { person: 500, car: 350 },
-    averageConfidence: 0.87,
-    isLoadingCameras: false,
-    isLoadingStats: false,
-    statsError: null,
-  }),
+// Mock useSummaries hook
+vi.mock('../../hooks/useSummaries', () => ({
+  useSummaries: vi.fn(() => ({
+    hourly: null,
+    daily: null,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })),
 }));
 
 // Mock native analytics components to avoid their dependencies
@@ -92,19 +85,34 @@ vi.mock('./PipelineLatencyPanel', () => ({
   ),
 }));
 
-vi.mock('./CameraAnalyticsSelector', () => ({
-  default: () => <div data-testid="camera-analytics-selector">Camera Selector Mock</div>,
+// Mock InsightsCharts component
+vi.mock('../ai/InsightsCharts', () => ({
+  default: () => <div data-testid="insights-charts">Insights Charts Mock</div>,
 }));
 
-vi.mock('./CameraAnalyticsDetail', () => ({
-  default: () => <div data-testid="camera-analytics-detail">Camera Analytics Detail Mock</div>,
+// Mock SummaryCards component
+vi.mock('../dashboard/SummaryCards', () => ({
+  SummaryCards: () => <div data-testid="summary-cards">Summary Cards Mock</div>,
 }));
+
+// Create a QueryClient for tests
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
 
 const renderWithRouter = () => {
+  const queryClient = createTestQueryClient();
   return render(
-    <MemoryRouter>
-      <AnalyticsPage />
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <AnalyticsPage />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 };
 
@@ -680,6 +688,53 @@ describe('AnalyticsPage', () => {
         expect(grafanaButton).toHaveClass('bg-[#76B900]');
         // Native button should have inactive style (bg-gray-800)
         expect(nativeButton).toHaveClass('bg-gray-800');
+      });
+    });
+
+    it('renders summary cards in native view (NEM-3595)', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      // Switch to native view
+      await user.click(screen.getByTestId('view-mode-native'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('summary-cards')).toBeInTheDocument();
+      });
+    });
+
+    it('renders insights charts in native view (NEM-3618)', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      // Switch to native view
+      await user.click(screen.getByTestId('view-mode-native'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('insights-charts')).toBeInTheDocument();
+      });
+    });
+
+    it('renders section headings in native view', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderWithRouter();
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+
+      // Switch to native view
+      await user.click(screen.getByTestId('view-mode-native'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Event Summaries')).toBeInTheDocument();
+        expect(screen.getByText('Event Patterns & Insights')).toBeInTheDocument();
+        expect(screen.getByText('Infrastructure Metrics')).toBeInTheDocument();
       });
     });
   });
