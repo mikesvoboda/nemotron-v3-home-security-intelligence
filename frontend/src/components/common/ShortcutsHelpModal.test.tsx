@@ -4,7 +4,7 @@
  * This component displays available keyboard shortcuts when ? is pressed.
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
@@ -148,6 +148,26 @@ describe('ShortcutsHelpModal', () => {
 
       const dialog = screen.getByRole('dialog');
       expect(dialog).toHaveAttribute('aria-label', expect.stringMatching(/shortcuts|keyboard/i));
+    });
+  });
+
+  describe('focus trap', () => {
+    it('traps focus within the modal when open', async () => {
+      render(<ShortcutsHelpModal open={true} onClose={() => {}} />);
+
+      // Focus should be within the dialog (may be set asynchronously via requestAnimationFrame)
+      const dialog = screen.getByRole('dialog');
+      await waitFor(() => {
+        expect(dialog.contains(document.activeElement)).toBe(true);
+      });
+    });
+
+    it('close button is focusable', () => {
+      render(<ShortcutsHelpModal open={true} onClose={() => {}} />);
+
+      const closeButton = screen.getByRole('button', { name: /close/i });
+      closeButton.focus();
+      expect(document.activeElement).toBe(closeButton);
     });
   });
 });

@@ -1,8 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import LiveActivitySection from './LiveActivitySection';
+import { AnnouncementProvider } from '../../contexts/AnnouncementContext';
 
 import type { ActivityEvent } from '../dashboard/ActivityFeed';
 
@@ -62,33 +64,43 @@ describe('LiveActivitySection', () => {
     isConnected: true,
   };
 
+  // Wrapper with AnnouncementProvider for tests
+  function Wrapper({ children }: { children: ReactNode }) {
+    return <AnnouncementProvider>{children}</AnnouncementProvider>;
+  }
+
+  // Custom render that wraps with AnnouncementProvider
+  function renderWithProvider(ui: React.ReactElement) {
+    return render(ui, { wrapper: Wrapper });
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('Rendering', () => {
     it('renders the section with heading', () => {
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       expect(screen.getByRole('heading', { name: /live activity/i })).toBeInTheDocument();
       expect(screen.getByText(/real-time security event stream/i)).toBeInTheDocument();
     });
 
     it('renders the activity feed when events are present', () => {
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       expect(screen.getByTestId('activity-feed')).toBeInTheDocument();
     });
 
     it('renders empty state when no events', () => {
-      render(<LiveActivitySection {...defaultProps} events={[]} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} events={[]} />);
 
       expect(screen.getByText(/no live activity/i)).toBeInTheDocument();
       expect(screen.getByText(/waiting for security events/i)).toBeInTheDocument();
     });
 
     it('applies custom className', () => {
-      const { container } = render(
+      const { container } = renderWithProvider(
         <LiveActivitySection {...defaultProps} className="custom-class" />
       );
 
@@ -98,21 +110,21 @@ describe('LiveActivitySection', () => {
 
   describe('Connection Status', () => {
     it('shows connected status when isConnected is true', () => {
-      render(<LiveActivitySection {...defaultProps} isConnected={true} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} isConnected={true} />);
 
       expect(screen.getByText('Live')).toBeInTheDocument();
       expect(screen.queryByText('Disconnected')).not.toBeInTheDocument();
     });
 
     it('shows disconnected status when isConnected is false', () => {
-      render(<LiveActivitySection {...defaultProps} isConnected={false} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} isConnected={false} />);
 
       expect(screen.getByText('Disconnected')).toBeInTheDocument();
       expect(screen.queryByText('Live')).not.toBeInTheDocument();
     });
 
     it('shows different empty state message when disconnected', () => {
-      render(<LiveActivitySection {...defaultProps} events={[]} isConnected={false} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} events={[]} isConnected={false} />);
 
       expect(screen.getByText(/connection lost/i)).toBeInTheDocument();
     });
@@ -120,14 +132,14 @@ describe('LiveActivitySection', () => {
 
   describe('Pause/Resume Functionality', () => {
     it('renders pause button initially', () => {
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       expect(screen.getByLabelText(/pause live updates/i)).toBeInTheDocument();
     });
 
     it('toggles to resume button when paused', async () => {
       const user = userEvent.setup();
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       const pauseButton = screen.getByLabelText(/pause live updates/i);
       await user.click(pauseButton);
@@ -137,7 +149,7 @@ describe('LiveActivitySection', () => {
 
     it('shows paused overlay when paused', async () => {
       const user = userEvent.setup();
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       const pauseButton = screen.getByLabelText(/pause live updates/i);
       await user.click(pauseButton);
@@ -147,7 +159,7 @@ describe('LiveActivitySection', () => {
 
     it('passes autoScroll=false to ActivityFeed when paused', async () => {
       const user = userEvent.setup();
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       const pauseButton = screen.getByLabelText(/pause live updates/i);
       await user.click(pauseButton);
@@ -157,7 +169,7 @@ describe('LiveActivitySection', () => {
     });
 
     it('passes autoScroll=true to ActivityFeed when not paused', () => {
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       const activityFeed = screen.getByTestId('activity-feed');
       expect(activityFeed).toHaveAttribute('data-auto-scroll', 'true');
@@ -168,7 +180,7 @@ describe('LiveActivitySection', () => {
     it('calls onEventClick when event is clicked', async () => {
       const handleClick = vi.fn();
       const user = userEvent.setup();
-      render(<LiveActivitySection {...defaultProps} onEventClick={handleClick} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} onEventClick={handleClick} />);
 
       // Click the activity feed button (mocked to trigger onEventClick)
       await user.click(screen.getByTestId('activity-feed'));
@@ -179,13 +191,13 @@ describe('LiveActivitySection', () => {
 
   describe('Stats Display', () => {
     it('shows event count', () => {
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       expect(screen.getByText('3')).toBeInTheDocument();
     });
 
     it('shows footer with event count', () => {
-      render(<LiveActivitySection {...defaultProps} maxItems={10} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} maxItems={10} />);
 
       expect(screen.getByText(/showing 3 of 3 recent events/i)).toBeInTheDocument();
     });
@@ -199,13 +211,13 @@ describe('LiveActivitySection', () => {
         summary: `Event ${i + 1}`,
       }));
 
-      render(<LiveActivitySection {...defaultProps} events={manyEvents} maxItems={10} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} events={manyEvents} maxItems={10} />);
 
       expect(screen.getByText(/showing 10 of 15 recent events/i)).toBeInTheDocument();
     });
 
     it('does not show footer when no events', () => {
-      render(<LiveActivitySection {...defaultProps} events={[]} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} events={[]} />);
 
       expect(screen.queryByText(/showing.*recent events/i)).not.toBeInTheDocument();
     });
@@ -245,14 +257,14 @@ describe('LiveActivitySection', () => {
         },
       ];
 
-      render(<LiveActivitySection {...defaultProps} events={mixedEvents} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} events={mixedEvents} />);
 
       // The stats should show the total count
       expect(screen.getByText('4')).toBeInTheDocument();
     });
 
     it('does not show stats when no events', () => {
-      render(<LiveActivitySection {...defaultProps} events={[]} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} events={[]} />);
 
       // Should not have any stat numbers
       const stats = screen.queryByText(/\d+ recent/);
@@ -262,14 +274,14 @@ describe('LiveActivitySection', () => {
 
   describe('MaxItems Prop', () => {
     it('passes maxItems to ActivityFeed', () => {
-      render(<LiveActivitySection {...defaultProps} maxItems={5} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} maxItems={5} />);
 
       const activityFeed = screen.getByTestId('activity-feed');
       expect(activityFeed).toHaveAttribute('data-max-items', '5');
     });
 
     it('uses default maxItems of 10', () => {
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       const activityFeed = screen.getByTestId('activity-feed');
       expect(activityFeed).toHaveAttribute('data-max-items', '10');
@@ -278,14 +290,14 @@ describe('LiveActivitySection', () => {
 
   describe('Accessibility', () => {
     it('has accessible section with aria-labelledby', () => {
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       const section = screen.getByRole('region', { name: /live activity/i });
       expect(section).toBeInTheDocument();
     });
 
     it('has accessible connection status', () => {
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       // Look specifically for the connection status element (contains "Live" text)
       const statusElements = screen.getAllByRole('status');
@@ -295,7 +307,7 @@ describe('LiveActivitySection', () => {
 
     it('pause button has aria-pressed attribute', async () => {
       const user = userEvent.setup();
-      render(<LiveActivitySection {...defaultProps} />);
+      renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       const pauseButton = screen.getByLabelText(/pause live updates/i);
       expect(pauseButton).toHaveAttribute('aria-pressed', 'false');
@@ -309,21 +321,21 @@ describe('LiveActivitySection', () => {
 
   describe('Visual States', () => {
     it('applies gradient background styling', () => {
-      const { container } = render(<LiveActivitySection {...defaultProps} />);
+      const { container } = renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       const section = container.querySelector('section');
       expect(section).toHaveClass('bg-gradient-to-br');
     });
 
     it('applies shadow styling', () => {
-      const { container } = render(<LiveActivitySection {...defaultProps} />);
+      const { container } = renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       const section = container.querySelector('section');
       expect(section).toHaveClass('shadow-lg');
     });
 
     it('applies rounded border styling', () => {
-      const { container } = render(<LiveActivitySection {...defaultProps} />);
+      const { container } = renderWithProvider(<LiveActivitySection {...defaultProps} />);
 
       const section = container.querySelector('section');
       expect(section).toHaveClass('rounded-xl');

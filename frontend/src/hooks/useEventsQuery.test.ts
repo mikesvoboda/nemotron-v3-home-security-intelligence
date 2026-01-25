@@ -32,6 +32,7 @@ describe('useEventsInfiniteQuery', () => {
         notes: null,
         detection_count: 5,
         detection_ids: [1, 2, 3, 4, 5],
+        version: 1, // Optimistic locking version (NEM-3625)
       },
       {
         id: 2,
@@ -46,6 +47,7 @@ describe('useEventsInfiniteQuery', () => {
         notes: 'Just a squirrel',
         detection_count: 2,
         detection_ids: [6, 7],
+        version: 1, // Optimistic locking version (NEM-3625)
       },
     ],
     pagination: {
@@ -71,6 +73,7 @@ describe('useEventsInfiniteQuery', () => {
         notes: null,
         detection_count: 3,
         detection_ids: [8, 9, 10],
+        version: 1, // Optimistic locking version (NEM-3625)
       },
     ],
     pagination: {

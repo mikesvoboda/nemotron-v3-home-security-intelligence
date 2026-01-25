@@ -1,10 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import AlertCard from './AlertCard';
 
-import type { AlertCardProps } from './AlertCard';
+import type { AlertActionParams, AlertCardProps } from './AlertCard';
 
 // Helper to create a timestamp X minutes ago
 const minutesAgo = (minutes: number): string => {
@@ -14,7 +14,20 @@ const minutesAgo = (minutes: number): string => {
 };
 
 describe('AlertCard', () => {
-  const mockAlert: AlertCardProps = {
+  // Use vi.fn() fresh in each test with proper types for NEM-3626
+  let mockOnAcknowledge: ReturnType<typeof vi.fn<(params: AlertActionParams) => void>>;
+  let mockOnDismiss: ReturnType<typeof vi.fn<(params: AlertActionParams) => void>>;
+  let mockOnSnooze: ReturnType<typeof vi.fn<(alertId: string, seconds: number) => void>>;
+  let mockOnViewEvent: ReturnType<typeof vi.fn<(eventId: number) => void>>;
+
+  beforeEach(() => {
+    mockOnAcknowledge = vi.fn();
+    mockOnDismiss = vi.fn();
+    mockOnSnooze = vi.fn();
+    mockOnViewEvent = vi.fn();
+  });
+
+  const createMockAlert = (overrides?: Partial<AlertCardProps>): AlertCardProps => ({
     id: 'alert-1',
     eventId: 123,
     severity: 'high',
@@ -24,10 +37,30 @@ describe('AlertCard', () => {
     risk_score: 75,
     summary: 'Person detected near entrance',
     dedup_key: 'front_door:person',
-    onAcknowledge: vi.fn(),
-    onDismiss: vi.fn(),
-    onSnooze: vi.fn(),
-    onViewEvent: vi.fn(),
+    version_id: 1,
+    onAcknowledge: mockOnAcknowledge,
+    onDismiss: mockOnDismiss,
+    onSnooze: mockOnSnooze,
+    onViewEvent: mockOnViewEvent,
+    ...overrides,
+  });
+
+  // Legacy mock for backward compatibility with existing tests
+  // Note: The callbacks use AlertActionParams now (NEM-3626)
+  const mockAlert: AlertCardProps = {
+    id: 'alert-1',
+    eventId: 123,
+    severity: 'high',
+    status: 'pending',
+    timestamp: minutesAgo(30),
+    camera_name: 'Front Door',
+    risk_score: 75,
+    summary: 'Person detected near entrance',
+    dedup_key: 'front_door:person',
+    onAcknowledge: vi.fn() as unknown as AlertCardProps['onAcknowledge'],
+    onDismiss: vi.fn() as unknown as AlertCardProps['onDismiss'],
+    onSnooze: vi.fn() as unknown as AlertCardProps['onSnooze'],
+    onViewEvent: vi.fn() as unknown as AlertCardProps['onViewEvent'],
   };
 
   describe('Rendering', () => {
@@ -106,16 +139,34 @@ describe('AlertCard', () => {
       expect(screen.getByRole('button', { name: /acknowledge/i })).toBeInTheDocument();
     });
 
-    it('calls onAcknowledge when acknowledge button is clicked', async () => {
-      const handleAcknowledge = vi.fn();
+    it('calls onAcknowledge with alertId and versionId when acknowledge button is clicked', async () => {
       const user = userEvent.setup();
+      const alert = createMockAlert({ version_id: 5 });
 
-      render(<AlertCard {...mockAlert} onAcknowledge={handleAcknowledge} />);
+      render(<AlertCard {...alert} />);
 
       const acknowledgeBtn = screen.getByRole('button', { name: /acknowledge/i });
       await user.click(acknowledgeBtn);
 
-      expect(handleAcknowledge).toHaveBeenCalledWith('alert-1');
+      expect(mockOnAcknowledge).toHaveBeenCalledWith({
+        alertId: 'alert-1',
+        versionId: 5,
+      });
+    });
+
+    it('calls onAcknowledge with undefined versionId when version_id not provided', async () => {
+      const user = userEvent.setup();
+      const alert = createMockAlert({ version_id: undefined });
+
+      render(<AlertCard {...alert} />);
+
+      const acknowledgeBtn = screen.getByRole('button', { name: /acknowledge/i });
+      await user.click(acknowledgeBtn);
+
+      expect(mockOnAcknowledge).toHaveBeenCalledWith({
+        alertId: 'alert-1',
+        versionId: undefined,
+      });
     });
 
     it('displays dismiss button', () => {
@@ -124,16 +175,19 @@ describe('AlertCard', () => {
       expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument();
     });
 
-    it('calls onDismiss when dismiss button is clicked', async () => {
-      const handleDismiss = vi.fn();
+    it('calls onDismiss with alertId and versionId when dismiss button is clicked', async () => {
       const user = userEvent.setup();
+      const alert = createMockAlert({ version_id: 3 });
 
-      render(<AlertCard {...mockAlert} onDismiss={handleDismiss} />);
+      render(<AlertCard {...alert} />);
 
       const dismissBtn = screen.getByRole('button', { name: /dismiss/i });
       await user.click(dismissBtn);
 
-      expect(handleDismiss).toHaveBeenCalledWith('alert-1');
+      expect(mockOnDismiss).toHaveBeenCalledWith({
+        alertId: 'alert-1',
+        versionId: 3,
+      });
     });
 
     it('displays view event button', () => {
@@ -194,6 +248,87 @@ describe('AlertCard', () => {
       render(<AlertCard {...mockAlert} status="acknowledged" />);
 
       expect(screen.queryByRole('button', { name: /acknowledge/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Loading State (NEM-3626)', () => {
+    it('disables acknowledge button when isLoading is true', () => {
+      const alert = createMockAlert({ isLoading: true });
+      render(<AlertCard {...alert} />);
+
+      const acknowledgeBtn = screen.getByRole('button', { name: /acknowledge/i });
+      expect(acknowledgeBtn).toBeDisabled();
+    });
+
+    it('disables dismiss button when isLoading is true', () => {
+      const alert = createMockAlert({ isLoading: true });
+      render(<AlertCard {...alert} />);
+
+      const dismissBtn = screen.getByRole('button', { name: /dismiss/i });
+      expect(dismissBtn).toBeDisabled();
+    });
+
+    it('shows loading spinner on acknowledge button when isLoading', () => {
+      const alert = createMockAlert({ isLoading: true });
+      render(<AlertCard {...alert} />);
+
+      const acknowledgeBtn = screen.getByRole('button', { name: /acknowledge/i });
+      // Check for animate-spin class on the icon
+      const spinner = acknowledgeBtn.querySelector('.animate-spin');
+      expect(spinner).toBeInTheDocument();
+    });
+
+    it('buttons are enabled when isLoading is false', () => {
+      const alert = createMockAlert({ isLoading: false });
+      render(<AlertCard {...alert} />);
+
+      const acknowledgeBtn = screen.getByRole('button', { name: /acknowledge/i });
+      const dismissBtn = screen.getByRole('button', { name: /dismiss/i });
+
+      expect(acknowledgeBtn).not.toBeDisabled();
+      expect(dismissBtn).not.toBeDisabled();
+    });
+
+    it('does not call onAcknowledge when button clicked while loading', async () => {
+      const user = userEvent.setup();
+      const alert = createMockAlert({ isLoading: true });
+
+      render(<AlertCard {...alert} />);
+
+      const acknowledgeBtn = screen.getByRole('button', { name: /acknowledge/i });
+      await user.click(acknowledgeBtn);
+
+      expect(mockOnAcknowledge).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Optimistic Locking (NEM-3626)', () => {
+    it('includes version_id in acknowledge callback params', async () => {
+      const user = userEvent.setup();
+      const alert = createMockAlert({ version_id: 42 });
+
+      render(<AlertCard {...alert} />);
+
+      const acknowledgeBtn = screen.getByRole('button', { name: /acknowledge/i });
+      await user.click(acknowledgeBtn);
+
+      expect(mockOnAcknowledge).toHaveBeenCalledWith(
+        expect.objectContaining({ versionId: 42 })
+      );
+    });
+
+    it('includes version_id in dismiss callback params', async () => {
+      const user = userEvent.setup();
+      const alert = createMockAlert({ version_id: 99 });
+
+      render(<AlertCard {...alert} />);
+
+      const dismissBtn = screen.getByRole('button', { name: /dismiss/i });
+      await user.click(dismissBtn);
+
+      expect(mockOnDismiss).toHaveBeenCalledWith(
+        expect.objectContaining({ versionId: 99 })
+      );
     });
   });
 

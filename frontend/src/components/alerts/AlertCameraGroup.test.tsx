@@ -53,6 +53,7 @@ describe('AlertCameraGroup', () => {
       reviewed: false,
       detection_count: 5,
       notes: null,
+      version: 1,
     },
     {
       id: 2,
@@ -65,6 +66,7 @@ describe('AlertCameraGroup', () => {
       reviewed: false,
       detection_count: 3,
       notes: null,
+      version: 1,
     },
     {
       id: 3,
@@ -77,6 +79,7 @@ describe('AlertCameraGroup', () => {
       reviewed: false,
       detection_count: 2,
       notes: null,
+      version: 1,
     },
   ];
 

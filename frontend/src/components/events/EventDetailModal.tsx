@@ -10,6 +10,7 @@ import {
   Eye,
   Film,
   Flag,
+  Printer,
   RefreshCw,
   Save,
   ThumbsDown,
@@ -103,6 +104,8 @@ export interface Event {
   scene_caption?: string | null;
   /** ISO timestamp until which alerts for this event are snoozed (NEM-3640) */
   snooze_until?: string | null;
+  /** Optimistic locking version (NEM-3625). Include in updates to prevent conflicts. */
+  version?: number;
   /** Advanced risk analysis fields (NEM-3601) */
   entities?: RiskEntity[] | null;
   flags?: RiskFlag[] | null;
@@ -1177,6 +1180,13 @@ export default function EventDetailModal({
                               )}
                             </dd>
                           </div>
+                          {/* Version indicator for optimistic locking (NEM-3625) */}
+                          {event.version !== undefined && (
+                            <div className="flex justify-between" data-testid="event-version">
+                              <dt className="text-gray-400">Revision</dt>
+                              <dd className="font-mono text-gray-500">Rev. {event.version}</dd>
+                            </div>
+                          )}
                           {/* Video metadata in event details */}
                           {isVideoDetection && selectedDetection && (
                             <>
@@ -1294,6 +1304,17 @@ export default function EventDetailModal({
                         {isDownloading ? 'Downloading...' : 'Download Media'}
                       </button>
                     )}
+
+                    {/* Print Event Report button */}
+                    <button
+                      onClick={() => window.print()}
+                      className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-gray-700 active:bg-gray-900"
+                      aria-label="Print event report"
+                      data-testid="print-event-button"
+                    >
+                      <Printer className="h-4 w-4" />
+                      Print
+                    </button>
 
                     {/* Mark as reviewed button */}
                     {onMarkReviewed && !event.reviewed && (

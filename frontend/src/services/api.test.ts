@@ -66,6 +66,7 @@ import {
   type EventsQueryParams,
   type EventStatsQueryParams,
   type EventUpdateData,
+  EventVersionConflictError,
   type Detection,
   type DetectionListResponse,
   type EventEnrichmentsResponse,
@@ -186,6 +187,7 @@ const mockEvent: Event = {
   reviewed: false,
   notes: null,
   detection_count: 5,
+  version: 1, // Optimistic locking version (NEM-3625)
 };
 
 const mockEventListResponse: EventListResponse = {
@@ -1814,6 +1816,75 @@ describe('Events API', () => {
       const result = await updateEvent(1, updateData);
 
       expect(result.notes).toBeNull();
+    });
+
+    it('includes version in update request for optimistic locking (NEM-3625)', async () => {
+      const updateData: EventUpdateData = { reviewed: true, version: 3 };
+      const updatedEvent = { ...mockEvent, reviewed: true, version: 4 };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(updatedEvent));
+
+      const result = await updateEvent(1, updateData);
+
+      expect(fetch).toHaveBeenCalledWith('/api/events/1', {
+        method: 'PATCH',
+        body: JSON.stringify({ reviewed: true, version: 3 }),
+        headers: { 'Content-Type': 'application/json' },
+        signal: expect.any(AbortSignal),
+      });
+      expect(result.version).toBe(4);
+    });
+
+    it('throws EventVersionConflictError on 409 Conflict (NEM-3625)', async () => {
+      const updateData: EventUpdateData = { reviewed: true, version: 2 };
+      // Backend returns detail as an object with message and current_version
+      const conflictResponse = {
+        detail: {
+          message: 'Event was modified by another request. Please refresh and retry.',
+          current_version: 5,
+        },
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        statusText: 'Conflict',
+        json: () => Promise.resolve(conflictResponse),
+        headers: new Headers({ 'Content-Type': 'application/json' }),
+      } as Response);
+
+      await expect(updateEvent(1, updateData)).rejects.toThrow(EventVersionConflictError);
+    });
+
+    it('EventVersionConflictError contains current version from server (NEM-3625)', async () => {
+      const updateData: EventUpdateData = { reviewed: true, version: 2 };
+      // Backend returns detail as an object with message and current_version
+      const conflictResponse = {
+        detail: {
+          message: 'Event was modified by another request. Please refresh and retry.',
+          current_version: 5,
+        },
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        statusText: 'Conflict',
+        json: () => Promise.resolve(conflictResponse),
+        headers: new Headers({ 'Content-Type': 'application/json' }),
+      } as Response);
+
+      try {
+        await updateEvent(1, updateData);
+        throw new Error('Expected EventVersionConflictError to be thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(EventVersionConflictError);
+        if (error instanceof EventVersionConflictError) {
+          expect(error.currentVersion).toBe(5);
+          expect(error.eventId).toBe(1);
+          expect(error.message).toContain('modified by another request');
+        }
+      }
     });
   });
 

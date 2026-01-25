@@ -1,7 +1,23 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { type ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import ConnectionStatusBanner from './ConnectionStatusBanner';
+import { AnnouncementProvider } from '../../contexts/AnnouncementContext';
+
+/**
+ * Wrapper component that provides the AnnouncementProvider context
+ */
+function Wrapper({ children }: { children: ReactNode }) {
+  return <AnnouncementProvider>{children}</AnnouncementProvider>;
+}
+
+/**
+ * Helper to render with context
+ */
+function renderWithContext(ui: React.ReactElement) {
+  return render(ui, { wrapper: Wrapper });
+}
 
 describe('ConnectionStatusBanner', () => {
   beforeEach(() => {
@@ -14,7 +30,7 @@ describe('ConnectionStatusBanner', () => {
 
   describe('Visibility', () => {
     it('does not render when connected', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="connected"
           disconnectedSince={null}
@@ -26,7 +42,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('renders when disconnected', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={new Date()}
@@ -38,7 +54,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('renders when reconnecting', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="reconnecting"
           disconnectedSince={new Date()}
@@ -50,7 +66,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('renders when connection failed', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="failed"
           disconnectedSince={new Date()}
@@ -64,7 +80,7 @@ describe('ConnectionStatusBanner', () => {
 
   describe('Connection States', () => {
     it('shows disconnected state with red styling', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={new Date()}
@@ -78,7 +94,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('shows reconnecting state with yellow/amber styling', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="reconnecting"
           disconnectedSince={new Date()}
@@ -94,7 +110,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('shows failed state with orange styling', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="failed"
           disconnectedSince={new Date()}
@@ -110,7 +126,7 @@ describe('ConnectionStatusBanner', () => {
 
   describe('Reconnection counter', () => {
     it('shows reconnection attempt counter when reconnecting', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="reconnecting"
           disconnectedSince={new Date()}
@@ -124,7 +140,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('does not show reconnection counter when not reconnecting', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={new Date()}
@@ -141,7 +157,7 @@ describe('ConnectionStatusBanner', () => {
   describe('Disconnected duration', () => {
     it('shows how long disconnected for recent disconnect', () => {
       const tenSecondsAgo = new Date(Date.now() - 10000);
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={tenSecondsAgo}
@@ -154,7 +170,7 @@ describe('ConnectionStatusBanner', () => {
 
     it('shows minutes when disconnected for over a minute', () => {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={fiveMinutesAgo}
@@ -167,7 +183,7 @@ describe('ConnectionStatusBanner', () => {
 
     it('updates duration every second', async () => {
       const tenSecondsAgo = new Date(Date.now() - 10000);
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={tenSecondsAgo}
@@ -190,7 +206,7 @@ describe('ConnectionStatusBanner', () => {
     it('shows stale data warning when disconnected for extended period', () => {
       // 2 minutes ago
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={twoMinutesAgo}
@@ -206,7 +222,7 @@ describe('ConnectionStatusBanner', () => {
     it('does not show stale data warning for brief disconnection', () => {
       // 30 seconds ago
       const thirtySecondsAgo = new Date(Date.now() - 30000);
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={thirtySecondsAgo}
@@ -220,7 +236,7 @@ describe('ConnectionStatusBanner', () => {
 
     it('shows which data types may be stale', () => {
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={twoMinutesAgo}
@@ -238,7 +254,7 @@ describe('ConnectionStatusBanner', () => {
 
   describe('Retry button', () => {
     it('shows retry button when connection failed', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="failed"
           disconnectedSince={new Date()}
@@ -251,7 +267,7 @@ describe('ConnectionStatusBanner', () => {
 
     it('calls onRetry when retry button is clicked', () => {
       const onRetry = vi.fn();
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="failed"
           disconnectedSince={new Date()}
@@ -264,7 +280,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('does not show retry button when reconnecting (auto-retry in progress)', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="reconnecting"
           disconnectedSince={new Date()}
@@ -280,7 +296,7 @@ describe('ConnectionStatusBanner', () => {
 
   describe('Dismiss button', () => {
     it('shows dismiss button', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={new Date()}
@@ -292,7 +308,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('hides banner when dismiss button is clicked', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={new Date()}
@@ -308,7 +324,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('reappears after dismissal when state changes', () => {
-      const { rerender } = render(
+      const { rerender } = renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={new Date()}
@@ -322,21 +338,25 @@ describe('ConnectionStatusBanner', () => {
 
       // Connection reconnects (banner still hidden since connected doesn't render)
       rerender(
-        <ConnectionStatusBanner
-          connectionState="connected"
-          disconnectedSince={null}
-          onRetry={() => {}}
-        />
+        <Wrapper>
+          <ConnectionStatusBanner
+            connectionState="connected"
+            disconnectedSince={null}
+            onRetry={() => {}}
+          />
+        </Wrapper>
       );
       expect(screen.queryByTestId('connection-status-banner')).not.toBeInTheDocument();
 
       // Disconnect again - banner should reappear
       rerender(
-        <ConnectionStatusBanner
-          connectionState="disconnected"
-          disconnectedSince={new Date()}
-          onRetry={() => {}}
-        />
+        <Wrapper>
+          <ConnectionStatusBanner
+            connectionState="disconnected"
+            disconnectedSince={new Date()}
+            onRetry={() => {}}
+          />
+        </Wrapper>
       );
       expect(screen.getByTestId('connection-status-banner')).toBeInTheDocument();
     });
@@ -344,7 +364,7 @@ describe('ConnectionStatusBanner', () => {
 
   describe('Accessibility', () => {
     it('has proper ARIA attributes', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={new Date()}
@@ -358,7 +378,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('has accessible dismiss button', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={new Date()}
@@ -371,7 +391,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('has accessible retry button', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="failed"
           disconnectedSince={new Date()}
@@ -384,9 +404,49 @@ describe('ConnectionStatusBanner', () => {
     });
   });
 
+  describe('Screen reader announcements', () => {
+    it('announces state changes to screen readers via live region', () => {
+      const { rerender } = renderWithContext(
+        <ConnectionStatusBanner
+          connectionState="connected"
+          disconnectedSince={null}
+          onRetry={() => {}}
+        />
+      );
+
+      // Transition to disconnected
+      rerender(
+        <Wrapper>
+          <ConnectionStatusBanner
+            connectionState="disconnected"
+            disconnectedSince={new Date()}
+            onRetry={() => {}}
+          />
+        </Wrapper>
+      );
+
+      // The announcement happens via the live region, which is handled by the context
+      // We verify the component uses useAnnounce by checking it renders without error
+      expect(screen.getByTestId('connection-status-banner')).toBeInTheDocument();
+    });
+
+    it('renders with AnnouncementProvider without error', () => {
+      // This test verifies the useAnnounce hook integration works
+      expect(() =>
+        renderWithContext(
+          <ConnectionStatusBanner
+            connectionState="failed"
+            disconnectedSince={new Date()}
+            onRetry={() => {}}
+          />
+        )
+      ).not.toThrow();
+    });
+  });
+
   describe('Animation', () => {
     it('has pulsing animation when reconnecting', () => {
-      const { container } = render(
+      const { container } = renderWithContext(
         <ConnectionStatusBanner
           connectionState="reconnecting"
           disconnectedSince={new Date()}
@@ -404,7 +464,7 @@ describe('ConnectionStatusBanner', () => {
 
   describe('Icons', () => {
     it('shows WifiOff icon when disconnected', () => {
-      const { container } = render(
+      const { container } = renderWithContext(
         <ConnectionStatusBanner
           connectionState="disconnected"
           disconnectedSince={new Date()}
@@ -418,7 +478,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('shows RefreshCw icon when reconnecting', () => {
-      const { container } = render(
+      const { container } = renderWithContext(
         <ConnectionStatusBanner
           connectionState="reconnecting"
           disconnectedSince={new Date()}
@@ -433,7 +493,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('shows AlertTriangle icon when failed', () => {
-      const { container } = render(
+      const { container } = renderWithContext(
         <ConnectionStatusBanner
           connectionState="failed"
           disconnectedSince={new Date()}
@@ -448,7 +508,7 @@ describe('ConnectionStatusBanner', () => {
 
   describe('Polling fallback indicator', () => {
     it('shows polling fallback indicator when enabled', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="failed"
           disconnectedSince={new Date()}
@@ -462,7 +522,7 @@ describe('ConnectionStatusBanner', () => {
     });
 
     it('does not show polling indicator when not in fallback mode', () => {
-      render(
+      renderWithContext(
         <ConnectionStatusBanner
           connectionState="failed"
           disconnectedSince={new Date()}

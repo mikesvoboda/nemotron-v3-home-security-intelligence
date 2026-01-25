@@ -25,6 +25,7 @@ const mockEvents: Event[] = [
     risk_level: 'high',
     risk_score: 72,
     reviewed: false,
+    version: 1, // Optimistic locking version (NEM-3625)
   },
   {
     id: 1233,
@@ -34,6 +35,7 @@ const mockEvents: Event[] = [
     risk_level: 'medium',
     risk_score: 45,
     reviewed: true,
+    version: 1, // Optimistic locking version (NEM-3625)
   },
   {
     id: 1232,
@@ -43,6 +45,7 @@ const mockEvents: Event[] = [
     risk_level: 'low',
     risk_score: 15,
     reviewed: false,
+    version: 1, // Optimistic locking version (NEM-3625)
   },
 ];
 

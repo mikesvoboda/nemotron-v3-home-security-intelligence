@@ -960,3 +960,258 @@ class TestHelperFunctions:
 
         assert success is False
         assert message == "HTTP 500 Internal Server Error"
+
+
+# =============================================================================
+# PATCH /api/notification/config Tests
+# =============================================================================
+
+
+def create_mock_db_for_config(existing_config: dict | None = None):
+    """Create a mock database dependency that supports notification config queries."""
+
+    async def _mock_db_dependency():
+        mock = AsyncMock()
+
+        # Create a mock result that returns the existing config or None
+        mock_result = MagicMock()
+        if existing_config:
+            mock_setting = MagicMock()
+            mock_setting.value = existing_config
+            mock_setting.key = "notification_config"
+            mock_result.scalar_one_or_none.return_value = mock_setting
+        else:
+            mock_result.scalar_one_or_none.return_value = None
+
+        mock.execute = AsyncMock(return_value=mock_result)
+        mock.commit = AsyncMock()
+        mock.rollback = AsyncMock()
+        mock.add = MagicMock()
+
+        yield mock
+
+    return _mock_db_dependency
+
+
+class TestUpdateNotificationConfig:
+    """Tests for PATCH /api/notification/config endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_update_smtp_enabled(self) -> None:
+        """Test enabling/disabling SMTP notifications."""
+        app.dependency_overrides[get_db] = create_mock_db_for_config()
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.patch(
+                    "/api/notification/config",
+                    json={"smtp_enabled": True},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["smtp_enabled"] is True
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_update_smtp_settings(self) -> None:
+        """Test updating SMTP host, port, and from address."""
+        app.dependency_overrides[get_db] = create_mock_db_for_config()
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.patch(
+                    "/api/notification/config",
+                    json={
+                        "smtp_host": "smtp.newhost.com",
+                        "smtp_port": 465,
+                        "smtp_from_address": "new@example.com",
+                    },
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["smtp_host"] == "smtp.newhost.com"
+            assert data["smtp_port"] == 465
+            assert data["smtp_from_address"] == "new@example.com"
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_update_webhook_enabled(self) -> None:
+        """Test enabling/disabling webhook notifications."""
+        app.dependency_overrides[get_db] = create_mock_db_for_config()
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.patch(
+                    "/api/notification/config",
+                    json={"webhook_enabled": True},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["webhook_enabled"] is True
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_update_default_webhook_url(self) -> None:
+        """Test updating default webhook URL."""
+        app.dependency_overrides[get_db] = create_mock_db_for_config()
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.patch(
+                    "/api/notification/config",
+                    json={"default_webhook_url": "https://hooks.newsite.com/notify"},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["default_webhook_url"] == "https://hooks.newsite.com/notify"
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_update_config_validates_smtp_port(self) -> None:
+        """Test that SMTP port validation rejects invalid values."""
+        app.dependency_overrides[get_db] = create_mock_db_for_config()
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.patch(
+                    "/api/notification/config",
+                    json={"smtp_port": 99999},  # Invalid port
+                )
+
+            assert response.status_code == 422
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_update_config_validates_email_format(self) -> None:
+        """Test that from address validation rejects invalid email."""
+        app.dependency_overrides[get_db] = create_mock_db_for_config()
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.patch(
+                    "/api/notification/config",
+                    json={"smtp_from_address": "not-an-email"},
+                )
+
+            assert response.status_code == 422
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_update_config_validates_webhook_url_ssrf(self) -> None:
+        """Test that webhook URL validation blocks private IPs."""
+        app.dependency_overrides[get_db] = create_mock_db_for_config()
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.patch(
+                    "/api/notification/config",
+                    json={"default_webhook_url": "http://192.168.1.1/webhook"},
+                )
+
+            # Should be rejected for SSRF protection
+            assert response.status_code == 422
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_update_config_partial_update(self) -> None:
+        """Test that partial updates only change specified fields."""
+        # Start with existing config
+        existing = {
+            "smtp_enabled": True,
+            "smtp_host": "smtp.old.com",
+            "smtp_port": 587,
+            "smtp_from_address": "old@example.com",
+            "webhook_enabled": True,
+            "default_webhook_url": "https://old.webhook.com/hook",
+        }
+        app.dependency_overrides[get_db] = create_mock_db_for_config(existing)
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                # Update only smtp_enabled, other fields should remain unchanged
+                response = await client.patch(
+                    "/api/notification/config",
+                    json={"smtp_enabled": False},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["smtp_enabled"] is False
+            # Other fields should be present (from defaults or existing config)
+            assert "webhook_enabled" in data
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_update_config_persists_to_database(self) -> None:
+        """Test that configuration updates are persisted to database."""
+        # Track the mock for assertions
+        mock_db_instance = None
+
+        async def _tracking_mock_db():
+            nonlocal mock_db_instance
+            mock = AsyncMock()
+            mock_result = MagicMock()
+            mock_result.scalar_one_or_none.return_value = None
+            mock.execute = AsyncMock(return_value=mock_result)
+            mock.commit = AsyncMock()
+            mock.rollback = AsyncMock()
+            mock.add = MagicMock()
+            mock_db_instance = mock
+            yield mock
+
+        app.dependency_overrides[get_db] = _tracking_mock_db
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                await client.patch(
+                    "/api/notification/config",
+                    json={"smtp_enabled": True},
+                )
+
+            # Verify database commit was called
+            assert mock_db_instance is not None
+            mock_db_instance.commit.assert_called()
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
+    async def test_update_config_empty_body_returns_current(self) -> None:
+        """Test that empty update body returns current configuration."""
+        app.dependency_overrides[get_db] = create_mock_db_for_config()
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                response = await client.patch(
+                    "/api/notification/config",
+                    json={},
+                )
+
+            assert response.status_code == 200
+            data = response.json()
+            # Should return full config even with empty update
+            assert "smtp_enabled" in data
+            assert "webhook_enabled" in data
+        finally:
+            app.dependency_overrides.clear()

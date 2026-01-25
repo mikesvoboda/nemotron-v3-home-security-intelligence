@@ -64,6 +64,7 @@ function createMockDeletedEvent(overrides: Partial<DeletedEvent> = {}): DeletedE
     reviewed: false,
     detection_count: 3,
     deleted_at: '2025-01-05T12:00:00Z',
+    version: 1, // Optimistic locking version (NEM-3625)
     ...overrides,
   };
 }
@@ -82,6 +83,7 @@ function createMockEvent(overrides: Partial<Event> = {}): Event {
     thumbnail_url: '/api/media/events/1/thumbnail.jpg',
     reviewed: false,
     detection_count: 3,
+    version: 1, // Optimistic locking version (NEM-3625)
     ...overrides,
   };
 }

@@ -2024,13 +2024,75 @@ export interface EventUpdateData {
   notes?: string | null;
   /** ISO timestamp until which alerts for this event are snoozed (NEM-2359) */
   snooze_until?: string | null;
+  /**
+   * Optimistic locking version (NEM-3625).
+   * Include the version from the event response to detect concurrent modifications.
+   * If the version doesn't match on the server, returns HTTP 409 Conflict.
+   */
+  version?: number;
 }
 
+/**
+ * Error thrown when an event update fails due to a version conflict (NEM-3625).
+ * This occurs when another request modified the event since it was last fetched.
+ */
+export class EventVersionConflictError extends Error {
+  /** The current version of the event on the server */
+  public readonly currentVersion: number;
+  /** The event ID that had the conflict */
+  public readonly eventId: number;
+
+  constructor(eventId: number, currentVersion: number, message?: string) {
+    super(
+      message ||
+        `Event ${eventId} was modified by another request (current version: ${currentVersion}). Please refresh and retry.`
+    );
+    this.name = 'EventVersionConflictError';
+    this.eventId = eventId;
+    this.currentVersion = currentVersion;
+  }
+}
+
+/**
+ * Update an event with optimistic locking support (NEM-3625).
+ *
+ * @param id - Event ID to update
+ * @param data - Update data including optional version for optimistic locking
+ * @returns Updated event with new version
+ * @throws EventVersionConflictError if version mismatch (409 Conflict)
+ */
 export async function updateEvent(id: number, data: EventUpdateData): Promise<Event> {
-  return fetchApi<Event>(`/api/events/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  });
+  try {
+    return await fetchApi<Event>(`/api/events/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  } catch (error) {
+    // Handle 409 Conflict for optimistic locking (NEM-3625)
+    if (error instanceof ApiError && error.status === 409) {
+      // Try to extract the current version and message from the error response
+      let currentVersion = 0;
+      let message: string | undefined;
+      try {
+        // Error data contains parsed JSON body: { detail: { message: string, current_version: number } }
+        const errorData = error.data as
+          | { detail?: { current_version?: number; message?: string } }
+          | undefined;
+        if (errorData?.detail) {
+          if (typeof errorData.detail.current_version === 'number') {
+            currentVersion = errorData.detail.current_version;
+          }
+          if (typeof errorData.detail.message === 'string') {
+            message = errorData.detail.message;
+          }
+        }
+      } catch {
+        // Ignore parsing errors
+      }
+      throw new EventVersionConflictError(id, currentVersion, message);
+    }
+    throw error;
+  }
 }
 
 export interface BulkUpdateResult {
@@ -3038,6 +3100,80 @@ export async function exportEventsCSV(params?: ExportQueryParams): Promise<void>
   }
 }
 
+/**
+ * Export events as JSON file.
+ * Triggers a file download with the exported data.
+ *
+ * @param params - Optional filter parameters for export
+ * @returns Promise that resolves when download is triggered
+ */
+export async function exportEventsJSON(params?: ExportQueryParams): Promise<void> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.camera_id) queryParams.append('camera_id', params.camera_id);
+    if (params.risk_level) queryParams.append('risk_level', params.risk_level);
+    if (params.start_date) queryParams.append('start_date', params.start_date);
+    if (params.end_date) queryParams.append('end_date', params.end_date);
+    if (params.reviewed !== undefined) queryParams.append('reviewed', String(params.reviewed));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/events/export?${queryString}` : '/api/events/export';
+  const url = `${BASE_URL}${endpoint}`;
+
+  // Build headers with API key and Accept header for JSON format
+  const headers: HeadersInit = {
+    Accept: 'application/json',
+  };
+  if (API_KEY) {
+    headers['X-API-Key'] = API_KEY;
+  }
+
+  try {
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      try {
+        const errorBody: unknown = await response.json();
+        if (typeof errorBody === 'object' && errorBody !== null && 'detail' in errorBody) {
+          errorMessage = String((errorBody as { detail: unknown }).detail);
+        }
+      } catch {
+        // If response body is not JSON, use status text
+      }
+      throw new ApiError(response.status, errorMessage);
+    }
+
+    // Get filename from Content-Disposition header or generate default
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = `events_export_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.json`;
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename="?([^";\n]+)"?/);
+      if (match?.[1]) {
+        filename = match[1];
+      }
+    }
+
+    // Get the blob and trigger download
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(0, error instanceof Error ? error.message : 'Export request failed');
+  }
+}
+
 // ============================================================================
 // Export Job Endpoints (NEM-2385, NEM-2386)
 // ============================================================================
@@ -3662,6 +3798,46 @@ export async function testNotification(
   return fetchApi<TestNotificationResult>('/api/notification/test', {
     method: 'POST',
     body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Notification configuration update request
+ */
+export interface NotificationConfigUpdate {
+  smtp_enabled?: boolean;
+  smtp_host?: string | null;
+  smtp_port?: number | null;
+  smtp_from_address?: string | null;
+  webhook_enabled?: boolean;
+  default_webhook_url?: string | null;
+}
+
+/**
+ * Notification configuration update response
+ */
+export interface NotificationConfigUpdateResponse {
+  smtp_enabled: boolean;
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_from_address: string | null;
+  webhook_enabled: boolean;
+  default_webhook_url: string | null;
+  message: string;
+}
+
+/**
+ * Update notification configuration.
+ *
+ * @param update - Partial configuration update with fields to change
+ * @returns NotificationConfigUpdateResponse with updated configuration
+ */
+export async function updateNotificationConfig(
+  update: NotificationConfigUpdate
+): Promise<NotificationConfigUpdateResponse> {
+  return fetchApi<NotificationConfigUpdateResponse>('/api/notification/config', {
+    method: 'PATCH',
+    body: JSON.stringify(update),
   });
 }
 

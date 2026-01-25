@@ -446,6 +446,33 @@ describe('EventDetailModal', () => {
         expect(screen.getByText('Reviewed')).toBeInTheDocument();
       });
     });
+
+    it('renders version indicator when version is provided (NEM-3625)', async () => {
+      const eventWithVersion = { ...mockEvent, version: 3 };
+      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventWithVersion} />);
+      await waitFor(() => {
+        const versionElement = screen.getByTestId('event-version');
+        expect(versionElement).toBeInTheDocument();
+        expect(screen.getByText('Rev. 3')).toBeInTheDocument();
+      });
+    });
+
+    it('does not render version indicator when version is undefined (NEM-3625)', async () => {
+      const eventWithoutVersion = { ...mockEvent, version: undefined };
+      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventWithoutVersion} />);
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('event-version')).not.toBeInTheDocument();
+    });
+
+    it('renders version indicator for version 1 (NEM-3625)', async () => {
+      const eventWithVersion = { ...mockEvent, version: 1 };
+      renderWithQueryClient(<EventDetailModal {...mockProps} event={eventWithVersion} />);
+      await waitFor(() => {
+        expect(screen.getByText('Rev. 1')).toBeInTheDocument();
+      });
+    });
   });
 
   describe('duration display', () => {
