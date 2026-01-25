@@ -336,7 +336,7 @@ def generate_docker_override_content(config: dict) -> str:
     return "\n".join(lines)
 
 
-def run_quick_mode() -> dict:  # noqa: PLR0912
+def run_quick_mode() -> dict:
     """Run quick setup mode with minimal prompts.
 
     Returns:
@@ -444,7 +444,7 @@ def run_quick_mode() -> dict:  # noqa: PLR0912
     }
 
 
-def run_guided_mode() -> dict:  # noqa: PLR0912
+def run_guided_mode() -> dict:
     """Run guided setup mode with detailed explanations.
 
     Returns:

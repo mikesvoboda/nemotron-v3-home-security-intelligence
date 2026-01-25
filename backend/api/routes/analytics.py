@@ -16,6 +16,10 @@ from backend.api.schemas.analytics import (
     ObjectDistributionResponse,
     RiskHistoryDataPoint,
     RiskHistoryResponse,
+    RiskScoreDistributionBucket,
+    RiskScoreDistributionResponse,
+    RiskScoreTrendDataPoint,
+    RiskScoreTrendsResponse,
 )
 from backend.core.database import get_db
 from backend.core.logging import get_logger
@@ -338,6 +342,201 @@ async def get_object_distribution(
     return ObjectDistributionResponse(
         object_types=object_types,
         total_detections=total_detections,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+
+@router.get(
+    "/risk-score-distribution",
+    response_model=RiskScoreDistributionResponse,
+    responses={
+        400: {"description": "Bad request - Invalid date range or bucket size"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_risk_score_distribution(
+    start_date: Date = Query(..., description="Start date for analytics (ISO format)"),
+    end_date: Date = Query(..., description="End date for analytics (ISO format)"),
+    bucket_size: int = Query(
+        10, description="Size of each score bucket (default: 10)", ge=1, le=50
+    ),
+    db: AsyncSession = Depends(get_db),
+) -> RiskScoreDistributionResponse:
+    """Get risk score distribution as a histogram.
+
+    Returns counts of events grouped into score buckets (e.g., 0-10, 10-20, ..., 90-100).
+    Only includes events with non-null risk_score.
+
+    Args:
+        start_date: Start date (inclusive)
+        end_date: End date (inclusive)
+        bucket_size: Size of each bucket (default 10 for buckets 0-10, 10-20, etc.)
+        db: Database session
+
+    Returns:
+        RiskScoreDistributionResponse with histogram buckets
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date
+    """
+    # Validate date range
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start_date must be before or equal to end_date",
+        )
+
+    # Calculate number of buckets (100 / bucket_size, ensuring last bucket includes 100)
+    num_buckets = 100 // bucket_size
+
+    # Query events grouped by score bucket
+    # Use floor division to assign scores to buckets
+    # Score 100 goes to the last bucket (handled by LEAST to cap at num_buckets-1)
+    bucket_expr = func.least(Event.risk_score / bucket_size, num_buckets - 1)
+    query = (
+        select(
+            bucket_expr.label("bucket"),
+            func.count(Event.id).label("count"),
+        )
+        .where(
+            func.date(Event.started_at) >= start_date,
+            func.date(Event.started_at) <= end_date,
+            Event.risk_score.isnot(None),  # Only include events with risk scores
+            Event.deleted_at.is_(None),  # Exclude soft-deleted events
+        )
+        .group_by(bucket_expr)
+        .order_by(bucket_expr)
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    # Create dictionary for fast lookup
+    # mypy incorrectly infers row.count as Callable due to SQLAlchemy Row type
+    counts_by_bucket: dict[int, int] = {
+        int(row.bucket): int(row.count)  # type: ignore[call-overload]
+        for row in rows
+    }
+
+    # Generate all buckets (fill gaps with 0)
+    buckets = []
+    total_events = 0
+
+    for i in range(num_buckets):
+        min_score = i * bucket_size
+        # Last bucket includes 100
+        max_score = min_score + bucket_size if i < num_buckets - 1 else 100
+        count = counts_by_bucket.get(i, 0)
+        buckets.append(
+            RiskScoreDistributionBucket(
+                min_score=min_score,
+                max_score=max_score,
+                count=count,
+            )
+        )
+        total_events += count
+
+    return RiskScoreDistributionResponse(
+        buckets=buckets,
+        total_events=total_events,
+        start_date=start_date,
+        end_date=end_date,
+        bucket_size=bucket_size,
+    )
+
+
+@router.get(
+    "/risk-score-trends",
+    response_model=RiskScoreTrendsResponse,
+    responses={
+        400: {"description": "Bad request - Invalid date range"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_risk_score_trends(
+    start_date: Date = Query(..., description="Start date for analytics (ISO format)"),
+    end_date: Date = Query(..., description="End date for analytics (ISO format)"),
+    db: AsyncSession = Depends(get_db),
+) -> RiskScoreTrendsResponse:
+    """Get average risk score trends over time.
+
+    Returns daily average risk scores for the specified date range.
+    Creates one data point per day even if there are no events.
+
+    Args:
+        start_date: Start date (inclusive)
+        end_date: End date (inclusive)
+        db: Database session
+
+    Returns:
+        RiskScoreTrendsResponse with daily average scores and event counts
+
+    Raises:
+        HTTPException: 400 if start_date is after end_date
+    """
+    # Validate date range
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start_date must be before or equal to end_date",
+        )
+
+    # Query events grouped by date with average risk score
+    query = (
+        select(
+            func.date(Event.started_at).label("event_date"),
+            func.avg(Event.risk_score).label("avg_score"),
+            func.count(Event.id).label("count"),
+        )
+        .where(
+            func.date(Event.started_at) >= start_date,
+            func.date(Event.started_at) <= end_date,
+            Event.risk_score.isnot(None),  # Only include events with risk scores
+            Event.deleted_at.is_(None),  # Exclude soft-deleted events
+        )
+        .group_by(func.date(Event.started_at))
+        .order_by(func.date(Event.started_at))
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    # Create dictionary for fast lookup
+    # mypy incorrectly infers row.count as Callable due to SQLAlchemy Row type
+    data_by_date: dict[Date, tuple[float, int]] = {
+        row.event_date: (float(row.avg_score), int(row.count))  # type: ignore[call-overload]
+        for row in rows
+    }
+
+    # Generate data points for every day in range (fill gaps with 0)
+    data_points = []
+    current_date = start_date
+
+    while current_date <= end_date:
+        if current_date in data_by_date:
+            avg_score, count = data_by_date[current_date]
+            data_points.append(
+                RiskScoreTrendDataPoint(
+                    date=current_date,
+                    avg_score=round(avg_score, 1),
+                    count=count,
+                )
+            )
+        else:
+            data_points.append(
+                RiskScoreTrendDataPoint(
+                    date=current_date,
+                    avg_score=0.0,
+                    count=0,
+                )
+            )
+        current_date += timedelta(days=1)
+
+    return RiskScoreTrendsResponse(
+        data_points=data_points,
         start_date=start_date,
         end_date=end_date,
     )

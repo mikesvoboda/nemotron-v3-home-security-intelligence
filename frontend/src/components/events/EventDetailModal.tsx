@@ -568,7 +568,7 @@ export default function EventDetailModal({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel
-                className="w-full max-w-4xl transform overflow-hidden rounded-xl border border-gray-800 bg-[#1A1A1A] shadow-2xl transition-all"
+                className="w-full max-w-lg transform overflow-hidden rounded-xl border border-gray-800 bg-[#1A1A1A] shadow-2xl transition-all sm:max-w-2xl lg:max-w-4xl"
                 data-testid="event-detail-modal"
               >
                 {/* Header */}

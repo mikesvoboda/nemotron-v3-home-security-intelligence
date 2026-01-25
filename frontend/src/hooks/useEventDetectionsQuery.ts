@@ -7,9 +7,14 @@
  * @module hooks/useEventDetectionsQuery
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
-import { fetchEventDetections, type DetectionQueryParams } from '../services/api';
+import {
+  fetchEventDetections,
+  type DetectionQueryParams,
+  type DetectionOrderBy,
+} from '../services/api';
 import { queryKeys, DEFAULT_STALE_TIME } from '../services/queryClient';
 
 import type { DetectionListResponse, Detection } from '../types/generated';
@@ -42,6 +47,14 @@ export interface UseEventDetectionsQueryOptions {
    * @default DEFAULT_STALE_TIME (30 seconds)
    */
   staleTime?: number;
+
+  /**
+   * Order detections by: 'detected_at' (detection timestamp, default) or
+   * 'created_at' (when associated with event - shows detection sequence).
+   * NEM-3629: When using 'created_at', responses include association_created_at.
+   * @default 'detected_at'
+   */
+  orderBy?: DetectionOrderBy;
 }
 
 /**
@@ -67,11 +80,12 @@ export interface UseEventDetectionsQueryReturn {
 /**
  * Query key factory for event detections.
  * Uses the standard queryKeys.detections.forEvent pattern for consistency.
+ * NEM-3629: Includes orderBy in query key for proper cache separation.
  */
 export const eventDetectionsQueryKeys = {
-  forEvent: (eventId: number, limit?: number) =>
-    limit
-      ? ([...queryKeys.detections.forEvent(eventId), { limit }] as const)
+  forEvent: (eventId: number, limit?: number, orderBy?: DetectionOrderBy) =>
+    limit || orderBy
+      ? ([...queryKeys.detections.forEvent(eventId), { limit, orderBy }] as const)
       : queryKeys.detections.forEvent(eventId),
 };
 
@@ -110,19 +124,35 @@ export const eventDetectionsQueryKeys = {
  *   staleTime: 60000, // 1 minute
  * });
  * ```
+ *
+ * @example
+ * ```tsx
+ * // Order by association time (NEM-3629)
+ * const { detections } = useEventDetectionsQuery({
+ *   eventId: 123,
+ *   orderBy: 'created_at', // Shows detection sequence in event
+ * });
+ * // Each detection.association_created_at shows when it was added to the event
+ * ```
  */
 export function useEventDetectionsQuery(
   options: UseEventDetectionsQueryOptions
 ): UseEventDetectionsQueryReturn {
-  const { eventId, limit = 100, enabled = true, staleTime = DEFAULT_STALE_TIME } = options;
+  const {
+    eventId,
+    limit = 100,
+    enabled = true,
+    staleTime = DEFAULT_STALE_TIME,
+    orderBy,
+  } = options;
 
   // Validate eventId - disable query if invalid
   const isValidEventId = !isNaN(eventId) && eventId > 0;
 
   const query = useQuery({
-    queryKey: eventDetectionsQueryKeys.forEvent(eventId, limit),
+    queryKey: eventDetectionsQueryKeys.forEvent(eventId, limit, orderBy),
     queryFn: async () => {
-      const params: DetectionQueryParams = { limit };
+      const params: DetectionQueryParams = { limit, order_detections_by: orderBy };
       return fetchEventDetections(eventId, params);
     },
     enabled: enabled && isValidEventId,
@@ -139,6 +169,112 @@ export function useEventDetectionsQuery(
     error: query.error,
     isError: query.isError,
     refetch: query.refetch,
+  };
+}
+
+/**
+ * Prefetch stale time for hover-triggered prefetching (NEM-3594).
+ * 30 seconds - data should remain valid while user hovers and decides to click.
+ */
+export const PREFETCH_STALE_TIME = 30 * 1000;
+
+/**
+ * Default limit for prefetched detections.
+ * Higher limit to ensure most events have all detections cached.
+ */
+export const PREFETCH_DEFAULT_LIMIT = 100;
+
+/**
+ * Hook to prefetch event detections on hover.
+ *
+ * Returns a callback that can be used as an onMouseEnter handler
+ * to prefetch detections before the user clicks to open the detail modal.
+ *
+ * This improves perceived performance by:
+ * - Pre-loading data during hover (typically 100-500ms before click)
+ * - Using existing cached data if available
+ * - Not re-fetching if data is still fresh
+ *
+ * @param options - Configuration options
+ * @returns Object with prefetch callback and cache reading utilities
+ *
+ * @example
+ * ```tsx
+ * const { prefetchDetections, getCachedCount } = usePrefetchEventDetections();
+ *
+ * return (
+ *   <EventCard
+ *     {...props}
+ *     onMouseEnter={() => prefetchDetections(event.id)}
+ *     detectionCount={getCachedCount(event.id) ?? event.detection_count}
+ *   />
+ * );
+ * ```
+ *
+ * @see NEM-3594 - Event Detection Relationship Caching
+ */
+export function usePrefetchEventDetections(options?: {
+  /** Custom stale time for prefetched data (default: 30 seconds) */
+  staleTime?: number;
+  /** Default limit for prefetch (default: 100) */
+  limit?: number;
+}) {
+  const queryClient = useQueryClient();
+  const { staleTime = PREFETCH_STALE_TIME, limit = PREFETCH_DEFAULT_LIMIT } = options ?? {};
+
+  /**
+   * Prefetch detections for an event.
+   * This is safe to call multiple times - TanStack Query will deduplicate requests.
+   */
+  const prefetchDetections = useCallback(
+    (eventId: number, orderBy?: DetectionOrderBy) => {
+      if (!eventId || isNaN(eventId) || eventId <= 0) return;
+
+      void queryClient.prefetchQuery({
+        queryKey: eventDetectionsQueryKeys.forEvent(eventId, limit, orderBy),
+        queryFn: async () => {
+          const params: DetectionQueryParams = { limit, order_detections_by: orderBy };
+          return fetchEventDetections(eventId, params);
+        },
+        staleTime,
+      });
+    },
+    [queryClient, staleTime, limit]
+  );
+
+  /**
+   * Get cached detection count for an event.
+   * Returns undefined if no cached data exists.
+   *
+   * Useful for displaying detection count badges without triggering a fetch.
+   */
+  const getCachedCount = useCallback(
+    (eventId: number, orderBy?: DetectionOrderBy): number | undefined => {
+      const data = queryClient.getQueryData<{ items: unknown[] }>(
+        eventDetectionsQueryKeys.forEvent(eventId, limit, orderBy)
+      );
+      return data?.items?.length;
+    },
+    [queryClient, limit]
+  );
+
+  /**
+   * Check if detections for an event are cached and fresh.
+   */
+  const isCached = useCallback(
+    (eventId: number, orderBy?: DetectionOrderBy): boolean => {
+      const state = queryClient.getQueryState(
+        eventDetectionsQueryKeys.forEvent(eventId, limit, orderBy)
+      );
+      return state?.data !== undefined;
+    },
+    [queryClient, limit]
+  );
+
+  return {
+    prefetchDetections,
+    getCachedCount,
+    isCached,
   };
 }
 

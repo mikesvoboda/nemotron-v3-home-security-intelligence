@@ -28,13 +28,13 @@ import {
   Settings,
   Sparkles,
   ToggleLeft,
-  Trash2,
   Video,
   Wrench,
   Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import OrphanCleanupPanel from './OrphanCleanupPanel';
 import { useDebugMode } from '../../contexts/DebugModeContext';
 import {
   useAdminMutations,
@@ -175,7 +175,7 @@ const DEFAULT_SYSTEM_CONFIG: SystemConfigState = {
 export default function AdminSettings({ className }: AdminSettingsProps) {
   const { debugMode } = useDebugMode();
   const toast = useToast();
-  const { seedCameras, seedEvents, clearSeededData, orphanCleanup, clearCache, flushQueues } =
+  const { seedCameras, seedEvents, clearSeededData, clearCache, flushQueues } =
     useAdminMutations();
 
   // Settings API integration
@@ -188,7 +188,6 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
   const [developerToolsOpen, setDeveloperToolsOpen] = useState(false);
 
   // Confirmation dialog states for maintenance
-  const [confirmOrphanCleanup, setConfirmOrphanCleanup] = useState(false);
   const [confirmCacheClear, setConfirmCacheClear] = useState(false);
   const [confirmFlushQueues, setConfirmFlushQueues] = useState(false);
 
@@ -337,21 +336,6 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
   }, [originalConfig]);
 
   // Maintenance action handlers - wired to API
-  const handleOrphanCleanup = useCallback(async () => {
-    try {
-      const result = await orphanCleanup.mutateAsync({ dry_run: false, min_age_hours: 24 });
-      toast.success('Orphan cleanup completed', {
-        description: `Removed ${result.deleted_files} orphaned files (${result.deleted_bytes_formatted})`,
-      });
-    } catch (error) {
-      toast.error('Orphan cleanup failed', {
-        description: error instanceof Error ? error.message : 'Unknown error',
-      });
-    } finally {
-      setConfirmOrphanCleanup(false);
-    }
-  }, [toast, orphanCleanup]);
-
   const handleCacheClear = useCallback(async () => {
     try {
       const result = await clearCache.mutateAsync();
@@ -715,38 +699,12 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
         onToggle={setMaintenanceOpen}
         data-testid="admin-maintenance"
       >
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {/* Orphan Cleanup */}
-            <div className="rounded-lg border border-gray-700 bg-[#121212] p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Trash2 className="h-4 w-4 text-amber-400" />
-                <Text className="font-medium text-white">Orphan Cleanup</Text>
-              </div>
-              <Text className="mb-4 text-xs text-gray-500">
-                Remove orphaned files and database records
-              </Text>
-              <Button
-                onClick={() => setConfirmOrphanCleanup(true)}
-                disabled={orphanCleanup.isPending}
-                className="w-full bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
-                size="sm"
-                data-testid="btn-orphan-cleanup"
-              >
-                {orphanCleanup.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Running...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Run Cleanup
-                  </>
-                )}
-              </Button>
-            </div>
+        <div className="space-y-6">
+          {/* Orphan Cleanup Panel */}
+          <OrphanCleanupPanel />
 
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Cache Clear */}
             <div className="rounded-lg border border-gray-700 bg-[#121212] p-4">
               <div className="mb-3 flex items-center gap-2">
@@ -934,18 +892,6 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
       )}
 
       {/* Confirmation Dialogs for Maintenance Actions */}
-      <ConfirmDialog
-        isOpen={confirmOrphanCleanup}
-        title="Run Orphan Cleanup"
-        description="This will scan for and remove orphaned files and database records. This may take a few minutes to complete."
-        confirmLabel="Run Cleanup"
-        loadingText="Running..."
-        variant="warning"
-        isLoading={orphanCleanup.isPending}
-        onConfirm={() => void handleOrphanCleanup()}
-        onCancel={() => setConfirmOrphanCleanup(false)}
-      />
-
       <ConfirmDialog
         isOpen={confirmCacheClear}
         title="Clear Cache"

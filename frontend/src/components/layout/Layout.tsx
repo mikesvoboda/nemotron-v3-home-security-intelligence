@@ -8,7 +8,7 @@ import {
   CommandPaletteContextType,
 } from '../../hooks/useCommandPaletteContext';
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
-import { useIsMobile } from '../../hooks/useIsMobile';
+import { useViewport } from '../../hooks/useIsMobile';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useServiceStatus } from '../../hooks/useServiceStatus';
 import { SidebarContext, SidebarContextType } from '../../hooks/useSidebarContext';
@@ -38,7 +38,11 @@ export default function Layout({ children }: LayoutProps) {
   const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isShortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
-  const isMobile = useIsMobile();
+
+  // Use viewport hook for responsive layout (NEM-3610)
+  // isMobile: Used to conditionally render mobile-only components
+  // isTablet: Reserved for future tablet-specific layout adjustments
+  const { isMobile } = useViewport();
 
   // Global keyboard shortcuts
   useKeyboardShortcuts({

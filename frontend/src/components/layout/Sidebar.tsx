@@ -1,10 +1,14 @@
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
 import { NavGroup, navGroups, STORAGE_KEY } from './sidebarNav';
+import { useViewport } from '../../hooks/useIsMobile';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
 import IconButton from '../common/IconButton';
+
+/** Storage key for sidebar collapsed state */
+const COLLAPSED_STORAGE_KEY = 'sidebar-collapsed-state';
 
 /** Helper to load expansion state from localStorage */
 function loadExpansionState(): Record<string, boolean> {
@@ -33,9 +37,17 @@ interface NavGroupComponentProps {
   isExpanded: boolean;
   onToggle: () => void;
   onNavClick: () => void;
+  /** Whether sidebar is in collapsed (icon-only) mode */
+  isCollapsed?: boolean;
 }
 
-function NavGroupComponent({ group, isExpanded, onToggle, onNavClick }: NavGroupComponentProps) {
+function NavGroupComponent({
+  group,
+  isExpanded,
+  onToggle,
+  onNavClick,
+  isCollapsed = false,
+}: NavGroupComponentProps) {
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -45,6 +57,46 @@ function NavGroupComponent({ group, isExpanded, onToggle, onNavClick }: NavGroup
     },
     [onToggle]
   );
+
+  // In collapsed mode, show only icons without group headers
+  if (isCollapsed) {
+    return (
+      <div className="mb-2 space-y-1" data-testid={`nav-group-${group.id}`}>
+        {group.items.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <NavLink
+              key={item.id}
+              to={item.path}
+              end={item.path === '/'}
+              onClick={onNavClick}
+              data-tour={item.dataTour}
+              title={item.label}
+              className={({ isActive }: { isActive: boolean }) =>
+                `group relative flex h-11 w-11 items-center justify-center rounded-lg transition-colors duration-200 ${
+                  isActive
+                    ? 'bg-[#76B900] text-black'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                }`
+              }
+            >
+              <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+              {/* Tooltip on hover */}
+              <span className="pointer-events-none absolute left-full z-50 ml-2 whitespace-nowrap rounded-md bg-gray-800 px-2 py-1 text-sm text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                {item.label}
+              </span>
+              {item.badge && (
+                <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-500 text-[10px] font-bold text-black">
+                  !
+                </span>
+              )}
+            </NavLink>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="mb-2" data-testid={`nav-group-${group.id}`}>
@@ -94,7 +146,7 @@ function NavGroupComponent({ group, isExpanded, onToggle, onNavClick }: NavGroup
                   } `
                 }
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
                 <span className="flex-1 text-left">{item.label}</span>
                 {item.badge && (
                   <span className="rounded bg-yellow-500 px-2 py-0.5 text-xs font-medium text-black">
@@ -110,9 +162,49 @@ function NavGroupComponent({ group, isExpanded, onToggle, onNavClick }: NavGroup
   );
 }
 
-export default function Sidebar() {
+/** Load collapsed state from localStorage */
+function loadCollapsedState(): boolean {
+  try {
+    const stored = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+    if (stored !== null) {
+      return JSON.parse(stored) as boolean;
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return false;
+}
+
+/** Save collapsed state to localStorage */
+function saveCollapsedState(collapsed: boolean): void {
+  try {
+    localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(collapsed));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export interface SidebarProps {
+  /** Force collapsed mode (overrides auto-collapse for tablet) */
+  forceCollapsed?: boolean;
+}
+
+export default function Sidebar({ forceCollapsed }: SidebarProps = {}) {
   const { isMobileMenuOpen, setMobileMenuOpen } = useSidebarContext();
   const location = useLocation();
+  const { isTablet, isDesktop } = useViewport();
+
+  // Initialize collapsed state from localStorage (only for desktop)
+  // Tablets automatically use collapsed mode
+  const [userCollapsed, setUserCollapsed] = useState<boolean>(() => loadCollapsedState());
+
+  // Determine if sidebar should be collapsed:
+  // - On tablet: always collapsed (unless expanded via hover)
+  // - On desktop: based on user preference
+  const isCollapsed = forceCollapsed ?? (isTablet || (isDesktop && userCollapsed));
+
+  // State for hover expansion on collapsed sidebar
+  const [isHovered, setIsHovered] = useState(false);
 
   // Initialize expansion state from localStorage or defaults
   const [expansionState, setExpansionState] = useState<Record<string, boolean>>(() => {
@@ -156,12 +248,28 @@ export default function Sidebar() {
   const handleNavClick = useCallback(() => {
     // Close mobile menu when a link is clicked
     setMobileMenuOpen(false);
+    // Also collapse hover expansion
+    setIsHovered(false);
   }, [setMobileMenuOpen]);
+
+  const handleToggleCollapsed = useCallback(() => {
+    const newCollapsed = !userCollapsed;
+    setUserCollapsed(newCollapsed);
+    saveCollapsedState(newCollapsed);
+  }, [userCollapsed]);
+
+  // Determine display state: fully collapsed or expanded
+  const showExpanded = !isCollapsed || isHovered;
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-40 flex w-64 transform flex-col border-r border-gray-800 bg-[#1A1A1A] transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} `}
+      className={`fixed inset-y-0 left-0 z-40 flex transform flex-col border-r border-gray-800 bg-[#1A1A1A] transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      } ${showExpanded ? 'w-64' : 'w-16'}`}
       data-testid="sidebar"
+      data-collapsed={isCollapsed && !isHovered}
+      onMouseEnter={() => isCollapsed && setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Mobile close button */}
       <div className="flex items-center justify-between border-b border-gray-800 px-4 py-4 md:hidden">
@@ -176,11 +284,25 @@ export default function Sidebar() {
         />
       </div>
 
+      {/* Desktop collapse toggle */}
+      {isDesktop && (
+        <div className="hidden border-b border-gray-800 md:flex md:items-center md:justify-end md:px-2 md:py-2">
+          <IconButton
+            icon={showExpanded ? <ChevronLeft /> : <ChevronRight />}
+            aria-label={showExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            onClick={handleToggleCollapsed}
+            variant="ghost"
+            size="sm"
+            data-testid="collapse-sidebar-button"
+          />
+        </div>
+      )}
+
       {/* Navigation */}
       <nav
         id="main-navigation"
         tabIndex={-1}
-        className="flex-1 overflow-y-auto p-4 focus:outline-none"
+        className={`flex-1 overflow-y-auto focus:outline-none ${showExpanded ? 'p-4' : 'p-2'}`}
         aria-label="Main navigation"
       >
         {navGroups.map((group) => (
@@ -190,6 +312,7 @@ export default function Sidebar() {
             isExpanded={expansionState[group.id]}
             onToggle={() => handleToggleGroup(group.id)}
             onNavClick={handleNavClick}
+            isCollapsed={!showExpanded}
           />
         ))}
       </nav>

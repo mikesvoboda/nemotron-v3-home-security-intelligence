@@ -92,7 +92,7 @@ HEADER_COMMENT = """/**
 """
 
 
-def python_type_to_typescript(  # noqa: PLR0911, PLR0912 - type mapping requires many branches
+def python_type_to_typescript(  # noqa: PLR0911 - type mapping requires many branches
     python_type: Any, field_name: str = ""
 ) -> str:
     """Convert a Python type annotation to a TypeScript type.

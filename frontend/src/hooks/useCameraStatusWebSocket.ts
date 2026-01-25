@@ -3,7 +3,13 @@
  *
  * This hook provides real-time camera status updates via WebSocket,
  * allowing components to react to camera.online, camera.offline,
- * camera.error, and camera.updated events.
+ * camera.error, camera.updated, camera.enabled, camera.disabled,
+ * and camera.config_updated events.
+ *
+ * Enhanced in NEM-3634 to support:
+ * - camera.enabled - Camera was enabled
+ * - camera.disabled - Camera was disabled
+ * - camera.config_updated - Camera configuration was changed
  *
  * @example
  * ```tsx
@@ -11,6 +17,10 @@
  *   const { cameraStatuses, isConnected } = useCameraStatusWebSocket({
  *     onCameraOnline: (event) => console.log('Camera online:', event.camera_name),
  *     onCameraOffline: (event) => console.log('Camera offline:', event.camera_name),
+ *     onCameraEnabled: (event) => console.log('Camera enabled:', event.camera_id),
+ *     onCameraDisabled: (event) => console.log('Camera disabled:', event.camera_id),
+ *     onCameraConfigUpdated: (event) => console.log('Camera config updated:', event.camera_name),
+ *     showToasts: true, // Enable toast notifications
  *   });
  *
  *   return (
@@ -26,13 +36,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useToast } from './useToast';
 import {
   type ConnectionConfig,
   type TypedSubscription,
   createTypedSubscription,
 } from './webSocketManager';
 
+
 import type {
+  CameraConfigUpdatedPayload,
+  CameraDisabledPayload,
+  CameraEnabledPayload,
   CameraEventType,
   CameraStatusEventPayload,
   CameraStatusValue,
@@ -70,10 +85,18 @@ export interface UseCameraStatusWebSocketOptions {
   onCameraOffline?: (event: CameraStatusEventPayload) => void;
   /** Callback when a camera encounters an error */
   onCameraError?: (event: CameraStatusEventPayload) => void;
-  /** Callback when a camera configuration is updated */
+  /** Callback when a camera configuration is updated (legacy status event) */
   onCameraUpdated?: (event: CameraStatusEventPayload) => void;
   /** Callback for any camera status change */
   onCameraStatusChange?: (event: CameraStatusEventPayload) => void;
+  /** Callback when a camera is enabled (NEM-3634) */
+  onCameraEnabled?: (event: CameraEnabledPayload) => void;
+  /** Callback when a camera is disabled (NEM-3634) */
+  onCameraDisabled?: (event: CameraDisabledPayload) => void;
+  /** Callback when camera configuration is updated (NEM-3634) */
+  onCameraConfigUpdated?: (event: CameraConfigUpdatedPayload) => void;
+  /** Whether to show toast notifications for camera events. Default: false */
+  showToasts?: boolean;
   /** Whether to enable the WebSocket connection. Default: true */
   enabled?: boolean;
 }
@@ -130,12 +153,25 @@ function getCallbackForEventType(
  * Hook for subscribing to camera status WebSocket events.
  *
  * Provides real-time updates when camera status changes (online, offline, error, updated).
+ * Also handles camera.enabled, camera.disabled, and camera.config_updated events (NEM-3634).
  * Automatically manages WebSocket connection lifecycle with reconnection support.
  */
 export function useCameraStatusWebSocket(
   options: UseCameraStatusWebSocketOptions = {}
 ): UseCameraStatusWebSocketReturn {
-  const { url, connectionConfig, onCameraStatusChange, enabled = true } = options;
+  const {
+    url,
+    connectionConfig,
+    onCameraStatusChange,
+    onCameraEnabled,
+    onCameraDisabled,
+    onCameraConfigUpdated,
+    showToasts = false,
+    enabled = true,
+  } = options;
+
+  // Toast notifications
+  const toast = useToast();
 
   // State
   const [cameraStatuses, setCameraStatuses] = useState<Record<string, CameraStatusState>>({});
@@ -183,8 +219,121 @@ export function useCameraStatusWebSocket(
 
       // Call general callback
       onCameraStatusChange?.(event);
+
+      // Show toast notifications
+      if (showToasts) {
+        switch (event.event_type) {
+          case 'camera.online':
+            toast.success(`Camera "${event.camera_name}" is now online`);
+            break;
+          case 'camera.offline':
+            toast.warning(`Camera "${event.camera_name}" went offline`);
+            break;
+          case 'camera.error':
+            toast.error(`Camera "${event.camera_name}" encountered an error`, {
+              description: event.reason ?? undefined,
+            });
+            break;
+        }
+      }
     },
-    [options, onCameraStatusChange]
+    [options, onCameraStatusChange, showToasts, toast]
+  );
+
+  // Handle camera enabled event (NEM-3634)
+  const handleCameraEnabledEvent = useCallback(
+    (event: CameraEnabledPayload) => {
+      // Update camera status to online when enabled
+      setCameraStatuses((prev) => {
+        const existing = prev[event.camera_id];
+        return {
+          ...prev,
+          [event.camera_id]: {
+            camera_id: event.camera_id,
+            camera_name: existing?.camera_name ?? event.camera_id,
+            status: 'online',
+            lastUpdated: event.enabled_at,
+            previousStatus: existing?.status ?? null,
+          },
+        };
+      });
+
+      // Call callback
+      onCameraEnabled?.(event);
+
+      // Show toast notification
+      if (showToasts) {
+        toast.success(`Camera enabled`, {
+          description: `Camera ${event.camera_id} has been enabled`,
+        });
+      }
+    },
+    [onCameraEnabled, showToasts, toast]
+  );
+
+  // Handle camera disabled event (NEM-3634)
+  const handleCameraDisabledEvent = useCallback(
+    (event: CameraDisabledPayload) => {
+      // Update camera status to offline when disabled
+      setCameraStatuses((prev) => {
+        const existing = prev[event.camera_id];
+        return {
+          ...prev,
+          [event.camera_id]: {
+            camera_id: event.camera_id,
+            camera_name: existing?.camera_name ?? event.camera_id,
+            status: 'offline',
+            lastUpdated: event.disabled_at,
+            previousStatus: existing?.status ?? null,
+            reason: event.reason ?? null,
+          },
+        };
+      });
+
+      // Call callback
+      onCameraDisabled?.(event);
+
+      // Show toast notification
+      if (showToasts) {
+        toast.info(`Camera disabled`, {
+          description: event.reason ?? `Camera ${event.camera_id} has been disabled`,
+        });
+      }
+    },
+    [onCameraDisabled, showToasts, toast]
+  );
+
+  // Handle camera config updated event (NEM-3634)
+  const handleCameraConfigUpdatedEvent = useCallback(
+    (event: CameraConfigUpdatedPayload) => {
+      // Update last updated timestamp
+      setCameraStatuses((prev) => {
+        const existing = prev[event.camera_id];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          [event.camera_id]: {
+            ...existing,
+            camera_name: event.camera_name,
+            lastUpdated: event.updated_at,
+          },
+        };
+      });
+
+      // Call callback
+      onCameraConfigUpdated?.(event);
+
+      // Show toast notification
+      if (showToasts) {
+        const fieldsInfo = event.updated_fields?.length
+          ? ` (${event.updated_fields.join(', ')})`
+          : '';
+        toast.info(`Camera configuration updated${fieldsInfo}`, {
+          description: `"${event.camera_name}" settings have been updated`,
+        });
+      }
+    },
+    [onCameraConfigUpdated, showToasts, toast]
   );
 
   // Handle reconnect
@@ -220,8 +369,18 @@ export function useCameraStatusWebSocket(
       },
     });
 
-    // Subscribe to camera_status events
+    // Subscribe to camera_status events (legacy and hierarchical)
     typedSubscription.on('camera_status', handleCameraStatusEvent);
+
+    // Subscribe to camera config events (NEM-3634)
+    typedSubscription.on('camera.enabled', handleCameraEnabledEvent);
+    typedSubscription.on('camera.disabled', handleCameraDisabledEvent);
+    typedSubscription.on('camera.config_updated', handleCameraConfigUpdatedEvent);
+
+    // Also subscribe to hierarchical camera status events
+    typedSubscription.on('camera.online', handleCameraStatusEvent);
+    typedSubscription.on('camera.offline', handleCameraStatusEvent);
+    typedSubscription.on('camera.error', handleCameraStatusEvent);
 
     setSubscription(typedSubscription);
 
@@ -238,7 +397,15 @@ export function useCameraStatusWebSocket(
       clearInterval(intervalId);
       typedSubscription.unsubscribe();
     };
-  }, [enabled, wsUrl, mergedConfig, handleCameraStatusEvent]);
+  }, [
+    enabled,
+    wsUrl,
+    mergedConfig,
+    handleCameraStatusEvent,
+    handleCameraEnabledEvent,
+    handleCameraDisabledEvent,
+    handleCameraConfigUpdatedEvent,
+  ]);
 
   return {
     cameraStatuses,
