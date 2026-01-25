@@ -323,9 +323,27 @@ export default function CamerasSettings() {
             <tbody className="divide-y divide-gray-800 bg-card">
               {filteredCameras.map((camera) => {
                 const lastSeenAt = camera.last_seen_at ?? null;
-                const lastSeenText = lastSeenAt
-                  ? formatRelativeTime(lastSeenAt)
-                  : 'Awaiting first image';
+                // NEM-3519: Display appropriate last seen text based on both timestamp and status
+                // - If timestamp exists: show relative time
+                // - If no timestamp: show status-appropriate message
+                const getLastSeenText = (): string => {
+                  if (lastSeenAt) {
+                    return formatRelativeTime(lastSeenAt);
+                  }
+                  // No timestamp - show appropriate message based on camera status
+                  switch (camera.status) {
+                    case 'online':
+                      // Online but no timestamp is unusual - camera might be newly active
+                      return 'Recently active';
+                    case 'offline':
+                      return 'Never connected';
+                    case 'error':
+                      return 'No data available';
+                    default:
+                      return 'Awaiting first image';
+                  }
+                };
+                const lastSeenText = getLastSeenText();
                 const isStale = isTimestampStale(lastSeenAt);
 
                 return (

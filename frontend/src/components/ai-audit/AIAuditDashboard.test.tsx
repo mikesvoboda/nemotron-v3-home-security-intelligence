@@ -126,11 +126,15 @@ const mockEmptyRecommendations: AiAuditRecommendationsResponse = {
 // Mocks
 // ============================================================================
 
-vi.mock('../../services/api', () => ({
-  fetchAiAuditStats: vi.fn(),
-  fetchModelLeaderboard: vi.fn(),
-  fetchAuditRecommendations: vi.fn(),
-}));
+vi.mock('../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/api')>();
+  return {
+    ...actual,
+    fetchAiAuditStats: vi.fn(),
+    fetchModelLeaderboard: vi.fn(),
+    fetchAuditRecommendations: vi.fn(),
+  };
+});
 
 const mockFetchAiAuditStats = vi.mocked(fetchAiAuditStats);
 const mockFetchAuditLeaderboard = vi.mocked(fetchModelLeaderboard);
@@ -679,6 +683,111 @@ describe('AIAuditDashboard', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('ai-audit-dashboard')).toHaveClass('custom-class');
+      });
+    });
+  });
+
+  describe('metric help icons', () => {
+    it('renders help icons for all metric cards', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('metric-help-totalEvaluations')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('metric-help-averageQuality')).toBeInTheDocument();
+      expect(screen.getByTestId('metric-help-enrichmentUtilization')).toBeInTheDocument();
+      expect(screen.getByTestId('metric-help-evaluationCoverage')).toBeInTheDocument();
+    });
+
+    it('help icons have accessible labels', async () => {
+      renderWithRouter();
+
+      await waitFor(() => {
+        const helpButton = screen.getByTestId('metric-help-totalEvaluations');
+        expect(helpButton).toHaveAttribute('aria-label', 'Learn more about Total Evaluations');
+      });
+    });
+
+    it('shows tooltip on help icon hover', async () => {
+      const user = userEvent.setup();
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('metric-help-averageQuality')).toBeInTheDocument();
+      });
+
+      // Hover over the help icon
+      await user.hover(screen.getByTestId('metric-help-averageQuality'));
+
+      // Wait for tooltip to appear
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('empty state displays for metrics', () => {
+    it('shows helpful empty state when no evaluations exist', async () => {
+      // Stats with no evaluations
+      const noEvaluationsStats: AiAuditStatsResponse = {
+        ...mockStats,
+        fully_evaluated_events: 0,
+        total_events: 0,
+      };
+      mockFetchAiAuditStats.mockResolvedValue(noEvaluationsStats);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('No events evaluated yet')).toBeInTheDocument();
+      });
+    });
+
+    it('shows helpful empty state when no quality data', async () => {
+      // Stats with null quality score
+      const noQualityStats: AiAuditStatsResponse = {
+        ...mockStats,
+        avg_quality_score: null,
+      };
+      mockFetchAiAuditStats.mockResolvedValue(noQualityStats);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('No quality data')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Process events to generate quality scores')).toBeInTheDocument();
+    });
+
+    it('shows helpful empty state when no enrichment data', async () => {
+      // Stats with null enrichment
+      const noEnrichmentStats: AiAuditStatsResponse = {
+        ...mockStats,
+        avg_enrichment_utilization: null,
+      };
+      mockFetchAiAuditStats.mockResolvedValue(noEnrichmentStats);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('No enrichment data')).toBeInTheDocument();
+      });
+      expect(screen.getByText('Enable AI enrichment models in settings')).toBeInTheDocument();
+    });
+
+    it('shows helpful empty state when no events for coverage', async () => {
+      // Stats with no events
+      const noEventsStats: AiAuditStatsResponse = {
+        ...mockStats,
+        total_events: 0,
+        fully_evaluated_events: 0,
+      };
+      mockFetchAiAuditStats.mockResolvedValue(noEventsStats);
+
+      renderWithRouter();
+
+      await waitFor(() => {
+        expect(screen.getByText('No events yet')).toBeInTheDocument();
       });
     });
   });

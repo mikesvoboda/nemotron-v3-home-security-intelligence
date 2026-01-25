@@ -21,13 +21,23 @@ import { useSearchParams } from 'react-router-dom';
  * - '1h': Last hour (now - 1 hour to now)
  * - '24h': Last 24 hours (now - 24 hours to now)
  * - 'today': Start of today to now
+ * - 'yesterday': Start of yesterday to end of yesterday
  * - '7d': Last 7 days (start of today - 6 days to end of today)
  * - '30d': Last 30 days (start of today - 29 days to end of today)
  * - '90d': Last 90 days (start of today - 89 days to end of today)
  * - 'all': No date filter (returns all data)
  * - 'custom': User-specified start and end dates
  */
-export type DateRangePreset = '1h' | '24h' | 'today' | '7d' | '30d' | '90d' | 'all' | 'custom';
+export type DateRangePreset =
+  | '1h'
+  | '24h'
+  | 'today'
+  | 'yesterday'
+  | '7d'
+  | '30d'
+  | '90d'
+  | 'all'
+  | 'custom';
 
 /**
  * Date range with start and end dates.
@@ -105,6 +115,7 @@ export const PRESET_LABELS: Record<DateRangePreset, string> = {
   '1h': 'Last hour',
   '24h': 'Last 24 hours',
   today: 'Today',
+  yesterday: 'Yesterday',
   '7d': 'Last 7 days',
   '30d': 'Last 30 days',
   '90d': 'Last 90 days',
@@ -115,7 +126,17 @@ export const PRESET_LABELS: Record<DateRangePreset, string> = {
 /**
  * Valid preset values for validation.
  */
-const VALID_PRESETS = new Set<string>(['1h', '24h', 'today', '7d', '30d', '90d', 'all', 'custom']);
+const VALID_PRESETS = new Set<string>([
+  '1h',
+  '24h',
+  'today',
+  'yesterday',
+  '7d',
+  '30d',
+  '90d',
+  'all',
+  'custom',
+]);
 
 // ============================================================================
 // Helper Functions
@@ -191,6 +212,14 @@ export function calculatePresetRange(preset: DateRangePreset, now: Date): DateRa
       // Start of today to Now
       const startDate = getStartOfDayUTC(now);
       return { startDate, endDate: new Date(now) };
+    }
+    case 'yesterday': {
+      // Start of yesterday to End of yesterday
+      const yesterday = new Date(now);
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+      const startDate = getStartOfDayUTC(yesterday);
+      const endDate = getEndOfDayUTC(yesterday);
+      return { startDate, endDate };
     }
     case '7d': {
       // Start of (today - 6 days) to End of today

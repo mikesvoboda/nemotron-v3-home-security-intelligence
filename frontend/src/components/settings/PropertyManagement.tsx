@@ -46,6 +46,7 @@ import {
   type AreaCreate,
   type AreaUpdate,
 } from '../../hooks/usePropertyQueries';
+import { ErrorState } from '../common';
 
 // =============================================================================
 // Types
@@ -157,7 +158,7 @@ interface AreaListProps {
 }
 
 function AreaList({ propertyId, onEditArea, onDeleteArea, onAddArea }: AreaListProps) {
-  const { areas, isLoading, isError, error } = useAreasQuery({ propertyId });
+  const { areas, isLoading, isError, error, refetch } = useAreasQuery({ propertyId });
 
   if (isLoading) {
     return (
@@ -170,9 +171,13 @@ function AreaList({ propertyId, onEditArea, onDeleteArea, onAddArea }: AreaListP
 
   if (isError) {
     return (
-      <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
-        Failed to load areas: {error?.message ?? 'Unknown error'}
-      </div>
+      <ErrorState
+        title="Failed to load areas"
+        message={error}
+        onRetry={() => void refetch()}
+        variant="compact"
+        testId={`area-list-error-${propertyId}`}
+      />
     );
   }
 
@@ -661,21 +666,13 @@ export default function PropertyManagement({ householdId, className }: PropertyM
 
   if (isError) {
     return (
-      <div className={clsx('rounded-lg border border-red-500/20 bg-red-500/10 p-4', className)}>
-        <div className="flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-500" />
-          <div>
-            <h3 className="font-semibold text-red-500">Error loading properties</h3>
-            <p className="mt-1 text-sm text-red-400">{error?.message ?? 'Unknown error'}</p>
-            <button
-              onClick={() => void refetch()}
-              className="mt-2 text-sm font-medium text-red-500 hover:text-red-400"
-            >
-              Try again
-            </button>
-          </div>
-        </div>
-      </div>
+      <ErrorState
+        title="Error loading properties"
+        message={error}
+        onRetry={() => void refetch()}
+        className={className}
+        testId="property-management-error"
+      />
     );
   }
 

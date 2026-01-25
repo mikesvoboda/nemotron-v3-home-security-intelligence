@@ -31,6 +31,14 @@ export interface AlertCameraGroupProps {
 // Severity order for sorting badges (highest first)
 const SEVERITY_ORDER: RiskLevel[] = ['critical', 'high', 'medium', 'low'];
 
+// Severity rank for sorting alerts (lower number = higher priority)
+const SEVERITY_RANK: Record<RiskLevel, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
+};
+
 /**
  * AlertCameraGroup - Groups alerts by camera with collapsible sections
  *
@@ -78,6 +86,21 @@ export default function AlertCameraGroup({
     }));
   }, [severityCounts]);
 
+  // Sort alerts by severity (critical first) then by timestamp (newest first)
+  const sortedAlerts = useMemo(() => {
+    return [...alerts].sort((a, b) => {
+      const levelA = (a.risk_level as RiskLevel) || getRiskLevel(a.risk_score || 0);
+      const levelB = (b.risk_level as RiskLevel) || getRiskLevel(b.risk_score || 0);
+      const rankDiff = SEVERITY_RANK[levelA] - SEVERITY_RANK[levelB];
+      if (rankDiff !== 0) return rankDiff;
+      // Same severity - sort by timestamp (newest first)
+      return new Date(b.started_at).getTime() - new Date(a.started_at).getTime();
+    });
+  }, [alerts]);
+
+  // Check if this group has any critical alerts (for special styling)
+  const hasCriticalAlerts = severityCounts.critical > 0;
+
   // Convert Event to EventCard props
   const getEventCardProps = (event: Event) => {
     const detections: Detection[] = [];
@@ -107,7 +130,13 @@ export default function AlertCameraGroup({
 
   return (
     <div
-      className={clsx('rounded-lg border border-gray-800 bg-[#1A1A1A]', className)}
+      className={clsx(
+        'rounded-lg border bg-[#1A1A1A]',
+        hasCriticalAlerts
+          ? 'border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+          : 'border-gray-800',
+        className
+      )}
       data-testid={`alert-camera-group-${cameraId}`}
     >
       {/* Header */}
@@ -178,7 +207,7 @@ export default function AlertCameraGroup({
       >
         <div className="rounded-b-lg border-t border-gray-800 bg-[#1A1A1A] p-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-            {alerts.map((alert) => (
+            {sortedAlerts.map((alert) => (
               <EventCard key={alert.id} {...getEventCardProps(alert)} />
             ))}
           </div>

@@ -189,10 +189,11 @@ describe('AuditTable', () => {
       expect(screen.getByText('No Audit Entries Found')).toBeInTheDocument();
     });
 
-    it('displays correct count for empty state', () => {
+    it('hides results summary for empty state', () => {
       render(<AuditTable {...defaultProps} logs={[]} totalCount={0} />);
 
-      expect(screen.getByText(/Showing 0-0 of 0 audit entries/)).toBeInTheDocument();
+      // Results summary should not be shown when there are no entries
+      expect(screen.queryByText(/Showing.*of.*audit entries/)).not.toBeInTheDocument();
     });
 
     it('displays helpful guidance on how to generate entries', () => {

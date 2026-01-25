@@ -1,7 +1,6 @@
 import { Callout } from '@tremor/react';
 import {
   Settings,
-  AlertCircle,
   AlertTriangle,
   BarChart2,
   ExternalLink,
@@ -13,7 +12,7 @@ import {
   Database,
   Wrench,
 } from 'lucide-react';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 
 import { useSystemPageSections } from '../../hooks/useSystemPageSections';
 import {
@@ -26,6 +25,7 @@ import {
   type CircuitBreakersResponse,
   type WorkerStatus,
 } from '../../services/api';
+import { ErrorState } from '../common';
 import {
   ProfilingPanel,
   RecordingReplayPanel,
@@ -97,25 +97,26 @@ export default function SystemMonitoringPage() {
     void loadConfig();
   }, []);
 
+  // Fetch telemetry data - extracted for retry functionality
+  const loadTelemetryData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const telemetryData = await fetchTelemetry();
+      setTelemetry(telemetryData);
+    } catch (err) {
+      console.error('Failed to load telemetry data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load telemetry data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Fetch initial telemetry data
   useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const telemetryData = await fetchTelemetry();
-        setTelemetry(telemetryData);
-      } catch (err) {
-        console.error('Failed to load telemetry data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load telemetry data');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void loadData();
-  }, []);
+    void loadTelemetryData();
+  }, [loadTelemetryData]);
 
   // Fetch circuit breakers data
   useEffect(() => {
@@ -297,54 +298,13 @@ export default function SystemMonitoringPage() {
     p99: (telemetry?.latencies?.detect?.p99_ms ?? 0) + (telemetry?.latencies?.analyze?.p99_ms ?? 0),
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#121212] p-8" data-testid="operations-loading">
-        <div className="mx-auto max-w-[1920px]">
-          {/* Header skeleton */}
-          <div className="mb-8">
-            <div className="h-10 w-72 animate-pulse rounded-lg bg-gray-800"></div>
-            <div className="mt-2 h-5 w-96 animate-pulse rounded-lg bg-gray-800"></div>
-          </div>
-
-          {/* Grid skeleton */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} className="h-64 animate-pulse rounded-lg bg-gray-800"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div
-        className="flex min-h-screen items-center justify-center bg-[#121212] p-8"
-        data-testid="operations-error"
-      >
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-6 text-center">
-          <AlertCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
-          <h2 className="mb-2 text-xl font-bold text-red-500">Error Loading Operations Data</h2>
-          <p className="text-sm text-gray-300">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800"
-          >
-            Reload Page
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#121212] p-8" data-testid="operations-page">
+    <div
+      className="min-h-screen bg-[#121212] p-8"
+      data-testid={loading ? 'operations-loading' : error ? 'operations-error' : 'operations-page'}
+    >
       <div className="mx-auto max-w-[1920px]">
-        {/* Header with DebugModeToggle */}
+        {/* Header with DebugModeToggle - Always visible */}
         <div className="mb-8 flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
@@ -360,7 +320,29 @@ export default function SystemMonitoringPage() {
           </div>
         </div>
 
-        {/* Grafana Monitoring Banner */}
+        {/* Loading state */}
+        {loading && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="h-64 animate-pulse rounded-lg bg-gray-800"></div>
+            ))}
+          </div>
+        )}
+
+        {/* Error state */}
+        {error && !loading && (
+          <ErrorState
+            title="Error Loading Operations Data"
+            message={error}
+            onRetry={() => void loadTelemetryData()}
+            testId="operations-error-state"
+          />
+        )}
+
+        {/* Main content - only show when not loading and no error */}
+        {!loading && !error && (
+          <>
+            {/* Grafana Monitoring Banner */}
         <Callout
           title="Detailed Metrics in Grafana"
           icon={BarChart2}
@@ -508,6 +490,8 @@ export default function SystemMonitoringPage() {
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

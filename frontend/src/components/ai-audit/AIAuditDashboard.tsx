@@ -32,6 +32,7 @@ import {
   BarChart3,
   CheckCircle,
   Clock,
+  HelpCircle,
   Lightbulb,
   RefreshCw,
   Target,
@@ -47,7 +48,7 @@ import {
   fetchAuditRecommendations,
 } from '../../services/api';
 import PromptPlayground from '../ai/PromptPlayground';
-import { Skeleton, StatsCardSkeleton } from '../common';
+import { Skeleton, StatsCardSkeleton, Tooltip } from '../common';
 
 import type {
   AiAuditStatsResponse,
@@ -184,9 +185,97 @@ const CATEGORY_LABELS: Record<string, string> = {
   confusing_sections: 'Confusing',
 };
 
+/**
+ * Metric descriptions for tooltip help text
+ * These explain what each metric means and how it's calculated
+ */
+const METRIC_DESCRIPTIONS = {
+  totalEvaluations: {
+    title: 'Total Evaluations',
+    description:
+      'The number of security events that have been fully analyzed by the AI quality assessment system. Each event is evaluated for detection accuracy, risk scoring, and enrichment quality.',
+    howToPopulate:
+      'Evaluations happen automatically when events are processed through the AI pipeline. New events are queued for evaluation every 90 seconds.',
+  },
+  averageQuality: {
+    title: 'Average Quality Score',
+    description:
+      'A composite score (1-5) measuring how well the AI system performed across all evaluations. Factors include: detection accuracy, risk score appropriateness, and utilization of available context.',
+    howToPopulate:
+      'Quality scores are calculated after each event is evaluated. Higher scores indicate better alignment between AI outputs and expected results.',
+  },
+  enrichmentUtilization: {
+    title: 'Enrichment Utilization',
+    description:
+      'Percentage of available AI enrichments (weather, clothing, vehicle analysis, etc.) that are successfully incorporated into the final risk assessment.',
+    howToPopulate:
+      'This metric increases as more AI models contribute to event analysis. Enable additional enrichment models in settings to improve this score.',
+  },
+  evaluationCoverage: {
+    title: 'Evaluation Coverage',
+    description:
+      'Percentage of total events that have been fully evaluated. 100% means all events have been assessed for quality.',
+    howToPopulate:
+      'Coverage automatically increases as the system processes events. A lower percentage may indicate a backlog of events awaiting evaluation.',
+  },
+} as const;
+
 // ============================================================================
 // Sub-components
 // ============================================================================
+
+/**
+ * MetricHelpIcon - A help icon with tooltip explanation for a metric
+ */
+interface MetricHelpIconProps {
+  metricKey: keyof typeof METRIC_DESCRIPTIONS;
+}
+
+function MetricHelpIcon({ metricKey }: MetricHelpIconProps) {
+  const metric = METRIC_DESCRIPTIONS[metricKey];
+  return (
+    <Tooltip
+      content={
+        <div className="max-w-xs space-y-2">
+          <p className="font-medium text-white">{metric.title}</p>
+          <p className="text-gray-300">{metric.description}</p>
+          <p className="border-t border-gray-700 pt-2 text-gray-400">
+            <span className="font-medium text-[#76B900]">How to populate:</span>{' '}
+            {metric.howToPopulate}
+          </p>
+        </div>
+      }
+      position="bottom"
+      delay={100}
+    >
+      <button
+        type="button"
+        className="inline-flex items-center justify-center rounded-full p-0.5 text-gray-500 transition-colors hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#76B900]/50"
+        aria-label={`Learn more about ${metric.title}`}
+        data-testid={`metric-help-${metricKey}`}
+      >
+        <HelpCircle className="h-3.5 w-3.5" />
+      </button>
+    </Tooltip>
+  );
+}
+
+/**
+ * EmptyMetricDisplay - Shows a helpful message when a metric has no data
+ */
+interface EmptyMetricDisplayProps {
+  message: string;
+  subMessage?: string;
+}
+
+function EmptyMetricDisplay({ message, subMessage }: EmptyMetricDisplayProps) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-lg font-medium text-gray-400">{message}</span>
+      {subMessage && <span className="mt-1 text-xs text-gray-500">{subMessage}</span>}
+    </div>
+  );
+}
 
 interface QualityMetricsCardsProps {
   stats: AiAuditStatsResponse | null;
@@ -213,68 +302,132 @@ function QualityMetricsCards({ stats, isLoading }: QualityMetricsCardsProps) {
   const evaluationRate =
     stats && stats.total_events > 0 ? (stats.fully_evaluated_events / stats.total_events) * 100 : 0;
 
+  const hasQualityScore = stats?.avg_quality_score !== null && stats?.avg_quality_score !== undefined;
+  const hasEnrichmentData =
+    stats?.avg_enrichment_utilization !== null && stats?.avg_enrichment_utilization !== undefined;
+  const hasEvaluations = stats && stats.fully_evaluated_events > 0;
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-testid="quality-metrics-cards">
       {/* Total Evaluations */}
       <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="total-evaluations-card">
-        <div className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-[#76B900]" />
-          <Text className="text-gray-400">Total Evaluations</Text>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-[#76B900]" />
+            <Text className="text-gray-400">Total Evaluations</Text>
+          </div>
+          <MetricHelpIcon metricKey="totalEvaluations" />
         </div>
-        <Metric className="mt-2 text-white">
-          {stats?.fully_evaluated_events.toLocaleString() ?? '0'}
-        </Metric>
-        <Text className="mt-2 text-xs text-gray-500">
-          of {stats?.total_events.toLocaleString() ?? '0'} events
-        </Text>
+        {hasEvaluations ? (
+          <>
+            <Metric className="mt-2 text-white">
+              {stats?.fully_evaluated_events.toLocaleString() ?? '0'}
+            </Metric>
+            <Text className="mt-2 text-xs text-gray-500">
+              of {stats?.total_events.toLocaleString() ?? '0'} events
+            </Text>
+          </>
+        ) : (
+          <div className="mt-2">
+            <EmptyMetricDisplay
+              message="No events evaluated yet"
+              subMessage="Events will be evaluated automatically as they are processed"
+            />
+          </div>
+        )}
       </Card>
 
       {/* Average Quality Score */}
       <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="avg-quality-card">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-[#76B900]" />
-          <Text className="text-gray-400">Average Quality</Text>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-[#76B900]" />
+            <Text className="text-gray-400">Average Quality</Text>
+          </div>
+          <MetricHelpIcon metricKey="averageQuality" />
         </div>
-        <Metric className="mt-2 text-white">
-          {formatScore(stats?.avg_quality_score ?? null)} / 5
-        </Metric>
-        <ProgressBar
-          value={stats?.avg_quality_score ? (stats.avg_quality_score / 5) * 100 : 0}
-          color={getQualityBadgeColor(stats?.avg_quality_score ?? null)}
-          className="mt-3"
-        />
+        {hasQualityScore ? (
+          <>
+            <Metric className="mt-2 text-white">
+              {formatScore(stats?.avg_quality_score ?? null)} / 5
+            </Metric>
+            <ProgressBar
+              value={stats?.avg_quality_score ? (stats.avg_quality_score / 5) * 100 : 0}
+              color={getQualityBadgeColor(stats?.avg_quality_score ?? null)}
+              className="mt-3"
+            />
+          </>
+        ) : (
+          <div className="mt-2">
+            <EmptyMetricDisplay
+              message="No quality data"
+              subMessage="Process events to generate quality scores"
+            />
+            <ProgressBar value={0} color="gray" className="mt-3" />
+          </div>
+        )}
       </Card>
 
       {/* Model Accuracy (Enrichment Utilization) */}
       <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="model-accuracy-card">
-        <div className="flex items-center gap-2">
-          <Target className="h-5 w-5 text-[#76B900]" />
-          <Text className="text-gray-400">Enrichment Utilization</Text>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-[#76B900]" />
+            <Text className="text-gray-400">Enrichment Utilization</Text>
+          </div>
+          <MetricHelpIcon metricKey="enrichmentUtilization" />
         </div>
-        <Metric className="mt-2 text-white">
-          {formatPercentage(stats?.avg_enrichment_utilization ?? null)}
-        </Metric>
-        <ProgressBar
-          value={stats?.avg_enrichment_utilization ? stats.avg_enrichment_utilization * 100 : 0}
-          color={getQualityBadgeColor(
-            stats?.avg_enrichment_utilization ? stats.avg_enrichment_utilization * 5 : null
-          )}
-          className="mt-3"
-        />
+        {hasEnrichmentData ? (
+          <>
+            <Metric className="mt-2 text-white">
+              {formatPercentage(stats?.avg_enrichment_utilization ?? null)}
+            </Metric>
+            <ProgressBar
+              value={stats?.avg_enrichment_utilization ? stats.avg_enrichment_utilization * 100 : 0}
+              color={getQualityBadgeColor(
+                stats?.avg_enrichment_utilization ? stats.avg_enrichment_utilization * 5 : null
+              )}
+              className="mt-3"
+            />
+          </>
+        ) : (
+          <div className="mt-2">
+            <EmptyMetricDisplay
+              message="No enrichment data"
+              subMessage="Enable AI enrichment models in settings"
+            />
+            <ProgressBar value={0} color="gray" className="mt-3" />
+          </div>
+        )}
       </Card>
 
       {/* Evaluation Coverage */}
       <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg" data-testid="processing-times-card">
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5 text-[#76B900]" />
-          <Text className="text-gray-400">Evaluation Coverage</Text>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-[#76B900]" />
+            <Text className="text-gray-400">Evaluation Coverage</Text>
+          </div>
+          <MetricHelpIcon metricKey="evaluationCoverage" />
         </div>
-        <Metric className="mt-2 text-white">{evaluationRate.toFixed(0)}%</Metric>
-        <ProgressBar
-          value={evaluationRate}
-          color={evaluationRate >= 80 ? 'emerald' : evaluationRate >= 50 ? 'yellow' : 'red'}
-          className="mt-3"
-        />
+        {stats && stats.total_events > 0 ? (
+          <>
+            <Metric className="mt-2 text-white">{evaluationRate.toFixed(0)}%</Metric>
+            <ProgressBar
+              value={evaluationRate}
+              color={evaluationRate >= 80 ? 'emerald' : evaluationRate >= 50 ? 'yellow' : 'red'}
+              className="mt-3"
+            />
+          </>
+        ) : (
+          <div className="mt-2">
+            <EmptyMetricDisplay
+              message="No events yet"
+              subMessage="Coverage will appear when events are detected"
+            />
+            <ProgressBar value={0} color="gray" className="mt-3" />
+          </div>
+        )}
       </Card>
     </div>
   );

@@ -24,52 +24,56 @@ vi.mock('../../services/auditApi', () => ({
 }));
 
 // Mock the API functions
-vi.mock('../../services/api', () => ({
-  fetchAiAuditStats: vi.fn(() =>
-    Promise.resolve({
-      total_events: 1000,
-      audited_events: 950,
-      fully_evaluated_events: 800,
-      avg_quality_score: 4.2,
-      avg_consistency_rate: 4.0,
-      avg_enrichment_utilization: 0.75,
-      model_contribution_rates: {
-        rtdetr: 1.0,
-        florence: 0.85,
-        clip: 0.6,
-        violence: 0.3,
-        clothing: 0.5,
-        vehicle: 0.4,
-        pet: 0.25,
-        weather: 0.2,
-        image_quality: 0.7,
-        zones: 0.65,
-        baseline: 0.55,
-        cross_camera: 0.15,
-      },
-      audits_by_day: [],
-    })
-  ),
-  fetchAuditRecommendations: vi.fn(() =>
-    Promise.resolve({
-      recommendations: [
-        {
-          category: 'missing_context',
-          suggestion: 'Add time since last motion',
-          frequency: 50,
-          priority: 'high',
+vi.mock('../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/api')>();
+  return {
+    ...actual,
+    fetchAiAuditStats: vi.fn(() =>
+      Promise.resolve({
+        total_events: 1000,
+        audited_events: 950,
+        fully_evaluated_events: 800,
+        avg_quality_score: 4.2,
+        avg_consistency_rate: 4.0,
+        avg_enrichment_utilization: 0.75,
+        model_contribution_rates: {
+          rtdetr: 1.0,
+          florence: 0.85,
+          clip: 0.6,
+          violence: 0.3,
+          clothing: 0.5,
+          vehicle: 0.4,
+          pet: 0.25,
+          weather: 0.2,
+          image_quality: 0.7,
+          zones: 0.65,
+          baseline: 0.55,
+          cross_camera: 0.15,
         },
-        {
-          category: 'unused_data',
-          suggestion: 'Weather data not used for indoor cameras',
-          frequency: 30,
-          priority: 'medium',
-        },
-      ],
-      total_events_analyzed: 800,
-    })
-  ),
-}));
+        audits_by_day: [],
+      })
+    ),
+    fetchAuditRecommendations: vi.fn(() =>
+      Promise.resolve({
+        recommendations: [
+          {
+            category: 'missing_context',
+            suggestion: 'Add time since last motion',
+            frequency: 50,
+            priority: 'high',
+          },
+          {
+            category: 'unused_data',
+            suggestion: 'Weather data not used for indoor cameras',
+            frequency: 30,
+            priority: 'medium',
+          },
+        ],
+        total_events_analyzed: 800,
+      })
+    ),
+  };
+});
 
 // Mock the useAIAuditPromptHistoryQuery hook for version history tab
 vi.mock('../../hooks/useAIAuditQueries', () => ({

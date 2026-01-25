@@ -12,7 +12,6 @@ import {
 import { updateEvent } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
-import RiskBadge from '../common/RiskBadge';
 import SafeErrorMessage from '../common/SafeErrorMessage';
 import { AlertCardSkeleton } from '../common/skeletons';
 import EventCard from '../events/EventCard';
@@ -120,6 +119,18 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       },
       { critical: 0, high: 0, medium: 0, low: 0 } as Record<RiskLevel, number>
     );
+  }, [alerts]);
+
+  // Sort alerts by severity (critical first) for grid view
+  const sortedAlerts = useMemo(() => {
+    return [...alerts].sort((a, b) => {
+      const levelA = (a.risk_level as RiskLevel) || getRiskLevel(a.risk_score || 0);
+      const levelB = (b.risk_level as RiskLevel) || getRiskLevel(b.risk_score || 0);
+      const rankDiff = SEVERITY_RANK[levelA] - SEVERITY_RANK[levelB];
+      if (rankDiff !== 0) return rankDiff;
+      // Same severity - sort by timestamp (newest first)
+      return new Date(b.started_at).getTime() - new Date(a.started_at).getTime();
+    });
   }, [alerts]);
 
   // Group alerts by camera and sort by highest severity
@@ -355,13 +366,46 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
 
   return (
     <div data-testid="alerts-page" className={`flex flex-col ${className}`}>
-      {/* Header */}
+      {/* Header with Alert Summary */}
       <div className="mb-6">
         <div className="flex items-center gap-3">
           <AlertTriangle className="h-8 w-8 text-orange-500" />
           <h1 className="text-3xl font-bold text-white">Alerts</h1>
         </div>
         <p className="mt-2 text-gray-400">High and critical risk events requiring attention</p>
+
+        {/* Prominent Alert Count Summary */}
+        {!isLoading && !isError && alerts.length > 0 && (
+          <div
+            className="mt-4 flex flex-wrap items-center gap-3"
+            data-testid="alert-severity-summary"
+          >
+            {riskCounts.critical > 0 && (
+              <div className="flex items-center gap-2 rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/20">
+                  <span className="text-lg font-bold text-red-400">{riskCounts.critical}</span>
+                </div>
+                <span className="text-sm font-medium text-red-300">Critical</span>
+              </div>
+            )}
+            {riskCounts.high > 0 && (
+              <div className="flex items-center gap-2 rounded-lg border border-orange-500/50 bg-orange-500/10 px-4 py-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500/20">
+                  <span className="text-lg font-bold text-orange-400">{riskCounts.high}</span>
+                </div>
+                <span className="text-sm font-medium text-orange-300">High</span>
+              </div>
+            )}
+            {riskCounts.medium > 0 && (
+              <div className="flex items-center gap-2 rounded-lg border border-yellow-500/50 bg-yellow-500/10 px-4 py-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-500/20">
+                  <span className="text-lg font-bold text-yellow-400">{riskCounts.medium}</span>
+                </div>
+                <span className="text-sm font-medium text-yellow-300">Medium</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Filter and Refresh Bar */}
@@ -426,28 +470,11 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       </div>
 
       {/* Results Summary */}
-      <div className="mb-4 flex flex-col gap-2">
+      <div className="mb-4">
         <p className="text-sm text-gray-400">
           {isLoading ? 'Loading...' : `${totalCount} alert${totalCount !== 1 ? 's' : ''} found`}
           {alerts.length < totalCount && ` (showing ${alerts.length})`}
         </p>
-        {/* Risk Summary Badges */}
-        {!isLoading && !isError && alerts.length > 0 && (
-          <div className="flex items-center gap-2 text-sm">
-            {riskCounts.critical > 0 && (
-              <div className="flex items-center gap-1.5">
-                <RiskBadge level="critical" size="sm" animated={false} />
-                <span className="font-semibold text-red-400">{riskCounts.critical}</span>
-              </div>
-            )}
-            {riskCounts.high > 0 && (
-              <div className="flex items-center gap-1.5">
-                <RiskBadge level="high" size="sm" animated={false} />
-                <span className="font-semibold text-orange-400">{riskCounts.high}</span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Bulk Action Bar */}
@@ -522,12 +549,12 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
         </>
       ) : (
         <>
-          {/* Grid View - Flat list of alerts */}
+          {/* Grid View - Flat list of alerts sorted by severity */}
           <div
             className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3"
             data-testid="alerts-grid-view"
           >
-            {alerts.map((event: Event) => {
+            {sortedAlerts.map((event: Event) => {
               const isSelected = selectedAlerts.has(event.id);
               return (
                 <div

@@ -47,6 +47,7 @@ import {
   type VehicleType,
 } from '../../hooks/useHouseholdApi';
 import { useToast } from '../../hooks/useToast';
+import { ErrorState } from '../common';
 
 // ============================================================================
 // Constants
@@ -131,22 +132,7 @@ function ListSkeleton({ count = 3 }: { count?: number }) {
   );
 }
 
-/**
- * Error state display.
- */
-function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-red-500/30 bg-red-500/5 p-6">
-      <AlertTriangle className="mb-2 h-8 w-8 text-red-400" />
-      <Text className="mb-2 text-red-400">{message}</Text>
-      {onRetry && (
-        <Button size="xs" variant="secondary" onClick={onRetry}>
-          Retry
-        </Button>
-      )}
-    </div>
-  );
-}
+// Note: ErrorState is now imported from '../common' for consistent retry functionality (NEM-3529)
 
 /**
  * Empty state display.
@@ -229,12 +215,14 @@ export default function HouseholdSettings({ className }: HouseholdSettingsProps)
     members,
     membersLoading,
     membersError,
+    refetchMembers,
     createMember,
     updateMember,
     deleteMember,
     vehicles,
     vehiclesLoading,
     vehiclesError,
+    refetchVehicles,
     createVehicle,
     updateVehicle,
     deleteVehicle,
@@ -582,7 +570,12 @@ export default function HouseholdSettings({ className }: HouseholdSettingsProps)
         {membersLoading ? (
           <ListSkeleton count={2} />
         ) : membersError ? (
-          <ErrorState message="Failed to load members" />
+          <ErrorState
+            title="Failed to load members"
+            message={membersError}
+            onRetry={() => void refetchMembers()}
+            variant="compact"
+          />
         ) : members && members.length > 0 ? (
           <div className="space-y-2" data-testid="members-list">
             {members.map((member) => (
@@ -670,7 +663,12 @@ export default function HouseholdSettings({ className }: HouseholdSettingsProps)
         {vehiclesLoading ? (
           <ListSkeleton count={2} />
         ) : vehiclesError ? (
-          <ErrorState message="Failed to load vehicles" />
+          <ErrorState
+            title="Failed to load vehicles"
+            message={vehiclesError}
+            onRetry={() => void refetchVehicles()}
+            variant="compact"
+          />
         ) : vehicles && vehicles.length > 0 ? (
           <div className="space-y-2" data-testid="vehicles-list">
             {vehicles.map((vehicle) => (

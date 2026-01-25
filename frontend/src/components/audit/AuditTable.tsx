@@ -235,13 +235,15 @@ export default function AuditTable({
 
   return (
     <div className={`flex flex-col ${className}`}>
-      {/* Results Summary */}
-      <div className="mb-4 flex items-center justify-between text-sm text-gray-400">
-        <p>
-          Showing {totalCount > 0 ? offset + 1 : 0}-{Math.min(offset + limit, totalCount)} of{' '}
-          {totalCount} audit entries
-        </p>
-      </div>
+      {/* Results Summary - only shown when there are results */}
+      {totalCount > 0 && (
+        <div className="mb-4 flex items-center justify-between text-sm text-gray-400">
+          <p>
+            Showing {offset + 1}-{Math.min(offset + limit, totalCount)} of {totalCount} audit
+            entries
+          </p>
+        </div>
+      )}
 
       {/* Table Container */}
       <div className="overflow-x-auto rounded-lg border border-gray-800 bg-[#1F1F1F]">

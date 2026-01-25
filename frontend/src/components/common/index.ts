@@ -13,6 +13,10 @@ export type {
 export { default as EmptyState } from './EmptyState';
 export type { EmptyStateAction, EmptyStateProps } from './EmptyState';
 
+// Reusable error state component (NEM-3529)
+export { ErrorState, default as ErrorStateDefault } from './ErrorState';
+export type { ErrorStateProps } from './ErrorState';
+
 export { default as ErrorBoundary } from './ErrorBoundary';
 export type { ErrorBoundaryProps, ErrorBoundaryState } from './ErrorBoundary';
 

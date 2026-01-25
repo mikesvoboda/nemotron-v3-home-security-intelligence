@@ -378,14 +378,14 @@ describe('EventCard', () => {
       expect(images.length).toBeGreaterThan(0);
     });
 
-    it('renders thumbnail image with 64x64 size when detections have bounding boxes', () => {
+    it('renders thumbnail image with 80x80 size when detections have bounding boxes', () => {
       render(<EventCard {...mockProps} />);
       const altText = screen.getByAltText(/Front Door at/);
       expect(altText).toBeInTheDocument();
-      expect(altText).toHaveClass('h-16', 'w-16');
+      expect(altText).toHaveClass('h-20', 'w-20');
     });
 
-    it('renders thumbnail image with 64x64 size when detections have no bounding boxes', () => {
+    it('renders thumbnail image with 80x80 size when detections have no bounding boxes', () => {
       const detectionsNoBbox: Detection[] = [
         { label: 'person', confidence: 0.95 },
         { label: 'car', confidence: 0.87 },
@@ -394,7 +394,7 @@ describe('EventCard', () => {
       render(<EventCard {...eventNoBbox} />);
       const altText = screen.getByAltText(/Front Door at/);
       expect(altText).toBeInTheDocument();
-      expect(altText).toHaveClass('h-16', 'w-16');
+      expect(altText).toHaveClass('h-20', 'w-20');
     });
 
     it('does not render thumbnail when thumbnail_url is undefined', () => {
@@ -410,19 +410,19 @@ describe('EventCard', () => {
       expect(img?.getAttribute('src')).toBe('https://example.com/thumbnail.jpg');
     });
 
-    it('renders compact thumbnail in 64x64 format', () => {
+    it('renders compact thumbnail in 80x80 format', () => {
       render(<EventCard {...mockProps} />);
       // Simple thumbnail should be rendered
       const altText = screen.getByAltText(/Front Door at/);
       expect(altText).toBeInTheDocument();
-      expect(altText).toHaveClass('h-16', 'w-16', 'rounded-md', 'object-cover');
+      expect(altText).toHaveClass('h-20', 'w-20', 'rounded-lg', 'object-cover', 'shadow-md');
     });
 
     it('renders placeholder icon when no thumbnail is available', () => {
       const noThumbnailEvent = { ...mockProps, thumbnail_url: undefined };
       render(<EventCard {...noThumbnailEvent} />);
       // Placeholder div should be rendered with Eye icon
-      const placeholderDiv = document.querySelector('.flex.h-16.w-16');
+      const placeholderDiv = document.querySelector('.flex.h-20.w-20');
       expect(placeholderDiv).toBeInTheDocument();
     });
   });
@@ -433,7 +433,7 @@ describe('EventCard', () => {
       // Simple thumbnail should be rendered
       const altText = screen.getByAltText(/Front Door at/);
       expect(altText).toBeInTheDocument();
-      expect(altText).toHaveClass('h-16', 'w-16');
+      expect(altText).toHaveClass('h-20', 'w-20');
     });
 
     it('displays thumbnail for mixed detections', () => {
@@ -459,7 +459,7 @@ describe('EventCard', () => {
       // Should use simple thumbnail
       const altText = screen.getByAltText(/Front Door at/);
       expect(altText).toBeInTheDocument();
-      expect(altText).toHaveClass('h-16', 'w-16');
+      expect(altText).toHaveClass('h-20', 'w-20');
     });
   });
 
@@ -709,12 +709,12 @@ describe('EventCard', () => {
 
     it('renders badges before thumbnail image', () => {
       const { container } = render(<EventCard {...mockProps} />);
-      // New layout: thumbnail (64x64) on left, content (with badges) on right
+      // New layout: thumbnail (80x80) on left, content (with badges) on right
       const thumbnail = container.querySelector('.flex-shrink-0 img');
       const badges = container.querySelectorAll('.flex-wrap [role="status"]');
 
       expect(thumbnail).toBeInTheDocument();
-      expect(thumbnail).toHaveClass('h-16', 'w-16');
+      expect(thumbnail).toHaveClass('h-20', 'w-20');
       expect(badges.length).toBeGreaterThan(0);
     });
 
@@ -730,160 +730,52 @@ describe('EventCard', () => {
     });
   });
 
-  describe('risk score progress bar', () => {
-    it('renders progress bar with correct label', () => {
+  describe('risk score display', () => {
+    // Risk score is now displayed in the RiskBadge with score visible
+    // The progress bar was removed to simplify the card layout and improve scannability
+    it('displays risk badge with score', () => {
       render(<EventCard {...mockProps} />);
-      expect(screen.getByText('Risk Score')).toBeInTheDocument();
+      const riskBadge = screen.getByTestId('risk-badge');
+      expect(riskBadge).toBeInTheDocument();
+      // RiskBadge shows score in format "Level (score)"
+      expect(riskBadge).toHaveTextContent('45');
     });
 
-    it('displays risk score as fraction', () => {
-      render(<EventCard {...mockProps} />);
-      expect(screen.getByText('45/100')).toBeInTheDocument();
-    });
-
-    it('renders progressbar with correct ARIA attributes', () => {
-      render(<EventCard {...mockProps} />);
-      const progressBar = screen.getByRole('progressbar', { name: 'Risk score: 45 out of 100' });
-      expect(progressBar).toBeInTheDocument();
-      expect(progressBar).toHaveAttribute('aria-valuenow', '45');
-      expect(progressBar).toHaveAttribute('aria-valuemin', '0');
-      expect(progressBar).toHaveAttribute('aria-valuemax', '100');
-    });
-
-    it('sets progress bar width to match risk score', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={45} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div');
-      expect(progressFill).toHaveStyle({ width: '45%' });
-    });
-
-    // Progress bar colors use Tailwind CSS standard severity colors:
-    // Low: green-500 (#22c55e), Medium: yellow-500 (#eab308), High: orange-500 (#f97316), Critical: red-500 (#ef4444)
-    it('applies green color for low risk scores', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={15} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(34,\s*197,\s*94\)|#22c55e/i);
-    });
-
-    it('applies yellow color for medium risk scores', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={45} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(234,\s*179,\s*8\)|#eab308/i);
-    });
-
-    it('applies orange color for high risk scores', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={72} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(249,\s*115,\s*22\)|#f97316/i);
-    });
-
-    it('applies red color for critical risk scores', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={88} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(239,\s*68,\s*68\)|#ef4444/i);
-    });
-
-    it('handles risk score of 0', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={0} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div');
-      expect(progressFill).toHaveStyle({ width: '0%' });
-      expect(screen.getByText('0/100')).toBeInTheDocument();
-    });
-
-    it('handles risk score of 100', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={100} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div');
-      expect(progressFill).toHaveStyle({ width: '100%' });
-      expect(screen.getByText('100/100')).toBeInTheDocument();
-    });
-
-    // Thresholds match backend defaults: LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
-    // Colors use Tailwind CSS severity colors: green-500, yellow-500, orange-500, red-500
-    it('handles boundary risk score at 29 (last low)', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={29} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '29%' });
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(34,\s*197,\s*94\)|#22c55e/i);
-    });
-
-    it('handles boundary risk score at 30 (first medium)', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={30} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '30%' });
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(234,\s*179,\s*8\)|#eab308/i);
-    });
-
-    it('handles boundary risk score at 59 (last medium)', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={59} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '59%' });
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(234,\s*179,\s*8\)|#eab308/i);
-    });
-
-    it('handles boundary risk score at 60 (first high)', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={60} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '60%' });
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(249,\s*115,\s*22\)|#f97316/i);
-    });
-
-    it('handles boundary risk score at 84 (last high)', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={84} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '84%' });
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(249,\s*115,\s*22\)|#f97316/i);
-    });
-
-    it('handles boundary risk score at 85 (first critical)', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={85} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '85%' });
-      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(239,\s*68,\s*68\)|#ef4444/i);
-    });
-
-    it('renders progress bar in content column', () => {
+    it('renders thumbnail in content column', () => {
       const { container } = render(<EventCard {...mockProps} />);
-      // New layout: thumbnail on left, content on right
-      // Progress bar and badges are both in the right content column
-      const progressBar = container.querySelector('[role="progressbar"]');
+      // New layout: thumbnail (80x80) on left, content on right
+      const thumbnail = container.querySelector('.flex-shrink-0 img');
       const badges = container.querySelectorAll('.flex-wrap [role="status"]');
 
-      expect(progressBar).toBeInTheDocument();
+      expect(thumbnail).toBeInTheDocument();
       expect(badges.length).toBeGreaterThan(0);
     });
 
-    it('renders thumbnail and progress bar in new layout', () => {
+    it('renders thumbnail with larger size for better visibility', () => {
       const { container } = render(<EventCard {...mockProps} />);
-      // New layout: thumbnail (64x64) on left, content (with progress bar) on right
+      // Thumbnails are now 80x80 for better visibility
       const thumbnail = container.querySelector('.flex-shrink-0 img');
-      const progressBar = container.querySelector('[role="progressbar"]');
 
       expect(thumbnail).toBeInTheDocument();
-      expect(thumbnail).toHaveClass('h-16', 'w-16');
-      expect(progressBar).toBeInTheDocument();
+      expect(thumbnail).toHaveClass('h-20', 'w-20');
     });
 
-    it('progress bar has transition animation', () => {
-      const { container } = render(<EventCard {...mockProps} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div');
-      expect(progressFill).toHaveClass('transition-all', 'duration-500', 'ease-out');
-    });
+    it('displays risk badge with score for different risk levels', () => {
+      const { rerender } = render(<EventCard {...mockProps} risk_score={15} />);
+      expect(screen.getByTestId('risk-badge')).toHaveTextContent('Low');
+      expect(screen.getByTestId('risk-badge')).toHaveTextContent('15');
 
-    it('progress bar container has correct styling', () => {
-      render(<EventCard {...mockProps} />);
-      const progressBar = screen.getByRole('progressbar');
-      expect(progressBar).toHaveClass(
-        'h-2',
-        'w-full',
-        'overflow-hidden',
-        'rounded-full',
-        'bg-gray-800'
-      );
-    });
+      rerender(<EventCard {...mockProps} risk_score={45} />);
+      expect(screen.getByTestId('risk-badge')).toHaveTextContent('Medium');
+      expect(screen.getByTestId('risk-badge')).toHaveTextContent('45');
 
-    it('progress bar fill has correct styling', () => {
-      const { container } = render(<EventCard {...mockProps} />);
-      const progressFill = container.querySelector('[role="progressbar"] > div');
-      expect(progressFill).toHaveClass('h-full', 'rounded-full');
+      rerender(<EventCard {...mockProps} risk_score={72} />);
+      expect(screen.getByTestId('risk-badge')).toHaveTextContent('High');
+      expect(screen.getByTestId('risk-badge')).toHaveTextContent('72');
+
+      rerender(<EventCard {...mockProps} risk_score={90} />);
+      expect(screen.getByTestId('risk-badge')).toHaveTextContent('Critical');
+      expect(screen.getByTestId('risk-badge')).toHaveTextContent('90');
     });
   });
 
@@ -1031,8 +923,10 @@ describe('EventCard', () => {
         started_at: new Date(BASE_TIME - 150 * 1000).toISOString(), // 2m 30s ago
         ended_at: new Date(BASE_TIME).toISOString(),
       };
-      render(<EventCard {...eventWithDuration} />);
-      expect(screen.getByText(/Duration:/)).toBeInTheDocument();
+      const { container } = render(<EventCard {...eventWithDuration} />);
+      // Timer icon should be present
+      const timerIcon = container.querySelector('svg.lucide-timer');
+      expect(timerIcon).toBeInTheDocument();
       expect(screen.getByText(/2m 30s/)).toBeInTheDocument();
     });
 
@@ -1042,8 +936,10 @@ describe('EventCard', () => {
         started_at: new Date(BASE_TIME - 2 * 60 * 1000).toISOString(), // 2 minutes ago
         ended_at: null,
       };
-      render(<EventCard {...ongoingEvent} />);
-      expect(screen.getByText(/Duration:/)).toBeInTheDocument();
+      const { container } = render(<EventCard {...ongoingEvent} />);
+      // Timer icon should be present
+      const timerIcon = container.querySelector('svg.lucide-timer');
+      expect(timerIcon).toBeInTheDocument();
       expect(screen.getByText(/ongoing/)).toBeInTheDocument();
     });
 
@@ -1053,14 +949,18 @@ describe('EventCard', () => {
         started_at: new Date(BASE_TIME - 10 * 60 * 1000).toISOString(), // 10 minutes ago
         ended_at: null,
       };
-      render(<EventCard {...olderOngoingEvent} />);
-      expect(screen.getByText(/Duration:/)).toBeInTheDocument();
+      const { container } = render(<EventCard {...olderOngoingEvent} />);
+      // Timer icon should be present
+      const timerIcon = container.querySelector('svg.lucide-timer');
+      expect(timerIcon).toBeInTheDocument();
       expect(screen.getByText(/10m.*ongoing/)).toBeInTheDocument();
     });
 
     it('does not display duration when started_at is not provided', () => {
-      render(<EventCard {...mockProps} />);
-      expect(screen.queryByText(/Duration:/)).not.toBeInTheDocument();
+      const { container } = render(<EventCard {...mockProps} />);
+      // Timer icon should not be present when no duration info
+      const timerIcon = container.querySelector('svg.lucide-timer');
+      expect(timerIcon).not.toBeInTheDocument();
     });
 
     it('renders Timer icon with duration', () => {
@@ -1099,8 +999,10 @@ describe('EventCard', () => {
         ...mockProps,
         ended_at: new Date(BASE_TIME).toISOString(),
       };
-      render(<EventCard {...eventWithEndedAt} />);
-      expect(screen.getByText(/Duration:/)).toBeInTheDocument();
+      const { container } = render(<EventCard {...eventWithEndedAt} />);
+      // Timer icon should be present indicating duration is shown
+      const timerIcon = container.querySelector('svg.lucide-timer');
+      expect(timerIcon).toBeInTheDocument();
     });
   });
 
@@ -1149,13 +1051,15 @@ describe('EventCard', () => {
   describe('checkbox overlay support', () => {
     it('does not add left margin to header by default', () => {
       const { container } = render(<EventCard {...mockProps} />);
-      const headerDiv = container.querySelector('.mb-3.flex.items-start.justify-between');
+      // The header row now has mb-2 class (restructured layout)
+      const headerDiv = container.querySelector('.mb-2.flex.items-start.justify-between');
       expect(headerDiv).not.toHaveClass('ml-8');
     });
 
     it('adds left margin to header when hasCheckboxOverlay is true', () => {
       const { container } = render(<EventCard {...mockProps} hasCheckboxOverlay />);
-      const headerDiv = container.querySelector('.mb-3.flex.items-start.justify-between');
+      // The header row now has mb-2 class (restructured layout)
+      const headerDiv = container.querySelector('.mb-2.flex.items-start.justify-between');
       expect(headerDiv).toHaveClass('ml-8');
     });
 
@@ -1189,18 +1093,20 @@ describe('EventCard', () => {
       expect(card).toHaveClass('border-l-4', 'border-l-yellow-500');
     });
 
-    it('applies orange left border for high risk events', () => {
+    it('applies orange left border with enhanced width for high risk events', () => {
       const highRiskEvent = { ...mockProps, risk_score: 72 };
       const { container } = render(<EventCard {...highRiskEvent} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('border-l-4', 'border-l-orange-500');
+      // High severity has thicker border (5px) for better visibility
+      expect(card).toHaveClass('border-l-[5px]', 'border-l-orange-500');
     });
 
-    it('applies red left border for critical risk events', () => {
+    it('applies red left border with enhanced width for critical risk events', () => {
       const criticalRiskEvent = { ...mockProps, risk_score: 88 };
       const { container } = render(<EventCard {...criticalRiskEvent} />);
       const card = container.firstChild as HTMLElement;
-      expect(card).toHaveClass('border-l-4', 'border-l-red-500');
+      // Critical severity has thickest border (6px) for maximum visibility
+      expect(card).toHaveClass('border-l-[6px]', 'border-l-red-500');
     });
 
     it('applies correct border width class', () => {
@@ -1697,16 +1603,18 @@ describe('EventCard', () => {
     });
 
     describe('background tint classes', () => {
-      it('applies red background tint for critical severity (>= 80)', () => {
+      it('applies enhanced red background tint for critical severity (>= 80)', () => {
         const { container } = render(<EventCard {...mockProps} risk_score={85} />);
         const card = container.firstChild as HTMLElement;
-        expect(card).toHaveClass('bg-red-500/[0.08]');
+        // Enhanced background for better visual distinction
+        expect(card).toHaveClass('bg-red-950/40');
       });
 
-      it('applies orange background tint for high severity (60-79)', () => {
+      it('applies enhanced orange background tint for high severity (60-79)', () => {
         const { container } = render(<EventCard {...mockProps} risk_score={72} />);
         const card = container.firstChild as HTMLElement;
-        expect(card).toHaveClass('bg-orange-500/[0.06]');
+        // Enhanced background for better visual distinction
+        expect(card).toHaveClass('bg-orange-950/30');
       });
 
       it('applies yellow background tint for medium severity (30-59)', () => {
@@ -1817,7 +1725,7 @@ describe('EventCard', () => {
         const { container } = render(<EventCard {...mockProps} risk_score={80} />);
         const card = container.firstChild as HTMLElement;
         expect(card).toHaveAttribute('data-severity', 'critical');
-        expect(card).toHaveClass('bg-red-500/[0.08]');
+        expect(card).toHaveClass('bg-red-950/40');
         expect(card).toHaveClass('border-l-red-500');
       });
 
@@ -1825,7 +1733,7 @@ describe('EventCard', () => {
         const { container } = render(<EventCard {...mockProps} risk_score={79} />);
         const card = container.firstChild as HTMLElement;
         expect(card).toHaveAttribute('data-severity', 'high');
-        expect(card).toHaveClass('bg-orange-500/[0.06]');
+        expect(card).toHaveClass('bg-orange-950/30');
         expect(card).toHaveClass('border-l-orange-500');
       });
 
@@ -1833,7 +1741,7 @@ describe('EventCard', () => {
         const { container } = render(<EventCard {...mockProps} risk_score={60} />);
         const card = container.firstChild as HTMLElement;
         expect(card).toHaveAttribute('data-severity', 'high');
-        expect(card).toHaveClass('bg-orange-500/[0.06]');
+        expect(card).toHaveClass('bg-orange-950/30');
       });
 
       it('applies medium styling just below high boundary (59)', () => {
@@ -1869,7 +1777,7 @@ describe('EventCard', () => {
         const { container } = render(<EventCard {...mockProps} risk_score={100} />);
         const card = container.firstChild as HTMLElement;
         expect(card).toHaveAttribute('data-severity', 'critical');
-        expect(card).toHaveClass('bg-red-500/[0.08]');
+        expect(card).toHaveClass('bg-red-950/40');
         expect(card).toHaveClass('border-l-red-500');
         expect(card).toHaveClass('animate-pulse-subtle');
       });
@@ -1880,8 +1788,8 @@ describe('EventCard', () => {
         const { container } = render(<EventCard {...mockProps} risk_score={90} />);
         const card = container.firstChild as HTMLElement;
 
-        // Background tint
-        expect(card).toHaveClass('bg-red-500/[0.08]');
+        // Enhanced background tint for better visibility
+        expect(card).toHaveClass('bg-red-950/40');
         // Border color
         expect(card).toHaveClass('border-l-red-500');
         // Glow effect
