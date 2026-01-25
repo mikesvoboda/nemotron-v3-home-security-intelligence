@@ -40,6 +40,7 @@ describe('TimeGroupedEvents', () => {
     reviewed: false,
     detection_count: 1,
     notes: null,
+    version: 1, // Optimistic locking version (NEM-3625)
   });
 
   const todayEvent = createEvent(1, '2024-01-18T10:00:00.000Z', 85, 'critical');

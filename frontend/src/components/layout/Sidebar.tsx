@@ -177,7 +177,12 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-4" aria-label="Main navigation">
+      <nav
+        id="main-navigation"
+        tabIndex={-1}
+        className="flex-1 overflow-y-auto p-4 focus:outline-none"
+        aria-label="Main navigation"
+      >
         {navGroups.map((group) => (
           <NavGroupComponent
             key={group.id}

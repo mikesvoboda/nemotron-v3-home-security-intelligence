@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { exportEventsCSV, fetchCameras, fetchEventStats } from '../../services/api';
+import { exportEventsCSV, exportEventsJSON, fetchCameras, fetchEventStats } from '../../services/api';
 
 import type { Camera, EventStatsResponse, ExportQueryParams } from '../../services/api';
 
@@ -171,13 +171,11 @@ export default function ExportPanel({
     try {
       if (format === 'csv') {
         await exportEventsCSV(filters);
-        setExportSuccess('Export completed successfully! Check your downloads folder.');
-        onExportComplete?.(true, 'Export completed successfully');
       } else {
-        // JSON format - future expansion
-        setExportError('JSON export is not yet implemented');
-        onExportComplete?.(false, 'JSON export not implemented');
+        await exportEventsJSON(filters);
       }
+      setExportSuccess('Export completed successfully! Check your downloads folder.');
+      onExportComplete?.(true, 'Export completed successfully');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Export failed';
       setExportError(message);
@@ -223,14 +221,16 @@ export default function ExportPanel({
           </button>
           <button
             onClick={() => setFormat('json')}
-            disabled
-            className="flex flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-gray-800 bg-[#1A1A1A] px-4 py-3 text-sm font-medium text-gray-600 opacity-50"
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-all ${
+              format === 'json'
+                ? 'border-[#76B900] bg-[#76B900]/10 text-[#76B900]'
+                : 'border-gray-700 bg-[#1A1A1A] text-gray-400 hover:border-gray-600 hover:bg-[#252525]'
+            }`}
             aria-pressed={format === 'json'}
-            title="JSON export coming soon"
           >
             <FileText className="h-5 w-5" />
             <span>JSON</span>
-            <span className="text-xs">(Soon)</span>
+            {format === 'json' && <Check className="h-4 w-4" />}
           </button>
         </div>
       </div>

@@ -6,3 +6,4 @@ export { default as ClassFrequencyChart } from './ClassFrequencyChart';
 export { default as AnomalyConfigPanel } from './AnomalyConfigPanel';
 export { default as ChartTooltip, TooltipContent } from './ChartTooltip';
 export type { ChartTooltipProps, TooltipContentProps, TooltipItem } from './ChartTooltip';
+export { default as RiskHistoryCard } from './RiskHistoryCard';

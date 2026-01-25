@@ -1,7 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { ReactNode } from 'react';
 import { describe, expect, it, vi, beforeEach, Mock } from 'vitest';
 
 import Layout from './Layout';
+import { AnnouncementProvider } from '../../contexts/AnnouncementContext';
 import { useServiceStatus } from '../../hooks/useServiceStatus';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
 import { ServiceName, ServiceStatus } from '../common/ServiceStatusAlert';
@@ -102,6 +104,16 @@ function createHealthyServices(): Record<ServiceName, ServiceStatus | null> {
   };
 }
 
+// Wrapper with AnnouncementProvider for tests
+function Wrapper({ children }: { children: ReactNode }) {
+  return <AnnouncementProvider>{children}</AnnouncementProvider>;
+}
+
+// Custom render that wraps with AnnouncementProvider
+function renderWithProvider(ui: React.ReactElement) {
+  return render(ui, { wrapper: Wrapper });
+}
+
 describe('Layout', () => {
   beforeEach(() => {
     // Reset mock to return empty/healthy services by default
@@ -114,20 +126,38 @@ describe('Layout', () => {
   });
 
   describe('skip link accessibility', () => {
-    it('renders skip link for keyboard navigation', () => {
-      render(
+    it('renders skip link group for keyboard navigation', () => {
+      renderWithProvider(
         <Layout>
           <div>Test Content</div>
         </Layout>
       );
-      const skipLink = screen.getByTestId('skip-link');
-      expect(skipLink).toBeInTheDocument();
-      expect(skipLink).toHaveAttribute('href', '#main-content');
-      expect(skipLink).toHaveTextContent('Skip to main content');
+      const skipLinkGroup = screen.getByTestId('skip-link-group');
+      expect(skipLinkGroup).toBeInTheDocument();
+    });
+
+    it('renders skip link to navigation', () => {
+      renderWithProvider(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+      const navLink = screen.getByRole('link', { name: 'Skip to navigation' });
+      expect(navLink).toHaveAttribute('href', '#main-navigation');
+    });
+
+    it('renders skip link to main content', () => {
+      renderWithProvider(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+      const contentLink = screen.getByRole('link', { name: 'Skip to main content' });
+      expect(contentLink).toHaveAttribute('href', '#main-content');
     });
 
     it('main content has proper id for skip link target', () => {
-      render(
+      renderWithProvider(
         <Layout>
           <div>Test Content</div>
         </Layout>
@@ -137,19 +167,19 @@ describe('Layout', () => {
       expect(mainContent).toHaveAttribute('tabIndex', '-1');
     });
 
-    it('skip link is visually hidden by default', () => {
-      render(
+    it('skip link group is visually hidden by default', () => {
+      renderWithProvider(
         <Layout>
           <div>Test Content</div>
         </Layout>
       );
-      const skipLink = screen.getByTestId('skip-link');
-      expect(skipLink).toHaveClass('sr-only');
+      const skipLinkGroup = screen.getByTestId('skip-link-group');
+      expect(skipLinkGroup).toHaveClass('sr-only');
     });
   });
 
   it('renders without crashing', () => {
-    render(
+    renderWithProvider(
       <Layout>
         <div>Test Content</div>
       </Layout>
@@ -158,7 +188,7 @@ describe('Layout', () => {
   });
 
   it('renders Header component', () => {
-    render(
+    renderWithProvider(
       <Layout>
         <div>Test Content</div>
       </Layout>
@@ -168,7 +198,7 @@ describe('Layout', () => {
   });
 
   it('renders Sidebar component', () => {
-    render(
+    renderWithProvider(
       <Layout>
         <div>Test Content</div>
       </Layout>
@@ -177,7 +207,7 @@ describe('Layout', () => {
   });
 
   it('renders children content in main area', () => {
-    render(
+    renderWithProvider(
       <Layout>
         <div data-testid="test-child">Test Child Content</div>
       </Layout>
@@ -187,7 +217,7 @@ describe('Layout', () => {
   });
 
   it('has correct layout structure with flex classes', () => {
-    const { container } = render(
+    const { container } = renderWithProvider(
       <Layout>
         <div>Test Content</div>
       </Layout>
@@ -197,7 +227,7 @@ describe('Layout', () => {
   });
 
   it('main element has overflow-auto class for scrolling', () => {
-    render(
+    renderWithProvider(
       <Layout>
         <div>Test Content</div>
       </Layout>
@@ -207,7 +237,7 @@ describe('Layout', () => {
   });
 
   it('renders multiple children correctly', () => {
-    render(
+    renderWithProvider(
       <Layout>
         <div data-testid="child-1">Child 1</div>
         <div data-testid="child-2">Child 2</div>
@@ -228,7 +258,7 @@ describe('Layout', () => {
         getServiceStatus: () => null,
       });
 
-      render(
+      renderWithProvider(
         <Layout>
           <div>Test Content</div>
         </Layout>
@@ -245,7 +275,7 @@ describe('Layout', () => {
         getServiceStatus: (name: ServiceName) => createHealthyServices()[name],
       });
 
-      render(
+      renderWithProvider(
         <Layout>
           <div>Test Content</div>
         </Layout>
@@ -268,7 +298,7 @@ describe('Layout', () => {
         getServiceStatus: (name: ServiceName) => services[name],
       });
 
-      render(
+      renderWithProvider(
         <Layout>
           <div>Test Content</div>
         </Layout>
@@ -293,7 +323,7 @@ describe('Layout', () => {
         getServiceStatus: (name: ServiceName) => services[name],
       });
 
-      render(
+      renderWithProvider(
         <Layout>
           <div>Test Content</div>
         </Layout>
@@ -317,7 +347,7 @@ describe('Layout', () => {
         getServiceStatus: (name: ServiceName) => services[name],
       });
 
-      render(
+      renderWithProvider(
         <Layout>
           <div>Test Content</div>
         </Layout>
@@ -341,7 +371,7 @@ describe('Layout', () => {
         getServiceStatus: (name: ServiceName) => services[name],
       });
 
-      render(
+      renderWithProvider(
         <Layout>
           <div>Test Content</div>
         </Layout>
@@ -371,7 +401,7 @@ describe('Layout', () => {
         getServiceStatus: (name: ServiceName) => services[name],
       });
 
-      render(
+      renderWithProvider(
         <Layout>
           <div data-testid="test-child">Test Content</div>
         </Layout>
@@ -405,7 +435,7 @@ describe('Layout', () => {
         getServiceStatus: (name: ServiceName) => services[name],
       });
 
-      render(
+      renderWithProvider(
         <Layout>
           <div>Test Content</div>
         </Layout>
@@ -432,7 +462,7 @@ describe('Layout', () => {
         );
       }
 
-      render(
+      renderWithProvider(
         <Layout>
           <TestConsumer />
         </Layout>
@@ -460,7 +490,7 @@ describe('Layout', () => {
         );
       }
 
-      render(
+      renderWithProvider(
         <Layout>
           <TestConsumer />
         </Layout>

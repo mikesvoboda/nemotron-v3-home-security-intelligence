@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
-import { SkipLink } from './SkipLink';
+import { SkipLink, SkipLinkGroup, type SkipTarget } from './SkipLink';
 
 describe('SkipLink', () => {
   describe('rendering', () => {
@@ -131,6 +132,130 @@ describe('SkipLink', () => {
       render(<SkipLink />);
       const skipLink = screen.getByRole('link', { name: 'Skip to main content' });
       expect(skipLink).toBeInTheDocument();
+    });
+  });
+});
+
+describe('SkipLinkGroup', () => {
+  const defaultTargets: SkipTarget[] = [
+    { id: 'main-navigation', label: 'Skip to navigation' },
+    { id: 'sidebar-filters', label: 'Skip to filters' },
+    { id: 'main-content', label: 'Skip to main content' },
+  ];
+
+  describe('rendering', () => {
+    it('renders multiple skip links', () => {
+      render(<SkipLinkGroup targets={defaultTargets} />);
+
+      const links = screen.getAllByRole('link');
+      expect(links).toHaveLength(3);
+    });
+
+    it('renders each target with correct href', () => {
+      render(<SkipLinkGroup targets={defaultTargets} />);
+
+      expect(screen.getByRole('link', { name: 'Skip to navigation' })).toHaveAttribute(
+        'href',
+        '#main-navigation'
+      );
+      expect(screen.getByRole('link', { name: 'Skip to filters' })).toHaveAttribute(
+        'href',
+        '#sidebar-filters'
+      );
+      expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute(
+        'href',
+        '#main-content'
+      );
+    });
+
+    it('renders with testid attribute', () => {
+      render(<SkipLinkGroup targets={defaultTargets} />);
+
+      const container = screen.getByTestId('skip-link-group');
+      expect(container).toBeInTheDocument();
+    });
+
+    it('renders nothing when targets array is empty', () => {
+      render(<SkipLinkGroup targets={[]} />);
+
+      expect(screen.queryByTestId('skip-link-group')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('accessibility - visual hiding', () => {
+    it('group container is visually hidden by default', () => {
+      render(<SkipLinkGroup targets={defaultTargets} />);
+
+      const container = screen.getByTestId('skip-link-group');
+      expect(container).toHaveClass('sr-only');
+    });
+
+    it('becomes visible on focus-within', () => {
+      render(<SkipLinkGroup targets={defaultTargets} />);
+
+      const container = screen.getByTestId('skip-link-group');
+      expect(container).toHaveClass('focus-within:not-sr-only');
+    });
+
+    it('each link has proper focus styling', () => {
+      render(<SkipLinkGroup targets={defaultTargets} />);
+
+      const links = screen.getAllByRole('link');
+      links.forEach((link) => {
+        expect(link).toHaveClass('focus:bg-[#76B900]');
+        expect(link).toHaveClass('focus:text-black');
+      });
+    });
+  });
+
+  describe('keyboard navigation', () => {
+    it('allows tab navigation between skip links', async () => {
+      const user = userEvent.setup();
+      render(<SkipLinkGroup targets={defaultTargets} />);
+
+      const links = screen.getAllByRole('link');
+
+      // Focus first link
+      links[0].focus();
+      expect(document.activeElement).toBe(links[0]);
+
+      // Tab to next
+      await user.tab();
+      expect(document.activeElement).toBe(links[1]);
+
+      // Tab to next
+      await user.tab();
+      expect(document.activeElement).toBe(links[2]);
+    });
+  });
+
+  describe('integration with layout landmarks', () => {
+    it('works with actual layout landmark IDs', () => {
+      const layoutTargets: SkipTarget[] = [
+        { id: 'main-navigation', label: 'Skip to navigation' },
+        { id: 'sidebar-filters', label: 'Skip to sidebar' },
+        { id: 'main-content', label: 'Skip to main content' },
+      ];
+
+      render(
+        <>
+          <SkipLinkGroup targets={layoutTargets} />
+          <nav id="main-navigation" tabIndex={-1}>
+            Navigation
+          </nav>
+          <aside id="sidebar-filters" tabIndex={-1}>
+            Sidebar
+          </aside>
+          <main id="main-content" tabIndex={-1}>
+            Content
+          </main>
+        </>
+      );
+
+      // Verify links target the correct elements
+      const navLink = screen.getByRole('link', { name: 'Skip to navigation' });
+      expect(navLink).toHaveAttribute('href', '#main-navigation');
+      expect(screen.getByRole('navigation')).toHaveAttribute('id', 'main-navigation');
     });
   });
 });

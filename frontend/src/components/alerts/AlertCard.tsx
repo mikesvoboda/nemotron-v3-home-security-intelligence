@@ -1,8 +1,22 @@
-import { Check, ChevronDown, Clock, Eye, X } from 'lucide-react';
+import { Check, ChevronDown, Clock, Eye, Loader2, X } from 'lucide-react';
 import { memo, useState } from 'react';
 
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
+
+/**
+ * Alert action parameters including version_id for optimistic locking
+ * @see NEM-3626
+ */
+export interface AlertActionParams {
+  /** Alert UUID */
+  alertId: string;
+  /**
+   * Version ID for optimistic locking.
+   * If provided, the backend will verify this matches before applying changes.
+   */
+  versionId?: number;
+}
 
 export interface AlertCardProps {
   id: string;
@@ -14,9 +28,30 @@ export interface AlertCardProps {
   risk_score: number;
   summary: string;
   dedup_key: string;
+  /**
+   * Version ID for optimistic locking.
+   * Passed to action callbacks to detect concurrent modifications.
+   * @see NEM-3626
+   */
+  version_id?: number;
   selected?: boolean;
-  onAcknowledge?: (alertId: string) => void;
-  onDismiss?: (alertId: string) => void;
+  /**
+   * Whether an action is currently in progress (loading state)
+   * @see NEM-3626
+   */
+  isLoading?: boolean;
+  /**
+   * Callback when acknowledge button is clicked.
+   * Now includes version_id for optimistic locking support.
+   * @see NEM-3626
+   */
+  onAcknowledge?: (params: AlertActionParams) => void;
+  /**
+   * Callback when dismiss button is clicked.
+   * Now includes version_id for optimistic locking support.
+   * @see NEM-3626
+   */
+  onDismiss?: (params: AlertActionParams) => void;
   onSnooze?: (alertId: string, seconds: number) => void;
   onViewEvent?: (eventId: number) => void;
   onSelectChange?: (alertId: string, selected: boolean) => void;
@@ -35,7 +70,9 @@ const AlertCard = memo(function AlertCard({
   camera_name,
   risk_score,
   summary,
+  version_id,
   selected,
+  isLoading = false,
   onAcknowledge,
   onDismiss,
   onSnooze,
@@ -43,6 +80,26 @@ const AlertCard = memo(function AlertCard({
   onSelectChange,
 }: AlertCardProps) {
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
+
+  /**
+   * Handle acknowledge action with version_id for optimistic locking
+   * @see NEM-3626
+   */
+  const handleAcknowledge = () => {
+    if (onAcknowledge) {
+      onAcknowledge({ alertId: id, versionId: version_id });
+    }
+  };
+
+  /**
+   * Handle dismiss action with version_id for optimistic locking
+   * @see NEM-3626
+   */
+  const handleDismiss = () => {
+    if (onDismiss) {
+      onDismiss({ alertId: id, versionId: version_id });
+    }
+  };
 
   // Convert ISO timestamp to readable format
   const formatTimestamp = (isoString: string): string => {
@@ -178,22 +235,32 @@ const AlertCard = memo(function AlertCard({
         <div className="flex flex-wrap items-center gap-2">
           {status === 'pending' && onAcknowledge && (
             <button
-              onClick={() => onAcknowledge(id)}
-              className="flex items-center gap-1.5 rounded-md bg-green-600/20 px-3 py-1.5 text-sm font-medium text-green-400 transition-colors hover:bg-green-600/30"
+              onClick={handleAcknowledge}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 rounded-md bg-green-600/20 px-3 py-1.5 text-sm font-medium text-green-400 transition-colors hover:bg-green-600/30 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Acknowledge alert"
             >
-              <Check className="h-4 w-4" />
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
               Acknowledge
             </button>
           )}
 
           {onDismiss && (
             <button
-              onClick={() => onDismiss(id)}
-              className="flex items-center gap-1.5 rounded-md bg-gray-700/50 px-3 py-1.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700"
+              onClick={handleDismiss}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 rounded-md bg-gray-700/50 px-3 py-1.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Dismiss alert"
             >
-              <X className="h-4 w-4" />
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <X className="h-4 w-4" />
+              )}
               Dismiss
             </button>
           )}

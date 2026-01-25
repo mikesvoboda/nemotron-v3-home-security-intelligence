@@ -12,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.schemas.notification import (
     NotificationChannel,
     NotificationConfigResponse,
+    NotificationConfigUpdate,
+    NotificationConfigUpdateResponse,
     NotificationHistoryEntry,
     NotificationHistoryResponse,
     TestNotificationRequest,
@@ -19,6 +21,7 @@ from backend.api.schemas.notification import (
 )
 from backend.core import get_db, get_settings
 from backend.models.audit import AuditAction
+from backend.models.gpu_config import SystemSetting
 from backend.services.audit import AuditService
 from backend.services.notification import (
     NotificationService,
@@ -72,6 +75,119 @@ async def get_notification_config() -> NotificationConfigResponse:
         ),
         default_email_recipients=settings.default_email_recipients,
     )
+
+
+# Notification config settings key in SystemSetting table
+NOTIFICATION_CONFIG_KEY = "notification_config"
+
+
+async def _get_notification_config_from_db(db: AsyncSession) -> dict:
+    """Get notification configuration from database.
+
+    Returns stored config or defaults if not found.
+    """
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(SystemSetting).where(SystemSetting.key == NOTIFICATION_CONFIG_KEY)
+    )
+    setting = result.scalar_one_or_none()
+
+    if setting:
+        return setting.value
+
+    # Return defaults if no config stored
+    return {
+        "smtp_enabled": False,
+        "smtp_host": None,
+        "smtp_port": None,
+        "smtp_from_address": None,
+        "webhook_enabled": False,
+        "default_webhook_url": None,
+    }
+
+
+async def _save_notification_config_to_db(db: AsyncSession, config: dict) -> None:
+    """Save notification configuration to database."""
+    from sqlalchemy import select
+
+    result = await db.execute(
+        select(SystemSetting).where(SystemSetting.key == NOTIFICATION_CONFIG_KEY)
+    )
+    setting = result.scalar_one_or_none()
+
+    if setting:
+        setting.value = config
+    else:
+        setting = SystemSetting(key=NOTIFICATION_CONFIG_KEY, value=config)
+        db.add(setting)
+
+
+@router.patch("/config", response_model=NotificationConfigUpdateResponse)
+async def update_notification_config(
+    request: Request,
+    config_update: NotificationConfigUpdate = Body(...),
+    db: AsyncSession = Depends(get_db),
+) -> NotificationConfigUpdateResponse:
+    """Update notification configuration.
+
+    Allows enabling/disabling SMTP and webhook channels, and updating their settings.
+    Only specified fields will be updated; others remain unchanged.
+
+    Args:
+        config_update: Partial configuration update with optional fields
+
+    Returns:
+        NotificationConfigUpdateResponse with the updated configuration
+    """
+    try:
+        # Get current config from database
+        current_config = await _get_notification_config_from_db(db)
+
+        # Apply updates (only non-None values)
+        update_dict = config_update.model_dump(exclude_unset=True)
+        for key, value in update_dict.items():
+            if value is not None or key in update_dict:
+                current_config[key] = value
+
+        # Save updated config to database
+        await _save_notification_config_to_db(db, current_config)
+        await db.commit()
+
+        # Log audit entry
+        try:
+            await AuditService.log_action(
+                db=db,
+                action=AuditAction.CONFIG_UPDATED,
+                resource_type="notification_config",
+                resource_id="notification_config",
+                actor="anonymous",
+                details={"updated_fields": list(update_dict.keys())},
+                request=request,
+            )
+            await db.commit()
+        except Exception:
+            logger.error(
+                "Failed to commit audit log for notification config update",
+                exc_info=True,
+            )
+            await db.rollback()
+            # Don't fail the main operation - audit is non-critical
+
+        return NotificationConfigUpdateResponse(
+            smtp_enabled=current_config.get("smtp_enabled", False),
+            smtp_host=current_config.get("smtp_host"),
+            smtp_port=current_config.get("smtp_port"),
+            smtp_from_address=current_config.get("smtp_from_address"),
+            webhook_enabled=current_config.get("webhook_enabled", False),
+            default_webhook_url=current_config.get("default_webhook_url"),
+            message="Configuration updated successfully",
+        )
+
+    except Exception:
+        logger.exception("Error updating notification configuration")
+        await db.rollback()
+        raise
 
 
 def _create_error_response(

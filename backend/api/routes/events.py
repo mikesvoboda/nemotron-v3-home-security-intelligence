@@ -9,6 +9,7 @@ from fastapi.responses import ORJSONResponse, StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, undefer
+from sqlalchemy.orm.exc import StaleDataError
 
 from backend.api.dependencies import (
     get_cache_service_dep,
@@ -910,6 +911,10 @@ async def search_events_endpoint(
                     "schema": {"type": "string", "format": "binary"},
                     "example": "event_id,camera_name,started_at,...",
                 },
+                "application/json": {
+                    "schema": {"type": "array", "items": {"type": "object"}},
+                    "example": [{"event_id": 1, "camera_name": "Front Door"}],
+                },
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
                     "schema": {"type": "string", "format": "binary"},
                 },
@@ -930,10 +935,11 @@ async def export_events(
     db: AsyncSession = Depends(get_db),
     _rate_limit: None = Depends(RateLimiter(tier=RateLimitTier.EXPORT)),
 ) -> StreamingResponse | Response:
-    """Export events as CSV or Excel file for external analysis or record-keeping.
+    """Export events as CSV, JSON, or Excel file for external analysis or record-keeping.
 
     Supports content negotiation via HTTP Accept header:
     - `Accept: text/csv` or `Accept: application/csv` - CSV format (default)
+    - `Accept: application/json` - JSON format
     - `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` - Excel (XLSX)
     - `Accept: application/vnd.ms-excel` or `Accept: application/xlsx` - Excel (XLSX)
 
@@ -956,7 +962,7 @@ async def export_events(
         _rate_limit: Rate limiter dependency (10 req/min, no burst)
 
     Returns:
-        StreamingResponse with CSV or Response with Excel file containing exported events
+        StreamingResponse with CSV, JSON Response, or Excel Response
 
     Raises:
         HTTPException: 429 if rate limit exceeded
@@ -1072,6 +1078,16 @@ async def export_events(
         content = events_to_excel(export_rows)
         return Response(
             content=content,
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    elif export_format == ExportFormat.JSON:
+        # JSON format - return as Response
+        from backend.services.export_service import events_to_json
+
+        json_content = events_to_json(export_rows)
+        return Response(
+            content=json_content,
             media_type=content_type,
             headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
@@ -1603,10 +1619,27 @@ async def get_event(
         detection_ids=parsed_detection_ids,
         thumbnail_url=thumbnail_url,
         links=build_event_links(request, event.id, event.camera_id),
+        version=event.version,  # Include version for optimistic locking (NEM-3625)
     )
 
 
-@router.patch("/{event_id}", response_model=EventResponse)
+@router.patch(
+    "/{event_id}",
+    response_model=EventResponse,
+    responses={
+        409: {
+            "description": "Conflict - event was modified by another request (optimistic locking)",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Event was modified by another request. Please refresh and retry.",
+                        "current_version": 3,
+                    }
+                }
+            },
+        },
+    },
+)
 async def update_event(  # Allow branches for audit logging logic
     event_id: int,
     update_data: EventUpdate,
@@ -1616,29 +1649,44 @@ async def update_event(  # Allow branches for audit logging logic
 ) -> EventResponse:
     """Update an event (mark as reviewed).
 
+    Supports optimistic locking (NEM-3625): Include the `version` field from the
+    event response to prevent concurrent modification conflicts. If the version
+    doesn't match, returns HTTP 409 Conflict with the current version.
+
     Args:
         event_id: Event ID
-        update_data: Update data (reviewed field)
+        update_data: Update data (reviewed, notes, snooze_until, version)
         request: FastAPI request for audit logging
         db: Database session
         cache: Cache service for cache invalidation (NEM-1938)
 
     Returns:
-        Updated event object
+        Updated event object with new version
 
     Raises:
         HTTPException: 404 if event not found
+        HTTPException: 409 if version mismatch (concurrent modification)
     """
     event = await get_event_or_404(event_id, db)
+
+    # Optimistic locking check (NEM-3625)
+    # If client provides a version, verify it matches the current version
+    update_dict = update_data.model_dump(exclude_unset=True)
+    if "version" in update_dict and update_data.version is not None:
+        if event.version != update_data.version:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "Event was modified by another request. Please refresh and retry.",
+                    "current_version": event.version,
+                },
+            )
 
     # Track changes for audit log
     changes: dict[str, Any] = {}
     old_reviewed = event.reviewed
     old_notes = event.notes
     old_snooze_until = event.snooze_until
-
-    # Update fields if provided (use exclude_unset to differentiate between None and not provided)
-    update_dict = update_data.model_dump(exclude_unset=True)
     if "reviewed" in update_dict and update_data.reviewed is not None:
         event.reviewed = update_data.reviewed
         if old_reviewed != event.reviewed:
@@ -1682,7 +1730,7 @@ async def update_event(  # Allow branches for audit logging logic
     else:
         action = AuditAction.EVENT_REVIEWED  # Default for notes-only updates
 
-    # Log the audit entry
+    # Log the audit entry and commit with optimistic locking (NEM-3625)
     try:
         await AuditService.log_action(
             db=db,
@@ -1698,6 +1746,18 @@ async def update_event(  # Allow branches for audit logging logic
             request=request,
         )
         await db.commit()
+    except StaleDataError:
+        # Optimistic locking conflict - another request modified the event (NEM-3625)
+        await db.rollback()
+        # Re-fetch to get current version
+        refreshed_event = await get_event_or_404(event_id, db)
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "Event was modified by another request. Please refresh and retry.",
+                "current_version": refreshed_event.version,
+            },
+        ) from None
     except Exception:
         logger.error(
             "Failed to commit audit log",
@@ -1708,8 +1768,20 @@ async def update_event(  # Allow branches for audit logging logic
         # Re-apply the event changes since we rolled back
         update_data_dict = update_data.model_dump(exclude_unset=True)
         for key, value in update_data_dict.items():
-            setattr(event, key, value)
-        await db.commit()
+            if key != "version":  # Don't set version, it's auto-managed
+                setattr(event, key, value)
+        try:
+            await db.commit()
+        except StaleDataError:
+            await db.rollback()
+            refreshed_event = await get_event_or_404(event_id, db)
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "Event was modified by another request. Please refresh and retry.",
+                    "current_version": refreshed_event.version,
+                },
+            ) from None
     await db.refresh(event)
 
     # Invalidate event-related caches after successful update (NEM-1950, NEM-1938)
@@ -1744,6 +1816,7 @@ async def update_event(  # Allow branches for audit logging logic
         detection_count=detection_count,
         detection_ids=parsed_detection_ids,
         thumbnail_url=thumbnail_url,
+        version=event.version,  # Include version for optimistic locking (NEM-3625)
     )
 
 
@@ -2347,6 +2420,7 @@ async def restore_event(
             detection_ids=detection_ids,
             thumbnail_url=thumbnail_url,
             enrichment_status=None,
+            version=event.version,  # Include version for optimistic locking (NEM-3625)
         )
 
     except ValueError as e:

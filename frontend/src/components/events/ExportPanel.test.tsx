@@ -7,8 +7,17 @@ import * as api from '../../services/api';
 
 import type { Camera, EventStatsResponse } from '../../services/api';
 
-// Mock API module
-vi.mock('../../services/api');
+// Mock API module with explicit function mocks
+vi.mock('../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/api')>();
+  return {
+    ...actual,
+    fetchCameras: vi.fn(),
+    fetchEventStats: vi.fn(),
+    exportEventsCSV: vi.fn(),
+    exportEventsJSON: vi.fn(),
+  };
+});
 
 describe('ExportPanel', () => {
   const mockCameras: Camera[] = [
@@ -49,6 +58,10 @@ describe('ExportPanel', () => {
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
     vi.mocked(api.fetchEventStats).mockResolvedValue(mockStats);
     vi.mocked(api.exportEventsCSV).mockResolvedValue(undefined);
+    // Mock exportEventsJSON if it exists (added in NEM-3611)
+    if (api.exportEventsJSON) {
+      vi.mocked(api.exportEventsJSON).mockResolvedValue(undefined);
+    }
   });
 
   describe('Rendering', () => {
@@ -351,7 +364,7 @@ describe('ExportPanel', () => {
       expect(exportButton).toBeDisabled();
     });
 
-    it('shows success message after export', async () => {
+    it('shows success message after CSV export', async () => {
       const user = userEvent.setup();
       render(<ExportPanel />);
 
@@ -363,6 +376,38 @@ describe('ExportPanel', () => {
       await user.click(exportButton);
 
       await waitFor(() => {
+        expect(
+          screen.getByText('Export completed successfully! Check your downloads folder.')
+        ).toBeInTheDocument();
+      });
+      expect(api.exportEventsCSV).toHaveBeenCalled();
+    });
+
+    it('exports events as JSON when JSON format is selected', async () => {
+      const user = userEvent.setup();
+      render(<ExportPanel />);
+
+      await waitFor(() => {
+        expect(api.fetchCameras).toHaveBeenCalled();
+      });
+
+      // Find and click JSON format button
+      const jsonButton = screen.getByRole('button', { name: /JSON/i });
+      expect(jsonButton).toHaveAttribute('aria-pressed', 'false');
+      await user.click(jsonButton);
+
+      // Verify JSON is now selected
+      await waitFor(() => {
+        expect(jsonButton).toHaveAttribute('aria-pressed', 'true');
+      });
+
+      // Click export
+      const exportButton = screen.getByRole('button', { name: /Export Events/i });
+      await user.click(exportButton);
+
+      await waitFor(() => {
+        // Should call exportEventsJSON, not exportEventsCSV
+        expect(api.exportEventsJSON).toHaveBeenCalled();
         expect(
           screen.getByText('Export completed successfully! Check your downloads folder.')
         ).toBeInTheDocument();
@@ -470,11 +515,16 @@ describe('ExportPanel', () => {
       });
     });
 
-    it('JSON format button is disabled', async () => {
+    it('JSON format button is enabled and selectable', async () => {
+      const user = userEvent.setup();
       render(<ExportPanel />);
 
-      const jsonButton = screen.getByRole('button', { name: /JSON.*Soon/i });
-      expect(jsonButton).toBeDisabled();
+      const jsonButton = screen.getByRole('button', { name: /JSON/i });
+      expect(jsonButton).not.toBeDisabled();
+
+      // Click JSON button to select it
+      await user.click(jsonButton);
+      expect(jsonButton).toHaveAttribute('aria-pressed', 'true');
 
       await waitFor(() => {
         expect(api.fetchCameras).toHaveBeenCalled();

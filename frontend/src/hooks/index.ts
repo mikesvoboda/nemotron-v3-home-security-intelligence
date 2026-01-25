@@ -335,6 +335,13 @@ export type {
 export { useRateLimitCountdown, formatCountdown } from './useRateLimitCountdown';
 export type { UseRateLimitCountdownReturn } from './useRateLimitCountdown';
 
+// Optimistic locking hook (NEM-3626)
+export { useOptimisticLocking } from './useOptimisticLocking';
+export type {
+  UseOptimisticLockingOptions,
+  UseOptimisticLockingReturn,
+} from './useOptimisticLocking';
+
 // Ambient status awareness hooks
 export { useAudioNotifications } from './useAudioNotifications';
 export type {

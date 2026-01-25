@@ -27,6 +27,7 @@ function createMockDeletedEvent(overrides: Partial<DeletedEvent> = {}): DeletedE
     reviewed: false,
     detection_count: 3,
     deleted_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+    version: 1, // Optimistic locking version (NEM-3625)
     ...overrides,
   };
 }

@@ -12,6 +12,7 @@ import {
   Plus,
   Send,
   Settings,
+  Save,
   Trash2,
   Volume2,
   Webhook,
@@ -30,7 +31,9 @@ import {
 import {
   fetchNotificationConfig,
   testNotification,
+  updateNotificationConfig,
   type NotificationConfig,
+  type NotificationConfigUpdate,
 } from '../../services/api';
 
 export interface NotificationSettingsProps {
@@ -90,6 +93,28 @@ export default function NotificationSettings({ className }: NotificationSettings
     message: string;
   } | null>(null);
 
+  // Channel configuration form state (NEM-3632)
+  const [channelConfig, setChannelConfig] = useState<{
+    smtp_enabled: boolean;
+    smtp_host: string;
+    smtp_port: string;
+    smtp_from_address: string;
+    webhook_enabled: boolean;
+    default_webhook_url: string;
+  }>({
+    smtp_enabled: false,
+    smtp_host: '',
+    smtp_port: '587',
+    smtp_from_address: '',
+    webhook_enabled: false,
+    default_webhook_url: '',
+  });
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [configSaveResult, setConfigSaveResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
   // Notification preferences hooks
   const {
     preferences,
@@ -124,6 +149,15 @@ export default function NotificationSettings({ className }: NotificationSettings
         setError(null);
         const data = await fetchNotificationConfig();
         setConfig(data);
+        // Initialize channel config form with loaded values
+        setChannelConfig({
+          smtp_enabled: data.email_configured,
+          smtp_host: data.smtp_host || '',
+          smtp_port: data.smtp_port?.toString() || '587',
+          smtp_from_address: data.smtp_from_address || '',
+          webhook_enabled: data.webhook_configured,
+          default_webhook_url: data.default_webhook_url || '',
+        });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load notification configuration');
       } finally {
@@ -280,6 +314,52 @@ export default function NotificationSettings({ className }: NotificationSettings
     },
     [cameraSettings]
   );
+
+  // Save channel configuration (NEM-3632)
+  const handleSaveChannelConfig = useCallback(async () => {
+    try {
+      setSavingConfig(true);
+      setConfigSaveResult(null);
+
+      const update: NotificationConfigUpdate = {
+        smtp_enabled: channelConfig.smtp_enabled,
+        smtp_host: channelConfig.smtp_host || null,
+        smtp_port: channelConfig.smtp_port ? parseInt(channelConfig.smtp_port, 10) : null,
+        smtp_from_address: channelConfig.smtp_from_address || null,
+        webhook_enabled: channelConfig.webhook_enabled,
+        default_webhook_url: channelConfig.default_webhook_url || null,
+      };
+
+      const result = await updateNotificationConfig(update);
+      setConfigSaveResult({
+        success: true,
+        message: result.message || 'Configuration updated successfully',
+      });
+
+      // Refresh config to sync with server state
+      const newConfig = await fetchNotificationConfig();
+      setConfig(newConfig);
+
+      setTimeout(() => setConfigSaveResult(null), 5000);
+    } catch (err) {
+      setConfigSaveResult({
+        success: false,
+        message: err instanceof Error ? err.message : 'Failed to save configuration',
+      });
+    } finally {
+      setSavingConfig(false);
+    }
+  }, [channelConfig]);
+
+  // Toggle email channel
+  const handleToggleEmailChannel = useCallback(() => {
+    setChannelConfig((prev) => ({ ...prev, smtp_enabled: !prev.smtp_enabled }));
+  }, []);
+
+  // Toggle webhook channel
+  const handleToggleWebhookChannel = useCallback(() => {
+    setChannelConfig((prev) => ({ ...prev, webhook_enabled: !prev.webhook_enabled }));
+  }, []);
 
   const isAnyLoading = loading || preferencesLoading;
 
@@ -640,6 +720,26 @@ export default function NotificationSettings({ className }: NotificationSettings
             </Badge>
           </div>
 
+          {/* Configuration Save Result */}
+          {configSaveResult && (
+            <div
+              className={`flex items-center gap-2 rounded-lg border p-4 ${
+                configSaveResult.success
+                  ? 'border-green-500/30 bg-green-500/10'
+                  : 'border-red-500/30 bg-red-500/10'
+              }`}
+            >
+              {configSaveResult.success ? (
+                <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
+              ) : (
+                <X className="h-5 w-5 flex-shrink-0 text-red-400" />
+              )}
+              <Text className={configSaveResult.success ? 'text-green-500' : 'text-red-400'}>
+                {configSaveResult.message}
+              </Text>
+            </div>
+          )}
+
           {/* Email (SMTP) Configuration */}
           <div className="rounded-lg border border-gray-800 bg-[#121212] p-4">
             <div className="mb-4 flex items-center justify-between">
@@ -647,75 +747,109 @@ export default function NotificationSettings({ className }: NotificationSettings
                 <Mail className="h-5 w-5 text-blue-400" />
                 <Text className="font-medium text-gray-300">Email (SMTP)</Text>
               </div>
-              <Badge color={config.email_configured ? 'green' : 'gray'} size="sm">
-                {config.email_configured ? 'Configured' : 'Not Configured'}
-              </Badge>
+              <div className="flex items-center gap-3">
+                <Badge color={channelConfig.smtp_enabled ? 'green' : 'gray'} size="sm">
+                  {channelConfig.smtp_enabled ? 'Enabled' : 'Disabled'}
+                </Badge>
+                <button
+                  onClick={handleToggleEmailChannel}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
+                    channelConfig.smtp_enabled ? 'bg-blue-500' : 'bg-gray-600'
+                  }`}
+                  role="switch"
+                  aria-checked={channelConfig.smtp_enabled}
+                  aria-label="Toggle email channel"
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      channelConfig.smtp_enabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
 
-            {config.email_configured ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <Text className="text-gray-500">SMTP Host</Text>
-                    <Text className="text-white">{config.smtp_host || '-'}</Text>
-                  </div>
-                  <div>
-                    <Text className="text-gray-500">Port</Text>
-                    <Text className="text-white">{config.smtp_port || '-'}</Text>
-                  </div>
-                  <div>
-                    <Text className="text-gray-500">From Address</Text>
-                    <Text className="text-white">{config.smtp_from_address || '-'}</Text>
-                  </div>
-                  <div>
-                    <Text className="text-gray-500">TLS</Text>
-                    <Text className="text-white">
-                      {config.smtp_use_tls ? 'Enabled' : 'Disabled'}
-                    </Text>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="smtp-host" className="mb-1 block text-sm text-gray-400">
+                    SMTP Host
+                  </label>
+                  <input
+                    id="smtp-host"
+                    type="text"
+                    value={channelConfig.smtp_host}
+                    onChange={(e) =>
+                      setChannelConfig((prev) => ({ ...prev, smtp_host: e.target.value }))
+                    }
+                    placeholder="smtp.example.com"
+                    className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="smtp-port" className="mb-1 block text-sm text-gray-400">
+                    SMTP Port
+                  </label>
+                  <input
+                    id="smtp-port"
+                    type="number"
+                    value={channelConfig.smtp_port}
+                    onChange={(e) =>
+                      setChannelConfig((prev) => ({ ...prev, smtp_port: e.target.value }))
+                    }
+                    placeholder="587"
+                    className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="smtp-from" className="mb-1 block text-sm text-gray-400">
+                  From Address
+                </label>
+                <input
+                  id="smtp-from"
+                  type="email"
+                  value={channelConfig.smtp_from_address}
+                  onChange={(e) =>
+                    setChannelConfig((prev) => ({ ...prev, smtp_from_address: e.target.value }))
+                  }
+                  placeholder="alerts@example.com"
+                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+
+              {config.default_email_recipients.length > 0 && (
+                <div>
+                  <Text className="mb-2 text-gray-500">Default Recipients</Text>
+                  <div className="flex flex-wrap gap-2">
+                    {config.default_email_recipients.map((email, index) => (
+                      <Badge key={index} color="blue" size="sm">
+                        {email}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
+              )}
 
-                {config.default_email_recipients.length > 0 && (
-                  <div>
-                    <Text className="mb-2 text-gray-500">Default Recipients</Text>
-                    <div className="flex flex-wrap gap-2">
-                      {config.default_email_recipients.map((email, index) => (
-                        <Badge key={index} color="blue" size="sm">
-                          {email}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
+              <Button
+                onClick={() => void handleTestEmail()}
+                disabled={testingEmail || !config.notification_enabled || !channelConfig.smtp_enabled}
+                className="mt-3 bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                size="sm"
+              >
+                {testingEmail ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send Test Email
+                  </>
                 )}
-
-                <Button
-                  onClick={() => void handleTestEmail()}
-                  disabled={testingEmail || !config.notification_enabled}
-                  className="mt-3 bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  size="sm"
-                >
-                  {testingEmail ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="mr-2 h-4 w-4" />
-                      Send Test Email
-                    </>
-                  )}
-                </Button>
-              </div>
-            ) : (
-              <div className="py-4 text-center">
-                <Text className="text-gray-500">Email notifications are not configured.</Text>
-                <Text className="mt-1 text-xs text-gray-600">
-                  Set SMTP_HOST, SMTP_FROM_ADDRESS, and optionally SMTP_USER/SMTP_PASSWORD
-                  environment variables to enable email notifications.
-                </Text>
-              </div>
-            )}
+              </Button>
+            </div>
           </div>
 
           {/* Webhook Configuration */}
@@ -725,53 +859,85 @@ export default function NotificationSettings({ className }: NotificationSettings
                 <Webhook className="h-5 w-5 text-purple-400" />
                 <Text className="font-medium text-gray-300">Webhook</Text>
               </div>
-              <Badge color={config.webhook_configured ? 'green' : 'gray'} size="sm">
-                {config.webhook_configured ? 'Configured' : 'Not Configured'}
-              </Badge>
+              <div className="flex items-center gap-3">
+                <Badge color={channelConfig.webhook_enabled ? 'green' : 'gray'} size="sm">
+                  {channelConfig.webhook_enabled ? 'Enabled' : 'Disabled'}
+                </Badge>
+                <button
+                  onClick={handleToggleWebhookChannel}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
+                    channelConfig.webhook_enabled ? 'bg-purple-500' : 'bg-gray-600'
+                  }`}
+                  role="switch"
+                  aria-checked={channelConfig.webhook_enabled}
+                  aria-label="Toggle webhook channel"
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      channelConfig.webhook_enabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
 
-            {config.webhook_configured ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="col-span-2">
-                    <Text className="text-gray-500">Webhook URL</Text>
-                    <Text className="break-all text-white">
-                      {config.default_webhook_url || '-'}
-                    </Text>
-                  </div>
-                  <div>
-                    <Text className="text-gray-500">Timeout</Text>
-                    <Text className="text-white">{config.webhook_timeout_seconds || 30}s</Text>
-                  </div>
-                </div>
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="webhook-url" className="mb-1 block text-sm text-gray-400">
+                  Webhook URL
+                </label>
+                <input
+                  id="webhook-url"
+                  type="url"
+                  value={channelConfig.default_webhook_url}
+                  onChange={(e) =>
+                    setChannelConfig((prev) => ({ ...prev, default_webhook_url: e.target.value }))
+                  }
+                  placeholder="https://hooks.example.com/notify"
+                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+                />
+              </div>
 
-                <Button
-                  onClick={() => void handleTestWebhook()}
-                  disabled={testingWebhook || !config.notification_enabled}
-                  className="mt-3 bg-purple-600 text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  size="sm"
-                >
-                  {testingWebhook ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="mr-2 h-4 w-4" />
-                      Send Test Webhook
-                    </>
-                  )}
-                </Button>
-              </div>
-            ) : (
-              <div className="py-4 text-center">
-                <Text className="text-gray-500">Webhook notifications are not configured.</Text>
-                <Text className="mt-1 text-xs text-gray-600">
-                  Set DEFAULT_WEBHOOK_URL environment variable to enable webhook notifications.
-                </Text>
-              </div>
-            )}
+              <Button
+                onClick={() => void handleTestWebhook()}
+                disabled={testingWebhook || !config.notification_enabled || !channelConfig.webhook_enabled}
+                className="mt-3 bg-purple-600 text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                size="sm"
+              >
+                {testingWebhook ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send Test Webhook
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Save Configuration Button */}
+          <div className="flex justify-end">
+            <Button
+              onClick={() => void handleSaveChannelConfig()}
+              disabled={savingConfig}
+              className="bg-[#76B900] text-white hover:bg-[#5a8c00] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {savingConfig ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Configuration
+                </>
+              )}
+            </Button>
           </div>
 
           {/* Available Channels Summary */}

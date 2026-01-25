@@ -70,6 +70,14 @@ export type CameraUpdate = components['schemas']['CameraUpdate'];
 export type CameraListResponse = components['schemas']['CameraListResponse'];
 
 // Event types
+/**
+ * Event type with version field for optimistic locking (NEM-3625).
+ * The version field is used to detect concurrent modifications.
+ * Include the version in update requests to prevent lost updates.
+ *
+ * Note: The version field is defined in the backend schema and will be populated
+ * by the API. The type is preserved from the generated schema to ensure compatibility.
+ */
 export type Event = components['schemas']['EventResponse'];
 export type EventUpdate = components['schemas']['EventUpdate'];
 export type EventListResponse = components['schemas']['EventListResponse'];

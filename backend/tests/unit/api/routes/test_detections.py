@@ -2863,3 +2863,131 @@ class TestFileReadSpecificExceptions:
         assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         # Generic fallback message
         assert "failed to read" in str(exc_info.value.detail).lower()
+
+
+# ============================================================================
+# Export Detections Tests (NEM-3611)
+# ============================================================================
+
+
+class TestExportDetections:
+    """Tests for the export_detections endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_export_detections_csv_format(self) -> None:
+        """Test exporting detections in CSV format."""
+        from backend.api.routes.detections import export_detections
+
+        mock_db = AsyncMock()
+        mock_request = MagicMock()
+        mock_request.headers.get.return_value = "text/csv"
+
+        # Mock the database query results
+        mock_detection = MagicMock()
+        mock_detection.id = 1
+        mock_detection.camera_id = "cam-1"
+        mock_detection.detected_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+        mock_detection.object_type = "person"
+        mock_detection.confidence = 0.95
+        mock_detection.bbox_x = 100
+        mock_detection.bbox_y = 200
+        mock_detection.bbox_width = 50
+        mock_detection.bbox_height = 100
+        mock_detection.file_path = "/path/to/detection.jpg"
+        mock_detection.thumbnail_path = "/path/to/thumbnail.jpg"
+        mock_detection.media_type = "image"
+
+        mock_camera = MagicMock()
+        mock_camera.id = "cam-1"
+        mock_camera.name = "Front Door"
+
+        # Setup mock execute results
+        mock_result1 = MagicMock()
+        mock_result1.scalars.return_value.all.return_value = [mock_detection]
+        mock_result2 = MagicMock()
+        mock_result2.scalars.return_value.all.return_value = [mock_camera]
+
+        mock_db.execute = AsyncMock(side_effect=[mock_result1, mock_result2])
+
+        # Call the endpoint
+        response = await export_detections(
+            request=mock_request,
+            camera_id=None,
+            object_type=None,
+            start_date=None,
+            end_date=None,
+            min_confidence=None,
+            db=mock_db,
+            _rate_limit=None,
+        )
+
+        # Verify response
+        assert response.media_type == "text/csv"
+        assert "Content-Disposition" in response.headers
+
+    @pytest.mark.asyncio
+    async def test_export_detections_json_format(self) -> None:
+        """Test exporting detections in JSON format."""
+        from backend.api.routes.detections import export_detections
+
+        mock_db = AsyncMock()
+        mock_request = MagicMock()
+        mock_request.headers.get.return_value = "application/json"
+
+        # Mock empty results
+        mock_result1 = MagicMock()
+        mock_result1.scalars.return_value.all.return_value = []
+        mock_result2 = MagicMock()
+        mock_result2.scalars.return_value.all.return_value = []
+
+        mock_db.execute = AsyncMock(side_effect=[mock_result1, mock_result2])
+
+        # Call the endpoint
+        response = await export_detections(
+            request=mock_request,
+            camera_id=None,
+            object_type=None,
+            start_date=None,
+            end_date=None,
+            min_confidence=None,
+            db=mock_db,
+            _rate_limit=None,
+        )
+
+        # Verify response
+        assert response.media_type == "application/json"
+        assert "Content-Disposition" in response.headers
+
+    @pytest.mark.asyncio
+    async def test_export_detections_with_filters(self) -> None:
+        """Test exporting detections with various filters."""
+        from backend.api.routes.detections import export_detections
+
+        mock_db = AsyncMock()
+        mock_request = MagicMock()
+        mock_request.headers.get.return_value = "text/csv"
+
+        # Mock empty results
+        mock_result1 = MagicMock()
+        mock_result1.scalars.return_value.all.return_value = []
+        mock_result2 = MagicMock()
+        mock_result2.scalars.return_value.all.return_value = []
+
+        mock_db.execute = AsyncMock(side_effect=[mock_result1, mock_result2])
+
+        # Call with filters
+        response = await export_detections(
+            request=mock_request,
+            camera_id="cam-1",
+            object_type="person",
+            start_date=datetime(2024, 1, 1, tzinfo=UTC),
+            end_date=datetime(2024, 12, 31, tzinfo=UTC),
+            min_confidence=0.5,
+            db=mock_db,
+            _rate_limit=None,
+        )
+
+        # Verify response
+        assert response.media_type == "text/csv"
+        # Verify database was queried
+        assert mock_db.execute.call_count == 2
