@@ -23,7 +23,10 @@ export type WebhookEventType =
   | 'event_enriched'
   | 'entity_discovered'
   | 'anomaly_detected'
-  | 'system_health_changed';
+  | 'system_health_changed'
+  | 'batch_analysis_started'
+  | 'batch_analysis_completed'
+  | 'batch_analysis_failed';
 
 /**
  * All possible webhook event types.
@@ -37,6 +40,9 @@ export const WEBHOOK_EVENT_TYPES: readonly WebhookEventType[] = [
   'entity_discovered',
   'anomaly_detected',
   'system_health_changed',
+  'batch_analysis_started',
+  'batch_analysis_completed',
+  'batch_analysis_failed',
 ] as const;
 
 /**
@@ -321,6 +327,9 @@ export const WEBHOOK_EVENT_LABELS: Record<WebhookEventType, string> = {
   entity_discovered: 'Entity Discovered',
   anomaly_detected: 'Anomaly Detected',
   system_health_changed: 'System Health Changed',
+  batch_analysis_started: 'Batch Analysis Started',
+  batch_analysis_completed: 'Batch Analysis Completed',
+  batch_analysis_failed: 'Batch Analysis Failed',
 };
 
 /**
