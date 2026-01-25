@@ -12046,43 +12046,55 @@ export interface components {
         };
         /**
          * ConfidenceFactors
-         * @description Factors affecting confidence in the risk analysis.
+         * @description Breakdown of confidence metrics for the risk assessment (NEM-3606).
          *
-         *     These factors help explain the reliability of the risk assessment
-         *     and can be used to understand when additional review may be needed.
+         *     This provides transparency into how confident the system is in its
+         *     risk assessment, broken down by various quality metrics.
          *
          *     Attributes:
-         *         detection_quality: Quality of the detection data (good, fair, poor)
-         *         weather_impact: Impact of weather on detection accuracy
-         *         enrichment_coverage: Completeness of enrichment data used
+         *         overall: Overall confidence in the risk score (0.0-1.0)
+         *         detection_quality: Confidence based on detection quality/clarity
+         *         data_completeness: Confidence based on available enrichment data
+         *         temporal_context: Confidence based on time-of-day/baseline data
+         *         model_agreement: Confidence based on consistency across models
          * @example {
-         *       "detection_quality": "good",
-         *       "enrichment_coverage": "full",
-         *       "weather_impact": "none"
+         *       "data_completeness": 0.8,
+         *       "detection_quality": 0.9,
+         *       "model_agreement": 0.95,
+         *       "overall": 0.85,
+         *       "temporal_context": 0.75
          *     }
          */
         ConfidenceFactors: {
             /**
+             * Data Completeness
+             * @description Confidence based on available enrichment data
+             * @default 1
+             */
+            data_completeness: number;
+            /**
              * Detection Quality
-             * @description Quality of the detection data
-             * @default good
-             * @enum {string}
+             * @description Confidence based on detection quality/clarity
+             * @default 1
              */
-            detection_quality: "good" | "fair" | "poor";
+            detection_quality: number;
             /**
-             * Enrichment Coverage
-             * @description Completeness of enrichment data available
-             * @default full
-             * @enum {string}
+             * Model Agreement
+             * @description Confidence based on consistency across models
+             * @default 1
              */
-            enrichment_coverage: "full" | "partial" | "minimal";
+            model_agreement: number;
             /**
-             * Weather Impact
-             * @description Impact of weather conditions on detection accuracy
-             * @default none
-             * @enum {string}
+             * Overall
+             * @description Overall confidence score (0.0-1.0)
              */
-            weather_impact: "none" | "minor" | "significant";
+            overall: number;
+            /**
+             * Temporal Context
+             * @description Confidence based on time-of-day/baseline data
+             * @default 1
+             */
+            temporal_context: number;
         };
         /**
          * ConfigResponse
@@ -15269,11 +15281,6 @@ export interface components {
          * @description Schema for event response.
          * @example {
          *       "camera_id": "front_door",
-         *       "confidence_factors": {
-         *         "detection_quality": "good",
-         *         "enrichment_coverage": "full",
-         *         "weather_impact": "none"
-         *       },
          *       "detection_count": 5,
          *       "detection_ids": [
          *         1,
@@ -15295,14 +15302,6 @@ export interface components {
          *           "clothing"
          *         ]
          *       },
-         *       "entities": [
-         *         {
-         *           "description": "Individual in casual clothing",
-         *           "threat_level": "low",
-         *           "type": "person"
-         *         }
-         *       ],
-         *       "flags": [],
          *       "id": 1,
          *       "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
          *       "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
@@ -15321,7 +15320,7 @@ export interface components {
              * @description Normalized camera ID (e.g., 'front_door')
              */
             camera_id: string;
-            /** @description Factors affecting confidence in the analysis */
+            /** @description Detailed confidence metrics breakdown (NEM-3606) */
             confidence_factors?: components["schemas"]["ConfidenceFactors"] | null;
             /**
              * Deleted At
@@ -15347,16 +15346,6 @@ export interface components {
             /** @description Enrichment pipeline status (NEM-1672) - shows which models succeeded/failed */
             enrichment_status?: components["schemas"]["EnrichmentStatusResponse"] | null;
             /**
-             * Entities
-             * @description Entities identified in the analysis (people, vehicles, objects)
-             */
-            entities?: components["schemas"]["RiskEntity"][];
-            /**
-             * Flags
-             * @description Risk flags raised during analysis
-             */
-            flags?: components["schemas"]["RiskFlag"][];
-            /**
              * Id
              * @description Event ID
              */
@@ -15377,16 +15366,21 @@ export interface components {
              */
             reasoning?: string | null;
             /**
-             * Recommended Action
-             * @description Suggested action based on the analysis
-             */
-            recommended_action?: string | null;
-            /**
              * Reviewed
              * @description Whether event has been reviewed
              * @default false
              */
             reviewed: boolean;
+            /**
+             * Risk Confidence
+             * @description Overall confidence in the risk assessment (0.0-1.0)
+             */
+            risk_confidence?: number | null;
+            /**
+             * Risk Factors
+             * @description Breakdown of factors contributing to risk score (NEM-3603)
+             */
+            risk_factors?: components["schemas"]["RiskFactor"][] | null;
             /**
              * Risk Level
              * @description Compute risk level from risk_score (NEM-3398).
@@ -23280,75 +23274,38 @@ export interface components {
             risk_level: string;
         };
         /**
-         * RiskEntity
-         * @description Entity identified during risk analysis.
+         * RiskFactor
+         * @description A single risk factor contributing to the overall risk score (NEM-3603).
          *
-         *     Entities represent objects of interest detected in the scene that
-         *     contribute to the overall risk assessment (e.g., people, vehicles,
-         *     packages).
+         *     Each risk factor represents a specific aspect of the detection that
+         *     influenced the final risk score, along with its contribution weight.
          *
          *     Attributes:
-         *         type: Category of entity (e.g., "person", "vehicle", "package")
-         *         description: Detailed description of the entity
-         *         threat_level: Risk level attributed to this entity
+         *         name: Name of the risk factor (e.g., "unknown_person", "entry_zone")
+         *         contribution: Contribution to risk score (positive increases risk, negative decreases)
+         *         description: Human-readable explanation of this factor
          * @example {
-         *       "description": "Unknown individual near front entrance",
-         *       "threat_level": "medium",
-         *       "type": "person"
+         *       "contribution": 25,
+         *       "description": "Unrecognized person detected near entry point",
+         *       "name": "unknown_person"
          *     }
          */
-        RiskEntity: {
+        RiskFactor: {
+            /**
+             * Contribution
+             * @description Contribution to risk score (-100 to +100)
+             */
+            contribution: number;
             /**
              * Description
-             * @description Detailed description of the entity
+             * @description Human-readable explanation of this factor
              */
             description: string;
             /**
-             * Threat Level
-             * @description Risk level attributed to this entity
-             * @enum {string}
+             * Name
+             * @description Name of the risk factor
              */
-            threat_level: "low" | "medium" | "high";
-            /**
-             * Type
-             * @description Category of entity (e.g., person, vehicle, package)
-             */
-            type: string;
-        };
-        /**
-         * RiskFlag
-         * @description Risk flag indicating a specific concern or anomaly.
-         *
-         *     Flags represent specific behaviors, patterns, or conditions that
-         *     warrant attention (e.g., loitering, nighttime activity, weapon detected).
-         *
-         *     Attributes:
-         *         type: Category of flag (e.g., "loitering", "weapon_detected")
-         *         description: Explanation of the flag
-         *         severity: How severe this flag is (warning, alert, critical)
-         * @example {
-         *       "description": "Person has been stationary for over 5 minutes",
-         *       "severity": "warning",
-         *       "type": "loitering"
-         *     }
-         */
-        RiskFlag: {
-            /**
-             * Description
-             * @description Explanation of the flag
-             */
-            description: string;
-            /**
-             * Severity
-             * @description Severity level of this flag
-             * @enum {string}
-             */
-            severity: "warning" | "alert" | "critical";
-            /**
-             * Type
-             * @description Category of flag (e.g., loitering, weapon_detected)
-             */
-            type: string;
+            name: string;
         };
         /**
          * RiskHistoryDataPoint

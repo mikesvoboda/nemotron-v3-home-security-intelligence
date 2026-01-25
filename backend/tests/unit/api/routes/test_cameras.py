@@ -71,6 +71,7 @@ class TestListCameras:
         mock_cache.get.return_value = None
 
         # Mock database query
+        # NEM-3597: Add areas and property_id attributes for camera organization
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "front_door"
         mock_camera.name = "Front Door"
@@ -78,9 +79,12 @@ class TestListCameras:
         mock_camera.status = "online"
         mock_camera.created_at = datetime(2025, 1, 1, tzinfo=UTC)
         mock_camera.last_seen_at = datetime(2025, 1, 8, 12, 0, tzinfo=UTC)
+        mock_camera.property_id = None
+        mock_camera.areas = []
 
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [mock_camera]
+        # NEM-3597: Now uses unique().scalars().all() due to joinedload
+        mock_result.unique.return_value.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_result
 
         result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
@@ -103,6 +107,7 @@ class TestListCameras:
         mock_cache.get.return_value = None
 
         # Mock database query with only online cameras
+        # NEM-3597: Add areas and property_id attributes for camera organization
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "front_door"
         mock_camera.name = "Front Door"
@@ -110,9 +115,12 @@ class TestListCameras:
         mock_camera.status = "online"
         mock_camera.created_at = datetime(2025, 1, 1, tzinfo=UTC)
         mock_camera.last_seen_at = datetime(2025, 1, 8, 12, 0, tzinfo=UTC)
+        mock_camera.property_id = None
+        mock_camera.areas = []
 
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [mock_camera]
+        # NEM-3597: Now uses unique().scalars().all() due to joinedload
+        mock_result.unique.return_value.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_result
 
         result = await list_cameras(status_filter="online", db=mock_db, cache=mock_cache)
@@ -132,8 +140,9 @@ class TestListCameras:
         mock_cache.get.return_value = None
 
         # Mock empty database query
+        # NEM-3597: Now uses unique().scalars().all() due to joinedload
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = []
+        mock_result.unique.return_value.scalars.return_value.all.return_value = []
         mock_db.execute.return_value = mock_result
 
         result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
@@ -153,6 +162,7 @@ class TestListCameras:
         mock_cache.get.side_effect = Exception("Redis connection error")
 
         # Mock database query
+        # NEM-3597: Add areas and property_id attributes for camera organization
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "backyard"
         mock_camera.name = "Backyard"
@@ -160,9 +170,12 @@ class TestListCameras:
         mock_camera.status = "offline"
         mock_camera.created_at = datetime(2025, 1, 1, tzinfo=UTC)
         mock_camera.last_seen_at = None
+        mock_camera.property_id = None
+        mock_camera.areas = []
 
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [mock_camera]
+        # NEM-3597: Now uses unique().scalars().all() due to joinedload
+        mock_result.unique.return_value.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_result
 
         result = await list_cameras(status_filter=None, db=mock_db, cache=mock_cache)
@@ -184,6 +197,7 @@ class TestListCameras:
         mock_cache.set.side_effect = Exception("Redis write error")
 
         # Mock database query
+        # NEM-3597: Add areas and property_id attributes for camera organization
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "garage"
         mock_camera.name = "Garage"
@@ -191,9 +205,12 @@ class TestListCameras:
         mock_camera.status = "online"
         mock_camera.created_at = datetime(2025, 1, 1, tzinfo=UTC)
         mock_camera.last_seen_at = datetime(2025, 1, 8, 12, 0, tzinfo=UTC)
+        mock_camera.property_id = None
+        mock_camera.areas = []
 
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [mock_camera]
+        # NEM-3597: Now uses unique().scalars().all() due to joinedload
+        mock_result.unique.return_value.scalars.return_value.all.return_value = [mock_camera]
         mock_db.execute.return_value = mock_result
 
         # Should not raise exception, just log warning

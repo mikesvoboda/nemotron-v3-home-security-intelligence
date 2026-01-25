@@ -3653,11 +3653,44 @@
         "title": "CalibrationResetResponse",
         "type": "object"
       },
+      "CameraAreaSummary": {
+        "description": "Schema for area summary in camera context (minimal area info).\n\nNEM-3597: Provides minimal area information for camera responses.",
+        "example": {
+          "color": "#3B82F6",
+          "id": 1,
+          "name": "Front Yard"
+        },
+        "properties": {
+          "color": {
+            "description": "Hex color code for UI display",
+            "title": "Color",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique area identifier",
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Area name",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "color"
+        ],
+        "title": "CameraAreaSummary",
+        "type": "object"
+      },
       "CameraCreate": {
-        "description": "Schema for creating a new camera.\n\nNEM-2569: Enhanced with explicit Pydantic validators for:\n- Name: Control character rejection, whitespace stripping, empty validation\n- Folder path: Path traversal prevention, forbidden character rejection",
+        "description": "Schema for creating a new camera.\n\nNEM-3597: Added property_id for multi-property organization.",
         "example": {
           "folder_path": "/export/foscam/front_door",
           "name": "Front Door Camera",
+          "property_id": 1,
           "status": "online"
         },
         "properties": {
@@ -3674,6 +3707,18 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "property_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the property this camera belongs to (for multi-property organization)",
+            "title": "Property Id"
           },
           "status": {
             "$ref": "#/components/schemas/CameraStatus",
@@ -3741,15 +3786,23 @@
         "type": "object"
       },
       "CameraListResponse": {
-        "description": "Schema for camera list response.\n\nNEM-2075: Standardized pagination envelope with items + pagination structure.",
+        "description": "Schema for camera list response.",
         "example": {
           "items": [
             {
+              "areas": [
+                {
+                  "color": "#3B82F6",
+                  "id": 1,
+                  "name": "Front Yard"
+                }
+              ],
               "created_at": "2025-12-23T10:00:00Z",
               "folder_path": "/export/foscam/front_door",
               "id": "front_door",
               "last_seen_at": "2025-12-23T12:00:00Z",
               "name": "Front Door Camera",
+              "property_id": 1,
               "status": "online"
             }
           ],
@@ -3905,7 +3958,7 @@
         "type": "object"
       },
       "CameraPathValidationResponse": {
-        "description": "Schema for camera path validation response.\n\nNEM-2063: Response model for the /api/cameras/validation/paths endpoint.\nValidates all camera folder paths against the configured base path.",
+        "description": "Schema for camera path validation response.",
         "example": {
           "base_path": "/export/foscam",
           "invalid_cameras": [
@@ -3981,16 +4034,32 @@
         "type": "object"
       },
       "CameraResponse": {
-        "description": "Schema for camera response.",
+        "description": "Schema for camera response.\n\nNEM-3597: Added property_id and areas for camera organization.",
         "example": {
+          "areas": [
+            {
+              "color": "#3B82F6",
+              "id": 1,
+              "name": "Front Yard"
+            }
+          ],
           "created_at": "2025-12-23T10:00:00Z",
           "folder_path": "/export/foscam/front_door",
           "id": "front_door",
           "last_seen_at": "2025-12-23T12:00:00Z",
           "name": "Front Door Camera",
+          "property_id": 1,
           "status": "online"
         },
         "properties": {
+          "areas": {
+            "description": "List of areas this camera monitors (NEM-3597)",
+            "items": {
+              "$ref": "#/components/schemas/CameraAreaSummary"
+            },
+            "title": "Areas",
+            "type": "array"
+          },
           "created_at": {
             "description": "Timestamp when camera was created",
             "format": "date-time",
@@ -4025,6 +4094,18 @@
             "title": "Name",
             "type": "string"
           },
+          "property_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the property this camera belongs to (NEM-3597)",
+            "title": "Property Id"
+          },
           "status": {
             "$ref": "#/components/schemas/CameraStatus",
             "description": "Camera status (online, offline, error, unknown)"
@@ -4052,9 +4133,10 @@
         "type": "string"
       },
       "CameraUpdate": {
-        "description": "Schema for updating an existing camera.\n\nNEM-2569: Enhanced with explicit Pydantic validators for partial updates.\nAll fields are optional; only provided fields are validated.",
+        "description": "Schema for updating an existing camera.\n\nNEM-3597: Added property_id for multi-property organization.",
         "example": {
           "name": "Front Door Camera - Updated",
+          "property_id": 2,
           "status": "offline"
         },
         "properties": {
@@ -4085,6 +4167,18 @@
             ],
             "description": "Camera name",
             "title": "Name"
+          },
+          "property_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the property this camera belongs to (for multi-property organization)",
+            "title": "Property Id"
           },
           "status": {
             "anyOf": [
@@ -4194,7 +4288,7 @@
         "type": "object"
       },
       "CameraValidationInfo": {
-        "description": "Schema for individual camera validation result.\n\nNEM-2063: Response model for camera path validation details.",
+        "description": "Schema for individual camera validation result.",
         "example": {
           "folder_path": "/export/foscam/front_door",
           "id": "front_door",
@@ -5367,47 +5461,58 @@
         "type": "object"
       },
       "ConfidenceFactors": {
-        "description": "Factors affecting confidence in the risk analysis.\n\nThese factors help explain the reliability of the risk assessment\nand can be used to understand when additional review may be needed.\n\nAttributes:\n    detection_quality: Quality of the detection data (good, fair, poor)\n    weather_impact: Impact of weather on detection accuracy\n    enrichment_coverage: Completeness of enrichment data used",
+        "description": "Breakdown of confidence metrics for the risk assessment (NEM-3606).\n\nThis provides transparency into how confident the system is in its\nrisk assessment, broken down by various quality metrics.\n\nAttributes:\n    overall: Overall confidence in the risk score (0.0-1.0)\n    detection_quality: Confidence based on detection quality/clarity\n    data_completeness: Confidence based on available enrichment data\n    temporal_context: Confidence based on time-of-day/baseline data\n    model_agreement: Confidence based on consistency across models",
         "example": {
-          "detection_quality": "good",
-          "enrichment_coverage": "full",
-          "weather_impact": "none"
+          "data_completeness": 0.8,
+          "detection_quality": 0.9,
+          "model_agreement": 0.95,
+          "overall": 0.85,
+          "temporal_context": 0.75
         },
         "properties": {
+          "data_completeness": {
+            "default": 1.0,
+            "description": "Confidence based on available enrichment data",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Data Completeness",
+            "type": "number"
+          },
           "detection_quality": {
-            "default": "good",
-            "description": "Quality of the detection data",
-            "enum": [
-              "good",
-              "fair",
-              "poor"
-            ],
+            "default": 1.0,
+            "description": "Confidence based on detection quality/clarity",
+            "maximum": 1.0,
+            "minimum": 0.0,
             "title": "Detection Quality",
-            "type": "string"
+            "type": "number"
           },
-          "enrichment_coverage": {
-            "default": "full",
-            "description": "Completeness of enrichment data available",
-            "enum": [
-              "full",
-              "partial",
-              "minimal"
-            ],
-            "title": "Enrichment Coverage",
-            "type": "string"
+          "model_agreement": {
+            "default": 1.0,
+            "description": "Confidence based on consistency across models",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Model Agreement",
+            "type": "number"
           },
-          "weather_impact": {
-            "default": "none",
-            "description": "Impact of weather conditions on detection accuracy",
-            "enum": [
-              "none",
-              "minor",
-              "significant"
-            ],
-            "title": "Weather Impact",
-            "type": "string"
+          "overall": {
+            "description": "Overall confidence score (0.0-1.0)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Overall",
+            "type": "number"
+          },
+          "temporal_context": {
+            "default": 1.0,
+            "description": "Confidence based on time-of-day/baseline data",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Temporal Context",
+            "type": "number"
           }
         },
+        "required": [
+          "overall"
+        ],
         "title": "ConfidenceFactors",
         "type": "object"
       },
@@ -6485,7 +6590,7 @@
         "type": "object"
       },
       "DeletedCamerasListResponse": {
-        "description": "Schema for listing soft-deleted cameras (trash view).\n\nNEM-1955: Provides a trash view of soft-deleted cameras that can be restored.\nCameras are ordered by deleted_at descending (most recently deleted first).\nNEM-2075: Standardized pagination envelope with items + pagination structure.",
+        "description": "Schema for listing soft-deleted cameras (trash view).",
         "example": {
           "items": [
             {
@@ -9998,11 +10103,6 @@
         "description": "Schema for event response.",
         "example": {
           "camera_id": "front_door",
-          "confidence_factors": {
-            "detection_quality": "good",
-            "enrichment_coverage": "full",
-            "weather_impact": "none"
-          },
           "detection_count": 5,
           "detection_ids": [
             1,
@@ -10024,14 +10124,6 @@
               "clothing"
             ]
           },
-          "entities": [
-            {
-              "description": "Individual in casual clothing",
-              "threat_level": "low",
-              "type": "person"
-            }
-          ],
-          "flags": [],
           "id": 1,
           "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
           "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
@@ -10058,7 +10150,7 @@
                 "type": "null"
               }
             ],
-            "description": "Factors affecting confidence in the analysis"
+            "description": "Detailed confidence metrics breakdown (NEM-3606)"
           },
           "deleted_at": {
             "anyOf": [
@@ -10111,22 +10203,6 @@
             ],
             "description": "Enrichment pipeline status (NEM-1672) - shows which models succeeded/failed"
           },
-          "entities": {
-            "description": "Entities identified in the analysis (people, vehicles, objects)",
-            "items": {
-              "$ref": "#/components/schemas/RiskEntity"
-            },
-            "title": "Entities",
-            "type": "array"
-          },
-          "flags": {
-            "description": "Risk flags raised during analysis",
-            "items": {
-              "$ref": "#/components/schemas/RiskFlag"
-            },
-            "title": "Flags",
-            "type": "array"
-          },
           "id": {
             "description": "Event ID",
             "title": "Id",
@@ -10168,23 +10244,40 @@
             "description": "LLM reasoning for risk score",
             "title": "Reasoning"
           },
-          "recommended_action": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Suggested action based on the analysis",
-            "title": "Recommended Action"
-          },
           "reviewed": {
             "default": false,
             "description": "Whether event has been reviewed",
             "title": "Reviewed",
             "type": "boolean"
+          },
+          "risk_confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Overall confidence in the risk assessment (0.0-1.0)",
+            "title": "Risk Confidence"
+          },
+          "risk_factors": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RiskFactor"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Breakdown of factors contributing to risk score (NEM-3603)",
+            "title": "Risk Factors"
           },
           "risk_level": {
             "anyOf": [
@@ -21848,78 +21941,38 @@
         "title": "RiskDistributionItem",
         "type": "object"
       },
-      "RiskEntity": {
-        "description": "Entity identified during risk analysis.\n\nEntities represent objects of interest detected in the scene that\ncontribute to the overall risk assessment (e.g., people, vehicles,\npackages).\n\nAttributes:\n    type: Category of entity (e.g., \"person\", \"vehicle\", \"package\")\n    description: Detailed description of the entity\n    threat_level: Risk level attributed to this entity",
+      "RiskFactor": {
+        "description": "A single risk factor contributing to the overall risk score (NEM-3603).\n\nEach risk factor represents a specific aspect of the detection that\ninfluenced the final risk score, along with its contribution weight.\n\nAttributes:\n    name: Name of the risk factor (e.g., \"unknown_person\", \"entry_zone\")\n    contribution: Contribution to risk score (positive increases risk, negative decreases)\n    description: Human-readable explanation of this factor",
         "example": {
-          "description": "Unknown individual near front entrance",
-          "threat_level": "medium",
-          "type": "person"
+          "contribution": 25,
+          "description": "Unrecognized person detected near entry point",
+          "name": "unknown_person"
         },
         "properties": {
+          "contribution": {
+            "description": "Contribution to risk score (-100 to +100)",
+            "maximum": 100.0,
+            "minimum": -100.0,
+            "title": "Contribution",
+            "type": "integer"
+          },
           "description": {
-            "description": "Detailed description of the entity",
+            "description": "Human-readable explanation of this factor",
             "title": "Description",
             "type": "string"
           },
-          "threat_level": {
-            "description": "Risk level attributed to this entity",
-            "enum": [
-              "low",
-              "medium",
-              "high"
-            ],
-            "title": "Threat Level",
-            "type": "string"
-          },
-          "type": {
-            "description": "Category of entity (e.g., person, vehicle, package)",
-            "title": "Type",
+          "name": {
+            "description": "Name of the risk factor",
+            "title": "Name",
             "type": "string"
           }
         },
         "required": [
-          "type",
-          "description",
-          "threat_level"
+          "name",
+          "contribution",
+          "description"
         ],
-        "title": "RiskEntity",
-        "type": "object"
-      },
-      "RiskFlag": {
-        "description": "Risk flag indicating a specific concern or anomaly.\n\nFlags represent specific behaviors, patterns, or conditions that\nwarrant attention (e.g., loitering, nighttime activity, weapon detected).\n\nAttributes:\n    type: Category of flag (e.g., \"loitering\", \"weapon_detected\")\n    description: Explanation of the flag\n    severity: How severe this flag is (warning, alert, critical)",
-        "example": {
-          "description": "Person has been stationary for over 5 minutes",
-          "severity": "warning",
-          "type": "loitering"
-        },
-        "properties": {
-          "description": {
-            "description": "Explanation of the flag",
-            "title": "Description",
-            "type": "string"
-          },
-          "severity": {
-            "description": "Severity level of this flag",
-            "enum": [
-              "warning",
-              "alert",
-              "critical"
-            ],
-            "title": "Severity",
-            "type": "string"
-          },
-          "type": {
-            "description": "Category of flag (e.g., loitering, weapon_detected)",
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "type",
-          "description",
-          "severity"
-        ],
-        "title": "RiskFlag",
+        "title": "RiskFactor",
         "type": "object"
       },
       "RiskHistoryDataPoint": {

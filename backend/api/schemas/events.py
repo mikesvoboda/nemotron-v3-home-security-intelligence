@@ -6,7 +6,7 @@ from functools import cached_property
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from backend.api.schemas.llm_response import ConfidenceFactors, RiskEntity, RiskFlag
+from backend.api.schemas.llm_response import ConfidenceFactors, RiskFactor
 from backend.api.schemas.pagination import PaginationMeta
 
 # Default severity thresholds (matches backend.services.severity)
@@ -192,36 +192,36 @@ class EventResponse(BaseModel):
         None,
         description="Timestamp when the event was soft-deleted (null if not deleted)",
     )
-    # Advanced risk analysis fields (NEM-3601)
-    entities: list[RiskEntity] = Field(
-        default_factory=list,
-        description="Entities identified in the analysis (people, vehicles, objects)",
-    )
-    flags: list[RiskFlag] = Field(
-        default_factory=list,
-        description="Risk flags raised during analysis",
-    )
-    recommended_action: str | None = Field(
+    # NEM-3603: Risk factors breakdown
+    risk_factors: list[RiskFactor] | None = Field(
         None,
-        description="Suggested action based on the analysis",
+        description="Breakdown of factors contributing to risk score (NEM-3603)",
     )
+    # NEM-3606: Risk confidence score
+    risk_confidence: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Overall confidence in the risk assessment (0.0-1.0)",
+    )
+    # NEM-3606: Detailed confidence factors
     confidence_factors: ConfidenceFactors | None = Field(
         None,
-        description="Factors affecting confidence in the analysis",
+        description="Detailed confidence metrics breakdown (NEM-3606)",
     )
 
     def model_dump_list(self) -> dict:
         """Serialize for list views (exclude detail-only fields).
 
-        Excludes large fields like llm_prompt and reasoning that are only
-        needed in detail views. This reduces payload size by 30-50% for
-        list responses.
+        Excludes large fields like llm_prompt, reasoning, risk_factors, and
+        confidence_factors that are only needed in detail views. This reduces
+        payload size by 30-50% for list responses.
 
         Returns:
             Dictionary with list view fields only, None values excluded.
         """
         return self.model_dump(
-            exclude={"llm_prompt", "reasoning"},
+            exclude={"llm_prompt", "reasoning", "risk_factors", "confidence_factors"},
             exclude_none=True,
         )
 
