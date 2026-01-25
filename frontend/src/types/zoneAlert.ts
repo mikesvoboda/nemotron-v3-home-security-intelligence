@@ -368,13 +368,17 @@ export function isUnifiedZoneAlert(value: unknown): value is UnifiedZoneAlert {
 /**
  * Check if an alert is from an anomaly source.
  */
-export function isAnomalyAlert(alert: UnifiedZoneAlert): alert is UnifiedZoneAlert & { source: 'anomaly'; originalAlert: ZoneAnomaly } {
+export function isAnomalyAlert(
+  alert: UnifiedZoneAlert
+): alert is UnifiedZoneAlert & { source: 'anomaly'; originalAlert: ZoneAnomaly } {
   return alert.source === 'anomaly';
 }
 
 /**
  * Check if an alert is from a trust violation source.
  */
-export function isTrustViolationAlert(alert: UnifiedZoneAlert): alert is UnifiedZoneAlert & { source: 'trust_violation'; originalAlert: TrustViolation } {
+export function isTrustViolationAlert(
+  alert: UnifiedZoneAlert
+): alert is UnifiedZoneAlert & { source: 'trust_violation'; originalAlert: TrustViolation } {
   return alert.source === 'trust_violation';
 }

@@ -376,10 +376,7 @@ function computeTrustLevelForVehicle(
  * Aggregates data from zones, household members, vehicles, and zone configs
  * to build a complete trust matrix.
  */
-export function useZoneTrustMatrix(
-  zones: Zone[],
-  filters?: TrustMatrixFilters
-): TrustMatrixData {
+export function useZoneTrustMatrix(zones: Zone[], filters?: TrustMatrixFilters): TrustMatrixData {
   // Fetch household members and vehicles
   const membersQuery = useMembersQuery();
   const vehiclesQuery = useVehiclesQuery();
@@ -452,9 +449,8 @@ export function useZoneTrustMatrix(
         }
 
         // Find access schedules for this member
-        const accessSchedules = config?.access_schedules.filter((s) =>
-          s.member_ids.includes(member.id)
-        ) ?? [];
+        const accessSchedules =
+          config?.access_schedules.filter((s) => s.member_ids.includes(member.id)) ?? [];
 
         entityMap.set(member.id, {
           zoneId: zone.id,
@@ -539,10 +535,13 @@ export function useUpdateMemberTrust() {
         config.owner_id = null;
       }
       config.allowed_member_ids = config.allowed_member_ids?.filter((id) => id !== memberId) ?? [];
-      config.access_schedules = config.access_schedules?.map((schedule) => ({
-        ...schedule,
-        member_ids: schedule.member_ids.filter((id) => id !== memberId),
-      })).filter((schedule) => schedule.member_ids.length > 0) ?? [];
+      config.access_schedules =
+        config.access_schedules
+          ?.map((schedule) => ({
+            ...schedule,
+            member_ids: schedule.member_ids.filter((id) => id !== memberId),
+          }))
+          .filter((schedule) => schedule.member_ids.length > 0) ?? [];
 
       // Add member to appropriate list based on new trust level
       switch (newTrustLevel) {
@@ -601,7 +600,8 @@ export function useUpdateVehicleTrust() {
       };
 
       // Remove vehicle from allowed list first
-      config.allowed_vehicle_ids = config.allowed_vehicle_ids?.filter((id) => id !== vehicleId) ?? [];
+      config.allowed_vehicle_ids =
+        config.allowed_vehicle_ids?.filter((id) => id !== vehicleId) ?? [];
 
       // Add vehicle to allowed list if trust level is partial
       // Note: Vehicles only support partial or none trust levels

@@ -350,9 +350,12 @@ describe('PromptManagementPage', () => {
 
       render(<PromptManagementPage />, { wrapper: createTestWrapper() });
 
-      await waitFor(() => {
-        expect(screen.getByText(/Error loading data/i)).toBeInTheDocument();
-      }, { timeout: 3000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText(/Error loading data/i)).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
     });
   });
 });

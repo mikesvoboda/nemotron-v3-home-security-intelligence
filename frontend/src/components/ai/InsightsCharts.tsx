@@ -299,7 +299,9 @@ export default function InsightsCharts({
               <div className="flex-1 text-center md:text-left">
                 <Text className="text-sm text-gray-400">
                   Total Detections:{' '}
-                  <span className="font-semibold text-white">{formatCount(totalDetectionCount)}</span>
+                  <span className="font-semibold text-white">
+                    {formatCount(totalDetectionCount)}
+                  </span>
                 </Text>
               </div>
             </div>
@@ -353,7 +355,7 @@ export default function InsightsCharts({
                         'group relative flex w-full max-w-[80px] flex-col items-center',
                         'cursor-pointer transition-transform hover:scale-105',
                         'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
-                        'rounded-t-md min-h-11' // Touch target
+                        'min-h-11 rounded-t-md' // Touch target
                       )}
                       style={{ height: '100%' }}
                       title={`Click to view ${item.count} ${item.name.toLowerCase()} risk events`}
@@ -382,7 +384,10 @@ export default function InsightsCharts({
                             item.color === 'orange' && 'bg-orange-500',
                             item.color === 'red' && 'bg-red-500'
                           )}
-                          style={{ height: `${minHeight}%`, minHeight: item.count > 0 ? '8px' : '0' }}
+                          style={{
+                            height: `${minHeight}%`,
+                            minHeight: item.count > 0 ? '8px' : '0',
+                          }}
                         />
                       </div>
                       {/* Label below bar */}
@@ -404,7 +409,7 @@ export default function InsightsCharts({
                       void navigate(`/timeline?risk_level=${item.riskLevelKey}`);
                     }}
                     className={clsx(
-                      'cursor-pointer rounded-md p-2 text-center transition-colors min-h-11',
+                      'min-h-11 cursor-pointer rounded-md p-2 text-center transition-colors',
                       'hover:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-[#76B900]'
                     )}
                     title={`Click to view ${item.count} ${item.name.toLowerCase()} risk events`}

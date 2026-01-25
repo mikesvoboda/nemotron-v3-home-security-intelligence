@@ -105,14 +105,8 @@ export interface UseRoutePrefetchReturn {
  * };
  * ```
  */
-export function useRoutePrefetch(
-  options: UseRoutePrefetchOptions = {}
-): UseRoutePrefetchReturn {
-  const {
-    prefetchRelated = true,
-    relatedPrefetchDelay = 1000,
-    customRoutes,
-  } = options;
+export function useRoutePrefetch(options: UseRoutePrefetchOptions = {}): UseRoutePrefetchReturn {
+  const { prefetchRelated = true, relatedPrefetchDelay = 1000, customRoutes } = options;
 
   const queryClient = useQueryClient();
   const location = useLocation();

@@ -15,7 +15,7 @@ export default function LoadingSpinner() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#121212]">
       <div className="text-center">
-        <div className="mb-4 inline-block h-12 w-12 motion-safe:animate-spin rounded-full border-4 border-gray-700 border-t-green-500"></div>
+        <div className="mb-4 inline-block h-12 w-12 rounded-full border-4 border-gray-700 border-t-green-500 motion-safe:animate-spin"></div>
         <p className="text-sm text-gray-400">Loading...</p>
       </div>
     </div>

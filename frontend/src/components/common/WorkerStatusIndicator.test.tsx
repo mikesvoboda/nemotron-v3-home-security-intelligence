@@ -215,7 +215,9 @@ describe('WorkerStatusIndicator', () => {
       expect(screen.getByText('metrics-worker-1')).toBeInTheDocument();
 
       // Check status indicators
-      expect(screen.getByTestId('worker-indicator-detection-worker-1')).toHaveClass('bg-emerald-500');
+      expect(screen.getByTestId('worker-indicator-detection-worker-1')).toHaveClass(
+        'bg-emerald-500'
+      );
       expect(screen.getByTestId('worker-indicator-analysis-worker-1')).toHaveClass('bg-gray-500');
       expect(screen.getByTestId('worker-indicator-metrics-worker-1')).toHaveClass('bg-red-500');
     });

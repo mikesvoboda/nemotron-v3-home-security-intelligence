@@ -65,10 +65,7 @@ const server = setupServer(
   http.delete('/api/admin/seed/clear', async ({ request }) => {
     const body = (await request.json()) as { confirm: string };
     if (body.confirm !== 'DELETE_ALL_DATA') {
-      return HttpResponse.json(
-        { detail: 'Invalid confirmation string' },
-        { status: 400 }
-      );
+      return HttpResponse.json({ detail: 'Invalid confirmation string' }, { status: 400 });
     }
     return HttpResponse.json({
       cameras_cleared: 5,
@@ -188,8 +185,8 @@ describe('TestDataPanel', () => {
 
     // Find and click the database reset button
     const resetButtons = screen.getAllByRole('button');
-    const resetButton = resetButtons.find(
-      (btn) => btn.textContent?.includes('Full Database Reset')
+    const resetButton = resetButtons.find((btn) =>
+      btn.textContent?.includes('Full Database Reset')
     );
     expect(resetButton).toBeTruthy();
     await user.click(resetButton!);
@@ -203,10 +200,7 @@ describe('TestDataPanel', () => {
   it('should show error toast when operation fails', async () => {
     server.use(
       http.post('/api/admin/seed/cameras', () => {
-        return HttpResponse.json(
-          { detail: 'Admin access not enabled' },
-          { status: 403 }
-        );
+        return HttpResponse.json({ detail: 'Admin access not enabled' }, { status: 403 });
       })
     );
 

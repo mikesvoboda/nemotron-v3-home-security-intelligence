@@ -203,9 +203,7 @@ export function useZonePresence(
       if (detection.label === 'person') {
         // Simple matching: return first resident member
         // In production, this would use entity ID to face/appearance matching
-        const residents = members.filter(
-          (m) => m.role === 'resident' || m.role === 'family'
-        );
+        const residents = members.filter((m) => m.role === 'resident' || m.role === 'family');
         if (residents.length > 0) {
           return residents[0];
         }
@@ -256,36 +254,31 @@ export function useZonePresence(
   /**
    * Handle event created (security event with zone information).
    */
-  const handleEventCreated = useCallback(
-    (payload: EventCreatedPayload) => {
-      // Events include zone context through their camera
-      // Match any person-related event
-      const members = householdMembersRef.current;
-      if (!members || members.length === 0) return;
+  const handleEventCreated = useCallback((payload: EventCreatedPayload) => {
+    // Events include zone context through their camera
+    // Match any person-related event
+    const members = householdMembersRef.current;
+    if (!members || members.length === 0) return;
 
-      // For security events, we can infer presence from the camera
-      // In production, this would be more sophisticated
-      const residents = members.filter(
-        (m) => m.role === 'resident' || m.role === 'family'
-      );
+    // For security events, we can infer presence from the camera
+    // In production, this would be more sophisticated
+    const residents = members.filter((m) => m.role === 'resident' || m.role === 'family');
 
-      if (residents.length > 0) {
-        const member = residents[0];
-        const record: DetectionRecord = {
-          memberId: member.id,
-          timestamp: payload.started_at || new Date().toISOString(),
-          zoneId: zoneIdRef.current,
-        };
+    if (residents.length > 0) {
+      const member = residents[0];
+      const record: DetectionRecord = {
+        memberId: member.id,
+        timestamp: payload.started_at || new Date().toISOString(),
+        zoneId: zoneIdRef.current,
+      };
 
-        setDetectionRecords((prev) => {
-          const next = new Map(prev);
-          next.set(member.id, record);
-          return next;
-        });
-      }
-    },
-    []
-  );
+      setDetectionRecords((prev) => {
+        const next = new Map(prev);
+        next.set(member.id, record);
+        return next;
+      });
+    }
+  }, []);
 
   // Subscribe to detection and event WebSocket events
   const { isConnected } = useWebSocketEvents(
@@ -368,9 +361,7 @@ export function useZonePresence(
     }
 
     // Sort by most recently seen
-    return result.sort(
-      (a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
-    );
+    return result.sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime());
   }, [householdMembers, detectionRecords, staleThresholdMs, activeThresholdMs]);
 
   const presentCount = members.length;

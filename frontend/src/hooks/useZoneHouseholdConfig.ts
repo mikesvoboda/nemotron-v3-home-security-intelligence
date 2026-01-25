@@ -251,10 +251,7 @@ export async function checkEntityTrust(
  * @param options - Optional query options
  * @returns Query result with zone household config
  */
-export function useZoneHouseholdConfigQuery(
-  zoneId: string,
-  options?: { enabled?: boolean }
-) {
+export function useZoneHouseholdConfigQuery(zoneId: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: zoneHouseholdQueryKeys.config(zoneId),
     queryFn: () => fetchZoneHouseholdConfig(zoneId),
@@ -277,10 +274,7 @@ export function useUpsertZoneHouseholdConfig() {
       upsertZoneHouseholdConfig(zoneId, data),
     onSuccess: (result) => {
       // Update the cache with the new config
-      void queryClient.setQueryData(
-        zoneHouseholdQueryKeys.config(result.zone_id),
-        result
-      );
+      void queryClient.setQueryData(zoneHouseholdQueryKeys.config(result.zone_id), result);
       // Invalidate to ensure freshness
       void queryClient.invalidateQueries({
         queryKey: zoneHouseholdQueryKeys.config(result.zone_id),
@@ -301,10 +295,7 @@ export function usePatchZoneHouseholdConfig() {
     mutationFn: ({ zoneId, data }: { zoneId: string; data: ZoneHouseholdConfigUpdate }) =>
       patchZoneHouseholdConfig(zoneId, data),
     onSuccess: (result) => {
-      void queryClient.setQueryData(
-        zoneHouseholdQueryKeys.config(result.zone_id),
-        result
-      );
+      void queryClient.setQueryData(zoneHouseholdQueryKeys.config(result.zone_id), result);
       void queryClient.invalidateQueries({
         queryKey: zoneHouseholdQueryKeys.config(result.zone_id),
       });

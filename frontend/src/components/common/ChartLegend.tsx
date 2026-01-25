@@ -123,12 +123,7 @@ export default function ChartLegend({
   return (
     <div
       data-testid="chart-legend"
-      className={clsx(
-        'flex gap-2',
-        orientationClass,
-        compact ? 'gap-1' : 'gap-2',
-        className
-      )}
+      className={clsx('flex gap-2', orientationClass, compact ? 'gap-1' : 'gap-2', className)}
       role="list"
       aria-label="Chart legend"
     >
@@ -152,7 +147,7 @@ export default function ChartLegend({
             key={item.name}
             data-testid="legend-item"
             className={clsx(
-              'flex items-center gap-2 min-h-11 px-2 rounded-md',
+              'flex min-h-11 items-center gap-2 rounded-md px-2',
               'transition-colors',
               onItemClick && [
                 'cursor-pointer',
@@ -167,31 +162,18 @@ export default function ChartLegend({
             {/* Color dot */}
             <span
               data-testid="legend-color-dot"
-              className={clsx(
-                'flex-shrink-0 rounded-full',
-                compact ? 'h-2 w-2' : 'h-3 w-3'
-              )}
+              className={clsx('flex-shrink-0 rounded-full', compact ? 'h-2 w-2' : 'h-3 w-3')}
               style={{ backgroundColor: item.color }}
               aria-hidden="true"
             />
 
             {/* Label */}
-            <span
-              className={clsx(
-                'truncate text-gray-300',
-                labelMaxWidth
-              )}
-              title={item.name}
-            >
+            <span className={clsx('truncate text-gray-300', labelMaxWidth)} title={item.name}>
               {item.name}
             </span>
 
             {/* Value (optional) */}
-            {showValue && (
-              <span className="text-gray-500 ml-1">
-                {valueFormatter(item.value)}
-              </span>
-            )}
+            {showValue && <span className="ml-1 text-gray-500">{valueFormatter(item.value)}</span>}
           </ItemWrapper>
         );
       })}
@@ -201,7 +183,7 @@ export default function ChartLegend({
         <button
           onClick={handleToggleExpand}
           className={clsx(
-            'flex items-center gap-1 min-h-11 px-2 rounded-md',
+            'flex min-h-11 items-center gap-1 rounded-md px-2',
             'text-[#76B900] transition-colors',
             'hover:bg-gray-800/50',
             'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',

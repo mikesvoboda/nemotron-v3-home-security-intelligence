@@ -156,13 +156,10 @@ describe('useRiskHistoryQuery', () => {
 
   describe('date range changes', () => {
     it('refetches when date range changes', async () => {
-      const { rerender } = renderHook(
-        ({ params }) => useRiskHistoryQuery(params),
-        {
-          wrapper: createQueryWrapper(),
-          initialProps: { params: defaultParams },
-        }
-      );
+      const { rerender } = renderHook(({ params }) => useRiskHistoryQuery(params), {
+        wrapper: createQueryWrapper(),
+        initialProps: { params: defaultParams },
+      });
 
       await waitFor(() => {
         expect(api.fetchRiskHistory).toHaveBeenCalledWith(defaultParams);

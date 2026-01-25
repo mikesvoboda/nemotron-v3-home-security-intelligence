@@ -5,7 +5,6 @@ import SafeErrorMessage from '../common/SafeErrorMessage';
 
 import type { RefObject } from 'react';
 
-
 export interface AuditEntry {
   id: number;
   timestamp: string;
@@ -367,7 +366,8 @@ export default function AuditTableInfinite({
                       className={clsx(
                         'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all',
                         getActionBadgeClasses(log.action),
-                        activeActionFilter === log.action && 'ring-2 ring-white/30 ring-offset-1 ring-offset-[#1F1F1F]',
+                        activeActionFilter === log.action &&
+                          'ring-2 ring-white/30 ring-offset-1 ring-offset-[#1F1F1F]',
                         onActionClick && 'cursor-pointer hover:brightness-110'
                       )}
                       aria-label={`Filter by action: ${formatAction(log.action)}`}
@@ -433,7 +433,7 @@ export default function AuditTableInfinite({
             <div ref={loadMoreRef} className="h-10">
               <button
                 onClick={onLoadMore}
-                className="rounded-md border border-gray-700 bg-[#1F1F1F] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#76B900]/10 hover:border-[#76B900]/50"
+                className="rounded-md border border-gray-700 bg-[#1F1F1F] px-4 py-2 text-sm font-medium text-white transition-colors hover:border-[#76B900]/50 hover:bg-[#76B900]/10"
               >
                 Load More
               </button>

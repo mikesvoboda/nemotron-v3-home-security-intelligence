@@ -33,7 +33,10 @@ export interface EntityGroupSectionProps {
   /** Callback when an entity card is clicked */
   onEntityClick?: (entityId: string) => void;
   /** Function to get the effective trust status for an entity */
-  getEntityTrustStatus?: (entityId: string, apiTrustStatus: string | null | undefined) => TrustStatus | null;
+  getEntityTrustStatus?: (
+    entityId: string,
+    apiTrustStatus: string | null | undefined
+  ) => TrustStatus | null;
   /** Optional className for additional styling */
   className?: string;
 }
@@ -75,7 +78,10 @@ const EntityGroupSection = memo(function EntityGroupSection({
   };
 
   return (
-    <div className={`mb-6 ${className}`} data-testid={`entity-group-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+    <div
+      className={`mb-6 ${className}`}
+      data-testid={`entity-group-${title.toLowerCase().replace(/\s+/g, '-')}`}
+    >
       {/* Section Header */}
       <button
         onClick={toggleCollapse}

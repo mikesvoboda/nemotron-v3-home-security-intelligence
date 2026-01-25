@@ -306,7 +306,10 @@ describe('AIPerformancePage', () => {
 
       await waitFor(() => {
         const externalLink = screen.getByTestId('grafana-external-link');
-        expect(externalLink).toHaveAttribute('href', 'http://grafana.example.com/d/hsi-consolidated?orgId=1');
+        expect(externalLink).toHaveAttribute(
+          'href',
+          'http://grafana.example.com/d/hsi-consolidated?orgId=1'
+        );
       });
     });
 

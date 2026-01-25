@@ -32,9 +32,7 @@ describe('SummaryCards Integration Tests', () => {
 
   describe('Loading → Success Flow', () => {
     it('transitions from loading to success state with hourly summary', async () => {
-      const { rerender } = render(
-        <SummaryCards hourly={null} daily={null} isLoading={true} />
-      );
+      const { rerender } = render(<SummaryCards hourly={null} daily={null} isLoading={true} />);
 
       // Initially shows loading skeletons (now uses SummaryCardSkeleton)
       expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
@@ -57,9 +55,7 @@ describe('SummaryCards Integration Tests', () => {
     });
 
     it('transitions from loading to success state with both summaries', async () => {
-      const { rerender } = render(
-        <SummaryCards hourly={null} daily={null} isLoading={true} />
-      );
+      const { rerender } = render(<SummaryCards hourly={null} daily={null} isLoading={true} />);
 
       expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
       expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
@@ -83,9 +79,7 @@ describe('SummaryCards Integration Tests', () => {
     });
 
     it('shows loading state only briefly before data appears', async () => {
-      const { rerender } = render(
-        <SummaryCards hourly={null} daily={null} isLoading={true} />
-      );
+      const { rerender } = render(<SummaryCards hourly={null} daily={null} isLoading={true} />);
 
       const loadingStart = Date.now();
       expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
@@ -114,9 +108,7 @@ describe('SummaryCards Integration Tests', () => {
     it('transitions from loading to error state', async () => {
       // Note: SummaryCards now supports error state via error/onRetry props
       // We'll test the state transition behavior
-      const { rerender } = render(
-        <SummaryCards hourly={null} daily={null} isLoading={true} />
-      );
+      const { rerender } = render(<SummaryCards hourly={null} daily={null} isLoading={true} />);
 
       expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
       expect(screen.getByTestId('summary-card-skeleton-daily')).toBeInTheDocument();
@@ -134,9 +126,7 @@ describe('SummaryCards Integration Tests', () => {
     });
 
     it('recovers from error state on retry with success', async () => {
-      const { rerender } = render(
-        <SummaryCards hourly={null} daily={null} isLoading={false} />
-      );
+      const { rerender } = render(<SummaryCards hourly={null} daily={null} isLoading={false} />);
 
       // Initially in empty state
       expect(screen.getByTestId('summary-card-empty-hourly')).toBeInTheDocument();
@@ -170,9 +160,7 @@ describe('SummaryCards Integration Tests', () => {
     });
 
     it('handles multiple retry attempts', async () => {
-      const { rerender } = render(
-        <SummaryCards hourly={null} daily={null} isLoading={false} />
-      );
+      const { rerender } = render(<SummaryCards hourly={null} daily={null} isLoading={false} />);
 
       // Attempt 1: Retry fails
       rerender(<SummaryCards hourly={null} daily={null} isLoading={true} />);
@@ -216,11 +204,7 @@ describe('SummaryCards Integration Tests', () => {
   describe('WebSocket Update Flow', () => {
     it('updates hourly summary when WebSocket pushes new data', async () => {
       const { rerender } = render(
-        <SummaryCards
-          hourly={mockSummaryAllClear}
-          daily={mockSummaryAllClear}
-          isLoading={false}
-        />
+        <SummaryCards hourly={mockSummaryAllClear} daily={mockSummaryAllClear} isLoading={false} />
       );
 
       // Initially shows all clear for both
@@ -263,7 +247,9 @@ describe('SummaryCards Integration Tests', () => {
 
       // Initially shows 0 events
       const initialDailyCard = screen.getByTestId('summary-card-daily');
-      expect(initialDailyCard.querySelector('[data-testid="summary-event-count-daily"]')).toHaveTextContent('0 events');
+      expect(
+        initialDailyCard.querySelector('[data-testid="summary-event-count-daily"]')
+      ).toHaveTextContent('0 events');
 
       // Simulate WebSocket update
       rerender(
@@ -273,14 +259,14 @@ describe('SummaryCards Integration Tests', () => {
       await waitFor(() => {
         // Should update event count
         const updatedDailyCard = screen.getByTestId('summary-card-daily');
-        expect(updatedDailyCard.querySelector('[data-testid="summary-event-count-daily"]')).toHaveTextContent('5 events');
+        expect(
+          updatedDailyCard.querySelector('[data-testid="summary-event-count-daily"]')
+        ).toHaveTextContent('5 events');
       });
     });
 
     it('handles WebSocket updates during loading state', async () => {
-      const { rerender } = render(
-        <SummaryCards hourly={null} daily={null} isLoading={true} />
-      );
+      const { rerender } = render(<SummaryCards hourly={null} daily={null} isLoading={true} />);
 
       // Loading state
       expect(screen.getByTestId('summary-card-skeleton-hourly')).toBeInTheDocument();
@@ -333,7 +319,9 @@ describe('SummaryCards Integration Tests', () => {
       // Final state should reflect last update
       await waitFor(() => {
         const hourlyCard = screen.getByTestId('summary-card-hourly');
-        expect(hourlyCard.querySelector('[data-testid="summary-event-count-hourly"]')).toHaveTextContent('2 events');
+        expect(
+          hourlyCard.querySelector('[data-testid="summary-event-count-hourly"]')
+        ).toHaveTextContent('2 events');
       });
     });
   });
@@ -517,18 +505,22 @@ describe('SummaryCards Integration Tests', () => {
       await waitFor(() => {
         // Hourly should be critical
         const hourlyCritical = screen.getByTestId('summary-card-hourly');
-        expect(hourlyCritical.querySelector('[data-testid="severity-badge"]')).toHaveAttribute('data-severity', 'critical');
+        expect(hourlyCritical.querySelector('[data-testid="severity-badge"]')).toHaveAttribute(
+          'data-severity',
+          'critical'
+        );
 
         // Daily should be medium
         const dailyMedium = screen.getByTestId('summary-card-daily');
-        expect(dailyMedium.querySelector('[data-testid="severity-badge"]')).toHaveAttribute('data-severity', 'medium');
+        expect(dailyMedium.querySelector('[data-testid="severity-badge"]')).toHaveAttribute(
+          'data-severity',
+          'medium'
+        );
       });
     });
 
     it('maintains UI consistency during rapid state changes', async () => {
-      const { rerender } = render(
-        <SummaryCards hourly={null} daily={null} isLoading={true} />
-      );
+      const { rerender } = render(<SummaryCards hourly={null} daily={null} isLoading={true} />);
 
       // Rapid state changes (stress test)
       const states: Array<{
@@ -552,10 +544,16 @@ describe('SummaryCards Integration Tests', () => {
         expect(screen.getByTestId('summary-card-daily')).toBeInTheDocument();
 
         const hourlyCard = screen.getByTestId('summary-card-hourly');
-        expect(hourlyCard.querySelector('[data-testid="severity-badge"]')).toHaveAttribute('data-severity', 'critical');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge"]')).toHaveAttribute(
+          'data-severity',
+          'critical'
+        );
 
         const dailyCard = screen.getByTestId('summary-card-daily');
-        expect(dailyCard.querySelector('[data-testid="severity-badge"]')).toHaveAttribute('data-severity', 'medium');
+        expect(dailyCard.querySelector('[data-testid="severity-badge"]')).toHaveAttribute(
+          'data-severity',
+          'medium'
+        );
       });
     });
   });

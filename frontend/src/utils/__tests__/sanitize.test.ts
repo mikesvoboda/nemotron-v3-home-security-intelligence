@@ -238,7 +238,8 @@ describe('sanitizeErrorMessage', () => {
 
     it('should block base64-encoded payloads in data URLs', () => {
       // Base64 encoded <script>alert('XSS')</script>
-      const base64Xss = '<img src="data:image/svg+xml;base64,PHNjcmlwdD5hbGVydCgnWFNTJyk8L3NjcmlwdD4=">';
+      const base64Xss =
+        '<img src="data:image/svg+xml;base64,PHNjcmlwdD5hbGVydCgnWFNTJyk8L3NjcmlwdD4=">';
       const result = sanitizeErrorMessage(base64Xss);
       expect(result).not.toContain('data:');
       expect(result).not.toContain('base64');

@@ -82,7 +82,9 @@ export default function XClipConfigForm({
     <div className="space-y-6" data-testid="xclip-config-form">
       {/* Action Classes */}
       <div>
-        <span id="action-classes-label" className="mb-2 block text-sm font-medium text-gray-200">Action Classes</span>
+        <span id="action-classes-label" className="mb-2 block text-sm font-medium text-gray-200">
+          Action Classes
+        </span>
         <p className="mb-3 text-xs text-gray-400">
           Define action types for the model to recognize in video frames.
         </p>

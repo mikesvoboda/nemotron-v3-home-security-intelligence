@@ -130,21 +130,13 @@ function MetadataItem({ label, children, testId, className }: MetadataItemProps)
  * }} />
  */
 const JobMetadata = memo(function JobMetadata({ job }: JobMetadataProps) {
-  const {
-    job_type,
-    status,
-    created_at,
-    started_at,
-    completed_at,
-    message,
-    error,
-  } = job;
+  const { job_type, status, created_at, started_at, completed_at, message, error } = job;
 
   const isCompleted = status === 'completed' || status === 'failed';
   const showDuration = isCompleted && started_at && completed_at;
 
   return (
-    <div data-testid="job-metadata" className="border-b border-gray-800 py-4 space-y-3">
+    <div data-testid="job-metadata" className="space-y-3 border-b border-gray-800 py-4">
       {/* Type */}
       <MetadataItem label="Type">
         <span data-testid="job-type">{formatJobType(job_type)}</span>
@@ -166,7 +158,7 @@ const JobMetadata = memo(function JobMetadata({ job }: JobMetadataProps) {
             <span className="text-gray-500">({formatAbsoluteTime(started_at)})</span>
           </>
         ) : (
-          <span className="text-gray-500 italic">Not started</span>
+          <span className="italic text-gray-500">Not started</span>
         )}
       </MetadataItem>
 
@@ -198,7 +190,7 @@ const JobMetadata = memo(function JobMetadata({ job }: JobMetadataProps) {
       {error && (
         <div
           data-testid="error-section"
-          className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400"
+          className="mt-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-red-400"
         >
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 shrink-0" />

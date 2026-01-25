@@ -5,7 +5,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import RecordingReplayPanel from './RecordingReplayPanel';
 import * as api from '../../services/api';
 
-import type { RecordingsListResponse, RecordingDetailResponse, ReplayResponse } from '../../services/api';
+import type {
+  RecordingsListResponse,
+  RecordingDetailResponse,
+  ReplayResponse,
+} from '../../services/api';
 
 // Mock the API module
 vi.mock('../../services/api', async (importOriginal) => {
@@ -90,9 +94,7 @@ describe('RecordingReplayPanel', () => {
       },
     });
 
-    return render(
-      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-    );
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
   };
 
   beforeEach(() => {
@@ -101,7 +103,10 @@ describe('RecordingReplayPanel', () => {
     (api.fetchRecordingDetail as ReturnType<typeof vi.fn>).mockResolvedValue(mockRecordingDetail);
     (api.replayRecording as ReturnType<typeof vi.fn>).mockResolvedValue(mockReplayResponse);
     (api.deleteRecording as ReturnType<typeof vi.fn>).mockResolvedValue({ message: 'Deleted' });
-    (api.clearAllRecordings as ReturnType<typeof vi.fn>).mockResolvedValue({ message: 'Cleared', deleted_count: 2 });
+    (api.clearAllRecordings as ReturnType<typeof vi.fn>).mockResolvedValue({
+      message: 'Cleared',
+      deleted_count: 2,
+    });
   });
 
   describe('rendering', () => {
@@ -137,13 +142,18 @@ describe('RecordingReplayPanel', () => {
     });
 
     it('shows error state on fetch failure', async () => {
-      (api.fetchRecordings as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Failed to fetch'));
+      (api.fetchRecordings as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Failed to fetch')
+      );
 
       renderWithProviders(<RecordingReplayPanel />);
 
-      await waitFor(() => {
-        expect(screen.getByText(/failed to fetch/i)).toBeInTheDocument();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText(/failed to fetch/i)).toBeInTheDocument();
+        },
+        { timeout: 5000 }
+      );
     });
   });
 

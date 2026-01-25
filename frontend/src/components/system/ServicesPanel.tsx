@@ -19,11 +19,7 @@ import { toast } from 'sonner';
 
 import { useServiceMutations } from '../../hooks/useServiceMutations';
 import { useServiceStatus, type ServiceName } from '../../hooks/useServiceStatus';
-import {
-  fetchHealth,
-  type HealthResponse,
-  type ServiceStatus,
-} from '../../services/api';
+import { fetchHealth, type HealthResponse, type ServiceStatus } from '../../services/api';
 
 /**
  * Services that should NOT allow restart (dangerous operations)

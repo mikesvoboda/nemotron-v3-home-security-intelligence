@@ -314,9 +314,7 @@ describe('EntityDetailModal', () => {
         appearances: [],
         appearance_count: 0,
       };
-      renderWithQueryClient(
-        <EntityDetailModal {...defaultProps} entity={entityNoAppearances} />
-      );
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} entity={entityNoAppearances} />);
       expect(screen.getByText(/No appearances recorded/i)).toBeInTheDocument();
     });
   });
@@ -330,16 +328,12 @@ describe('EntityDetailModal', () => {
     });
 
     it('displays trusted status when provided', () => {
-      renderWithQueryClient(
-        <EntityDetailModal {...defaultProps} trustStatus="trusted" />
-      );
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} trustStatus="trusted" />);
       expect(screen.getByTestId('trust-status-badge')).toHaveTextContent('Trusted');
     });
 
     it('displays suspicious status when flagged is provided (backward compat)', () => {
-      renderWithQueryClient(
-        <EntityDetailModal {...defaultProps} trustStatus="flagged" />
-      );
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} trustStatus="flagged" />);
       // 'flagged' is now normalized to 'untrusted' which displays as 'Untrusted'
       expect(screen.getByTestId('trust-status-badge')).toHaveTextContent('Untrusted');
     });

@@ -122,7 +122,12 @@ describe('EntityGroupSection', () => {
   describe('collapse behavior', () => {
     it('shows content when not collapsed by default', () => {
       render(
-        <EntityGroupSection title="People" icon={User} entities={mockPeople} defaultCollapsed={false} />
+        <EntityGroupSection
+          title="People"
+          icon={User}
+          entities={mockPeople}
+          defaultCollapsed={false}
+        />
       );
 
       expect(screen.getByTestId('entity-group-content-people')).toBeInTheDocument();
@@ -131,7 +136,12 @@ describe('EntityGroupSection', () => {
 
     it('hides content when collapsed by default', () => {
       render(
-        <EntityGroupSection title="Unknown" icon={HelpCircle} entities={mockUnknown} defaultCollapsed={true} />
+        <EntityGroupSection
+          title="Unknown"
+          icon={HelpCircle}
+          entities={mockUnknown}
+          defaultCollapsed={true}
+        />
       );
 
       expect(screen.queryByTestId('entity-group-content-unknown')).not.toBeInTheDocument();
@@ -143,7 +153,12 @@ describe('EntityGroupSection', () => {
       const user = userEvent.setup();
 
       render(
-        <EntityGroupSection title="People" icon={User} entities={mockPeople} defaultCollapsed={false} />
+        <EntityGroupSection
+          title="People"
+          icon={User}
+          entities={mockPeople}
+          defaultCollapsed={false}
+        />
       );
 
       // Initially expanded
@@ -170,7 +185,12 @@ describe('EntityGroupSection', () => {
       const user = userEvent.setup();
 
       render(
-        <EntityGroupSection title="Unknown" icon={HelpCircle} entities={mockUnknown} defaultCollapsed={true} />
+        <EntityGroupSection
+          title="Unknown"
+          icon={HelpCircle}
+          entities={mockUnknown}
+          defaultCollapsed={true}
+        />
       );
 
       // Initially collapsed
@@ -193,7 +213,12 @@ describe('EntityGroupSection', () => {
       const user = userEvent.setup();
 
       render(
-        <EntityGroupSection title="People" icon={User} entities={mockPeople} defaultCollapsed={false} />
+        <EntityGroupSection
+          title="People"
+          icon={User}
+          entities={mockPeople}
+          defaultCollapsed={false}
+        />
       );
 
       const header = screen.getByTestId('entity-group-header-people');
@@ -212,7 +237,12 @@ describe('EntityGroupSection', () => {
       const user = userEvent.setup();
 
       render(
-        <EntityGroupSection title="People" icon={User} entities={mockPeople} defaultCollapsed={false} />
+        <EntityGroupSection
+          title="People"
+          icon={User}
+          entities={mockPeople}
+          defaultCollapsed={false}
+        />
       );
 
       const header = screen.getByTestId('entity-group-header-people');
@@ -231,7 +261,12 @@ describe('EntityGroupSection', () => {
       const user = userEvent.setup();
 
       render(
-        <EntityGroupSection title="People" icon={User} entities={mockPeople} defaultCollapsed={false} />
+        <EntityGroupSection
+          title="People"
+          icon={User}
+          entities={mockPeople}
+          defaultCollapsed={false}
+        />
       );
 
       const header = screen.getByTestId('entity-group-header-people');

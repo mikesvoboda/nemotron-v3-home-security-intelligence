@@ -99,10 +99,7 @@ describe('useRoutePrefetch', () => {
         result.current.prefetch('/timeline');
       });
 
-      expect(routePrefetching.prefetchRoute).toHaveBeenCalledWith(
-        expect.any(Object),
-        '/timeline'
-      );
+      expect(routePrefetching.prefetchRoute).toHaveBeenCalledWith(expect.any(Object), '/timeline');
     });
 
     it('should not prefetch the same route twice', () => {
@@ -157,10 +154,7 @@ describe('useRoutePrefetch', () => {
         linkProps.onMouseEnter();
       });
 
-      expect(routePrefetching.prefetchRoute).toHaveBeenCalledWith(
-        expect.any(Object),
-        '/timeline'
-      );
+      expect(routePrefetching.prefetchRoute).toHaveBeenCalledWith(expect.any(Object), '/timeline');
     });
 
     it('should call prefetch on focus', () => {
@@ -174,10 +168,7 @@ describe('useRoutePrefetch', () => {
         linkProps.onFocus();
       });
 
-      expect(routePrefetching.prefetchRoute).toHaveBeenCalledWith(
-        expect.any(Object),
-        '/timeline'
-      );
+      expect(routePrefetching.prefetchRoute).toHaveBeenCalledWith(expect.any(Object), '/timeline');
     });
   });
 
@@ -229,12 +220,9 @@ describe('useRoutePrefetch', () => {
     });
 
     it('should include custom routes in prefetching', () => {
-      renderHook(
-        () => useRoutePrefetch({ customRoutes: ['/settings', '/notifications'] }),
-        {
-          wrapper: createWrapper(),
-        }
-      );
+      renderHook(() => useRoutePrefetch({ customRoutes: ['/settings', '/notifications'] }), {
+        wrapper: createWrapper(),
+      });
 
       act(() => {
         vi.advanceTimersByTime(1100);

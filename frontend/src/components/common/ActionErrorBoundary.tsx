@@ -232,28 +232,19 @@ export function ActionErrorDisplay({
     <div
       role="alert"
       aria-live="polite"
-      className={clsx(
-        'rounded-lg border p-4',
-        colors.border,
-        colors.bg,
-        className
-      )}
+      className={clsx('rounded-lg border p-4', colors.border, colors.bg, className)}
       data-testid="action-error-boundary"
     >
       <div className="flex items-start gap-3">
         <Icon className={clsx('mt-0.5 h-5 w-5 flex-shrink-0', colors.icon)} aria-hidden="true" />
         <div className="flex-1">
-          <h3 className={clsx('font-medium', colors.text)}>
-            {feature} encountered an error
-          </h3>
-          {state.error && (
-            <p className="mt-1 text-sm text-gray-400">{state.error}</p>
-          )}
+          <h3 className={clsx('font-medium', colors.text)}>{feature} encountered an error</h3>
+          {state.error && <p className="mt-1 text-sm text-gray-400">{state.error}</p>}
 
           {/* Display field errors if present */}
           {state.fieldErrors && Object.keys(state.fieldErrors).length > 0 && (
             <div className="mt-3">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
                 Field Errors
               </p>
               <ul className="mt-1 space-y-1">
@@ -357,10 +348,7 @@ export class ActionErrorBoundary extends Component<
     const { actionState, feature, onError } = this.props;
 
     // Check if action just errored
-    if (
-      actionState?.status === 'error' &&
-      prevProps.actionState?.status !== 'error'
-    ) {
+    if (actionState?.status === 'error' && prevProps.actionState?.status !== 'error') {
       // Log the action error
       logger.warn(`Action error in ${feature}`, {
         error: actionState.error,
@@ -422,20 +410,16 @@ export class ActionErrorBoundary extends Component<
         <div
           role="alert"
           aria-live="assertive"
-          className={clsx(
-            'rounded-lg border p-4',
-            colors.border,
-            colors.bg,
-            className
-          )}
+          className={clsx('rounded-lg border p-4', colors.border, colors.bg, className)}
           data-testid="action-error-boundary-render"
         >
           <div className="flex items-start gap-3">
-            <Icon className={clsx('mt-0.5 h-5 w-5 flex-shrink-0', colors.icon)} aria-hidden="true" />
+            <Icon
+              className={clsx('mt-0.5 h-5 w-5 flex-shrink-0', colors.icon)}
+              aria-hidden="true"
+            />
             <div className="flex-1">
-              <h3 className={clsx('font-medium', colors.text)}>
-                {feature} crashed
-              </h3>
+              <h3 className={clsx('font-medium', colors.text)}>{feature} crashed</h3>
               <p className="mt-1 text-sm text-gray-400">{renderError.message}</p>
               <button
                 type="button"

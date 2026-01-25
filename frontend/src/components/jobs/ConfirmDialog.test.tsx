@@ -118,7 +118,9 @@ describe('ConfirmDialog', () => {
   describe('interactions', () => {
     it('calls onConfirm when confirm button is clicked', async () => {
       const onConfirm = vi.fn();
-      const { user } = renderWithProviders(<ConfirmDialog {...defaultProps} onConfirm={onConfirm} />);
+      const { user } = renderWithProviders(
+        <ConfirmDialog {...defaultProps} onConfirm={onConfirm} />
+      );
 
       await user.click(screen.getByRole('button', { name: /confirm/i }));
 
@@ -169,7 +171,12 @@ describe('ConfirmDialog', () => {
       const onConfirm = vi.fn();
       const onCancel = vi.fn();
       const { user } = renderWithProviders(
-        <ConfirmDialog {...defaultProps} onConfirm={onConfirm} onCancel={onCancel} isLoading={true} />
+        <ConfirmDialog
+          {...defaultProps}
+          onConfirm={onConfirm}
+          onCancel={onCancel}
+          isLoading={true}
+        />
       );
 
       await user.click(screen.getByRole('button', { name: /confirm/i }));

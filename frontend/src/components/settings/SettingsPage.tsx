@@ -143,7 +143,6 @@ export default function SettingsPage() {
               <h1 className="text-page-title">Settings</h1>
               <p className="text-body-sm mt-2">Configure your security monitoring system</p>
             </div>
-
           </div>
 
           {/* Secure Context Warning - shown when not using HTTPS */}
@@ -214,8 +213,8 @@ function SettingsPageWithErrorBoundary() {
           <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
           <h3 className="mb-2 text-lg font-semibold text-red-400">Settings Unavailable</h3>
           <p className="max-w-md text-center text-sm text-gray-400">
-            Unable to load settings. Please refresh the page or try again later.
-            You can still navigate to other sections using the sidebar.
+            Unable to load settings. Please refresh the page or try again later. You can still
+            navigate to other sections using the sidebar.
           </p>
         </div>
       }

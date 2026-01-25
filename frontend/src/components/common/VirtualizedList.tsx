@@ -25,11 +25,7 @@ export interface VirtualizedListProps<T> {
    * Render function for each item.
    * Receives item, index, and measurement ref callback.
    */
-  renderItem: (
-    item: T,
-    index: number,
-    measureRef: (el: HTMLElement | null) => void
-  ) => ReactNode;
+  renderItem: (item: T, index: number, measureRef: (el: HTMLElement | null) => void) => ReactNode;
   /**
    * Function to get a unique key for each item.
    * Defaults to using index if not provided.
@@ -162,9 +158,7 @@ export function VirtualizedList<T>({
     estimateSize: () => estimateSize,
     overscan,
     gap,
-    getItemKey: getItemKey
-      ? (index) => getItemKey(items[index], index)
-      : (index) => index,
+    getItemKey: getItemKey ? (index) => getItemKey(items[index], index) : (index) => index,
     measureElement: (element) => {
       if (!element) return estimateSize;
       return element.getBoundingClientRect().height;
@@ -228,10 +222,7 @@ export function VirtualizedList<T>({
       aria-label={ariaLabel}
       role="list"
     >
-      <div
-        className={clsx('relative w-full', innerClassName)}
-        style={{ height: `${totalSize}px` }}
-      >
+      <div className={clsx('relative w-full', innerClassName)} style={{ height: `${totalSize}px` }}>
         {virtualItems.map((virtualItem) => {
           const item = items[virtualItem.index];
           return (
@@ -254,14 +245,10 @@ export function VirtualizedList<T>({
       </div>
 
       {/* Loading indicator at the end */}
-      {isLoadingMore && loadingIndicator && (
-        <div className="py-4">{loadingIndicator}</div>
-      )}
+      {isLoadingMore && loadingIndicator && <div className="py-4">{loadingIndicator}</div>}
 
       {/* Footer (e.g., end of list message) */}
-      {!isLoadingMore && footer && items.length > 0 && (
-        <div className="py-4">{footer}</div>
-      )}
+      {!isLoadingMore && footer && items.length > 0 && <div className="py-4">{footer}</div>}
     </div>
   );
 }

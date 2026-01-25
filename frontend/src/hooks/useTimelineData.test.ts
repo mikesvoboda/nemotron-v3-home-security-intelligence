@@ -40,11 +40,7 @@ function createTestWrapper() {
   });
 
   return function TestWrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(
-      QueryClientProvider,
-      { client: queryClient },
-      children
-    );
+    return React.createElement(QueryClientProvider, { client: queryClient }, children);
   };
 }
 
@@ -249,21 +245,15 @@ describe('generateMockTimelineData', () => {
     const firstBucket = new Date(buckets[0].timestamp);
     const lastBucket = new Date(buckets[buckets.length - 1].timestamp);
 
-    expect(firstBucket.getTime()).toBeGreaterThanOrEqual(
-      new Date(startDate).getTime()
-    );
-    expect(lastBucket.getTime()).toBeLessThanOrEqual(
-      new Date(endDate).getTime()
-    );
+    expect(firstBucket.getTime()).toBeGreaterThanOrEqual(new Date(startDate).getTime());
+    expect(lastBucket.getTime()).toBeLessThanOrEqual(new Date(endDate).getTime());
   });
 
   it('generates valid severity levels', () => {
     const buckets = generateMockTimelineData('day');
 
     buckets.forEach((bucket) => {
-      expect(['low', 'medium', 'high', 'critical']).toContain(
-        bucket.maxSeverity
-      );
+      expect(['low', 'medium', 'high', 'critical']).toContain(bucket.maxSeverity);
     });
   });
 

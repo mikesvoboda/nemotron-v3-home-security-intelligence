@@ -135,8 +135,12 @@ describe('AreaCameraLinking', () => {
     vi.clearAllMocks();
 
     // Setup default mock mutations
-    mockLinkCameraMutateAsync = vi.fn().mockResolvedValue({ area_id: 1, camera_id: 'cam-2', linked: true });
-    mockUnlinkCameraMutateAsync = vi.fn().mockResolvedValue({ area_id: 1, camera_id: 'cam-1', linked: false });
+    mockLinkCameraMutateAsync = vi
+      .fn()
+      .mockResolvedValue({ area_id: 1, camera_id: 'cam-2', linked: true });
+    mockUnlinkCameraMutateAsync = vi
+      .fn()
+      .mockResolvedValue({ area_id: 1, camera_id: 'cam-1', linked: false });
 
     mockMutations = {
       createArea: createMockMutation(),
@@ -165,7 +169,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -209,7 +213,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -258,7 +262,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: new Error('Failed to load cameras'),
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -303,7 +307,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -353,7 +357,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -389,9 +393,7 @@ describe('AreaCameraLinking', () => {
       render(<AreaCameraLinking />);
 
       expect(screen.getByText('Link Cameras to Areas')).toBeInTheDocument();
-      expect(
-        screen.getByText(/Select cameras and assign them to areas/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Select cameras and assign them to areas/)).toBeInTheDocument();
     });
 
     it('should display all available cameras', async () => {
@@ -431,7 +433,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       render(<AreaCameraLinking />);
@@ -471,7 +473,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -575,7 +577,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -690,7 +692,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -864,7 +866,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({
@@ -1046,7 +1048,7 @@ describe('AreaCameraLinking', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       vi.mocked(propertyHooks.usePropertiesQuery).mockReturnValue({

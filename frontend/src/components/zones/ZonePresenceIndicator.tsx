@@ -161,14 +161,12 @@ interface CountBadgeProps {
 
 function CountBadge({ count, members, size }: CountBadgeProps) {
   const sizeConfig = SIZE_CONFIG[size];
-  const tooltipContent = members.map((m) => `${m.name} (${formatTimeSince(m.lastSeen)})`).join('\n');
+  const tooltipContent = members
+    .map((m) => `${m.name} (${formatTimeSince(m.lastSeen)})`)
+    .join('\n');
 
   return (
-    <div
-      className="group relative"
-      title={tooltipContent}
-      data-testid="presence-count-badge"
-    >
+    <div className="group relative" title={tooltipContent} data-testid="presence-count-badge">
       <div
         className={clsx(
           'flex items-center justify-center rounded-full border-2 border-gray-800 bg-gray-700 px-1 font-medium text-gray-200',
@@ -247,15 +245,9 @@ export default function ZonePresenceIndicator({
   // Loading state
   if (isLoading) {
     return (
-      <div
-        className={clsx('flex items-center gap-1', className)}
-        data-testid="presence-loading"
-      >
+      <div className={clsx('flex items-center gap-1', className)} data-testid="presence-loading">
         <div
-          className={clsx(
-            'animate-pulse rounded-full bg-gray-700',
-            SIZE_CONFIG[size].container
-          )}
+          className={clsx('animate-pulse rounded-full bg-gray-700', SIZE_CONFIG[size].container)}
         />
       </div>
     );
@@ -264,10 +256,7 @@ export default function ZonePresenceIndicator({
   // Empty state
   if (presentCount === 0) {
     return (
-      <div
-        className={clsx('flex items-center gap-1', className)}
-        data-testid="presence-container"
-      >
+      <div className={clsx('flex items-center gap-1', className)} data-testid="presence-container">
         <EmptyState size={size} />
       </div>
     );
@@ -293,11 +282,7 @@ export default function ZonePresenceIndicator({
 
         {/* Overflow count badge */}
         {hasOverflow && showCount && (
-          <CountBadge
-            count={overflowMembers.length}
-            members={overflowMembers}
-            size={size}
-          />
+          <CountBadge count={overflowMembers.length} members={overflowMembers} size={size} />
         )}
       </div>
     </div>

@@ -472,9 +472,9 @@ export function usePromptTest(): UsePromptTestReturn {
       // Transform snake_case response to camelCase
       return {
         riskScore: response.after_score ?? 0,
-        riskLevel: response.after_response?.risk_level as string ?? 'unknown',
-        reasoning: response.after_response?.reasoning as string ?? '',
-        summary: response.after_response?.summary as string ?? '',
+        riskLevel: (response.after_response?.risk_level as string) ?? 'unknown',
+        reasoning: (response.after_response?.reasoning as string) ?? '',
+        summary: (response.after_response?.summary as string) ?? '',
         processingTimeMs: response.test_duration_ms,
         tokensUsed: 0, // Not returned by current API
       };

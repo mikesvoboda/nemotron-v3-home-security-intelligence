@@ -1532,10 +1532,11 @@ class TestPixelValuesNoneFix:
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
         # Track what is passed to the processor
-        captured_videos: list[Any] = []
+        captured_images: list[Any] = []
 
         def capture_processor_call(**kwargs: Any) -> dict[str, Any]:
-            captured_videos.append(kwargs.get("videos"))
+            # NOTE: transformers 4.57+ uses `images=` param for video frames, not `videos=`
+            captured_images.append(kwargs.get("images"))
             return {"pixel_values": create_mock_pixel_values()}
 
         mock_processor.side_effect = capture_processor_call
@@ -1561,18 +1562,15 @@ class TestPixelValuesNoneFix:
             await classify_actions(model_dict, frames, prompts=["a", "b", "c"])
 
         # Verify processor was called
-        assert len(captured_videos) == 1
+        assert len(captured_images) == 1
 
-        # The videos argument should be a list containing a list of numpy arrays
-        videos_arg = captured_videos[0]
-        assert isinstance(videos_arg, list)
-        assert len(videos_arg) == 1  # Single video
-
-        video_frames = videos_arg[0]
-        assert len(video_frames) == 8  # 8 frames
+        # The images argument should be a list of numpy arrays (video frames)
+        images_arg = captured_images[0]
+        assert isinstance(images_arg, list)
+        assert len(images_arg) == 8  # 8 frames
 
         # Each frame should be a numpy array, not a PIL Image
-        for i, frame in enumerate(video_frames):
+        for i, frame in enumerate(images_arg):
             assert isinstance(frame, np.ndarray), f"Frame {i} should be numpy array"
             assert frame.dtype == np.uint8, f"Frame {i} should have dtype uint8"
             assert len(frame.shape) == 3, f"Frame {i} should have 3 dimensions"
@@ -1589,10 +1587,11 @@ class TestPixelValuesNoneFix:
         mock_param.dtype = MagicMock()
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        captured_videos: list[Any] = []
+        captured_images: list[Any] = []
 
         def capture_processor_call(**kwargs: Any) -> dict[str, Any]:
-            captured_videos.append(kwargs.get("videos"))
+            # NOTE: transformers 4.57+ uses `images=` param for video frames, not `videos=`
+            captured_images.append(kwargs.get("images"))
             return {"pixel_values": create_mock_pixel_values()}
 
         mock_processor.side_effect = capture_processor_call
@@ -1620,10 +1619,9 @@ class TestPixelValuesNoneFix:
             await classify_actions(model_dict, frames, prompts=["a", "b", "c"])
 
         # Verify frames were converted to RGB (3 channels)
-        videos_arg = captured_videos[0]
-        video_frames = videos_arg[0]
+        images_arg = captured_images[0]
 
-        for i, frame in enumerate(video_frames):
+        for i, frame in enumerate(images_arg):
             assert isinstance(frame, np.ndarray), f"Frame {i} should be numpy array"
             assert frame.shape[2] == 3, f"Frame {i} should have 3 channels (converted from RGBA)"
 
@@ -1638,10 +1636,11 @@ class TestPixelValuesNoneFix:
         mock_param.dtype = MagicMock()
         mock_model.parameters.return_value = iter([mock_param, mock_param])
 
-        captured_videos: list[Any] = []
+        captured_images: list[Any] = []
 
         def capture_processor_call(**kwargs: Any) -> dict[str, Any]:
-            captured_videos.append(kwargs.get("videos"))
+            # NOTE: transformers 4.57+ uses `images=` param for video frames, not `videos=`
+            captured_images.append(kwargs.get("images"))
             return {"pixel_values": create_mock_pixel_values()}
 
         mock_processor.side_effect = capture_processor_call
@@ -1669,10 +1668,9 @@ class TestPixelValuesNoneFix:
             await classify_actions(model_dict, frames, prompts=["a", "b", "c"])
 
         # Verify frames were converted to RGB (3 channels)
-        videos_arg = captured_videos[0]
-        video_frames = videos_arg[0]
+        images_arg = captured_images[0]
 
-        for i, frame in enumerate(video_frames):
+        for i, frame in enumerate(images_arg):
             assert isinstance(frame, np.ndarray), f"Frame {i} should be numpy array"
             assert len(frame.shape) == 3, f"Frame {i} should have 3 dimensions"
             assert frame.shape[2] == 3, f"Frame {i} should have 3 channels (converted from L)"

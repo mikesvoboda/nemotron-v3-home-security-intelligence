@@ -81,24 +81,14 @@ const LogLine = memo(function LogLine({ log }: LogLineProps) {
   const formattedTime = formatTimestamp(timestamp);
 
   return (
-    <li
-      className="flex items-start gap-3 py-0.5 font-mono text-sm leading-relaxed hover:bg-white/5"
-    >
+    <li className="flex items-start gap-3 py-0.5 font-mono text-sm leading-relaxed hover:bg-white/5">
       {/* Timestamp */}
-      <span
-        data-testid="log-timestamp"
-        className="shrink-0 text-gray-500"
-        title={timestamp}
-      >
+      <span data-testid="log-timestamp" className="shrink-0 text-gray-500" title={timestamp}>
         {formattedTime}
       </span>
 
       {/* Level badge */}
-      <span
-        className={`shrink-0 w-12 font-semibold ${levelColorClass}`}
-      >
-        {level}
-      </span>
+      <span className={`w-12 shrink-0 font-semibold ${levelColorClass}`}>{level}</span>
 
       {/* Message and context */}
       <span className="flex-1 text-gray-300">
@@ -106,16 +96,14 @@ const LogLine = memo(function LogLine({ log }: LogLineProps) {
 
         {/* Show attempt number for retries */}
         {attempt_number > 1 && (
-          <span className="ml-2 text-xs text-gray-500">
-            (attempt {attempt_number})
-          </span>
+          <span className="ml-2 text-xs text-gray-500">(attempt {attempt_number})</span>
         )}
 
         {/* Context indicator */}
         {context && (
           <span
             data-testid="log-context"
-            className="ml-2 text-xs text-blue-400 cursor-help"
+            className="ml-2 cursor-help text-xs text-blue-400"
             title={JSON.stringify(context, null, 2)}
           >
             [+context]

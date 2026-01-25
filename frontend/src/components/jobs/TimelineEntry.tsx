@@ -16,7 +16,6 @@ import StatusDot from './StatusDot';
 
 import type React from 'react';
 
-
 // ============================================================================
 // Types
 // ============================================================================
@@ -193,7 +192,7 @@ export default function TimelineEntry({
         {!isLast && (
           <div
             data-testid="timeline-connector"
-            className="absolute top-4 left-1/2 h-full w-0.5 -translate-x-1/2 bg-gray-700"
+            className="absolute left-1/2 top-4 h-full w-0.5 -translate-x-1/2 bg-gray-700"
             aria-hidden="true"
           />
         )}
@@ -203,7 +202,7 @@ export default function TimelineEntry({
       <div className={clsx('flex-1 pb-4', isLast && 'pb-0')}>
         {/* Timestamp and status */}
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-mono text-gray-400">{timestamp}</span>
+          <span className="font-mono text-sm text-gray-400">{timestamp}</span>
           <span className="text-sm font-semibold text-white">{statusLabel}</span>
           {showTriggeredBy && (
             <span data-testid="triggered-by" className="text-xs text-gray-500">

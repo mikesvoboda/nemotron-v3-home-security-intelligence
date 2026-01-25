@@ -255,12 +255,9 @@ describe('usePaginationState', () => {
     describe('state change callback', () => {
       it('calls onStateChange when cursor changes', () => {
         const onStateChange = vi.fn();
-        const { result } = renderHook(
-          () => usePaginationState({ type: 'cursor', onStateChange }),
-          {
-            wrapper: createRouterWrapper(),
-          }
-        );
+        const { result } = renderHook(() => usePaginationState({ type: 'cursor', onStateChange }), {
+          wrapper: createRouterWrapper(),
+        });
 
         act(() => {
           result.current.goToNextPage('next_page');
@@ -275,12 +272,9 @@ describe('usePaginationState', () => {
 
       it('calls onStateChange when limit changes', () => {
         const onStateChange = vi.fn();
-        const { result } = renderHook(
-          () => usePaginationState({ type: 'cursor', onStateChange }),
-          {
-            wrapper: createRouterWrapper(),
-          }
-        );
+        const { result } = renderHook(() => usePaginationState({ type: 'cursor', onStateChange }), {
+          wrapper: createRouterWrapper(),
+        });
 
         act(() => {
           result.current.setLimit(50);
@@ -761,12 +755,9 @@ describe('usePaginationState', () => {
     describe('state change callback', () => {
       it('calls onStateChange when page changes', () => {
         const onStateChange = vi.fn();
-        const { result } = renderHook(
-          () => usePaginationState({ type: 'offset', onStateChange }),
-          {
-            wrapper: createRouterWrapper(),
-          }
-        );
+        const { result } = renderHook(() => usePaginationState({ type: 'offset', onStateChange }), {
+          wrapper: createRouterWrapper(),
+        });
 
         act(() => {
           result.current.goToNextPage();
@@ -782,12 +773,9 @@ describe('usePaginationState', () => {
 
       it('calls onStateChange when limit changes', () => {
         const onStateChange = vi.fn();
-        const { result } = renderHook(
-          () => usePaginationState({ type: 'offset', onStateChange }),
-          {
-            wrapper: createRouterWrapper(),
-          }
-        );
+        const { result } = renderHook(() => usePaginationState({ type: 'offset', onStateChange }), {
+          wrapper: createRouterWrapper(),
+        });
 
         act(() => {
           result.current.setLimit(50);

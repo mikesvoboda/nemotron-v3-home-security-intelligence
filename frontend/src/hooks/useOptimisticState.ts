@@ -446,17 +446,9 @@ export function useOptimisticAction<TState, TAction>(
  * });
  * ```
  */
-export function createOptimisticReducer<
-  TState,
-  TAction extends { type: string },
->(
-  handlers: {
-    [K in TAction['type']]: (
-      state: TState,
-      action: Extract<TAction, { type: K }>
-    ) => TState;
-  }
-): OptimisticUpdateFn<TState, TAction> {
+export function createOptimisticReducer<TState, TAction extends { type: string }>(handlers: {
+  [K in TAction['type']]: (state: TState, action: Extract<TAction, { type: K }>) => TState;
+}): OptimisticUpdateFn<TState, TAction> {
   return (state: TState, action: TAction): TState => {
     const handler = handlers[action.type as TAction['type']];
     // @ts-expect-error - TypeScript can't narrow the action type here

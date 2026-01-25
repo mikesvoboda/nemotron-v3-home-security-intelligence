@@ -165,7 +165,9 @@ describe('useOptimisticSettingsUpdate', () => {
     queryClient.setQueryData(settingsQueryKeys.current(), mockSettings);
 
     const onSuccess = vi.fn();
-    const { result } = renderHook(() => useOptimisticSettingsUpdate({ onSuccess }), { wrapper: Wrapper });
+    const { result } = renderHook(() => useOptimisticSettingsUpdate({ onSuccess }), {
+      wrapper: Wrapper,
+    });
 
     await act(async () => {
       await result.current.mutateAsync({ detection: { confidence_threshold: 0.6 } });
@@ -186,7 +188,9 @@ describe('useOptimisticSettingsUpdate', () => {
     );
 
     const onError = vi.fn();
-    const { result } = renderHook(() => useOptimisticSettingsUpdate({ onError }), { wrapper: Wrapper });
+    const { result } = renderHook(() => useOptimisticSettingsUpdate({ onError }), {
+      wrapper: Wrapper,
+    });
 
     await act(async () => {
       try {
@@ -217,9 +221,14 @@ describe('useOptimisticSettingsUpdate', () => {
 describe('useOptimisticNotificationPreferencesUpdate', () => {
   it('should apply optimistic update immediately', async () => {
     const { Wrapper, queryClient } = createTestContext();
-    queryClient.setQueryData(queryKeys.notifications.preferences.global, mockNotificationPreferences);
+    queryClient.setQueryData(
+      queryKeys.notifications.preferences.global,
+      mockNotificationPreferences
+    );
 
-    const { result } = renderHook(() => useOptimisticNotificationPreferencesUpdate(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useOptimisticNotificationPreferencesUpdate(), {
+      wrapper: Wrapper,
+    });
 
     act(() => {
       result.current.mutate({ enabled: false });
@@ -237,7 +246,10 @@ describe('useOptimisticNotificationPreferencesUpdate', () => {
 
   it('should rollback on error', async () => {
     const { Wrapper, queryClient } = createTestContext();
-    queryClient.setQueryData(queryKeys.notifications.preferences.global, mockNotificationPreferences);
+    queryClient.setQueryData(
+      queryKeys.notifications.preferences.global,
+      mockNotificationPreferences
+    );
 
     server.use(
       http.put('/api/notification-preferences/', () => {
@@ -245,7 +257,9 @@ describe('useOptimisticNotificationPreferencesUpdate', () => {
       })
     );
 
-    const { result } = renderHook(() => useOptimisticNotificationPreferencesUpdate(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useOptimisticNotificationPreferencesUpdate(), {
+      wrapper: Wrapper,
+    });
 
     await act(async () => {
       try {
@@ -268,9 +282,14 @@ describe('useOptimisticNotificationPreferencesUpdate', () => {
 describe('useOptimisticCameraNotificationSettingUpdate', () => {
   it('should apply optimistic update to camera settings list', async () => {
     const { Wrapper, queryClient } = createTestContext();
-    queryClient.setQueryData(queryKeys.notifications.preferences.cameras.list(), mockCameraSettings);
+    queryClient.setQueryData(
+      queryKeys.notifications.preferences.cameras.list(),
+      mockCameraSettings
+    );
 
-    const { result } = renderHook(() => useOptimisticCameraNotificationSettingUpdate(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useOptimisticCameraNotificationSettingUpdate(), {
+      wrapper: Wrapper,
+    });
 
     act(() => {
       result.current.mutate({ cameraId: 'cam-1', update: { enabled: false } });
@@ -287,9 +306,14 @@ describe('useOptimisticCameraNotificationSettingUpdate', () => {
 
   it('should not affect other cameras in list', () => {
     const { Wrapper, queryClient } = createTestContext();
-    queryClient.setQueryData(queryKeys.notifications.preferences.cameras.list(), mockCameraSettings);
+    queryClient.setQueryData(
+      queryKeys.notifications.preferences.cameras.list(),
+      mockCameraSettings
+    );
 
-    const { result } = renderHook(() => useOptimisticCameraNotificationSettingUpdate(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useOptimisticCameraNotificationSettingUpdate(), {
+      wrapper: Wrapper,
+    });
 
     act(() => {
       result.current.mutate({ cameraId: 'cam-1', update: { enabled: false } });
@@ -311,9 +335,14 @@ describe('useOptimisticQuietHoursPeriodMutations', () => {
   describe('createPeriod', () => {
     it('should add period optimistically', async () => {
       const { Wrapper, queryClient } = createTestContext();
-      queryClient.setQueryData(queryKeys.notifications.preferences.quietHours.list(), mockQuietHours);
+      queryClient.setQueryData(
+        queryKeys.notifications.preferences.quietHours.list(),
+        mockQuietHours
+      );
 
-      const { result } = renderHook(() => useOptimisticQuietHoursPeriodMutations(), { wrapper: Wrapper });
+      const { result } = renderHook(() => useOptimisticQuietHoursPeriodMutations(), {
+        wrapper: Wrapper,
+      });
 
       act(() => {
         result.current.createPeriod.mutate({
@@ -326,7 +355,9 @@ describe('useOptimisticQuietHoursPeriodMutations', () => {
 
       // Wait for mutation to complete and check data
       await waitFor(() => {
-        expect(result.current.createPeriod.isSuccess || result.current.createPeriod.isPending).toBe(true);
+        expect(result.current.createPeriod.isSuccess || result.current.createPeriod.isPending).toBe(
+          true
+        );
       });
 
       // Verify the period was added (optimistically or via server)
@@ -340,9 +371,14 @@ describe('useOptimisticQuietHoursPeriodMutations', () => {
 
     it('should replace optimistic item with real data on success', async () => {
       const { Wrapper, queryClient } = createTestContext();
-      queryClient.setQueryData(queryKeys.notifications.preferences.quietHours.list(), mockQuietHours);
+      queryClient.setQueryData(
+        queryKeys.notifications.preferences.quietHours.list(),
+        mockQuietHours
+      );
 
-      const { result } = renderHook(() => useOptimisticQuietHoursPeriodMutations(), { wrapper: Wrapper });
+      const { result } = renderHook(() => useOptimisticQuietHoursPeriodMutations(), {
+        wrapper: Wrapper,
+      });
 
       await act(async () => {
         await result.current.createPeriod.mutateAsync({
@@ -363,7 +399,10 @@ describe('useOptimisticQuietHoursPeriodMutations', () => {
 
     it('should rollback on error', async () => {
       const { Wrapper, queryClient } = createTestContext();
-      queryClient.setQueryData(queryKeys.notifications.preferences.quietHours.list(), mockQuietHours);
+      queryClient.setQueryData(
+        queryKeys.notifications.preferences.quietHours.list(),
+        mockQuietHours
+      );
 
       server.use(
         http.post('/api/notification-preferences/quiet-hours', () => {
@@ -402,9 +441,14 @@ describe('useOptimisticQuietHoursPeriodMutations', () => {
   describe('deletePeriod', () => {
     it('should remove period optimistically', async () => {
       const { Wrapper, queryClient } = createTestContext();
-      queryClient.setQueryData(queryKeys.notifications.preferences.quietHours.list(), mockQuietHours);
+      queryClient.setQueryData(
+        queryKeys.notifications.preferences.quietHours.list(),
+        mockQuietHours
+      );
 
-      const { result } = renderHook(() => useOptimisticQuietHoursPeriodMutations(), { wrapper: Wrapper });
+      const { result } = renderHook(() => useOptimisticQuietHoursPeriodMutations(), {
+        wrapper: Wrapper,
+      });
 
       act(() => {
         result.current.deletePeriod.mutate('period-1');
@@ -424,7 +468,10 @@ describe('useOptimisticQuietHoursPeriodMutations', () => {
 
     it('should call onDeleteSuccess callback', async () => {
       const { Wrapper, queryClient } = createTestContext();
-      queryClient.setQueryData(queryKeys.notifications.preferences.quietHours.list(), mockQuietHours);
+      queryClient.setQueryData(
+        queryKeys.notifications.preferences.quietHours.list(),
+        mockQuietHours
+      );
 
       const onDeleteSuccess = vi.fn();
       const { result } = renderHook(
@@ -441,7 +488,10 @@ describe('useOptimisticQuietHoursPeriodMutations', () => {
 
     it('should rollback on error', async () => {
       const { Wrapper, queryClient } = createTestContext();
-      queryClient.setQueryData(queryKeys.notifications.preferences.quietHours.list(), mockQuietHours);
+      queryClient.setQueryData(
+        queryKeys.notifications.preferences.quietHours.list(),
+        mockQuietHours
+      );
 
       server.use(
         http.delete('/api/notification-preferences/quiet-hours/:periodId', () => {
@@ -449,7 +499,9 @@ describe('useOptimisticQuietHoursPeriodMutations', () => {
         })
       );
 
-      const { result } = renderHook(() => useOptimisticQuietHoursPeriodMutations(), { wrapper: Wrapper });
+      const { result } = renderHook(() => useOptimisticQuietHoursPeriodMutations(), {
+        wrapper: Wrapper,
+      });
 
       await act(async () => {
         try {

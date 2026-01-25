@@ -227,10 +227,10 @@ import type {
   CalibrationUpdate,
   CalibrationDefaultsResponse,
   CalibrationResetResponse,
-
   RecordingResponse,
   RecordingsListResponse,
-  ReplayResponse} from '../types/generated';
+  ReplayResponse,
+} from '../types/generated';
 import type { SummariesLatestResponse } from '../types/summary';
 
 // Re-export entity types for consumers of this module
@@ -1613,7 +1613,9 @@ export interface FullHealthResponse {
  * @param options - Optional fetch options including AbortSignal for cancellation (NEM-3411)
  * @returns FullHealthResponse with detailed status of all services
  */
-export async function fetchFullHealth(options?: { signal?: AbortSignal }): Promise<FullHealthResponse> {
+export async function fetchFullHealth(options?: {
+  signal?: AbortSignal;
+}): Promise<FullHealthResponse> {
   return fetchApi<FullHealthResponse>('/api/system/health/full', options);
 }
 
@@ -3981,10 +3983,9 @@ export async function restartService(name: string): Promise<ServiceActionRespons
  * @throws ApiError 503 if orchestrator not available
  */
 export async function startService(name: string): Promise<ServiceActionResponse> {
-  return fetchApi<ServiceActionResponse>(
-    `/api/system/services/${encodeURIComponent(name)}/start`,
-    { method: 'POST' }
-  );
+  return fetchApi<ServiceActionResponse>(`/api/system/services/${encodeURIComponent(name)}/start`, {
+    method: 'POST',
+  });
 }
 
 /**
@@ -4503,9 +4504,7 @@ export async function fetchModelHistory(
   const queryParams = new URLSearchParams();
   queryParams.append('limit', String(limit));
   queryParams.append('offset', String(offset));
-  return fetchApi<PromptHistoryResponse>(
-    `/api/prompts/history/${model}?${queryParams.toString()}`
-  );
+  return fetchApi<PromptHistoryResponse>(`/api/prompts/history/${model}?${queryParams.toString()}`);
 }
 
 /**
@@ -4522,13 +4521,10 @@ export async function restorePromptVersion(
   description?: string
 ): Promise<PromptRestoreResponse> {
   const body = description ? { description } : {};
-  return fetchApi<PromptRestoreResponse>(
-    `/api/prompts/history/${version}?model=${model}`,
-    {
-      method: 'POST',
-      body: JSON.stringify(body),
-    }
-  );
+  return fetchApi<PromptRestoreResponse>(`/api/prompts/history/${version}?model=${model}`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 /**
@@ -5584,16 +5580,13 @@ export async function updateEntityTrust(
     notes: notes ?? null,
   };
 
-  return fetchApi<EntityTrustResponse>(
-    `/api/entities/${encodeURIComponent(entityId)}/trust`,
-    {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    }
-  );
+  return fetchApi<EntityTrustResponse>(`/api/entities/${encodeURIComponent(entityId)}/trust`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
 }
 
 /**
@@ -5670,7 +5663,9 @@ export async function fetchUntrustedEntities(params?: {
   }
 
   const queryString = searchParams.toString();
-  const endpoint = queryString ? `/api/entities/untrusted?${queryString}` : '/api/entities/untrusted';
+  const endpoint = queryString
+    ? `/api/entities/untrusted?${queryString}`
+    : '/api/entities/untrusted';
 
   return fetchApi<TrustedEntityListResponse>(endpoint);
 }
@@ -5707,7 +5702,9 @@ export async function fetchDetectionTrends(
   searchParams.append('start_date', params.start_date);
   searchParams.append('end_date', params.end_date);
 
-  return fetchApi<DetectionTrendsResponse>(`/api/analytics/detection-trends?${searchParams.toString()}`);
+  return fetchApi<DetectionTrendsResponse>(
+    `/api/analytics/detection-trends?${searchParams.toString()}`
+  );
 }
 
 /**
@@ -5772,9 +5769,7 @@ export interface CameraUptimeParams {
  * });
  * ```
  */
-export async function fetchCameraUptime(
-  params: CameraUptimeParams
-): Promise<CameraUptimeResponse> {
+export async function fetchCameraUptime(params: CameraUptimeParams): Promise<CameraUptimeResponse> {
   const searchParams = new URLSearchParams();
   searchParams.append('start_date', params.start_date);
   searchParams.append('end_date', params.end_date);
@@ -5785,7 +5780,6 @@ export async function fetchCameraUptime(
 // ============================================================================
 // Request Recording API (NEM-2721)
 // ============================================================================
-
 
 export type { RecordingResponse, RecordingsListResponse, ReplayResponse };
 
@@ -5843,10 +5837,10 @@ export async function fetchRecordings(limit: number = 100): Promise<RecordingsLi
  * console.log(`Request: ${recording.method} ${recording.path}`);
  * ```
  */
-export async function fetchRecordingDetail(
-  recordingId: string
-): Promise<RecordingDetailResponse> {
-  return fetchApi<RecordingDetailResponse>(`/api/debug/recordings/${encodeURIComponent(recordingId)}`);
+export async function fetchRecordingDetail(recordingId: string): Promise<RecordingDetailResponse> {
+  return fetchApi<RecordingDetailResponse>(
+    `/api/debug/recordings/${encodeURIComponent(recordingId)}`
+  );
 }
 
 /**
@@ -6865,7 +6859,10 @@ export async function fetchAreaCameras(areaId: number): Promise<AreaCamerasRespo
  * @param cameraId - Camera ID to link
  * @returns Link response
  */
-export async function linkCameraToArea(areaId: number, cameraId: string): Promise<CameraLinkResponse> {
+export async function linkCameraToArea(
+  areaId: number,
+  cameraId: string
+): Promise<CameraLinkResponse> {
   return fetchApi<CameraLinkResponse>(`/api/v1/areas/${areaId}/cameras`, {
     method: 'POST',
     body: JSON.stringify({ camera_id: cameraId }),
@@ -7347,11 +7344,9 @@ export async function fetchLogs(
     if (params.search) queryParams.append('search', params.search);
     if (params.start_date) queryParams.append('start_date', params.start_date);
     if (params.end_date) queryParams.append('end_date', params.end_date);
-    if (params.limit !== undefined)
-      queryParams.append('limit', String(params.limit));
+    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
     if (params.cursor) queryParams.append('cursor', params.cursor);
-    if (params.include_total_count)
-      queryParams.append('include_total_count', 'true');
+    if (params.include_total_count) queryParams.append('include_total_count', 'true');
   }
   const queryString = queryParams.toString();
   const endpoint = queryString ? `/api/logs?${queryString}` : '/api/logs';

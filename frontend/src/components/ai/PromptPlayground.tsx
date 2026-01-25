@@ -245,7 +245,11 @@ function highlightVariables(text: string): React.ReactNode[] {
         </span>
       );
     }
-    return <span key={i} className="text-white">{part}</span>;
+    return (
+      <span key={i} className="text-white">
+        {part}
+      </span>
+    );
   });
 }
 
@@ -328,7 +332,7 @@ function HighlightedEditor({
           onChange={(e) => onChange(e.target.value)}
           onScroll={handleScroll}
           placeholder={placeholder}
-          className="absolute inset-0 h-full w-full resize-none bg-transparent p-3 font-mono text-sm leading-[1.5rem] text-transparent placeholder-gray-500 caret-white focus:outline-none whitespace-pre-wrap break-words"
+          className="absolute inset-0 h-full w-full resize-none whitespace-pre-wrap break-words bg-transparent p-3 font-mono text-sm leading-[1.5rem] text-transparent placeholder-gray-500 caret-white focus:outline-none"
           style={{ caretColor: 'white' }}
           spellCheck={false}
           data-testid={testId}

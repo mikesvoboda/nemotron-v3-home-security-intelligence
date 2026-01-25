@@ -26,10 +26,7 @@ import { Activity, AlertTriangle, CheckCircle, XCircle, RefreshCw, Server } from
 import { useEffect, useRef, useState } from 'react';
 
 import { useWorkerStatusStore } from '../../stores/worker-status-store';
-import {
-  STATUS_BG_CLASSES,
-  STATUS_TEXT_CLASSES,
-} from '../../theme/colors';
+import { STATUS_BG_CLASSES, STATUS_TEXT_CLASSES } from '../../theme/colors';
 
 import type { PipelineHealthStatus, WorkerStatus } from '../../stores/worker-status-store';
 import type { WorkerState } from '../../types/websocket-events';
@@ -189,7 +186,11 @@ function WorkerDetailRow({ worker }: WorkerDetailRowProps) {
       </div>
       <div className="flex items-center gap-2">
         <Icon
-          className={clsx('h-3 w-3', config.textColor, worker.state === 'starting' && 'animate-spin')}
+          className={clsx(
+            'h-3 w-3',
+            config.textColor,
+            worker.state === 'starting' && 'animate-spin'
+          )}
           aria-hidden="true"
         />
         <div
@@ -258,11 +259,7 @@ export default function WorkerStatusIndicator({
         aria-label={`Pipeline workers: ${config.label}`}
       >
         <div
-          className={clsx(
-            'h-2 w-2 rounded-full',
-            config.dotColor,
-            config.pulse && 'animate-pulse'
-          )}
+          className={clsx('h-2 w-2 rounded-full', config.dotColor, config.pulse && 'animate-pulse')}
           data-testid="worker-status-dot"
         />
       </div>

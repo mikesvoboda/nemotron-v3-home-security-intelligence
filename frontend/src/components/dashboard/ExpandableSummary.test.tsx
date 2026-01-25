@@ -260,10 +260,7 @@ describe('ExpandableSummary', () => {
       await user.click(button);
 
       await waitFor(() => {
-        expect(screen.getByTestId('expandable-summary')).toHaveAttribute(
-          'data-expanded',
-          'true'
-        );
+        expect(screen.getByTestId('expandable-summary')).toHaveAttribute('data-expanded', 'true');
       });
     });
 
@@ -275,22 +272,14 @@ describe('ExpandableSummary', () => {
       await user.click(button);
 
       await waitFor(() => {
-        expect(screen.getByTestId('expandable-summary')).toHaveAttribute(
-          'data-expanded',
-          'false'
-        );
+        expect(screen.getByTestId('expandable-summary')).toHaveAttribute('data-expanded', 'false');
       });
     });
 
     it('calls onExpandChange callback when toggled', async () => {
       const onExpandChange = vi.fn();
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      render(
-        <ExpandableSummary
-          summary={longProseSummary}
-          onExpandChange={onExpandChange}
-        />
-      );
+      render(<ExpandableSummary summary={longProseSummary} onExpandChange={onExpandChange} />);
 
       const button = screen.getByTestId('expandable-summary-toggle');
       await user.click(button);
@@ -317,10 +306,7 @@ describe('ExpandableSummary', () => {
       fireEvent.keyDown(button, { key: 'Enter' });
 
       await waitFor(() => {
-        expect(screen.getByTestId('expandable-summary')).toHaveAttribute(
-          'data-expanded',
-          'true'
-        );
+        expect(screen.getByTestId('expandable-summary')).toHaveAttribute('data-expanded', 'true');
       });
     });
 
@@ -333,10 +319,7 @@ describe('ExpandableSummary', () => {
       fireEvent.keyDown(button, { key: ' ' });
 
       await waitFor(() => {
-        expect(screen.getByTestId('expandable-summary')).toHaveAttribute(
-          'data-expanded',
-          'true'
-        );
+        expect(screen.getByTestId('expandable-summary')).toHaveAttribute('data-expanded', 'true');
       });
     });
   });
@@ -379,7 +362,8 @@ describe('ExpandableSummary', () => {
       render(<ExpandableSummary summary={longProseSummary} />);
 
       // Find the expandable wrapper that has aria-hidden
-      const expandableWrapper = screen.getByTestId('expandable-summary')
+      const expandableWrapper = screen
+        .getByTestId('expandable-summary')
         .querySelector('[aria-hidden]');
       expect(expandableWrapper).toHaveAttribute('aria-hidden', 'true');
     });
@@ -388,7 +372,8 @@ describe('ExpandableSummary', () => {
       render(<ExpandableSummary summary={longProseSummary} defaultExpanded />);
 
       await waitFor(() => {
-        const expandableWrapper = screen.getByTestId('expandable-summary')
+        const expandableWrapper = screen
+          .getByTestId('expandable-summary')
           .querySelector('[aria-hidden]');
         expect(expandableWrapper).toHaveAttribute('aria-hidden', 'false');
       });
@@ -432,7 +417,8 @@ describe('ExpandableSummary', () => {
     it('has transition on expanded content wrapper', () => {
       render(<ExpandableSummary summary={longProseSummary} />);
 
-      const wrapper = screen.getByTestId('expandable-summary')
+      const wrapper = screen
+        .getByTestId('expandable-summary')
         .querySelector('[class*="overflow-hidden"]');
       expect(wrapper).toHaveStyle({ transition: 'height 300ms ease-in-out' });
     });
@@ -455,7 +441,8 @@ describe('ExpandableSummary', () => {
 
       render(<ExpandableSummary summary={longProseSummary} />);
 
-      const wrapper = screen.getByTestId('expandable-summary')
+      const wrapper = screen
+        .getByTestId('expandable-summary')
         .querySelector('[class*="overflow-hidden"]');
       expect(wrapper).toHaveStyle({ transition: 'height 0ms ease-in-out' });
     });
@@ -464,9 +451,7 @@ describe('ExpandableSummary', () => {
   describe('sessionStorage persistence', () => {
     it('persists expansion state to sessionStorage', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      render(
-        <ExpandableSummary summary={longProseSummary} summaryType="hourly" />
-      );
+      render(<ExpandableSummary summary={longProseSummary} summaryType="hourly" />);
 
       const button = screen.getByTestId('expandable-summary-toggle');
       await user.click(button);
@@ -481,9 +466,7 @@ describe('ExpandableSummary', () => {
       // Pre-set the storage value
       sessionStorage.setItem('summary-expansion-hourly-2', 'true');
 
-      render(
-        <ExpandableSummary summary={longProseSummary} summaryType="hourly" />
-      );
+      render(<ExpandableSummary summary={longProseSummary} summaryType="hourly" />);
 
       const container = screen.getByTestId('expandable-summary');
       expect(container).toHaveAttribute('data-expanded', 'true');
@@ -504,15 +487,10 @@ describe('ExpandableSummary', () => {
       });
 
       // Rerender with different type
-      rerender(
-        <ExpandableSummary summary={longProseSummary} summaryType="daily" />
-      );
+      rerender(<ExpandableSummary summary={longProseSummary} summaryType="daily" />);
 
       // Should be collapsed (different key)
-      expect(screen.getByTestId('expandable-summary')).toHaveAttribute(
-        'data-expanded',
-        'false'
-      );
+      expect(screen.getByTestId('expandable-summary')).toHaveAttribute('data-expanded', 'false');
     });
   });
 

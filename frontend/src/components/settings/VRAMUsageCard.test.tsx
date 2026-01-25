@@ -89,7 +89,9 @@ describe('VRAMUsageCard', () => {
     });
 
     it('shows yellow for moderate usage (50-80%)', () => {
-      render(<VRAMUsageCard {...defaultProps} usedMb={1000} availableMb={650} usagePercent={60.6} />);
+      render(
+        <VRAMUsageCard {...defaultProps} usedMb={1000} availableMb={650} usagePercent={60.6} />
+      );
 
       expect(screen.getByTestId('usage-indicator')).toHaveAttribute('data-status', 'moderate');
     });
@@ -103,7 +105,9 @@ describe('VRAMUsageCard', () => {
     });
 
     it('shows red for critical usage (>90%)', () => {
-      render(<VRAMUsageCard {...defaultProps} usedMb={1550} availableMb={100} usagePercent={93.9} />);
+      render(
+        <VRAMUsageCard {...defaultProps} usedMb={1550} availableMb={100} usagePercent={93.9} />
+      );
 
       expect(screen.getByTestId('usage-indicator')).toHaveAttribute('data-status', 'critical');
     });
@@ -144,9 +148,7 @@ describe('VRAMUsageCard', () => {
 
   describe('Formatting', () => {
     it('rounds percentage to one decimal place', () => {
-      render(
-        <VRAMUsageCard {...defaultProps} usagePercent={33.333} />
-      );
+      render(<VRAMUsageCard {...defaultProps} usagePercent={33.333} />);
 
       expect(screen.getByText(/33\.3%/)).toBeInTheDocument();
     });

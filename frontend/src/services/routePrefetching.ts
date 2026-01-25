@@ -14,14 +14,13 @@
  * @module services/routePrefetching
  */
 
-
+import { fetchCameras, fetchFullHealth, fetchEvents, fetchNotificationPreferences } from './api';
 import {
-  fetchCameras,
-  fetchFullHealth,
-  fetchEvents,
-  fetchNotificationPreferences,
-} from './api';
-import { queryKeys, DEFAULT_STALE_TIME, REALTIME_STALE_TIME, STATIC_STALE_TIME } from './queryClient';
+  queryKeys,
+  DEFAULT_STALE_TIME,
+  REALTIME_STALE_TIME,
+  STATIC_STALE_TIME,
+} from './queryClient';
 import { fetchSettings } from '../hooks/useSettingsApi';
 
 import type { EventsQueryParams } from './api';

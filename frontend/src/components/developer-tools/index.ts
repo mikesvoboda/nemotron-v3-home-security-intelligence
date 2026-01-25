@@ -37,7 +37,4 @@ export { default as CleanupRow } from './CleanupRow';
 export type { CleanupRowProps } from './CleanupRow';
 
 export { default as ConfirmWithTextDialog } from './ConfirmWithTextDialog';
-export type {
-  ConfirmWithTextDialogProps,
-  ConfirmDialogVariant,
-} from './ConfirmWithTextDialog';
+export type { ConfirmWithTextDialogProps, ConfirmDialogVariant } from './ConfirmWithTextDialog';

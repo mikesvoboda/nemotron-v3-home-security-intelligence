@@ -302,11 +302,19 @@ export function useGpuStatsWebSocket(
   }, [stats?.memory_used, stats?.memory_total]);
 
   const isHighUtilization = useMemo((): boolean => {
-    return stats?.utilization !== null && stats?.utilization !== undefined && stats.utilization >= highUtilizationThreshold;
+    return (
+      stats?.utilization !== null &&
+      stats?.utilization !== undefined &&
+      stats.utilization >= highUtilizationThreshold
+    );
   }, [stats?.utilization, highUtilizationThreshold]);
 
   const isHighTemperature = useMemo((): boolean => {
-    return stats?.temperature !== null && stats?.temperature !== undefined && stats.temperature >= highTemperatureThreshold;
+    return (
+      stats?.temperature !== null &&
+      stats?.temperature !== undefined &&
+      stats.temperature >= highTemperatureThreshold
+    );
   }, [stats?.temperature, highTemperatureThreshold]);
 
   return {

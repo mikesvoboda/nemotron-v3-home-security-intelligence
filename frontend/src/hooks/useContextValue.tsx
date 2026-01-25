@@ -15,7 +15,7 @@
  * @see https://react.dev/reference/react/use
  */
 
-import { use, createContext, type Context , ReactNode } from 'react';
+import { use, createContext, type Context, ReactNode } from 'react';
 
 // ============================================================================
 // Types
@@ -108,9 +108,7 @@ export interface UseConditionalContextResult<T> {
  * }
  * ```
  */
-export function createContextWithUse<T>(
-  options: CreateContextWithUseOptions
-): ContextWithUse<T> {
+export function createContextWithUse<T>(options: CreateContextWithUseOptions): ContextWithUse<T> {
   const { displayName, errorMessage } = options;
 
   const Context = createContext<T | null>(null);
@@ -304,9 +302,7 @@ export interface SuspenseResource<T> {
  * }
  * ```
  */
-export function createSuspenseResource<T>(
-  promiseFactory: () => Promise<T>
-): SuspenseResource<T> {
+export function createSuspenseResource<T>(promiseFactory: () => Promise<T>): SuspenseResource<T> {
   let status: ResourceStatus = 'pending';
   let result: T;
   let error: Error;

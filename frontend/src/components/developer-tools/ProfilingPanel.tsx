@@ -85,8 +85,7 @@ function StatusIndicator({
       <Text className="font-medium text-gray-200">
         {isProfiling ? (
           <>
-            Profiling...{' '}
-            <span className="text-[#76B900]">({elapsedSeconds ?? 0}s elapsed)</span>
+            Profiling... <span className="text-[#76B900]">({elapsedSeconds ?? 0}s elapsed)</span>
           </>
         ) : (
           'Idle'

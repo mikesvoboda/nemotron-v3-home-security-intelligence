@@ -170,20 +170,14 @@ export default function ConnectionStatusBanner({
 
             {/* Reconnection counter */}
             {connectionState === 'reconnecting' && (
-              <span
-                className="text-xs text-yellow-400/80"
-                data-testid="reconnect-counter"
-              >
+              <span className="text-xs text-yellow-400/80" data-testid="reconnect-counter">
                 Attempt {reconnectAttempts}/{maxReconnectAttempts}
               </span>
             )}
 
             {/* Duration */}
             {disconnectedSince && (
-              <span
-                className="text-xs text-text-secondary"
-                data-testid="disconnected-duration"
-              >
+              <span className="text-xs text-text-secondary" data-testid="disconnected-duration">
                 ({formatDuration(duration)})
               </span>
             )}
@@ -191,20 +185,14 @@ export default function ConnectionStatusBanner({
 
           {/* Stale data warning */}
           {isDataStale && (
-            <div
-              className="text-xs text-yellow-400/80"
-              data-testid="stale-data-warning"
-            >
+            <div className="text-xs text-yellow-400/80" data-testid="stale-data-warning">
               Data may be stale: events and system status may be outdated
             </div>
           )}
 
           {/* Polling fallback indicator */}
           {isPollingFallback && (
-            <div
-              className="text-xs text-blue-400"
-              data-testid="polling-fallback-indicator"
-            >
+            <div className="text-xs text-blue-400" data-testid="polling-fallback-indicator">
               Using REST API fallback for data updates
             </div>
           )}

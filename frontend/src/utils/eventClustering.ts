@@ -210,10 +210,7 @@ function groupEventsForClustering(
  * @param options - Clustering configuration options
  * @returns Array of clusters and individual events
  */
-export function clusterEvents(
-  events: Event[],
-  options?: ClusteringOptions
-): ClusteredItem[] {
+export function clusterEvents(events: Event[], options?: ClusteringOptions): ClusteredItem[] {
   const opts: Required<ClusteringOptions> = { ...DEFAULT_OPTIONS, ...options };
 
   // If clustering is disabled, return events as-is

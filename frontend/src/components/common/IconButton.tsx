@@ -17,8 +17,10 @@ export type IconButtonVariant = 'ghost' | 'outline' | 'solid';
  *
  * NOTE: aria-label is required for accessibility - icon-only buttons must have descriptive labels
  */
-export interface IconButtonProps
-  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-label'> {
+export interface IconButtonProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'aria-label'
+> {
   /**
    * Icon element to render (typically a Lucide icon)
    */
@@ -74,12 +76,10 @@ const sizeClasses: Record<IconButtonSize, string> = {
  * Variant classes for different button styles
  */
 const variantClasses: Record<IconButtonVariant, string> = {
-  ghost:
-    'bg-transparent text-gray-400 hover:bg-gray-800 hover:text-white active:bg-gray-700',
+  ghost: 'bg-transparent text-gray-400 hover:bg-gray-800 hover:text-white active:bg-gray-700',
   outline:
     'border border-gray-700 bg-transparent text-gray-400 hover:border-gray-600 hover:bg-gray-800 hover:text-white active:bg-gray-700',
-  solid:
-    'bg-gray-800 text-white hover:bg-gray-700 active:bg-gray-600',
+  solid: 'bg-gray-800 text-white hover:bg-gray-700 active:bg-gray-600',
 };
 
 /**
@@ -103,14 +103,7 @@ function LoadingSpinner({ className }: { className?: string }) {
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path
         className="opacity-75"
         fill="currentColor"

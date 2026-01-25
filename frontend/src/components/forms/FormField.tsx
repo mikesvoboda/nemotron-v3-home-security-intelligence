@@ -129,18 +129,13 @@ export const FormField = forwardRef<HTMLInputElement, FormFieldProps>(
     const isDisabled = inputProps.disabled || pending;
 
     // Build aria-describedby
-    const ariaDescribedBy = [
-      error && errorId,
-      helpText && helpTextId,
-    ].filter(Boolean).join(' ') || undefined;
+    const ariaDescribedBy =
+      [error && errorId, helpText && helpTextId].filter(Boolean).join(' ') || undefined;
 
     return (
       <div className={clsx('space-y-1.5', className)} data-testid={testId}>
         {/* Label */}
-        <label
-          htmlFor={inputId}
-          className="block text-sm font-medium text-gray-300"
-        >
+        <label htmlFor={inputId} className="block text-sm font-medium text-gray-300">
           {label}
           {required && (
             <span className="ml-1 text-red-400" aria-hidden="true">
@@ -198,11 +193,7 @@ export const FormField = forwardRef<HTMLInputElement, FormFieldProps>(
 
         {/* Error message */}
         {error && (
-          <div
-            id={errorId}
-            role="alert"
-            className="flex items-center gap-1.5 text-sm text-red-400"
-          >
+          <div id={errorId} role="alert" className="flex items-center gap-1.5 text-sm text-red-400">
             <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
             <span>{error}</span>
           </div>
@@ -228,8 +219,10 @@ FormField.displayName = 'FormField';
 /**
  * Props for the FormTextarea component.
  */
-export interface FormTextareaProps
-  extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'id'> {
+export interface FormTextareaProps extends Omit<
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+  'id'
+> {
   /** Field name (used for form data) */
   name: string;
   /** Field label */
@@ -274,17 +267,12 @@ export const FormTextarea = forwardRef<HTMLTextAreaElement, FormTextareaProps>(
     const { pending } = useFormStatus();
     const isDisabled = textareaProps.disabled || pending;
 
-    const ariaDescribedBy = [
-      error && errorId,
-      helpText && helpTextId,
-    ].filter(Boolean).join(' ') || undefined;
+    const ariaDescribedBy =
+      [error && errorId, helpText && helpTextId].filter(Boolean).join(' ') || undefined;
 
     return (
       <div className={clsx('space-y-1.5', className)} data-testid={testId}>
-        <label
-          htmlFor={textareaId}
-          className="block text-sm font-medium text-gray-300"
-        >
+        <label htmlFor={textareaId} className="block text-sm font-medium text-gray-300">
           {label}
           {required && (
             <span className="ml-1 text-red-400" aria-hidden="true">
@@ -316,11 +304,7 @@ export const FormTextarea = forwardRef<HTMLTextAreaElement, FormTextareaProps>(
         />
 
         {error && (
-          <div
-            id={errorId}
-            role="alert"
-            className="flex items-center gap-1.5 text-sm text-red-400"
-          >
+          <div id={errorId} role="alert" className="flex items-center gap-1.5 text-sm text-red-400">
             <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
             <span>{error}</span>
           </div>
@@ -345,8 +329,7 @@ FormTextarea.displayName = 'FormTextarea';
 /**
  * Props for the FormSelect component.
  */
-export interface FormSelectProps
-  extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'id'> {
+export interface FormSelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'id'> {
   /** Field name (used for form data) */
   name: string;
   /** Field label */
@@ -394,17 +377,12 @@ export const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
     const { pending } = useFormStatus();
     const isDisabled = selectProps.disabled || pending;
 
-    const ariaDescribedBy = [
-      error && errorId,
-      helpText && helpTextId,
-    ].filter(Boolean).join(' ') || undefined;
+    const ariaDescribedBy =
+      [error && errorId, helpText && helpTextId].filter(Boolean).join(' ') || undefined;
 
     return (
       <div className={clsx('space-y-1.5', className)} data-testid={testId}>
-        <label
-          htmlFor={selectId}
-          className="block text-sm font-medium text-gray-300"
-        >
+        <label htmlFor={selectId} className="block text-sm font-medium text-gray-300">
           {label}
           {required && (
             <span className="ml-1 text-red-400" aria-hidden="true">
@@ -437,11 +415,7 @@ export const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
         </select>
 
         {error && (
-          <div
-            id={errorId}
-            role="alert"
-            className="flex items-center gap-1.5 text-sm text-red-400"
-          >
+          <div id={errorId} role="alert" className="flex items-center gap-1.5 text-sm text-red-400">
             <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
             <span>{error}</span>
           </div>

@@ -114,7 +114,10 @@ export function SummaryCardSkeleton({
 
       {/* Optional status text */}
       {showStatusText && (
-        <p className="mt-3 text-sm text-gray-500" data-testid={`summary-card-skeleton-status-${type}`}>
+        <p
+          className="mt-3 text-sm text-gray-500"
+          data-testid={`summary-card-skeleton-status-${type}`}
+        >
           Loading summary data...
         </p>
       )}

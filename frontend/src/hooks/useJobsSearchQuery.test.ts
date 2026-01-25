@@ -1,7 +1,11 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { useJobsSearchQuery, jobsSearchQueryKeys, type JobsSearchFilters } from './useJobsSearchQuery';
+import {
+  useJobsSearchQuery,
+  jobsSearchQueryKeys,
+  type JobsSearchFilters,
+} from './useJobsSearchQuery';
 import * as api from '../services/api';
 import { createQueryWrapper } from '../test-utils/renderWithProviders';
 
@@ -186,9 +190,7 @@ describe('useJobsSearchQuery', () => {
       renderHook(() => useJobsSearchQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
-        expect(api.searchJobs).toHaveBeenCalledWith(
-          expect.objectContaining({ q: 'export' })
-        );
+        expect(api.searchJobs).toHaveBeenCalledWith(expect.objectContaining({ q: 'export' }));
       });
     });
 
@@ -198,9 +200,7 @@ describe('useJobsSearchQuery', () => {
       renderHook(() => useJobsSearchQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
-        expect(api.searchJobs).toHaveBeenCalledWith(
-          expect.objectContaining({ q: '' })
-        );
+        expect(api.searchJobs).toHaveBeenCalledWith(expect.objectContaining({ q: '' }));
       });
     });
   });
@@ -212,9 +212,7 @@ describe('useJobsSearchQuery', () => {
       renderHook(() => useJobsSearchQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
-        expect(api.searchJobs).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'failed' })
-        );
+        expect(api.searchJobs).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }));
       });
     });
 
@@ -224,9 +222,7 @@ describe('useJobsSearchQuery', () => {
       renderHook(() => useJobsSearchQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
-        expect(api.searchJobs).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'pending' })
-        );
+        expect(api.searchJobs).toHaveBeenCalledWith(expect.objectContaining({ status: 'pending' }));
       });
     });
 
@@ -236,9 +232,7 @@ describe('useJobsSearchQuery', () => {
       renderHook(() => useJobsSearchQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
-        expect(api.searchJobs).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'running' })
-        );
+        expect(api.searchJobs).toHaveBeenCalledWith(expect.objectContaining({ status: 'running' }));
       });
     });
 
@@ -262,9 +256,7 @@ describe('useJobsSearchQuery', () => {
       renderHook(() => useJobsSearchQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
-        expect(api.searchJobs).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'export' })
-        );
+        expect(api.searchJobs).toHaveBeenCalledWith(expect.objectContaining({ type: 'export' }));
       });
     });
 
@@ -286,9 +278,7 @@ describe('useJobsSearchQuery', () => {
       renderHook(() => useJobsSearchQuery({ filters }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
-        expect(api.searchJobs).toHaveBeenCalledWith(
-          expect.objectContaining({ type: 'cleanup' })
-        );
+        expect(api.searchJobs).toHaveBeenCalledWith(expect.objectContaining({ type: 'cleanup' }));
       });
     });
   });
@@ -320,9 +310,7 @@ describe('useJobsSearchQuery', () => {
       renderHook(() => useJobsSearchQuery({ limit: 25 }), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
-        expect(api.searchJobs).toHaveBeenCalledWith(
-          expect.objectContaining({ limit: 25 })
-        );
+        expect(api.searchJobs).toHaveBeenCalledWith(expect.objectContaining({ limit: 25 }));
       });
     });
 
@@ -330,9 +318,7 @@ describe('useJobsSearchQuery', () => {
       renderHook(() => useJobsSearchQuery(), { wrapper: createQueryWrapper() });
 
       await waitFor(() => {
-        expect(api.searchJobs).toHaveBeenCalledWith(
-          expect.objectContaining({ limit: 50 })
-        );
+        expect(api.searchJobs).toHaveBeenCalledWith(expect.objectContaining({ limit: 50 }));
       });
     });
   });

@@ -598,9 +598,9 @@ describe('AuditTable', () => {
 
       render(<AuditTable {...defaultProps} logs={logsWithLongIP} totalCount={1} />);
 
-      const ipContainer = screen.getByText('2001:0db8:85a3:0000:0000:8a2e:0370:7334').closest(
-        'span[title]'
-      );
+      const ipContainer = screen
+        .getByText('2001:0db8:85a3:0000:0000:8a2e:0370:7334')
+        .closest('span[title]');
       expect(ipContainer).toHaveAttribute('title', '2001:0db8:85a3:0000:0000:8a2e:0370:7334');
     });
 

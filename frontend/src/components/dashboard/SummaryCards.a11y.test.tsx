@@ -46,18 +46,14 @@ describe('SummaryCards Accessibility Tests', () => {
 
   describe('WCAG 2.1 AA Compliance - All States', () => {
     it('loading state has no accessibility violations', async () => {
-      const { container } = render(
-        <SummaryCards hourly={null} daily={null} isLoading={true} />
-      );
+      const { container } = render(<SummaryCards hourly={null} daily={null} isLoading={true} />);
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
 
     it('empty state has no accessibility violations', async () => {
-      const { container } = render(
-        <SummaryCards hourly={null} daily={null} isLoading={false} />
-      );
+      const { container } = render(<SummaryCards hourly={null} daily={null} isLoading={false} />);
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
@@ -65,11 +61,7 @@ describe('SummaryCards Accessibility Tests', () => {
 
     it('content state (hourly) has no accessibility violations', async () => {
       const { container } = render(
-        <SummaryCards
-          hourly={mockSummaryHighSeverity}
-          daily={null}
-          isLoading={false}
-        />
+        <SummaryCards hourly={mockSummaryHighSeverity} daily={null} isLoading={false} />
       );
 
       const results = await axe(container);
@@ -78,11 +70,7 @@ describe('SummaryCards Accessibility Tests', () => {
 
     it('content state (daily) has no accessibility violations', async () => {
       const { container } = render(
-        <SummaryCards
-          hourly={null}
-          daily={mockSummaryAllClear}
-          isLoading={false}
-        />
+        <SummaryCards hourly={null} daily={mockSummaryAllClear} isLoading={false} />
       );
 
       const results = await axe(container);
@@ -108,27 +96,21 @@ describe('SummaryCards Accessibility Tests', () => {
       );
 
       // Change hourly to loading state
-      rerender(
-        <SummaryCards hourly={null} daily={mockSummaryAllClear} isLoading={true} />
-      );
+      rerender(<SummaryCards hourly={null} daily={mockSummaryAllClear} isLoading={true} />);
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
 
     it('critical severity state has no accessibility violations', async () => {
-      const { container } = render(
-        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} />
-      );
+      const { container } = render(<SummaryCard type="hourly" summary={mockSummaryHighSeverity} />);
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
 
     it('all clear severity state has no accessibility violations', async () => {
-      const { container } = render(
-        <SummaryCard type="daily" summary={mockSummaryAllClear} />
-      );
+      const { container } = render(<SummaryCard type="daily" summary={mockSummaryAllClear} />);
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
@@ -144,18 +126,14 @@ describe('SummaryCards Accessibility Tests', () => {
     });
 
     it('empty content state has no accessibility violations', async () => {
-      const { container } = render(
-        <SummaryCard type="hourly" summary={mockSummaryEmpty} />
-      );
+      const { container } = render(<SummaryCard type="hourly" summary={mockSummaryEmpty} />);
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
 
     it('long content state has no accessibility violations', async () => {
-      const { container } = render(
-        <SummaryCard type="hourly" summary={mockSummaryLongContent} />
-      );
+      const { container } = render(<SummaryCard type="hourly" summary={mockSummaryLongContent} />);
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
@@ -253,27 +231,25 @@ describe('SummaryCards Accessibility Tests', () => {
 
   describe('Screen Reader Compatibility', () => {
     it('has proper ARIA labels for time icons', () => {
-      render(
-        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} />
-      );
+      render(<SummaryCard type="hourly" summary={mockSummaryHighSeverity} />);
 
-      const hourlyIcon = screen.getByTestId('summary-card-hourly').querySelector('svg.lucide-clock');
+      const hourlyIcon = screen
+        .getByTestId('summary-card-hourly')
+        .querySelector('svg.lucide-clock');
       expect(hourlyIcon).toHaveAttribute('aria-hidden', 'true');
     });
 
     it('has proper ARIA labels for calendar icons', () => {
-      render(
-        <SummaryCard type="daily" summary={mockSummaryAllClear} />
-      );
+      render(<SummaryCard type="daily" summary={mockSummaryAllClear} />);
 
-      const dailyIcon = screen.getByTestId('summary-card-daily').querySelector('svg.lucide-calendar');
+      const dailyIcon = screen
+        .getByTestId('summary-card-daily')
+        .querySelector('svg.lucide-calendar');
       expect(dailyIcon).toHaveAttribute('aria-hidden', 'true');
     });
 
     it('decorative icons are marked aria-hidden', () => {
-      render(
-        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} />
-      );
+      render(<SummaryCard type="hourly" summary={mockSummaryHighSeverity} />);
 
       // All decorative icons should have aria-hidden="true"
       const card = screen.getByTestId('summary-card-hourly');
@@ -282,9 +258,7 @@ describe('SummaryCards Accessibility Tests', () => {
     });
 
     it('provides meaningful text content for screen readers', () => {
-      render(
-        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} />
-      );
+      render(<SummaryCard type="hourly" summary={mockSummaryHighSeverity} />);
 
       // Title should be accessible
       expect(screen.getByText('Hourly Summary')).toBeInTheDocument();
@@ -293,13 +267,13 @@ describe('SummaryCards Accessibility Tests', () => {
       expect(screen.getByText('Last 60 minutes')).toBeInTheDocument();
 
       // Event count should be accessible
-      expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent('3 events analyzed');
+      expect(screen.getByTestId('summary-event-count-hourly')).toHaveTextContent(
+        '3 events analyzed'
+      );
     });
 
     it('severity badge has accessible text', () => {
-      render(
-        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} />
-      );
+      render(<SummaryCard type="hourly" summary={mockSummaryHighSeverity} />);
 
       const badge = screen.getByTestId('severity-badge');
       expect(badge).toHaveTextContent('CRITICAL');
@@ -330,11 +304,7 @@ describe('SummaryCards Accessibility Tests', () => {
       const onViewFull = vi.fn();
 
       render(
-        <SummaryCard
-          type="hourly"
-          summary={mockSummaryHighSeverity}
-          onViewFull={onViewFull}
-        />
+        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} onViewFull={onViewFull} />
       );
 
       const button = screen.getByTestId('summary-view-full-hourly');
@@ -345,9 +315,7 @@ describe('SummaryCards Accessibility Tests', () => {
 
   describe('Color Contrast and Visual Accessibility', () => {
     it('critical severity badge has sufficient contrast', async () => {
-      const { container } = render(
-        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} />
-      );
+      const { container } = render(<SummaryCard type="hourly" summary={mockSummaryHighSeverity} />);
 
       // Run axe with color-contrast rule
       const results = await axe(container, {
@@ -360,9 +328,7 @@ describe('SummaryCards Accessibility Tests', () => {
     });
 
     it('all clear badge has sufficient contrast', async () => {
-      const { container } = render(
-        <SummaryCard type="daily" summary={mockSummaryAllClear} />
-      );
+      const { container } = render(<SummaryCard type="daily" summary={mockSummaryAllClear} />);
 
       const results = await axe(container, {
         rules: {
@@ -374,9 +340,7 @@ describe('SummaryCards Accessibility Tests', () => {
     });
 
     it('loading state skeleton has sufficient contrast', async () => {
-      const { container } = render(
-        <SummaryCard type="hourly" summary={null} isLoading={true} />
-      );
+      const { container } = render(<SummaryCard type="hourly" summary={null} isLoading={true} />);
 
       const results = await axe(container, {
         rules: {
@@ -388,9 +352,7 @@ describe('SummaryCards Accessibility Tests', () => {
     });
 
     it('empty state text has sufficient contrast', async () => {
-      const { container } = render(
-        <SummaryCard type="hourly" summary={null} isLoading={false} />
-      );
+      const { container } = render(<SummaryCard type="hourly" summary={null} isLoading={false} />);
 
       const results = await axe(container, {
         rules: {
@@ -421,9 +383,7 @@ describe('SummaryCards Accessibility Tests', () => {
 
   describe('Semantic HTML and Structure', () => {
     it('uses semantic HTML for card structure', async () => {
-      const { container } = render(
-        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} />
-      );
+      const { container } = render(<SummaryCard type="hourly" summary={mockSummaryHighSeverity} />);
 
       // Should not have heading-level issues
       const results = await axe(container, {
@@ -439,11 +399,7 @@ describe('SummaryCards Accessibility Tests', () => {
       const onViewFull = vi.fn();
 
       render(
-        <SummaryCard
-          type="hourly"
-          summary={mockSummaryHighSeverity}
-          onViewFull={onViewFull}
-        />
+        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} onViewFull={onViewFull} />
       );
 
       const button = screen.getByTestId('summary-view-full-hourly');
@@ -466,9 +422,7 @@ describe('SummaryCards Accessibility Tests', () => {
     });
 
     it('uses proper data attributes for testability', () => {
-      render(
-        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} />
-      );
+      render(<SummaryCard type="hourly" summary={mockSummaryHighSeverity} />);
 
       const card = screen.getByTestId('summary-card-hourly');
       expect(card).toHaveAttribute('data-severity', 'critical');
@@ -480,11 +434,7 @@ describe('SummaryCards Accessibility Tests', () => {
       const onViewFull = vi.fn();
 
       render(
-        <SummaryCard
-          type="hourly"
-          summary={mockSummaryHighSeverity}
-          onViewFull={onViewFull}
-        />
+        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} onViewFull={onViewFull} />
       );
 
       const button = screen.getByTestId('summary-view-full-hourly');
@@ -498,11 +448,7 @@ describe('SummaryCards Accessibility Tests', () => {
       const onViewFull = vi.fn();
 
       render(
-        <SummaryCard
-          type="hourly"
-          summary={mockSummaryHighSeverity}
-          onViewFull={onViewFull}
-        />
+        <SummaryCard type="hourly" summary={mockSummaryHighSeverity} onViewFull={onViewFull} />
       );
 
       const button = screen.getByTestId('summary-view-full-hourly');
@@ -584,9 +530,7 @@ describe('SummaryCards Accessibility Tests', () => {
         bulletPoints: [],
       });
 
-      const { container } = render(
-        <SummaryCard type="hourly" summary={summaryNoBullets} />
-      );
+      const { container } = render(<SummaryCard type="hourly" summary={summaryNoBullets} />);
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
@@ -606,18 +550,14 @@ describe('SummaryCards Accessibility Tests', () => {
         ],
       });
 
-      const { container } = render(
-        <SummaryCard type="hourly" summary={summaryManyBullets} />
-      );
+      const { container } = render(<SummaryCard type="hourly" summary={summaryManyBullets} />);
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
     });
 
     it('handles very long summary text accessibly', async () => {
-      const { container } = render(
-        <SummaryCard type="hourly" summary={mockSummaryLongContent} />
-      );
+      const { container } = render(<SummaryCard type="hourly" summary={mockSummaryLongContent} />);
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
@@ -629,9 +569,7 @@ describe('SummaryCards Accessibility Tests', () => {
         eventCount: 1,
       });
 
-      const { container } = render(
-        <SummaryCard type="hourly" summary={summarySpecialChars} />
-      );
+      const { container } = render(<SummaryCard type="hourly" summary={summarySpecialChars} />);
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();

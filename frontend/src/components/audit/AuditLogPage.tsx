@@ -5,11 +5,7 @@ import AuditDetailModal from './AuditDetailModal';
 import AuditFilters, { type AuditFilterParams } from './AuditFilters';
 import AuditStatsCards, { type StatsFilterType } from './AuditStatsCards';
 import AuditTableInfinite, { type AuditEntry } from './AuditTableInfinite';
-import {
-  useAuditLogsInfiniteQuery,
-  useInfiniteScroll,
-  type AuditLogFilters,
-} from '../../hooks';
+import { useAuditLogsInfiniteQuery, useInfiniteScroll, type AuditLogFilters } from '../../hooks';
 import { fetchAuditStats, type AuditLogStats } from '../../services/api';
 
 /**
@@ -318,9 +314,16 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
             <button
               onClick={() => handleClearFilter('action')}
               className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 px-3 py-1 text-sm font-medium text-blue-400 transition-colors hover:bg-blue-500/20"
-              aria-label={`Clear action filter: ${activeActionFilter.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}`}
+              aria-label={`Clear action filter: ${activeActionFilter
+                .split('_')
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                .join(' ')}`}
             >
-              Action: {activeActionFilter.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')}
+              Action:{' '}
+              {activeActionFilter
+                .split('_')
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                .join(' ')}
               <X className="h-3.5 w-3.5" />
             </button>
           )}
@@ -343,7 +346,7 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
         totalCount={totalCount}
         loading={isLoading}
         loadingMore={isFetchingNextPage || isLoadingMore}
-        error={isError ? (error?.message || 'Failed to load audit logs') : null}
+        error={isError ? error?.message || 'Failed to load audit logs' : null}
         hasMore={hasNextPage}
         onRowClick={handleRowClick}
         onLoadMore={handleLoadMore}

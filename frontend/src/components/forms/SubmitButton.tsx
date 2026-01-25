@@ -78,8 +78,7 @@ const variantStyles: Record<SubmitButtonVariant, string> = {
     'bg-[#76B900] text-gray-950 hover:bg-[#5c8f00] focus:ring-[#76B900] disabled:bg-[#76B900]/50',
   secondary:
     'bg-gray-700 text-white hover:bg-gray-600 focus:ring-gray-500 border border-gray-600 disabled:bg-gray-700/50',
-  danger:
-    'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 disabled:bg-red-600/50',
+  danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 disabled:bg-red-600/50',
 };
 
 const sizeStyles: Record<SubmitButtonSize, string> = {
@@ -176,14 +175,12 @@ export function SubmitButton({
       aria-disabled={isDisabled}
     >
       {/* Icon - show pending icon when pending, otherwise show regular icon */}
-      {pending ? (
-        pendingIcon || defaultPendingIcon
-      ) : (
-        icon && <span className={iconSize}>{icon}</span>
-      )}
+      {pending
+        ? pendingIcon || defaultPendingIcon
+        : icon && <span className={iconSize}>{icon}</span>}
 
       {/* Text content */}
-      <span>{pending ? (pendingText || children) : children}</span>
+      <span>{pending ? pendingText || children : children}</span>
     </button>
   );
 }

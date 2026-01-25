@@ -38,11 +38,7 @@ export default function ChartSkeleton({ height = 300, className }: ChartSkeleton
         data-testid="chart-skeleton-area"
       >
         {[65, 45, 80, 55, 70, 40, 85, 60, 75, 50].map((h, i) => (
-          <div
-            key={i}
-            className="w-full animate-shimmer rounded-t"
-            style={{ height: `${h}%` }}
-          />
+          <div key={i} className="w-full animate-shimmer rounded-t" style={{ height: `${h}%` }} />
         ))}
       </div>
 

@@ -129,10 +129,7 @@ describe('App lazy loading', () => {
         </Suspense>
       );
 
-      await waitFor(
-        () => expect(screen.getByTestId('route1')).toBeInTheDocument(),
-        FAST_TIMEOUT
-      );
+      await waitFor(() => expect(screen.getByTestId('route1')).toBeInTheDocument(), FAST_TIMEOUT);
 
       // Only route1 should be imported
       expect(importedRoutes).toEqual(['route1']);
@@ -146,10 +143,7 @@ describe('App lazy loading', () => {
         </Suspense>
       );
 
-      await waitFor(
-        () => expect(screen.getByTestId('route2')).toBeInTheDocument(),
-        FAST_TIMEOUT
-      );
+      await waitFor(() => expect(screen.getByTestId('route2')).toBeInTheDocument(), FAST_TIMEOUT);
 
       // Now both routes should be imported
       expect(importedRoutes).toEqual(['route1', 'route2']);
@@ -200,10 +194,7 @@ describe('App lazy loading', () => {
         </TestErrorBoundary>
       );
 
-      await waitFor(
-        () => expect(screen.getByRole('alert')).toBeInTheDocument(),
-        FAST_TIMEOUT
-      );
+      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument(), FAST_TIMEOUT);
 
       expect(screen.getByTestId('error-boundary')).toHaveTextContent('Loading chunk failed');
 

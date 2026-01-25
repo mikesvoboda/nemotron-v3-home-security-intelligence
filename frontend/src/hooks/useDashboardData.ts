@@ -80,23 +80,27 @@ export interface DashboardData {
   /** Health status */
   health: HealthResponse | undefined;
   /** Health summary (via select) */
-  healthSummary: {
-    status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
-    serviceCount: number;
-    healthyServiceCount: number;
-    timestamp: string;
-  } | undefined;
+  healthSummary:
+    | {
+        status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+        serviceCount: number;
+        healthyServiceCount: number;
+        timestamp: string;
+      }
+    | undefined;
   /** Event statistics */
   eventStats: EventStatsResponse | undefined;
   /** Risk distribution (via select) */
-  riskDistribution: {
-    low: number;
-    medium: number;
-    high: number;
-    lowPercent: number;
-    mediumPercent: number;
-    highPercent: number;
-  } | undefined;
+  riskDistribution:
+    | {
+        low: number;
+        medium: number;
+        high: number;
+        lowPercent: number;
+        mediumPercent: number;
+        highPercent: number;
+      }
+    | undefined;
   /** GPU statistics (if enabled) */
   gpuStats: GPUStats | undefined;
 }
@@ -266,9 +270,7 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
       healthSummary,
       eventStats: eventStatsResult?.data as EventStatsResponse | undefined,
       riskDistribution,
-      gpuStats: includeGpuStats
-        ? (gpuStatsResult?.data as GPUStats | undefined)
-        : undefined,
+      gpuStats: includeGpuStats ? (gpuStatsResult?.data as GPUStats | undefined) : undefined,
     }),
     [
       camerasResult?.data,
@@ -296,12 +298,7 @@ export function useDashboardData(options: UseDashboardDataOptions = {}): UseDash
     if (eventStatsResult?.error) errs.eventStats = eventStatsResult.error;
     if (gpuStatsResult?.error) errs.gpuStats = gpuStatsResult.error;
     return errs;
-  }, [
-    camerasResult?.error,
-    healthResult?.error,
-    eventStatsResult?.error,
-    gpuStatsResult?.error,
-  ]);
+  }, [camerasResult?.error, healthResult?.error, eventStatsResult?.error, gpuStatsResult?.error]);
 
   // Individual query states
   const queryStates = useMemo(

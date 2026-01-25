@@ -151,9 +151,8 @@ export default function EventVideoPlayer({ eventId, className = '' }: EventVideo
   const viewState = getViewState();
 
   // Get clip URL only when available (avoiding conditional hook-like behavior)
-  const clipUrl = clipInfo?.clip_available && clipInfo.clip_url
-    ? getEventClipUrl(clipInfo.clip_url)
-    : null;
+  const clipUrl =
+    clipInfo?.clip_available && clipInfo.clip_url ? getEventClipUrl(clipInfo.clip_url) : null;
 
   // Render a stable container structure that doesn't get replaced during state transitions.
   // All states are rendered within the same container to prevent DOM detachment issues

@@ -34,10 +34,7 @@ export interface CollapsibleDetectionsProps {
  * CollapsibleDetections component displays detection badges with expand/collapse
  * functionality when there are more detections than maxVisible.
  */
-export function CollapsibleDetections({
-  detections,
-  maxVisible = 3,
-}: CollapsibleDetectionsProps) {
+export function CollapsibleDetections({ detections, maxVisible = 3 }: CollapsibleDetectionsProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Sort detections by confidence (highest first)
@@ -45,9 +42,7 @@ export function CollapsibleDetections({
 
   // Determine which detections to show
   const shouldCollapse = sortedDetections.length > maxVisible;
-  const visibleDetections = isExpanded
-    ? sortedDetections
-    : sortedDetections.slice(0, maxVisible);
+  const visibleDetections = isExpanded ? sortedDetections : sortedDetections.slice(0, maxVisible);
   const hiddenCount = sortedDetections.length - maxVisible;
 
   // Format confidence as percentage
@@ -282,7 +277,7 @@ const EventCard = memo(function EventCard({
   return (
     /* eslint-disable jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-tabindex -- Card is accessible via nested buttons (View Details, Snooze) when they exist; role="button" intentionally omitted to avoid WCAG nested-interactive violation */
     <div
-      className={`rounded-lg border border-gray-800 border-l-4 shadow-lg transition-all hover:border-gray-700 ${getSeverityClasses()} ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
+      className={`rounded-lg border border-l-4 border-gray-800 shadow-lg transition-all hover:border-gray-700 ${getSeverityClasses()} ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
       data-testid={`event-card-${id}`}
       data-severity={severityConfig.level}
       onClick={isClickable ? handleCardClick : undefined}

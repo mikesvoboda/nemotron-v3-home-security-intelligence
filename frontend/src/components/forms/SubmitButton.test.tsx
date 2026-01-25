@@ -170,11 +170,7 @@ describe('SubmitButton', () => {
     });
 
     it('renders custom icon when provided', () => {
-      render(
-        <SubmitButton icon={<Save data-testid="save-icon" />}>
-          Save
-        </SubmitButton>
-      );
+      render(<SubmitButton icon={<Save data-testid="save-icon" />}>Save</SubmitButton>);
 
       expect(screen.getByTestId('save-icon')).toBeInTheDocument();
     });
@@ -183,9 +179,7 @@ describe('SubmitButton', () => {
       mockUseFormStatus.mockReturnValue({ pending: true });
 
       const { container } = render(
-        <SubmitButton icon={<Save data-testid="save-icon" />}>
-          Save
-        </SubmitButton>
+        <SubmitButton icon={<Save data-testid="save-icon" />}>Save</SubmitButton>
       );
 
       expect(screen.queryByTestId('save-icon')).not.toBeInTheDocument();
@@ -196,9 +190,7 @@ describe('SubmitButton', () => {
       mockUseFormStatus.mockReturnValue({ pending: true });
 
       render(
-        <SubmitButton pendingIcon={<span data-testid="custom-loader">...</span>}>
-          Save
-        </SubmitButton>
+        <SubmitButton pendingIcon={<span data-testid="custom-loader">...</span>}>Save</SubmitButton>
       );
 
       expect(screen.getByTestId('custom-loader')).toBeInTheDocument();

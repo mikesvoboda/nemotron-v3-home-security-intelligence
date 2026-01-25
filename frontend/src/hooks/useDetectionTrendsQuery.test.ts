@@ -256,13 +256,10 @@ describe('useDetectionTrendsQuery', () => {
     });
 
     it('refetches when params change', async () => {
-      const { rerender } = renderHook(
-        ({ params }) => useDetectionTrendsQuery(params),
-        {
-          wrapper: createQueryWrapper(),
-          initialProps: { params: defaultParams },
-        }
-      );
+      const { rerender } = renderHook(({ params }) => useDetectionTrendsQuery(params), {
+        wrapper: createQueryWrapper(),
+        initialProps: { params: defaultParams },
+      });
 
       await waitFor(() => {
         expect(api.fetchDetectionTrends).toHaveBeenCalledTimes(1);

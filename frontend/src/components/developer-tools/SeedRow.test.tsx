@@ -72,13 +72,7 @@ describe('SeedRow', () => {
   });
 
   it('should support custom button text', () => {
-    render(
-      <SeedRow
-        {...defaultProps}
-        buttonText="Create Cameras"
-        loadingText="Creating..."
-      />
-    );
+    render(<SeedRow {...defaultProps} buttonText="Create Cameras" loadingText="Creating..." />);
 
     expect(screen.getByRole('button', { name: /create cameras/i })).toBeInTheDocument();
   });
@@ -97,12 +91,7 @@ describe('SeedRow', () => {
   });
 
   it('should render with description', () => {
-    render(
-      <SeedRow
-        {...defaultProps}
-        description="Creates test cameras in the database"
-      />
-    );
+    render(<SeedRow {...defaultProps} description="Creates test cameras in the database" />);
 
     expect(screen.getByText('Creates test cameras in the database')).toBeInTheDocument();
   });

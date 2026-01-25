@@ -134,7 +134,12 @@ export default function FashionClipConfigForm({
     <div className="space-y-6" data-testid="fashionclip-config-form">
       {/* Clothing Categories */}
       <div>
-        <span id="clothing-categories-label" className="mb-2 block text-sm font-medium text-gray-200">Clothing Categories</span>
+        <span
+          id="clothing-categories-label"
+          className="mb-2 block text-sm font-medium text-gray-200"
+        >
+          Clothing Categories
+        </span>
         <p className="mb-3 text-xs text-gray-400">
           Define clothing types for the model to identify on detected persons.
         </p>
@@ -188,7 +193,10 @@ export default function FashionClipConfigForm({
 
       {/* Suspicious Indicators */}
       <div>
-        <span id="suspicious-indicators-label" className="mb-2 block text-sm font-medium text-gray-200">
+        <span
+          id="suspicious-indicators-label"
+          className="mb-2 block text-sm font-medium text-gray-200"
+        >
           Suspicious Indicators
         </span>
         <p className="mb-3 text-xs text-gray-400">

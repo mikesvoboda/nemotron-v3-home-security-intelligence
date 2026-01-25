@@ -252,7 +252,9 @@ describe('ZoneAnomalyFeed', () => {
         expect(screen.getByTestId('anomaly-feed-empty')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Try adjusting your filters to see more results.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Try adjusting your filters to see more results.')
+      ).toBeInTheDocument();
     });
   });
 
@@ -517,9 +519,7 @@ describe('ZoneAnomalyFeed', () => {
       await user.click(alert);
 
       expect(onAnomalyClick).toHaveBeenCalledTimes(1);
-      expect(onAnomalyClick).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'test-anomaly' })
-      );
+      expect(onAnomalyClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'test-anomaly' }));
     });
   });
 

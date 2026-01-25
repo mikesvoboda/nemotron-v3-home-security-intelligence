@@ -387,10 +387,10 @@ export function useDashboardQueries<
 >(
   configs: TConfigs
 ): DashboardQueriesResult<{
-  [K in TConfigs[number]['key']]: Extract<TConfigs[number], { key: K }> extends DashboardQueryConfig<
-    infer _TData,
-    infer TSelected
-  >
+  [K in TConfigs[number]['key']]: Extract<
+    TConfigs[number],
+    { key: K }
+  > extends DashboardQueryConfig<infer _TData, infer TSelected>
     ? TSelected
     : never;
 }> {

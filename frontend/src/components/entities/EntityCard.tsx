@@ -216,7 +216,7 @@ const EntityCard = memo(function EntityCard({
           {/* Activity tier badges */}
           {activity_tier === 'hot' && (
             <span
-              className="flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-400 animate-pulse"
+              className="flex animate-pulse items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-400"
               data-testid="activity-badge-hot"
               aria-label="Hot activity - frequently seen recently"
             >

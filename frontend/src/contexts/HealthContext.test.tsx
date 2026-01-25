@@ -365,7 +365,9 @@ describe('HealthContext', () => {
         wrapper: DisabledWrapper,
       });
 
-      expect(useHealthStatusQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
+      expect(useHealthStatusQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ enabled: false })
+      );
     });
   });
 

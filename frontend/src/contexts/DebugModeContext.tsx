@@ -34,9 +34,7 @@ export interface DebugModeContextValue {
 /**
  * The React context for debug mode
  */
-export const DebugModeContext = createContext<DebugModeContextValue | null>(
-  null
-);
+export const DebugModeContext = createContext<DebugModeContextValue | null>(null);
 
 /**
  * Props for DebugModeProvider
@@ -63,10 +61,7 @@ export interface DebugModeProviderProps {
  */
 export function DebugModeProvider({ children }: DebugModeProviderProps) {
   const { debugEnabled, isLoading } = useSystemConfigQuery();
-  const [storedDebugMode, setStoredDebugMode] = useLocalStorage(
-    'system-debug-mode',
-    false
-  );
+  const [storedDebugMode, setStoredDebugMode] = useLocalStorage('system-debug-mode', false);
 
   // Determine if debug is available (backend has it enabled and not loading)
   const isDebugAvailable = !isLoading && debugEnabled;
@@ -84,11 +79,7 @@ export function DebugModeProvider({ children }: DebugModeProviderProps) {
     [debugMode, setStoredDebugMode, isDebugAvailable]
   );
 
-  return (
-    <DebugModeContext.Provider value={value}>
-      {children}
-    </DebugModeContext.Provider>
-  );
+  return <DebugModeContext.Provider value={value}>{children}</DebugModeContext.Provider>;
 }
 
 /**

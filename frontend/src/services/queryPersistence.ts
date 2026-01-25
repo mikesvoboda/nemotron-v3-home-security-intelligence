@@ -278,7 +278,9 @@ export function setupQueryPersistence(
       const result = persistQueryClient({
         // Cast through unknown to work around type conflicts between TanStack Query package versions
         // The interface is compatible but TypeScript sees different private class members
-        queryClient: queryClient as unknown as Parameters<typeof persistQueryClient>[0]['queryClient'],
+        queryClient: queryClient as unknown as Parameters<
+          typeof persistQueryClient
+        >[0]['queryClient'],
         persister,
         maxAge,
         dehydrateOptions: {

@@ -417,24 +417,24 @@ export type EndpointResponseType<T extends string> =
                                         ? DetectionStatsResponse
                                         : T extends '/api/scene-changes'
                                           ? SceneChangeListResponse
-                                              : // Pattern matches (less specific)
-                                                T extends `/api/cameras/${infer _}/zones/${infer _}`
-                                                ? Zone
-                                                : T extends `/api/cameras/${infer _}/zones`
-                                                  ? ZoneListResponse
-                                                  : T extends `/api/cameras/${infer _}`
-                                                    ? Camera
-                                                    : T extends `/api/events/${infer _}/detections`
-                                                      ? DetectionListResponse
-                                                      : T extends `/api/events/${infer _}`
-                                                        ? Event
-                                                        : T extends `/api/alerts/rules/${infer _}`
-                                                          ? AlertRule
-                                                          : T extends `/api/audit/${infer _}`
-                                                            ? AuditLogResponse
-                                                            : T extends `/api/detections/${infer _}/enrichment`
-                                                              ? EnrichmentResponse
-                                                              : unknown;
+                                          : // Pattern matches (less specific)
+                                            T extends `/api/cameras/${infer _}/zones/${infer _}`
+                                            ? Zone
+                                            : T extends `/api/cameras/${infer _}/zones`
+                                              ? ZoneListResponse
+                                              : T extends `/api/cameras/${infer _}`
+                                                ? Camera
+                                                : T extends `/api/events/${infer _}/detections`
+                                                  ? DetectionListResponse
+                                                  : T extends `/api/events/${infer _}`
+                                                    ? Event
+                                                    : T extends `/api/alerts/rules/${infer _}`
+                                                      ? AlertRule
+                                                      : T extends `/api/audit/${infer _}`
+                                                        ? AuditLogResponse
+                                                        : T extends `/api/detections/${infer _}/enrichment`
+                                                          ? EnrichmentResponse
+                                                          : unknown;
 
 // ============================================================================
 // ID Extraction Types

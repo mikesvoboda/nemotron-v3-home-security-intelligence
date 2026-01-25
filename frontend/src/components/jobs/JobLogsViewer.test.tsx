@@ -161,7 +161,11 @@ describe('JobLogsViewer', () => {
       mockUseJobLogsWebSocket.mockReturnValue({
         logs: [
           createMockLog({ message: 'First log message', level: 'INFO' }),
-          createMockLog({ message: 'Second log message', level: 'WARNING', timestamp: '2026-01-17T10:32:10Z' }),
+          createMockLog({
+            message: 'Second log message',
+            level: 'WARNING',
+            timestamp: '2026-01-17T10:32:10Z',
+          }),
         ],
         status: 'connected',
         isConnected: true,
@@ -179,8 +183,16 @@ describe('JobLogsViewer', () => {
       mockUseJobLogsWebSocket.mockReturnValue({
         logs: [
           createMockLog({ message: 'Info log', level: 'INFO' }),
-          createMockLog({ message: 'Warning log', level: 'WARNING', timestamp: '2026-01-17T10:32:10Z' }),
-          createMockLog({ message: 'Error log', level: 'ERROR', timestamp: '2026-01-17T10:32:15Z' }),
+          createMockLog({
+            message: 'Warning log',
+            level: 'WARNING',
+            timestamp: '2026-01-17T10:32:10Z',
+          }),
+          createMockLog({
+            message: 'Error log',
+            level: 'ERROR',
+            timestamp: '2026-01-17T10:32:15Z',
+          }),
         ],
         status: 'connected',
         isConnected: true,
@@ -233,10 +245,22 @@ describe('JobLogsViewer', () => {
     beforeEach(() => {
       mockUseJobLogsWebSocket.mockReturnValue({
         logs: [
-          createMockLog({ message: 'Debug log', level: 'DEBUG', timestamp: '2026-01-17T10:32:00Z' }),
+          createMockLog({
+            message: 'Debug log',
+            level: 'DEBUG',
+            timestamp: '2026-01-17T10:32:00Z',
+          }),
           createMockLog({ message: 'Info log', level: 'INFO', timestamp: '2026-01-17T10:32:05Z' }),
-          createMockLog({ message: 'Warning log', level: 'WARNING', timestamp: '2026-01-17T10:32:10Z' }),
-          createMockLog({ message: 'Error log', level: 'ERROR', timestamp: '2026-01-17T10:32:15Z' }),
+          createMockLog({
+            message: 'Warning log',
+            level: 'WARNING',
+            timestamp: '2026-01-17T10:32:10Z',
+          }),
+          createMockLog({
+            message: 'Error log',
+            level: 'ERROR',
+            timestamp: '2026-01-17T10:32:15Z',
+          }),
         ],
         status: 'connected',
         isConnected: true,
@@ -346,10 +370,9 @@ describe('JobLogsViewer', () => {
 
   describe('styling', () => {
     it('applies custom className', () => {
-      render(
-        <JobLogsViewer jobId="job-123" enabled={false} className="custom-class" />,
-        { wrapper: createWrapper() }
-      );
+      render(<JobLogsViewer jobId="job-123" enabled={false} className="custom-class" />, {
+        wrapper: createWrapper(),
+      });
       expect(screen.getByTestId('job-logs-viewer')).toHaveClass('custom-class');
     });
 

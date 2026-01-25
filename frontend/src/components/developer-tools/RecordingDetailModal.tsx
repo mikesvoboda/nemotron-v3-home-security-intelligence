@@ -129,7 +129,11 @@ function generateCurlCommand(recording: RecordingDetailResponse): string {
   // Add headers (skip sensitive ones)
   if (recording.headers) {
     for (const [key, value] of Object.entries(recording.headers)) {
-      if (!isSensitiveHeader(key) && key.toLowerCase() !== 'host' && key.toLowerCase() !== 'content-length') {
+      if (
+        !isSensitiveHeader(key) &&
+        key.toLowerCase() !== 'host' &&
+        key.toLowerCase() !== 'content-length'
+      ) {
         parts.push(`-H '${key}: ${value}'`);
       }
     }
@@ -167,12 +171,15 @@ export default function RecordingDetailModal({
 
   // Handle copy to clipboard
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(curlCommand).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }).catch((err) => {
-      console.error('Failed to copy to clipboard:', err);
-    });
+    navigator.clipboard
+      .writeText(curlCommand)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch((err) => {
+        console.error('Failed to copy to clipboard:', err);
+      });
   }, [curlCommand]);
 
   return (

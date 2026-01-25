@@ -97,10 +97,7 @@ const ACTIVITY_LEVEL_CONFIG: Record<
 /**
  * Calculate activity level from detection count and anomaly count.
  */
-function calculateActivityLevel(
-  anomalyCount: number,
-  hasCritical: boolean
-): ActivityLevel {
+function calculateActivityLevel(anomalyCount: number, hasCritical: boolean): ActivityLevel {
   if (hasCritical || anomalyCount >= 5) return 'critical';
   if (anomalyCount >= 3) return 'high';
   if (anomalyCount >= 1) return 'normal';
@@ -139,10 +136,7 @@ function StatusCardSkeleton({ compact }: { compact?: boolean }) {
       </div>
       <div className="grid grid-cols-2 gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-2 rounded-lg bg-gray-800/50 p-2"
-          >
+          <div key={i} className="flex items-center gap-2 rounded-lg bg-gray-800/50 p-2">
             <div className="h-8 w-8 animate-pulse rounded-full bg-gray-700" />
             <div className="space-y-1">
               <div className="h-3 w-12 animate-pulse rounded bg-gray-700" />
@@ -184,12 +178,8 @@ function StatusMetric({ icon, label, value, color, compact }: StatusMetricProps)
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <Text className={clsx('truncate text-gray-400', compact && 'text-xs')}>
-          {label}
-        </Text>
-        <Text className={clsx('font-medium text-white', compact && 'text-sm')}>
-          {value}
-        </Text>
+        <Text className={clsx('truncate text-gray-400', compact && 'text-xs')}>{label}</Text>
+        <Text className={clsx('font-medium text-white', compact && 'text-sm')}>{value}</Text>
       </div>
     </div>
   );
@@ -236,15 +226,8 @@ function TrendIndicator({
 /**
  * Health score indicator.
  */
-function HealthIndicator({
-  score,
-  compact,
-}: {
-  score: number;
-  compact?: boolean;
-}) {
-  const color =
-    score >= 80 ? 'text-green-400' : score >= 50 ? 'text-yellow-400' : 'text-red-400';
+function HealthIndicator({ score, compact }: { score: number; compact?: boolean }) {
+  const color = score >= 80 ? 'text-green-400' : score >= 50 ? 'text-yellow-400' : 'text-red-400';
   const bgColor =
     score >= 80 ? 'bg-green-500/20' : score >= 50 ? 'bg-yellow-500/20' : 'bg-red-500/20';
 
@@ -262,12 +245,8 @@ function HealthIndicator({
         <AlertTriangle className={clsx(color, compact ? 'h-4 w-4' : 'h-5 w-5')} />
       )}
       <div>
-        <Text className={clsx('font-medium', color, compact && 'text-sm')}>
-          {score}%
-        </Text>
-        <Text className={clsx('text-gray-400', compact ? 'text-xs' : 'text-sm')}>
-          Health
-        </Text>
+        <Text className={clsx('font-medium', color, compact && 'text-sm')}>{score}%</Text>
+        <Text className={clsx('text-gray-400', compact ? 'text-xs' : 'text-sm')}>Health</Text>
       </div>
     </div>
   );
@@ -307,12 +286,8 @@ export default function ZoneStatusCard({
 
   // Calculate derived status
   const status = useMemo<ZoneStatus>(() => {
-    const criticalAnomalies = anomalies.filter(
-      (a) => a.severity === AnomalySeverity.CRITICAL
-    );
-    const warningAnomalies = anomalies.filter(
-      (a) => a.severity === AnomalySeverity.WARNING
-    );
+    const criticalAnomalies = anomalies.filter((a) => a.severity === AnomalySeverity.CRITICAL);
+    const warningAnomalies = anomalies.filter((a) => a.severity === AnomalySeverity.WARNING);
     const hasCritical = criticalAnomalies.length > 0;
 
     const highestSeverity = hasCritical
@@ -381,38 +356,28 @@ export default function ZoneStatusCard({
           {/* Metrics grid */}
           <div className={clsx('grid gap-2', compact ? 'grid-cols-2' : 'grid-cols-2')}>
             <StatusMetric
-              icon={
-                <Users className={clsx(compact ? 'h-4 w-4' : 'h-5 w-5')} />
-              }
+              icon={<Users className={clsx(compact ? 'h-4 w-4' : 'h-5 w-5')} />}
               label="Present"
               value={status.presentCount}
               color="text-blue-400"
               compact={compact}
             />
             <StatusMetric
-              icon={
-                <AlertTriangle className={clsx(compact ? 'h-4 w-4' : 'h-5 w-5')} />
-              }
+              icon={<AlertTriangle className={clsx(compact ? 'h-4 w-4' : 'h-5 w-5')} />}
               label="Alerts"
               value={status.unacknowledgedAnomalies}
-              color={
-                status.unacknowledgedAnomalies > 0 ? 'text-yellow-400' : 'text-gray-400'
-              }
+              color={status.unacknowledgedAnomalies > 0 ? 'text-yellow-400' : 'text-gray-400'}
               compact={compact}
             />
             <StatusMetric
-              icon={
-                <Clock className={clsx(compact ? 'h-4 w-4' : 'h-5 w-5')} />
-              }
+              icon={<Clock className={clsx(compact ? 'h-4 w-4' : 'h-5 w-5')} />}
               label="Last Hour"
               value={status.detectionsLastHour}
               color="text-gray-400"
               compact={compact}
             />
             <StatusMetric
-              icon={
-                <Activity className={clsx(compact ? 'h-4 w-4' : 'h-5 w-5')} />
-              }
+              icon={<Activity className={clsx(compact ? 'h-4 w-4' : 'h-5 w-5')} />}
               label="Severity"
               value={status.highestSeverity || 'None'}
               color={

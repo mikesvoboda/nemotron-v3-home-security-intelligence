@@ -14,11 +14,7 @@
  * - WORKER_RECOVERED: Worker recovered from error (healthy/green)
  */
 
-import {
-  createImmerSelectorStore,
-  type Draft,
-  type ImmerSetState,
-} from './middleware';
+import { createImmerSelectorStore, type Draft, type ImmerSetState } from './middleware';
 
 import type {
   WorkerType,
@@ -30,7 +26,6 @@ import type {
   WorkerRestartingPayload,
   WorkerRecoveredPayload,
 } from '../types/websocket-events';
-
 
 // ============================================================================
 // Types
@@ -384,9 +379,6 @@ export const selectWorkerByName = (
 /**
  * Selector for workers by type.
  */
-export const selectWorkersByType = (
-  state: WorkerStatusState,
-  type: WorkerType
-): WorkerStatus[] => {
+export const selectWorkersByType = (state: WorkerStatusState, type: WorkerType): WorkerStatus[] => {
   return Object.values(state.workers).filter((w) => w.type === type);
 };

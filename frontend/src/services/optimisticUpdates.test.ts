@@ -100,12 +100,10 @@ describe('optimisticUpdates', () => {
 
   describe('optimisticUpdateInList', () => {
     it('should update item in list by id', () => {
-      const previousData = optimisticUpdateInList<TestItem>(
-        queryClient,
-        testQueryKey,
-        '2',
-        { name: 'Updated Item 2', status: 'updated' }
-      );
+      const previousData = optimisticUpdateInList<TestItem>(queryClient, testQueryKey, '2', {
+        name: 'Updated Item 2',
+        status: 'updated',
+      });
 
       const currentData = queryClient.getQueryData<TestItem[]>(testQueryKey);
 
@@ -127,7 +125,9 @@ describe('optimisticUpdates', () => {
     });
 
     it('should handle non-existent item id gracefully', () => {
-      optimisticUpdateInList<TestItem>(queryClient, testQueryKey, 'non-existent', { name: 'Updated' });
+      optimisticUpdateInList<TestItem>(queryClient, testQueryKey, 'non-existent', {
+        name: 'Updated',
+      });
 
       const currentData = queryClient.getQueryData<TestItem[]>(testQueryKey);
 

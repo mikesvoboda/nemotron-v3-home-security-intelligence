@@ -99,7 +99,9 @@ describe('GpuDeviceCard', () => {
         vram_used_mb: 15000, // ~61% usage
       };
 
-      renderWithProviders(<GpuDeviceCard gpu={moderateUsageGpu} assignedServices={mockAssignments} />);
+      renderWithProviders(
+        <GpuDeviceCard gpu={moderateUsageGpu} assignedServices={mockAssignments} />
+      );
 
       const indicator = screen.getByTestId('gpu-usage-indicator-0');
       expect(indicator).toHaveAttribute('data-status', 'moderate');
@@ -123,7 +125,9 @@ describe('GpuDeviceCard', () => {
         vram_used_mb: 23000, // ~94% usage
       };
 
-      renderWithProviders(<GpuDeviceCard gpu={criticalUsageGpu} assignedServices={mockAssignments} />);
+      renderWithProviders(
+        <GpuDeviceCard gpu={criticalUsageGpu} assignedServices={mockAssignments} />
+      );
 
       const indicator = screen.getByTestId('gpu-usage-indicator-0');
       expect(indicator).toHaveAttribute('data-status', 'critical');
@@ -147,7 +151,9 @@ describe('GpuDeviceCard', () => {
 
   describe('loading state', () => {
     it('should show loading skeleton when isLoading is true', () => {
-      renderWithProviders(<GpuDeviceCard gpu={mockGpu} assignedServices={mockAssignments} isLoading />);
+      renderWithProviders(
+        <GpuDeviceCard gpu={mockGpu} assignedServices={mockAssignments} isLoading />
+      );
 
       expect(screen.getByTestId('gpu-card-loading-skeleton')).toBeInTheDocument();
     });

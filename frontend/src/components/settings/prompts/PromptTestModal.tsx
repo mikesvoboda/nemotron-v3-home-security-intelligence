@@ -135,8 +135,7 @@ export default function PromptTestModal({
       setCurrentResult(currentRes);
       setModifiedResult(modifiedRes);
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Failed to run A/B test';
+      const errorMessage = err instanceof Error ? err.message : 'Failed to run A/B test';
       setTestError(errorMessage);
     } finally {
       setIsRunning(false);
@@ -184,9 +183,7 @@ export default function PromptTestModal({
 
         {/* Event Selection */}
         <div className="mb-6">
-          <h3 className="mb-3 text-sm font-medium text-gray-200">
-            Select Test Event
-          </h3>
+          <h3 className="mb-3 text-sm font-medium text-gray-200">Select Test Event</h3>
           {eventsError ? (
             <div className="rounded-lg border border-red-800 bg-red-900/20 p-4">
               <div className="flex items-center gap-2 text-red-400">
@@ -235,8 +232,8 @@ export default function PromptTestModal({
         {/* Rate Limit Warning */}
         <div className="mb-4 rounded-lg border border-yellow-800/50 bg-yellow-900/10 p-3">
           <p className="text-xs text-yellow-400">
-            <strong>Note:</strong> A/B testing is rate-limited to protect AI services.
-            Each test runs inference on both configurations, which may take a few seconds.
+            <strong>Note:</strong> A/B testing is rate-limited to protect AI services. Each test
+            runs inference on both configurations, which may take a few seconds.
           </p>
         </div>
 

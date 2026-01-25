@@ -18,7 +18,15 @@
  * announce('3 new items loaded', 'polite');
  * announce('Error: Connection lost', 'assertive');
  */
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
 import { LiveRegion, type Politeness } from '../components/common/LiveRegion';
 

@@ -25,9 +25,7 @@ vi.mock('../../hooks/useZonePresence', () => ({
 }));
 
 // Mock data for tests
-const createMockMember = (
-  overrides: Partial<ZonePresenceMember> = {}
-): ZonePresenceMember => ({
+const createMockMember = (overrides: Partial<ZonePresenceMember> = {}): ZonePresenceMember => ({
   id: 1,
   name: 'John Doe',
   role: 'resident',

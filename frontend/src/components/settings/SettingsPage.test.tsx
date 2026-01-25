@@ -282,10 +282,7 @@ describe('SettingsPage', () => {
       renderWithProviders(<SettingsPage />);
 
       const ambientTab = screen.getByRole('tab', { name: /ambient/i });
-      expect(ambientTab).toHaveAttribute(
-        'title',
-        'Background noise and environmental settings'
-      );
+      expect(ambientTab).toHaveAttribute('title', 'Background noise and environmental settings');
     });
 
     it('should have title attribute with description on storage tab', () => {
@@ -299,10 +296,7 @@ describe('SettingsPage', () => {
       renderWithProviders(<SettingsPage />);
 
       const aiModelsTab = screen.getByRole('tab', { name: /ai models/i });
-      expect(aiModelsTab).toHaveAttribute(
-        'title',
-        'View status and performance of all AI models'
-      );
+      expect(aiModelsTab).toHaveAttribute('title', 'View status and performance of all AI models');
     });
 
     it('should have title attribute with description on admin tab', () => {

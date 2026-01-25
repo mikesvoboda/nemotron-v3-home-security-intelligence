@@ -229,7 +229,9 @@ describe('SystemMonitoringPage (Operations)', () => {
         expect(screen.getByTestId('operations-page')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Pipeline visualization and operational controls')).toBeInTheDocument();
+      expect(
+        screen.getByText('Pipeline visualization and operational controls')
+      ).toBeInTheDocument();
     });
   });
 
@@ -385,7 +387,9 @@ describe('SystemMonitoringPage (Operations)', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/View detailed metrics, historical data, and system monitoring dashboards/i)
+          screen.getByText(
+            /View detailed metrics, historical data, and system monitoring dashboards/i
+          )
         ).toBeInTheDocument();
       });
     });

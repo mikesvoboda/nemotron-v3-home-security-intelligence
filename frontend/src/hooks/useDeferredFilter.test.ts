@@ -178,7 +178,12 @@ describe('useDeferredSearch', () => {
     { id: 1, title: 'React Hooks Guide', description: 'Learn about React hooks', author: 'John' },
     { id: 2, title: 'TypeScript Basics', description: 'Introduction to TS', author: 'Jane' },
     { id: 3, title: 'Advanced Patterns', description: 'React patterns for pros', author: 'John' },
-    { id: 4, title: 'Testing Best Practices', description: 'How to test React apps', author: 'Bob' },
+    {
+      id: 4,
+      title: 'Testing Best Practices',
+      description: 'How to test React apps',
+      author: 'Bob',
+    },
   ];
 
   it('returns all items when query is empty', () => {

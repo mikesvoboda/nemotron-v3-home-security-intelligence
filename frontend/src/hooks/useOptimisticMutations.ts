@@ -250,8 +250,10 @@ export function useOptimisticNotificationPreferencesUpdate(
       if (previousData) {
         const optimisticData: NotificationPreferencesResponse = {
           ...previousData,
-          ...(update.enabled !== null && update.enabled !== undefined && { enabled: update.enabled }),
-          ...(update.risk_filters !== null && update.risk_filters !== undefined && { risk_filters: update.risk_filters }),
+          ...(update.enabled !== null &&
+            update.enabled !== undefined && { enabled: update.enabled }),
+          ...(update.risk_filters !== null &&
+            update.risk_filters !== undefined && { risk_filters: update.risk_filters }),
           ...(update.sound !== null && update.sound !== undefined && { sound: update.sound }),
         };
         queryClient.setQueryData(prefsKey, optimisticData);
@@ -440,7 +442,9 @@ export interface UseOptimisticQuietHoursPeriodMutationsOptions {
  */
 export interface UseOptimisticQuietHoursPeriodMutationsReturn {
   /** Create a quiet hours period with optimistic feedback */
-  createPeriod: ReturnType<typeof useMutation<QuietHoursPeriodResponse, Error, QuietHoursPeriodCreate>>;
+  createPeriod: ReturnType<
+    typeof useMutation<QuietHoursPeriodResponse, Error, QuietHoursPeriodCreate>
+  >;
   /** Delete a quiet hours period with optimistic feedback */
   deletePeriod: ReturnType<typeof useMutation<void, Error, string>>;
 }
@@ -493,7 +497,10 @@ export function useOptimisticQuietHoursPeriodMutations(
         days: newPeriod.days ?? [],
       };
 
-      queryClient.setQueryData<{ items: QuietHoursPeriodResponse[]; pagination: { total: number; limit: number; offset: number } }>(listKey, (old) => ({
+      queryClient.setQueryData<{
+        items: QuietHoursPeriodResponse[];
+        pagination: { total: number; limit: number; offset: number };
+      }>(listKey, (old) => ({
         items: [...(old?.items ?? []), optimisticPeriod],
         pagination: { total: (old?.items?.length ?? 0) + 1, limit: 100, offset: 0 },
       }));
@@ -514,10 +521,11 @@ export function useOptimisticQuietHoursPeriodMutations(
 
     onSuccess: (data, _variables, context) => {
       // Replace optimistic item with real one
-      queryClient.setQueryData<{ items: QuietHoursPeriodResponse[]; pagination?: { total: number; limit: number; offset: number } }>(listKey, (old) => ({
-        items: (old?.items ?? []).map((item) =>
-          item.id === context?.optimisticId ? data : item
-        ),
+      queryClient.setQueryData<{
+        items: QuietHoursPeriodResponse[];
+        pagination?: { total: number; limit: number; offset: number };
+      }>(listKey, (old) => ({
+        items: (old?.items ?? []).map((item) => (item.id === context?.optimisticId ? data : item)),
         pagination: old?.pagination ?? { total: 1, limit: 100, offset: 0 },
       }));
       onCreateSuccess?.(data);

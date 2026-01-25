@@ -394,10 +394,7 @@ export default function PipelineMetricsPanel({
 
             {/* Loading state */}
             {errorsLoading && (
-              <div
-                className="space-y-2"
-                data-testid="errors-loading-skeleton"
-              >
+              <div className="space-y-2" data-testid="errors-loading-skeleton">
                 <div className="h-12 animate-pulse rounded bg-gray-700/50" />
                 <div className="h-12 animate-pulse rounded bg-gray-700/50" />
               </div>

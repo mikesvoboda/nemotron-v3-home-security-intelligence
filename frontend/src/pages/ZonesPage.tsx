@@ -362,11 +362,7 @@ function PanelWrapper({
           className="rounded p-1.5 text-gray-400 hover:bg-gray-700 hover:text-white"
           aria-label={isThisFullScreen ? 'Exit full screen' : 'Enter full screen'}
         >
-          {isThisFullScreen ? (
-            <Minimize2 className="h-4 w-4" />
-          ) : (
-            <Maximize2 className="h-4 w-4" />
-          )}
+          {isThisFullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
         </button>
       </div>
       <div className={clsx('p-4', isThisFullScreen && 'h-[calc(100%-60px)] overflow-auto')}>
@@ -384,7 +380,12 @@ function PanelWrapper({
  * Hook to fetch zones from all cameras.
  */
 function useAllZones() {
-  const { cameras, isLoading: isCamerasLoading, error: camerasError, refetch: refetchCameras } = useCamerasQuery();
+  const {
+    cameras,
+    isLoading: isCamerasLoading,
+    error: camerasError,
+    refetch: refetchCameras,
+  } = useCamerasQuery();
 
   // For simplicity, we'll query zones for the first camera if available
   // In a real app, we'd want a backend endpoint for all zones
@@ -591,12 +592,7 @@ function ZonesPageComponent() {
         />
 
         {/* Dashboard Grid - Responsive Layout */}
-        <div
-          className={clsx(
-            'grid gap-6',
-            !isFullScreen && 'lg:grid-cols-2'
-          )}
-        >
+        <div className={clsx('grid gap-6', !isFullScreen && 'lg:grid-cols-2')}>
           {/* Zone Overview Grid */}
           {(fullScreenPanel === null || fullScreenPanel === 'overview') && (
             <PanelWrapper
@@ -617,11 +613,7 @@ function ZonesPageComponent() {
                   data-testid="zone-grid"
                 >
                   {filteredZones.map((zone) => (
-                    <ZoneStatusCard
-                      key={zone.id}
-                      zone={zone}
-                      healthStatus={getZoneHealth(zone)}
-                    />
+                    <ZoneStatusCard key={zone.id} zone={zone} healthStatus={getZoneHealth(zone)} />
                   ))}
                 </div>
               )}

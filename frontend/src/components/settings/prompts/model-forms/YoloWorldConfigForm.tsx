@@ -93,7 +93,9 @@ export default function YoloWorldConfigForm({
     <div className="space-y-6" data-testid="yoloworld-config-form">
       {/* Object Classes */}
       <div>
-        <span id="object-classes-label" className="mb-2 block text-sm font-medium text-gray-200">Object Classes</span>
+        <span id="object-classes-label" className="mb-2 block text-sm font-medium text-gray-200">
+          Object Classes
+        </span>
         <p className="mb-3 text-xs text-gray-400">
           Define custom object classes for open-vocabulary detection.
         </p>

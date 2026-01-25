@@ -1,4 +1,3 @@
-
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
@@ -9,7 +8,16 @@ import { useChartDimensions } from './useChartDimensions';
  */
 function createMockEntry(target: Element, width: number): Partial<ResizeObserverEntry> {
   return {
-    contentRect: { width, height: 0, x: 0, y: 0, top: 0, left: 0, right: width, bottom: 0 } as DOMRectReadOnly,
+    contentRect: {
+      width,
+      height: 0,
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: width,
+      bottom: 0,
+    } as DOMRectReadOnly,
     target,
   };
 }

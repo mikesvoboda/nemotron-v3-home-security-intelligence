@@ -479,8 +479,7 @@ class WebSocketManager {
             // Parse message (handles both text JSON and compressed binary)
             // NEM-3154: Use parseWebSocketMessage for compression support
             let data: unknown;
-            const isBinary =
-              event.data instanceof ArrayBuffer || event.data instanceof Blob;
+            const isBinary = event.data instanceof ArrayBuffer || event.data instanceof Blob;
 
             if (isBinary) {
               // Binary message - potentially compressed (NEM-3154)
@@ -488,10 +487,7 @@ class WebSocketManager {
               logger.debug('WebSocket compressed message decompressed', {
                 component: 'WebSocketManager',
                 connection_id: connection.connectionId,
-                original_size:
-                  event.data instanceof ArrayBuffer
-                    ? event.data.byteLength
-                    : 'blob',
+                original_size: event.data instanceof ArrayBuffer ? event.data.byteLength : 'blob',
               });
             } else {
               // Text message - parse as JSON
@@ -521,10 +517,7 @@ class WebSocketManager {
 
               // Check lastSeq from heartbeat for gap detection (NEM-3142)
               const heartbeatLastSeq = data.lastSeq;
-              if (
-                heartbeatLastSeq !== undefined &&
-                heartbeatLastSeq > connection.lastReceivedSeq
-              ) {
+              if (heartbeatLastSeq !== undefined && heartbeatLastSeq > connection.lastReceivedSeq) {
                 // Gap detected: server has sent messages we haven't received
                 const gap = heartbeatLastSeq - connection.lastReceivedSeq;
                 connection.gapCount += 1;

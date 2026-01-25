@@ -162,10 +162,7 @@ export function extractValidationErrors(error: unknown): Record<string, string> 
  * @param transformer - Optional custom message transformer
  * @returns User-friendly error message
  */
-export function getErrorMessage(
-  error: unknown,
-  transformer?: (error: Error) => string
-): string {
+export function getErrorMessage(error: unknown, transformer?: (error: Error) => string): string {
   if (error instanceof Error) {
     if (transformer) {
       return transformer(error);
@@ -413,7 +410,9 @@ export function isActionError(state: FormActionState): boolean {
  * Check if a form action state has field-level errors.
  */
 export function hasFieldErrors(state: FormActionState): boolean {
-  return state.status === 'error' && !!state.fieldErrors && Object.keys(state.fieldErrors).length > 0;
+  return (
+    state.status === 'error' && !!state.fieldErrors && Object.keys(state.fieldErrors).length > 0
+  );
 }
 
 /**

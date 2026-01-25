@@ -31,8 +31,7 @@ import type { RiskHistoryResponse, RiskHistoryDataPoint } from '../types/analyti
  */
 export const riskHistoryQueryKeys = {
   all: ['analytics', 'risk-history'] as const,
-  byDateRange: (params: RiskHistoryQueryParams) =>
-    [...riskHistoryQueryKeys.all, params] as const,
+  byDateRange: (params: RiskHistoryQueryParams) => [...riskHistoryQueryKeys.all, params] as const,
 };
 
 // ============================================================================

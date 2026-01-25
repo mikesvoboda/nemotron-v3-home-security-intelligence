@@ -150,17 +150,10 @@ export function SummaryCardError({
         data-testid={`summary-card-error-content-${type}`}
       >
         <Flex justifyContent="start" alignItems="start" className="gap-3">
-          <AlertTriangle
-            className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400"
-            aria-hidden="true"
-          />
+          <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" aria-hidden="true" />
           <div className="flex-1">
-            <Text className="font-medium text-red-400">
-              Failed to load summary
-            </Text>
-            <Text className="mt-1 text-sm text-gray-400">
-              {userMessage}
-            </Text>
+            <Text className="font-medium text-red-400">Failed to load summary</Text>
+            <Text className="mt-1 text-sm text-gray-400">{userMessage}</Text>
 
             {/* Retry button */}
             <button

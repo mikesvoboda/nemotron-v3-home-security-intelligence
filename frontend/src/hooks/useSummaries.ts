@@ -23,7 +23,6 @@ import { isSummaryUpdateMessage } from '../types/summary';
 
 import type { UseSummariesResult } from '../types/summary';
 
-
 // ============================================================================
 // Types
 // ============================================================================

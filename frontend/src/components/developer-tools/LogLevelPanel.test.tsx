@@ -152,7 +152,9 @@ describe('LogLevelPanel', () => {
         // eslint-disable-next-line @typescript-eslint/no-misused-promises -- mock returns Promise
         (): Promise<typeof mockSetLogLevelResponse> =>
           new Promise<typeof mockSetLogLevelResponse>((resolve) => {
-            setTimeout(() => { resolve(mockSetLogLevelResponse); }, 100);
+            setTimeout(() => {
+              resolve(mockSetLogLevelResponse);
+            }, 100);
           })
       );
 
@@ -214,19 +216,23 @@ describe('LogLevelPanel', () => {
 
       // Also need to update the fetch to return DEBUG after mutation
       let currentLevel = 'INFO';
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises -- mock returns Promise
-      (api.fetchLogLevel as ReturnType<typeof vi.fn>).mockImplementation((): Promise<{ level: string }> => {
-        return Promise.resolve({ level: currentLevel });
-      });
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises -- mock returns Promise
-      (api.setLogLevel as ReturnType<typeof vi.fn>).mockImplementation((level: string): Promise<{ level: string; previous_level: string; message: string }> => {
-        currentLevel = level;
-        return Promise.resolve({
-          level,
-          previous_level: 'INFO',
-          message: 'Log level changed',
-        });
-      });
+      (api.fetchLogLevel as ReturnType<typeof vi.fn>).mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        (): Promise<{ level: string }> => {
+          return Promise.resolve({ level: currentLevel });
+        }
+      );
+      (api.setLogLevel as ReturnType<typeof vi.fn>).mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        (level: string): Promise<{ level: string; previous_level: string; message: string }> => {
+          currentLevel = level;
+          return Promise.resolve({
+            level,
+            previous_level: 'INFO',
+            message: 'Log level changed',
+          });
+        }
+      );
 
       renderWithProviders(<LogLevelPanel />);
 

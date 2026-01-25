@@ -49,7 +49,13 @@ export const navGroups: NavGroup[] = [
     defaultExpanded: true,
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/' },
-      { id: 'timeline', label: 'Timeline', icon: Clock, path: '/timeline', dataTour: 'timeline-link' },
+      {
+        id: 'timeline',
+        label: 'Timeline',
+        icon: Clock,
+        path: '/timeline',
+        dataTour: 'timeline-link',
+      },
       { id: 'entities', label: 'Entities', icon: Users, path: '/entities' },
       { id: 'alerts', label: 'Alerts', icon: Bell, path: '/alerts' },
     ],

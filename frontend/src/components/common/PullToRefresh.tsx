@@ -26,7 +26,6 @@ import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 
 import type { ReactNode } from 'react';
 
-
 export interface PullToRefreshProps {
   /**
    * Content to wrap with pull-to-refresh functionality.
@@ -121,10 +120,7 @@ export function PullToRefresh({
 
       {/* Refresh spinner (fixed at top while refreshing) */}
       {isRefreshing && (
-        <div
-          data-testid="refresh-spinner"
-          className="flex items-center justify-center py-4"
-        >
+        <div data-testid="refresh-spinner" className="flex items-center justify-center py-4">
           <RefreshCw className="h-6 w-6 animate-spin text-[#76B900]" />
         </div>
       )}

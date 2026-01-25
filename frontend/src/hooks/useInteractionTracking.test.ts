@@ -51,10 +51,9 @@ describe('useInteractionTracking', () => {
     });
 
     it('is memoized based on component name', () => {
-      const { result, rerender } = renderHook(
-        ({ name }) => useInteractionTracking(name),
-        { initialProps: { name: 'Component1' } }
-      );
+      const { result, rerender } = renderHook(({ name }) => useInteractionTracking(name), {
+        initialProps: { name: 'Component1' },
+      });
 
       const firstTrackClick = result.current.trackClick;
 

@@ -232,11 +232,9 @@ describe('createImmerSelectorStore', () => {
     const callback = vi.fn();
 
     // Subscribe with custom equality (array length)
-    const unsub = (useStore.subscribe as any)(
-      (state: ArrayState) => state.items.length,
-      callback,
-      { equalityFn: (a: number, b: number) => a === b }
-    );
+    const unsub = (useStore.subscribe as any)((state: ArrayState) => state.items.length, callback, {
+      equalityFn: (a: number, b: number) => a === b,
+    });
 
     // Add item - should trigger
     act(() => {

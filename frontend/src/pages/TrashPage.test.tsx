@@ -340,10 +340,7 @@ describe('TrashPage', () => {
 
   describe('Bulk Selection', () => {
     it('shows checkboxes on each trash item', async () => {
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
         events: mockEvents,
@@ -367,10 +364,7 @@ describe('TrashPage', () => {
 
     it('toggles selection when checkbox is clicked', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
         events: mockEvents,
@@ -399,10 +393,7 @@ describe('TrashPage', () => {
 
     it('shows bulk action bar when items are selected', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
         events: mockEvents,
@@ -435,10 +426,7 @@ describe('TrashPage', () => {
 
     it('shows correct count when multiple items are selected', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
         events: mockEvents,
@@ -466,10 +454,7 @@ describe('TrashPage', () => {
 
     it('clears selection when Clear button is clicked', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
         events: mockEvents,
@@ -501,10 +486,7 @@ describe('TrashPage', () => {
 
     it('selects all items when Select All is clicked', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
         events: mockEvents,
@@ -537,10 +519,7 @@ describe('TrashPage', () => {
 
     it('deselects all when Deselect All is clicked', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
         events: mockEvents,
@@ -584,10 +563,7 @@ describe('TrashPage', () => {
   describe('Bulk Restore', () => {
     it('restores selected items when Restore Selected is clicked', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValue({
         events: mockEvents,
@@ -630,10 +606,7 @@ describe('TrashPage', () => {
   describe('Bulk Delete', () => {
     it('shows confirmation modal when Delete Selected is clicked', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
         events: mockEvents,
@@ -669,10 +642,7 @@ describe('TrashPage', () => {
 
     it('deletes selected items when confirmed', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValue({
         events: mockEvents,
@@ -719,9 +689,7 @@ describe('TrashPage', () => {
 
     it('closes modal when Cancel is clicked', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
         events: mockEvents,
@@ -789,10 +757,7 @@ describe('TrashPage', () => {
 
     it('shows confirmation modal when Empty Trash is clicked', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValueOnce({
         events: mockEvents,
@@ -824,10 +789,7 @@ describe('TrashPage', () => {
 
     it('deletes all items when Empty Trash is confirmed', async () => {
       const user = userEvent.setup();
-      const mockEvents = [
-        createMockDeletedEvent({ id: 1 }),
-        createMockDeletedEvent({ id: 2 }),
-      ];
+      const mockEvents = [createMockDeletedEvent({ id: 1 }), createMockDeletedEvent({ id: 2 })];
 
       vi.mocked(api.fetchDeletedEvents).mockResolvedValue({
         events: mockEvents,

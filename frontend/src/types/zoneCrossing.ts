@@ -237,8 +237,7 @@ export const ENTITY_TYPE_CONFIG: Record<string, EntityTypeConfig> = {
  */
 export function isZoneCrossingType(value: unknown): value is ZoneCrossingType {
   return (
-    typeof value === 'string' &&
-    Object.values(ZoneCrossingType).includes(value as ZoneCrossingType)
+    typeof value === 'string' && Object.values(ZoneCrossingType).includes(value as ZoneCrossingType)
   );
 }
 

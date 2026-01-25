@@ -214,9 +214,7 @@ export default function SystemMonitoringPage() {
   };
 
   // Derive worker statuses for pipeline visualization
-  const getWorkerStatus = (
-    workerName: string
-  ): 'running' | 'degraded' | 'stopped' => {
+  const getWorkerStatus = (workerName: string): 'running' | 'degraded' | 'stopped' => {
     const worker = workers.find((w) => w.name === workerName);
     if (!worker) return 'stopped';
     return worker.running ? 'running' : 'stopped';

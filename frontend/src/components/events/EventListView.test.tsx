@@ -414,7 +414,9 @@ describe('EventListView', () => {
       );
 
       // Time column should show descending sort indicator
-      const chevronDown = container.querySelector('[data-testid="sort-indicator-time"] svg.lucide-chevron-down');
+      const chevronDown = container.querySelector(
+        '[data-testid="sort-indicator-time"] svg.lucide-chevron-down'
+      );
       expect(chevronDown).toBeInTheDocument();
     });
 
@@ -458,7 +460,9 @@ describe('EventListView', () => {
         />
       );
 
-      const chevronUp = container.querySelector('[data-testid="sort-indicator-risk"] svg.lucide-chevron-up');
+      const chevronUp = container.querySelector(
+        '[data-testid="sort-indicator-risk"] svg.lucide-chevron-up'
+      );
       expect(chevronUp).toBeInTheDocument();
     });
 
