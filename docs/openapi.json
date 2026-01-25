@@ -6738,6 +6738,19 @@
           "thumbnail_path": "/data/thumbnails/1_thumb.jpg"
         },
         "properties": {
+          "association_created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when detection was associated with the event (NEM-3629). Only populated when fetching detections for an event with order_detections_by=created_at.",
+            "title": "Association Created At"
+          },
           "bbox_height": {
             "anyOf": [
               {
@@ -21362,6 +21375,234 @@
         "title": "RiskHistoryResponse",
         "type": "object"
       },
+      "RiskScoreDistributionBucket": {
+        "description": "Schema for a single risk score distribution bucket.",
+        "example": {
+          "count": 15,
+          "max_score": 10,
+          "min_score": 0
+        },
+        "properties": {
+          "count": {
+            "description": "Number of events in this bucket",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "max_score": {
+            "description": "Maximum score in this bucket (exclusive)",
+            "minimum": 0.0,
+            "title": "Max Score",
+            "type": "integer"
+          },
+          "min_score": {
+            "description": "Minimum score in this bucket (inclusive)",
+            "minimum": 0.0,
+            "title": "Min Score",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "min_score",
+          "max_score",
+          "count"
+        ],
+        "title": "RiskScoreDistributionBucket",
+        "type": "object"
+      },
+      "RiskScoreDistributionResponse": {
+        "description": "Schema for risk score distribution histogram.",
+        "example": {
+          "bucket_size": 10,
+          "buckets": [
+            {
+              "count": 15,
+              "max_score": 10,
+              "min_score": 0
+            },
+            {
+              "count": 12,
+              "max_score": 20,
+              "min_score": 10
+            },
+            {
+              "count": 8,
+              "max_score": 30,
+              "min_score": 20
+            },
+            {
+              "count": 6,
+              "max_score": 40,
+              "min_score": 30
+            },
+            {
+              "count": 4,
+              "max_score": 50,
+              "min_score": 40
+            },
+            {
+              "count": 3,
+              "max_score": 60,
+              "min_score": 50
+            },
+            {
+              "count": 2,
+              "max_score": 70,
+              "min_score": 60
+            },
+            {
+              "count": 2,
+              "max_score": 80,
+              "min_score": 70
+            },
+            {
+              "count": 1,
+              "max_score": 90,
+              "min_score": 80
+            },
+            {
+              "count": 1,
+              "max_score": 100,
+              "min_score": 90
+            }
+          ],
+          "end_date": "2025-01-07",
+          "start_date": "2025-01-01",
+          "total_events": 54
+        },
+        "properties": {
+          "bucket_size": {
+            "description": "Size of each bucket",
+            "minimum": 1.0,
+            "title": "Bucket Size",
+            "type": "integer"
+          },
+          "buckets": {
+            "description": "Risk score distribution buckets",
+            "items": {
+              "$ref": "#/components/schemas/RiskScoreDistributionBucket"
+            },
+            "title": "Buckets",
+            "type": "array"
+          },
+          "end_date": {
+            "description": "End date of the date range",
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "start_date": {
+            "description": "Start date of the date range",
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "total_events": {
+            "description": "Total events with risk scores in date range",
+            "minimum": 0.0,
+            "title": "Total Events",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "buckets",
+          "total_events",
+          "start_date",
+          "end_date",
+          "bucket_size"
+        ],
+        "title": "RiskScoreDistributionResponse",
+        "type": "object"
+      },
+      "RiskScoreTrendDataPoint": {
+        "description": "Schema for a single risk score trend data point.",
+        "example": {
+          "avg_score": 45.5,
+          "count": 12,
+          "date": "2025-01-07"
+        },
+        "properties": {
+          "avg_score": {
+            "description": "Average risk score on this date",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Avg Score",
+            "type": "number"
+          },
+          "count": {
+            "description": "Number of events on this date",
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "date": {
+            "description": "Date of the data point",
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "avg_score",
+          "count"
+        ],
+        "title": "RiskScoreTrendDataPoint",
+        "type": "object"
+      },
+      "RiskScoreTrendsResponse": {
+        "description": "Schema for risk score trends over time.",
+        "example": {
+          "data_points": [
+            {
+              "avg_score": 35.2,
+              "count": 10,
+              "date": "2025-01-01"
+            },
+            {
+              "avg_score": 42.1,
+              "count": 15,
+              "date": "2025-01-02"
+            },
+            {
+              "avg_score": 38.7,
+              "count": 12,
+              "date": "2025-01-03"
+            }
+          ],
+          "end_date": "2025-01-03",
+          "start_date": "2025-01-01"
+        },
+        "properties": {
+          "data_points": {
+            "description": "Average risk score aggregated by day",
+            "items": {
+              "$ref": "#/components/schemas/RiskScoreTrendDataPoint"
+            },
+            "title": "Data Points",
+            "type": "array"
+          },
+          "end_date": {
+            "description": "End date of the date range",
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "start_date": {
+            "description": "Start date of the date range",
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data_points",
+          "start_date",
+          "end_date"
+        ],
+        "title": "RiskScoreTrendsResponse",
+        "type": "object"
+      },
       "RuleTestEventResult": {
         "description": "Schema for a single event's test result.",
         "example": {
@@ -23467,6 +23708,110 @@
         ],
         "title": "SupervisedWorkerStatusEnum",
         "type": "string"
+      },
+      "SystemSettingListResponse": {
+        "description": "Response schema for listing all system settings.",
+        "example": {
+          "items": [
+            {
+              "key": "default_gpu_strategy",
+              "updated_at": "2026-01-25T12:00:00Z",
+              "value": {
+                "strategy": "vram_based"
+              }
+            },
+            {
+              "key": "notification_defaults",
+              "updated_at": "2026-01-25T11:00:00Z",
+              "value": {
+                "email": true,
+                "push": false
+              }
+            }
+          ],
+          "total": 2
+        },
+        "properties": {
+          "items": {
+            "description": "List of system settings",
+            "items": {
+              "$ref": "#/components/schemas/SystemSettingResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of settings",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "SystemSettingListResponse",
+        "type": "object"
+      },
+      "SystemSettingResponse": {
+        "description": "Response schema for a system setting.\n\nRepresents a single key-value pair from the SystemSetting table.",
+        "example": {
+          "key": "default_gpu_strategy",
+          "updated_at": "2026-01-25T12:00:00Z",
+          "value": {
+            "fallback": "balanced",
+            "strategy": "vram_based"
+          }
+        },
+        "properties": {
+          "key": {
+            "description": "Setting key (primary key)",
+            "maxLength": 64,
+            "title": "Key",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "Last update timestamp",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "value": {
+            "additionalProperties": true,
+            "description": "Setting value as JSON object",
+            "title": "Value",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "updated_at"
+        ],
+        "title": "SystemSettingResponse",
+        "type": "object"
+      },
+      "SystemSettingUpdate": {
+        "description": "Request schema for updating a system setting.\n\nThe value is a flexible JSON object that can store any configuration.",
+        "example": {
+          "value": {
+            "fallback": "balanced",
+            "strategy": "vram_based"
+          }
+        },
+        "properties": {
+          "value": {
+            "additionalProperties": true,
+            "description": "New value for the setting (JSON object). Replaces the existing value entirely (not merged).",
+            "title": "Value",
+            "type": "object"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "SystemSettingUpdate",
+        "type": "object"
       },
       "SystemStatsResponse": {
         "description": "Response schema for system statistics endpoint.",
@@ -27081,6 +27426,134 @@
           }
         },
         "summary": "Get Risk History",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/analytics/risk-score-distribution": {
+      "get": {
+        "description": "Get risk score distribution as a histogram.\n\nReturns counts of events grouped into score buckets (e.g., 0-10, 10-20, ..., 90-100).\nOnly includes events with non-null risk_score.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    bucket_size: Size of each bucket (default 10 for buckets 0-10, 10-20, etc.)\n    db: Database session\n\nReturns:\n    RiskScoreDistributionResponse with histogram buckets\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
+        "operationId": "analytics_get_risk_score_distribution",
+        "parameters": [
+          {
+            "description": "Start date for analytics (ISO format)",
+            "in": "query",
+            "name": "start_date",
+            "required": true,
+            "schema": {
+              "description": "Start date for analytics (ISO format)",
+              "format": "date",
+              "title": "Start Date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "End date for analytics (ISO format)",
+            "in": "query",
+            "name": "end_date",
+            "required": true,
+            "schema": {
+              "description": "End date for analytics (ISO format)",
+              "format": "date",
+              "title": "End Date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Size of each score bucket (default: 10)",
+            "in": "query",
+            "name": "bucket_size",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "description": "Size of each score bucket (default: 10)",
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Bucket Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskScoreDistributionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Bad request - Invalid date range or bucket size"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Risk Score Distribution",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/analytics/risk-score-trends": {
+      "get": {
+        "description": "Get average risk score trends over time.\n\nReturns daily average risk scores for the specified date range.\nCreates one data point per day even if there are no events.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    RiskScoreTrendsResponse with daily average scores and event counts\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
+        "operationId": "analytics_get_risk_score_trends",
+        "parameters": [
+          {
+            "description": "Start date for analytics (ISO format)",
+            "in": "query",
+            "name": "start_date",
+            "required": true,
+            "schema": {
+              "description": "Start date for analytics (ISO format)",
+              "format": "date",
+              "title": "Start Date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "End date for analytics (ISO format)",
+            "in": "query",
+            "name": "end_date",
+            "required": true,
+            "schema": {
+              "description": "End date for analytics (ISO format)",
+              "format": "date",
+              "title": "End Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiskScoreTrendsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Bad request - Invalid date range"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Risk Score Trends",
         "tags": [
           "analytics"
         ]
@@ -32683,7 +33156,7 @@
     },
     "/api/events/{event_id}/detections": {
       "get": {
-        "description": "Get detections for a specific event.\n\nArgs:\n    event_id: Event ID\n    limit: Maximum number of results to return (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    db: Database session\n\nReturns:\n    DetectionListResponse containing detections for the event\n\nRaises:\n    HTTPException: 404 if event not found",
+        "description": "Get detections for a specific event.\n\nNEM-3629: Supports ordering by EventDetection.created_at to show detection\norder within the event (first, second, etc.). When using order_detections_by=created_at,\nthe association_created_at field will be populated in each detection response.\n\nArgs:\n    event_id: Event ID\n    limit: Maximum number of results to return (1-1000, default 50)\n    offset: Number of results to skip for pagination (default 0)\n    order_detections_by: Order by 'detected_at' (default) or 'created_at'\n    db: Database session\n\nReturns:\n    DetectionListResponse containing detections for the event\n\nRaises:\n    HTTPException: 404 if event not found\n    HTTPException: 400 if invalid order_detections_by value",
         "operationId": "events_get_event_detections",
         "parameters": [
           {
@@ -32720,6 +33193,18 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Order detections by: 'detected_at' (detection timestamp, default) or 'created_at' (when associated with event - shows detection sequence in event)",
+            "in": "query",
+            "name": "order_detections_by",
+            "required": false,
+            "schema": {
+              "default": "detected_at",
+              "description": "Order detections by: 'detected_at' (detection timestamp, default) or 'created_at' (when associated with event - shows detection sequence in event)",
+              "title": "Order Detections By",
+              "type": "string"
             }
           }
         ],
@@ -39137,6 +39622,156 @@
         "summary": "Update runtime settings",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/v1/system-settings": {
+      "get": {
+        "description": "List all system settings.\n\nReturns all key-value pairs from the SystemSetting table, ordered by key.\n\nReturns:\n    SystemSettingListResponse with all settings",
+        "operationId": "system-settings_list_system_settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List System Settings",
+        "tags": [
+          "system-settings"
+        ]
+      }
+    },
+    "/api/v1/system-settings/{key}": {
+      "delete": {
+        "description": "Delete a system setting.\n\nArgs:\n    key: Setting key to delete\n    db: Database session\n\nRaises:\n    HTTPException: 404 if setting not found",
+        "operationId": "system-settings_delete_system_setting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete System Setting",
+        "tags": [
+          "system-settings"
+        ]
+      },
+      "get": {
+        "description": "Get a specific system setting by key.\n\nArgs:\n    key: Setting key to retrieve\n    db: Database session\n\nReturns:\n    SystemSettingResponse with the setting value\n\nRaises:\n    HTTPException: 404 if setting not found",
+        "operationId": "system-settings_get_system_setting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get System Setting",
+        "tags": [
+          "system-settings"
+        ]
+      },
+      "patch": {
+        "description": "Update or create a system setting.\n\nIf the setting exists, updates its value. If it doesn't exist, creates it.\nThis is an upsert operation.\n\nArgs:\n    key: Setting key to update or create\n    update: New value for the setting\n    db: Database session\n\nReturns:\n    SystemSettingResponse with the updated setting\n\nRaises:\n    HTTPException: 400 if key format is invalid",
+        "operationId": "system-settings_update_system_setting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemSettingUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update System Setting",
+        "tags": [
+          "system-settings"
         ]
       }
     },

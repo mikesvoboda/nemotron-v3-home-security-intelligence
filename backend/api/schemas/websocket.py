@@ -870,6 +870,258 @@ class WebSocketDetectionBatchMessage(BaseModel):
 
 
 # =============================================================================
+# Batch Analysis Status WebSocket Message Schemas (NEM-3607)
+# =============================================================================
+
+
+class WebSocketBatchAnalysisStartedData(BaseModel):
+    """Data payload for batch.analysis_started messages broadcast to WebSocket clients.
+
+    This schema defines the contract for batch analysis status data sent from the
+    backend to WebSocket clients when a batch is dequeued and starts LLM analysis.
+
+    Fields:
+        batch_id: Unique batch identifier
+        camera_id: Normalized camera ID (e.g., "front_door")
+        detection_count: Number of detections in the batch
+        queue_position: Optional position in queue when dequeued (0 = front)
+        started_at: ISO 8601 timestamp when analysis started
+    """
+
+    batch_id: str = Field(..., description="Unique batch identifier")
+    camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
+    detection_count: int = Field(..., ge=0, description="Number of detections in the batch")
+    queue_position: int | None = Field(
+        None, ge=0, description="Position in queue when dequeued (0 = front)"
+    )
+    started_at: str = Field(..., description="ISO 8601 timestamp when analysis started")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "batch_id": "batch_abc123",
+                "camera_id": "front_door",
+                "detection_count": 3,
+                "queue_position": 0,
+                "started_at": "2026-01-13T12:01:30.000Z",
+            }
+        }
+    )
+
+
+class WebSocketBatchAnalysisStartedMessage(BaseModel):
+    """Complete batch.analysis_started message envelope sent to WebSocket clients.
+
+    This is the canonical format for batch analysis started messages broadcast via WebSocket.
+    The message wraps batch data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "batch.analysis_started",
+            "data": {
+                "batch_id": "batch_abc123",
+                "camera_id": "front_door",
+                "detection_count": 3,
+                "queue_position": 0,
+                "started_at": "2026-01-13T12:01:30.000Z"
+            }
+        }
+    """
+
+    type: Literal["batch.analysis_started"] = Field(
+        default="batch.analysis_started",
+        description="Message type, always 'batch.analysis_started' for analysis started messages",
+    )
+    data: WebSocketBatchAnalysisStartedData = Field(
+        ..., description="Batch analysis started data payload"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "batch.analysis_started",
+                "data": {
+                    "batch_id": "batch_abc123",
+                    "camera_id": "front_door",
+                    "detection_count": 3,
+                    "queue_position": 0,
+                    "started_at": "2026-01-13T12:01:30.000Z",
+                },
+            }
+        }
+    )
+
+
+class WebSocketBatchAnalysisCompletedData(BaseModel):
+    """Data payload for batch.analysis_completed messages broadcast to WebSocket clients.
+
+    This schema defines the contract for batch analysis completion data sent from the
+    backend to WebSocket clients when LLM analysis finishes successfully.
+
+    Fields:
+        batch_id: Unique batch identifier
+        camera_id: Normalized camera ID (e.g., "front_door")
+        event_id: ID of the created Event record
+        risk_score: Risk score assigned by LLM (0-100)
+        risk_level: Risk level (low, medium, high, critical)
+        duration_ms: Analysis duration in milliseconds
+        completed_at: ISO 8601 timestamp when analysis completed
+    """
+
+    batch_id: str = Field(..., description="Unique batch identifier")
+    camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
+    event_id: int = Field(..., description="ID of the created Event record")
+    risk_score: int = Field(..., ge=0, le=100, description="Risk score assigned by LLM (0-100)")
+    risk_level: str = Field(..., description="Risk level (low, medium, high, critical)")
+    duration_ms: int = Field(..., ge=0, description="Analysis duration in milliseconds")
+    completed_at: str = Field(..., description="ISO 8601 timestamp when analysis completed")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "batch_id": "batch_abc123",
+                "camera_id": "front_door",
+                "event_id": 42,
+                "risk_score": 75,
+                "risk_level": "high",
+                "duration_ms": 2500,
+                "completed_at": "2026-01-13T12:01:35.000Z",
+            }
+        }
+    )
+
+
+class WebSocketBatchAnalysisCompletedMessage(BaseModel):
+    """Complete batch.analysis_completed message envelope sent to WebSocket clients.
+
+    This is the canonical format for batch analysis completed messages broadcast via WebSocket.
+    The message wraps batch data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "batch.analysis_completed",
+            "data": {
+                "batch_id": "batch_abc123",
+                "camera_id": "front_door",
+                "event_id": 42,
+                "risk_score": 75,
+                "risk_level": "high",
+                "duration_ms": 2500,
+                "completed_at": "2026-01-13T12:01:35.000Z"
+            }
+        }
+    """
+
+    type: Literal["batch.analysis_completed"] = Field(
+        default="batch.analysis_completed",
+        description="Message type, always 'batch.analysis_completed' for analysis completed messages",
+    )
+    data: WebSocketBatchAnalysisCompletedData = Field(
+        ..., description="Batch analysis completed data payload"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "batch.analysis_completed",
+                "data": {
+                    "batch_id": "batch_abc123",
+                    "camera_id": "front_door",
+                    "event_id": 42,
+                    "risk_score": 75,
+                    "risk_level": "high",
+                    "duration_ms": 2500,
+                    "completed_at": "2026-01-13T12:01:35.000Z",
+                },
+            }
+        }
+    )
+
+
+class WebSocketBatchAnalysisFailedData(BaseModel):
+    """Data payload for batch.analysis_failed messages broadcast to WebSocket clients.
+
+    This schema defines the contract for batch analysis failure data sent from the
+    backend to WebSocket clients when LLM analysis fails with an error.
+
+    Fields:
+        batch_id: Unique batch identifier
+        camera_id: Normalized camera ID (e.g., "front_door")
+        error: Error message describing the failure
+        error_type: Categorized error type for UI display
+        retryable: Whether the operation can be retried
+        failed_at: ISO 8601 timestamp when analysis failed
+    """
+
+    batch_id: str = Field(..., description="Unique batch identifier")
+    camera_id: str = Field(..., description="Normalized camera ID (e.g., 'front_door')")
+    error: str = Field(..., description="Error message describing the failure")
+    error_type: str = Field(
+        ..., description="Categorized error type (timeout, connection, validation, processing)"
+    )
+    retryable: bool = Field(..., description="Whether the operation can be retried")
+    failed_at: str = Field(..., description="ISO 8601 timestamp when analysis failed")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "batch_id": "batch_abc123",
+                "camera_id": "front_door",
+                "error": "LLM service timeout after 120 seconds",
+                "error_type": "timeout",
+                "retryable": True,
+                "failed_at": "2026-01-13T12:03:30.000Z",
+            }
+        }
+    )
+
+
+class WebSocketBatchAnalysisFailedMessage(BaseModel):
+    """Complete batch.analysis_failed message envelope sent to WebSocket clients.
+
+    This is the canonical format for batch analysis failed messages broadcast via WebSocket.
+    The message wraps batch data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "batch.analysis_failed",
+            "data": {
+                "batch_id": "batch_abc123",
+                "camera_id": "front_door",
+                "error": "LLM service timeout after 120 seconds",
+                "error_type": "timeout",
+                "retryable": true,
+                "failed_at": "2026-01-13T12:03:30.000Z"
+            }
+        }
+    """
+
+    type: Literal["batch.analysis_failed"] = Field(
+        default="batch.analysis_failed",
+        description="Message type, always 'batch.analysis_failed' for analysis failed messages",
+    )
+    data: WebSocketBatchAnalysisFailedData = Field(
+        ..., description="Batch analysis failed data payload"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "batch.analysis_failed",
+                "data": {
+                    "batch_id": "batch_abc123",
+                    "camera_id": "front_door",
+                    "error": "LLM service timeout after 120 seconds",
+                    "error_type": "timeout",
+                    "retryable": True,
+                    "failed_at": "2026-01-13T12:03:30.000Z",
+                },
+            }
+        }
+    )
+
+
+# =============================================================================
 # Alert WebSocket Message Schemas (NEM-1981)
 # =============================================================================
 
@@ -2924,6 +3176,9 @@ WebSocketOutgoingMessage = Annotated[
     | WebSocketSceneChangeMessage
     | WebSocketDetectionNewMessage
     | WebSocketDetectionBatchMessage
+    | WebSocketBatchAnalysisStartedMessage
+    | WebSocketBatchAnalysisCompletedMessage
+    | WebSocketBatchAnalysisFailedMessage
     | WebSocketAlertCreatedMessage
     | WebSocketAlertAcknowledgedMessage
     | WebSocketAlertDismissedMessage
@@ -2949,6 +3204,9 @@ Uses the 'type' field as a discriminator for automatic routing:
 - "scene_change" -> WebSocketSceneChangeMessage
 - "detection.new" -> WebSocketDetectionNewMessage
 - "detection.batch" -> WebSocketDetectionBatchMessage
+- "batch.analysis_started" -> WebSocketBatchAnalysisStartedMessage
+- "batch.analysis_completed" -> WebSocketBatchAnalysisCompletedMessage
+- "batch.analysis_failed" -> WebSocketBatchAnalysisFailedMessage
 - "alert_created" -> WebSocketAlertCreatedMessage
 - "alert_acknowledged" -> WebSocketAlertAcknowledgedMessage
 - "alert_dismissed" -> WebSocketAlertDismissedMessage

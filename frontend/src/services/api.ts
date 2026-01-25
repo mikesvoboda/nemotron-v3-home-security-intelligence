@@ -340,6 +340,11 @@ export interface EventsQueryParams {
 }
 
 /**
+ * Valid values for ordering detections (NEM-3629).
+ */
+export type DetectionOrderBy = 'detected_at' | 'created_at';
+
+/**
  * Query parameters for detection list endpoints.
  */
 export interface DetectionQueryParams {
@@ -348,6 +353,12 @@ export interface DetectionQueryParams {
    * Cursor for pagination. Pass the `next_cursor` value from the previous response.
    */
   cursor?: string;
+  /**
+   * Order detections by: 'detected_at' (detection timestamp, default) or
+   * 'created_at' (when associated with event - shows detection sequence in event).
+   * NEM-3629: When using 'created_at', responses include association_created_at field.
+   */
+  order_detections_by?: DetectionOrderBy;
 }
 
 /**
@@ -2246,6 +2257,10 @@ export async function fetchEventDetections(
       // Validate cursor format before sending to API (NEM-2585)
       validateCursorFormat(params.cursor);
       queryParams.append('cursor', params.cursor);
+    }
+    // NEM-3629: Support ordering by association timestamp
+    if (params.order_detections_by) {
+      queryParams.append('order_detections_by', params.order_detections_by);
     }
   }
 
@@ -6489,6 +6504,155 @@ export async function fetchObjectDistribution(
 
   return fetchApi<ObjectDistributionResponse>(
     `/api/analytics/object-distribution?${searchParams.toString()}`
+  );
+}
+
+// ============================================================================
+// Risk Score Distribution API (NEM-3602)
+// ============================================================================
+
+/**
+ * Query parameters for the risk score distribution endpoint.
+ */
+export interface RiskScoreDistributionParams {
+  /** Start date in ISO format (YYYY-MM-DD) */
+  start_date: string;
+  /** End date in ISO format (YYYY-MM-DD) */
+  end_date: string;
+  /** Size of each bucket (default: 10) */
+  bucket_size?: number;
+}
+
+/**
+ * A single bucket in the risk score distribution histogram.
+ */
+export interface RiskScoreDistributionBucket {
+  /** Minimum score in this bucket (inclusive) */
+  min_score: number;
+  /** Maximum score in this bucket (exclusive, except last bucket includes 100) */
+  max_score: number;
+  /** Number of events in this bucket */
+  count: number;
+}
+
+/**
+ * Response from GET /api/analytics/risk-score-distribution endpoint.
+ */
+export interface RiskScoreDistributionResponse {
+  /** Risk score distribution buckets */
+  buckets: RiskScoreDistributionBucket[];
+  /** Total events with risk scores in date range */
+  total_events: number;
+  /** Start date of the range (ISO format) */
+  start_date: string;
+  /** End date of the range (ISO format) */
+  end_date: string;
+  /** Size of each bucket */
+  bucket_size: number;
+}
+
+/**
+ * Fetch risk score distribution for a date range.
+ *
+ * Returns a histogram of events grouped by risk score buckets.
+ * Includes events with non-null risk scores only.
+ *
+ * @param params - Date range parameters with optional bucket_size
+ * @returns RiskScoreDistributionResponse with histogram buckets
+ *
+ * @example
+ * ```typescript
+ * // Get risk score distribution for the last 7 days
+ * const endDate = new Date().toISOString().split('T')[0];
+ * const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+ * const distribution = await fetchRiskScoreDistribution({ start_date: startDate, end_date: endDate });
+ * distribution.buckets.forEach(bucket => {
+ *   console.log(`${bucket.min_score}-${bucket.max_score}: ${bucket.count} events`);
+ * });
+ * ```
+ */
+export async function fetchRiskScoreDistribution(
+  params: RiskScoreDistributionParams
+): Promise<RiskScoreDistributionResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.append('start_date', params.start_date);
+  searchParams.append('end_date', params.end_date);
+  if (params.bucket_size !== undefined) {
+    searchParams.append('bucket_size', params.bucket_size.toString());
+  }
+
+  return fetchApi<RiskScoreDistributionResponse>(
+    `/api/analytics/risk-score-distribution?${searchParams.toString()}`
+  );
+}
+
+// ============================================================================
+// Risk Score Trends API (NEM-3602)
+// ============================================================================
+
+/**
+ * Query parameters for the risk score trends endpoint.
+ */
+export interface RiskScoreTrendsParams {
+  /** Start date in ISO format (YYYY-MM-DD) */
+  start_date: string;
+  /** End date in ISO format (YYYY-MM-DD) */
+  end_date: string;
+}
+
+/**
+ * A single data point in the risk score trends response.
+ */
+export interface RiskScoreTrendDataPoint {
+  /** Date in ISO format (YYYY-MM-DD) */
+  date: string;
+  /** Average risk score on this date */
+  avg_score: number;
+  /** Number of events on this date */
+  count: number;
+}
+
+/**
+ * Response from GET /api/analytics/risk-score-trends endpoint.
+ */
+export interface RiskScoreTrendsResponse {
+  /** Average risk score aggregated by day */
+  data_points: RiskScoreTrendDataPoint[];
+  /** Start date of the range (ISO format) */
+  start_date: string;
+  /** End date of the range (ISO format) */
+  end_date: string;
+}
+
+/**
+ * Fetch risk score trends for a date range.
+ *
+ * Returns daily average risk scores for the specified date range.
+ * Creates one data point per day even if there are no events.
+ *
+ * @param params - Date range parameters
+ * @returns RiskScoreTrendsResponse with daily average scores
+ *
+ * @example
+ * ```typescript
+ * // Get risk score trends for the last 7 days
+ * const endDate = new Date().toISOString().split('T')[0];
+ * const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+ * const trends = await fetchRiskScoreTrends({ start_date: startDate, end_date: endDate });
+ * trends.data_points.forEach(point => {
+ *   console.log(`${point.date}: avg=${point.avg_score.toFixed(1)}, count=${point.count}`);
+ * });
+ * ```
+ */
+export async function fetchRiskScoreTrends(
+  params: RiskScoreTrendsParams
+): Promise<RiskScoreTrendsResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.append('start_date', params.start_date);
+  searchParams.append('end_date', params.end_date);
+
+  return fetchApi<RiskScoreTrendsResponse>(
+    `/api/analytics/risk-score-trends?${searchParams.toString()}`
   );
 }
 

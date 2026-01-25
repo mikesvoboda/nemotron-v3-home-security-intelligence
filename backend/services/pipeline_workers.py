@@ -696,6 +696,7 @@ class AnalysisQueueWorker:
     2. Runs Nemotron LLM analysis via NemotronAnalyzer
     3. Creates Event records with risk scores
     4. Broadcasts events via WebSocket
+    5. Broadcasts batch analysis status events (NEM-3607)
 
     The worker runs continuously until stop() is called.
     """
@@ -726,6 +727,25 @@ class AnalysisQueueWorker:
         self._running = False
         self._task: asyncio.Task | None = None
         self._stats = WorkerStats()
+        self._broadcaster: Any = None  # Lazy-loaded EventBroadcaster
+
+    async def _get_broadcaster(self) -> Any:
+        """Get the EventBroadcaster for batch analysis status events (NEM-3607).
+
+        Lazy-loads the broadcaster on first use to avoid initialization issues.
+
+        Returns:
+            EventBroadcaster instance or None if unavailable
+        """
+        if self._broadcaster is None:
+            try:
+                from backend.services.event_broadcaster import get_broadcaster
+
+                self._broadcaster = await get_broadcaster(self._redis)
+            except Exception as e:
+                logger.debug(f"Failed to get broadcaster for batch analysis events: {e}")
+                return None
+        return self._broadcaster
 
     @property
     def stats(self) -> WorkerStats:
@@ -871,6 +891,27 @@ class AnalysisQueueWorker:
             add_span_attributes(**span_attrs)
             logger.info(f"Processing analysis for batch {batch_id}")
 
+            # NEM-3607: Broadcast batch.analysis_started event
+            detection_count = len(detection_ids) if detection_ids else 0
+            broadcaster = await self._get_broadcaster()
+            if broadcaster:
+                try:
+                    await broadcaster.broadcast_batch_analysis_started(
+                        {
+                            "batch_id": batch_id,
+                            "camera_id": camera_id or "",
+                            "detection_count": detection_count,
+                            "queue_position": 0,  # We don't track queue position currently
+                            "started_at": datetime.now(UTC).isoformat(),
+                        }
+                    )
+                except Exception as broadcast_err:
+                    # Log but don't fail - status broadcasts are best-effort
+                    logger.debug(
+                        f"Failed to broadcast batch.analysis_started: {broadcast_err}",
+                        extra={"batch_id": batch_id},
+                    )
+
             try:
                 # Run LLM analysis - pass camera_id and detection_ids from queue payload
                 # This avoids the need to read batch metadata from Redis (which is deleted after close_batch)
@@ -885,10 +926,11 @@ class AnalysisQueueWorker:
 
                 # Record analyze stage duration (Prometheus metrics are recorded in analyzer)
                 duration = time.time() - start_time
+                duration_ms = int(duration * 1000)
                 # Record to in-memory tracker for /api/system/pipeline-latency
-                record_pipeline_stage_latency("batch_to_analyze", duration * 1000)
+                record_pipeline_stage_latency("batch_to_analyze", duration_ms)
                 # Record to Redis for /api/system/telemetry
-                await record_stage_latency(self._redis, "analyze", duration * 1000)
+                await record_stage_latency(self._redis, "analyze", duration_ms)
 
                 # Record total pipeline latency (from file detection to event creation)
                 if pipeline_start_time:
@@ -924,10 +966,56 @@ class AnalysisQueueWorker:
                     },
                 )
 
+                # NEM-3607: Broadcast batch.analysis_completed event
+                if broadcaster:
+                    try:
+                        # Get risk_level string, handling enum and None cases
+                        risk_level_str = "low"  # default
+                        if event.risk_level is not None:
+                            if hasattr(event.risk_level, "value"):
+                                risk_level_str = event.risk_level.value
+                            else:
+                                risk_level_str = str(event.risk_level)
+                        await broadcaster.broadcast_batch_analysis_completed(
+                            {
+                                "batch_id": batch_id,
+                                "camera_id": camera_id or "",
+                                "event_id": event.id,
+                                "risk_score": event.risk_score,
+                                "risk_level": risk_level_str,
+                                "duration_ms": duration_ms,
+                                "completed_at": datetime.now(UTC).isoformat(),
+                            }
+                        )
+                    except Exception as broadcast_err:
+                        # Log but don't fail - status broadcasts are best-effort
+                        logger.debug(
+                            f"Failed to broadcast batch.analysis_completed: {broadcast_err}",
+                            extra={"batch_id": batch_id, "event_id": event.id},
+                        )
+
             except ValueError as e:
                 # Batch not found or no detections - log warning but don't count as error
                 record_exception(e)
                 logger.warning(f"Skipping batch: {e}")
+                # NEM-3607: Broadcast batch.analysis_failed for validation errors
+                if broadcaster:
+                    try:
+                        await broadcaster.broadcast_batch_analysis_failed(
+                            {
+                                "batch_id": batch_id,
+                                "camera_id": camera_id or "",
+                                "error": str(e),
+                                "error_type": "validation",
+                                "retryable": False,
+                                "failed_at": datetime.now(UTC).isoformat(),
+                            }
+                        )
+                    except Exception as broadcast_err:
+                        logger.debug(
+                            f"Failed to broadcast batch.analysis_failed: {broadcast_err}",
+                            extra={"batch_id": batch_id},
+                        )
             except Exception as e:
                 self._stats.errors += 1
                 record_pipeline_error("analysis_batch_error")
@@ -936,6 +1024,32 @@ class AnalysisQueueWorker:
                     f"Failed to analyze batch: {e}",
                     exc_info=True,
                 )
+                # NEM-3607: Broadcast batch.analysis_failed for analysis errors
+                if broadcaster:
+                    try:
+                        # Categorize error type for UI display
+                        error_type = categorize_exception(e, "analysis").replace("analysis_", "")
+                        # Most analysis errors are retryable (timeouts, connection issues)
+                        retryable = error_type in (
+                            "timeout_error",
+                            "connection_error",
+                            "redis_error",
+                        )
+                        await broadcaster.broadcast_batch_analysis_failed(
+                            {
+                                "batch_id": batch_id,
+                                "camera_id": camera_id or "",
+                                "error": str(e)[:500],  # Truncate long error messages
+                                "error_type": error_type,
+                                "retryable": retryable,
+                                "failed_at": datetime.now(UTC).isoformat(),
+                            }
+                        )
+                    except Exception as broadcast_err:
+                        logger.debug(
+                            f"Failed to broadcast batch.analysis_failed: {broadcast_err}",
+                            extra={"batch_id": batch_id},
+                        )
 
 
 class BatchTimeoutWorker:

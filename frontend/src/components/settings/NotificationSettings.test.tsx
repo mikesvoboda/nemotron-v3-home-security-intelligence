@@ -518,9 +518,7 @@ describe('NotificationSettings', () => {
     });
   });
 
-  // =============================================================================
   // NEM-3632: Notification Channel Configuration UI Tests
-  // =============================================================================
 
   describe('Channel Configuration', () => {
     beforeEach(() => {
@@ -695,5 +693,118 @@ describe('NotificationSettings', () => {
         expect(screen.getByText(/failed to save configuration/i)).toBeInTheDocument();
       });
     });
+  });
+  it('should show helper text explaining filter precedence', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/per-camera thresholds work with global risk filters/i)
+      ).toBeInTheDocument();
+    });
+  });
+});
+
+describe('NotificationSettings - Threshold Conflict Detection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Setup default mocks for notification preferences
+    mockFetchNotificationPreferences.mockResolvedValue({
+      id: 1,
+      enabled: true,
+      sound: 'default',
+      risk_filters: ['critical'], // Only critical (80-100) enabled
+    });
+
+    mockFetchCameraNotificationSettings.mockResolvedValue({
+      items: [
+        {
+          id: 'setting-1',
+          camera_id: 'front_door',
+          enabled: true,
+          risk_threshold: 0, // Would allow all, but global blocks most
+        },
+      ],
+      pagination: { total: 1, limit: 50, offset: 0, has_more: false },
+    });
+
+    mockFetchQuietHoursPeriods.mockResolvedValue({
+      items: [],
+      pagination: { total: 0, limit: 50, offset: 0, has_more: false },
+    });
+  });
+
+  const mockFullConfig: api.NotificationConfig = {
+    notification_enabled: true,
+    email_configured: true,
+    webhook_configured: true,
+    push_configured: false,
+    available_channels: ['email', 'webhook'],
+    smtp_host: 'smtp.example.com',
+    smtp_port: 587,
+    smtp_from_address: 'alerts@example.com',
+    smtp_use_tls: true,
+    default_webhook_url: 'https://hooks.example.com/webhook',
+    webhook_timeout_seconds: 30,
+    default_email_recipients: ['user@example.com'],
+  };
+
+  it('should show warning when camera threshold conflicts with global filters', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    // Mock cameras
+    const { useCamerasQuery } = await import('../../hooks/useCamerasQuery');
+    vi.mocked(useCamerasQuery).mockReturnValue({
+      cameras: [{ id: 'front_door', name: 'Front Door', folder_path: '/cameras/front', status: 'online', created_at: '2025-01-01T00:00:00Z' }],
+      isLoading: false,
+      isRefetching: false,
+      isPlaceholderData: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      // Should show warning about blocked levels
+      expect(
+        screen.getByText(/alerts below 80% are blocked by global risk filters/i)
+      ).toBeInTheDocument();
+    });
+  });
+
+  it('should not show warning when no conflict exists', async () => {
+    mockFetchNotificationConfig.mockResolvedValue(mockFullConfig);
+
+    // Enable all risk levels
+    mockFetchNotificationPreferences.mockResolvedValue({
+      id: 1,
+      enabled: true,
+      sound: 'default',
+      risk_filters: ['critical', 'high', 'medium', 'low'],
+    });
+
+    // Mock cameras
+    const { useCamerasQuery } = await import('../../hooks/useCamerasQuery');
+    vi.mocked(useCamerasQuery).mockReturnValue({
+      cameras: [{ id: 'front_door', name: 'Front Door', folder_path: '/cameras/front', status: 'online', created_at: '2025-01-01T00:00:00Z' }],
+      isLoading: false,
+      isRefetching: false,
+      isPlaceholderData: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<NotificationSettings />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Front Door')).toBeInTheDocument();
+    });
+
+    // Should not show any conflict warning
+    expect(screen.queryByText(/alerts below.*are blocked by global risk filters/i)).not.toBeInTheDocument();
   });
 });

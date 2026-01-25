@@ -13,11 +13,13 @@ import {
   Settings as SettingsIcon,
   Shield,
   Sliders,
+  Users,
   Wrench,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { FeatureErrorBoundary, SecureContextWarning } from '../common';
+import AccessControlSettings from './AccessControlSettings';
 import AdminSettings from './AdminSettings';
 import AIModelsTab from './AIModelsTab';
 import AlertRulesSettings from './AlertRulesSettings';
@@ -157,13 +159,14 @@ function ScrollableTabList({ children }: ScrollableTabListProps) {
 /**
  * SettingsPage component with tabbed interface
  *
- * Contains ten settings tabs:
+ * Contains eleven settings tabs:
  * - CAMERAS: Camera configuration and management
  * - RULES: Alert rules configuration
  * - PROCESSING: Event processing settings
  * - NOTIFICATIONS: Email and webhook notification settings
  * - AMBIENT: Ambient status awareness settings
  * - CALIBRATION: AI risk sensitivity and feedback calibration
+ * - ACCESS: Household members, vehicles, and zone-based access control
  * - PROMPTS: AI prompt template management and version history
  * - STORAGE: Disk storage usage and file cleanup operations
  * - AI MODELS: Core AI models (RT-DETRv2, Nemotron) and Model Zoo status
@@ -181,6 +184,7 @@ function ScrollableTabList({ children }: ScrollableTabListProps) {
  * @see NEM-2388 - Add FileOperationsPanel to Settings page
  * @see NEM-3084 - Add AI MODELS tab integrating AIModelsSettings and ModelZooSection
  * @see NEM-3138 - Add ADMIN tab for AdminSettings component
+ * @see NEM-3608 - Add ACCESS tab for zone-household access control
  */
 export default function SettingsPage() {
   /** Tab descriptions shown on hover via tooltips */
@@ -191,6 +195,7 @@ export default function SettingsPage() {
     notifications: 'Email, push, and webhook notification settings',
     ambient: 'Background noise and environmental settings',
     calibration: 'Camera calibration and zone configuration',
+    'access-control': 'Manage household members, vehicles, and zone access',
     prompts: 'Customize AI analysis prompts',
     storage: 'Media retention and storage management',
     'ai-models': 'View status and performance of all AI models',
@@ -233,6 +238,12 @@ export default function SettingsPage() {
       name: 'CALIBRATION',
       icon: Sliders,
       component: CalibrationPanel,
+    },
+    {
+      id: 'access-control',
+      name: 'ACCESS',
+      icon: Users,
+      component: AccessControlSettings,
     },
     {
       id: 'prompts',

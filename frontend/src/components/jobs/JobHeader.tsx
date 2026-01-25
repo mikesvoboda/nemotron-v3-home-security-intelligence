@@ -14,11 +14,13 @@
 import { clsx } from 'clsx';
 import { memo } from 'react';
 
-import type { JobResponse, JobStatusEnum } from '../../services/api';
+import { isJobDetailResponse } from '../../types/job';
+
+import type { JobResponse, JobDetailResponse, JobStatusEnum } from '../../services/api';
 
 export interface JobHeaderProps {
   /** The job to display header for */
-  job: JobResponse;
+  job: JobResponse | JobDetailResponse;
 }
 
 /**
@@ -114,7 +116,10 @@ function getProgressFillClass(status: JobStatusEnum): string {
  * }} />
  */
 const JobHeader = memo(function JobHeader({ job }: JobHeaderProps) {
-  const { job_id, job_type, status, progress } = job;
+  // Extract fields depending on job type (JobResponse vs JobDetailResponse)
+  const job_id = isJobDetailResponse(job) ? job.id : job.job_id;
+  const { job_type, status } = job;
+  const progress = isJobDetailResponse(job) ? job.progress.percent : job.progress;
   const statusConfig = getStatusConfig(status);
   const showProgress = status !== 'pending' && progress >= 0;
 

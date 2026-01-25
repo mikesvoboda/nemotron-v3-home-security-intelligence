@@ -10,15 +10,11 @@
  * ```
  */
 
-// ============================================================================
 // Generated API Types (from OpenAPI spec)
-// ============================================================================
 
 export * from './generated';
 
-// ============================================================================
 // Advanced Risk Analysis Types (NEM-3601)
-// ============================================================================
 
 export type {
   ThreatLevel,
@@ -43,9 +39,7 @@ export {
   CONFIDENCE_FACTOR_CONFIG,
 } from './risk-analysis';
 
-// ============================================================================
 // Async State Types
-// ============================================================================
 
 export type {
   AsyncState,
@@ -81,9 +75,7 @@ export {
   createAsyncHookReturn,
 } from './async';
 
-// ============================================================================
 // Branded Types
-// ============================================================================
 
 export type {
   Brand,
@@ -114,9 +106,7 @@ export {
   isSameNumericId,
 } from './branded';
 
-// ============================================================================
 // Type Guards
-// ============================================================================
 
 export {
   isString,
@@ -163,9 +153,7 @@ export type {
   ObjectSchema,
 } from './guards';
 
-// ============================================================================
 // Constants and Utilities
-// ============================================================================
 
 export {
   RISK_LEVELS,
@@ -217,9 +205,7 @@ export type {
   TimeRange,
 } from './constants';
 
-// ============================================================================
 // Result Types (for error handling)
-// ============================================================================
 
 export type { Result, OkResult, ErrResult } from './result';
 
@@ -238,9 +224,7 @@ export {
   match,
 } from './result';
 
-// ============================================================================
 // WebSocket Types
-// ============================================================================
 
 export type {
   WebSocketEventMap,
@@ -248,9 +232,7 @@ export type {
   SceneChangeDetectedPayload,
 } from './websocket-events';
 
-// ============================================================================
 // Enrichment Types
-// ============================================================================
 
 export type {
   PoseKeypoint,
@@ -259,9 +241,7 @@ export type {
   PersonEnrichment,
 } from './enrichment';
 
-// ============================================================================
 // Notification Preferences Types
-// ============================================================================
 
 export type {
   NotificationPreferences,
@@ -269,27 +249,19 @@ export type {
   QuietHoursPeriod,
 } from './notificationPreferences';
 
-// ============================================================================
 // Prompt Management Types
-// ============================================================================
 
 export type { PromptVersionInfo, PromptTestResult, ModelPromptConfig } from './promptManagement';
 
-// ============================================================================
 // Performance Types
-// ============================================================================
 
 export type { PerformanceAlert, AiModelMetrics } from './performance';
 
-// ============================================================================
 // Rate Limit Types
-// ============================================================================
 
 export type { RateLimitInfo, ApiResponse } from './rate-limit';
 
-// ============================================================================
 // Export Types
-// ============================================================================
 
 export type {
   ExportJobStatus,
@@ -315,9 +287,7 @@ export {
   calculateTimeRemaining,
 } from './export';
 
-// ============================================================================
 // Summary Types
-// ============================================================================
 
 export type {
   SummaryType,
@@ -330,9 +300,7 @@ export type {
 
 export { isSummary, isSummaryUpdateMessage } from './summary';
 
-// ============================================================================
 // Bulk Operation Types
-// ============================================================================
 
 export type {
   BulkOperationStatus,
@@ -355,9 +323,7 @@ export {
   getSuccessfulIds,
 } from './bulk';
 
-// ============================================================================
 // Queue Status Types
-// ============================================================================
 
 export type {
   QueueHealthStatus,
@@ -384,9 +350,7 @@ export {
   formatThroughput,
 } from './queue';
 
-// ============================================================================
 // Severity Types
-// ============================================================================
 
 export type {
   SeverityLevel,
@@ -397,9 +361,7 @@ export type {
 
 export { DEFAULT_SEVERITY_THRESHOLDS, DEFAULT_SEVERITY_DEFINITIONS } from './severity';
 
-// ============================================================================
 // Alert Types (NEM-3626)
-// ============================================================================
 
 export type {
   AlertResponse,
@@ -411,3 +373,24 @@ export type {
 } from './alerts';
 
 export { isOptimisticLockError } from './alerts';
+// Job Types (NEM-3593)
+
+export type {
+  Job,
+  JobDisplayData,
+} from './job';
+
+export {
+  jobResponseToDisplayData,
+  jobDetailToDisplayData,
+  isJobDetailResponse,
+  isJobResponse,
+  toJobDisplayData,
+  hasRetryInfo,
+  canRetry,
+  hasErrorTraceback,
+  formatRetryInfo,
+  getShortErrorMessage,
+  getPriorityLabel,
+  PRIORITY_LABELS,
+} from './job';

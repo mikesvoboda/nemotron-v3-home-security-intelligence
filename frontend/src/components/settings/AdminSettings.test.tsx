@@ -94,6 +94,23 @@ vi.mock('../../hooks/useAdminMutations', () => ({
       isPending: false,
     },
   }),
+  // Also export useOrphanCleanupMutation for the OrphanCleanupPanel component
+  useOrphanCleanupMutation: () => ({
+    mutateAsync: vi.fn().mockResolvedValue({
+      scanned_files: 100,
+      orphaned_files: 15,
+      deleted_files: 15,
+      deleted_bytes: 2300000000,
+      deleted_bytes_formatted: '2.3 GB',
+      failed_count: 0,
+      failed_deletions: [],
+      duration_seconds: 1.5,
+      dry_run: false,
+      skipped_young: 0,
+      skipped_size_limit: 0,
+    }),
+    isPending: false,
+  }),
 }));
 
 // Mock the useSettingsApi hook
@@ -472,10 +489,14 @@ describe('AdminSettings', () => {
   });
 
   describe('Maintenance Actions section', () => {
-    it('renders all maintenance action buttons', () => {
+    it('renders OrphanCleanupPanel and quick action buttons', () => {
       renderWithProviders(<AdminSettings />);
 
-      expect(screen.getByTestId('btn-orphan-cleanup')).toBeInTheDocument();
+      // OrphanCleanupPanel is rendered
+      expect(screen.getByTestId('orphan-cleanup-panel')).toBeInTheDocument();
+      expect(screen.getByTestId('btn-preview-cleanup')).toBeInTheDocument();
+      expect(screen.getByTestId('btn-run-cleanup')).toBeInTheDocument();
+      // Quick action buttons
       expect(screen.getByTestId('btn-cache-clear')).toBeInTheDocument();
       expect(screen.getByTestId('btn-flush-queues')).toBeInTheDocument();
     });
@@ -483,23 +504,25 @@ describe('AdminSettings', () => {
     it('displays maintenance action descriptions', () => {
       renderWithProviders(<AdminSettings />);
 
-      expect(screen.getByText('Remove orphaned files and database records')).toBeInTheDocument();
+      // OrphanCleanupPanel description
+      expect(screen.getByText(/Scan and remove files that are no longer referenced/)).toBeInTheDocument();
+      // Quick actions descriptions
       expect(screen.getByText('Purge all cached data from Redis')).toBeInTheDocument();
       expect(screen.getByText('Clear all processing queues')).toBeInTheDocument();
     });
 
-    it('orphan cleanup button opens confirmation dialog', async () => {
+    it('orphan cleanup Clean Up button opens confirmation dialog', async () => {
       const user = userEvent.setup();
       renderWithProviders(<AdminSettings />);
 
-      const button = screen.getByTestId('btn-orphan-cleanup');
+      const button = screen.getByTestId('btn-run-cleanup');
       await user.click(button);
 
       // Confirmation dialog should appear
       await waitFor(() => {
-        expect(screen.getByText('Run Orphan Cleanup')).toBeInTheDocument();
+        expect(screen.getByText('Confirm Orphan Cleanup')).toBeInTheDocument();
         expect(
-          screen.getByText(/This will scan for and remove orphaned files and database records/)
+          screen.getByText(/This will permanently delete orphaned files/)
         ).toBeInTheDocument();
       });
     });
@@ -536,8 +559,8 @@ describe('AdminSettings', () => {
       const user = userEvent.setup();
       renderWithProviders(<AdminSettings />);
 
-      // Click the button to open dialog
-      const button = screen.getByTestId('btn-orphan-cleanup');
+      // Click the Clean Up button in OrphanCleanupPanel to open dialog
+      const button = screen.getByTestId('btn-run-cleanup');
       await user.click(button);
 
       // Wait for dialog to appear
@@ -545,11 +568,10 @@ describe('AdminSettings', () => {
         expect(screen.getByTestId('confirm-dialog')).toBeInTheDocument();
       });
 
-      // Find the confirm button in the dialog
-      const dialog = screen.getByTestId('confirm-dialog');
-      const confirmButton = dialog.querySelector('button:not(:first-child)');
+      // Find the confirm button in the dialog (Delete Files)
+      const confirmButton = screen.getByRole('button', { name: /Delete Files/i });
       expect(confirmButton).toBeTruthy();
-      await user.click(confirmButton!);
+      await user.click(confirmButton);
 
       // Dialog should close after execution completes
       await waitFor(() => {
@@ -612,8 +634,8 @@ describe('AdminSettings', () => {
       const user = userEvent.setup();
       renderWithProviders(<AdminSettings />);
 
-      // Open dialog
-      const button = screen.getByTestId('btn-orphan-cleanup');
+      // Open dialog via OrphanCleanupPanel Clean Up button
+      const button = screen.getByTestId('btn-run-cleanup');
       await user.click(button);
 
       await waitFor(() => {
@@ -630,7 +652,7 @@ describe('AdminSettings', () => {
       });
 
       // Button should not show loading state
-      expect(screen.queryByText('Running...')).not.toBeInTheDocument();
+      expect(screen.queryByText('Deleting...')).not.toBeInTheDocument();
     });
 
     it('confirmation dialog can be cancelled for cache clear', async () => {
@@ -757,11 +779,15 @@ describe('AdminSettings', () => {
     it('all buttons are accessible', () => {
       renderWithProviders(<AdminSettings />);
 
-      const orphanButton = screen.getByTestId('btn-orphan-cleanup');
+      // OrphanCleanupPanel buttons
+      const previewButton = screen.getByTestId('btn-preview-cleanup');
+      const cleanupButton = screen.getByTestId('btn-run-cleanup');
+      // Quick action buttons
       const cacheButton = screen.getByTestId('btn-cache-clear');
       const flushButton = screen.getByTestId('btn-flush-queues');
 
-      expect(orphanButton).not.toBeDisabled();
+      expect(previewButton).not.toBeDisabled();
+      expect(cleanupButton).not.toBeDisabled();
       expect(cacheButton).not.toBeDisabled();
       expect(flushButton).not.toBeDisabled();
     });

@@ -213,6 +213,16 @@ class DetectionResponse(BaseModel):
         "person attributes, license plates, weather, and image quality scores",
     )
 
+    # Junction table timestamp (NEM-3629)
+    # When fetching detections for an event with order_detections_by=created_at,
+    # this field contains the timestamp when the detection was associated with the event.
+    # Useful for showing detection order within an event (first, second, etc.)
+    association_created_at: datetime | None = Field(
+        None,
+        description="Timestamp when detection was associated with the event (NEM-3629). "
+        "Only populated when fetching detections for an event with order_detections_by=created_at.",
+    )
+
     def model_dump_list(self) -> dict:
         """Serialize for list views (exclude detail-only fields).
 

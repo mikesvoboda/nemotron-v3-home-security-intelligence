@@ -32,6 +32,12 @@ from backend.api.schemas.websocket import (
     WebSocketAlertEventType,
     WebSocketAlertResolvedMessage,
     WebSocketAlertUpdatedMessage,
+    WebSocketBatchAnalysisCompletedData,
+    WebSocketBatchAnalysisCompletedMessage,
+    WebSocketBatchAnalysisFailedData,
+    WebSocketBatchAnalysisFailedMessage,
+    WebSocketBatchAnalysisStartedData,
+    WebSocketBatchAnalysisStartedMessage,
     WebSocketCameraStatusData,
     WebSocketCameraStatusMessage,
     WebSocketDetectionBatchData,
@@ -1375,6 +1381,205 @@ class EventBroadcaster:
             raise
         except Exception as e:
             logger.error(f"Failed to broadcast summary update: {e}")
+            raise
+
+    async def broadcast_batch_analysis_started(self, batch_data: dict[str, Any]) -> int:
+        """Broadcast a batch.analysis_started message to all connected WebSocket clients via Redis pub/sub.
+
+        This method validates the batch data against the WebSocketBatchAnalysisStartedMessage schema
+        before publishing to Redis. This ensures all messages sent to clients conform
+        to the expected format for batch analysis status updates.
+
+        Batch analysis started events are broadcast when (NEM-3607):
+        - A batch is dequeued from the analysis queue
+        - LLM analysis is about to begin
+
+        Args:
+            batch_data: Batch data dictionary containing analysis status details
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the message fails schema validation
+
+        Example batch_data:
+            {
+                "type": "batch.analysis_started",
+                "data": {
+                    "batch_id": "batch_abc123",
+                    "camera_id": "front_door",
+                    "detection_count": 3,
+                    "queue_position": 0,
+                    "started_at": "2026-01-13T12:01:30.000Z"
+                }
+            }
+        """
+        try:
+            # Ensure the message has the correct structure
+            if "type" not in batch_data:
+                batch_data = {"type": "batch.analysis_started", "data": batch_data}
+
+            # Validate message format before broadcasting
+            try:
+                # Extract the data portion and validate it
+                data_dict = batch_data.get("data", {})
+                validated_data = WebSocketBatchAnalysisStartedData.model_validate(data_dict)
+                validated_message = WebSocketBatchAnalysisStartedMessage(data=validated_data)
+                # Use the validated message for broadcasting
+                broadcast_data = validated_message.model_dump(mode="json")
+            except ValidationError as ve:
+                logger.error(f"Batch analysis started message validation failed: {ve}")
+                raise ValueError(f"Invalid batch analysis started message format: {ve}") from ve
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Batch analysis started broadcast to Redis: {broadcast_data.get('type')} "
+                f"(batch_id: {data_dict.get('batch_id')}, "
+                f"camera_id: {data_dict.get('camera_id')}, "
+                f"subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast batch analysis started: {e}")
+            raise
+
+    async def broadcast_batch_analysis_completed(self, batch_data: dict[str, Any]) -> int:
+        """Broadcast a batch.analysis_completed message to all connected WebSocket clients via Redis pub/sub.
+
+        This method validates the batch data against the WebSocketBatchAnalysisCompletedMessage schema
+        before publishing to Redis. This ensures all messages sent to clients conform
+        to the expected format for batch analysis status updates.
+
+        Batch analysis completed events are broadcast when (NEM-3607):
+        - LLM analysis has finished successfully
+        - Event has been created with risk score
+
+        Args:
+            batch_data: Batch data dictionary containing analysis result details
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the message fails schema validation
+
+        Example batch_data:
+            {
+                "type": "batch.analysis_completed",
+                "data": {
+                    "batch_id": "batch_abc123",
+                    "camera_id": "front_door",
+                    "event_id": 42,
+                    "risk_score": 75,
+                    "risk_level": "high",
+                    "duration_ms": 2500,
+                    "completed_at": "2026-01-13T12:01:35.000Z"
+                }
+            }
+        """
+        try:
+            # Ensure the message has the correct structure
+            if "type" not in batch_data:
+                batch_data = {"type": "batch.analysis_completed", "data": batch_data}
+
+            # Validate message format before broadcasting
+            try:
+                # Extract the data portion and validate it
+                data_dict = batch_data.get("data", {})
+                validated_data = WebSocketBatchAnalysisCompletedData.model_validate(data_dict)
+                validated_message = WebSocketBatchAnalysisCompletedMessage(data=validated_data)
+                # Use the validated message for broadcasting
+                broadcast_data = validated_message.model_dump(mode="json")
+            except ValidationError as ve:
+                logger.error(f"Batch analysis completed message validation failed: {ve}")
+                raise ValueError(f"Invalid batch analysis completed message format: {ve}") from ve
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Batch analysis completed broadcast to Redis: {broadcast_data.get('type')} "
+                f"(batch_id: {data_dict.get('batch_id')}, "
+                f"event_id: {data_dict.get('event_id')}, "
+                f"risk_score: {data_dict.get('risk_score')}, "
+                f"subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast batch analysis completed: {e}")
+            raise
+
+    async def broadcast_batch_analysis_failed(self, batch_data: dict[str, Any]) -> int:
+        """Broadcast a batch.analysis_failed message to all connected WebSocket clients via Redis pub/sub.
+
+        This method validates the batch data against the WebSocketBatchAnalysisFailedMessage schema
+        before publishing to Redis. This ensures all messages sent to clients conform
+        to the expected format for batch analysis status updates.
+
+        Batch analysis failed events are broadcast when (NEM-3607):
+        - LLM analysis has failed with an error
+        - Used for UI feedback on analysis failures
+
+        Args:
+            batch_data: Batch data dictionary containing failure details
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the message fails schema validation
+
+        Example batch_data:
+            {
+                "type": "batch.analysis_failed",
+                "data": {
+                    "batch_id": "batch_abc123",
+                    "camera_id": "front_door",
+                    "error": "LLM service timeout after 120 seconds",
+                    "error_type": "timeout",
+                    "retryable": true,
+                    "failed_at": "2026-01-13T12:03:30.000Z"
+                }
+            }
+        """
+        try:
+            # Ensure the message has the correct structure
+            if "type" not in batch_data:
+                batch_data = {"type": "batch.analysis_failed", "data": batch_data}
+
+            # Validate message format before broadcasting
+            try:
+                # Extract the data portion and validate it
+                data_dict = batch_data.get("data", {})
+                validated_data = WebSocketBatchAnalysisFailedData.model_validate(data_dict)
+                validated_message = WebSocketBatchAnalysisFailedMessage(data=validated_data)
+                # Use the validated message for broadcasting
+                broadcast_data = validated_message.model_dump(mode="json")
+            except ValidationError as ve:
+                logger.error(f"Batch analysis failed message validation failed: {ve}")
+                raise ValueError(f"Invalid batch analysis failed message format: {ve}") from ve
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Batch analysis failed broadcast to Redis: {broadcast_data.get('type')} "
+                f"(batch_id: {data_dict.get('batch_id')}, "
+                f"error_type: {data_dict.get('error_type')}, "
+                f"subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast batch analysis failed: {e}")
             raise
 
     def _enter_degraded_mode(self) -> None:

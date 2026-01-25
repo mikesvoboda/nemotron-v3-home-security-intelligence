@@ -138,6 +138,14 @@ export interface WebSocketEventMap {
   // New hierarchical event types (NEM-2382)
   // ========================================================================
 
+  // Batch analysis events (NEM-3607)
+  /** Batch analysis started - batch dequeued and entering LLM analysis */
+  'batch.analysis_started': BatchAnalysisStartedPayload;
+  /** Batch analysis completed - LLM analysis finished successfully */
+  'batch.analysis_completed': BatchAnalysisCompletedPayload;
+  /** Batch analysis failed - LLM analysis failed with error */
+  'batch.analysis_failed': BatchAnalysisFailedPayload;
+
   // Event lifecycle events (NEM-2515)
   /** Event created - new security event detected and stored */
   'event.created': EventCreatedPayload;
@@ -167,6 +175,12 @@ export interface WebSocketEventMap {
   'camera.status_changed': CameraStatusChangedPayload;
   /** Camera error event */
   'camera.error': CameraStatusEventPayload;
+  /** Camera enabled event (NEM-3634) */
+  'camera.enabled': CameraEnabledPayload;
+  /** Camera disabled event (NEM-3634) */
+  'camera.disabled': CameraDisabledPayload;
+  /** Camera config updated event (NEM-3634) */
+  'camera.config_updated': CameraConfigUpdatedPayload;
 
   /** Job started event */
   'job.started': JobStartedPayload;
@@ -273,6 +287,10 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'job_completed',
   'job_failed',
   // New hierarchical event keys (NEM-2382)
+  // Batch analysis events (NEM-3607)
+  'batch.analysis_started',
+  'batch.analysis_completed',
+  'batch.analysis_failed',
   // Event lifecycle events (NEM-2515)
   'event.created',
   'event.updated',
@@ -288,6 +306,10 @@ export const WEBSOCKET_EVENT_KEYS: readonly WebSocketEventKey[] = [
   'camera.offline',
   'camera.status_changed',
   'camera.error',
+  // Camera config events (NEM-3634)
+  'camera.enabled',
+  'camera.disabled',
+  'camera.config_updated',
   // Job events (hierarchical format)
   'job.started',
   'job.progress',
@@ -457,6 +479,11 @@ export enum WSEventType {
   DETECTION_NEW = 'detection.new',
   DETECTION_BATCH = 'detection.batch',
 
+  // Batch analysis events - Processing status (NEM-3607)
+  BATCH_ANALYSIS_STARTED = 'batch.analysis_started',
+  BATCH_ANALYSIS_COMPLETED = 'batch.analysis_completed',
+  BATCH_ANALYSIS_FAILED = 'batch.analysis_failed',
+
   // Event events - Security event lifecycle
   EVENT_CREATED = 'event.created',
   EVENT_UPDATED = 'event.updated',
@@ -478,6 +505,8 @@ export enum WSEventType {
   CAMERA_STATUS_CHANGED = 'camera.status_changed',
   CAMERA_ENABLED = 'camera.enabled',
   CAMERA_DISABLED = 'camera.disabled',
+  // Camera config events (NEM-3634)
+  CAMERA_CONFIG_UPDATED = 'camera.config_updated',
 
   // Job events - Background job lifecycle
   JOB_STARTED = 'job.started',
@@ -565,6 +594,63 @@ export interface DetectionBatchPayload {
   detections: DetectionNewPayload[];
   frame_timestamp: string;
   camera_id: string;
+}
+
+/**
+ * Payload for batch.analysis_started events (NEM-3607).
+ * Sent when a batch is dequeued and LLM analysis begins.
+ */
+export interface BatchAnalysisStartedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Camera ID that captured the detections */
+  camera_id: string;
+  /** Number of detections in the batch */
+  detection_count: number;
+  /** Position in queue when dequeued (0 = front) */
+  queue_position?: number;
+  /** ISO 8601 timestamp when analysis started */
+  started_at: string;
+}
+
+/**
+ * Payload for batch.analysis_completed events (NEM-3607).
+ * Sent when LLM analysis finishes successfully and an Event is created.
+ */
+export interface BatchAnalysisCompletedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Camera ID that captured the detections */
+  camera_id: string;
+  /** ID of the created Event record */
+  event_id: number;
+  /** Risk score assigned by LLM (0-100) */
+  risk_score: number;
+  /** Risk level (low, medium, high, critical) */
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  /** Analysis duration in milliseconds */
+  duration_ms: number;
+  /** ISO 8601 timestamp when analysis completed */
+  completed_at: string;
+}
+
+/**
+ * Payload for batch.analysis_failed events (NEM-3607).
+ * Sent when LLM analysis fails with an error.
+ */
+export interface BatchAnalysisFailedPayload {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Camera ID that captured the detections */
+  camera_id: string;
+  /** Error message describing the failure */
+  error: string;
+  /** Categorized error type for UI display */
+  error_type: string;
+  /** Whether the operation can be retried */
+  retryable: boolean;
+  /** ISO 8601 timestamp when analysis failed */
+  failed_at: string;
 }
 
 /**
@@ -727,6 +813,24 @@ export interface CameraDisabledPayload {
   camera_id: string;
   disabled_at: string;
   reason?: string;
+}
+
+/**
+ * Payload for camera.config_updated events (NEM-3634).
+ *
+ * Broadcast when camera configuration is changed (e.g., stream URL, name, settings).
+ */
+export interface CameraConfigUpdatedPayload {
+  /** Camera ID */
+  camera_id: string;
+  /** Human-readable camera name */
+  camera_name: string;
+  /** ISO 8601 timestamp when config was updated */
+  updated_at: string;
+  /** List of field names that changed */
+  updated_fields?: string[];
+  /** Optional details about the changes */
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -1098,6 +1202,10 @@ export interface EventRegistryResponse {
 export interface WSEventPayloadMap {
   [WSEventType.DETECTION_NEW]: DetectionNewPayload;
   [WSEventType.DETECTION_BATCH]: DetectionBatchPayload;
+  // Batch analysis events (NEM-3607)
+  [WSEventType.BATCH_ANALYSIS_STARTED]: BatchAnalysisStartedPayload;
+  [WSEventType.BATCH_ANALYSIS_COMPLETED]: BatchAnalysisCompletedPayload;
+  [WSEventType.BATCH_ANALYSIS_FAILED]: BatchAnalysisFailedPayload;
   [WSEventType.EVENT_CREATED]: EventCreatedPayload;
   [WSEventType.EVENT_UPDATED]: EventUpdatedPayload;
   [WSEventType.EVENT_DELETED]: EventDeletedPayload;
@@ -1115,6 +1223,8 @@ export interface WSEventPayloadMap {
   [WSEventType.CAMERA_STATUS_CHANGED]: CameraStatusChangedPayload;
   [WSEventType.CAMERA_ENABLED]: CameraEnabledPayload;
   [WSEventType.CAMERA_DISABLED]: CameraDisabledPayload;
+  // Camera config events (NEM-3634)
+  [WSEventType.CAMERA_CONFIG_UPDATED]: CameraConfigUpdatedPayload;
   [WSEventType.JOB_STARTED]: JobStartedPayload;
   [WSEventType.JOB_PROGRESS]: JobProgressPayload;
   [WSEventType.JOB_COMPLETED]: JobCompletedPayload;

@@ -310,13 +310,13 @@ export default function DashboardLayout({
             )
             .map((widget) => renderWidget(widget.id))}
 
-          {/* Main Content Area */}
+          {/* Main Content Area - Responsive layout optimized for tablet (NEM-3610) */}
           {mainWidgets.length > 0 && (
             <div
               className={
                 useTwoColumnLayout
-                  ? 'grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr,1fr] xl:grid-cols-[2fr,1fr]'
-                  : 'space-y-6'
+                  ? 'grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-[1.5fr,1fr] xl:grid-cols-[2fr,1fr]'
+                  : 'space-y-4 md:space-y-6'
               }
               data-testid="main-content-area"
             >
@@ -328,13 +328,13 @@ export default function DashboardLayout({
             </div>
           )}
 
-          {/* System Widgets (GPU Stats, Pipeline Telemetry, etc.) */}
+          {/* System Widgets (GPU Stats, Pipeline Telemetry, etc.) - Responsive for tablet (NEM-3610) */}
           {topWidgets.some(
             (w) =>
               w.id === 'gpu-stats' || w.id === 'pipeline-telemetry' || w.id === 'pipeline-queues'
           ) && (
             <div
-              className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+              className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:mt-6 md:gap-6 lg:grid-cols-3"
               data-testid="system-widgets-area"
             >
               {topWidgets

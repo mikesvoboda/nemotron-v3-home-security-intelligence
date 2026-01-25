@@ -15,7 +15,7 @@ import { useEventsInfiniteQuery, type EventFilters } from '../../hooks/useEvents
 import { useEventStats } from '../../hooks/useEventStats';
 import { useEventStream } from '../../hooks/useEventStream';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
-import { useIsMobile } from '../../hooks/useIsMobile';
+import { useViewport } from '../../hooks/useIsMobile';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { usePaginationState } from '../../hooks/usePaginationState';
 import { useSnoozeEvent } from '../../hooks/useSnoozeEvent';
@@ -118,8 +118,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // WebSocket hook for real-time live activity
   const { events: wsEvents, isConnected: wsConnected } = useEventStream();
 
-  // Mobile detection for pull-to-refresh (NEM-2970)
-  const isMobile = useIsMobile();
+  // Viewport detection for responsive behavior (NEM-3610)
+  // Using isMobile for pull-to-refresh and isTablet for responsive grid
+  const { isMobile, isTablet } = useViewport();
 
   // State for full-text search mode
   const [isSearchMode, setIsSearchMode] = useState(false);
@@ -1277,13 +1278,13 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
           {/* Event List - wrapped with PullToRefresh on mobile (NEM-2970) */}
           {(() => {
             const eventListContent = loading ? (
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                {Array.from({ length: 6 }, (_, i) => (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: isMobile ? 3 : isTablet ? 4 : 6 }, (_, i) => (
                   <EventCardSkeleton key={i} />
                 ))}
               </div>
             ) : error ? (
-              <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20">
+              <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20 sm:min-h-[400px]">
                 <div className="text-center">
                   <p className="mb-2 text-lg font-semibold text-red-400">Error Loading Events</p>
                   <SafeErrorMessage message={error} size="sm" color="gray" />
@@ -1385,8 +1386,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
               </>
             ) : (
               <>
-                {/* Grid View */}
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                {/* Grid View - Responsive columns optimized for tablet (NEM-3610) */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
                   {clusteredItemsWithNames.map((item) => {
                     // Render cluster card for clusters
                     if (isEventCluster(item)) {

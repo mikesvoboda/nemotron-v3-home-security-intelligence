@@ -427,7 +427,8 @@ describe('DashboardLayout', () => {
       // Should still have main content area but not the two-column class
       const mainContent = screen.getByTestId('main-content-area');
       expect(mainContent).not.toHaveClass('lg:grid-cols-[1.5fr,1fr]');
-      expect(mainContent).toHaveClass('space-y-6');
+      // Has responsive spacing classes (NEM-3610)
+      expect(mainContent).toHaveClass('space-y-4', 'md:space-y-6');
     });
   });
 

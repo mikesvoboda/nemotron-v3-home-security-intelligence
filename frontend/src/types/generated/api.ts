@@ -869,6 +869,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics/risk-score-distribution": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Risk Score Distribution
+         * @description Get risk score distribution as a histogram.
+         *
+         *     Returns counts of events grouped into score buckets (e.g., 0-10, 10-20, ..., 90-100).
+         *     Only includes events with non-null risk_score.
+         *
+         *     Args:
+         *         start_date: Start date (inclusive)
+         *         end_date: End date (inclusive)
+         *         bucket_size: Size of each bucket (default 10 for buckets 0-10, 10-20, etc.)
+         *         db: Database session
+         *
+         *     Returns:
+         *         RiskScoreDistributionResponse with histogram buckets
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
+         */
+        get: operations["analytics_get_risk_score_distribution"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/risk-score-trends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Risk Score Trends
+         * @description Get average risk score trends over time.
+         *
+         *     Returns daily average risk scores for the specified date range.
+         *     Creates one data point per day even if there are no events.
+         *
+         *     Args:
+         *         start_date: Start date (inclusive)
+         *         end_date: End date (inclusive)
+         *         db: Database session
+         *
+         *     Returns:
+         *         RiskScoreTrendsResponse with daily average scores and event counts
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
+         */
+        get: operations["analytics_get_risk_score_trends"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/audit": {
         parameters: {
             query?: never;
@@ -3726,10 +3795,15 @@ export interface paths {
          * Get Event Detections
          * @description Get detections for a specific event.
          *
+         *     NEM-3629: Supports ordering by EventDetection.created_at to show detection
+         *     order within the event (first, second, etc.). When using order_detections_by=created_at,
+         *     the association_created_at field will be populated in each detection response.
+         *
          *     Args:
          *         event_id: Event ID
          *         limit: Maximum number of results to return (1-1000, default 50)
          *         offset: Number of results to skip for pagination (default 0)
+         *         order_detections_by: Order by 'detected_at' (default) or 'created_at'
          *         db: Database session
          *
          *     Returns:
@@ -3737,6 +3811,7 @@ export interface paths {
          *
          *     Raises:
          *         HTTPException: 404 if event not found
+         *         HTTPException: 400 if invalid order_detections_by value
          */
         get: operations["events_get_event_detections"];
         put?: never;
@@ -7476,6 +7551,90 @@ export interface paths {
          * @description Update system settings at runtime without server restart. Changes are written to data/runtime.env and take effect immediately. All fields are optional - only provided fields will be updated.
          */
         patch: operations["settings_update_settings"];
+        trace?: never;
+    };
+    "/api/v1/system-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List System Settings
+         * @description List all system settings.
+         *
+         *     Returns all key-value pairs from the SystemSetting table, ordered by key.
+         *
+         *     Returns:
+         *         SystemSettingListResponse with all settings
+         */
+        get: operations["system-settings_list_system_settings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system-settings/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get System Setting
+         * @description Get a specific system setting by key.
+         *
+         *     Args:
+         *         key: Setting key to retrieve
+         *         db: Database session
+         *
+         *     Returns:
+         *         SystemSettingResponse with the setting value
+         *
+         *     Raises:
+         *         HTTPException: 404 if setting not found
+         */
+        get: operations["system-settings_get_system_setting"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete System Setting
+         * @description Delete a system setting.
+         *
+         *     Args:
+         *         key: Setting key to delete
+         *         db: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if setting not found
+         */
+        delete: operations["system-settings_delete_system_setting"];
+        options?: never;
+        head?: never;
+        /**
+         * Update System Setting
+         * @description Update or create a system setting.
+         *
+         *     If the setting exists, updates its value. If it doesn't exist, creates it.
+         *     This is an upsert operation.
+         *
+         *     Args:
+         *         key: Setting key to update or create
+         *         update: New value for the setting
+         *         db: Database session
+         *
+         *     Returns:
+         *         SystemSettingResponse with the updated setting
+         *
+         *     Raises:
+         *         HTTPException: 400 if key format is invalid
+         */
+        patch: operations["system-settings_update_system_setting"];
         trace?: never;
     };
     "/api/webhooks/alerts": {
@@ -12700,6 +12859,11 @@ export interface components {
          *     }
          */
         DetectionResponse: {
+            /**
+             * Association Created At
+             * @description Timestamp when detection was associated with the event (NEM-3629). Only populated when fetching detections for an event with order_detections_by=created_at.
+             */
+            association_created_at?: string | null;
             /**
              * Bbox Height
              * @description Bounding box height
@@ -22628,6 +22792,194 @@ export interface components {
             start_date: string;
         };
         /**
+         * RiskScoreDistributionBucket
+         * @description Schema for a single risk score distribution bucket.
+         * @example {
+         *       "count": 15,
+         *       "max_score": 10,
+         *       "min_score": 0
+         *     }
+         */
+        RiskScoreDistributionBucket: {
+            /**
+             * Count
+             * @description Number of events in this bucket
+             */
+            count: number;
+            /**
+             * Max Score
+             * @description Maximum score in this bucket (exclusive)
+             */
+            max_score: number;
+            /**
+             * Min Score
+             * @description Minimum score in this bucket (inclusive)
+             */
+            min_score: number;
+        };
+        /**
+         * RiskScoreDistributionResponse
+         * @description Schema for risk score distribution histogram.
+         * @example {
+         *       "bucket_size": 10,
+         *       "buckets": [
+         *         {
+         *           "count": 15,
+         *           "max_score": 10,
+         *           "min_score": 0
+         *         },
+         *         {
+         *           "count": 12,
+         *           "max_score": 20,
+         *           "min_score": 10
+         *         },
+         *         {
+         *           "count": 8,
+         *           "max_score": 30,
+         *           "min_score": 20
+         *         },
+         *         {
+         *           "count": 6,
+         *           "max_score": 40,
+         *           "min_score": 30
+         *         },
+         *         {
+         *           "count": 4,
+         *           "max_score": 50,
+         *           "min_score": 40
+         *         },
+         *         {
+         *           "count": 3,
+         *           "max_score": 60,
+         *           "min_score": 50
+         *         },
+         *         {
+         *           "count": 2,
+         *           "max_score": 70,
+         *           "min_score": 60
+         *         },
+         *         {
+         *           "count": 2,
+         *           "max_score": 80,
+         *           "min_score": 70
+         *         },
+         *         {
+         *           "count": 1,
+         *           "max_score": 90,
+         *           "min_score": 80
+         *         },
+         *         {
+         *           "count": 1,
+         *           "max_score": 100,
+         *           "min_score": 90
+         *         }
+         *       ],
+         *       "end_date": "2025-01-07",
+         *       "start_date": "2025-01-01",
+         *       "total_events": 54
+         *     }
+         */
+        RiskScoreDistributionResponse: {
+            /**
+             * Bucket Size
+             * @description Size of each bucket
+             */
+            bucket_size: number;
+            /**
+             * Buckets
+             * @description Risk score distribution buckets
+             */
+            buckets: components["schemas"]["RiskScoreDistributionBucket"][];
+            /**
+             * End Date
+             * Format: date
+             * @description End date of the date range
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date
+             * @description Start date of the date range
+             */
+            start_date: string;
+            /**
+             * Total Events
+             * @description Total events with risk scores in date range
+             */
+            total_events: number;
+        };
+        /**
+         * RiskScoreTrendDataPoint
+         * @description Schema for a single risk score trend data point.
+         * @example {
+         *       "avg_score": 45.5,
+         *       "count": 12,
+         *       "date": "2025-01-07"
+         *     }
+         */
+        RiskScoreTrendDataPoint: {
+            /**
+             * Avg Score
+             * @description Average risk score on this date
+             */
+            avg_score: number;
+            /**
+             * Count
+             * @description Number of events on this date
+             */
+            count: number;
+            /**
+             * Date
+             * Format: date
+             * @description Date of the data point
+             */
+            date: string;
+        };
+        /**
+         * RiskScoreTrendsResponse
+         * @description Schema for risk score trends over time.
+         * @example {
+         *       "data_points": [
+         *         {
+         *           "avg_score": 35.2,
+         *           "count": 10,
+         *           "date": "2025-01-01"
+         *         },
+         *         {
+         *           "avg_score": 42.1,
+         *           "count": 15,
+         *           "date": "2025-01-02"
+         *         },
+         *         {
+         *           "avg_score": 38.7,
+         *           "count": 12,
+         *           "date": "2025-01-03"
+         *         }
+         *       ],
+         *       "end_date": "2025-01-03",
+         *       "start_date": "2025-01-01"
+         *     }
+         */
+        RiskScoreTrendsResponse: {
+            /**
+             * Data Points
+             * @description Average risk score aggregated by day
+             */
+            data_points: components["schemas"]["RiskScoreTrendDataPoint"][];
+            /**
+             * End Date
+             * Format: date
+             * @description End date of the date range
+             */
+            end_date: string;
+            /**
+             * Start Date
+             * Format: date
+             * @description Start date of the date range
+             */
+            start_date: string;
+        };
+        /**
          * RuleTestEventResult
          * @description Schema for a single event's test result.
          * @example {
@@ -24123,6 +24475,97 @@ export interface components {
          * @enum {string}
          */
         SupervisedWorkerStatusEnum: "running" | "stopped" | "crashed" | "restarting" | "failed";
+        /**
+         * SystemSettingListResponse
+         * @description Response schema for listing all system settings.
+         * @example {
+         *       "items": [
+         *         {
+         *           "key": "default_gpu_strategy",
+         *           "updated_at": "2026-01-25T12:00:00Z",
+         *           "value": {
+         *             "strategy": "vram_based"
+         *           }
+         *         },
+         *         {
+         *           "key": "notification_defaults",
+         *           "updated_at": "2026-01-25T11:00:00Z",
+         *           "value": {
+         *             "email": true,
+         *             "push": false
+         *           }
+         *         }
+         *       ],
+         *       "total": 2
+         *     }
+         */
+        SystemSettingListResponse: {
+            /**
+             * Items
+             * @description List of system settings
+             */
+            items: components["schemas"]["SystemSettingResponse"][];
+            /**
+             * Total
+             * @description Total number of settings
+             */
+            total: number;
+        };
+        /**
+         * SystemSettingResponse
+         * @description Response schema for a system setting.
+         *
+         *     Represents a single key-value pair from the SystemSetting table.
+         * @example {
+         *       "key": "default_gpu_strategy",
+         *       "updated_at": "2026-01-25T12:00:00Z",
+         *       "value": {
+         *         "fallback": "balanced",
+         *         "strategy": "vram_based"
+         *       }
+         *     }
+         */
+        SystemSettingResponse: {
+            /**
+             * Key
+             * @description Setting key (primary key)
+             */
+            key: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description Last update timestamp
+             */
+            updated_at: string;
+            /**
+             * Value
+             * @description Setting value as JSON object
+             */
+            value: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * SystemSettingUpdate
+         * @description Request schema for updating a system setting.
+         *
+         *     The value is a flexible JSON object that can store any configuration.
+         * @example {
+         *       "value": {
+         *         "fallback": "balanced",
+         *         "strategy": "vram_based"
+         *       }
+         *     }
+         */
+        SystemSettingUpdate: {
+            /**
+             * Value
+             * @description New value for the setting (JSON object). Replaces the existing value entirely (not merged).
+             */
+            value: {
+                [key: string]: unknown;
+            };
+        };
         /**
          * SystemStatsResponse
          * @description Response schema for system statistics endpoint.
@@ -26917,6 +27360,100 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RiskHistoryResponse"];
+                };
+            };
+            /** @description Bad request - Invalid date range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    analytics_get_risk_score_distribution: {
+        parameters: {
+            query: {
+                /** @description Start date for analytics (ISO format) */
+                start_date: string;
+                /** @description End date for analytics (ISO format) */
+                end_date: string;
+                /** @description Size of each score bucket (default: 10) */
+                bucket_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskScoreDistributionResponse"];
+                };
+            };
+            /** @description Bad request - Invalid date range or bucket size */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    analytics_get_risk_score_trends: {
+        parameters: {
+            query: {
+                /** @description Start date for analytics (ISO format) */
+                start_date: string;
+                /** @description End date for analytics (ISO format) */
+                end_date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskScoreTrendsResponse"];
                 };
             };
             /** @description Bad request - Invalid date range */
@@ -30636,6 +31173,8 @@ export interface operations {
                 limit?: number;
                 /** @description Number of results to skip */
                 offset?: number;
+                /** @description Order detections by: 'detected_at' (detection timestamp, default) or 'created_at' (when associated with event - shows detection sequence in event) */
+                order_detections_by?: string;
             };
             header?: never;
             path: {
@@ -35569,6 +36108,121 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "system-settings_list_system_settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemSettingListResponse"];
+                };
+            };
+        };
+    };
+    "system-settings_get_system_setting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemSettingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "system-settings_delete_system_setting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "system-settings_update_system_setting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SystemSettingUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemSettingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

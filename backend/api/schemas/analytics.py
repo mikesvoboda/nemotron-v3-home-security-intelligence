@@ -187,3 +187,108 @@ class ObjectDistributionResponse(BaseModel):
     total_detections: int = Field(..., description="Total detections in date range", ge=0)
     start_date: Date = Field(..., description="Start date of the date range")
     end_date: Date = Field(..., description="End date of the date range")
+
+
+# ============================================================================
+# Risk Score Distribution Types (NEM-3602)
+# ============================================================================
+
+
+class RiskScoreDistributionBucket(BaseModel):
+    """Schema for a single risk score distribution bucket."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "min_score": 0,
+                "max_score": 10,
+                "count": 15,
+            }
+        }
+    )
+
+    min_score: int = Field(..., description="Minimum score in this bucket (inclusive)", ge=0)
+    max_score: int = Field(..., description="Maximum score in this bucket (exclusive)", ge=0)
+    count: int = Field(..., description="Number of events in this bucket", ge=0)
+
+
+class RiskScoreDistributionResponse(BaseModel):
+    """Schema for risk score distribution histogram."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "buckets": [
+                    {"min_score": 0, "max_score": 10, "count": 15},
+                    {"min_score": 10, "max_score": 20, "count": 12},
+                    {"min_score": 20, "max_score": 30, "count": 8},
+                    {"min_score": 30, "max_score": 40, "count": 6},
+                    {"min_score": 40, "max_score": 50, "count": 4},
+                    {"min_score": 50, "max_score": 60, "count": 3},
+                    {"min_score": 60, "max_score": 70, "count": 2},
+                    {"min_score": 70, "max_score": 80, "count": 2},
+                    {"min_score": 80, "max_score": 90, "count": 1},
+                    {"min_score": 90, "max_score": 100, "count": 1},
+                ],
+                "total_events": 54,
+                "start_date": "2025-01-01",
+                "end_date": "2025-01-07",
+                "bucket_size": 10,
+            }
+        }
+    )
+
+    buckets: list[RiskScoreDistributionBucket] = Field(
+        ..., description="Risk score distribution buckets"
+    )
+    total_events: int = Field(..., description="Total events with risk scores in date range", ge=0)
+    start_date: Date = Field(..., description="Start date of the date range")
+    end_date: Date = Field(..., description="End date of the date range")
+    bucket_size: int = Field(..., description="Size of each bucket", ge=1)
+
+
+# ============================================================================
+# Risk Score Trends Types (NEM-3602)
+# ============================================================================
+
+
+class RiskScoreTrendDataPoint(BaseModel):
+    """Schema for a single risk score trend data point."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "date": "2025-01-07",
+                "avg_score": 45.5,
+                "count": 12,
+            }
+        }
+    )
+
+    date: Date = Field(..., description="Date of the data point")
+    avg_score: float = Field(..., description="Average risk score on this date", ge=0.0, le=100.0)
+    count: int = Field(..., description="Number of events on this date", ge=0)
+
+
+class RiskScoreTrendsResponse(BaseModel):
+    """Schema for risk score trends over time."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "data_points": [
+                    {"date": "2025-01-01", "avg_score": 35.2, "count": 10},
+                    {"date": "2025-01-02", "avg_score": 42.1, "count": 15},
+                    {"date": "2025-01-03", "avg_score": 38.7, "count": 12},
+                ],
+                "start_date": "2025-01-01",
+                "end_date": "2025-01-03",
+            }
+        }
+    )
+
+    data_points: list[RiskScoreTrendDataPoint] = Field(
+        ..., description="Average risk score aggregated by day"
+    )
+    start_date: Date = Field(..., description="Start date of the date range")
+    end_date: Date = Field(..., description="End date of the date range")
