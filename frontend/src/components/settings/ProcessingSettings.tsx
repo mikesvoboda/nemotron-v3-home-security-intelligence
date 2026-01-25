@@ -1,6 +1,6 @@
 import { Card, Title, Text, Button } from '@tremor/react';
 import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 import CleanupPreviewPanel from './CleanupPreviewPanel';
 import DetectionThresholdsPanel from './DetectionThresholdsPanel';
@@ -11,10 +11,13 @@ import {
   fetchConfig,
   updateConfig,
   triggerCleanup,
+  fetchAnomalyConfig,
   type SystemConfig,
   type SystemConfigUpdate,
   type CleanupResponse,
+  type AnomalyConfig,
 } from '../../services/api';
+import AnomalyConfigPanel from '../analytics/AnomalyConfigPanel';
 
 export interface ProcessingSettingsProps {
   className?: string;
@@ -38,6 +41,9 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [cleanupResult, setCleanupResult] = useState<CleanupResponse | null>(null);
+  const [anomalyConfig, setAnomalyConfig] = useState<AnomalyConfig | null>(null);
+  const [anomalyConfigLoading, setAnomalyConfigLoading] = useState(true);
+  const [anomalyConfigError, setAnomalyConfigError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -55,6 +61,29 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
     };
 
     void loadConfig();
+  }, []);
+
+  useEffect(() => {
+    const loadAnomalyConfig = async () => {
+      try {
+        setAnomalyConfigLoading(true);
+        setAnomalyConfigError(null);
+        const data = await fetchAnomalyConfig();
+        setAnomalyConfig(data);
+      } catch (err) {
+        setAnomalyConfigError(
+          err instanceof Error ? err.message : 'Failed to load anomaly configuration'
+        );
+      } finally {
+        setAnomalyConfigLoading(false);
+      }
+    };
+
+    void loadAnomalyConfig();
+  }, []);
+
+  const handleAnomalyConfigUpdated = useCallback((updatedConfig: AnomalyConfig) => {
+    setAnomalyConfig(updatedConfig);
   }, []);
 
   const hasChanges = !!(
@@ -440,6 +469,32 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
 
       {/* Severity Thresholds - Display risk score thresholds */}
       <SeverityThresholds className="mt-6" />
+
+      {/* Anomaly Detection Settings */}
+      <Card className="mt-6 border-gray-800 bg-[#1A1A1A] shadow-lg">
+        <Title className="mb-4 flex items-center gap-2 text-white">
+          <SettingsIcon className="h-5 w-5 text-[#76B900]" />
+          Anomaly Detection
+        </Title>
+        {anomalyConfigLoading && (
+          <div className="space-y-4">
+            <div className="skeleton h-12 w-full"></div>
+            <div className="skeleton h-12 w-full"></div>
+          </div>
+        )}
+        {anomalyConfigError && (
+          <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+            <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400" />
+            <Text className="text-red-400">{anomalyConfigError}</Text>
+          </div>
+        )}
+        {!anomalyConfigLoading && !anomalyConfigError && anomalyConfig && (
+          <AnomalyConfigPanel
+            config={anomalyConfig}
+            onConfigUpdated={handleAnomalyConfigUpdated}
+          />
+        )}
+      </Card>
 
       {/* DLQ Monitor - Always visible below config card */}
       <DlqMonitor className="mt-6" />

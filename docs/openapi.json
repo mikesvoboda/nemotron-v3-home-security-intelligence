@@ -5469,7 +5469,7 @@
             "type": "string"
           },
           "log_retention_days": {
-            "description": "Number of days to retain logs",
+            "description": "Number of days to retain logs (separate from event retention)",
             "maximum": 365.0,
             "minimum": 1.0,
             "title": "Log Retention Days",

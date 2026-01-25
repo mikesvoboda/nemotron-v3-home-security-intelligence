@@ -12083,7 +12083,7 @@ export interface components {
             grafana_url: string;
             /**
              * Log Retention Days
-             * @description Number of days to retain logs
+             * @description Number of days to retain logs (separate from event retention)
              */
             log_retention_days: number;
             /**

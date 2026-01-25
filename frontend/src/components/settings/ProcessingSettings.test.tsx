@@ -8,6 +8,22 @@ import { renderWithProviders } from '../../test-utils';
 // Mock the API module
 vi.mock('../../services/api');
 
+// Mock the AnomalyConfigPanel component to avoid complexity in ProcessingSettings tests
+vi.mock('../analytics/AnomalyConfigPanel', () => ({
+  default: ({ config, onConfigUpdated }: { config: api.AnomalyConfig; onConfigUpdated?: (config: api.AnomalyConfig) => void }) => (
+    <div data-testid="anomaly-config-panel">
+      <span data-testid="anomaly-threshold">{config.threshold_stdev}</span>
+      <span data-testid="anomaly-min-samples">{config.min_samples}</span>
+      <button
+        data-testid="anomaly-save-button"
+        onClick={() => onConfigUpdated?.({ ...config, threshold_stdev: 3.0 })}
+      >
+        Save
+      </button>
+    </div>
+  ),
+}));
+
 // Mock the hooks used by child components (StorageDashboard, CleanupPreviewPanel)
 vi.mock('../../hooks/useStorageStatsQuery', () => ({
   useStorageStatsQuery: () => ({
@@ -69,11 +85,20 @@ describe('ProcessingSettings', () => {
     debug: false,
   };
 
+  const mockAnomalyConfig: api.AnomalyConfig = {
+    threshold_stdev: 2.0,
+    min_samples: 10,
+    decay_factor: 0.1,
+    window_days: 30,
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
     // Always mock updateConfig to prevent errors
     vi.mocked(api.updateConfig).mockResolvedValue(mockConfig);
+    // Always mock fetchAnomalyConfig to prevent errors
+    vi.mocked(api.fetchAnomalyConfig).mockResolvedValue(mockAnomalyConfig);
   });
 
   afterEach(() => {

@@ -134,11 +134,11 @@ const mockConfig: SystemConfig = {
   app_name: 'Home Security Dashboard',
   version: '0.1.0',
   retention_days: 30,
-        log_retention_days: 7,
+  log_retention_days: 7,
   batch_window_seconds: 90,
   batch_idle_timeout_seconds: 30,
   detection_confidence_threshold: 0.5,
-        fast_path_confidence_threshold: 0.9,
+  fast_path_confidence_threshold: 0.9,
   grafana_url: 'http://localhost:3002',
   debug: false,
 };
