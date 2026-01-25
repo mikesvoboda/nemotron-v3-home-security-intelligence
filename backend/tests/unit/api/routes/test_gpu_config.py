@@ -63,6 +63,18 @@ def mock_db_session() -> AsyncMock:
 @pytest.fixture
 def client(mock_db_session: AsyncMock) -> TestClient:
     """Create a test client with mocked dependencies."""
+    # Reset global fallback state before each test to ensure isolation
+    from backend.api.routes import gpu_config
+
+    gpu_config._apply_state_fallback = {
+        "in_progress": False,
+        "operation_id": None,
+        "services_pending": [],
+        "services_completed": [],
+        "service_statuses": [],
+        "last_updated": None,
+    }
+
     app = FastAPI()
     app.include_router(router)
 
