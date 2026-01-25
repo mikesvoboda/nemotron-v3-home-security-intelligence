@@ -88,7 +88,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import undefer
+from sqlalchemy.orm import joinedload, undefer
 
 from backend.core.database import get_db
 from backend.core.exceptions import CacheUnavailableError
@@ -431,6 +431,7 @@ async def get_camera_or_404(
     camera_id: str,
     db: AsyncSession,
     include_deleted: bool = False,
+    load_areas: bool = False,
 ) -> Camera:
     """Get a camera by ID or raise 404 if not found.
 
@@ -443,6 +444,7 @@ async def get_camera_or_404(
         db: Database session
         include_deleted: If True, include soft-deleted cameras in the lookup.
                          Required for restore operations (NEM-1955).
+        load_areas: If True, eagerly load the areas relationship (NEM-3597).
 
     Returns:
         Camera object if found
@@ -456,8 +458,16 @@ async def get_camera_or_404(
     if not include_deleted:
         query = query.where(Camera.deleted_at.is_(None))
 
+    # NEM-3597: Optionally eager load areas relationship
+    if load_areas:
+        query = query.options(joinedload(Camera.areas))
+
     result = await db.execute(query)
-    camera = result.scalar_one_or_none()
+    # NEM-3597: Use unique() when using joinedload to avoid duplicate results
+    if load_areas:
+        camera = result.unique().scalar_one_or_none()
+    else:
+        camera = result.scalar_one_or_none()
 
     if not camera:
         raise HTTPException(

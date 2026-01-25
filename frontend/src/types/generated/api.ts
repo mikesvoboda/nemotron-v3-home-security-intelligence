@@ -10778,15 +10778,42 @@ export interface components {
             message: string;
         };
         /**
+         * CameraAreaSummary
+         * @description Schema for area summary in camera context (minimal area info).
+         *
+         *     NEM-3597: Provides minimal area information for camera responses.
+         * @example {
+         *       "color": "#3B82F6",
+         *       "id": 1,
+         *       "name": "Front Yard"
+         *     }
+         */
+        CameraAreaSummary: {
+            /**
+             * Color
+             * @description Hex color code for UI display
+             */
+            color: string;
+            /**
+             * Id
+             * @description Unique area identifier
+             */
+            id: number;
+            /**
+             * Name
+             * @description Area name
+             */
+            name: string;
+        };
+        /**
          * CameraCreate
          * @description Schema for creating a new camera.
          *
-         *     NEM-2569: Enhanced with explicit Pydantic validators for:
-         *     - Name: Control character rejection, whitespace stripping, empty validation
-         *     - Folder path: Path traversal prevention, forbidden character rejection
+         *     NEM-3597: Added property_id for multi-property organization.
          * @example {
          *       "folder_path": "/export/foscam/front_door",
          *       "name": "Front Door Camera",
+         *       "property_id": 1,
          *       "status": "online"
          *     }
          */
@@ -10801,6 +10828,11 @@ export interface components {
              * @description Camera name
              */
             name: string;
+            /**
+             * Property Id
+             * @description ID of the property this camera belongs to (for multi-property organization)
+             */
+            property_id?: number | null;
             /**
              * @description Camera status (online, offline, error, unknown)
              * @default online
@@ -10853,16 +10885,22 @@ export interface components {
         /**
          * CameraListResponse
          * @description Schema for camera list response.
-         *
-         *     NEM-2075: Standardized pagination envelope with items + pagination structure.
          * @example {
          *       "items": [
          *         {
+         *           "areas": [
+         *             {
+         *               "color": "#3B82F6",
+         *               "id": 1,
+         *               "name": "Front Yard"
+         *             }
+         *           ],
          *           "created_at": "2025-12-23T10:00:00Z",
          *           "folder_path": "/export/foscam/front_door",
          *           "id": "front_door",
          *           "last_seen_at": "2025-12-23T12:00:00Z",
          *           "name": "Front Door Camera",
+         *           "property_id": 1,
          *           "status": "online"
          *         }
          *       ],
@@ -10973,9 +11011,6 @@ export interface components {
         /**
          * CameraPathValidationResponse
          * @description Schema for camera path validation response.
-         *
-         *     NEM-2063: Response model for the /api/cameras/validation/paths endpoint.
-         *     Validates all camera folder paths against the configured base path.
          * @example {
          *       "base_path": "/export/foscam",
          *       "invalid_cameras": [
@@ -11037,16 +11072,31 @@ export interface components {
         /**
          * CameraResponse
          * @description Schema for camera response.
+         *
+         *     NEM-3597: Added property_id and areas for camera organization.
          * @example {
+         *       "areas": [
+         *         {
+         *           "color": "#3B82F6",
+         *           "id": 1,
+         *           "name": "Front Yard"
+         *         }
+         *       ],
          *       "created_at": "2025-12-23T10:00:00Z",
          *       "folder_path": "/export/foscam/front_door",
          *       "id": "front_door",
          *       "last_seen_at": "2025-12-23T12:00:00Z",
          *       "name": "Front Door Camera",
+         *       "property_id": 1,
          *       "status": "online"
          *     }
          */
         CameraResponse: {
+            /**
+             * Areas
+             * @description List of areas this camera monitors (NEM-3597)
+             */
+            areas?: components["schemas"]["CameraAreaSummary"][];
             /**
              * Created At
              * Format: date-time
@@ -11073,6 +11123,11 @@ export interface components {
              * @description Camera name
              */
             name: string;
+            /**
+             * Property Id
+             * @description ID of the property this camera belongs to (NEM-3597)
+             */
+            property_id?: number | null;
             /** @description Camera status (online, offline, error, unknown) */
             status: components["schemas"]["CameraStatus"];
         };
@@ -11092,10 +11147,10 @@ export interface components {
          * CameraUpdate
          * @description Schema for updating an existing camera.
          *
-         *     NEM-2569: Enhanced with explicit Pydantic validators for partial updates.
-         *     All fields are optional; only provided fields are validated.
+         *     NEM-3597: Added property_id for multi-property organization.
          * @example {
          *       "name": "Front Door Camera - Updated",
+         *       "property_id": 2,
          *       "status": "offline"
          *     }
          */
@@ -11110,6 +11165,11 @@ export interface components {
              * @description Camera name
              */
             name?: string | null;
+            /**
+             * Property Id
+             * @description ID of the property this camera belongs to (for multi-property organization)
+             */
+            property_id?: number | null;
             /** @description Camera status (online, offline, error, unknown) */
             status?: components["schemas"]["CameraStatus"] | null;
         };
@@ -11189,8 +11249,6 @@ export interface components {
         /**
          * CameraValidationInfo
          * @description Schema for individual camera validation result.
-         *
-         *     NEM-2063: Response model for camera path validation details.
          * @example {
          *       "folder_path": "/export/foscam/front_door",
          *       "id": "front_door",
@@ -12819,10 +12877,6 @@ export interface components {
         /**
          * DeletedCamerasListResponse
          * @description Schema for listing soft-deleted cameras (trash view).
-         *
-         *     NEM-1955: Provides a trash view of soft-deleted cameras that can be restored.
-         *     Cameras are ordered by deleted_at descending (most recently deleted first).
-         *     NEM-2075: Standardized pagination envelope with items + pagination structure.
          * @example {
          *       "items": [
          *         {
