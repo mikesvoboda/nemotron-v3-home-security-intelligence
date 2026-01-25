@@ -617,4 +617,173 @@ describe('FilterChips', () => {
       expect(withVideoChip).toBeDisabled();
     });
   });
+
+  // NEM-3586: Object Type Filter Chips
+  describe('Object Type Filtering', () => {
+    it('renders object type section label', () => {
+      renderWithProviders(
+        <FilterChips
+          filters={{}}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      expect(screen.getByText('Object Type')).toBeInTheDocument();
+    });
+
+    it('renders Person, Vehicle, Animal object type chips', () => {
+      renderWithProviders(
+        <FilterChips
+          filters={{}}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /^person$/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^vehicle$/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^animal$/i })).toBeInTheDocument();
+    });
+
+    it('calls onFilterChange when object type chip is clicked', async () => {
+      const user = userEvent.setup();
+
+      renderWithProviders(
+        <FilterChips
+          filters={{}}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: /^person$/i }));
+
+      expect(mockOnFilterChange).toHaveBeenCalledWith('object_type', 'person');
+    });
+
+    it('highlights active object type chip', () => {
+      renderWithProviders(
+        <FilterChips
+          filters={{ object_type: 'vehicle' }}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      const vehicleChip = screen.getByRole('button', { name: /^vehicle$/i });
+      expect(vehicleChip).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('clears object type filter when clicking active chip', async () => {
+      const user = userEvent.setup();
+
+      renderWithProviders(
+        <FilterChips
+          filters={{ object_type: 'animal' }}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: /^animal$/i }));
+
+      expect(mockOnFilterChange).toHaveBeenCalledWith('object_type', '');
+    });
+
+    it('shows Clear All button when object_type filter is active', () => {
+      renderWithProviders(
+        <FilterChips
+          filters={{ object_type: 'person' }}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /clear all/i })).toBeInTheDocument();
+    });
+  });
+
+  // NEM-3589: Include Deleted Toggle
+  describe('Include Deleted Toggle', () => {
+    it('renders Include Deleted toggle', () => {
+      renderWithProviders(
+        <FilterChips
+          filters={{}}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /include deleted/i })).toBeInTheDocument();
+    });
+
+    it('calls onFilterChange with include_deleted when toggle is clicked', async () => {
+      const user = userEvent.setup();
+
+      renderWithProviders(
+        <FilterChips
+          filters={{}}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: /include deleted/i }));
+
+      expect(mockOnFilterChange).toHaveBeenCalledWith('include_deleted', true);
+    });
+
+    it('highlights Include Deleted toggle when active', () => {
+      renderWithProviders(
+        <FilterChips
+          filters={{ include_deleted: true }}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      const toggle = screen.getByRole('button', { name: /include deleted/i });
+      expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('clears include_deleted filter when clicking active toggle', async () => {
+      const user = userEvent.setup();
+
+      renderWithProviders(
+        <FilterChips
+          filters={{ include_deleted: true }}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: /include deleted/i }));
+
+      expect(mockOnFilterChange).toHaveBeenCalledWith('include_deleted', '');
+    });
+
+    it('shows Clear All button when include_deleted filter is active', () => {
+      renderWithProviders(
+        <FilterChips
+          filters={{ include_deleted: true }}
+          riskCounts={mockRiskCounts}
+          onFilterChange={mockOnFilterChange}
+          onClearFilters={mockOnClearFilters}
+        />
+      );
+
+      expect(screen.getByRole('button', { name: /clear all/i })).toBeInTheDocument();
+    });
+  });
 });

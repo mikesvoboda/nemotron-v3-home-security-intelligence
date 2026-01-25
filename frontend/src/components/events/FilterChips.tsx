@@ -1,6 +1,6 @@
 import { clsx } from 'clsx';
 import { subHours, startOfDay, startOfWeek, format } from 'date-fns';
-import { Calendar, X } from 'lucide-react';
+import { Calendar, Trash2, X } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
 import type { EventFilters } from '../../hooks/useEventsQuery';
@@ -98,6 +98,11 @@ export function FilterChip({
  */
 type TimePreset = 'last_hour' | 'today' | 'this_week' | 'custom';
 
+/**
+ * Object types for filtering events by detected objects (NEM-3586).
+ */
+type ObjectType = 'person' | 'vehicle' | 'animal';
+
 export interface FilterChipsProps {
   /** Current active filters */
   filters: EventFilters;
@@ -160,7 +165,8 @@ export default function FilterChips({
       filters.end_date ||
       filters.reviewed !== undefined ||
       filters.camera_id ||
-      filters.object_type
+      filters.object_type ||
+      filters.include_deleted
     );
   }, [filters]);
 
@@ -238,6 +244,29 @@ export default function FilterChips({
     },
     [onFilterChange]
   );
+
+  // Handle object type chip click (NEM-3586)
+  const handleObjectTypeClick = useCallback(
+    (objectType: ObjectType) => {
+      if (filters.object_type === objectType) {
+        // Toggle off if already active
+        onFilterChange('object_type', '');
+      } else {
+        onFilterChange('object_type', objectType);
+      }
+    },
+    [filters.object_type, onFilterChange]
+  );
+
+  // Handle include deleted toggle click (NEM-3589)
+  const handleIncludeDeletedClick = useCallback(() => {
+    if (filters.include_deleted) {
+      // Toggle off if already active
+      onFilterChange('include_deleted', '');
+    } else {
+      onFilterChange('include_deleted', true);
+    }
+  }, [filters.include_deleted, onFilterChange]);
 
   return (
     <div
@@ -320,6 +349,47 @@ export default function FilterChips({
             />
             <FilterChip label="With Video" isActive={false} onClick={() => {}} disabled={true} />
           </div>
+        </div>
+
+        {/* Divider */}
+        <div className="h-6 w-px bg-gray-700" />
+
+        {/* Object Type Section (NEM-3586) */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wider text-gray-500">
+            Object Type
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            <FilterChip
+              label="Person"
+              isActive={filters.object_type === 'person'}
+              onClick={() => handleObjectTypeClick('person')}
+            />
+            <FilterChip
+              label="Vehicle"
+              isActive={filters.object_type === 'vehicle'}
+              onClick={() => handleObjectTypeClick('vehicle')}
+            />
+            <FilterChip
+              label="Animal"
+              isActive={filters.object_type === 'animal'}
+              onClick={() => handleObjectTypeClick('animal')}
+            />
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="h-6 w-px bg-gray-700" />
+
+        {/* Include Deleted Toggle (NEM-3589) */}
+        <div className="flex items-center gap-2">
+          <FilterChip
+            label="Include Deleted"
+            isActive={filters.include_deleted === true}
+            onClick={handleIncludeDeletedClick}
+            className={filters.include_deleted ? 'bg-red-900/20 border-red-600 text-red-400' : ''}
+          />
+          {filters.include_deleted && <Trash2 className="h-4 w-4 text-red-400" />}
         </div>
 
         {/* Clear All Button */}

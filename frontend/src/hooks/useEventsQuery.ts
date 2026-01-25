@@ -17,6 +17,8 @@ export interface EventFilters {
   end_date?: string;
   reviewed?: boolean;
   object_type?: string;
+  /** Include soft-deleted events in results (NEM-3589) */
+  include_deleted?: boolean;
 }
 
 export interface UseEventsInfiniteQueryOptions extends BaseInfiniteQueryOptions {
