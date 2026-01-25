@@ -632,16 +632,37 @@ class TestApplyGpuConfig:
         assert response.status_code == 500
         assert "Failed to apply GPU configuration" in response.json()["detail"]
 
+    @patch("backend.api.routes.gpu_config.GpuConfigService")
     def test_apply_gpu_config_rejects_concurrent_applies(
-        self, client: TestClient, mock_db_session: AsyncMock
+        self, mock_config_service_class: MagicMock, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test that concurrent apply operations are rejected with 409."""
         from backend.api.routes import gpu_config
+        from backend.services.gpu_config_service import ApplyResult, RestartStatus
 
-        # Set apply state to in-progress
-        gpu_config._apply_state["in_progress"] = True
+        # Set apply state to in-progress using the fallback state
+        # Note: The endpoint now uses Redis when available, but falls back to
+        # _apply_state_fallback for in-memory tracking without Redis (NEM-3547)
+        gpu_config._apply_state_fallback["in_progress"] = True
+        gpu_config._apply_state_fallback["operation_id"] = "test-operation-id"
+
+        # Mock the config service to return an incomplete operation
+        mock_service = AsyncMock()
+        mock_config_service_class.return_value = mock_service
+        mock_service.get_operation_status.return_value = ApplyResult(
+            success=False,
+            operation_id="test-operation-id",
+            started_at=datetime.now(UTC),
+            changed_services=["ai-llm"],
+            service_statuses={"ai-llm": MagicMock(status=RestartStatus.PENDING)},
+            completed_at=None,  # Operation not completed - still in progress
+        )
 
         response = client.post("/api/system/gpu-config/apply")
+
+        # Clean up state for other tests
+        gpu_config._apply_state_fallback["in_progress"] = False
+        gpu_config._apply_state_fallback["operation_id"] = None
 
         assert response.status_code == 409
         assert "already in progress" in response.json()["detail"]
@@ -659,9 +680,12 @@ class TestGetGpuConfigStatus:
         """Test that status endpoint returns current apply status."""
         from backend.api.routes import gpu_config
 
-        # Set up status
-        gpu_config._apply_state = {
+        # Set up status using the fallback state
+        # Note: The endpoint now uses Redis when available, but falls back to
+        # _apply_state_fallback for in-memory tracking without Redis (NEM-3547)
+        gpu_config._apply_state_fallback = {
             "in_progress": True,
+            "operation_id": None,  # No Redis operation, so this uses fallback state
             "services_pending": ["ai-llm", "ai-detector"],
             "services_completed": ["ai-enrichment"],
             "service_statuses": [
@@ -673,6 +697,16 @@ class TestGetGpuConfigStatus:
         }
 
         response = client.get("/api/system/gpu-config/status")
+
+        # Clean up state for other tests
+        gpu_config._apply_state_fallback = {
+            "in_progress": False,
+            "operation_id": None,
+            "services_pending": [],
+            "services_completed": [],
+            "service_statuses": [],
+            "last_updated": None,
+        }
 
         assert response.status_code == 200
         data = response.json()

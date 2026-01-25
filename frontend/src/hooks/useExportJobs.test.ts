@@ -56,6 +56,7 @@ const mockExportJob: ExportJob = {
   created_at: '2025-01-21T10:00:00Z',
   started_at: null,
   completed_at: null,
+  filter_params: null,
   result: null,
   error_message: null,
 };

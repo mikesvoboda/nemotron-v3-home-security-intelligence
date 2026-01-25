@@ -584,18 +584,24 @@ export function createMockAlertRule(options: MockAlertRuleOptions = {}): MockDat
 export interface MockSystemConfigOptions {
   /** Retention days. Default: 30 */
   retention_days?: number;
+  /** Log retention days. Default: 7 */
+  log_retention_days?: number;
   /** Batch window seconds. Default: 90 */
   batch_window_seconds?: number;
   /** Batch idle timeout seconds. Default: 30 */
   batch_idle_timeout_seconds?: number;
   /** Detection confidence threshold. Default: 0.5 */
   detection_confidence_threshold?: number;
+  /** Fast-path confidence threshold. Default: 0.9 */
+  fast_path_confidence_threshold?: number;
   /** App name. Default: 'Home Security Intelligence' */
   app_name?: string;
   /** App version. Default: '1.0.0' */
   version?: string;
   /** Grafana URL. Default: 'http://localhost:3001' */
   grafana_url?: string;
+  /** Debug mode. Default: false */
+  debug?: boolean;
 }
 
 /**
@@ -607,12 +613,15 @@ export interface MockSystemConfigOptions {
 export function createMockSystemConfig(options: MockSystemConfigOptions = {}): MockData {
   return {
     retention_days: options.retention_days ?? 30,
+    log_retention_days: options.log_retention_days ?? 7,
     batch_window_seconds: options.batch_window_seconds ?? 90,
     batch_idle_timeout_seconds: options.batch_idle_timeout_seconds ?? 30,
     detection_confidence_threshold: options.detection_confidence_threshold ?? 0.5,
+    fast_path_confidence_threshold: options.fast_path_confidence_threshold ?? 0.9,
     app_name: options.app_name ?? 'Home Security Intelligence',
     version: options.version ?? '1.0.0',
     grafana_url: options.grafana_url ?? 'http://localhost:3001',
+    debug: options.debug ?? false,
   };
 }
 

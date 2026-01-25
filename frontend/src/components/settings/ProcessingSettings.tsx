@@ -63,7 +63,9 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
     (editedConfig.batch_window_seconds !== config.batch_window_seconds ||
       editedConfig.batch_idle_timeout_seconds !== config.batch_idle_timeout_seconds ||
       editedConfig.retention_days !== config.retention_days ||
-      editedConfig.detection_confidence_threshold !== config.detection_confidence_threshold)
+      editedConfig.log_retention_days !== config.log_retention_days ||
+      editedConfig.detection_confidence_threshold !== config.detection_confidence_threshold ||
+      editedConfig.fast_path_confidence_threshold !== config.fast_path_confidence_threshold)
   );
 
   const handleSave = async () => {
@@ -78,7 +80,9 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
         batch_window_seconds: editedConfig.batch_window_seconds,
         batch_idle_timeout_seconds: editedConfig.batch_idle_timeout_seconds,
         retention_days: editedConfig.retention_days,
+        log_retention_days: editedConfig.log_retention_days,
         detection_confidence_threshold: editedConfig.detection_confidence_threshold,
+        fast_path_confidence_threshold: editedConfig.fast_path_confidence_threshold,
       };
 
       const updatedConfig = await updateConfig(updates);
@@ -220,11 +224,11 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
               </div>
             </div>
 
-            {/* Retention Period */}
+            {/* Retention Period - Events/Detections */}
             <div>
               <div className="mb-2 flex items-end justify-between">
                 <div>
-                  <Text className="font-medium text-gray-300">Retention Period</Text>
+                  <Text className="font-medium text-gray-300">Event Retention Period</Text>
                   <Text className="mt-1 text-xs text-gray-300">
                     Number of days to retain events and detections
                   </Text>
@@ -253,11 +257,44 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
               </div>
             </div>
 
-            {/* Confidence Threshold */}
+            {/* Log Retention Period */}
             <div>
               <div className="mb-2 flex items-end justify-between">
                 <div>
-                  <Text className="font-medium text-gray-300">Confidence Threshold</Text>
+                  <Text className="font-medium text-gray-300">Log Retention Period</Text>
+                  <Text className="mt-1 text-xs text-gray-300">
+                    Number of days to retain application logs
+                  </Text>
+                </div>
+                <Text className="text-lg font-semibold text-white">
+                  {editedConfig.log_retention_days} days
+                </Text>
+              </div>
+              <input
+                type="range"
+                min="1"
+                max="90"
+                step="1"
+                value={editedConfig.log_retention_days}
+                onChange={(e) =>
+                  setEditedConfig((prev) =>
+                    prev ? { ...prev, log_retention_days: parseInt(e.target.value) } : prev
+                  )
+                }
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
+                aria-label="Log retention period in days"
+              />
+              <div className="mt-1 flex justify-between text-xs text-gray-300">
+                <span>1 day</span>
+                <span>90 days</span>
+              </div>
+            </div>
+
+            {/* Detection Confidence Threshold */}
+            <div>
+              <div className="mb-2 flex items-end justify-between">
+                <div>
+                  <Text className="font-medium text-gray-300">Detection Confidence Threshold</Text>
                   <Text className="mt-1 text-xs text-gray-300">
                     Minimum confidence for object detection (0.0 - 1.0)
                   </Text>
@@ -281,6 +318,41 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 }
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
                 aria-label="Detection confidence threshold"
+              />
+              <div className="mt-1 flex justify-between text-xs text-gray-300">
+                <span>0.00</span>
+                <span>1.00</span>
+              </div>
+            </div>
+
+            {/* Fast-Path Confidence Threshold */}
+            <div>
+              <div className="mb-2 flex items-end justify-between">
+                <div>
+                  <Text className="font-medium text-gray-300">Fast-Path Confidence Threshold</Text>
+                  <Text className="mt-1 text-xs text-gray-300">
+                    High-confidence threshold for immediate processing (0.0 - 1.0)
+                  </Text>
+                </div>
+                <Text className="text-lg font-semibold text-white">
+                  {editedConfig.fast_path_confidence_threshold?.toFixed(2) ?? '0.90'}
+                </Text>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={editedConfig.fast_path_confidence_threshold}
+                onChange={(e) =>
+                  setEditedConfig((prev) =>
+                    prev
+                      ? { ...prev, fast_path_confidence_threshold: parseFloat(e.target.value) }
+                      : prev
+                  )
+                }
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
+                aria-label="Fast-path confidence threshold"
               />
               <div className="mt-1 flex justify-between text-xs text-gray-300">
                 <span>0.00</span>

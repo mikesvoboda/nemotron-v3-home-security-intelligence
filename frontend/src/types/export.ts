@@ -35,6 +35,51 @@ export type ExportFormat = 'csv' | 'json' | 'zip' | 'excel';
 // ============================================================================
 
 /**
+ * Available export column names.
+ */
+export type ExportColumnName =
+  | 'event_id'
+  | 'camera_name'
+  | 'started_at'
+  | 'ended_at'
+  | 'risk_score'
+  | 'risk_level'
+  | 'summary'
+  | 'detection_count'
+  | 'reviewed'
+  | 'object_types'
+  | 'reasoning';
+
+/**
+ * Export column definition with field name and display label.
+ */
+export interface ExportColumnDefinition {
+  /** Field name used in the export data */
+  field: ExportColumnName;
+  /** Human-readable display label */
+  label: string;
+  /** Description of the column */
+  description: string;
+}
+
+/**
+ * All available export columns with metadata.
+ */
+export const EXPORT_COLUMNS: ExportColumnDefinition[] = [
+  { field: 'event_id', label: 'Event ID', description: 'Unique identifier for the event' },
+  { field: 'camera_name', label: 'Camera', description: 'Name of the camera that captured the event' },
+  { field: 'started_at', label: 'Started At', description: 'When the event started' },
+  { field: 'ended_at', label: 'Ended At', description: 'When the event ended' },
+  { field: 'risk_score', label: 'Risk Score', description: 'Numeric risk score (0-100)' },
+  { field: 'risk_level', label: 'Risk Level', description: 'Risk level category (low/medium/high/critical)' },
+  { field: 'summary', label: 'Summary', description: 'AI-generated summary of the event' },
+  { field: 'detection_count', label: 'Detections', description: 'Number of detections in the event' },
+  { field: 'reviewed', label: 'Reviewed', description: 'Whether the event has been reviewed' },
+  { field: 'object_types', label: 'Object Types', description: 'Types of objects detected' },
+  { field: 'reasoning', label: 'Reasoning', description: 'AI reasoning for the risk assessment' },
+];
+
+/**
  * Parameters for creating a new export job.
  */
 export interface ExportJobCreateParams {
@@ -52,6 +97,8 @@ export interface ExportJobCreateParams {
   end_date?: string | null;
   /** Filter by reviewed status */
   reviewed?: boolean | null;
+  /** List of column field names to include (null for all) */
+  columns?: ExportColumnName[] | null;
 }
 
 // ============================================================================
@@ -101,6 +148,22 @@ export interface ExportJobResult {
 }
 
 /**
+ * Filter parameters used for an export job.
+ */
+export interface ExportFilterParams {
+  /** Camera ID filter */
+  camera_id: string | null;
+  /** Risk level filter */
+  risk_level: string | null;
+  /** Start date filter (ISO format) */
+  start_date: string | null;
+  /** End date filter (ISO format) */
+  end_date: string | null;
+  /** Reviewed status filter */
+  reviewed: boolean | null;
+}
+
+/**
  * Full export job response with status, progress, and result.
  */
 export interface ExportJob {
@@ -120,6 +183,8 @@ export interface ExportJob {
   started_at: string | null;
   /** Job completion timestamp */
   completed_at: string | null;
+  /** Filter parameters used (JSON string, parse with parseFilterParams) */
+  filter_params: string | null;
   /** Export result (populated when completed) */
   result: ExportJobResult | null;
   /** Error message (populated when failed) */
@@ -254,4 +319,70 @@ export function calculateTimeRemaining(
   const hours = Math.ceil(minutes / 60);
   if (hours === 1) return '~1 hour remaining';
   return `~${hours} hours remaining`;
+}
+
+/**
+ * Parse filter parameters from JSON string.
+ */
+export function parseFilterParams(filterParams: string | null): ExportFilterParams | null {
+  if (!filterParams) return null;
+  try {
+    return JSON.parse(filterParams) as ExportFilterParams;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Format filter parameters for display.
+ */
+export function formatFilterParams(filterParams: string | null): string[] {
+  const params = parseFilterParams(filterParams);
+  if (!params) return [];
+
+  const filters: string[] = [];
+
+  if (params.camera_id) {
+    filters.push(`Camera: ${params.camera_id}`);
+  }
+  if (params.risk_level) {
+    filters.push(`Risk: ${params.risk_level}`);
+  }
+  if (params.start_date) {
+    filters.push(`From: ${new Date(params.start_date).toLocaleDateString()}`);
+  }
+  if (params.end_date) {
+    filters.push(`To: ${new Date(params.end_date).toLocaleDateString()}`);
+  }
+  if (params.reviewed !== null) {
+    filters.push(params.reviewed ? 'Reviewed only' : 'Unreviewed only');
+  }
+
+  return filters;
+}
+
+/**
+ * Calculate export job duration in seconds.
+ */
+export function calculateDuration(startedAt: string | null, completedAt: string | null): number | null {
+  if (!startedAt) return null;
+  const endTime = completedAt ? new Date(completedAt).getTime() : Date.now();
+  const startTime = new Date(startedAt).getTime();
+  return Math.round((endTime - startTime) / 1000);
+}
+
+/**
+ * Format duration for display.
+ */
+export function formatDuration(seconds: number | null): string {
+  if (seconds === null) return '';
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) {
+    return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
 }

@@ -111,11 +111,11 @@ function ConfirmationDialog({
  * Service restart progress component
  */
 function RestartProgress({ serviceStatuses }: { serviceStatuses: ServiceStatus[] }) {
-  const restartingServices = serviceStatuses.filter((s) => s.restart_status);
-  const healthyCount = serviceStatuses.filter((s) => s.health === 'healthy').length;
+  const runningCount = serviceStatuses.filter((s) => s.status === 'running').length;
   const totalCount = serviceStatuses.length;
+  const startingServices = serviceStatuses.filter((s) => s.status === 'starting');
 
-  if (restartingServices.length === 0 && healthyCount === totalCount) {
+  if (startingServices.length === 0 && runningCount === totalCount) {
     return null;
   }
 
@@ -124,31 +124,31 @@ function RestartProgress({ serviceStatuses }: { serviceStatuses: ServiceStatus[]
       <div className="flex items-center justify-between text-sm">
         <span className="text-gray-400">Restart Progress</span>
         <span className="text-white">
-          {healthyCount} / {totalCount} healthy
+          {runningCount} / {totalCount} running
         </span>
       </div>
       <div className="space-y-1">
         {serviceStatuses.map((status) => (
           <div
-            key={status.name}
+            key={status.service}
             className="flex items-center justify-between rounded bg-gray-800 px-3 py-2 text-sm"
           >
-            <span className="text-gray-300">{status.name}</span>
+            <span className="text-gray-300">{status.service}</span>
             <div className="flex items-center gap-2">
-              {status.restart_status ? (
+              {status.status === 'starting' ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />
-                  <span className="text-yellow-500">{status.restart_status}</span>
+                  <span className="text-yellow-500">Starting</span>
                 </>
-              ) : status.health === 'healthy' ? (
+              ) : status.status === 'running' ? (
                 <>
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  <span className="text-green-500">Healthy</span>
+                  <span className="text-green-500">Running</span>
                 </>
-              ) : status.health === 'unhealthy' ? (
+              ) : status.status === 'error' ? (
                 <>
                   <XCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-red-500">Unhealthy</span>
+                  <span className="text-red-500">Error</span>
                 </>
               ) : (
                 <>
@@ -168,7 +168,9 @@ function RestartProgress({ serviceStatuses }: { serviceStatuses: ServiceStatus[]
  * Apply result display component
  */
 function ApplyResult({ result }: { result: GpuApplyResult }) {
-  const hasFailures = result.failed.length > 0;
+  // Check for failures by looking at service_statuses with error status
+  const failedServices = result.service_statuses.filter((s) => s.status === 'error');
+  const hasFailures = failedServices.length > 0;
 
   return (
     <div
@@ -192,17 +194,17 @@ function ApplyResult({ result }: { result: GpuApplyResult }) {
         )}
       </div>
 
-      {result.restarted.length > 0 && (
+      {result.restarted_services.length > 0 && (
         <div className="mb-2 text-sm">
           <span className="text-gray-400">Restarted: </span>
-          <span className="text-white">{result.restarted.join(', ')}</span>
+          <span className="text-white">{result.restarted_services.join(', ')}</span>
         </div>
       )}
 
-      {result.failed.length > 0 && (
+      {failedServices.length > 0 && (
         <div className="mb-2 text-sm">
           <span className="text-gray-400">Failed: </span>
-          <span className="text-red-400">{result.failed.join(', ')}</span>
+          <span className="text-red-400">{failedServices.map((s) => s.service).join(', ')}</span>
         </div>
       )}
 

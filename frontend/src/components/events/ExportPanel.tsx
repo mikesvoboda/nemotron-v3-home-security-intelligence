@@ -8,13 +8,15 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
+  FolderArchive,
   Loader2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { exportEventsCSV, exportEventsJSON, fetchCameras, fetchEventStats } from '../../services/api';
+import { startExportJob, downloadExportFile, fetchCameras, fetchEventStats } from '../../services/api';
 
 import type { Camera, EventStatsResponse, ExportQueryParams } from '../../services/api';
+import type { ExportJobCreateParams, ExportFormat as ExportFormatType } from '../../types/export';
 
 export interface ExportPanelProps {
   /** Pre-populate filters from EventTimeline */
@@ -31,7 +33,7 @@ export interface ExportPanelProps {
   className?: string;
 }
 
-export type ExportFormat = 'csv' | 'json';
+export type ExportFormat = 'csv' | 'json' | 'zip' | 'excel';
 
 /**
  * ExportPanel component provides a comprehensive UI for exporting events data.
@@ -169,18 +171,47 @@ export default function ExportPanel({
     onExportStart?.();
 
     try {
-      if (format === 'csv') {
-        await exportEventsCSV(filters);
-      } else {
-        await exportEventsJSON(filters);
-      }
-      setExportSuccess('Export completed successfully! Check your downloads folder.');
-      onExportComplete?.(true, 'Export completed successfully');
+      // Use the new export job API for all formats
+      const params: ExportJobCreateParams = {
+        export_type: 'events',
+        export_format: format as ExportFormatType,
+        camera_id: filters.camera_id || null,
+        risk_level: filters.risk_level || null,
+        start_date: filters.start_date || null,
+        end_date: filters.end_date || null,
+        reviewed: filters.reviewed ?? null,
+      };
+
+      const response = await startExportJob(params);
+
+      // Poll for job completion (simple polling for this component)
+      const maxAttempts = 60; // 60 seconds max
+      let attempts = 0;
+
+      const pollJobStatus = async (): Promise<void> => {
+        attempts++;
+        const status = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/exports/${response.job_id}`);
+        const jobData = await status.json() as { status: string; error_message?: string };
+
+        if (jobData.status === 'completed') {
+          await downloadExportFile(response.job_id);
+          setExportSuccess(`${format.toUpperCase()} export completed successfully! Check your downloads folder.`);
+          onExportComplete?.(true, 'Export completed successfully');
+          setExporting(false);
+        } else if (jobData.status === 'failed') {
+          throw new Error(jobData.error_message || 'Export failed');
+        } else if (attempts < maxAttempts) {
+          setTimeout(() => void pollJobStatus(), 1000);
+        } else {
+          throw new Error('Export timed out');
+        }
+      };
+
+      await pollJobStatus();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Export failed';
       setExportError(message);
       onExportComplete?.(false, message);
-    } finally {
       setExporting(false);
     }
 
@@ -205,10 +236,10 @@ export default function ExportPanel({
       {/* Export Format Selection */}
       <div>
         <Text className="mb-3 font-medium text-gray-300">Export Format</Text>
-        <div className="flex gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <button
             onClick={() => setFormat('csv')}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-all ${
+            className={`flex flex-col items-center justify-center gap-1.5 rounded-lg border px-3 py-3 text-sm font-medium transition-all ${
               format === 'csv'
                 ? 'border-[#76B900] bg-[#76B900]/10 text-[#76B900]'
                 : 'border-gray-700 bg-[#1A1A1A] text-gray-400 hover:border-gray-600 hover:bg-[#252525]'
@@ -217,11 +248,11 @@ export default function ExportPanel({
           >
             <FileSpreadsheet className="h-5 w-5" />
             <span>CSV</span>
-            {format === 'csv' && <Check className="h-4 w-4" />}
+            {format === 'csv' && <Check className="h-3 w-3" />}
           </button>
           <button
             onClick={() => setFormat('json')}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-all ${
+            className={`flex flex-col items-center justify-center gap-1.5 rounded-lg border px-3 py-3 text-sm font-medium transition-all ${
               format === 'json'
                 ? 'border-[#76B900] bg-[#76B900]/10 text-[#76B900]'
                 : 'border-gray-700 bg-[#1A1A1A] text-gray-400 hover:border-gray-600 hover:bg-[#252525]'
@@ -230,7 +261,33 @@ export default function ExportPanel({
           >
             <FileText className="h-5 w-5" />
             <span>JSON</span>
-            {format === 'json' && <Check className="h-4 w-4" />}
+            {format === 'json' && <Check className="h-3 w-3" />}
+          </button>
+          <button
+            onClick={() => setFormat('excel')}
+            className={`flex flex-col items-center justify-center gap-1.5 rounded-lg border px-3 py-3 text-sm font-medium transition-all ${
+              format === 'excel'
+                ? 'border-[#76B900] bg-[#76B900]/10 text-[#76B900]'
+                : 'border-gray-700 bg-[#1A1A1A] text-gray-400 hover:border-gray-600 hover:bg-[#252525]'
+            }`}
+            aria-pressed={format === 'excel'}
+          >
+            <FileSpreadsheet className="h-5 w-5" />
+            <span>Excel</span>
+            {format === 'excel' && <Check className="h-3 w-3" />}
+          </button>
+          <button
+            onClick={() => setFormat('zip')}
+            className={`flex flex-col items-center justify-center gap-1.5 rounded-lg border px-3 py-3 text-sm font-medium transition-all ${
+              format === 'zip'
+                ? 'border-[#76B900] bg-[#76B900]/10 text-[#76B900]'
+                : 'border-gray-700 bg-[#1A1A1A] text-gray-400 hover:border-gray-600 hover:bg-[#252525]'
+            }`}
+            aria-pressed={format === 'zip'}
+          >
+            <FolderArchive className="h-5 w-5" />
+            <span>ZIP</span>
+            {format === 'zip' && <Check className="h-3 w-3" />}
           </button>
         </div>
       </div>

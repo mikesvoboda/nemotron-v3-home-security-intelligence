@@ -39,7 +39,9 @@ export type {
   Camera,
   CameraCreate,
   CameraListResponse,
+  CameraPathValidationResponse,
   CameraUpdate,
+  CameraValidationInfo,
   CleanupResponse,
   Detection,
   DetectionListResponse,
@@ -163,7 +165,9 @@ import type {
   Camera,
   CameraCreate,
   CameraListResponse as GeneratedCameraListResponse,
+  CameraPathValidationResponse,
   CameraUpdate,
+  CameraValidationInfo,
   CircuitBreakerResetResponse as GeneratedCircuitBreakerResetResponse,
   CircuitBreakersResponse as GeneratedCircuitBreakersResponse,
   CleanupResponse,
@@ -1425,6 +1429,168 @@ export async function restoreCamera(id: string): Promise<Camera> {
  */
 export function getCameraSnapshotUrl(cameraId: string): string {
   return `${BASE_URL}/api/cameras/${encodeURIComponent(cameraId)}/snapshot`;
+}
+
+// ============================================================================
+// Camera Path Validation Endpoint (NEM-3578)
+// ============================================================================
+
+/**
+ * Fetch camera path validation results for all cameras.
+ *
+ * This endpoint validates all camera folder paths against the configured base path,
+ * checking whether directories exist, contain files, and are properly configured.
+ *
+ * Useful for diagnostics when cameras show "No snapshot available" errors.
+ *
+ * @returns CameraPathValidationResponse with validation results for all cameras
+ *
+ * @example
+ * ```typescript
+ * const validation = await fetchCameraPathValidation();
+ * console.log(`Valid: ${validation.valid_count}, Invalid: ${validation.invalid_count}`);
+ *
+ * // Show cameras with issues
+ * validation.invalid_cameras.forEach(cam => {
+ *   console.log(`${cam.name}: ${cam.issues?.join(', ')}`);
+ * });
+ * ```
+ */
+export async function fetchCameraPathValidation(): Promise<CameraPathValidationResponse> {
+  return fetchApi<CameraPathValidationResponse>('/api/cameras/validation/paths');
+}
+
+// ============================================================================
+// Camera Snapshot Status Helper (NEM-3579)
+// ============================================================================
+
+/**
+ * Snapshot status information returned by checkCameraSnapshot.
+ */
+export interface CameraSnapshotStatus {
+  /** Whether the snapshot is available */
+  available: boolean;
+  /** The snapshot URL if available */
+  url: string;
+  /** Error message if snapshot is not available */
+  error?: string;
+  /** Error code from the API (e.g., 404) */
+  errorCode?: number;
+  /** Suggested action to resolve the issue */
+  suggestion?: string;
+}
+
+/**
+ * Check if a camera snapshot is available.
+ *
+ * This helper performs a HEAD request to the snapshot endpoint to check availability
+ * without downloading the full image. Provides detailed error information and
+ * suggestions for troubleshooting when snapshots are unavailable.
+ *
+ * @param cameraId - The camera ID to check
+ * @returns CameraSnapshotStatus with availability and error details
+ *
+ * @example
+ * ```typescript
+ * const status = await checkCameraSnapshot('front_door');
+ * if (status.available) {
+ *   // Use status.url in an <img> tag
+ *   return <img src={status.url} alt="Camera snapshot" />;
+ * } else {
+ *   // Show error message with suggestion
+ *   return (
+ *     <div>
+ *       <p>Snapshot unavailable: {status.error}</p>
+ *       <p>{status.suggestion}</p>
+ *     </div>
+ *   );
+ * }
+ * ```
+ */
+export async function checkCameraSnapshot(cameraId: string): Promise<CameraSnapshotStatus> {
+  const url = getCameraSnapshotUrl(cameraId);
+
+  try {
+    // Use HEAD request to check availability without downloading
+    const response = await fetch(url, {
+      method: 'HEAD',
+      // Snapshot endpoints are exempt from API key auth
+    });
+
+    if (response.ok) {
+      return {
+        available: true,
+        url,
+      };
+    }
+
+    // Handle specific error codes with helpful suggestions
+    let error = 'Snapshot unavailable';
+    let suggestion = 'Check camera configuration';
+
+    if (response.status === 404) {
+      // Try to parse error response for more details
+      // Note: HEAD requests don't have bodies, so we'll provide generic suggestions
+      error = 'Camera folder or snapshot not found';
+      suggestion =
+        'Verify the camera folder exists and contains image or video files. ' +
+        'Use the path validation endpoint to diagnose issues.';
+    } else if (response.status === 429) {
+      error = 'Too many requests';
+      suggestion = 'Wait a moment before trying again.';
+    } else if (response.status === 500) {
+      error = 'Server error while processing snapshot';
+      suggestion = 'Check server logs for details. Video frame extraction may have failed.';
+    }
+
+    return {
+      available: false,
+      url,
+      error,
+      errorCode: response.status,
+      suggestion,
+    };
+  } catch (err) {
+    // Network error or other fetch failure
+    return {
+      available: false,
+      url,
+      error: err instanceof Error ? err.message : 'Network error',
+      suggestion: 'Check your network connection and ensure the backend is running.',
+    };
+  }
+}
+
+/**
+ * Fetch a camera snapshot as a blob.
+ *
+ * This function downloads the snapshot image and returns it as a Blob,
+ * useful for displaying in canvas elements or processing the image data.
+ *
+ * @param cameraId - The camera ID to fetch snapshot for
+ * @returns Promise resolving to the image Blob
+ * @throws ApiError if the snapshot is not available
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   const blob = await fetchCameraSnapshot('front_door');
+ *   const imageUrl = URL.createObjectURL(blob);
+ *   // Use imageUrl in an <img> tag or canvas
+ * } catch (error) {
+ *   console.error('Failed to fetch snapshot:', error);
+ * }
+ * ```
+ */
+export async function fetchCameraSnapshot(cameraId: string): Promise<Blob> {
+  const url = getCameraSnapshotUrl(cameraId);
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new ApiError(response.status, `Failed to fetch snapshot for camera ${cameraId}`);
+  }
+
+  return response.blob();
 }
 
 // ============================================================================
@@ -3182,6 +3348,7 @@ export async function startExportJob(
       start_date: params.start_date,
       end_date: params.end_date,
       reviewed: params.reviewed,
+      columns: params.columns,
     }),
   });
 }
@@ -5548,6 +5715,166 @@ export async function acknowledgeSceneChange(
     `/api/cameras/${encodeURIComponent(cameraId)}/scene-changes/${sceneChangeId}/acknowledge`,
     { method: 'POST' }
   );
+}
+
+// ============================================================================
+// Scene Change Summary Types and Functions (NEM-3580)
+// ============================================================================
+
+/**
+ * Scene change types for categorization.
+ */
+export type SceneChangeType = 'view_blocked' | 'angle_changed' | 'view_tampered' | 'unknown';
+
+/**
+ * Breakdown of scene changes by type.
+ */
+export interface SceneChangeTypeBreakdown {
+  /** Type of scene change */
+  type: SceneChangeType;
+  /** Number of changes of this type */
+  count: number;
+  /** Percentage of total changes */
+  percentage: number;
+}
+
+/**
+ * Summary statistics for scene changes.
+ *
+ * Provides aggregated data computed from the scene change list,
+ * enabling summary dashboards and trend analysis.
+ */
+export interface SceneChangeSummary {
+  /** Camera ID */
+  cameraId: string;
+  /** Total number of scene changes in the period */
+  totalChanges: number;
+  /** Number of unacknowledged changes */
+  unacknowledgedCount: number;
+  /** Number of acknowledged changes */
+  acknowledgedCount: number;
+  /** Most recent scene change timestamp (ISO 8601), null if no changes */
+  lastChangeAt: string | null;
+  /** Oldest scene change in the data set (ISO 8601), null if no changes */
+  firstChangeAt: string | null;
+  /** Breakdown of changes by type */
+  byType: SceneChangeTypeBreakdown[];
+  /** Average similarity score (0-1) */
+  avgSimilarityScore: number | null;
+  /** Most common change type, null if no changes */
+  mostCommonType: SceneChangeType | null;
+  /** Number of days covered by the data */
+  periodDays: number;
+}
+
+/**
+ * Options for fetching scene change summary.
+ */
+export interface SceneChangeSummaryOptions {
+  /** Number of days to look back (default: 7) */
+  days?: number;
+}
+
+/**
+ * Fetch scene change summary statistics for a camera.
+ *
+ * This function fetches all scene changes for a camera (up to a reasonable limit)
+ * and computes summary statistics client-side. The summary includes:
+ * - Total count and acknowledgement breakdown
+ * - Most recent change timestamp
+ * - Breakdown by change type
+ * - Average similarity score
+ *
+ * Note: This is computed client-side from the list endpoint since there's no
+ * dedicated backend summary endpoint. For cameras with many scene changes,
+ * consider using pagination or implementing a backend aggregation endpoint.
+ *
+ * @param cameraId - Camera ID to fetch summary for
+ * @param options - Optional query parameters
+ * @returns SceneChangeSummary with aggregated statistics
+ *
+ * @example
+ * ```typescript
+ * const summary = await fetchSceneChangeSummary('front_door', { days: 30 });
+ * console.log(`${summary.totalChanges} changes, ${summary.unacknowledgedCount} need review`);
+ *
+ * // Show breakdown by type
+ * summary.byType.forEach(({ type, count, percentage }) => {
+ *   console.log(`${type}: ${count} (${percentage.toFixed(1)}%)`);
+ * });
+ * ```
+ */
+export async function fetchSceneChangeSummary(
+  cameraId: string,
+  options?: SceneChangeSummaryOptions
+): Promise<SceneChangeSummary> {
+  const days = options?.days ?? 7;
+
+  // Fetch all scene changes (use high limit to get comprehensive data)
+  // For a proper implementation, a backend summary endpoint would be more efficient
+  const response = await fetchSceneChanges(cameraId, { limit: 100 });
+
+  const changes = response.scene_changes;
+
+  // Filter by date range if days is specified
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  const recentChanges = changes.filter(
+    (sc) => new Date(sc.detected_at) >= cutoffDate
+  );
+
+  // Compute summary statistics
+  const totalChanges = recentChanges.length;
+  const unacknowledgedCount = recentChanges.filter((sc) => !sc.acknowledged).length;
+  const acknowledgedCount = totalChanges - unacknowledgedCount;
+
+  // Find timestamps
+  let lastChangeAt: string | null = null;
+  let firstChangeAt: string | null = null;
+  if (recentChanges.length > 0) {
+    // Changes are already sorted by detected_at descending
+    lastChangeAt = recentChanges[0].detected_at;
+    firstChangeAt = recentChanges[recentChanges.length - 1].detected_at;
+  }
+
+  // Compute type breakdown
+  const typeCountMap = new Map<SceneChangeType, number>();
+  for (const sc of recentChanges) {
+    const type = sc.change_type as SceneChangeType;
+    typeCountMap.set(type, (typeCountMap.get(type) ?? 0) + 1);
+  }
+
+  const byType: SceneChangeTypeBreakdown[] = Array.from(typeCountMap.entries())
+    .map(([type, count]) => ({
+      type,
+      count,
+      percentage: totalChanges > 0 ? (count / totalChanges) * 100 : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  // Find most common type
+  const mostCommonType: SceneChangeType | null =
+    byType.length > 0 ? byType[0].type : null;
+
+  // Compute average similarity score
+  let avgSimilarityScore: number | null = null;
+  if (recentChanges.length > 0) {
+    const totalScore = recentChanges.reduce((sum, sc) => sum + sc.similarity_score, 0);
+    avgSimilarityScore = totalScore / recentChanges.length;
+  }
+
+  return {
+    cameraId,
+    totalChanges,
+    unacknowledgedCount,
+    acknowledgedCount,
+    lastChangeAt,
+    firstChangeAt,
+    byType,
+    avgSimilarityScore,
+    mostCommonType,
+    periodDays: days,
+  };
 }
 
 // ============================================================================

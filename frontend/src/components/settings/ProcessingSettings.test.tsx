@@ -60,9 +60,11 @@ describe('ProcessingSettings', () => {
     app_name: 'Home Security Intelligence',
     version: '0.1.0',
     retention_days: 30,
+    log_retention_days: 7,
     batch_window_seconds: 90,
     batch_idle_timeout_seconds: 30,
     detection_confidence_threshold: 0.5,
+    fast_path_confidence_threshold: 0.9,
     grafana_url: 'http://localhost:3002',
     debug: false,
   };
@@ -108,8 +110,10 @@ describe('ProcessingSettings', () => {
     });
 
     expect(screen.getByText('Idle Timeout')).toBeInTheDocument();
-    expect(screen.getByText('Retention Period')).toBeInTheDocument();
-    expect(screen.getByText('Confidence Threshold')).toBeInTheDocument();
+    expect(screen.getByText('Event Retention Period')).toBeInTheDocument();
+    expect(screen.getByText('Log Retention Period')).toBeInTheDocument();
+    expect(screen.getByText('Detection Confidence Threshold')).toBeInTheDocument();
+    expect(screen.getByText('Fast-Path Confidence Threshold')).toBeInTheDocument();
   });
 
   it('displays correct configuration values', async () => {
@@ -282,7 +286,9 @@ describe('ProcessingSettings', () => {
         batch_window_seconds: 120,
         batch_idle_timeout_seconds: 30,
         retention_days: 30,
+        log_retention_days: 7,
         detection_confidence_threshold: 0.5,
+        fast_path_confidence_threshold: 0.9,
       });
     });
 
@@ -580,6 +586,28 @@ describe('ProcessingSettings', () => {
         expect(screen.getByText(/Minimum confidence for object detection/i)).toBeInTheDocument();
       });
     });
+
+    it('shows description for fast-path confidence threshold', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+      renderWithProviders(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/High-confidence threshold for immediate processing/i)
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('shows description for log retention period', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+      renderWithProviders(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Number of days to retain application logs/i)).toBeInTheDocument();
+      });
+    });
   });
 
   describe('edge cases', () => {
@@ -662,8 +690,14 @@ describe('ProcessingSettings', () => {
       const retentionInput = screen.getByLabelText('Retention period in days');
       expect(retentionInput).toHaveAttribute('type', 'range');
 
+      const logRetentionInput = screen.getByLabelText('Log retention period in days');
+      expect(logRetentionInput).toHaveAttribute('type', 'range');
+
       const confidenceInput = screen.getByLabelText('Detection confidence threshold');
       expect(confidenceInput).toHaveAttribute('type', 'range');
+
+      const fastPathInput = screen.getByLabelText('Fast-path confidence threshold');
+      expect(fastPathInput).toHaveAttribute('type', 'range');
     });
   });
 
@@ -679,7 +713,9 @@ describe('ProcessingSettings', () => {
 
       expect(screen.getByLabelText('Batch idle timeout in seconds')).toBeInTheDocument();
       expect(screen.getByLabelText('Retention period in days')).toBeInTheDocument();
+      expect(screen.getByLabelText('Log retention period in days')).toBeInTheDocument();
       expect(screen.getByLabelText('Detection confidence threshold')).toBeInTheDocument();
+      expect(screen.getByLabelText('Fast-path confidence threshold')).toBeInTheDocument();
       // StorageDashboard component handles storage display without an aria-label for percentage
     });
 
@@ -695,8 +731,10 @@ describe('ProcessingSettings', () => {
       // Check that field labels are present
       expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
       expect(screen.getByText('Idle Timeout')).toBeInTheDocument();
-      expect(screen.getByText('Retention Period')).toBeInTheDocument();
-      expect(screen.getByText('Confidence Threshold')).toBeInTheDocument();
+      expect(screen.getByText('Event Retention Period')).toBeInTheDocument();
+      expect(screen.getByText('Log Retention Period')).toBeInTheDocument();
+      expect(screen.getByText('Detection Confidence Threshold')).toBeInTheDocument();
+      expect(screen.getByText('Fast-Path Confidence Threshold')).toBeInTheDocument();
     });
   });
 
@@ -729,6 +767,36 @@ describe('ProcessingSettings', () => {
       fireEvent.input(confidenceInput, { target: { value: '0.75' } });
 
       expect(screen.getByText('0.75')).toBeInTheDocument();
+    });
+
+    it('updates fast-path threshold with decimal precision', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+      renderWithProviders(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('0.90')).toBeInTheDocument();
+      });
+
+      const fastPathInput = screen.getByLabelText('Fast-path confidence threshold');
+      fireEvent.input(fastPathInput, { target: { value: '0.85' } });
+
+      expect(screen.getByText('0.85')).toBeInTheDocument();
+    });
+
+    it('updates log retention value when slider moves', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+      renderWithProviders(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('7 days')).toBeInTheDocument();
+      });
+
+      const logRetentionInput = screen.getByLabelText('Log retention period in days');
+      fireEvent.input(logRetentionInput, { target: { value: '14' } });
+
+      expect(screen.getByText('14 days')).toBeInTheDocument();
     });
   });
 

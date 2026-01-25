@@ -68,6 +68,8 @@ export type Camera = components['schemas']['CameraResponse'];
 export type CameraCreate = components['schemas']['CameraCreate'];
 export type CameraUpdate = components['schemas']['CameraUpdate'];
 export type CameraListResponse = components['schemas']['CameraListResponse'];
+export type CameraValidationInfo = components['schemas']['CameraValidationInfo'];
+export type CameraPathValidationResponse = components['schemas']['CameraPathValidationResponse'];
 
 // Event types
 /**

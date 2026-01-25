@@ -5609,6 +5609,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/ai-services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List available AI services
+         * @description Returns all AI services with their VRAM requirements.
+         */
+        get: operations["gpu-config_list_ai_services"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/anomaly-config": {
         parameters: {
             query?: never;
@@ -6006,6 +6026,26 @@ export interface paths {
          * @description Preview what assignments would result from a given strategy.
          */
         get: operations["gpu-config_preview_gpu_config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/gpu-config/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get AI service health status
+         * @description Returns health status of all AI services including GPU assignments.
+         */
+        get: operations["gpu-config_get_service_health"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8617,6 +8657,78 @@ export interface components {
              * @description VRAM used by the model in GB
              */
             vram_gb: number;
+        };
+        /**
+         * AiServiceInfo
+         * @description Information about an AI service for GPU assignment.
+         *
+         *     Provides service metadata including VRAM requirements, enabling
+         *     the frontend to dynamically build the assignment UI.
+         * @example {
+         *       "description": "Nemotron LLM for risk analysis and enrichment",
+         *       "display_name": "LLM (Nemotron)",
+         *       "name": "ai-llm",
+         *       "vram_required_gb": 8,
+         *       "vram_required_mb": 8192
+         *     }
+         */
+        AiServiceInfo: {
+            /**
+             * Description
+             * @description Service description
+             */
+            description?: string | null;
+            /**
+             * Display Name
+             * @description Human-readable display name
+             */
+            display_name: string;
+            /**
+             * Name
+             * @description Service name (e.g., 'ai-llm')
+             */
+            name: string;
+            /**
+             * Vram Required Gb
+             * @description VRAM requirement in gigabytes
+             */
+            vram_required_gb: number;
+            /**
+             * Vram Required Mb
+             * @description VRAM requirement in megabytes
+             */
+            vram_required_mb: number;
+        };
+        /**
+         * AiServicesResponse
+         * @description Response schema for listing available AI services.
+         *
+         *     Returns all AI services with their VRAM requirements for GPU assignment.
+         * @example {
+         *       "services": [
+         *         {
+         *           "description": "Nemotron LLM for risk analysis and enrichment",
+         *           "display_name": "LLM (Nemotron)",
+         *           "name": "ai-llm",
+         *           "vram_required_gb": 8,
+         *           "vram_required_mb": 8192
+         *         },
+         *         {
+         *           "description": "RT-DETR real-time object detection",
+         *           "display_name": "Object Detector",
+         *           "name": "ai-detector",
+         *           "vram_required_gb": 2,
+         *           "vram_required_mb": 2048
+         *         }
+         *       ]
+         *     }
+         */
+        AiServicesResponse: {
+            /**
+             * Services
+             * @description List of available AI services
+             */
+            services: components["schemas"]["AiServiceInfo"][];
         };
         /**
          * AlertResponse
@@ -11923,7 +12035,9 @@ export interface components {
          *       "batch_window_seconds": 90,
          *       "debug": false,
          *       "detection_confidence_threshold": 0.5,
+         *       "fast_path_confidence_threshold": 0.9,
          *       "grafana_url": "/grafana",
+         *       "log_retention_days": 7,
          *       "retention_days": 30,
          *       "version": "0.1.0"
          *     }
@@ -11956,10 +12070,20 @@ export interface components {
              */
             detection_confidence_threshold: number;
             /**
+             * Fast Path Confidence Threshold
+             * @description Confidence threshold for fast-path high-priority analysis (0.0-1.0)
+             */
+            fast_path_confidence_threshold: number;
+            /**
              * Grafana Url
              * @description Grafana dashboard URL for frontend link
              */
             grafana_url: string;
+            /**
+             * Log Retention Days
+             * @description Number of days to retain logs
+             */
+            log_retention_days: number;
             /**
              * Retention Days
              * @description Number of days to retain events and detections
@@ -11994,6 +12118,16 @@ export interface components {
              * @description DEPRECATED: Use /api/v1/settings detection.confidence_threshold instead. Minimum confidence threshold for detections (0.0-1.0). This field will be removed in a future version.
              */
             detection_confidence_threshold?: number | null;
+            /**
+             * Fast Path Confidence Threshold
+             * @description Confidence threshold for fast-path high-priority analysis (0.0-1.0)
+             */
+            fast_path_confidence_threshold?: number | null;
+            /**
+             * Log Retention Days
+             * @description Number of days to retain logs
+             */
+            log_retention_days?: number | null;
             /**
              * Retention Days
              * @description Number of days to retain events and detections
@@ -15534,6 +15668,12 @@ export interface components {
          *     the job status endpoint.
          * @example {
          *       "camera_id": "front_door",
+         *       "columns": [
+         *         "event_id",
+         *         "camera_name",
+         *         "risk_score",
+         *         "summary"
+         *       ],
          *       "end_date": "2025-01-12T23:59:59Z",
          *       "export_format": "csv",
          *       "export_type": "events",
@@ -15547,6 +15687,11 @@ export interface components {
              * @description Filter by camera ID
              */
             camera_id?: string | null;
+            /**
+             * Columns
+             * @description List of column field names to include in export. Available: event_id, camera_name, started_at, ended_at, risk_score, risk_level, summary, detection_count, reviewed, object_types, reasoning. If null, all columns are included.
+             */
+            columns?: string[] | null;
             /**
              * End Date
              * @description Filter events ending before this date (ISO format)
@@ -15756,6 +15901,11 @@ export interface components {
              * @description Type of export
              */
             export_type: string;
+            /**
+             * Filter Params
+             * @description JSON-serialized filter parameters used for this export
+             */
+            filter_params?: string | null;
             /**
              * Id
              * @description Unique export job identifier
@@ -24283,6 +24433,35 @@ export interface components {
          */
         ServiceCategory: "infrastructure" | "ai" | "monitoring";
         /**
+         * ServiceHealthResponse
+         * @description Response schema for AI service health status.
+         *
+         *     Returns health status of all AI services including GPU assignments.
+         * @example {
+         *       "services": [
+         *         {
+         *           "gpu_index": 0,
+         *           "health": "healthy",
+         *           "name": "ai-llm",
+         *           "status": "running"
+         *         },
+         *         {
+         *           "gpu_index": 1,
+         *           "health": "healthy",
+         *           "name": "ai-detector",
+         *           "status": "running"
+         *         }
+         *       ]
+         *     }
+         */
+        ServiceHealthResponse: {
+            /**
+             * Services
+             * @description Status of all AI services
+             */
+            services: components["schemas"]["ServiceHealthStatus"][];
+        };
+        /**
          * ServiceHealthState
          * @description Health state for a service in the full health check.
          *
@@ -24294,6 +24473,46 @@ export interface components {
          * @enum {string}
          */
         ServiceHealthState: "healthy" | "unhealthy" | "degraded" | "unknown";
+        /**
+         * ServiceHealthStatus
+         * @description Schema for service health status including GPU assignment.
+         *
+         *     Provides comprehensive service health information for the GPU settings UI,
+         *     including container status, health check result, and GPU assignment.
+         * @example {
+         *       "gpu_index": 0,
+         *       "health": "healthy",
+         *       "name": "ai-llm",
+         *       "status": "running"
+         *     }
+         */
+        ServiceHealthStatus: {
+            /**
+             * Gpu Index
+             * @description Assigned GPU index
+             */
+            gpu_index?: number | null;
+            /**
+             * Health
+             * @description Health check result (healthy, unhealthy, unknown)
+             */
+            health: string;
+            /**
+             * Name
+             * @description Service name (e.g., 'ai-llm')
+             */
+            name: string;
+            /**
+             * Restart Status
+             * @description Restart status if currently restarting (pending, completed)
+             */
+            restart_status?: string | null;
+            /**
+             * Status
+             * @description Container status (running, stopped, etc.)
+             */
+            status: string;
+        };
         /**
          * ServiceHealthStatusResponse
          * @description Health status of a registered service.
@@ -34872,6 +35091,26 @@ export interface operations {
             };
         };
     };
+    "gpu-config_list_ai_services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiServicesResponse"];
+                };
+            };
+        };
+    };
     system_get_anomaly_config: {
         parameters: {
             query?: never;
@@ -35351,6 +35590,26 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "gpu-config_get_service_health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceHealthResponse"];
+                };
             };
         };
     };

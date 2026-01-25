@@ -341,6 +341,16 @@ export const queryKeys = {
       days !== undefined
         ? ([...queryKeys.cameras.all, 'baseline', 'anomalies', cameraId, { days }] as const)
         : ([...queryKeys.cameras.all, 'baseline', 'anomalies', cameraId] as const),
+    /** Camera path validation (NEM-3578) */
+    pathValidation: () => [...queryKeys.cameras.all, 'pathValidation'] as const,
+    /** Camera snapshot status (NEM-3579) */
+    snapshotStatus: (cameraId: string) =>
+      [...queryKeys.cameras.all, 'snapshotStatus', cameraId] as const,
+    /** Scene change summary for a camera (NEM-3580) */
+    sceneChangeSummary: (cameraId: string, days?: number) =>
+      days !== undefined
+        ? ([...queryKeys.cameras.all, 'sceneChangeSummary', cameraId, { days }] as const)
+        : ([...queryKeys.cameras.all, 'sceneChangeSummary', cameraId] as const),
   },
 
   /**

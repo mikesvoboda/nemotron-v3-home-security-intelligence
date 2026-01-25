@@ -142,6 +142,7 @@ const createMockExportJob = (overrides: Partial<ExportJob> = {}): ExportJob => (
   created_at: '2024-01-01T00:00:00Z',
   started_at: '2024-01-01T00:00:01Z',
   completed_at: null,
+  filter_params: null,
   result: null,
   error_message: null,
   ...overrides,

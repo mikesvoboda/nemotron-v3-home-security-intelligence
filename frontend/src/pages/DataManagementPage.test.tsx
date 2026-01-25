@@ -50,6 +50,7 @@ const mockPendingJob: ExportJob = {
   created_at: '2025-01-21T10:00:00Z',
   started_at: null,
   completed_at: null,
+  filter_params: null,
   result: null,
   error_message: null,
 };
@@ -69,6 +70,7 @@ const mockRunningJob: ExportJob = {
   created_at: '2025-01-21T10:00:00Z',
   started_at: '2025-01-21T10:00:01Z',
   completed_at: null,
+  filter_params: '{"camera_id":"front_door","risk_level":"high"}',
   result: null,
   error_message: null,
 };
@@ -88,6 +90,7 @@ const mockCompletedJob: ExportJob = {
   created_at: '2025-01-21T09:00:00Z',
   started_at: '2025-01-21T09:00:01Z',
   completed_at: '2025-01-21T09:01:00Z',
+  filter_params: '{"start_date":"2025-01-01","end_date":"2025-01-20"}',
   result: {
     output_path: '/api/exports/completed-job-789/download',
     output_size_bytes: 12345,
@@ -112,6 +115,7 @@ const mockFailedJob: ExportJob = {
   created_at: '2025-01-21T08:00:00Z',
   started_at: '2025-01-21T08:00:01Z',
   completed_at: '2025-01-21T08:00:30Z',
+  filter_params: null,
   result: null,
   error_message: 'Disk space exhausted',
 };
