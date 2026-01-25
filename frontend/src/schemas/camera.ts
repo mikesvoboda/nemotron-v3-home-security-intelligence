@@ -132,32 +132,64 @@ export const cameraFolderPathSchema = z
 /**
  * Schema for creating a new camera.
  * Matches backend CameraCreate Pydantic model.
+ * NEM-3597: Added property_id for multi-property organization.
  */
 export const cameraCreateSchema = z.object({
   name: cameraNameSchema,
   folder_path: cameraFolderPathSchema,
   status: cameraStatusSchema.default('online'),
+  property_id: z.number().int().positive().nullish(),
 });
 
 /**
  * Schema for updating an existing camera.
  * Matches backend CameraUpdate Pydantic model.
  * All fields are optional for partial updates.
+ * NEM-3597: Added property_id for multi-property organization.
  */
 export const cameraUpdateSchema = z.object({
   name: cameraNameSchema.optional(),
   folder_path: cameraFolderPathSchema.optional(),
   status: cameraStatusSchema.optional(),
+  property_id: z.number().int().positive().nullish(),
 });
 
 /**
  * Schema for the camera form (used in CamerasSettings.tsx).
  * All fields are required for form display but status has a default.
+ * NEM-3597: Added property_id for multi-property organization.
  */
 export const cameraFormSchema = z.object({
   name: cameraNameSchema,
   folder_path: cameraFolderPathSchema,
   status: cameraStatusSchema,
+  property_id: z.number().int().positive().nullish(),
+});
+
+/**
+ * Schema for area summary in camera context (minimal area info).
+ * NEM-3597: Provides minimal area information for camera responses.
+ */
+export const cameraAreaSummarySchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  color: z.string(),
+});
+
+/**
+ * Schema for camera response from API.
+ * Matches backend CameraResponse Pydantic model.
+ * NEM-3597: Added property_id and areas for camera organization.
+ */
+export const cameraResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  folder_path: z.string(),
+  status: cameraStatusSchema,
+  created_at: z.string().datetime(),
+  last_seen_at: z.string().datetime().nullish(),
+  property_id: z.number().int().positive().nullish(),
+  areas: z.array(cameraAreaSummarySchema).default([]),
 });
 
 // =============================================================================
@@ -175,3 +207,9 @@ export type CameraUpdateOutput = z.output<typeof cameraUpdateSchema>;
 /** Type for camera form data */
 export type CameraFormInput = z.input<typeof cameraFormSchema>;
 export type CameraFormOutput = z.output<typeof cameraFormSchema>;
+
+/** Type for area summary in camera context (NEM-3597) */
+export type CameraAreaSummary = z.infer<typeof cameraAreaSummarySchema>;
+
+/** Type for camera response from API (NEM-3597) */
+export type CameraResponse = z.infer<typeof cameraResponseSchema>;
