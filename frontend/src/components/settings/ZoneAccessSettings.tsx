@@ -30,13 +30,13 @@ import {
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
 import AccessScheduleEditor from './AccessScheduleEditor';
-import { ErrorState } from '../common';
 import { useHouseholdApi, type HouseholdMember, type RegisteredVehicle } from '../../hooks/useHouseholdApi';
 import { useToast } from '../../hooks/useToast';
 import {
   useZoneHouseholdConfig,
   type ZoneHouseholdConfigCreate,
 } from '../../hooks/useZoneHouseholdConfig';
+import { ErrorState } from '../common';
 
 import type { Zone } from '../../services/api';
 
@@ -357,9 +357,9 @@ export default function ZoneAccessSettings({
     <div className={clsx('space-y-6', className)} data-testid="zone-access-settings">
       {/* Zone Selector */}
       <div className="relative">
-        <label className="mb-2 block text-sm font-medium text-gray-300">
+        <span className="mb-2 block text-sm font-medium text-gray-300">
           Select Zone
-        </label>
+        </span>
         <button
           type="button"
           onClick={() => setIsZoneDropdownOpen(!isZoneDropdownOpen)}

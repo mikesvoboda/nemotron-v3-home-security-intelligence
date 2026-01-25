@@ -90,7 +90,7 @@ duration, video_codec, video_width, video_height, enrichment_data
     "total": 1000,
     "limit": 50,
     "offset": 0,
-    "next_cursor": "eyJpZCI6IDUwLCAiY3JlYXRlZF9hdCI6ICIyMDI2LTAxLTIzVDEyOjAwOjAwWiJ9",  // pragma: allowlist secret
+    "next_cursor": "eyJpZCI6IDUwLCAiY3JlYXRlZF9hdCI6ICIyMDI2LTAxLTIzVDEyOjAwOjAwWiJ9", // pragma: allowlist secret
     "has_more": true
   },
   "deprecation_warning": null

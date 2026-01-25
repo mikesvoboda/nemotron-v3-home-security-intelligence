@@ -3,6 +3,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+import { fetchApi } from './api';
 import {
   fetchSystemSettings,
   fetchSystemSetting,
@@ -17,7 +19,6 @@ vi.mock('./api', () => ({
   fetchApi: vi.fn(),
 }));
 
-import { fetchApi } from './api';
 const mockFetchApi = vi.mocked(fetchApi);
 
 describe('systemSettingsApi', () => {

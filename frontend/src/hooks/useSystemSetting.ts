@@ -9,6 +9,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
+import { DEFAULT_STALE_TIME } from '../services/queryClient';
 import {
   fetchSystemSetting,
   fetchSystemSettings,
@@ -17,7 +18,6 @@ import {
   type SystemSettingResponse,
   type SystemSettingListResponse,
 } from '../services/systemSettingsApi';
-import { DEFAULT_STALE_TIME } from '../services/queryClient';
 
 /**
  * Query key factory for system settings.
@@ -125,7 +125,7 @@ export function useSystemSetting(options: UseSystemSettingOptions): UseSystemSet
       // Update the cache with the new value
       queryClient.setQueryData(systemSettingQueryKeys.detail(key), data);
       // Invalidate the list query
-      queryClient.invalidateQueries({ queryKey: systemSettingQueryKeys.list() });
+      void queryClient.invalidateQueries({ queryKey: systemSettingQueryKeys.list() });
     },
   });
 
@@ -135,7 +135,7 @@ export function useSystemSetting(options: UseSystemSettingOptions): UseSystemSet
       // Remove from cache
       queryClient.removeQueries({ queryKey: systemSettingQueryKeys.detail(key) });
       // Invalidate the list query
-      queryClient.invalidateQueries({ queryKey: systemSettingQueryKeys.list() });
+      void queryClient.invalidateQueries({ queryKey: systemSettingQueryKeys.list() });
     },
   });
 

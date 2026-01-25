@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import OrphanCleanupPanel from './OrphanCleanupPanel';
 import { useDebugMode } from '../../contexts/DebugModeContext';
 import {
   useAdminMutations,
@@ -45,7 +46,6 @@ import { useToast } from '../../hooks/useToast';
 import ConfirmWithTextDialog from '../developer-tools/ConfirmWithTextDialog';
 import ConfirmDialog from '../jobs/ConfirmDialog';
 import CollapsibleSection from '../system/CollapsibleSection';
-import OrphanCleanupPanel from './OrphanCleanupPanel';
 
 export interface AdminSettingsProps {
   /** Optional className for styling */

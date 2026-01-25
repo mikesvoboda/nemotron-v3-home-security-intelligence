@@ -10,8 +10,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import AccessScheduleEditor from './AccessScheduleEditor';
 
-import type { AccessSchedule } from '../../hooks/useZoneHouseholdConfig';
 import type { HouseholdMember } from '../../hooks/useHouseholdApi';
+import type { AccessSchedule } from '../../hooks/useZoneHouseholdConfig';
 
 // Test data
 const mockMembers: HouseholdMember[] = [
@@ -301,7 +301,7 @@ describe('AccessScheduleEditor', () => {
     expect(newSchedules[0].description).toBe('Test schedule description');
   });
 
-  it('disables all interactions when disabled prop is true', async () => {
+  it('disables all interactions when disabled prop is true', () => {
     render(
       <AccessScheduleEditor
         {...defaultProps}

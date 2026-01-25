@@ -11,6 +11,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import BatchProcessingIndicator, { BatchStatusItem } from './BatchProcessingIndicator';
+import { useBatchProcessingStatus } from '../hooks/useBatchProcessingStatus';
 
 import type { BatchStatus } from '../hooks/useBatchProcessingStatus';
 
@@ -27,8 +28,6 @@ vi.mock('../hooks/useBatchProcessingStatus', () => ({
     clearHistory: vi.fn(),
   })),
 }));
-
-import { useBatchProcessingStatus } from '../hooks/useBatchProcessingStatus';
 
 describe('BatchProcessingIndicator', () => {
   const mockUseBatchProcessingStatus = vi.mocked(useBatchProcessingStatus);

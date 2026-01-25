@@ -20,8 +20,8 @@ import { clsx } from 'clsx';
 import { Clock, Plus, Trash2, Users } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
-import type { AccessSchedule } from '../../hooks/useZoneHouseholdConfig';
 import type { HouseholdMember } from '../../hooks/useHouseholdApi';
+import type { AccessSchedule } from '../../hooks/useZoneHouseholdConfig';
 
 // ============================================================================
 // Types
@@ -336,9 +336,9 @@ function ScheduleForm({
     >
       {/* Member Selection */}
       <div className="mb-4">
-        <label className="mb-2 block text-sm font-medium text-gray-300">
+        <span className="mb-2 block text-sm font-medium text-gray-300">
           Members
-        </label>
+        </span>
         <div className="flex flex-wrap gap-2">
           {members.map((member) => (
             <button
@@ -365,9 +365,9 @@ function ScheduleForm({
 
       {/* Time Range */}
       <div className="mb-4">
-        <label className="mb-2 block text-sm font-medium text-gray-300">
+        <span className="mb-2 block text-sm font-medium text-gray-300">
           Time Range
-        </label>
+        </span>
         <div className="flex items-center gap-4">
           <div>
             <label htmlFor="start-time" className="sr-only">
@@ -412,7 +412,7 @@ function ScheduleForm({
       {/* Day Selection */}
       <div className="mb-4">
         <div className="mb-2 flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-300">Days</label>
+          <span className="text-sm font-medium text-gray-300">Days</span>
           <div className="flex gap-2">
             {QUICK_PRESETS.map((preset) => (
               <button

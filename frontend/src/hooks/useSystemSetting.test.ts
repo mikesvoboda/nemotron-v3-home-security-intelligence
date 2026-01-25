@@ -1,11 +1,11 @@
 /**
  * Tests for useSystemSetting hook (NEM-3638).
  */
-
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+/* eslint-disable import/order */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import {
   useSystemSetting,
@@ -100,7 +100,7 @@ describe('useSystemSetting', () => {
       expect(mockFetchSystemSetting).toHaveBeenCalledWith('test_setting');
     });
 
-    it('does not fetch when enabled is false', async () => {
+    it('does not fetch when enabled is false', () => {
       const { result } = renderHook(
         () => useSystemSetting({ key: 'test_setting', enabled: false }),
         { wrapper: createWrapper() }
@@ -110,7 +110,7 @@ describe('useSystemSetting', () => {
       expect(mockFetchSystemSetting).not.toHaveBeenCalled();
     });
 
-    it('does not fetch when key is empty', async () => {
+    it('does not fetch when key is empty', () => {
       const { result } = renderHook(
         () => useSystemSetting({ key: '' }),
         { wrapper: createWrapper() }

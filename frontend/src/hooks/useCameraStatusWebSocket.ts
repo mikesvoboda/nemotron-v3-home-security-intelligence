@@ -36,13 +36,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useToast } from './useToast';
 import {
   type ConnectionConfig,
   type TypedSubscription,
   createTypedSubscription,
 } from './webSocketManager';
 
-import { useToast } from './useToast';
 
 import type {
   CameraConfigUpdatedPayload,

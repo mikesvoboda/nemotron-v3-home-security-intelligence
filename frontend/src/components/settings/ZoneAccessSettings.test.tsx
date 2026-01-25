@@ -13,9 +13,9 @@ import ZoneAccessSettings from './ZoneAccessSettings';
 import * as useHouseholdApiModule from '../../hooks/useHouseholdApi';
 import * as useZoneHouseholdConfigModule from '../../hooks/useZoneHouseholdConfig';
 
-import type { Zone } from '../../services/api';
 import type { HouseholdMember, RegisteredVehicle } from '../../hooks/useHouseholdApi';
 import type { ZoneHouseholdConfig } from '../../hooks/useZoneHouseholdConfig';
+import type { Zone } from '../../services/api';
 
 // Mock the hooks
 vi.mock('../../hooks/useHouseholdApi');

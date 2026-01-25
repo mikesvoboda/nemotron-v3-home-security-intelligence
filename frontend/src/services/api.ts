@@ -1297,7 +1297,7 @@ async function fetchWithRetry<T>(
   }
 }
 
-async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<T> {
+export async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
   const method = options?.method || 'GET';
 

@@ -18,8 +18,8 @@ import { useMemo } from 'react';
 
 import HouseholdSettings from './HouseholdSettings';
 import ZoneAccessSettings from './ZoneAccessSettings';
-import { useZonesQuery } from '../../hooks/useZones';
 import { useCamerasQuery } from '../../hooks/useCamerasQuery';
+import { useZonesQuery } from '../../hooks/useZones';
 
 // ============================================================================
 // Main Component
