@@ -2275,6 +2275,8 @@ export interface paths {
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         min_confidence: Optional minimum confidence score (0-1)
+         *         labels: Optional list of labels to filter by (NEM-3641). Requires ALL specified labels.
+         *         media_type: Optional media type filter ('image' or 'video') (NEM-3642)
          *         limit: Maximum number of results to return (1-100, default 50)
          *         offset: Number of results to skip (deprecated, use cursor instead)
          *         cursor: Pagination cursor from previous response's next_cursor field
@@ -12046,55 +12048,43 @@ export interface components {
         };
         /**
          * ConfidenceFactors
-         * @description Breakdown of confidence metrics for the risk assessment (NEM-3606).
+         * @description Factors affecting confidence in the risk analysis.
          *
-         *     This provides transparency into how confident the system is in its
-         *     risk assessment, broken down by various quality metrics.
+         *     These factors help explain the reliability of the risk assessment
+         *     and can be used to understand when additional review may be needed.
          *
          *     Attributes:
-         *         overall: Overall confidence in the risk score (0.0-1.0)
-         *         detection_quality: Confidence based on detection quality/clarity
-         *         data_completeness: Confidence based on available enrichment data
-         *         temporal_context: Confidence based on time-of-day/baseline data
-         *         model_agreement: Confidence based on consistency across models
+         *         detection_quality: Quality of the detection data (good, fair, poor)
+         *         weather_impact: Impact of weather on detection accuracy
+         *         enrichment_coverage: Completeness of enrichment data used
          * @example {
-         *       "data_completeness": 0.8,
-         *       "detection_quality": 0.9,
-         *       "model_agreement": 0.95,
-         *       "overall": 0.85,
-         *       "temporal_context": 0.75
+         *       "detection_quality": "good",
+         *       "enrichment_coverage": "full",
+         *       "weather_impact": "none"
          *     }
          */
         ConfidenceFactors: {
             /**
-             * Data Completeness
-             * @description Confidence based on available enrichment data
-             * @default 1
-             */
-            data_completeness: number;
-            /**
              * Detection Quality
-             * @description Confidence based on detection quality/clarity
-             * @default 1
+             * @description Quality of the detection data
+             * @default good
+             * @enum {string}
              */
-            detection_quality: number;
+            detection_quality: "good" | "fair" | "poor";
             /**
-             * Model Agreement
-             * @description Confidence based on consistency across models
-             * @default 1
+             * Enrichment Coverage
+             * @description Completeness of enrichment data available
+             * @default full
+             * @enum {string}
              */
-            model_agreement: number;
+            enrichment_coverage: "full" | "partial" | "minimal";
             /**
-             * Overall
-             * @description Overall confidence score (0.0-1.0)
+             * Weather Impact
+             * @description Impact of weather conditions on detection accuracy
+             * @default none
+             * @enum {string}
              */
-            overall: number;
-            /**
-             * Temporal Context
-             * @description Confidence based on time-of-day/baseline data
-             * @default 1
-             */
-            temporal_context: number;
+            weather_impact: "none" | "minor" | "significant";
         };
         /**
          * ConfigResponse
@@ -13340,6 +13330,11 @@ export interface components {
              * @description Detection ID
              */
             id: number;
+            /**
+             * Labels
+             * @description Labels for categorization and filtering (e.g., outdoor, motion-detected)
+             */
+            labels?: string[] | null;
             /**
              * Media Type
              * @description Media type: 'image' or 'video'
@@ -15281,6 +15276,11 @@ export interface components {
          * @description Schema for event response.
          * @example {
          *       "camera_id": "front_door",
+         *       "confidence_factors": {
+         *         "detection_quality": "good",
+         *         "enrichment_coverage": "full",
+         *         "weather_impact": "none"
+         *       },
          *       "detection_count": 5,
          *       "detection_ids": [
          *         1,
@@ -15302,6 +15302,14 @@ export interface components {
          *           "clothing"
          *         ]
          *       },
+         *       "entities": [
+         *         {
+         *           "description": "Individual in casual clothing",
+         *           "threat_level": "low",
+         *           "type": "person"
+         *         }
+         *       ],
+         *       "flags": [],
          *       "id": 1,
          *       "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
          *       "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
@@ -23293,17 +23301,17 @@ export interface components {
         RiskFactor: {
             /**
              * Contribution
-             * @description Contribution to risk score (-100 to +100)
+             * @description Contribution to risk score (positive increases, negative decreases)
              */
             contribution: number;
             /**
              * Description
              * @description Human-readable explanation of this factor
              */
-            description: string;
+            description?: string | null;
             /**
              * Name
-             * @description Name of the risk factor
+             * @description Name of the risk factor (e.g., unknown_person, entry_zone)
              */
             name: string;
         };
@@ -30189,13 +30197,17 @@ export interface operations {
                 end_date?: string | null;
                 /** @description Minimum confidence score */
                 min_confidence?: number | null;
+                /** @description Filter by labels (NEM-3641). Detections must have ALL specified labels. */
+                labels?: string[] | null;
+                /** @description Filter by media type: 'image' or 'video' (NEM-3642) */
+                media_type?: string | null;
                 /** @description Maximum number of results */
                 limit?: number;
                 /** @description Number of results to skip (deprecated, use cursor) */
                 offset?: number;
                 /** @description Pagination cursor from previous response */
                 cursor?: string | null;
-                /** @description Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, file_path, file_type, detected_at, object_type, confidence, bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path, media_type, duration, video_codec, video_width, video_height, enrichment_data */
+                /** @description Comma-separated list of fields to include in response (sparse fieldsets). Valid fields: id, camera_id, file_path, file_type, detected_at, object_type, confidence, bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path, media_type, duration, video_codec, video_width, video_height, enrichment_data, labels */
                 fields?: string | null;
             };
             header?: never;

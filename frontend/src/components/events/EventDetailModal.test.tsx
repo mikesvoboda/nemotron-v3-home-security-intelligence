@@ -2069,7 +2069,8 @@ describe('EventDetailModal', () => {
       await user.click(clipTab);
 
       await waitFor(() => {
-        expect(mockFetchEventClipInfo).toHaveBeenCalledWith(parseInt(mockEvent.id, 10));
+        // mockEvent.id is 'event-123', but the component extracts numeric ID (123)
+        expect(mockFetchEventClipInfo).toHaveBeenCalledWith(123);
       });
     });
   });
