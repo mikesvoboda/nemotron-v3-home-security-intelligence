@@ -9,6 +9,7 @@ import {
   Filter,
   Layers,
   LayoutGrid,
+  Search,
   ShieldAlert,
   Square,
 } from 'lucide-react';
@@ -127,6 +128,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
   // State for event detail modal
   const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
+  // State to open modal directly to clip tab (NEM-3590)
+  const [openModalToClipTab, setOpenModalToClipTab] = useState(false);
 
   // WebSocket hook for real-time live activity
   const { events: wsEvents, isConnected: wsConnected } = useEventStream();
@@ -661,12 +664,21 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       // Snooze functionality (NEM-3592)
       onSnooze: handleSnooze,
       snoozedUntil: event.snooze_until || undefined,
+      // Clip generation access (NEM-3590)
+      onGenerateClip: () => handleOpenClipGeneration(event.id),
     };
   };
 
   // Handle modal close
   const handleModalClose = () => {
     setSelectedEventForModal(null);
+    setOpenModalToClipTab(false); // Reset clip tab state (NEM-3590)
+  };
+
+  // Handle opening modal directly to clip generation tab (NEM-3590)
+  const handleOpenClipGeneration = (eventId: number) => {
+    setSelectedEventForModal(eventId);
+    setOpenModalToClipTab(true);
   };
 
   // Handle mark as reviewed from modal with optimistic locking (NEM-3625)
@@ -898,7 +910,11 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       {/* Full-Text Search Bar */}
       <div className="mb-6 rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-white">Full-Text Search</h2>
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-gray-400" />
+            <h2 className="text-sm font-semibold text-white">Full-Text Search</h2>
+            <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">/</span>
+          </div>
           {isSearchMode && (
             <button
               onClick={handleClearSearch}
@@ -908,6 +924,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
             </button>
           )}
         </div>
+        <p className="mb-2 text-xs text-gray-500">
+          Search summaries, camera names, and event details. Supports OR for alternatives.
+        </p>
         <SearchBar
           query={fullTextQuery}
           onQueryChange={setFullTextQuery}
@@ -1630,6 +1649,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         onClose={handleModalClose}
         onMarkReviewed={(eventId) => void handleMarkReviewed(eventId)}
         onNavigate={handleNavigate}
+        initialTab={openModalToClipTab ? 'clip' : undefined}
       />
 
       {/* Export Modal */}
