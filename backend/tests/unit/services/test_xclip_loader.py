@@ -1506,3 +1506,173 @@ class TestNullFrameHandlingIntegration:
             result = await classify_actions(model_dict, frames)  # type: ignore[arg-type]
 
         assert result["detected_action"] == "running"
+
+
+# =============================================================================
+# NEM-3506: Test pixel_values None Fix
+# =============================================================================
+
+
+class TestPixelValuesNoneFix:
+    """Tests for NEM-3506 fix: X-CLIP processor returning None for pixel_values.
+
+    The fix converts PIL Images to numpy arrays before passing to the processor
+    to avoid lazy-loading issues that can cause pixel_values to be None.
+    """
+
+    @pytest.mark.asyncio
+    async def test_frames_converted_to_numpy_arrays(self) -> None:
+        """Test that frames are converted to numpy arrays before processor call."""
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        # Track what is passed to the processor
+        captured_videos: list[Any] = []
+
+        def capture_processor_call(**kwargs: Any) -> dict[str, Any]:
+            captured_videos.append(kwargs.get("videos"))
+            return {"pixel_values": create_mock_pixel_values()}
+
+        mock_processor.side_effect = capture_processor_call
+
+        mock_outputs = MagicMock()
+        mock_probs = MagicMock()
+        mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
+            [0.5, 0.3, 0.2]
+        )
+        mock_outputs.logits_per_video = MagicMock()
+        mock_model.return_value = mock_outputs
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+        frames = [Image.new("RGB", (224, 224)) for _ in range(8)]
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.softmax.return_value = mock_probs
+        mock_torch.float16 = "float16"
+
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            await classify_actions(model_dict, frames, prompts=["a", "b", "c"])
+
+        # Verify processor was called
+        assert len(captured_videos) == 1
+
+        # The videos argument should be a list containing a list of numpy arrays
+        videos_arg = captured_videos[0]
+        assert isinstance(videos_arg, list)
+        assert len(videos_arg) == 1  # Single video
+
+        video_frames = videos_arg[0]
+        assert len(video_frames) == 8  # 8 frames
+
+        # Each frame should be a numpy array, not a PIL Image
+        for i, frame in enumerate(video_frames):
+            assert isinstance(frame, np.ndarray), f"Frame {i} should be numpy array"
+            assert frame.dtype == np.uint8, f"Frame {i} should have dtype uint8"
+            assert len(frame.shape) == 3, f"Frame {i} should have 3 dimensions"
+            assert frame.shape[2] == 3, f"Frame {i} should have 3 channels (RGB)"
+
+    @pytest.mark.asyncio
+    async def test_rgba_images_converted_to_rgb_numpy(self) -> None:
+        """Test that RGBA images are properly converted to RGB numpy arrays."""
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        captured_videos: list[Any] = []
+
+        def capture_processor_call(**kwargs: Any) -> dict[str, Any]:
+            captured_videos.append(kwargs.get("videos"))
+            return {"pixel_values": create_mock_pixel_values()}
+
+        mock_processor.side_effect = capture_processor_call
+
+        mock_outputs = MagicMock()
+        mock_probs = MagicMock()
+        mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
+            [0.5, 0.3, 0.2]
+        )
+        mock_outputs.logits_per_video = MagicMock()
+        mock_model.return_value = mock_outputs
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+
+        # Create RGBA images (4 channels)
+        frames = [Image.new("RGBA", (224, 224), color=(255, 0, 0, 128)) for _ in range(8)]
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.softmax.return_value = mock_probs
+        mock_torch.float16 = "float16"
+
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            await classify_actions(model_dict, frames, prompts=["a", "b", "c"])
+
+        # Verify frames were converted to RGB (3 channels)
+        videos_arg = captured_videos[0]
+        video_frames = videos_arg[0]
+
+        for i, frame in enumerate(video_frames):
+            assert isinstance(frame, np.ndarray), f"Frame {i} should be numpy array"
+            assert frame.shape[2] == 3, f"Frame {i} should have 3 channels (converted from RGBA)"
+
+    @pytest.mark.asyncio
+    async def test_grayscale_images_converted_to_rgb_numpy(self) -> None:
+        """Test that grayscale images are properly converted to RGB numpy arrays."""
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        mock_param = MagicMock()
+        mock_param.device = "cpu"
+        mock_param.dtype = MagicMock()
+        mock_model.parameters.return_value = iter([mock_param, mock_param])
+
+        captured_videos: list[Any] = []
+
+        def capture_processor_call(**kwargs: Any) -> dict[str, Any]:
+            captured_videos.append(kwargs.get("videos"))
+            return {"pixel_values": create_mock_pixel_values()}
+
+        mock_processor.side_effect = capture_processor_call
+
+        mock_outputs = MagicMock()
+        mock_probs = MagicMock()
+        mock_probs.squeeze.return_value.cpu.return_value.numpy.return_value = np.array(
+            [0.5, 0.3, 0.2]
+        )
+        mock_outputs.logits_per_video = MagicMock()
+        mock_model.return_value = mock_outputs
+
+        model_dict = {"model": mock_model, "processor": mock_processor}
+
+        # Create grayscale images (mode "L")
+        frames = [Image.new("L", (224, 224)) for _ in range(8)]
+
+        mock_torch = MagicMock()
+        mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
+        mock_torch.no_grad.return_value.__exit__ = MagicMock(return_value=None)
+        mock_torch.softmax.return_value = mock_probs
+        mock_torch.float16 = "float16"
+
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            await classify_actions(model_dict, frames, prompts=["a", "b", "c"])
+
+        # Verify frames were converted to RGB (3 channels)
+        videos_arg = captured_videos[0]
+        video_frames = videos_arg[0]
+
+        for i, frame in enumerate(video_frames):
+            assert isinstance(frame, np.ndarray), f"Frame {i} should be numpy array"
+            assert len(frame.shape) == 3, f"Frame {i} should have 3 dimensions"
+            assert frame.shape[2] == 3, f"Frame {i} should have 3 channels (converted from L)"

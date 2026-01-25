@@ -297,7 +297,9 @@ async def classify_actions(
             # Final safety check: convert frames to numpy arrays explicitly
             # This catches any edge cases where PIL images become invalid after validation
             # Also convert to RGB to ensure consistent color mode for X-CLIP processor
-            validated_frames = []
+            # IMPORTANT: Pass numpy arrays to processor to avoid lazy-loading issues
+            # that can cause pixel_values to be None (NEM-3506)
+            validated_frames: list[Any] = []
             for i, frame in enumerate(padded_frames):
                 try:
                     # Force load and convert to numpy to validate
@@ -308,8 +310,21 @@ async def classify_actions(
                     arr = np.array(rgb_frame)
                     if arr is None or not hasattr(arr, "shape") or len(arr.shape) < 2:
                         raise ValueError(f"Frame {i} produced invalid numpy array")
-                    # Use the RGB-converted PIL image since processor expects RGB PIL images
-                    validated_frames.append(rgb_frame)
+                    # Validate shape is (H, W, C) with C=3 for RGB
+                    if len(arr.shape) != 3 or arr.shape[2] != 3:
+                        raise ValueError(
+                            f"Frame {i} has invalid shape {arr.shape}, expected (H, W, 3)"
+                        )
+                    # Validate pixel value range (uint8: 0-255)
+                    if arr.dtype != np.uint8:
+                        # Convert to uint8 if needed
+                        if arr.max() <= 1.0:
+                            arr = (arr * 255).astype(np.uint8)
+                        else:
+                            arr = arr.astype(np.uint8)
+                    # Use numpy array directly - avoids PIL lazy-loading issues
+                    # VideoMAEImageProcessor accepts numpy arrays in (H, W, C) format
+                    validated_frames.append(arr)
                 except Exception as e:
                     logger.warning(f"Frame {i} failed final validation: {e}")
                     # Try to use another valid frame as replacement
@@ -327,6 +342,13 @@ async def classify_actions(
             # Re-pad if we lost frames during validation
             while len(validated_frames) < num_frames and validated_frames:
                 validated_frames.append(validated_frames[-1])
+
+            # Log frame statistics for debugging
+            logger.debug(
+                f"X-CLIP processing {len(validated_frames)} frames, "
+                f"shape: {validated_frames[0].shape if validated_frames else 'N/A'}, "
+                f"dtype: {validated_frames[0].dtype if validated_frames else 'N/A'}"
+            )
 
             # Prepare inputs for X-CLIP
             # X-CLIP processor expects videos as List[List[PIL.Image]]

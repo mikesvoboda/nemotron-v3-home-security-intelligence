@@ -258,15 +258,26 @@ class PipelineQualityAuditService:
         )
         return count / total
 
-    async def run_full_evaluation(
+    async def run_evaluation_llm_calls(
         self,
         audit: EventAudit,
         event: Event,
-        session: AsyncSession,
     ) -> EventAudit:
-        """Run all 4 self-evaluation modes on an event.
+        """Run all 4 self-evaluation LLM calls and update audit in memory.
 
-        Updates the audit record with scores and recommendations.
+        This method performs only the LLM calls and updates the audit object
+        attributes in memory. It does NOT perform any database operations.
+        The caller is responsible for persisting the changes.
+
+        This split allows the caller to manage database sessions properly,
+        avoiding MissingGreenlet errors when LLM calls take a long time.
+
+        Args:
+            audit: The EventAudit record to update (can be detached from session).
+            event: The Event to evaluate (can be detached from session).
+
+        Returns:
+            The updated EventAudit object (same object, modified in place).
         """
         if not event.llm_prompt:
             logger.warning(f"Event {event.id} has no llm_prompt, skipping evaluation")
@@ -326,6 +337,40 @@ class PipelineQualityAuditService:
 
         audit.audited_at = datetime.now(UTC)
 
+        return audit
+
+    async def run_full_evaluation(
+        self,
+        audit: EventAudit,
+        event: Event,
+        session: AsyncSession,
+    ) -> EventAudit:
+        """Run all 4 self-evaluation modes on an event.
+
+        Updates the audit record with scores and recommendations.
+
+        WARNING: This method makes 4 LLM calls (up to 120s each) while holding
+        the session open. For background evaluation where sessions may be held
+        for extended periods, use run_evaluation_llm_calls() instead and manage
+        the session separately to avoid MissingGreenlet errors.
+
+        Args:
+            audit: The EventAudit record to update.
+            event: The Event to evaluate.
+            session: Database session for committing changes.
+
+        Returns:
+            The updated and refreshed EventAudit object.
+        """
+        # Early return if no llm_prompt (preserves original behavior)
+        if not event.llm_prompt:
+            logger.warning(f"Event {event.id} has no llm_prompt, skipping evaluation")
+            return audit
+
+        # Run LLM calls and update audit attributes
+        await self.run_evaluation_llm_calls(audit, event)
+
+        # Persist changes
         await session.commit()
         await session.refresh(audit)
 
