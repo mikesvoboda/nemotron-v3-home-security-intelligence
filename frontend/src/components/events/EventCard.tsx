@@ -12,7 +12,7 @@ import {
   getConfidenceTextColorClass,
   sortDetectionsByConfidence,
 } from '../../utils/confidence';
-import { getRiskColor, getRiskLevel } from '../../utils/risk';
+import { getRiskLevel } from '../../utils/risk';
 import { getSeverityConfig } from '../../utils/severityColors';
 import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
@@ -232,7 +232,18 @@ const EventCard = memo(function EventCard({
 
   // Build severity-based styling classes
   const getSeverityClasses = (): string => {
-    const classes = [severityConfig.bgClass, severityConfig.borderClass];
+    const classes: string[] = [];
+
+    // Enhanced background tints for better visibility
+    if (severityConfig.level === 'critical') {
+      classes.push('bg-red-950/40'); // Stronger critical background
+    } else if (severityConfig.level === 'high') {
+      classes.push('bg-orange-950/30'); // Stronger high background
+    } else {
+      classes.push(severityConfig.bgClass);
+    }
+
+    classes.push(severityConfig.borderClass);
 
     // Add glow effect for critical severity
     if (severityConfig.glowClass) {
@@ -245,6 +256,16 @@ const EventCard = memo(function EventCard({
     }
 
     return classes.join(' ');
+  };
+
+  // Determine border width based on severity
+  const getBorderWidthClass = (): string => {
+    if (severityConfig.level === 'critical') {
+      return 'border-l-[6px]'; // Thicker border for critical
+    } else if (severityConfig.level === 'high') {
+      return 'border-l-[5px]'; // Slightly thicker for high
+    }
+    return 'border-l-4'; // Default for medium/low
   };
 
   // Handle card click - don't trigger if clicking on interactive elements
@@ -277,7 +298,7 @@ const EventCard = memo(function EventCard({
   return (
     /* eslint-disable jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-tabindex -- Card is accessible via nested buttons (View Details, Snooze) when they exist; role="button" intentionally omitted to avoid WCAG nested-interactive violation */
     <div
-      className={`rounded-lg border border-l-4 border-gray-800 shadow-lg transition-all hover:border-gray-700 ${getSeverityClasses()} ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
+      className={`rounded-lg border border-gray-800 ${getBorderWidthClass()} shadow-lg transition-all hover:border-gray-700 ${getSeverityClasses()} ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
       data-testid={`event-card-${id}`}
       data-severity={severityConfig.level}
       onClick={isClickable ? handleCardClick : undefined}
@@ -290,50 +311,53 @@ const EventCard = memo(function EventCard({
     >
       {/* Main Layout: Thumbnail on left, content on right */}
       <div className="flex gap-4 p-4">
-        {/* Thumbnail Column (64x64) */}
+        {/* Thumbnail Column (80x80 - larger for better visibility) */}
         <div className="flex-shrink-0">
           {thumbnail_url ? (
             <img
               src={thumbnail_url}
               alt={`${camera_name} at ${formatTimestamp(timestamp)}`}
-              className="h-16 w-16 rounded-md object-cover"
+              className="h-20 w-20 rounded-lg object-cover shadow-md"
             />
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-md bg-gray-800">
-              <Eye className="h-6 w-6 text-gray-600" />
+            <div className="flex h-20 w-20 items-center justify-center rounded-lg bg-gray-800 shadow-md">
+              <Eye className="h-8 w-8 text-gray-600" />
             </div>
           )}
         </div>
 
         {/* Content Column */}
         <div className="min-w-0 flex-1">
-          {/* Header: Camera name, timestamp, risk badge */}
+          {/* Header Row: Camera name on left, timestamp on right */}
           <div
-            className={`mb-3 flex items-start justify-between ${hasCheckboxOverlay ? 'ml-8' : ''}`}
+            className={`mb-2 flex items-start justify-between ${hasCheckboxOverlay ? 'ml-8' : ''}`}
           >
             <div className="min-w-0 flex-1">
-              <h3 className="truncate text-base font-semibold text-white" title={camera_name}>
+              <h3 className="truncate text-lg font-semibold text-white" title={camera_name}>
                 {camera_name}
               </h3>
-              <div className="mt-1 flex flex-col gap-1">
-                <div
-                  className="flex items-center gap-1.5 text-sm text-text-secondary"
-                  data-testid="event-timestamp"
-                >
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>{formatTimestamp(timestamp)}</span>
-                </div>
-                {(started_at || ended_at !== undefined) && (
-                  <div className="flex items-center gap-1.5 text-sm text-text-secondary">
-                    <Timer className="h-3.5 w-3.5" />
-                    <span>
-                      Duration: {formatDuration(started_at || timestamp, ended_at ?? null)}
-                    </span>
-                  </div>
-                )}
-              </div>
             </div>
+            {/* Timestamp in top-right - more prominent position */}
+            <div
+              className="flex items-center gap-1.5 text-sm font-medium text-gray-300"
+              data-testid="event-timestamp"
+            >
+              <Clock className="h-4 w-4" />
+              <span>{formatTimestamp(timestamp)}</span>
+            </div>
+          </div>
+
+          {/* Risk Badge and Duration Row */}
+          <div className={`mb-3 flex items-center gap-3 ${hasCheckboxOverlay ? 'ml-8' : ''}`}>
             <RiskBadge level={riskLevel} score={risk_score} showScore={true} size="md" />
+            {(started_at || ended_at !== undefined) && (
+              <div className="flex items-center gap-1.5 text-sm text-gray-400">
+                <Timer className="h-3.5 w-3.5" />
+                <span>
+                  {formatDuration(started_at || timestamp, ended_at ?? null)}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Object Type Badges */}
@@ -345,38 +369,15 @@ const EventCard = memo(function EventCard({
             </div>
           )}
 
-          {/* Risk Score Progress Bar */}
-          <div className="mb-3">
-            <div className="mb-1.5 flex items-center justify-between text-xs text-text-secondary">
-              <span className="font-medium">Risk Score</span>
-              <span className="font-semibold">{risk_score}/100</span>
-            </div>
-            <div
-              className="h-2 w-full overflow-hidden rounded-full bg-gray-800"
-              role="progressbar"
-              aria-valuenow={risk_score}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`Risk score: ${risk_score} out of 100`}
-            >
-              <div
-                className="h-full rounded-full transition-all duration-500 ease-out"
-                style={{
-                  width: `${risk_score}%`,
-                  backgroundColor: getRiskColor(riskLevel),
-                }}
-              />
-            </div>
-          </div>
-
-          {/* AI Summary */}
+          {/* AI Summary - truncated to 2 lines for better scannability */}
           <div className="mb-3">
             <TruncatedText
               text={summary}
-              maxLength={200}
-              maxLines={3}
+              maxLength={120}
+              maxLines={2}
               showMoreLabel="Show more"
               showLessLabel="Show less"
+              className="text-gray-200"
             />
           </div>
 

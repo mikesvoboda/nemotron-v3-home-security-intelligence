@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 
 import type { ActivityBaselineEntry } from '../../services/api';
 
@@ -19,11 +19,39 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
  *
  * Each cell represents one hour/day combination, colored by activity level.
  */
+/**
+ * Tooltip state for heatmap cell hover.
+ */
+interface TooltipState {
+  visible: boolean;
+  x: number;
+  y: number;
+  day: string;
+  hour: string;
+  avgCount: number;
+  sampleCount: number;
+  isPeak: boolean;
+  hasData: boolean;
+}
+
 export default function ActivityHeatmap({
   entries,
   learningComplete,
   minSamplesRequired,
 }: ActivityHeatmapProps) {
+  // Tooltip state
+  const [tooltip, setTooltip] = useState<TooltipState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    day: '',
+    hour: '',
+    avgCount: 0,
+    sampleCount: 0,
+    isPeak: false,
+    hasData: false,
+  });
+
   // Build a lookup map for quick access
   const entryMap = useMemo(() => {
     const map = new Map<string, ActivityBaselineEntry>();
@@ -32,6 +60,37 @@ export default function ActivityHeatmap({
     });
     return map;
   }, [entries]);
+
+  // Handle cell hover
+  const handleCellHover = useCallback(
+    (
+      event: React.MouseEvent<HTMLDivElement>,
+      day: string,
+      hour: string,
+      avgCount: number,
+      sampleCount: number,
+      isPeak: boolean,
+      hasData: boolean
+    ) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setTooltip({
+        visible: true,
+        x: rect.left + rect.width / 2,
+        y: rect.top - 8,
+        day,
+        hour,
+        avgCount,
+        sampleCount,
+        isPeak,
+        hasData,
+      });
+    },
+    []
+  );
+
+  const handleCellLeave = useCallback(() => {
+    setTooltip((prev) => ({ ...prev, visible: false }));
+  }, []);
 
   // Calculate max value for color scaling
   const maxAvgCount = useMemo(() => {
@@ -115,14 +174,41 @@ export default function ActivityHeatmap({
                   return (
                     <div
                       key={hour}
-                      className={`m-0.5 h-6 flex-1 rounded-sm transition-colors ${hasData ? getCellColor(avgCount, isPeak) : 'bg-gray-800/50'} ${hasData ? 'cursor-pointer hover:ring-2 hover:ring-white/30' : ''} `}
+                      role="gridcell"
+                      tabIndex={hasData ? 0 : -1}
+                      className={`m-0.5 h-6 flex-1 rounded-sm transition-colors ${hasData ? getCellColor(avgCount, isPeak) : 'bg-gray-800/50'} ${hasData ? 'cursor-pointer hover:ring-2 hover:ring-white/30 focus:ring-2 focus:ring-[#76B900] focus:outline-none' : ''} `}
                       style={{ minWidth: '24px' }}
-                      title={
+                      onMouseEnter={(e) =>
+                        handleCellHover(
+                          e,
+                          day,
+                          formatHour(hour),
+                          avgCount,
+                          sampleCount,
+                          isPeak,
+                          hasData
+                        )
+                      }
+                      onMouseLeave={handleCellLeave}
+                      onFocus={(e) =>
+                        hasData &&
+                        handleCellHover(
+                          e as unknown as React.MouseEvent<HTMLDivElement>,
+                          day,
+                          formatHour(hour),
+                          avgCount,
+                          sampleCount,
+                          isPeak,
+                          hasData
+                        )
+                      }
+                      onBlur={handleCellLeave}
+                      data-testid={`heatmap-cell-${dayIndex}-${hour}`}
+                      aria-label={
                         hasData
-                          ? `${day} ${formatHour(hour)}: ${avgCount.toFixed(1)} avg (${sampleCount} samples)${isPeak ? ' - PEAK' : ''}`
+                          ? `${day} ${formatHour(hour)}: ${avgCount.toFixed(1)} average activity, ${sampleCount} samples${isPeak ? ', peak hour' : ''}`
                           : `${day} ${formatHour(hour)}: Insufficient data`
                       }
-                      data-testid={`heatmap-cell-${dayIndex}-${hour}`}
                     />
                   );
                 })}
@@ -150,6 +236,45 @@ export default function ActivityHeatmap({
           <span>Peak Hours</span>
         </div>
       </div>
+
+      {/* Tooltip */}
+      {tooltip.visible && (
+        <div
+          role="tooltip"
+          className="pointer-events-none fixed z-50 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm shadow-xl"
+          style={{
+            left: tooltip.x,
+            top: tooltip.y,
+            transform: 'translate(-50%, -100%)',
+          }}
+          data-testid="heatmap-tooltip"
+        >
+          <div className="space-y-1">
+            <div className="font-semibold text-white">
+              {tooltip.day} {tooltip.hour}
+              {tooltip.isPeak && (
+                <span className="ml-2 rounded bg-orange-500/20 px-1.5 py-0.5 text-xs text-orange-400">
+                  Peak
+                </span>
+              )}
+            </div>
+            {tooltip.hasData ? (
+              <div className="space-y-0.5 text-gray-300">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-400">Average:</span>
+                  <span className="font-medium text-white">{tooltip.avgCount.toFixed(1)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-400">Samples:</span>
+                  <span className="font-medium text-white">{tooltip.sampleCount}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-400">Insufficient data</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

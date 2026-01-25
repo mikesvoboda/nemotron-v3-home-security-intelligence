@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect } from 'vitest';
 
 import ClassFrequencyChart from './ClassFrequencyChart';
@@ -86,5 +87,84 @@ describe('ClassFrequencyChart', () => {
     const legend = screen.getAllByText('Person');
     expect(legend.length).toBeGreaterThan(0);
     expect(screen.getAllByText('Vehicle').length).toBeGreaterThan(0);
+  });
+
+  describe('tooltip functionality', () => {
+    it('shows tooltip on bar hover', async () => {
+      const user = userEvent.setup();
+      render(
+        <ClassFrequencyChart
+          entries={mockEntries}
+          uniqueClasses={['person', 'vehicle']}
+          mostCommonClass="person"
+        />
+      );
+
+      // Find the bar container for person class
+      const personBar = screen.getByTestId('class-bar-person');
+      // Hover over the bar (the hoverable element is the div with overflow-hidden)
+      const hoverableElement = personBar.querySelector('.cursor-pointer');
+      expect(hoverableElement).toBeInTheDocument();
+
+      await user.hover(hoverableElement!);
+
+      await waitFor(() => {
+        const tooltip = screen.getByTestId('class-chart-tooltip');
+        expect(tooltip).toBeInTheDocument();
+        expect(tooltip).toHaveTextContent('Person');
+      });
+    });
+
+    it('hides tooltip on mouse leave', async () => {
+      const user = userEvent.setup();
+      render(
+        <ClassFrequencyChart
+          entries={mockEntries}
+          uniqueClasses={['person', 'vehicle']}
+          mostCommonClass="person"
+        />
+      );
+
+      const personBar = screen.getByTestId('class-bar-person');
+      const hoverableElement = personBar.querySelector('.cursor-pointer');
+
+      await user.hover(hoverableElement!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('class-chart-tooltip')).toBeInTheDocument();
+      });
+
+      await user.unhover(hoverableElement!);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('class-chart-tooltip')).not.toBeInTheDocument();
+      });
+    });
+
+    it('displays frequency, samples, and percentage in tooltip', async () => {
+      const user = userEvent.setup();
+      render(
+        <ClassFrequencyChart
+          entries={mockEntries}
+          uniqueClasses={['person', 'vehicle']}
+          mostCommonClass="person"
+        />
+      );
+
+      const personBar = screen.getByTestId('class-bar-person');
+      const hoverableElement = personBar.querySelector('.cursor-pointer');
+
+      await user.hover(hoverableElement!);
+
+      await waitFor(() => {
+        const tooltip = screen.getByTestId('class-chart-tooltip');
+        expect(tooltip).toHaveTextContent('Frequency:');
+        expect(tooltip).toHaveTextContent('8.5'); // Total frequency for person
+        expect(tooltip).toHaveTextContent('Samples:');
+        expect(tooltip).toHaveTextContent('95'); // Total samples for person
+        expect(tooltip).toHaveTextContent('Share:');
+        expect(tooltip).toHaveTextContent('100.0%'); // Person has the max, so 100%
+      });
+    });
   });
 });

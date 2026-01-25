@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { BrowserRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import EntityDetailModal, { type EntityDetailModalProps } from './EntityDetailModal';
@@ -12,6 +13,16 @@ const mockUseEntityHistory = vi.fn();
 vi.mock('../../hooks/useEntityHistory', () => ({
   useEntityHistory: (...args: unknown[]) => mockUseEntityHistory(...args),
 }));
+
+// Mock react-router-dom's useNavigate
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 // Mock the API functions
 vi.mock('../../services/api', async () => {
@@ -39,11 +50,15 @@ function createTestQueryClient() {
   });
 }
 
-// Helper to wrap component with query provider
+// Helper to wrap component with query provider and router
 function renderWithQueryClient(ui: React.ReactElement) {
   const queryClient = createTestQueryClient();
   return {
-    ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>),
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>{ui}</BrowserRouter>
+      </QueryClientProvider>
+    ),
     queryClient,
   };
 }
@@ -145,6 +160,7 @@ describe('EntityDetailModal', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(BASE_TIME);
     mockUseEntityHistory.mockReturnValue(defaultHookReturn);
+    mockNavigate.mockClear();
   });
 
   afterEach(() => {
@@ -555,6 +571,114 @@ describe('EntityDetailModal', () => {
 
       // The lightbox integration works - the Lightbox component has its own tests
       // Here we just verify the button exists and is clickable
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+  });
+
+  describe('view events action', () => {
+    it('renders View Events button in footer', () => {
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+      expect(screen.getByTestId('view-events-button')).toBeInTheDocument();
+      expect(screen.getByText('View Events')).toBeInTheDocument();
+    });
+
+    it('navigates to timeline with correct parameters when View Events is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} onClose={onClose} />);
+
+      const viewEventsButton = screen.getByTestId('view-events-button');
+      await user.click(viewEventsButton);
+
+      // Should close modal
+      expect(onClose).toHaveBeenCalledTimes(1);
+
+      // Should navigate to timeline with filters
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      const navigateCall = mockNavigate.mock.calls[0][0];
+      expect(navigateCall).toContain('/timeline');
+      expect(navigateCall).toContain('object_type=person');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('sets object_type to vehicle for vehicle entities', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const vehicleEntity: EntityDetail = {
+        ...mockEntity,
+        entity_type: 'vehicle',
+      };
+      renderWithQueryClient(
+        <EntityDetailModal {...defaultProps} entity={vehicleEntity} />
+      );
+
+      const viewEventsButton = screen.getByTestId('view-events-button');
+      await user.click(viewEventsButton);
+
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      const navigateCall = mockNavigate.mock.calls[0][0];
+      expect(navigateCall).toContain('object_type=vehicle');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('sets camera_id filter when entity was seen on only one camera', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const singleCameraEntity: EntityDetail = {
+        ...mockEntity,
+        cameras_seen: ['front_door'],
+      };
+      renderWithQueryClient(
+        <EntityDetailModal {...defaultProps} entity={singleCameraEntity} />
+      );
+
+      const viewEventsButton = screen.getByTestId('view-events-button');
+      await user.click(viewEventsButton);
+
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      const navigateCall = mockNavigate.mock.calls[0][0];
+      expect(navigateCall).toContain('camera_id=front_door');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('does not set camera_id when entity was seen on multiple cameras', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+
+      const viewEventsButton = screen.getByTestId('view-events-button');
+      await user.click(viewEventsButton);
+
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      const navigateCall = mockNavigate.mock.calls[0][0];
+      expect(navigateCall).not.toContain('camera_id=');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('includes date range based on first_seen and last_seen', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      renderWithQueryClient(<EntityDetailModal {...defaultProps} />);
+
+      const viewEventsButton = screen.getByTestId('view-events-button');
+      await user.click(viewEventsButton);
+
+      expect(mockNavigate).toHaveBeenCalledTimes(1);
+      const navigateCall = mockNavigate.mock.calls[0][0];
+      // Should include start_date and end_date parameters
+      expect(navigateCall).toContain('start_date=');
+      expect(navigateCall).toContain('end_date=');
+
       vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });

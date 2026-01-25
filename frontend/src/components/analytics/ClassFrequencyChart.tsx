@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 
 import type { ClassBaselineEntry } from '../../services/api';
 
@@ -28,6 +28,20 @@ const CLASS_COLORS: Record<string, string> = {
 const DEFAULT_COLOR = '#6B7280';
 
 /**
+ * Tooltip state for bar hover.
+ */
+interface TooltipState {
+  visible: boolean;
+  x: number;
+  y: number;
+  objectClass: string;
+  frequency: number;
+  sampleCount: number;
+  percentage: number;
+  color: string;
+}
+
+/**
  * ClassFrequencyChart displays a bar chart of object class frequencies.
  *
  * Shows the distribution of detected object types for a camera.
@@ -37,6 +51,17 @@ export default function ClassFrequencyChart({
   uniqueClasses,
   mostCommonClass,
 }: ClassFrequencyChartProps) {
+  // Tooltip state
+  const [tooltip, setTooltip] = useState<TooltipState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    objectClass: '',
+    frequency: 0,
+    sampleCount: 0,
+    percentage: 0,
+    color: '',
+  });
   // Aggregate total frequency per class
   const classStats = useMemo(() => {
     const stats: Record<string, { totalFrequency: number; sampleCount: number }> = {};
@@ -74,6 +99,35 @@ export default function ClassFrequencyChart({
     return name.charAt(0).toUpperCase() + name.slice(1);
   };
 
+  // Handle bar hover
+  const handleBarHover = useCallback(
+    (
+      event: React.MouseEvent<HTMLDivElement>,
+      objectClass: string,
+      frequency: number,
+      sampleCount: number,
+      percentage: number,
+      color: string
+    ) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setTooltip({
+        visible: true,
+        x: rect.left + rect.width / 2,
+        y: rect.top - 8,
+        objectClass,
+        frequency,
+        sampleCount,
+        percentage,
+        color,
+      });
+    },
+    []
+  );
+
+  const handleBarLeave = useCallback(() => {
+    setTooltip((prev) => ({ ...prev, visible: false }));
+  }, []);
+
   return (
     <div className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
       <div className="mb-4 flex items-center justify-between">
@@ -109,7 +163,21 @@ export default function ClassFrequencyChart({
                     {stat.totalFrequency.toFixed(1)} freq ({stat.sampleCount} samples)
                   </span>
                 </div>
-                <div className="h-6 overflow-hidden rounded bg-gray-800">
+                {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+                <div
+                  className="h-6 cursor-pointer overflow-hidden rounded bg-gray-800"
+                  onMouseEnter={(e) =>
+                    handleBarHover(
+                      e,
+                      stat.objectClass,
+                      stat.totalFrequency,
+                      stat.sampleCount,
+                      percentage,
+                      color
+                    )
+                  }
+                  onMouseLeave={handleBarLeave}
+                >
                   <div
                     className="h-full rounded transition-all duration-300 group-hover:brightness-110"
                     style={{
@@ -136,6 +204,46 @@ export default function ClassFrequencyChart({
               <span>{formatClassName(className)}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Tooltip */}
+      {tooltip.visible && (
+        <div
+          role="tooltip"
+          className="pointer-events-none fixed z-50 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm shadow-xl"
+          style={{
+            left: tooltip.x,
+            top: tooltip.y,
+            transform: 'translate(-50%, -100%)',
+          }}
+          data-testid="class-chart-tooltip"
+        >
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span
+                className="h-3 w-3 rounded-sm"
+                style={{ backgroundColor: tooltip.color }}
+              />
+              <span className="font-semibold text-white">
+                {formatClassName(tooltip.objectClass)}
+              </span>
+            </div>
+            <div className="space-y-0.5 text-gray-300">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-gray-400">Frequency:</span>
+                <span className="font-medium text-white">{tooltip.frequency.toFixed(1)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-gray-400">Samples:</span>
+                <span className="font-medium text-white">{tooltip.sampleCount}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-gray-400">Share:</span>
+                <span className="font-medium text-white">{tooltip.percentage.toFixed(1)}%</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

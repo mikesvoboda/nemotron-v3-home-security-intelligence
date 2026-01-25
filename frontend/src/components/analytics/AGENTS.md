@@ -137,6 +137,27 @@ acknowledgeSceneChange(changeId)            // POST /api/analytics/scene-changes
 - **Latency status:** Green (good) → Yellow (warning) → Red (degraded)
 - **Scene changes:** Yellow (unacknowledged) → Green (acknowledged)
 
+**ChartTooltip.tsx** - NVIDIA-themed tooltip component for charts
+- Provides consistent dark-themed tooltips
+- Supports delayed display and keyboard navigation
+- Used by heatmaps and bar charts for data display
+
+**Props:**
+```typescript
+interface ChartTooltipProps {
+  content: ReactNode;              // Tooltip content
+  children: ReactNode;             // Trigger element
+  position?: 'top' | 'bottom' | 'left' | 'right';  // Position preference
+  disabled?: boolean;              // Disable tooltip
+  delay?: number;                  // Show delay in ms (default: 100)
+}
+```
+
+**DateRangeDropdown.tsx** - Quick date range selector
+- Provides preset options: Today, Yesterday, Last 7/30/90 days
+- Custom date range picker integration
+- URL parameter persistence support
+
 ## File Inventory
 
 ```
@@ -146,8 +167,16 @@ analytics/
 ├── AnalyticsPage.test.tsx              # Page tests
 ├── ActivityHeatmap.tsx                 # 24x7 activity heatmap
 ├── ActivityHeatmap.test.tsx            # Heatmap tests
+├── ChartTooltip.tsx                    # NVIDIA-themed tooltip component
+├── ChartTooltip.test.tsx               # Tooltip tests
 ├── ClassFrequencyChart.tsx             # Class distribution chart
 ├── ClassFrequencyChart.test.tsx        # Chart tests
+├── CameraUptimeCard.tsx                # Camera uptime with trend indicators
+├── CameraUptimeCard.test.tsx           # Uptime card tests
+├── CustomDateRangePicker.tsx           # Custom date range input
+├── CustomDateRangePicker.test.tsx      # Date picker tests
+├── DateRangeDropdown.tsx               # Date range preset dropdown
+├── DateRangeDropdown.test.tsx          # Dropdown tests
 ├── AnomalyConfigPanel.tsx              # Anomaly detection settings
 ├── AnomalyConfigPanel.test.tsx         # Config panel tests
 ├── PipelineLatencyPanel.tsx            # Pipeline latency monitoring

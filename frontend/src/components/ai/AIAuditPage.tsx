@@ -27,7 +27,7 @@ import { Fragment, useEffect, useState, useCallback } from 'react';
 
 import BatchAuditModal from './BatchAuditModal';
 import PromptPlayground from './PromptPlayground';
-import { ChartSkeleton, StatsCardSkeleton, Skeleton } from '../common';
+import { ChartSkeleton, StatsCardSkeleton, Skeleton, ErrorState } from '../common';
 import QualityScoreTrends from './QualityScoreTrends';
 import RecommendationsPanel from './RecommendationsPanel';
 import { fetchAiAuditStats, fetchAuditRecommendations } from '../../services/api';
@@ -189,76 +189,9 @@ export default function AIAuditPage() {
     setSelectedTabIndex(index);
   };
 
-  // Loading state with skeleton loaders
-  if (isLoading && !stats) {
-    return (
-      <div className="min-h-screen bg-[#121212] p-8" data-testid="ai-audit-loading">
-        <div className="mx-auto max-w-[1920px]">
-          {/* Header skeleton */}
-          <div className="mb-8">
-            <div className="mb-2 flex items-center gap-3">
-              <Skeleton variant="circular" width={32} height={32} />
-              <Skeleton variant="text" width={288} height={40} />
-            </div>
-            <Skeleton variant="text" width={384} height={20} />
-          </div>
-
-          {/* Quality Score Metrics skeleton */}
-          <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => (
-                <StatsCardSkeleton key={i} />
-              ))}
-            </div>
-
-            {/* Charts skeleton */}
-            <div className="grid gap-4 lg:grid-cols-2">
-              <ChartSkeleton height={320} />
-              <ChartSkeleton height={320} />
-            </div>
-
-            {/* Recommendations Panel skeleton */}
-            <div className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-6">
-              <Skeleton variant="text" width={200} height={24} className="mb-4" />
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-start gap-4 rounded-lg bg-gray-800/30 p-4">
-                    <Skeleton variant="circular" width={40} height={40} />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton variant="text" width="80%" height={20} />
-                      <Skeleton variant="text" width="60%" height={16} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state (no cached data)
-  if (error && !stats) {
-    return (
-      <div className="min-h-screen bg-[#121212] p-8" data-testid="ai-audit-error">
-        <div className="mx-auto max-w-[1920px]">
-          <div className="flex flex-col items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10 p-12">
-            <AlertCircle className="mb-4 h-12 w-12 text-red-500" />
-            <h2 className="mb-2 text-xl font-bold text-red-500">Failed to Load AI Audit Data</h2>
-            <p className="mb-4 text-sm text-gray-300">{error}</p>
-            <button
-              onClick={() => void handleRefresh()}
-              className="rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // Determine if we're in initial loading state (no cached data)
+  const isInitialLoading = isLoading && !stats;
+  const hasError = error && !stats;
   const hasData = stats !== null && stats.audited_events > 0;
 
   // Transform model contribution rates to ModelContribution format
@@ -271,9 +204,12 @@ export default function AIAuditPage() {
     : [];
 
   return (
-    <div className="min-h-screen bg-[#121212] p-8" data-testid="ai-audit-page">
+    <div
+      className="min-h-screen bg-[#121212] p-8"
+      data-testid={isInitialLoading ? 'ai-audit-loading' : hasError ? 'ai-audit-error' : 'ai-audit-page'}
+    >
       <div className="mx-auto max-w-[1920px]">
-        {/* Header */}
+        {/* Header - Always visible */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="flex items-center gap-3">
@@ -307,7 +243,7 @@ export default function AIAuditPage() {
             {/* Refresh Button */}
             <button
               onClick={() => void handleRefresh()}
-              disabled={isRefreshing}
+              disabled={isRefreshing || isInitialLoading}
               className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
               data-testid="ai-audit-refresh-button"
             >
@@ -316,6 +252,50 @@ export default function AIAuditPage() {
             </button>
           </div>
         </div>
+
+        {/* Loading state with skeleton loaders */}
+        {isInitialLoading && (
+          <div className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <StatsCardSkeleton key={i} />
+              ))}
+            </div>
+
+            {/* Charts skeleton */}
+            <div className="grid gap-4 lg:grid-cols-2">
+              <ChartSkeleton height={320} />
+              <ChartSkeleton height={320} />
+            </div>
+
+            {/* Recommendations Panel skeleton */}
+            <div className="rounded-lg border border-gray-800 bg-[#1F1F1F] p-6">
+              <Skeleton variant="text" width={200} height={24} className="mb-4" />
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-start gap-4 rounded-lg bg-gray-800/30 p-4">
+                    <Skeleton variant="circular" width={40} height={40} />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton variant="text" width="80%" height={20} />
+                      <Skeleton variant="text" width="60%" height={16} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error state (no cached data) */}
+        {hasError && (
+          <ErrorState
+            title="Failed to Load AI Audit Data"
+            message={error}
+            onRetry={() => void handleRefresh()}
+            isRetrying={isRefreshing}
+            testId="ai-audit-error-state"
+          />
+        )}
 
         {/* Error Banner (if error but still have cached data) */}
         {error && hasData && (
@@ -343,8 +323,8 @@ export default function AIAuditPage() {
           </Callout>
         )}
 
-        {/* Main Content - No Data State */}
-        {!hasData && (
+        {/* Main Content - No Data State (only show when not loading/error) */}
+        {!isInitialLoading && !hasError && !hasData && (
           <div className="flex flex-col items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F] p-12 text-center">
             <ClipboardCheck className="mb-4 h-16 w-16 text-gray-600" />
             <h2 className="mb-2 text-2xl font-bold text-white">No Events Have Been Audited Yet</h2>
@@ -363,8 +343,8 @@ export default function AIAuditPage() {
           </div>
         )}
 
-        {/* Main Content - Tabbed Interface */}
-        {hasData && stats && (
+        {/* Main Content - Tabbed Interface (only show when not loading/error) */}
+        {!isInitialLoading && !hasError && hasData && stats && (
           <Tab.Group selectedIndex={selectedTabIndex} onChange={handleTabChange}>
             {/* Tab List */}
             <Tab.List

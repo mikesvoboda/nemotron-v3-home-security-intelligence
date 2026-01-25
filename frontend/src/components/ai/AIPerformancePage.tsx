@@ -75,27 +75,12 @@ export default function AIPerformancePage() {
   // Grafana dashboard URL with kiosk mode, dark theme, and auto-refresh
   const dashboardUrl = `${grafanaUrl}/d/hsi-consolidated?orgId=1&kiosk=1&theme=dark&refresh=30s`;
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#121212] p-8" data-testid="ai-performance-loading">
-        <div className="mx-auto max-w-[1920px]">
-          {/* Header skeleton */}
-          <div className="mb-8">
-            <div className="h-10 w-72 animate-pulse rounded-lg bg-gray-800"></div>
-            <div className="mt-2 h-5 w-96 animate-pulse rounded-lg bg-gray-800"></div>
-          </div>
-
-          {/* Dashboard skeleton */}
-          <div className="h-[calc(100vh-200px)] animate-pulse rounded-lg bg-gray-800"></div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#121212]" data-testid="ai-performance-page">
-      {/* Header */}
+    <div
+      className="min-h-screen bg-[#121212]"
+      data-testid={isLoading ? 'ai-performance-loading' : 'ai-performance-page'}
+    >
+      {/* Header - Always visible */}
       <div className="flex items-start justify-between border-b border-gray-800 px-8 py-4">
         <div className="flex items-center gap-3">
           <Brain className="h-8 w-8 text-[#76B900]" />
@@ -118,7 +103,7 @@ export default function AIPerformancePage() {
           {/* Refresh Button */}
           <button
             onClick={handleRefresh}
-            disabled={isRefreshing}
+            disabled={isRefreshing || isLoading}
             className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50"
             data-testid="ai-performance-refresh-button"
           >
@@ -141,20 +126,29 @@ export default function AIPerformancePage() {
 
       {/* Scrollable content area */}
       <div className="h-[calc(100vh-73px)] overflow-y-auto">
-        {/* Model Zoo Section */}
-        <ModelZooSection className="p-8" data-testid="ai-performance-model-zoo" />
+        {isLoading ? (
+          /* Loading skeleton for content */
+          <div className="p-8">
+            <div className="h-[calc(100vh-200px)] animate-pulse rounded-lg bg-gray-800"></div>
+          </div>
+        ) : (
+          <>
+            {/* Model Zoo Section */}
+            <ModelZooSection className="p-8" data-testid="ai-performance-model-zoo" />
 
-        {/* Grafana iframe */}
-        <div className="px-8 pb-8">
-          <iframe
-            ref={iframeRef}
-            src={dashboardUrl}
-            className="h-[600px] w-full rounded-lg border border-gray-800"
-            title="AI Performance Dashboard"
-            data-testid="grafana-iframe"
-            onError={handleIframeError}
-          />
-        </div>
+            {/* Grafana iframe */}
+            <div className="px-8 pb-8">
+              <iframe
+                ref={iframeRef}
+                src={dashboardUrl}
+                className="h-[600px] w-full rounded-lg border border-gray-800"
+                title="AI Performance Dashboard"
+                data-testid="grafana-iframe"
+                onError={handleIframeError}
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

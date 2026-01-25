@@ -54,6 +54,33 @@ describe('CameraUptimeCard', () => {
     },
   ];
 
+  const mockPreviousCameras = [
+    {
+      camera_id: 'front-door',
+      camera_name: 'Front Door',
+      uptime_percentage: 95.0, // +4.2% improvement
+      detection_count: 140,
+    },
+    {
+      camera_id: 'backyard',
+      camera_name: 'Backyard',
+      uptime_percentage: 90.0, // -2.5% decline
+      detection_count: 100,
+    },
+    {
+      camera_id: 'garage',
+      camera_name: 'Garage',
+      uptime_percentage: 62.0, // ~stable (within 0.5%)
+      detection_count: 32,
+    },
+    {
+      camera_id: 'driveway',
+      camera_name: 'Driveway',
+      uptime_percentage: 50.0, // -5% decline
+      detection_count: 15,
+    },
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -236,6 +263,84 @@ describe('CameraUptimeCard', () => {
       render(<CameraUptimeCard dateRange={mockDateRange} />);
 
       expect(screen.getByText(/Jan 10 - Jan 17/)).toBeInTheDocument();
+    });
+  });
+
+  describe('trend indicators', () => {
+    beforeEach(() => {
+      // Mock the hook to return different data based on the date range
+      vi.mocked(useCameraUptimeQueryModule.useCameraUptimeQuery).mockImplementation(
+        (dateRange) => {
+          // Check if this is the previous period query
+          const isPreviousPeriod =
+            dateRange.startDate === '2026-01-02' && dateRange.endDate === '2026-01-09';
+
+          if (isPreviousPeriod) {
+            return {
+              cameras: mockPreviousCameras,
+              data: {
+                cameras: mockPreviousCameras,
+                start_date: '2026-01-02',
+                end_date: '2026-01-09',
+              },
+              isLoading: false,
+              error: null,
+              refetch: vi.fn(),
+            };
+          }
+
+          return {
+            cameras: mockCameras,
+            data: {
+              cameras: mockCameras,
+              start_date: '2026-01-10',
+              end_date: '2026-01-17',
+            },
+            isLoading: false,
+            error: null,
+            refetch: vi.fn(),
+          };
+        }
+      );
+    });
+
+    it('shows upward trend indicator when uptime improved', () => {
+      render(<CameraUptimeCard dateRange={mockDateRange} showTrend />);
+
+      // Front door improved from 95% to 99.2% (+4.2%)
+      const frontDoorItem = screen.getByTestId('camera-uptime-item-front-door');
+      expect(frontDoorItem).toHaveAttribute('data-trend-direction', 'up');
+
+      const trendIndicator = screen.getByTestId('trend-indicator-front-door');
+      expect(trendIndicator).toBeInTheDocument();
+      expect(trendIndicator).toHaveTextContent('4.2%');
+    });
+
+    it('shows downward trend indicator when uptime declined', () => {
+      render(<CameraUptimeCard dateRange={mockDateRange} showTrend />);
+
+      // Backyard declined from 90% to 87.5% (-2.5%)
+      const backyardItem = screen.getByTestId('camera-uptime-item-backyard');
+      expect(backyardItem).toHaveAttribute('data-trend-direction', 'down');
+
+      const trendIndicator = screen.getByTestId('trend-indicator-backyard');
+      expect(trendIndicator).toBeInTheDocument();
+      expect(trendIndicator).toHaveTextContent('2.5%');
+    });
+
+    it('shows stable indicator when uptime is unchanged', () => {
+      render(<CameraUptimeCard dateRange={mockDateRange} showTrend />);
+
+      // Garage stayed nearly the same (62.1% vs 62.0% - within 0.5% threshold)
+      const garageItem = screen.getByTestId('camera-uptime-item-garage');
+      expect(garageItem).toHaveAttribute('data-trend-direction', 'stable');
+    });
+
+    it('does not show trend indicators when showTrend is false', () => {
+      render(<CameraUptimeCard dateRange={mockDateRange} showTrend={false} />);
+
+      expect(screen.queryByTestId('trend-indicator-front-door')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('trend-indicator-backyard')).not.toBeInTheDocument();
     });
   });
 });

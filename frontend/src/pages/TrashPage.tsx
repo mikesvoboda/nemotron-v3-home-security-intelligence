@@ -328,50 +328,6 @@ export default function TrashPage() {
   // Render states
   // ============================================================================
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4">
-          <div className="flex items-center gap-2 text-red-400">
-            <AlertCircle className="h-5 w-5" />
-            <span className="font-medium">Failed to load deleted events</span>
-          </div>
-          <p className="mt-2 text-sm text-red-300">{error.message}</p>
-          <button
-            onClick={() => void refetch()}
-            className="mt-3 rounded bg-red-500/20 px-3 py-1 text-sm text-red-300 hover:bg-red-500/30"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Empty state
-  if (isEmpty) {
-    return (
-      <div className="p-6">
-        <EmptyState
-          icon={Trash2}
-          title="Trash is empty"
-          description="Deleted events will appear here. You can restore them within 30 days before they are permanently removed."
-          variant="muted"
-        />
-      </div>
-    );
-  }
-
   const allSelected = selectedIds.size === deletedEvents.length && deletedEvents.length > 0;
 
   return (
@@ -386,7 +342,7 @@ export default function TrashPage() {
         isLoading={isBulkDeleting}
       />
 
-      {/* Page Header */}
+      {/* Page Header - Always visible */}
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Trash</h1>
@@ -399,78 +355,117 @@ export default function TrashPage() {
           size="sm"
           leftIcon={<AlertTriangle className="h-4 w-4" />}
           onClick={handleEmptyTrashClick}
-          disabled={isBulkRestoring || isBulkDeleting}
+          disabled={isBulkRestoring || isBulkDeleting || isLoading || isEmpty}
           data-testid="empty-trash-button"
         >
           Empty Trash
         </Button>
       </div>
 
-      {/* Auto-deletion Notice */}
-      <div className="mb-6 flex items-start gap-3 rounded-lg border border-blue-500/20 bg-blue-500/10 p-4">
-        <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-400" />
-        <div>
-          <p className="font-medium text-blue-300">Automatic cleanup</p>
-          <p className="mt-1 text-sm text-blue-200/80">
-            Events in trash are automatically deleted after 30 days. Restore important events before
-            they are permanently removed.
-          </p>
-        </div>
-      </div>
-
-      {/* Mutation Errors */}
-      {(restoreMutation.error || permanentDeleteMutation.error || bulkError) && (
-        <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4">
-          <div className="flex items-center gap-2 text-red-400">
-            <AlertCircle className="h-5 w-5" />
-            <span className="font-medium">Action failed</span>
-          </div>
-          <p className="mt-2 text-sm text-red-300">
-            {bulkError || restoreMutation.error?.message || permanentDeleteMutation.error?.message}
-          </p>
+      {/* Loading state */}
+      {isLoading && (
+        <div className="flex min-h-[400px] items-center justify-center">
+          <LoadingSpinner />
         </div>
       )}
 
-      {/* Bulk Action Bar */}
-      <BulkActionBar
-        selectedCount={selectedIds.size}
-        onRestoreSelected={() => void handleRestoreSelected()}
-        onDeleteSelected={handleDeleteSelectedClick}
-        onClearSelection={handleClearSelection}
-        isRestoring={isBulkRestoring}
-        isDeleting={isBulkDeleting}
-      />
-
-      {/* Events Count and Select All */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="text-sm text-text-secondary">
-          {deletedEvents.length} {deletedEvents.length === 1 ? 'event' : 'events'} in trash
+      {/* Error state */}
+      {!isLoading && error && (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4">
+          <div className="flex items-center gap-2 text-red-400">
+            <AlertCircle className="h-5 w-5" />
+            <span className="font-medium">Failed to load deleted events</span>
+          </div>
+          <p className="mt-2 text-sm text-red-300">{error.message}</p>
+          <button
+            onClick={() => void refetch()}
+            className="mt-3 rounded bg-red-500/20 px-3 py-1 text-sm text-red-300 hover:bg-red-500/30"
+          >
+            Try Again
+          </button>
         </div>
-        <button
-          onClick={allSelected ? handleClearSelection : handleSelectAll}
-          className="text-sm text-primary hover:text-primary/80"
-          data-testid="select-all-button"
-        >
-          {allSelected ? 'Deselect All' : 'Select All'}
-        </button>
-      </div>
+      )}
 
-      {/* Events List */}
-      <div className="space-y-4">
-        {deletedEvents.map((event) => (
-          <DeletedEventCard
-            key={event.id}
-            event={event}
-            onRestore={handleRestore}
-            onPermanentDelete={handlePermanentDelete}
-            isRestoring={restoreMutation.isPending}
-            isDeleting={permanentDeleteMutation.isPending}
-            showSelection={true}
-            isSelected={selectedIds.has(event.id)}
-            onSelectionChange={handleSelectionChange}
+      {/* Empty state */}
+      {!isLoading && !error && isEmpty && (
+        <EmptyState
+          icon={Trash2}
+          title="Trash is empty"
+          description="Deleted events will appear here. You can restore them within 30 days before they are permanently removed."
+          variant="muted"
+        />
+      )}
+
+      {/* Main content - only show when not loading, no error, and not empty */}
+      {!isLoading && !error && !isEmpty && (
+        <>
+          {/* Auto-deletion Notice */}
+          <div className="mb-6 flex items-start gap-3 rounded-lg border border-blue-500/20 bg-blue-500/10 p-4">
+            <Info className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-400" />
+            <div>
+              <p className="font-medium text-blue-300">Automatic cleanup</p>
+              <p className="mt-1 text-sm text-blue-200/80">
+                Events in trash are automatically deleted after 30 days. Restore important events
+                before they are permanently removed.
+              </p>
+            </div>
+          </div>
+
+          {/* Mutation Errors */}
+          {(restoreMutation.error || permanentDeleteMutation.error || bulkError) && (
+            <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4">
+              <div className="flex items-center gap-2 text-red-400">
+                <AlertCircle className="h-5 w-5" />
+                <span className="font-medium">Action failed</span>
+              </div>
+              <p className="mt-2 text-sm text-red-300">
+                {bulkError || restoreMutation.error?.message || permanentDeleteMutation.error?.message}
+              </p>
+            </div>
+          )}
+
+          {/* Bulk Action Bar */}
+          <BulkActionBar
+            selectedCount={selectedIds.size}
+            onRestoreSelected={() => void handleRestoreSelected()}
+            onDeleteSelected={handleDeleteSelectedClick}
+            onClearSelection={handleClearSelection}
+            isRestoring={isBulkRestoring}
+            isDeleting={isBulkDeleting}
           />
-        ))}
-      </div>
+
+          {/* Events Count and Select All */}
+          <div className="mb-4 flex items-center justify-between">
+            <div className="text-sm text-text-secondary">
+              {deletedEvents.length} {deletedEvents.length === 1 ? 'event' : 'events'} in trash
+            </div>
+            <button
+              onClick={allSelected ? handleClearSelection : handleSelectAll}
+              className="text-sm text-primary hover:text-primary/80"
+              data-testid="select-all-button"
+            >
+              {allSelected ? 'Deselect All' : 'Select All'}
+            </button>
+          </div>
+
+          {/* Events List */}
+          <div className="space-y-4">
+            {deletedEvents.map((event) => (
+              <DeletedEventCard
+                key={event.id}
+                event={event}
+                onRestore={handleRestore}
+                onPermanentDelete={handlePermanentDelete}
+                isRestoring={restoreMutation.isPending}
+                isDeleting={permanentDeleteMutation.isPending}
+                showSelection={true}
+                isSelected={selectedIds.has(event.id)}
+                onSelectionChange={handleSelectionChange}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,17 +1,20 @@
 import { Dialog, Transition } from '@headlessui/react';
 import {
+  Calendar,
   Camera,
   Car,
   ChevronLeft,
   ChevronRight,
   Clock,
   Eye,
+  ExternalLink,
   Image,
   Loader2,
   User,
   X,
 } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import EntityTimeline from './EntityTimeline';
 import TrustClassificationControls from './TrustClassificationControls';
@@ -75,6 +78,8 @@ export default function EntityDetailModal({
   onTrustStatusChange,
   isTrustUpdating = false,
 }: EntityDetailModalProps) {
+  const navigate = useNavigate();
+
   // State for selected detection visualization
   const [selectedDetectionIndex, setSelectedDetectionIndex] = useState<number>(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -183,6 +188,44 @@ export default function EntityDetailModal({
     if (confidence === null || confidence === undefined) return 'N/A';
     return `${Math.round(confidence * 100)}%`;
   };
+
+  // Handle "View Events" navigation - opens timeline filtered by entity's cameras and time range
+  const handleViewEvents = useCallback(() => {
+    if (!entity) return;
+
+    // Build URL parameters for the timeline
+    const params = new URLSearchParams();
+
+    // Set date range based on entity's first_seen and last_seen
+    // Add a small buffer to ensure events are captured
+    if (entity.first_seen) {
+      const startDate = new Date(entity.first_seen);
+      startDate.setHours(0, 0, 0, 0); // Start of the day
+      params.set('start_date', startDate.toISOString().split('T')[0]);
+    }
+
+    if (entity.last_seen) {
+      const endDate = new Date(entity.last_seen);
+      endDate.setHours(23, 59, 59, 999); // End of the day
+      params.set('end_date', endDate.toISOString().split('T')[0]);
+    }
+
+    // Filter by object type based on entity type
+    if (entity.entity_type === 'person') {
+      params.set('object_type', 'person');
+    } else if (entity.entity_type === 'vehicle') {
+      params.set('object_type', 'vehicle');
+    }
+
+    // If entity was only seen on one camera, filter by that camera
+    if (entity.cameras_seen && entity.cameras_seen.length === 1) {
+      params.set('camera_id', entity.cameras_seen[0]);
+    }
+
+    // Close modal and navigate to timeline
+    onClose();
+    void navigate(`/timeline?${params.toString()}`);
+  }, [entity, onClose, navigate]);
 
   if (!entity) {
     return null;
@@ -555,7 +598,16 @@ export default function EntityDetailModal({
                   </div>
 
                   {/* Footer */}
-                  <div className="flex items-center justify-end border-t border-gray-800 bg-black/20 p-4">
+                  <div className="flex items-center justify-between border-t border-gray-800 bg-black/20 p-4">
+                    <button
+                      onClick={handleViewEvents}
+                      className="flex items-center gap-2 rounded-lg bg-[#76B900]/20 px-4 py-2 text-sm font-semibold text-[#76B900] transition-colors hover:bg-[#76B900]/30"
+                      data-testid="view-events-button"
+                    >
+                      <Calendar className="h-4 w-4" />
+                      View Events
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </button>
                     <button
                       onClick={onClose}
                       className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-700"
