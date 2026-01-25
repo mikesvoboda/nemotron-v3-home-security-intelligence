@@ -12,6 +12,9 @@ Condition Types:
     - zone_ids: Only apply when detection is in specific zones
     - min_confidence: Minimum detection confidence threshold
 
+Webhook Events (NEM-3624):
+    - ALERT_FIRED: Triggered when alerts are created via create_alerts_for_event()
+
 Usage:
     from backend.services.alert_engine import AlertRuleEngine
 
@@ -32,11 +35,13 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.schemas.outbound_webhook import WebhookEventType
 from backend.core.logging import get_logger
 from backend.core.time_utils import utc_now_naive
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus, Detection, Entity, Event
 from backend.models.enums import TrustStatus
 from backend.services.batch_fetch import batch_fetch_detections
+from backend.services.webhook_service import get_webhook_service
 
 if TYPE_CHECKING:
     from backend.core.redis import RedisClient
@@ -605,6 +610,8 @@ class AlertRuleEngine:
     ) -> list[Alert]:
         """Create alert records for all triggered rules.
 
+        Also triggers outbound webhooks for each alert created (NEM-3624).
+
         Args:
             event: The event that triggered the rules
             triggered_rules: List of rules that matched
@@ -631,7 +638,55 @@ class AlertRuleEngine:
             alerts.append(alert)
 
         await self.session.flush()
+
+        # Trigger outbound webhooks for each alert (NEM-3624)
+        for alert in alerts:
+            await self._trigger_alert_webhook(alert, event)
+
         return alerts
+
+    async def _trigger_alert_webhook(self, alert: Alert, event: Event) -> None:
+        """Trigger outbound webhooks for ALERT_FIRED event.
+
+        Webhook failures are logged but do not fail the main operation.
+
+        Args:
+            alert: The alert that was created.
+            event: The event that triggered the alert.
+        """
+        try:
+            webhook_service = get_webhook_service()
+            webhook_data = {
+                "alert_id": alert.id,
+                "event_id": alert.event_id,
+                "rule_id": alert.rule_id,
+                "severity": alert.severity.value
+                if hasattr(alert.severity, "value")
+                else alert.severity,
+                "status": alert.status.value if hasattr(alert.status, "value") else alert.status,
+                "dedup_key": alert.dedup_key,
+                "channels": alert.channels or [],
+                "matched_conditions": alert.alert_metadata.get("matched_conditions", [])
+                if alert.alert_metadata
+                else [],
+                "rule_name": alert.alert_metadata.get("rule_name")
+                if alert.alert_metadata
+                else None,
+                "camera_id": event.camera_id,
+                "risk_score": event.risk_score,
+            }
+            await webhook_service.trigger_webhooks_for_event(
+                self.session,
+                WebhookEventType.ALERT_FIRED,
+                webhook_data,
+                event_id=alert.id,
+            )
+        except Exception as e:
+            # Log but don't fail the main operation if webhook triggering fails
+            logger.warning(
+                f"Failed to trigger ALERT_FIRED webhooks: {e}",
+                extra={"alert_id": alert.id, "event_id": event.id},
+            )
 
     async def test_rule_against_events(
         self,

@@ -4,6 +4,7 @@ from .alertmanager import router as alertmanager_router
 from .alerts import alerts_instance_router
 from .alerts import router as alerts_router
 from .audit import router as audit_router
+from .backup import router as backup_router
 from .calibration import router as calibration_router
 from .entities import router as entities_router
 from .exports import router as exports_router
@@ -16,6 +17,7 @@ from .household import router as household_router
 from .jobs import router as jobs_router
 from .logs import router as logs_router
 from .notification_preferences import router as notification_preferences_router
+from .outbound_webhooks import router as outbound_webhooks_router
 from .rum import router as rum_router
 from .scheduled_reports import router as scheduled_reports_router
 from .services import router as services_router
@@ -32,6 +34,7 @@ __all__ = [
     "alerts_router",
     "area_router",
     "audit_router",
+    "backup_router",
     "calibration_router",
     "entities_router",
     "exports_router",
@@ -42,6 +45,7 @@ __all__ = [
     "jobs_router",
     "logs_router",
     "notification_preferences_router",
+    "outbound_webhooks_router",
     "property_router",
     "rum_router",
     "scheduled_reports_router",

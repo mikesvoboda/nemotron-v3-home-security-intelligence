@@ -20,6 +20,7 @@ import {
   Shield,
   Trash2,
   Users,
+  Webhook,
   Workflow,
 } from 'lucide-react';
 
@@ -89,6 +90,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { id: 'audit', label: 'Audit Log', icon: Shield, path: '/audit' },
       { id: 'data', label: 'Data Management', icon: Database, path: '/data' },
+      { id: 'webhooks', label: 'Webhooks', icon: Webhook, path: '/webhooks' },
       { id: 'trash', label: 'Trash', icon: Trash2, path: '/trash' },
       { id: 'gpu-settings', label: 'GPU Settings', icon: Cpu, path: '/settings/gpu' },
       {

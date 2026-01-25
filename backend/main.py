@@ -61,6 +61,7 @@ from backend.api.routes import (
     metrics,
     notification,
     notification_preferences,
+    outbound_webhooks,
     prompt_management,
     queues,
     rum,
@@ -1151,6 +1152,7 @@ app.include_router(media.router)
 app.include_router(metrics.router)
 app.include_router(notification.router)
 app.include_router(notification_preferences.router)
+app.include_router(outbound_webhooks.router)
 app.include_router(prompt_management.router)
 app.include_router(queues.router)
 app.include_router(rum.router)
