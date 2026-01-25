@@ -217,6 +217,7 @@ describe('EventTimeline', () => {
       reviewed: false,
       detection_count: 5,
       notes: null,
+      version: 1,
     },
     {
       id: 2,
@@ -229,6 +230,7 @@ describe('EventTimeline', () => {
       reviewed: true,
       detection_count: 3,
       notes: null,
+      version: 1,
     },
     {
       id: 3,
@@ -241,6 +243,7 @@ describe('EventTimeline', () => {
       reviewed: false,
       detection_count: 8,
       notes: null,
+      version: 1,
     },
   ];
 
@@ -954,6 +957,7 @@ describe('EventTimeline', () => {
           reviewed: false,
           detection_count: 1,
           notes: null,
+          version: 1,
         },
       ];
 
@@ -1339,6 +1343,7 @@ describe('EventTimeline', () => {
           reviewed: false,
           detection_count: 5,
           notes: null,
+          version: 1,
         },
       ];
 
@@ -1433,6 +1438,7 @@ describe('EventTimeline', () => {
           reviewed: false,
           detection_count: 5,
           notes: null,
+          version: 1,
         },
         {
           id: 2,
@@ -1445,6 +1451,7 @@ describe('EventTimeline', () => {
           reviewed: false,
           detection_count: 3,
           notes: null,
+          version: 1,
         },
       ];
 

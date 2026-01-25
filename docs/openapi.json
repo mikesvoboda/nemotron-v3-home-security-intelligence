@@ -9554,7 +9554,8 @@
           "risk_score": 75,
           "started_at": "2025-12-23T12:00:00Z",
           "summary": "Person detected near front entrance",
-          "thumbnail_url": "/api/detections/1/image"
+          "thumbnail_url": "/api/detections/1/image",
+          "version": 1
         },
         "properties": {
           "camera_id": {
@@ -9766,6 +9767,12 @@
             ],
             "description": "URL to thumbnail image (first detection's media)",
             "title": "Thumbnail Url"
+          },
+          "version": {
+            "default": 1,
+            "description": "Optimistic locking version (NEM-3625). Include in updates to prevent conflicts.",
+            "title": "Version",
+            "type": "integer"
           }
         },
         "required": [
@@ -9948,11 +9955,12 @@
         "type": "object"
       },
       "EventUpdate": {
-        "description": "Schema for updating an event (PATCH).",
+        "description": "Schema for updating an event (PATCH).\n\nSupports optimistic locking (NEM-3625): Include the `version` field from the\nevent response to prevent concurrent modification conflicts. If the version\ndoesn't match, the server returns HTTP 409 Conflict.",
         "example": {
           "notes": "Verified - delivery person",
           "reviewed": true,
-          "snooze_until": "2025-12-24T12:00:00Z"
+          "snooze_until": "2025-12-24T12:00:00Z",
+          "version": 1
         },
         "properties": {
           "notes": {
@@ -9991,6 +9999,18 @@
             ],
             "description": "Set or clear the alert snooze timestamp (NEM-2359)",
             "title": "Snooze Until"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optimistic locking version (NEM-3625). Include the version from the event response to detect concurrent modifications. If the version doesn't match, returns HTTP 409 Conflict.",
+            "title": "Version"
           }
         },
         "title": "EventUpdate",
@@ -16569,6 +16589,179 @@
           "available_channels"
         ],
         "title": "NotificationConfigResponse",
+        "type": "object"
+      },
+      "NotificationConfigUpdate": {
+        "description": "Schema for updating notification configuration.\n\nAll fields are optional to support partial updates.\nOnly specified fields will be updated.",
+        "example": {
+          "default_webhook_url": "https://hooks.example.com/webhook",
+          "smtp_enabled": true,
+          "smtp_from_address": "alerts@example.com",
+          "smtp_host": "smtp.example.com",
+          "smtp_port": 587,
+          "webhook_enabled": true
+        },
+        "properties": {
+          "default_webhook_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Default webhook URL for notifications. Must be HTTPS and not point to private IPs.",
+            "title": "Default Webhook Url"
+          },
+          "smtp_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable or disable SMTP notifications",
+            "title": "Smtp Enabled"
+          },
+          "smtp_from_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sender email address for notifications",
+            "title": "Smtp From Address"
+          },
+          "smtp_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SMTP server hostname",
+            "title": "Smtp Host"
+          },
+          "smtp_port": {
+            "anyOf": [
+              {
+                "maximum": 65535.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SMTP server port (1-65535)",
+            "title": "Smtp Port"
+          },
+          "webhook_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Enable or disable webhook notifications",
+            "title": "Webhook Enabled"
+          }
+        },
+        "title": "NotificationConfigUpdate",
+        "type": "object"
+      },
+      "NotificationConfigUpdateResponse": {
+        "description": "Schema for notification configuration update response.\n\nReturns the full configuration state after the update.",
+        "example": {
+          "default_webhook_url": "https://hooks.example.com/webhook",
+          "message": "Configuration updated successfully",
+          "smtp_enabled": true,
+          "smtp_from_address": "alerts@example.com",
+          "smtp_host": "smtp.example.com",
+          "smtp_port": 587,
+          "webhook_enabled": true
+        },
+        "properties": {
+          "default_webhook_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Default webhook URL",
+            "title": "Default Webhook Url"
+          },
+          "message": {
+            "description": "Human-readable result message",
+            "title": "Message",
+            "type": "string"
+          },
+          "smtp_enabled": {
+            "description": "Whether SMTP notifications are enabled",
+            "title": "Smtp Enabled",
+            "type": "boolean"
+          },
+          "smtp_from_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Configured sender email",
+            "title": "Smtp From Address"
+          },
+          "smtp_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Configured SMTP host",
+            "title": "Smtp Host"
+          },
+          "smtp_port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Configured SMTP port",
+            "title": "Smtp Port"
+          },
+          "webhook_enabled": {
+            "description": "Whether webhook notifications are enabled",
+            "title": "Webhook Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "smtp_enabled",
+          "webhook_enabled",
+          "message"
+        ],
+        "title": "NotificationConfigUpdateResponse",
         "type": "object"
       },
       "NotificationHistoryEntry": {
@@ -29367,6 +29560,153 @@
         ]
       }
     },
+    "/api/detections/export": {
+      "get": {
+        "description": "Export detections as CSV or JSON file for external analysis.\n\nSupports content negotiation via HTTP Accept header:\n- `Accept: text/csv` or `Accept: application/csv` - CSV format (default)\n- `Accept: application/json` - JSON format\n\nThis endpoint is rate-limited to 10 requests per minute per client IP.\n\nExports detections with the following fields:\n- Detection ID, camera name, detection timestamp\n- Object type, confidence score\n- Bounding box coordinates (x, y, width, height)\n- File path, media type\n\nArgs:\n    request: FastAPI request object (includes Accept header for format selection)\n    camera_id: Optional camera ID to filter by\n    object_type: Optional object type to filter by (person, vehicle, animal, etc.)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    min_confidence: Optional minimum confidence threshold (0.0-1.0)\n    db: Database session\n    _rate_limit: Rate limiter dependency\n\nReturns:\n    StreamingResponse with CSV or JSON Response containing exported detections\n\nRaises:\n    HTTPException: 429 if rate limit exceeded\n    HTTPException: 400 if start_date is after end_date",
+        "operationId": "detections_export_detections",
+        "parameters": [
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
+            }
+          },
+          {
+            "description": "Filter by object type",
+            "in": "query",
+            "name": "object_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by object type",
+              "title": "Object Type"
+            }
+          },
+          {
+            "description": "Filter by start date (ISO format)",
+            "in": "query",
+            "name": "start_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by start date (ISO format)",
+              "title": "Start Date"
+            }
+          },
+          {
+            "description": "Filter by end date (ISO format)",
+            "in": "query",
+            "name": "end_date",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by end date (ISO format)",
+              "title": "End Date"
+            }
+          },
+          {
+            "description": "Minimum confidence threshold",
+            "in": "query",
+            "name": "min_confidence",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum confidence threshold",
+              "title": "Min Confidence"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": [
+                  {
+                    "camera_name": "Front Door",
+                    "detection_id": 1
+                  }
+                ],
+                "schema": {
+                  "items": {
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              },
+              "text/csv": {
+                "example": "detection_id,camera_name,detected_at,...",
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Exported detections file"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          }
+        },
+        "summary": "Export Detections",
+        "tags": [
+          "detections"
+        ]
+      }
+    },
     "/api/detections/labels": {
       "get": {
         "description": "Get all unique detection labels with counts.",
@@ -31489,7 +31829,7 @@
     },
     "/api/events/export": {
       "get": {
-        "description": "Export events as CSV or Excel file for external analysis or record-keeping.\n\nSupports content negotiation via HTTP Accept header:\n- `Accept: text/csv` or `Accept: application/csv` - CSV format (default)\n- `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` - Excel (XLSX)\n- `Accept: application/vnd.ms-excel` or `Accept: application/xlsx` - Excel (XLSX)\n\nThis endpoint is rate-limited to 10 requests per minute per client IP\nto prevent abuse and protect against data exfiltration attacks.\n\nExports events with the following fields:\n- Event ID, camera name, timestamps\n- Risk score, risk level, summary\n- Detection count, reviewed status\n\nArgs:\n    request: FastAPI request object (includes Accept header for format selection)\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    db: Database session\n    _rate_limit: Rate limiter dependency (10 req/min, no burst)\n\nReturns:\n    StreamingResponse with CSV or Response with Excel file containing exported events\n\nRaises:\n    HTTPException: 429 if rate limit exceeded\n    HTTPException: 400 if start_date is after end_date",
+        "description": "Export events as CSV, JSON, or Excel file for external analysis or record-keeping.\n\nSupports content negotiation via HTTP Accept header:\n- `Accept: text/csv` or `Accept: application/csv` - CSV format (default)\n- `Accept: application/json` - JSON format\n- `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` - Excel (XLSX)\n- `Accept: application/vnd.ms-excel` or `Accept: application/xlsx` - Excel (XLSX)\n\nThis endpoint is rate-limited to 10 requests per minute per client IP\nto prevent abuse and protect against data exfiltration attacks.\n\nExports events with the following fields:\n- Event ID, camera name, timestamps\n- Risk score, risk level, summary\n- Detection count, reviewed status\n\nArgs:\n    request: FastAPI request object (includes Accept header for format selection)\n    camera_id: Optional camera ID to filter by\n    risk_level: Optional risk level to filter by (low, medium, high, critical)\n    start_date: Optional start date for date range filter\n    end_date: Optional end date for date range filter\n    reviewed: Optional filter by reviewed status\n    db: Database session\n    _rate_limit: Rate limiter dependency (10 req/min, no burst)\n\nReturns:\n    StreamingResponse with CSV, JSON Response, or Excel Response\n\nRaises:\n    HTTPException: 429 if rate limit exceeded\n    HTTPException: 400 if start_date is after end_date",
         "operationId": "events_export_events",
         "parameters": [
           {
@@ -31589,7 +31929,18 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "example": [
+                  {
+                    "camera_name": "Front Door",
+                    "event_id": 1
+                  }
+                ],
+                "schema": {
+                  "items": {
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
               },
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
                 "schema": {
@@ -32156,7 +32507,7 @@
         ]
       },
       "patch": {
-        "description": "Update an event (mark as reviewed).\n\nArgs:\n    event_id: Event ID\n    update_data: Update data (reviewed field)\n    request: FastAPI request for audit logging\n    db: Database session\n    cache: Cache service for cache invalidation (NEM-1938)\n\nReturns:\n    Updated event object\n\nRaises:\n    HTTPException: 404 if event not found",
+        "description": "Update an event (mark as reviewed).\n\nSupports optimistic locking (NEM-3625): Include the `version` field from the\nevent response to prevent concurrent modification conflicts. If the version\ndoesn't match, returns HTTP 409 Conflict with the current version.\n\nArgs:\n    event_id: Event ID\n    update_data: Update data (reviewed, notes, snooze_until, version)\n    request: FastAPI request for audit logging\n    db: Database session\n    cache: Cache service for cache invalidation (NEM-1938)\n\nReturns:\n    Updated event object with new version\n\nRaises:\n    HTTPException: 404 if event not found\n    HTTPException: 409 if version mismatch (concurrent modification)",
         "operationId": "events_update_event",
         "parameters": [
           {
@@ -32189,6 +32540,17 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "current_version": 3,
+                  "detail": "Event was modified by another request. Please refresh and retry."
+                }
+              }
+            },
+            "description": "Conflict - event was modified by another request (optimistic locking)"
           },
           "422": {
             "content": {
@@ -35143,6 +35505,46 @@
           }
         },
         "summary": "Get Notification Config",
+        "tags": [
+          "notification"
+        ]
+      },
+      "patch": {
+        "description": "Update notification configuration.\n\nAllows enabling/disabling SMTP and webhook channels, and updating their settings.\nOnly specified fields will be updated; others remain unchanged.\n\nArgs:\n    config_update: Partial configuration update with optional fields\n\nReturns:\n    NotificationConfigUpdateResponse with the updated configuration",
+        "operationId": "notification_update_notification_config",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationConfigUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationConfigUpdateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Notification Config",
         "tags": [
           "notification"
         ]

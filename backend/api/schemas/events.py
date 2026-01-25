@@ -121,6 +121,7 @@ class EventResponse(BaseModel):
                     "errors": {},
                     "success_rate": 1.0,
                 },
+                "version": 1,
                 "entities": [
                     {
                         "type": "person",
@@ -145,6 +146,10 @@ class EventResponse(BaseModel):
     ended_at: datetime | None = Field(None, description="Event end timestamp")
     risk_score: int | None = Field(None, description="Risk score (0-100)")
     summary: str | None = Field(None, description="LLM-generated event summary")
+    version: int = Field(
+        1,
+        description="Optimistic locking version (NEM-3625). Include in updates to prevent conflicts.",
+    )
 
     @computed_field  # type: ignore[prop-decorator]
     @cached_property
@@ -233,7 +238,12 @@ class EventResponse(BaseModel):
 
 
 class EventUpdate(BaseModel):
-    """Schema for updating an event (PATCH)."""
+    """Schema for updating an event (PATCH).
+
+    Supports optimistic locking (NEM-3625): Include the `version` field from the
+    event response to prevent concurrent modification conflicts. If the version
+    doesn't match, the server returns HTTP 409 Conflict.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -241,6 +251,7 @@ class EventUpdate(BaseModel):
                 "reviewed": True,
                 "notes": "Verified - delivery person",
                 "snooze_until": "2025-12-24T12:00:00Z",
+                "version": 1,
             }
         }
     )
@@ -249,6 +260,14 @@ class EventUpdate(BaseModel):
     notes: str | None = Field(None, description="User notes for the event")
     snooze_until: datetime | None = Field(
         None, description="Set or clear the alert snooze timestamp (NEM-2359)"
+    )
+    version: int | None = Field(
+        None,
+        description=(
+            "Optimistic locking version (NEM-3625). "
+            "Include the version from the event response to detect concurrent modifications. "
+            "If the version doesn't match, returns HTTP 409 Conflict."
+        ),
     )
 
 

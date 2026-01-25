@@ -159,8 +159,8 @@ export { sanitizeErrorMessage, extractErrorMessage } from '../../utils/sanitize'
 export { PullToRefresh, default as PullToRefreshDefault } from './PullToRefresh';
 export type { PullToRefreshProps } from './PullToRefresh';
 
-export { SkipLink, default as SkipLinkDefault } from './SkipLink';
-export type { SkipLinkProps } from './SkipLink';
+export { SkipLink, SkipLinkGroup, default as SkipLinkDefault } from './SkipLink';
+export type { SkipLinkProps, SkipLinkGroupProps, SkipTarget } from './SkipLink';
 
 export { LiveRegion } from './LiveRegion';
 export type { LiveRegionProps, Politeness } from './LiveRegion';
@@ -195,3 +195,15 @@ export type { VirtualizedListProps } from './VirtualizedList';
 // Theme toggle component (NEM-3609)
 export { default as ThemeToggle } from './ThemeToggle';
 export type { ThemeToggleProps, ThemeToggleComponentProps } from './ThemeToggle';
+
+// Printable report component (NEM-3613)
+export { default as PrintableReport } from './PrintableReport';
+export type { PrintableReportProps } from './PrintableReport';
+
+// Conflict resolution modal (NEM-3626)
+export { default as ConflictResolutionModal } from './ConflictResolutionModal';
+export type {
+  ConflictResolutionModalProps,
+  ConflictResourceType,
+  ConflictAction,
+} from './ConflictResolutionModal';

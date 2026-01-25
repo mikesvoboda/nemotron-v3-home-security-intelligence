@@ -260,6 +260,123 @@ class NotificationConfigResponse(BaseModel):
     )
 
 
+class NotificationConfigUpdate(BaseModel):
+    """Schema for updating notification configuration.
+
+    All fields are optional to support partial updates.
+    Only specified fields will be updated.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "smtp_enabled": True,
+                "smtp_host": "smtp.example.com",
+                "smtp_port": 587,
+                "smtp_from_address": "alerts@example.com",
+                "webhook_enabled": True,
+                "default_webhook_url": "https://hooks.example.com/webhook",
+            }
+        }
+    )
+
+    smtp_enabled: bool | None = Field(None, description="Enable or disable SMTP notifications")
+    smtp_host: str | None = Field(None, description="SMTP server hostname")
+    smtp_port: int | None = Field(None, ge=1, le=65535, description="SMTP server port (1-65535)")
+    smtp_from_address: str | None = Field(
+        None,
+        description="Sender email address for notifications",
+    )
+    webhook_enabled: bool | None = Field(
+        None, description="Enable or disable webhook notifications"
+    )
+    default_webhook_url: str | None = Field(
+        None,
+        description="Default webhook URL for notifications. Must be HTTPS and not point to private IPs.",
+    )
+
+    @field_validator("smtp_from_address", mode="before")
+    @classmethod
+    def validate_email_format(cls, v: Any) -> str | None:
+        """Validate that smtp_from_address is a valid email format.
+
+        Args:
+            v: The email value to validate (can be None)
+
+        Returns:
+            The validated email as a string, or None if not provided
+
+        Raises:
+            ValueError: If the email format is invalid
+        """
+        if v is None or v == "":
+            return None
+
+        email_str = str(v)
+        # Basic email validation - must contain @ and have domain part
+        if "@" not in email_str:
+            raise ValueError("Invalid email format: missing @")
+        local, domain = email_str.rsplit("@", 1)
+        if not local or not domain or "." not in domain:
+            raise ValueError("Invalid email format: missing or invalid domain")
+        return email_str
+
+    @field_validator("default_webhook_url", mode="before")
+    @classmethod
+    def validate_webhook_url_ssrf(cls, v: Any) -> str | None:
+        """Validate webhook URL for SSRF protection.
+
+        Args:
+            v: The URL value to validate (can be None)
+
+        Returns:
+            The validated URL as a string, or None if not provided
+
+        Raises:
+            ValueError: If the URL fails SSRF validation
+        """
+        if v is None or v == "":
+            return None
+
+        url_str = str(v)
+
+        try:
+            # Use SSRF-safe validation (allow localhost HTTP in dev for testing)
+            return validate_webhook_url(url_str, allow_dev_http=True, resolve_dns=False)
+        except SSRFValidationError as e:
+            # Convert to ValueError for Pydantic
+            raise ValueError(str(e)) from None
+
+
+class NotificationConfigUpdateResponse(BaseModel):
+    """Schema for notification configuration update response.
+
+    Returns the full configuration state after the update.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "smtp_enabled": True,
+                "smtp_host": "smtp.example.com",
+                "smtp_port": 587,
+                "smtp_from_address": "alerts@example.com",
+                "webhook_enabled": True,
+                "default_webhook_url": "https://hooks.example.com/webhook",
+                "message": "Configuration updated successfully",
+            }
+        }
+    )
+
+    smtp_enabled: bool = Field(..., description="Whether SMTP notifications are enabled")
+    smtp_host: str | None = Field(None, description="Configured SMTP host")
+    smtp_port: int | None = Field(None, description="Configured SMTP port")
+    smtp_from_address: str | None = Field(None, description="Configured sender email")
+    webhook_enabled: bool = Field(..., description="Whether webhook notifications are enabled")
+    default_webhook_url: str | None = Field(None, description="Default webhook URL")
+    message: str = Field(..., description="Human-readable result message")
+
+
 # =============================================================================
 # Notification History Schemas
 # =============================================================================

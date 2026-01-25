@@ -396,3 +396,18 @@ export type {
 } from './severity';
 
 export { DEFAULT_SEVERITY_THRESHOLDS, DEFAULT_SEVERITY_DEFINITIONS } from './severity';
+
+// ============================================================================
+// Alert Types (NEM-3626)
+// ============================================================================
+
+export type {
+  AlertResponse,
+  AlertMutationParams,
+  OptimisticLockError,
+  ConflictResolution,
+  ConflictState,
+  AlertWithVersion,
+} from './alerts';
+
+export { isOptimisticLockError } from './alerts';

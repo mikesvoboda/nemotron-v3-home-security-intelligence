@@ -1,3 +1,6 @@
+/* Print styles - @media print rules are self-contained */
+@import './print.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -59,18 +59,21 @@ class ExportFormat(str, Enum):
 
     CSV = "csv"
     EXCEL = "excel"
+    JSON = "json"
 
 
 # MIME type mappings for export formats
 EXPORT_MIME_TYPES: dict[ExportFormat, str] = {
     ExportFormat.CSV: "text/csv",
     ExportFormat.EXCEL: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ExportFormat.JSON: "application/json",
 }
 
 # File extensions for export formats
 EXPORT_EXTENSIONS: dict[ExportFormat, str] = {
     ExportFormat.CSV: ".csv",
     ExportFormat.EXCEL: ".xlsx",
+    ExportFormat.JSON: ".json",
 }
 
 # Accept header values to format mapping
@@ -80,6 +83,7 @@ ACCEPT_HEADER_MAPPING: dict[str, ExportFormat] = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ExportFormat.EXCEL,
     "application/vnd.ms-excel": ExportFormat.EXCEL,
     "application/xlsx": ExportFormat.EXCEL,
+    "application/json": ExportFormat.JSON,
 }
 
 # Characters that trigger formula injection in spreadsheet applications
@@ -138,6 +142,44 @@ class EventExportRow:
     reviewed: bool
     object_types: str | None = None
     reasoning: str | None = None
+
+
+@dataclass
+class DetectionExportRow:
+    """Represents a single row in a detection export.
+
+    This is the canonical structure for detection export data,
+    used by CSV, Excel, and JSON export functions.
+    """
+
+    detection_id: int
+    camera_name: str
+    detected_at: datetime | None
+    object_type: str | None
+    confidence: float | None
+    bbox_x: int | None
+    bbox_y: int | None
+    bbox_width: int | None
+    bbox_height: int | None
+    file_path: str | None = None
+    thumbnail_path: str | None = None
+    media_type: str | None = None
+
+
+# Column definitions for detection exports
+DETECTION_EXPORT_COLUMNS: list[tuple[str, str]] = [
+    ("detection_id", "Detection ID"),
+    ("camera_name", "Camera"),
+    ("detected_at", "Detected At"),
+    ("object_type", "Object Type"),
+    ("confidence", "Confidence"),
+    ("bbox_x", "Bbox X"),
+    ("bbox_y", "Bbox Y"),
+    ("bbox_width", "Bbox Width"),
+    ("bbox_height", "Bbox Height"),
+    ("file_path", "File Path"),
+    ("media_type", "Media Type"),
+]
 
 
 # Column definitions for exports
@@ -414,6 +456,128 @@ def events_to_excel(
     wb.save(output)
     output.seek(0)
     return output.read()
+
+
+def events_to_json(
+    events: Sequence[EventExportRow],
+    columns: list[tuple[str, str]] | None = None,
+) -> str:
+    """Convert events to JSON format.
+
+    Args:
+        events: Sequence of EventExportRow objects
+        columns: Optional list of (field_name, display_name) tuples.
+                 Defaults to EXPORT_COLUMNS if not provided.
+
+    Returns:
+        JSON string with array of event objects
+    """
+    if columns is None:
+        columns = EXPORT_COLUMNS
+
+    result = []
+    for event in events:
+        row_dict: dict[str, Any] = {}
+        for field_name, _display_name in columns:
+            value = getattr(event, field_name, None)
+            if isinstance(value, datetime):
+                row_dict[field_name] = value.isoformat()
+            else:
+                row_dict[field_name] = value
+        result.append(row_dict)
+
+    return json.dumps(result, indent=2)
+
+
+def format_detection_export_value(row: DetectionExportRow, field: str) -> str:
+    """Format a field value from a DetectionExportRow for export.
+
+    Args:
+        row: The detection export row
+        field: Field name to format
+
+    Returns:
+        Formatted string value, sanitized for export safety
+    """
+    value = getattr(row, field, None)
+
+    if value is None:
+        return ""
+
+    if isinstance(value, datetime):
+        return value.isoformat()
+
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+
+    if isinstance(value, int | float):
+        return str(value)
+
+    # String values get sanitized to prevent CSV injection
+    return sanitize_export_value(str(value))
+
+
+def detections_to_csv(
+    detections: Sequence[DetectionExportRow],
+    columns: list[tuple[str, str]] | None = None,
+) -> str:
+    """Convert detections to CSV format.
+
+    Args:
+        detections: Sequence of DetectionExportRow objects
+        columns: Optional list of (field_name, display_name) tuples.
+                 Defaults to DETECTION_EXPORT_COLUMNS if not provided.
+
+    Returns:
+        CSV string with headers and data rows
+    """
+    if columns is None:
+        columns = DETECTION_EXPORT_COLUMNS
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write header row
+    header_row = [col[1] for col in columns]
+    writer.writerow(header_row)
+
+    # Write data rows
+    for detection in detections:
+        row = [format_detection_export_value(detection, col[0]) for col in columns]
+        writer.writerow(row)
+
+    return output.getvalue()
+
+
+def detections_to_json(
+    detections: Sequence[DetectionExportRow],
+    columns: list[tuple[str, str]] | None = None,
+) -> str:
+    """Convert detections to JSON format.
+
+    Args:
+        detections: Sequence of DetectionExportRow objects
+        columns: Optional list of (field_name, display_name) tuples.
+                 Defaults to DETECTION_EXPORT_COLUMNS if not provided.
+
+    Returns:
+        JSON string with array of detection objects
+    """
+    if columns is None:
+        columns = DETECTION_EXPORT_COLUMNS
+
+    result = []
+    for detection in detections:
+        row_dict: dict[str, Any] = {}
+        for field_name, _ in columns:
+            value = getattr(detection, field_name, None)
+            if isinstance(value, datetime):
+                row_dict[field_name] = value.isoformat()
+            else:
+                row_dict[field_name] = value
+        result.append(row_dict)
+
+    return json.dumps(result, indent=2)
 
 
 class ExportService:

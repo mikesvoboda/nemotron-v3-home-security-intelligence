@@ -1,0 +1,523 @@
+/**
+ * Print Stylesheet for Home Security AI Monitoring Dashboard
+ *
+ * This stylesheet provides print-specific styling rules that:
+ * - Convert dark theme to light background for print
+ * - Hide interactive elements (buttons, modals, navigation)
+ * - Preserve images and data tables
+ * - Add page headers/footers with timestamps
+ * - Support A4/Letter page breaks
+ *
+ * @see https://developer.mozilla.org/en-US/docs/Web/CSS/@media/print
+ */
+
+@media print {
+  /* ============================================
+     Reset & Base Print Styles
+     ============================================ */
+
+  *,
+  *::before,
+  *::after {
+    /* Ensure backgrounds print (useful for colored badges) */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Light background for print mode */
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt !important;
+    line-height: 1.5 !important;
+  }
+
+  /* Remove dark theme backgrounds */
+  body {
+    margin: 0 !important;
+    padding: 20px !important;
+  }
+
+  /* ============================================
+     Hide Interactive & Non-Essential Elements
+     ============================================ */
+
+  /* Navigation elements */
+  nav,
+  [role='navigation'],
+  .nav,
+  .navbar,
+  .sidebar,
+  .site-header,
+  .site-footer,
+  header:not(.print-header),
+  footer:not(.print-footer) {
+    display: none !important;
+  }
+
+  /* Interactive controls */
+  button:not(.print-button),
+  [role='button']:not(.print-button),
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-outline,
+  .btn-outline-primary,
+  .btn-danger,
+  input[type='submit'],
+  input[type='button'],
+  input[type='reset'] {
+    display: none !important;
+  }
+
+  /* Modal and overlay elements */
+  .modal-backdrop,
+  [role='dialog'] > div:first-child, /* Headless UI backdrop */
+  .overlay,
+  .lightbox,
+  .toast,
+  .toast-container,
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  /* Form inputs */
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select {
+    display: none !important;
+  }
+
+  /* Search and filter controls */
+  .search-box,
+  .search-input,
+  .filter-controls,
+  .sort-controls,
+  .pagination {
+    display: none !important;
+  }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Skip links and accessibility controls */
+  .skip-link,
+  [data-testid='skip-link'] {
+    display: none !important;
+  }
+
+  /* Tooltips */
+  [role='tooltip'],
+  .tooltip {
+    display: none !important;
+  }
+
+  /* Loading indicators */
+  .loading-spinner,
+  .skeleton,
+  .animate-pulse,
+  .animate-spin {
+    display: none !important;
+  }
+
+  /* WebSocket status indicators */
+  .websocket-status,
+  .connection-status {
+    display: none !important;
+  }
+
+  /* Dropdown menus */
+  [role='menu'],
+  [role='listbox'],
+  .dropdown-menu {
+    display: none !important;
+  }
+
+  /* DevTools and debug panels */
+  .react-query-devtools,
+  [data-testid='react-query-devtools'],
+  .debug-panel {
+    display: none !important;
+  }
+
+  /* Print-specific hidden class */
+  .print\\:hidden,
+  .no-print {
+    display: none !important;
+  }
+
+  /* ============================================
+     Printable Content Styles
+     ============================================ */
+
+  /* Main printable content wrapper */
+  .printable-report {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Print header */
+  .print-header {
+    display: block !important;
+    margin-bottom: 24pt !important;
+    padding-bottom: 12pt !important;
+    border-bottom: 1pt solid #cccccc !important;
+  }
+
+  .print-header h1 {
+    font-size: 18pt !important;
+    font-weight: bold !important;
+    color: black !important;
+    margin: 0 0 8pt 0 !important;
+  }
+
+  /* Print footer */
+  .print-footer {
+    display: block !important;
+    margin-top: 24pt !important;
+    padding-top: 12pt !important;
+    border-top: 1pt solid #cccccc !important;
+    font-size: 10pt !important;
+    color: #666666 !important;
+  }
+
+  /* Show elements specifically marked for print */
+  .print\\:block {
+    display: block !important;
+  }
+
+  /* ============================================
+     Typography for Print
+     ============================================ */
+
+  /* Headings */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: black !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  h1 {
+    font-size: 18pt !important;
+  }
+  h2 {
+    font-size: 16pt !important;
+  }
+  h3 {
+    font-size: 14pt !important;
+  }
+  h4 {
+    font-size: 12pt !important;
+  }
+
+  /* Body text */
+  p,
+  li,
+  td,
+  th,
+  span,
+  div {
+    color: black !important;
+  }
+
+  /* Muted/secondary text */
+  .text-gray-400,
+  .text-gray-500,
+  .text-gray-600,
+  .text-text-secondary,
+  .text-text-muted {
+    color: #666666 !important;
+  }
+
+  /* Links - show URL in print */
+  a {
+    color: #0066cc !important;
+    text-decoration: underline !important;
+  }
+
+  a[href^='http']::after {
+    content: ' (' attr(href) ')';
+    font-size: 9pt;
+    color: #666666;
+  }
+
+  /* Don't show URL for internal links */
+  a[href^='#']::after,
+  a[href^='javascript']::after,
+  a[href^='/']::after {
+    content: none;
+  }
+
+  /* ============================================
+     Images
+     ============================================ */
+
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Detection images */
+  .detection-image,
+  [data-testid='detection-image'] {
+    max-width: 100% !important;
+    height: auto !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Thumbnails */
+  .thumbnail-strip {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8pt !important;
+    page-break-inside: avoid !important;
+  }
+
+  .thumbnail-strip img {
+    width: 80pt !important;
+    height: auto !important;
+    border: 1pt solid #cccccc !important;
+  }
+
+  /* ============================================
+     Tables
+     ============================================ */
+
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    page-break-inside: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th,
+  td {
+    border: 1pt solid #cccccc !important;
+    padding: 6pt 8pt !important;
+    text-align: left !important;
+    color: black !important;
+  }
+
+  th {
+    background-color: #f5f5f5 !important;
+    font-weight: bold !important;
+  }
+
+  /* NVIDIA table styles */
+  .nvidia-table th,
+  .nvidia-table td {
+    border: 1pt solid #cccccc !important;
+    background: white !important;
+  }
+
+  .nvidia-table th {
+    background-color: #f5f5f5 !important;
+  }
+
+  /* ============================================
+     Cards and Panels
+     ============================================ */
+
+  .nvidia-card,
+  .nvidia-panel,
+  .card,
+  .panel {
+    background: white !important;
+    border: 1pt solid #cccccc !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 12pt !important;
+    padding: 12pt !important;
+  }
+
+  /* ============================================
+     Badges and Status Indicators
+     ============================================ */
+
+  /* Risk badges - preserve colors for recognition */
+  .risk-badge-low {
+    border: 1pt solid #22c55e !important;
+    background-color: #dcfce7 !important;
+    color: #166534 !important;
+  }
+
+  .risk-badge-medium {
+    border: 1pt solid #eab308 !important;
+    background-color: #fef9c3 !important;
+    color: #854d0e !important;
+  }
+
+  .risk-badge-high {
+    border: 1pt solid #ef4444 !important;
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+  }
+
+  /* Status dots */
+  .status-dot {
+    width: 8pt !important;
+    height: 8pt !important;
+    border-radius: 50% !important;
+  }
+
+  .status-online {
+    background-color: #22c55e !important;
+  }
+  .status-offline {
+    background-color: #9ca3af !important;
+  }
+  .status-warning {
+    background-color: #eab308 !important;
+  }
+  .status-error {
+    background-color: #ef4444 !important;
+  }
+
+  /* ============================================
+     Event Detail Modal Content
+     ============================================ */
+
+  /* When printing from modal, show modal content as full page */
+  [data-testid='event-detail-modal'] {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: white !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+
+  /* Modal header - print without dark background */
+  [data-testid='event-detail-modal'] > div:first-child {
+    background: white !important;
+    border-bottom: 1pt solid #cccccc !important;
+    color: black !important;
+  }
+
+  /* Modal tabs - hide interactive tabs */
+  [data-testid='event-detail-modal'] .border-b button {
+    display: none !important;
+  }
+
+  /* Modal content */
+  [data-testid='event-detail-modal'] .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Modal footer - hide action buttons */
+  [data-testid='event-detail-modal'] > div:last-child {
+    display: none !important;
+  }
+
+  /* ============================================
+     Page Break Control
+     ============================================ */
+
+  /* Force page break before */
+  .page-break-before,
+  .print\\:break-before-page {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  /* Force page break after */
+  .page-break-after,
+  .print\\:break-after-page {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  /* Avoid page break inside */
+  .page-break-avoid,
+  .print\\:break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* ============================================
+     Page Setup
+     ============================================ */
+
+  @page {
+    /* A4 and Letter compatible margins */
+    margin: 0.75in 0.5in;
+    /* Page numbering and headers/footers are browser-controlled */
+  }
+
+  @page :first {
+    /* First page can have different margins */
+    margin-top: 0.5in;
+  }
+
+  /* ============================================
+     Dark Theme Overrides
+     ============================================ */
+
+  /* Override any remaining dark theme colors */
+  .bg-gray-800,
+  .bg-gray-850,
+  .bg-gray-900,
+  .bg-gray-950,
+  .bg-black,
+  .bg-background,
+  .bg-card,
+  .bg-panel,
+  .bg-\\[\\#1A1A1A\\],
+  .bg-\\[\\#1F1F1F\\] {
+    background-color: white !important;
+  }
+
+  .border-gray-700,
+  .border-gray-800,
+  .border-gray-850 {
+    border-color: #cccccc !important;
+  }
+
+  .text-white,
+  .text-gray-100,
+  .text-gray-200,
+  .text-gray-300,
+  .text-text-primary {
+    color: black !important;
+  }
+
+  /* NVIDIA green - keep brand color in print */
+  .text-\\[\\#76B900\\],
+  .text-primary-500,
+  .text-primary {
+    color: #5a9000 !important;
+  }
+
+  .bg-\\[\\#76B900\\],
+  .bg-primary-500 {
+    background-color: #76b900 !important;
+    color: black !important;
+  }
+}

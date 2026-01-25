@@ -1,8 +1,9 @@
 import { clsx } from 'clsx';
 import { Activity, Circle, Pause, Play, Radio, Signal, Wifi, WifiOff } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { getRiskLevel } from '../../utils/risk';
+import { useAnnounce } from '../../hooks/useAnnounce';
+import { getRiskLevel, type RiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
 import ActivityFeed, { type ActivityEvent } from '../dashboard/ActivityFeed';
 
@@ -134,6 +135,26 @@ function LiveActivityStats({ events }: LiveActivityStatsProps) {
  * - Responsive design for all screen sizes
  * - Dark theme compatible styling
  */
+/**
+ * Get announcement message for new events
+ */
+function getEventAnnouncementMessage(
+  newCount: number,
+  highestRiskLevel: RiskLevel | null
+): string {
+  if (newCount === 1) {
+    if (highestRiskLevel === 'critical' || highestRiskLevel === 'high') {
+      return `New ${highestRiskLevel} risk security event detected`;
+    }
+    return 'New security event detected';
+  }
+
+  if (highestRiskLevel === 'critical' || highestRiskLevel === 'high') {
+    return `${newCount} new security events, including ${highestRiskLevel} risk`;
+  }
+  return `${newCount} new security events detected`;
+}
+
 export default function LiveActivitySection({
   events,
   isConnected,
@@ -142,10 +163,51 @@ export default function LiveActivitySection({
   className,
 }: LiveActivitySectionProps) {
   const [isPaused, setIsPaused] = useState(false);
+  const { announce } = useAnnounce();
+  const previousEventCountRef = useRef(events.length);
+  const previousEventIdsRef = useRef<Set<string>>(new Set(events.map((e) => e.id)));
 
   const handleTogglePause = useCallback(() => {
     setIsPaused((prev) => !prev);
   }, []);
+
+  // Announce new events to screen readers
+  useEffect(() => {
+    // Skip if paused
+    if (isPaused) {
+      return;
+    }
+
+    const currentIds = new Set(events.map((e) => e.id));
+    const newEvents = events.filter((e) => !previousEventIdsRef.current.has(e.id));
+
+    // Only announce if there are genuinely new events
+    if (newEvents.length > 0) {
+      // Find the highest risk level among new events
+      let highestRiskLevel: RiskLevel | null = null;
+      const riskPriority: Record<RiskLevel, number> = {
+        critical: 4,
+        high: 3,
+        medium: 2,
+        low: 1,
+      };
+
+      for (const event of newEvents) {
+        const level = getRiskLevel(event.risk_score);
+        if (!highestRiskLevel || riskPriority[level] > riskPriority[highestRiskLevel]) {
+          highestRiskLevel = level;
+        }
+      }
+
+      const message = getEventAnnouncementMessage(newEvents.length, highestRiskLevel);
+      const politeness = highestRiskLevel === 'critical' ? 'assertive' : 'polite';
+      announce(message, politeness);
+    }
+
+    // Update refs
+    previousEventCountRef.current = events.length;
+    previousEventIdsRef.current = currentIds;
+  }, [events, isPaused, announce]);
 
   return (
     <section

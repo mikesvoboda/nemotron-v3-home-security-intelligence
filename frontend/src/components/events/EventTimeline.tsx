@@ -20,7 +20,13 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { usePaginationState } from '../../hooks/usePaginationState';
 import { useSnoozeEvent } from '../../hooks/useSnoozeEvent';
 import { useTimelineData } from '../../hooks/useTimelineData';
-import { bulkUpdateEvents, fetchCameras, searchEvents, updateEvent } from '../../services/api';
+import {
+  bulkUpdateEvents,
+  EventVersionConflictError,
+  fetchCameras,
+  searchEvents,
+  updateEvent,
+} from '../../services/api';
 import {
   clusterEvents,
   getClusterStats,
@@ -596,25 +602,51 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     setSelectedEventForModal(null);
   };
 
-  // Handle mark as reviewed from modal
+  // Handle mark as reviewed from modal with optimistic locking (NEM-3625)
   const handleMarkReviewed = async (eventId: string) => {
+    const id = parseInt(eventId, 10);
+    const event = filteredEvents.find((e) => e.id === id);
     try {
-      await updateEvent(parseInt(eventId, 10), { reviewed: true });
+      // Include version for optimistic locking if available
+      await updateEvent(id, {
+        reviewed: true,
+        version: event?.version,
+      });
       // Refetch events to reflect changes
       void refetch();
     } catch (err) {
-      console.error('Failed to mark event as reviewed:', err);
+      if (err instanceof EventVersionConflictError) {
+        // Event was modified by another request - refetch and show message
+        console.warn(`Event ${id} was modified concurrently (current version: ${err.currentVersion})`);
+        void refetch(); // Refresh to get latest version
+        // TODO: Consider adding toast notification for user feedback
+      } else {
+        console.error('Failed to mark event as reviewed:', err);
+      }
     }
   };
 
-  // Handle mark as reviewed from list view (takes number instead of string)
+  // Handle mark as reviewed from list view (takes number instead of string) with optimistic locking
   const handleListMarkReviewed = async (eventId: number) => {
+    const event = filteredEvents.find((e) => e.id === eventId);
     try {
-      await updateEvent(eventId, { reviewed: true });
+      // Include version for optimistic locking if available
+      await updateEvent(eventId, {
+        reviewed: true,
+        version: event?.version,
+      });
       // Refetch events to reflect changes
       void refetch();
     } catch (err) {
-      console.error('Failed to mark event as reviewed:', err);
+      if (err instanceof EventVersionConflictError) {
+        // Event was modified by another request - refetch
+        console.warn(
+          `Event ${eventId} was modified concurrently (current version: ${err.currentVersion})`
+        );
+        void refetch(); // Refresh to get latest version
+      } else {
+        console.error('Failed to mark event as reviewed:', err);
+      }
     }
   };
 
@@ -721,6 +753,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       ended_at: event.ended_at,
       reviewed: event.reviewed,
       notes: event.notes,
+      version: event.version, // Include version for optimistic locking (NEM-3625)
     };
   };
 

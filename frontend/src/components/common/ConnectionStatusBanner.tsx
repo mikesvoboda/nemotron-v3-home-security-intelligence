@@ -1,5 +1,7 @@
 import { AlertTriangle, RefreshCw, WifiOff, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+import { useAnnounce } from '../../hooks/useAnnounce';
 
 import type { ConnectionState } from '../../hooks/useWebSocketStatus';
 
@@ -115,6 +117,8 @@ export default function ConnectionStatusBanner({
 }: ConnectionStatusBannerProps) {
   const [isDismissed, setIsDismissed] = useState(false);
   const [duration, setDuration] = useState(0);
+  const { announce } = useAnnounce();
+  const previousStateRef = useRef<ConnectionState | undefined>(undefined);
 
   // Reset dismissed state when connection state changes
   useEffect(() => {
@@ -122,6 +126,30 @@ export default function ConnectionStatusBanner({
       setIsDismissed(false);
     }
   }, [connectionState]);
+
+  // Announce connection state changes to screen readers
+  useEffect(() => {
+    // Skip initial render and only announce on state changes
+    if (previousStateRef.current === undefined) {
+      previousStateRef.current = connectionState;
+      return;
+    }
+
+    if (previousStateRef.current !== connectionState) {
+      const label = getStateLabel(connectionState);
+      const politeness = connectionState === 'failed' ? 'assertive' : 'polite';
+
+      if (connectionState === 'connected') {
+        announce('Connection restored', politeness);
+      } else if (connectionState === 'reconnecting') {
+        announce(`${label}: Attempt ${reconnectAttempts} of ${maxReconnectAttempts}`, politeness);
+      } else {
+        announce(label, politeness);
+      }
+
+      previousStateRef.current = connectionState;
+    }
+  }, [connectionState, reconnectAttempts, maxReconnectAttempts, announce]);
 
   // Update duration timer
   useEffect(() => {

@@ -2299,6 +2299,55 @@ export interface paths {
         patch: operations["detections_bulk_update_detections"];
         trace?: never;
     };
+    "/api/detections/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Detections
+         * @description Export detections as CSV or JSON file for external analysis.
+         *
+         *     Supports content negotiation via HTTP Accept header:
+         *     - `Accept: text/csv` or `Accept: application/csv` - CSV format (default)
+         *     - `Accept: application/json` - JSON format
+         *
+         *     This endpoint is rate-limited to 10 requests per minute per client IP.
+         *
+         *     Exports detections with the following fields:
+         *     - Detection ID, camera name, detection timestamp
+         *     - Object type, confidence score
+         *     - Bounding box coordinates (x, y, width, height)
+         *     - File path, media type
+         *
+         *     Args:
+         *         request: FastAPI request object (includes Accept header for format selection)
+         *         camera_id: Optional camera ID to filter by
+         *         object_type: Optional object type to filter by (person, vehicle, animal, etc.)
+         *         start_date: Optional start date for date range filter
+         *         end_date: Optional end date for date range filter
+         *         min_confidence: Optional minimum confidence threshold (0.0-1.0)
+         *         db: Database session
+         *         _rate_limit: Rate limiter dependency
+         *
+         *     Returns:
+         *         StreamingResponse with CSV or JSON Response containing exported detections
+         *
+         *     Raises:
+         *         HTTPException: 429 if rate limit exceeded
+         *         HTTPException: 400 if start_date is after end_date
+         */
+        get: operations["detections_export_detections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/detections/labels": {
         parameters: {
             query?: never;
@@ -3344,10 +3393,11 @@ export interface paths {
         };
         /**
          * Export Events
-         * @description Export events as CSV or Excel file for external analysis or record-keeping.
+         * @description Export events as CSV, JSON, or Excel file for external analysis or record-keeping.
          *
          *     Supports content negotiation via HTTP Accept header:
          *     - `Accept: text/csv` or `Accept: application/csv` - CSV format (default)
+         *     - `Accept: application/json` - JSON format
          *     - `Accept: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` - Excel (XLSX)
          *     - `Accept: application/vnd.ms-excel` or `Accept: application/xlsx` - Excel (XLSX)
          *
@@ -3370,7 +3420,7 @@ export interface paths {
          *         _rate_limit: Rate limiter dependency (10 req/min, no burst)
          *
          *     Returns:
-         *         StreamingResponse with CSV or Response with Excel file containing exported events
+         *         StreamingResponse with CSV, JSON Response, or Excel Response
          *
          *     Raises:
          *         HTTPException: 429 if rate limit exceeded
@@ -3572,18 +3622,23 @@ export interface paths {
          * Update Event
          * @description Update an event (mark as reviewed).
          *
+         *     Supports optimistic locking (NEM-3625): Include the `version` field from the
+         *     event response to prevent concurrent modification conflicts. If the version
+         *     doesn't match, returns HTTP 409 Conflict with the current version.
+         *
          *     Args:
          *         event_id: Event ID
-         *         update_data: Update data (reviewed field)
+         *         update_data: Update data (reviewed, notes, snooze_until, version)
          *         request: FastAPI request for audit logging
          *         db: Database session
          *         cache: Cache service for cache invalidation (NEM-1938)
          *
          *     Returns:
-         *         Updated event object
+         *         Updated event object with new version
          *
          *     Raises:
          *         HTTPException: 404 if event not found
+         *         HTTPException: 409 if version mismatch (concurrent modification)
          */
         patch: operations["events_update_event"];
         trace?: never;
@@ -4877,7 +4932,20 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update Notification Config
+         * @description Update notification configuration.
+         *
+         *     Allows enabling/disabling SMTP and webhook channels, and updating their settings.
+         *     Only specified fields will be updated; others remain unchanged.
+         *
+         *     Args:
+         *         config_update: Partial configuration update with optional fields
+         *
+         *     Returns:
+         *         NotificationConfigUpdateResponse with the updated configuration
+         */
+        patch: operations["notification_update_notification_config"];
         trace?: never;
     };
     "/api/notification/history": {
@@ -14524,7 +14592,8 @@ export interface components {
          *       "risk_score": 75,
          *       "started_at": "2025-12-23T12:00:00Z",
          *       "summary": "Person detected near front entrance",
-         *       "thumbnail_url": "/api/detections/1/image"
+         *       "thumbnail_url": "/api/detections/1/image",
+         *       "version": 1
          *     }
          */
         EventResponse: {
@@ -14640,6 +14709,12 @@ export interface components {
              * @description URL to thumbnail image (first detection's media)
              */
             thumbnail_url?: string | null;
+            /**
+             * Version
+             * @description Optimistic locking version (NEM-3625). Include in updates to prevent conflicts.
+             * @default 1
+             */
+            version: number;
         };
         /**
          * EventStatsResponse
@@ -14775,10 +14850,15 @@ export interface components {
         /**
          * EventUpdate
          * @description Schema for updating an event (PATCH).
+         *
+         *     Supports optimistic locking (NEM-3625): Include the `version` field from the
+         *     event response to prevent concurrent modification conflicts. If the version
+         *     doesn't match, the server returns HTTP 409 Conflict.
          * @example {
          *       "notes": "Verified - delivery person",
          *       "reviewed": true,
-         *       "snooze_until": "2025-12-24T12:00:00Z"
+         *       "snooze_until": "2025-12-24T12:00:00Z",
+         *       "version": 1
          *     }
          */
         EventUpdate: {
@@ -14797,6 +14877,11 @@ export interface components {
              * @description Set or clear the alert snooze timestamp (NEM-2359)
              */
             snooze_until?: string | null;
+            /**
+             * Version
+             * @description Optimistic locking version (NEM-3625). Include the version from the event response to detect concurrent modifications. If the version doesn't match, returns HTTP 409 Conflict.
+             */
+            version?: number | null;
         };
         /**
          * EventsByCamera
@@ -19292,6 +19377,105 @@ export interface components {
              * @description Webhook request timeout
              */
             webhook_timeout_seconds?: number | null;
+        };
+        /**
+         * NotificationConfigUpdate
+         * @description Schema for updating notification configuration.
+         *
+         *     All fields are optional to support partial updates.
+         *     Only specified fields will be updated.
+         * @example {
+         *       "default_webhook_url": "https://hooks.example.com/webhook",
+         *       "smtp_enabled": true,
+         *       "smtp_from_address": "alerts@example.com",
+         *       "smtp_host": "smtp.example.com",
+         *       "smtp_port": 587,
+         *       "webhook_enabled": true
+         *     }
+         */
+        NotificationConfigUpdate: {
+            /**
+             * Default Webhook Url
+             * @description Default webhook URL for notifications. Must be HTTPS and not point to private IPs.
+             */
+            default_webhook_url?: string | null;
+            /**
+             * Smtp Enabled
+             * @description Enable or disable SMTP notifications
+             */
+            smtp_enabled?: boolean | null;
+            /**
+             * Smtp From Address
+             * @description Sender email address for notifications
+             */
+            smtp_from_address?: string | null;
+            /**
+             * Smtp Host
+             * @description SMTP server hostname
+             */
+            smtp_host?: string | null;
+            /**
+             * Smtp Port
+             * @description SMTP server port (1-65535)
+             */
+            smtp_port?: number | null;
+            /**
+             * Webhook Enabled
+             * @description Enable or disable webhook notifications
+             */
+            webhook_enabled?: boolean | null;
+        };
+        /**
+         * NotificationConfigUpdateResponse
+         * @description Schema for notification configuration update response.
+         *
+         *     Returns the full configuration state after the update.
+         * @example {
+         *       "default_webhook_url": "https://hooks.example.com/webhook",
+         *       "message": "Configuration updated successfully",
+         *       "smtp_enabled": true,
+         *       "smtp_from_address": "alerts@example.com",
+         *       "smtp_host": "smtp.example.com",
+         *       "smtp_port": 587,
+         *       "webhook_enabled": true
+         *     }
+         */
+        NotificationConfigUpdateResponse: {
+            /**
+             * Default Webhook Url
+             * @description Default webhook URL
+             */
+            default_webhook_url?: string | null;
+            /**
+             * Message
+             * @description Human-readable result message
+             */
+            message: string;
+            /**
+             * Smtp Enabled
+             * @description Whether SMTP notifications are enabled
+             */
+            smtp_enabled: boolean;
+            /**
+             * Smtp From Address
+             * @description Configured sender email
+             */
+            smtp_from_address?: string | null;
+            /**
+             * Smtp Host
+             * @description Configured SMTP host
+             */
+            smtp_host?: string | null;
+            /**
+             * Smtp Port
+             * @description Configured SMTP port
+             */
+            smtp_port?: number | null;
+            /**
+             * Webhook Enabled
+             * @description Whether webhook notifications are enabled
+             */
+            webhook_enabled: boolean;
         };
         /**
          * NotificationHistoryEntry
@@ -28611,6 +28795,63 @@ export interface operations {
             };
         };
     };
+    detections_export_detections: {
+        parameters: {
+            query?: {
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter by object type */
+                object_type?: string | null;
+                /** @description Filter by start date (ISO format) */
+                start_date?: string | null;
+                /** @description Filter by end date (ISO format) */
+                end_date?: string | null;
+                /** @description Minimum confidence threshold */
+                min_confidence?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exported detections file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example [
+                     *       {
+                     *         "camera_name": "Front Door",
+                     *         "detection_id": 1
+                     *       }
+                     *     ]
+                     */
+                    "application/json": Record<string, never>[];
+                    /** @example detection_id,camera_name,detected_at,... */
+                    "text/csv": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     detections_list_detection_labels: {
         parameters: {
             query?: never;
@@ -29983,7 +30224,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    /**
+                     * @example [
+                     *       {
+                     *         "camera_name": "Front Door",
+                     *         "event_id": 1
+                     *       }
+                     *     ]
+                     */
+                    "application/json": Record<string, never>[];
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
                     /** @example event_id,camera_name,started_at,... */
                     "text/csv": string;
@@ -30263,6 +30512,21 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventResponse"];
+                };
+            };
+            /** @description Conflict - event was modified by another request (optimistic locking) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "current_version": 3,
+                     *       "detail": "Event was modified by another request. Please refresh and retry."
+                     *     }
+                     */
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -32377,6 +32641,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationConfigResponse"];
+                };
+            };
+        };
+    };
+    notification_update_notification_config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationConfigUpdateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

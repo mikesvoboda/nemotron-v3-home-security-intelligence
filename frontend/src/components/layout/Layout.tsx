@@ -16,7 +16,16 @@ import { ConnectionStatusBanner } from '../common';
 import CommandPalette from '../common/CommandPalette';
 import { ServiceStatusAlert } from '../common/ServiceStatusAlert';
 import ShortcutsHelpModal from '../common/ShortcutsHelpModal';
-import { SkipLink } from '../common/SkipLink';
+import { SkipLinkGroup, type SkipTarget } from '../common/SkipLink';
+
+/**
+ * Skip link targets for keyboard navigation accessibility
+ * These IDs correspond to landmark elements in the layout
+ */
+const SKIP_TARGETS: SkipTarget[] = [
+  { id: 'main-navigation', label: 'Skip to navigation' },
+  { id: 'main-content', label: 'Skip to main content' },
+];
 
 interface LayoutProps {
   children: ReactNode;
@@ -68,8 +77,8 @@ export default function Layout({ children }: LayoutProps) {
     <CommandPaletteContext.Provider value={commandPaletteContextValue}>
       <SidebarContext.Provider value={sidebarContextValue}>
         <div className="flex min-h-screen flex-col bg-[#0E0E0E]">
-          {/* Skip link for keyboard navigation accessibility */}
-          <SkipLink />
+          {/* Skip links for keyboard navigation accessibility */}
+          <SkipLinkGroup targets={SKIP_TARGETS} />
           <Header />
           <div className="flex flex-1 overflow-hidden">
             {/* Hide sidebar on mobile, show MobileBottomNav instead */}

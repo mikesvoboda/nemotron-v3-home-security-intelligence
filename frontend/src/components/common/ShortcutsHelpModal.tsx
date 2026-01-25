@@ -3,10 +3,12 @@
  *
  * Shows all available keyboard shortcuts when ? is pressed.
  * Organized by category: Global, Navigation, and List Navigation.
+ * Uses focus trap for accessibility.
  */
 
 import { X } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 /**
  * Shortcut item definition
@@ -92,26 +94,16 @@ function KeyBadge({ children }: { children: React.ReactNode }) {
  * ShortcutsHelpModal component
  *
  * Displays a reference of all available keyboard shortcuts.
+ * Uses focus trap for accessibility - focus is trapped within the modal
+ * and returns to the trigger element when closed.
  */
 export default function ShortcutsHelpModal({ open, onClose }: ShortcutsHelpModalProps) {
-  // Handle Escape key
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    },
-    [onClose]
-  );
-
-  useEffect(() => {
-    if (open) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-    }
-  }, [open, handleKeyDown]);
+  // Use focus trap for accessibility
+  const { containerRef } = useFocusTrap<HTMLDivElement>({
+    isActive: open,
+    onEscape: onClose,
+    returnFocusOnDeactivate: true,
+  });
 
   if (!open) {
     return null;
@@ -119,6 +111,7 @@ export default function ShortcutsHelpModal({ open, onClose }: ShortcutsHelpModal
 
   return (
     <div
+      ref={containerRef}
       className="fixed inset-0 z-50 flex items-center justify-center"
       role="dialog"
       aria-modal="true"

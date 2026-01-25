@@ -76,6 +76,7 @@ describe('AlertsPage', () => {
       reviewed: false,
       detection_count: 5,
       notes: null,
+      version: 1,
     },
   ];
 
@@ -91,6 +92,7 @@ describe('AlertsPage', () => {
       reviewed: false,
       detection_count: 8,
       notes: null,
+      version: 1,
     },
   ];
 
@@ -144,6 +146,7 @@ describe('AlertsPage', () => {
       reviewed: true,
       detection_count: 0,
       notes: null,
+      version: 2,
     });
   });
 
@@ -429,6 +432,7 @@ describe('AlertsPage', () => {
         reviewed: false,
         detection_count: 1,
         notes: null,
+        version: 1,
       }));
 
       const manyCriticalEvents: Event[] = Array.from({ length: 15 }, (_, i) => ({
@@ -442,6 +446,7 @@ describe('AlertsPage', () => {
         reviewed: false,
         detection_count: 1,
         notes: null,
+        version: 1,
       }));
 
       vi.mocked(api.fetchEvents)
@@ -1212,6 +1217,7 @@ describe('AlertsPage', () => {
           reviewed: false,
           detection_count: 5,
           notes: null,
+          version: 1,
         },
         {
           id: 2,
@@ -1224,6 +1230,7 @@ describe('AlertsPage', () => {
           reviewed: false,
           detection_count: 3,
           notes: null,
+          version: 1,
         },
         {
           id: 3,
@@ -1236,6 +1243,7 @@ describe('AlertsPage', () => {
           reviewed: false,
           detection_count: 2,
           notes: null,
+          version: 1,
         },
       ];
 

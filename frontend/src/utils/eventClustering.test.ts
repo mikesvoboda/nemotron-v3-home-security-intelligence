@@ -26,6 +26,7 @@ function createMockEvent(overrides: Partial<Event> = {}): Event {
     reviewed: false,
     detection_count: 1,
     notes: null,
+    version: 1, // Optimistic locking version (NEM-3625)
     ...overrides,
   };
 }

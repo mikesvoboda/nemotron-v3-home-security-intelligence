@@ -35,6 +35,7 @@ describe('useAlertsInfiniteQuery', () => {
     reviewed: false,
     notes: null,
     detection_count: 1,
+    version: 1, // Optimistic locking version (NEM-3625)
     ...overrides,
   });
 
