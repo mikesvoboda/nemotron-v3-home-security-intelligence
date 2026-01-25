@@ -148,7 +148,8 @@ class TestListCameras:
     def test_list_cameras_empty(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test listing cameras when none exist."""
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = []
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = []
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.get("/api/cameras")
@@ -166,7 +167,8 @@ class TestListCameras:
     ) -> None:
         """Test listing cameras with existing data."""
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = sample_camera_list
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = sample_camera_list
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.get("/api/cameras")
@@ -186,7 +188,8 @@ class TestListCameras:
         # Filter to only return online cameras
         online_cameras = [c for c in sample_camera_list if c.status == "online"]
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = online_cameras
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = online_cameras
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.get("/api/cameras?status=online")
@@ -206,7 +209,8 @@ class TestListCameras:
         """Test listing cameras filtered by offline status."""
         offline_cameras = [c for c in sample_camera_list if c.status == "offline"]
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = offline_cameras
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = offline_cameras
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.get("/api/cameras?status=offline")
@@ -226,7 +230,8 @@ class TestListCameras:
         """Test listing cameras filtered by error status."""
         error_cameras = [c for c in sample_camera_list if c.status == "error"]
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = error_cameras
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = error_cameras
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.get("/api/cameras?status=error")
@@ -242,7 +247,8 @@ class TestListCameras:
     ) -> None:
         """Test listing cameras with a filter that matches nothing."""
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = []
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = []
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.get("/api/cameras?status=nonexistent")
@@ -266,7 +272,8 @@ class TestGetCamera:
     ) -> None:
         """Test getting a specific camera by ID."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: get_camera now uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.get(f"/api/cameras/{sample_camera.id}")
@@ -281,7 +288,8 @@ class TestGetCamera:
     def test_get_camera_not_found(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test getting a non-existent camera returns 404."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = None
+        # NEM-3597: get_camera now uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = None
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         fake_id = str(uuid.uuid4())
@@ -297,7 +305,8 @@ class TestGetCamera:
     ) -> None:
         """Test that camera response includes all expected fields."""
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = sample_camera
+        # NEM-3597: get_camera now uses unique().scalar_one_or_none() due to joinedload(areas)
+        mock_result.unique.return_value.scalar_one_or_none.return_value = sample_camera
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.get(f"/api/cameras/{sample_camera.id}")
@@ -1738,7 +1747,8 @@ class TestValidateCameraPaths:
     ) -> None:
         """Test validation endpoint with no cameras in database."""
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = []
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = []
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         response = client.get("/api/cameras/validation/paths")
@@ -1770,7 +1780,8 @@ class TestValidateCameraPaths:
             last_seen_at=None,
         )
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [camera]
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = [camera]
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         mock_settings = MagicMock()
@@ -1806,7 +1817,8 @@ class TestValidateCameraPaths:
             last_seen_at=None,
         )
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [camera]
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = [camera]
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         mock_settings = MagicMock()
@@ -1841,7 +1853,8 @@ class TestValidateCameraPaths:
             last_seen_at=None,
         )
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [camera]
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = [camera]
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         mock_settings = MagicMock()
@@ -1874,7 +1887,8 @@ class TestValidateCameraPaths:
             last_seen_at=None,
         )
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [camera]
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = [camera]
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         mock_settings = MagicMock()
@@ -1918,7 +1932,8 @@ class TestValidateCameraPaths:
             last_seen_at=None,
         )
         mock_result = MagicMock()
-        mock_result.scalars.return_value.all.return_value = [valid_camera, invalid_camera]
+        # NEM-3597: list_cameras now uses unique().scalars().all() due to joinedload(areas)
+        mock_result.unique.return_value.scalars.return_value.all.return_value = [valid_camera, invalid_camera]
         mock_db_session.execute = AsyncMock(return_value=mock_result)
 
         mock_settings = MagicMock()
