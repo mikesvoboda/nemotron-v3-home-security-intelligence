@@ -85,7 +85,7 @@ function formatTimestamp(timestamp: string | null): string {
 /**
  * Truncate text with ellipsis if too long.
  */
-function truncateText(text: string | null, maxLength: number): string {
+function truncateText(text: string | null | undefined, maxLength: number): string {
   if (!text) return '-';
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength - 3) + '...';

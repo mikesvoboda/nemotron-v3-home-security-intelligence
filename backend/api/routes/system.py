@@ -2150,16 +2150,31 @@ async def get_gpu_stats_history(
 
 
 @router.get("/config", response_model=ConfigResponse)
-async def get_config() -> ConfigResponse:
+async def get_config(response: Response) -> ConfigResponse:
     """Get public configuration settings.
 
     Returns non-sensitive application configuration values.
     Does NOT expose database URLs, API keys, or other secrets.
 
+    Note: The detection_confidence_threshold field is deprecated.
+    Use /api/v1/settings detection.confidence_threshold instead.
+
     Returns:
         ConfigResponse with public configuration settings
     """
     settings = get_settings()
+
+    # Add deprecation headers (RFC 8594)
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = "2026-07-01T00:00:00Z"
+    response.headers["Link"] = (
+        '</api/v1/settings>; rel="successor-version"; '
+        'title="Use /api/v1/settings for detection settings"'
+    )
+    response.headers["X-Deprecated-Message"] = (
+        "detection_confidence_threshold is deprecated. "
+        "Use /api/v1/settings detection.confidence_threshold instead."
+    )
 
     return ConfigResponse(
         app_name=settings.app_name,
@@ -2245,6 +2260,7 @@ def _write_runtime_env(overrides: dict[str, str]) -> None:
 )
 async def patch_config(
     request: Request,
+    response: Response,
     update: ConfigUpdateRequest = Body(...),
     db: AsyncSession = Depends(get_db),
 ) -> ConfigResponse:
@@ -2253,10 +2269,24 @@ async def patch_config(
     Requires API key authentication when api_key_enabled is True in settings.
     Provide the API key via X-API-Key header.
 
+    Note: The detection_confidence_threshold field is deprecated.
+    Use PATCH /api/v1/settings with detection.confidence_threshold instead.
+
     Notes:
     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
       settings cache so subsequent `get_settings()` calls observe the new values.
     """
+    # Add deprecation headers (RFC 8594)
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = "2026-07-01T00:00:00Z"
+    response.headers["Link"] = (
+        '</api/v1/settings>; rel="successor-version"; '
+        'title="Use /api/v1/settings for detection settings"'
+    )
+    response.headers["X-Deprecated-Message"] = (
+        "detection_confidence_threshold is deprecated. "
+        "Use /api/v1/settings detection.confidence_threshold instead."
+    )
     logger.info(f"patch_config called with: {update.model_dump()}")
     logger.info(f"Runtime env path: {_runtime_env_path()}")
 

@@ -21,16 +21,12 @@ import {
 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 
-import ConfidenceIndicators from './ConfidenceIndicators';
 import EnrichmentPanel from './EnrichmentPanel';
-import EntityThreatCards from './EntityThreatCards';
 import EntityTrackingPanel from './EntityTrackingPanel';
 import EventVideoPlayer from './EventVideoPlayer';
 import FeedbackForm from './FeedbackForm';
 import MatchedEntitiesSection from './MatchedEntitiesSection';
-import RecommendedActionCard from './RecommendedActionCard';
 import ReidMatchesPanel from './ReidMatchesPanel';
-import RiskFlagsPanel from './RiskFlagsPanel';
 import ThumbnailStrip from './ThumbnailStrip';
 import { useEventDetectionsQuery } from '../../hooks/useEventDetectionsQuery';
 import { useToast } from '../../hooks/useToast';
@@ -833,37 +829,6 @@ export default function EventDetailModal({
                               {event.reasoning}
                             </p>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Recommended Action (NEM-3601) */}
-                      {event.recommended_action && (
-                        <div className="mb-6">
-                          <RecommendedActionCard
-                            recommendedAction={event.recommended_action}
-                            isReviewed={event.reviewed}
-                          />
-                        </div>
-                      )}
-
-                      {/* Risk Flags (NEM-3601) */}
-                      {event.flags && event.flags.length > 0 && (
-                        <div className="mb-6">
-                          <RiskFlagsPanel flags={event.flags} />
-                        </div>
-                      )}
-
-                      {/* Identified Entities (NEM-3601) */}
-                      {event.entities && event.entities.length > 0 && (
-                        <div className="mb-6">
-                          <EntityThreatCards entities={event.entities} />
-                        </div>
-                      )}
-
-                      {/* Confidence Factors (NEM-3601) */}
-                      {event.confidence_factors && (
-                        <div className="mb-6">
-                          <ConfidenceIndicators confidenceFactors={event.confidence_factors} />
                         </div>
                       )}
 

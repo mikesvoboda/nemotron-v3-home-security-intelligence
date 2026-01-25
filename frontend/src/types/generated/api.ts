@@ -5867,6 +5867,9 @@ export interface paths {
          *     Returns non-sensitive application configuration values.
          *     Does NOT expose database URLs, API keys, or other secrets.
          *
+         *     Note: The detection_confidence_threshold field is deprecated.
+         *     Use /api/v1/settings detection.confidence_threshold instead.
+         *
          *     Returns:
          *         ConfigResponse with public configuration settings
          */
@@ -5882,6 +5885,9 @@ export interface paths {
          *
          *     Requires API key authentication when api_key_enabled is True in settings.
          *     Provide the API key via X-API-Key header.
+         *
+         *     Note: The detection_confidence_threshold field is deprecated.
+         *     Use PATCH /api/v1/settings with detection.confidence_threshold instead.
          *
          *     Notes:
          *     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
@@ -11945,7 +11951,8 @@ export interface components {
             debug: boolean;
             /**
              * Detection Confidence Threshold
-             * @description Minimum confidence threshold for detections (0.0-1.0)
+             * @deprecated
+             * @description DEPRECATED: Use /api/v1/settings detection.confidence_threshold instead. Minimum confidence threshold for detections (0.0-1.0). This field will be removed in a future version.
              */
             detection_confidence_threshold: number;
             /**
@@ -11983,7 +11990,8 @@ export interface components {
             batch_window_seconds?: number | null;
             /**
              * Detection Confidence Threshold
-             * @description Minimum confidence threshold for detections (0.0-1.0)
+             * @deprecated
+             * @description DEPRECATED: Use /api/v1/settings detection.confidence_threshold instead. Minimum confidence threshold for detections (0.0-1.0). This field will be removed in a future version.
              */
             detection_confidence_threshold?: number | null;
             /**
@@ -24118,6 +24126,11 @@ export interface components {
              * @description LLM-generated event summary
              */
             summary?: string | null;
+            /**
+             * Thumbnail Url
+             * @description URL to event thumbnail image (from first detection)
+             */
+            thumbnail_url?: string | null;
         };
         /**
          * SeedCamerasRequest

@@ -13,6 +13,8 @@ import { useBatchStatistics } from './useBatchStatistics';
 import * as detectionStream from './useDetectionStream';
 import * as api from '../services/api';
 
+import type { PipelineStatusResponse } from '../types/generated';
+
 // Mock the api module
 vi.mock('../services/api', async () => {
   const actual = await vi.importActual('../services/api');
@@ -31,7 +33,7 @@ const mockFetchPipelineStatus = vi.mocked(api.fetchPipelineStatus);
 const mockUseDetectionStream = vi.mocked(detectionStream.useDetectionStream);
 
 // Mock pipeline status response with batch aggregator data
-const mockPipelineStatus: api.PipelineStatusResponse = {
+const mockPipelineStatus: PipelineStatusResponse = {
   timestamp: '2026-01-25T12:00:00Z',
   batch_aggregator: {
     active_batches: 2,

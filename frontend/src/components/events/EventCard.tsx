@@ -1,7 +1,6 @@
 import { ChevronDown, ChevronUp, Clock, Eye, Moon, Timer, TrendingUp } from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 
-import EnrichmentBadges, { type EnrichmentSummary } from './EnrichmentBadges';
 import {
   calculateAverageConfidence,
   calculateMaxConfidence,
@@ -13,15 +12,13 @@ import {
   getConfidenceTextColorClass,
   sortDetectionsByConfidence,
 } from '../../utils/confidence';
-import { getRiskColor, getRiskLevel } from '../../utils/risk';
+import { getRiskLevel } from '../../utils/risk';
 import { getSeverityConfig } from '../../utils/severityColors';
 import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
 import SnoozeBadge from '../common/SnoozeBadge';
 import TruncatedText from '../common/TruncatedText';
-
-import type { EnrichmentData } from '../../types/enrichment';
 
 export interface Detection {
   label: string;
@@ -130,23 +127,13 @@ export interface EventCardProps {
   ended_at?: string | null;
   onViewDetails?: (eventId: string) => void;
   onClick?: (eventId: string) => void;
-  /** Callback to snooze the event for a duration in seconds (0 to clear snooze) */
+  /** Callback to snooze the event for a duration in seconds */
   onSnooze?: (eventId: string, seconds: number) => void;
-  /** ISO timestamp until which the event is snoozed (NEM-3592) */
-  snoozedUntil?: string;
   className?: string;
   /** When true, adds left margin to header to accommodate an overlaying checkbox */
   hasCheckboxOverlay?: boolean;
   /** ISO timestamp until which alerts for this event are snoozed (NEM-3640) */
   snooze_until?: string | null;
-  /** Enrichment summary data for badge display */
-  enrichmentSummary?: EnrichmentSummary;
-  /** Full enrichment data (alternative to enrichmentSummary) */
-  enrichmentData?: EnrichmentData | null;
-  /** Whether enrichment is currently being processed */
-  isEnrichmentPending?: boolean;
-  /** Callback when enrichment badges are clicked to expand full EnrichmentPanel */
-  onExpandEnrichment?: (eventId: string) => void;
 }
 
 /**
@@ -166,14 +153,9 @@ const EventCard = memo(function EventCard({
   onViewDetails,
   onClick,
   onSnooze,
-  snoozedUntil,
   className = '',
   hasCheckboxOverlay = false,
   snooze_until,
-  enrichmentSummary,
-  enrichmentData,
-  isEnrichmentPending,
-  onExpandEnrichment,
 }: EventCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
@@ -194,9 +176,6 @@ const EventCard = memo(function EventCard({
 
   // Get severity configuration for styling
   const severityConfig = getSeverityConfig(risk_score);
-
-  // Check if event is currently snoozed
-  const isSnoozed = snoozedUntil ? new Date(snoozedUntil) > new Date() : false;
 
   // Handle snooze action
   const handleSnooze = (seconds: number) => {
@@ -323,7 +302,7 @@ const EventCard = memo(function EventCard({
   return (
     /* eslint-disable jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-tabindex -- Card is accessible via nested buttons (View Details, Snooze) when they exist; role="button" intentionally omitted to avoid WCAG nested-interactive violation */
     <div
-      className={`rounded-lg border border-gray-800 ${getBorderWidthClass()} shadow-lg transition-all hover:border-gray-700 ${getSeverityClasses()} ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${isSnoozed ? 'opacity-60' : ''} ${className}`}
+      className={`rounded-lg border border-gray-800 ${getBorderWidthClass()} shadow-lg transition-all hover:border-gray-700 ${getSeverityClasses()} ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
       data-testid={`event-card-${id}`}
       data-severity={severityConfig.level}
       onClick={isClickable ? handleCardClick : undefined}
@@ -387,14 +366,6 @@ const EventCard = memo(function EventCard({
             <SnoozeBadge snoozeUntil={snooze_until} size="sm" />
           </div>
 
-          {/* Snooze Indicator (NEM-3592) */}
-          {isSnoozed && snoozedUntil && (
-            <div className="mb-3 flex items-center gap-1.5 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs text-purple-400 w-fit">
-              <Moon className="h-3 w-3" />
-              <span>Snoozed until {formatTimestamp(snoozedUntil)}</span>
-            </div>
-          )}
-
           {/* Object Type Badges */}
           {uniqueObjectTypes.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1.5">
@@ -403,39 +374,6 @@ const EventCard = memo(function EventCard({
               ))}
             </div>
           )}
-
-          {/* Enrichment Badges */}
-          <EnrichmentBadges
-            enrichmentSummary={enrichmentSummary}
-            enrichmentData={enrichmentData}
-            isEnrichmentPending={isEnrichmentPending}
-            onExpandEnrichment={onExpandEnrichment ? () => onExpandEnrichment(id) : undefined}
-            className="mb-3"
-          />
-
-          {/* Risk Score Progress Bar */}
-          <div className="mb-3">
-            <div className="mb-1.5 flex items-center justify-between text-xs text-text-secondary">
-              <span className="font-medium">Risk Score</span>
-              <span className="font-semibold">{risk_score}/100</span>
-            </div>
-            <div
-              className="h-2 w-full overflow-hidden rounded-full bg-gray-800"
-              role="progressbar"
-              aria-valuenow={risk_score}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`Risk score: ${risk_score} out of 100`}
-            >
-              <div
-                className="h-full rounded-full transition-all duration-500 ease-out"
-                style={{
-                  width: `${risk_score}%`,
-                  backgroundColor: getRiskColor(riskLevel),
-                }}
-              />
-            </div>
-          </div>
 
           {/* AI Summary - truncated to 2 lines for better scannability */}
           <div className="mb-3">
@@ -530,14 +468,6 @@ const EventCard = memo(function EventCard({
                 </button>
                 {showSnoozeMenu && (
                   <div className="absolute right-0 z-10 mt-1 w-40 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg">
-                    {isSnoozed && (
-                      <button
-                        onClick={() => handleSnooze(0)}
-                        className="block w-full px-4 py-2 text-left text-sm text-purple-400 hover:bg-gray-700"
-                      >
-                        Clear snooze
-                      </button>
-                    )}
                     <button
                       onClick={() => handleSnooze(900)}
                       className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
@@ -561,12 +491,6 @@ const EventCard = memo(function EventCard({
                       className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
                     >
                       8 hours
-                    </button>
-                    <button
-                      onClick={() => handleSnooze(86400)}
-                      className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
-                    >
-                      24 hours
                     </button>
                   </div>
                 )}
