@@ -184,8 +184,7 @@ export function ExpandableSummary({
   // Extract bullet points or prepare truncated preview
   const bulletPoints = extractBulletPoints(summary.content);
   const truncatedContent = truncateProse(summary.content);
-  const hasLongContent =
-    summary.content.length > 150 || bulletPoints !== null;
+  const hasLongContent = summary.content.length > 150 || bulletPoints !== null;
 
   // Format metadata
   const windowStart = format(parseISO(summary.windowStart), 'MMM d, h:mm a');
@@ -205,10 +204,7 @@ export function ExpandableSummary({
     >
       {/* Collapsed Preview */}
       {!isExpanded && (
-        <div
-          className="text-gray-300"
-          data-testid="expandable-summary-preview"
-        >
+        <div className="text-gray-300" data-testid="expandable-summary-preview">
           {bulletPoints ? (
             <ul className="list-inside list-disc space-y-1">
               {bulletPoints.slice(0, 2).map((point, index) => (
@@ -217,9 +213,7 @@ export function ExpandableSummary({
                 </li>
               ))}
               {bulletPoints.length > 2 && (
-                <li className="text-sm text-gray-500">
-                  ...and {bulletPoints.length - 2} more
-                </li>
+                <li className="text-sm text-gray-500">...and {bulletPoints.length - 2} more</li>
               )}
             </ul>
           ) : (
@@ -269,13 +263,10 @@ export function ExpandableSummary({
               <span>Generated {generatedAgo}</span>
               {summary.eventCount > 0 && (
                 <span>
-                  {summary.eventCount}{' '}
-                  {summary.eventCount === 1 ? 'event' : 'events'}
+                  {summary.eventCount} {summary.eventCount === 1 ? 'event' : 'events'}
                 </span>
               )}
-              {summary.maxRiskScore !== undefined && (
-                <span>Max risk: {summary.maxRiskScore}</span>
-              )}
+              {summary.maxRiskScore !== undefined && <span>Max risk: {summary.maxRiskScore}</span>}
             </div>
           </div>
         </div>
@@ -302,20 +293,12 @@ export function ExpandableSummary({
         >
           {isExpanded ? (
             <>
-              <ChevronUp
-                className="h-4 w-4"
-                aria-hidden="true"
-                data-testid="chevron-up-icon"
-              />
+              <ChevronUp className="h-4 w-4" aria-hidden="true" data-testid="chevron-up-icon" />
               <span>Hide Details</span>
             </>
           ) : (
             <>
-              <ChevronDown
-                className="h-4 w-4"
-                aria-hidden="true"
-                data-testid="chevron-down-icon"
-              />
+              <ChevronDown className="h-4 w-4" aria-hidden="true" data-testid="chevron-down-icon" />
               <span>View Full Summary</span>
             </>
           )}

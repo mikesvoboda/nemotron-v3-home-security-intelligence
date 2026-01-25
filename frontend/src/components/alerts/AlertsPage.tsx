@@ -188,9 +188,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
     setIsBulkProcessing(true);
     try {
       // Dismiss all selected alerts by marking them as reviewed
-      const promises = Array.from(selectedAlerts).map((id) =>
-        updateEvent(id, { reviewed: true })
-      );
+      const promises = Array.from(selectedAlerts).map((id) => updateEvent(id, { reviewed: true }));
       await Promise.all(promises);
 
       // Clear selection and refetch
@@ -595,8 +593,8 @@ function AlertsPageWithErrorBoundary(props: AlertsPageProps) {
           <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
           <h3 className="mb-2 text-lg font-semibold text-red-400">Alerts Unavailable</h3>
           <p className="max-w-md text-sm text-gray-400">
-            Unable to load alerts. Please refresh the page or try again later.
-            Other parts of the application should still work.
+            Unable to load alerts. Please refresh the page or try again later. Other parts of the
+            application should still work.
           </p>
         </div>
       }

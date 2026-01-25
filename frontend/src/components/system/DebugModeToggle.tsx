@@ -46,10 +46,7 @@ export interface DebugModeToggleProps {
  * </div>
  * ```
  */
-export default function DebugModeToggle({
-  className,
-  onChange,
-}: DebugModeToggleProps) {
+export default function DebugModeToggle({ className, onChange }: DebugModeToggleProps) {
   const { debugEnabled, isLoading, error, data } = useSystemConfigQuery();
   const [debugMode, setDebugMode] = useLocalStorage('system-debug-mode', false);
 
@@ -72,24 +69,16 @@ export default function DebugModeToggle({
       data-testid="debug-mode-toggle"
       className={clsx(
         'flex items-center gap-2 rounded-lg border px-3 py-1.5 transition-all',
-        debugMode
-          ? 'border-orange-500/50 bg-orange-500/10'
-          : 'border-gray-700 bg-gray-800/50',
+        debugMode ? 'border-orange-500/50 bg-orange-500/10' : 'border-gray-700 bg-gray-800/50',
         className
       )}
     >
       <Wrench
         data-testid="debug-mode-icon"
-        className={clsx(
-          'h-4 w-4',
-          debugMode ? 'text-orange-400' : 'text-gray-400'
-        )}
+        className={clsx('h-4 w-4', debugMode ? 'text-orange-400' : 'text-gray-400')}
       />
       <span
-        className={clsx(
-          'text-sm font-medium',
-          debugMode ? 'text-orange-300' : 'text-gray-300'
-        )}
+        className={clsx('text-sm font-medium', debugMode ? 'text-orange-300' : 'text-gray-300')}
       >
         Debug Mode
       </span>

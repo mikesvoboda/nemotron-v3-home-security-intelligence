@@ -14,16 +14,8 @@
 import { Tab } from '@headlessui/react';
 import { Select, SelectItem } from '@tremor/react';
 import { clsx } from 'clsx';
-import {
-  BarChart3,
-  ChevronLeft,
-  ChevronRight,
-  Layers,
-  PenTool,
-  Settings,
-} from 'lucide-react';
+import { BarChart3, ChevronLeft, ChevronRight, Layers, PenTool, Settings } from 'lucide-react';
 import { Fragment, useCallback, useState } from 'react';
-
 
 import ZoneActivityHeatmap from './ZoneActivityHeatmap';
 import ZoneList from './ZoneList';
@@ -120,10 +112,7 @@ function ZoneSelector({ zones, selectedZoneId, onSelect }: ZoneSelectorProps) {
         {zones.map((zone) => (
           <SelectItem key={zone.id} value={zone.id}>
             <div className="flex items-center gap-2">
-              <div
-                className="h-3 w-3 rounded-full"
-                style={{ backgroundColor: zone.color }}
-              />
+              <div className="h-3 w-3 rounded-full" style={{ backgroundColor: zone.color }} />
               {zone.name}
             </div>
           </SelectItem>
@@ -156,9 +145,7 @@ function DrawTabContent({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="mb-3 text-lg font-semibold text-white">
-          Zones ({zones.length})
-        </h3>
+        <h3 className="mb-3 text-lg font-semibold text-white">Zones ({zones.length})</h3>
         <ZoneList
           zones={zones}
           selectedZoneId={selectedZoneId}
@@ -195,19 +182,11 @@ function ConfigureTabContent({
 
   return (
     <div className="space-y-4">
-      <ZoneSelector
-        zones={zones}
-        selectedZoneId={selectedZoneId}
-        onSelect={onZoneSelect}
-      />
+      <ZoneSelector zones={zones} selectedZoneId={selectedZoneId} onSelect={onZoneSelect} />
 
       {selectedZone ? (
         <div className="space-y-4">
-          <ZoneStatusCard
-            zoneId={selectedZone.id}
-            zoneName={selectedZone.name}
-            compact
-          />
+          <ZoneStatusCard zoneId={selectedZone.id} zoneName={selectedZone.name} compact />
 
           <ZoneOwnershipPanel
             zoneId={selectedZone.id}
@@ -252,33 +231,19 @@ function AnalyticsTabContent({
 
   return (
     <div className="space-y-4">
-      <ZoneSelector
-        zones={zones}
-        selectedZoneId={selectedZoneId}
-        onSelect={onZoneSelect}
-      />
+      <ZoneSelector zones={zones} selectedZoneId={selectedZoneId} onSelect={onZoneSelect} />
 
       {selectedZone ? (
         <div className="space-y-4">
-          <ZoneStatusCard
-            zoneId={selectedZone.id}
-            zoneName={selectedZone.name}
-            compact
-          />
+          <ZoneStatusCard zoneId={selectedZone.id} zoneName={selectedZone.name} compact />
 
-          <ZoneActivityHeatmap
-            zoneId={selectedZone.id}
-            zoneName={selectedZone.name}
-            compact
-          />
+          <ZoneActivityHeatmap zoneId={selectedZone.id} zoneName={selectedZone.name} compact />
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-gray-700 bg-gray-800/30 p-6 text-center">
           <BarChart3 className="mx-auto mb-2 h-8 w-8 text-gray-500" />
           <p className="text-sm text-gray-400">Select a zone for analytics</p>
-          <p className="mt-1 text-xs text-gray-500">
-            View activity patterns, heatmaps, and trends
-          </p>
+          <p className="mt-1 text-xs text-gray-500">View activity patterns, heatmaps, and trends</p>
         </div>
       )}
     </div>

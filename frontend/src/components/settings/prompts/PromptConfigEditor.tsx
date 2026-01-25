@@ -7,7 +7,7 @@
  * @see NEM-2697 - Build Prompt Management page
  */
 
-import { Dialog, DialogPanel, Title , Button, TextInput } from '@tremor/react';
+import { Dialog, DialogPanel, Title, Button, TextInput } from '@tremor/react';
 import { X, FlaskConical } from 'lucide-react';
 import { useState, useCallback, useEffect } from 'react';
 
@@ -169,11 +169,7 @@ export default function PromptConfigEditor({
   };
 
   return (
-    <Dialog
-      open={isOpen}
-      onClose={onClose}
-      static={true}
-    >
+    <Dialog open={isOpen} onClose={onClose} static={true}>
       <DialogPanel className="max-w-2xl border border-gray-700 bg-[#1A1A1A]">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">

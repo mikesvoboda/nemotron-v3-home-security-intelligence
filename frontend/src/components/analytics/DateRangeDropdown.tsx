@@ -150,10 +150,7 @@ export default function DateRangeDropdown({
               <Calendar className="h-4 w-4 text-gray-400" />
               <span>{getDisplayText()}</span>
               <ChevronDown
-                className={clsx(
-                  'h-4 w-4 text-gray-400 transition-transform',
-                  open && 'rotate-180'
-                )}
+                className={clsx('h-4 w-4 text-gray-400 transition-transform', open && 'rotate-180')}
               />
             </Menu.Button>
 
@@ -175,21 +172,16 @@ export default function DateRangeDropdown({
               >
                 <div className="py-1">
                   {PRESET_OPTIONS.map((option, index) => {
-                    const isSelected =
-                      !option.isCustom && preset === option.value;
+                    const isSelected = !option.isCustom && preset === option.value;
                     const isCustomSelected = option.isCustom && isCustom;
 
                     // Add separator before "Custom range" option
                     const showDivider =
-                      index > 0 &&
-                      option.isCustom &&
-                      !PRESET_OPTIONS[index - 1].isCustom;
+                      index > 0 && option.isCustom && !PRESET_OPTIONS[index - 1].isCustom;
 
                     return (
                       <Fragment key={option.value}>
-                        {showDivider && (
-                          <div className="my-1 border-t border-gray-700" />
-                        )}
+                        {showDivider && <div className="my-1 border-t border-gray-700" />}
                         <Menu.Item>
                           {({ active }) => (
                             <button
@@ -198,11 +190,8 @@ export default function DateRangeDropdown({
                               onClick={() => handlePresetClick(option, close)}
                               className={clsx(
                                 'flex w-full items-center justify-between px-4 py-2 text-left text-sm',
-                                active
-                                  ? 'bg-gray-700 text-white'
-                                  : 'text-gray-300',
-                                (isSelected || isCustomSelected) &&
-                                  'text-[#76B900]'
+                                active ? 'bg-gray-700 text-white' : 'text-gray-300',
+                                (isSelected || isCustomSelected) && 'text-[#76B900]'
                               )}
                             >
                               <span>{option.label}</span>

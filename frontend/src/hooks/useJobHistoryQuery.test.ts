@@ -22,7 +22,9 @@ vi.mock('../services/api', async (importOriginal) => {
 
 describe('useJobHistoryQuery', () => {
   // Helper to create mock job history data
-  const createMockJobHistory = (overrides: Partial<api.JobHistoryResponse> = {}): api.JobHistoryResponse => ({
+  const createMockJobHistory = (
+    overrides: Partial<api.JobHistoryResponse> = {}
+  ): api.JobHistoryResponse => ({
     job_id: '142',
     job_type: 'export',
     status: 'completed',

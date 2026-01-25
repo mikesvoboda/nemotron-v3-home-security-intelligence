@@ -26,12 +26,7 @@ import type { ServiceStatusChangedPayload } from '../types/websocket-events';
 /**
  * Service status values
  */
-export type ServiceStatus =
-  | 'healthy'
-  | 'unhealthy'
-  | 'restarting'
-  | 'restart_failed'
-  | 'failed';
+export type ServiceStatus = 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
 
 /**
  * Extended service status with timestamp

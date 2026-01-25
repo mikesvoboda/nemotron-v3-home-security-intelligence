@@ -175,11 +175,7 @@ describe('AlertDrawer', () => {
     it('renders all severity sections when mixed alerts', () => {
       const alerts = [criticalAlert, warningAlert, infoAlert];
       render(
-        <AlertDrawer
-          {...defaultProps}
-          alerts={alerts}
-          alertsBySeverity={mixedAlertsBySeverity}
-        />
+        <AlertDrawer {...defaultProps} alerts={alerts} alertsBySeverity={mixedAlertsBySeverity} />
       );
 
       expect(screen.getByTestId('alert-drawer-critical-section')).toBeInTheDocument();
@@ -200,7 +196,9 @@ describe('AlertDrawer', () => {
       const card = screen.getByTestId('alert-drawer-card');
       expect(card).toBeInTheDocument();
       expect(screen.getByTestId('alert-card-name')).toHaveTextContent('HighGPUMemory');
-      expect(screen.getByTestId('alert-card-summary')).toHaveTextContent('GPU memory usage critical');
+      expect(screen.getByTestId('alert-card-summary')).toHaveTextContent(
+        'GPU memory usage critical'
+      );
       expect(screen.getByTestId('alert-card-description')).toHaveTextContent(
         'GPU memory is above 95%'
       );
@@ -393,11 +391,7 @@ describe('AlertDrawer', () => {
     it('renders with alerts correctly', () => {
       const alerts = [criticalAlert, warningAlert, infoAlert];
       const { container } = render(
-        <AlertDrawer
-          {...defaultProps}
-          alerts={alerts}
-          alertsBySeverity={mixedAlertsBySeverity}
-        />
+        <AlertDrawer {...defaultProps} alerts={alerts} alertsBySeverity={mixedAlertsBySeverity} />
       );
       expect(container).toMatchSnapshot();
     });

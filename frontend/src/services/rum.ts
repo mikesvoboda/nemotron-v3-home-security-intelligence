@@ -330,9 +330,9 @@ function collectPageLoadTime(rum: RUM): void {
 
   // Wait for the load event to complete
   const reportPageLoadTime = () => {
-    const navigation = performance.getEntriesByType(
-      'navigation'
-    )[0] as PerformanceNavigationTiming | undefined;
+    const navigation = performance.getEntriesByType('navigation')[0] as
+      | PerformanceNavigationTiming
+      | undefined;
 
     if (navigation && navigation.loadEventEnd > 0) {
       const loadTime = navigation.loadEventEnd - navigation.startTime;

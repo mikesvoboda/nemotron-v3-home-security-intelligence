@@ -22,14 +22,8 @@ const mockItems: TestItem[] = Array.from({ length: 100 }, (_, i) => ({
 }));
 
 // Mock window dimensions for virtualization
-const originalOffsetHeight = Object.getOwnPropertyDescriptor(
-  HTMLElement.prototype,
-  'offsetHeight'
-);
-const originalOffsetWidth = Object.getOwnPropertyDescriptor(
-  HTMLElement.prototype,
-  'offsetWidth'
-);
+const originalOffsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight');
+const originalOffsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
 
 beforeEach(() => {
   // Mock element dimensions

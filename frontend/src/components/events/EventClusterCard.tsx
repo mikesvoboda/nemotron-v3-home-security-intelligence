@@ -185,7 +185,11 @@ export default function EventClusterCard({
                   </div>
                   <div className="flex items-center gap-2">
                     {event.risk_level && (
-                      <RiskBadge level={event.risk_level as 'low' | 'medium' | 'high' | 'critical'} size="sm" animated={false} />
+                      <RiskBadge
+                        level={event.risk_level as 'low' | 'medium' | 'high' | 'critical'}
+                        size="sm"
+                        animated={false}
+                      />
                     )}
                     {event.risk_score !== null && (
                       <span className="text-sm font-medium text-gray-300">{event.risk_score}</span>

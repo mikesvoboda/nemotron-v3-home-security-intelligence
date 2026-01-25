@@ -24,9 +24,7 @@ describe('PlaceholderThumbnail', () => {
     });
 
     it('renders generic silhouette for any unrecognized entity type', () => {
-      const { container } = render(
-        <PlaceholderThumbnail entityType="something_else" />
-      );
+      const { container } = render(<PlaceholderThumbnail entityType="something_else" />);
       const helpIcon = container.querySelector('svg.lucide-help-circle');
       expect(helpIcon).toBeInTheDocument();
     });

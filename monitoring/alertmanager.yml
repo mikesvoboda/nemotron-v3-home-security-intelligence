@@ -5,11 +5,28 @@ global:
   # Default settings
   resolve_timeout: 5m
 
-  # SMTP settings (configure for email notifications)
+  # =============================================================================
+  # SMTP SETTINGS (Email Notifications)
+  # =============================================================================
+  # To enable email alerts:
+  # 1. Uncomment the smtp settings below
+  # 2. Configure your SMTP server credentials
+  # 3. Uncomment email_configs in the receivers section
+  #
+  # See docs/operator/smtp-configuration.md for detailed setup instructions.
+  #
+  # Example configuration for Gmail:
+  #   smtp_smarthost: 'smtp.gmail.com:587'
+  #   smtp_from: 'alerts@yourdomain.com'
+  #   smtp_auth_username: 'your-email@gmail.com'
+  #   smtp_auth_password: 'your-app-password'
+  #   smtp_require_tls: true
+  #
   # smtp_smarthost: 'smtp.example.com:587'
   # smtp_from: 'alertmanager@hsi.local'
   # smtp_auth_username: 'alertmanager'
   # smtp_auth_password: 'password'
+  # smtp_require_tls: true
 
   # Slack settings (configure for Slack notifications)
   # slack_api_url: 'https://hooks.slack.com/services/xxx/yyy/zzz'

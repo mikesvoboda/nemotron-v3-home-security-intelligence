@@ -110,9 +110,7 @@ describe('AlertCameraGroup', () => {
     });
 
     it('displays singular "alert" when count is 1', () => {
-      renderWithQueryClient(
-        <AlertCameraGroup {...defaultProps} alerts={[mockAlerts[0]]} />
-      );
+      renderWithQueryClient(<AlertCameraGroup {...defaultProps} alerts={[mockAlerts[0]]} />);
 
       expect(screen.getByText('1 alert')).toBeInTheDocument();
     });
@@ -126,10 +124,8 @@ describe('AlertCameraGroup', () => {
     });
 
     it('only shows badges for present severity levels', () => {
-      const highOnlyAlerts = mockAlerts.filter(a => a.risk_level === 'high');
-      renderWithQueryClient(
-        <AlertCameraGroup {...defaultProps} alerts={highOnlyAlerts} />
-      );
+      const highOnlyAlerts = mockAlerts.filter((a) => a.risk_level === 'high');
+      renderWithQueryClient(<AlertCameraGroup {...defaultProps} alerts={highOnlyAlerts} />);
 
       expect(screen.queryByText(/critical/i)).not.toBeInTheDocument();
       expect(screen.getByText('2 high')).toBeInTheDocument();
@@ -204,9 +200,7 @@ describe('AlertCameraGroup', () => {
     it('calls onDismissAll with cameraId when clicked', async () => {
       const user = userEvent.setup();
       const onDismissAll = vi.fn();
-      renderWithQueryClient(
-        <AlertCameraGroup {...defaultProps} onDismissAll={onDismissAll} />
-      );
+      renderWithQueryClient(<AlertCameraGroup {...defaultProps} onDismissAll={onDismissAll} />);
 
       const dismissButton = screen.getByRole('button', { name: /dismiss all/i });
       await user.click(dismissButton);
@@ -215,9 +209,7 @@ describe('AlertCameraGroup', () => {
     });
 
     it('does not show dismiss all button when onDismissAll is not provided', () => {
-      renderWithQueryClient(
-        <AlertCameraGroup {...defaultProps} onDismissAll={undefined} />
-      );
+      renderWithQueryClient(<AlertCameraGroup {...defaultProps} onDismissAll={undefined} />);
 
       expect(screen.queryByRole('button', { name: /dismiss all/i })).not.toBeInTheDocument();
     });
@@ -235,9 +227,7 @@ describe('AlertCameraGroup', () => {
     it('calls onAlertClick when an alert card is clicked', async () => {
       const user = userEvent.setup();
       const onAlertClick = vi.fn();
-      renderWithQueryClient(
-        <AlertCameraGroup {...defaultProps} onAlertClick={onAlertClick} />
-      );
+      renderWithQueryClient(<AlertCameraGroup {...defaultProps} onAlertClick={onAlertClick} />);
 
       // Click on the first alert card
       const firstAlert = screen.getByTestId('event-card-1');
@@ -249,9 +239,7 @@ describe('AlertCameraGroup', () => {
     it('passes snooze handler to alert cards', async () => {
       const user = userEvent.setup();
       const onSnooze = vi.fn();
-      renderWithQueryClient(
-        <AlertCameraGroup {...defaultProps} onSnooze={onSnooze} />
-      );
+      renderWithQueryClient(<AlertCameraGroup {...defaultProps} onSnooze={onSnooze} />);
 
       // Find the snooze button on the first card
       const firstCard = screen.getByTestId('event-card-1');

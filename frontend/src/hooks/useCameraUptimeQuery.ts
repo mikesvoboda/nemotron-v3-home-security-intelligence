@@ -138,10 +138,7 @@ export function useCameraUptimeQuery(
   });
 
   // Provide empty array as default to avoid null checks
-  const cameras = useMemo<CameraUptimeDataPoint[]>(
-    () => query.data?.cameras ?? [],
-    [query.data]
-  );
+  const cameras = useMemo<CameraUptimeDataPoint[]>(() => query.data?.cameras ?? [], [query.data]);
 
   return {
     cameras,

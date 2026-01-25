@@ -284,10 +284,7 @@ export function usePullToRefresh({
       // Remove listeners from previous element
       if (elementRef.current) {
         elementRef.current.removeEventListener('touchstart', stableTouchStart);
-        elementRef.current.removeEventListener(
-          'touchmove',
-          stableTouchMove as EventListener
-        );
+        elementRef.current.removeEventListener('touchmove', stableTouchMove as EventListener);
         elementRef.current.removeEventListener('touchend', stableTouchEnd);
       }
 
@@ -311,10 +308,7 @@ export function usePullToRefresh({
     return () => {
       if (elementRef.current) {
         elementRef.current.removeEventListener('touchstart', stableTouchStart);
-        elementRef.current.removeEventListener(
-          'touchmove',
-          stableTouchMove as EventListener
-        );
+        elementRef.current.removeEventListener('touchmove', stableTouchMove as EventListener);
         elementRef.current.removeEventListener('touchend', stableTouchEnd);
       }
     };

@@ -101,7 +101,9 @@ describe('BulkActionBar', () => {
       render(<BulkActionBar {...defaultProps} />);
       expect(screen.getByRole('button', { name: /Select all 10 alerts/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Clear selection/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Dismiss 5 selected alerts/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /Dismiss 5 selected alerts/i })
+      ).toBeInTheDocument();
     });
   });
 });

@@ -38,8 +38,20 @@ const mockApplyResultWithFailures: GpuApplyResult = {
 
 const mockServiceStatuses: ServiceStatus[] = [
   { name: 'ai-llm', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
-  { name: 'ai-detector', status: 'restarting', health: 'unknown', gpu_index: 0, restart_status: 'Restarting' },
-  { name: 'ai-enrichment', status: 'running', health: 'healthy', gpu_index: 1, restart_status: null },
+  {
+    name: 'ai-detector',
+    status: 'restarting',
+    health: 'unknown',
+    gpu_index: 0,
+    restart_status: 'Restarting',
+  },
+  {
+    name: 'ai-enrichment',
+    status: 'running',
+    health: 'healthy',
+    gpu_index: 1,
+    restart_status: null,
+  },
 ];
 
 // ============================================================================
@@ -205,7 +217,9 @@ describe('GpuApplyButton', () => {
 
   describe('error display', () => {
     it('should show error when error prop is set', () => {
-      renderWithProviders(<GpuApplyButton {...defaultProps} error="Failed to save configuration" />);
+      renderWithProviders(
+        <GpuApplyButton {...defaultProps} error="Failed to save configuration" />
+      );
 
       expect(screen.getByText('Error')).toBeInTheDocument();
       expect(screen.getByText('Failed to save configuration')).toBeInTheDocument();

@@ -22,8 +22,6 @@ import { AnomalyType, AnomalySeverity, type ZoneAnomaly } from '../../types/zone
 import type { ZonePresenceMember } from '../../hooks/useZonePresence';
 import type { Zone } from '../../types/generated';
 
-
-
 // ============================================================================
 // Mock Dependencies
 // ============================================================================
@@ -150,9 +148,7 @@ const createQueryClient = () =>
 
 const renderWithProviders = (ui: React.ReactElement) => {
   const queryClient = createQueryClient();
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-  );
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 };
 
 const defaultProps = {
@@ -313,11 +309,7 @@ describe('CameraZoneOverlay', () => {
 
     it('should handle different video resolutions correctly', () => {
       renderWithProviders(
-        <CameraZoneOverlay
-          cameraId="cam-1"
-          videoWidth={1280}
-          videoHeight={720}
-        />
+        <CameraZoneOverlay cameraId="cam-1" videoWidth={1280} videoHeight={720} />
       );
 
       const overlay = screen.getByTestId('camera-zone-overlay');
@@ -339,9 +331,7 @@ describe('CameraZoneOverlay', () => {
 
   describe('Zone Selection', () => {
     it('should highlight selected zone', () => {
-      renderWithProviders(
-        <CameraZoneOverlay {...defaultProps} selectedZoneId="zone-1" />
-      );
+      renderWithProviders(<CameraZoneOverlay {...defaultProps} selectedZoneId="zone-1" />);
 
       const selectedZone = screen.getByTestId('zone-polygon-zone-1');
       expect(selectedZone).toHaveClass('selected');
@@ -349,9 +339,7 @@ describe('CameraZoneOverlay', () => {
 
     it('should call onZoneClick when zone is clicked', () => {
       const onZoneClick = vi.fn();
-      renderWithProviders(
-        <CameraZoneOverlay {...defaultProps} onZoneClick={onZoneClick} />
-      );
+      renderWithProviders(<CameraZoneOverlay {...defaultProps} onZoneClick={onZoneClick} />);
 
       const zone = screen.getByTestId('zone-polygon-zone-1');
       fireEvent.click(zone);
@@ -361,9 +349,7 @@ describe('CameraZoneOverlay', () => {
 
     it('should call onZoneHover when zone is hovered', () => {
       const onZoneHover = vi.fn();
-      renderWithProviders(
-        <CameraZoneOverlay {...defaultProps} onZoneHover={onZoneHover} />
-      );
+      renderWithProviders(<CameraZoneOverlay {...defaultProps} onZoneHover={onZoneHover} />);
 
       const zone = screen.getByTestId('zone-polygon-zone-1');
 
@@ -618,9 +604,7 @@ describe('CameraZoneOverlay', () => {
     });
 
     it('should flash zone when crossing event occurs', () => {
-      renderWithProviders(
-        <CameraZoneOverlay {...defaultProps} />
-      );
+      renderWithProviders(<CameraZoneOverlay {...defaultProps} />);
 
       // The flash animation class should be applied via CSS animation
       // Testing animation behavior is tricky, but we can verify the component renders
@@ -657,9 +641,7 @@ describe('CameraZoneOverlay', () => {
 
     it('should have keyboard-accessible zone interaction', () => {
       const onZoneClick = vi.fn();
-      renderWithProviders(
-        <CameraZoneOverlay {...defaultProps} onZoneClick={onZoneClick} />
-      );
+      renderWithProviders(<CameraZoneOverlay {...defaultProps} onZoneClick={onZoneClick} />);
 
       const zone = screen.getByTestId('zone-group-zone-1');
 
@@ -674,9 +656,7 @@ describe('CameraZoneOverlay', () => {
 
     it('should have keyboard-accessible zone interaction with Space', () => {
       const onZoneClick = vi.fn();
-      renderWithProviders(
-        <CameraZoneOverlay {...defaultProps} onZoneClick={onZoneClick} />
-      );
+      renderWithProviders(<CameraZoneOverlay {...defaultProps} onZoneClick={onZoneClick} />);
 
       const zone = screen.getByTestId('zone-group-zone-1');
 
@@ -804,11 +784,7 @@ describe('CameraZoneOverlay', () => {
     it('should accept all required props', () => {
       // This should compile and render without errors
       renderWithProviders(
-        <CameraZoneOverlay
-          cameraId="cam-1"
-          videoWidth={1920}
-          videoHeight={1080}
-        />
+        <CameraZoneOverlay cameraId="cam-1" videoWidth={1920} videoHeight={1080} />
       );
 
       expect(screen.getByTestId('camera-zone-overlay')).toBeInTheDocument();
@@ -873,9 +849,7 @@ describe('CameraZoneOverlay', () => {
     });
 
     it('should call useZoneAnomalies when alerts mode is enabled', () => {
-      renderWithProviders(
-        <CameraZoneOverlay {...defaultProps} mode="alerts" showAlerts={true} />
-      );
+      renderWithProviders(<CameraZoneOverlay {...defaultProps} mode="alerts" showAlerts={true} />);
 
       expect(mockUseZoneAnomalies).toHaveBeenCalled();
     });

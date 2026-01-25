@@ -161,10 +161,7 @@ export default function EventDetailModal({
   const eventIdNumber = event ? parseInt(event.id, 10) : NaN;
 
   // Query for event detections (uses React Query for caching and deduplication)
-  const {
-    detections: detectionsData,
-    isLoading: loadingDetections,
-  } = useEventDetectionsQuery({
+  const { detections: detectionsData, isLoading: loadingDetections } = useEventDetectionsQuery({
     eventId: eventIdNumber,
     limit: 100,
     enabled: !isNaN(eventIdNumber) && isOpen,

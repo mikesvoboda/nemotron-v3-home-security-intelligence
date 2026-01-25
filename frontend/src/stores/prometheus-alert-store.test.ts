@@ -371,9 +371,9 @@ describe('prometheus-alert-store', () => {
 
       // Add a critical alert - only critical callback should fire
       act(() => {
-        usePrometheusAlertStore.getState().handlePrometheusAlert(
-          createAlertPayload({ fingerprint: 'c1', severity: 'critical' })
-        );
+        usePrometheusAlertStore
+          .getState()
+          .handlePrometheusAlert(createAlertPayload({ fingerprint: 'c1', severity: 'critical' }));
       });
 
       expect(criticalCallback).toHaveBeenCalledTimes(1);
@@ -382,9 +382,9 @@ describe('prometheus-alert-store', () => {
 
       // Add a warning alert - only warning callback should fire
       act(() => {
-        usePrometheusAlertStore.getState().handlePrometheusAlert(
-          createAlertPayload({ fingerprint: 'w1', severity: 'warning' })
-        );
+        usePrometheusAlertStore
+          .getState()
+          .handlePrometheusAlert(createAlertPayload({ fingerprint: 'w1', severity: 'warning' }));
       });
 
       expect(criticalCallback).toHaveBeenCalledTimes(1); // Still 1
@@ -406,9 +406,9 @@ describe('prometheus-alert-store', () => {
 
       // Add alert
       act(() => {
-        usePrometheusAlertStore.getState().handlePrometheusAlert(
-          createAlertPayload({ fingerprint: 'c1', severity: 'critical' })
-        );
+        usePrometheusAlertStore
+          .getState()
+          .handlePrometheusAlert(createAlertPayload({ fingerprint: 'c1', severity: 'critical' }));
       });
 
       expect(callback).toHaveBeenCalledTimes(1);
@@ -440,26 +440,26 @@ describe('prometheus-alert-store', () => {
 
       // Add multiple alerts
       act(() => {
-        usePrometheusAlertStore.getState().handlePrometheusAlert(
-          createAlertPayload({ fingerprint: 'a1', severity: 'critical' })
-        );
+        usePrometheusAlertStore
+          .getState()
+          .handlePrometheusAlert(createAlertPayload({ fingerprint: 'a1', severity: 'critical' }));
       });
 
       expect(callback).toHaveBeenLastCalledWith(1, 0);
 
       act(() => {
-        usePrometheusAlertStore.getState().handlePrometheusAlert(
-          createAlertPayload({ fingerprint: 'a2', severity: 'warning' })
-        );
+        usePrometheusAlertStore
+          .getState()
+          .handlePrometheusAlert(createAlertPayload({ fingerprint: 'a2', severity: 'warning' }));
       });
 
       expect(callback).toHaveBeenLastCalledWith(2, 1);
 
       // Resolve one
       act(() => {
-        usePrometheusAlertStore.getState().handlePrometheusAlert(
-          createAlertPayload({ fingerprint: 'a1', status: 'resolved' })
-        );
+        usePrometheusAlertStore
+          .getState()
+          .handlePrometheusAlert(createAlertPayload({ fingerprint: 'a1', status: 'resolved' }));
       });
 
       expect(callback).toHaveBeenLastCalledWith(1, 2);
@@ -474,9 +474,9 @@ describe('prometheus-alert-store', () => {
       const initialAlerts = initialState.alerts;
 
       act(() => {
-        usePrometheusAlertStore.getState().handlePrometheusAlert(
-          createAlertPayload({ fingerprint: 'a1', severity: 'critical' })
-        );
+        usePrometheusAlertStore
+          .getState()
+          .handlePrometheusAlert(createAlertPayload({ fingerprint: 'a1', severity: 'critical' }));
       });
 
       const newState = usePrometheusAlertStore.getState();

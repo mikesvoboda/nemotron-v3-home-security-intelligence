@@ -62,9 +62,7 @@ function renderWithProviders(ui: React.ReactElement) {
 
 describe('ZoneCrossingFeed', () => {
   // Helper to create mock event
-  const createMockEvent = (
-    overrides: Partial<ZoneCrossingEvent> = {}
-  ): ZoneCrossingEvent => ({
+  const createMockEvent = (overrides: Partial<ZoneCrossingEvent> = {}): ZoneCrossingEvent => ({
     type: ZoneCrossingType.ENTER,
     zone_id: 'zone-1',
     zone_name: 'Front Door',
@@ -151,9 +149,7 @@ describe('ZoneCrossingFeed', () => {
 
       expect(screen.getByTestId('crossing-feed-empty')).toBeInTheDocument();
       expect(screen.getByText('No crossing events')).toBeInTheDocument();
-      expect(
-        screen.getByText('Waiting for zone crossing activity...')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Waiting for zone crossing activity...')).toBeInTheDocument();
     });
 
     it('shows filter hint when no events with active filters', () => {
@@ -221,9 +217,7 @@ describe('ZoneCrossingFeed', () => {
     });
 
     it('displays dwell time when present', () => {
-      mockEvents = [
-        createMockEvent({ type: ZoneCrossingType.EXIT, dwell_time: 90 }),
-      ];
+      mockEvents = [createMockEvent({ type: ZoneCrossingType.EXIT, dwell_time: 90 })];
 
       renderWithProviders(<ZoneCrossingFeed />);
 
@@ -231,9 +225,7 @@ describe('ZoneCrossingFeed', () => {
     });
 
     it('does not display dwell time when null', () => {
-      mockEvents = [
-        createMockEvent({ type: ZoneCrossingType.ENTER, dwell_time: null }),
-      ];
+      mockEvents = [createMockEvent({ type: ZoneCrossingType.ENTER, dwell_time: null })];
 
       renderWithProviders(<ZoneCrossingFeed />);
 
@@ -244,9 +236,7 @@ describe('ZoneCrossingFeed', () => {
     });
 
     it('displays truncated entity ID', () => {
-      mockEvents = [
-        createMockEvent({ entity_id: 'very-long-entity-identifier-123456' }),
-      ];
+      mockEvents = [createMockEvent({ entity_id: 'very-long-entity-identifier-123456' })];
 
       renderWithProviders(<ZoneCrossingFeed />);
 
@@ -254,9 +244,7 @@ describe('ZoneCrossingFeed', () => {
     });
 
     it('displays thumbnail when available', () => {
-      mockEvents = [
-        createMockEvent({ thumbnail_url: 'http://example.com/thumb.jpg' }),
-      ];
+      mockEvents = [createMockEvent({ thumbnail_url: 'http://example.com/thumb.jpg' })];
 
       renderWithProviders(<ZoneCrossingFeed />);
 
@@ -322,9 +310,7 @@ describe('ZoneCrossingFeed', () => {
     });
 
     it('includes zones from events in zone filter', () => {
-      mockEvents = [
-        createMockEvent({ zone_id: 'zone-3', zone_name: 'Custom Zone' }),
-      ];
+      mockEvents = [createMockEvent({ zone_id: 'zone-3', zone_name: 'Custom Zone' })];
 
       renderWithProviders(<ZoneCrossingFeed />);
 

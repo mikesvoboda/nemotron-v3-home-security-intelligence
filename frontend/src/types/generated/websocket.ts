@@ -16,7 +16,6 @@
  * types separately to ensure frontend/backend type synchronization.
  */
 
-
 // ============================================================================
 // Enums and Constants
 // ============================================================================
@@ -44,7 +43,16 @@ export type WebSocketMessageType = 'ping' | 'pong' | 'subscribe' | 'unsubscribe'
  * Includes both health states and worker lifecycle states for comprehensive
  * status reporting across services and workers.
  */
-export type WebSocketServiceStatus = 'healthy' | 'unhealthy' | 'running' | 'stopped' | 'crashed' | 'disabled' | 'restarting' | 'restart_failed' | 'failed';
+export type WebSocketServiceStatus =
+  | 'healthy'
+  | 'unhealthy'
+  | 'running'
+  | 'stopped'
+  | 'crashed'
+  | 'disabled'
+  | 'restarting'
+  | 'restart_failed'
+  | 'failed';
 
 /**
  * WebSocket event types for alert state changes.
@@ -57,7 +65,13 @@ export type WebSocketServiceStatus = 'healthy' | 'unhealthy' | 'running' | 'stop
  * - ALERT_RESOLVED: Alert resolved (long-running issues cleared)
  * - ALERT_DISMISSED: Alert dismissed by user
  */
-export type WebSocketAlertEventType = 'alert_created' | 'alert_updated' | 'alert_deleted' | 'alert_acknowledged' | 'alert_resolved' | 'alert_dismissed';
+export type WebSocketAlertEventType =
+  | 'alert_created'
+  | 'alert_updated'
+  | 'alert_deleted'
+  | 'alert_acknowledged'
+  | 'alert_resolved'
+  | 'alert_dismissed';
 
 /**
  * Alert severity levels for WebSocket messages.
@@ -83,7 +97,7 @@ export const WebSocketErrorCode = {
   VALIDATION_ERROR: 'validation_error',
 } as const;
 
-export type WebSocketErrorCodeType = typeof WebSocketErrorCode[keyof typeof WebSocketErrorCode];
+export type WebSocketErrorCodeType = (typeof WebSocketErrorCode)[keyof typeof WebSocketErrorCode];
 
 // ============================================================================
 // Data Payload Interfaces
@@ -142,7 +156,16 @@ export interface WebSocketServiceStatusData {
   /** Name of the service (redis, rtdetr, nemotron) */
   service: string;
   /** Current service status */
-  status: 'healthy' | 'unhealthy' | 'running' | 'stopped' | 'crashed' | 'disabled' | 'restarting' | 'restart_failed' | 'failed';
+  status:
+    | 'healthy'
+    | 'unhealthy'
+    | 'running'
+    | 'stopped'
+    | 'crashed'
+    | 'disabled'
+    | 'restarting'
+    | 'restart_failed'
+    | 'failed';
   /** Optional descriptive message */
   message?: string | null;
 }
@@ -543,7 +566,6 @@ export interface WebSocketMessage {
   data?: Record<string, unknown> | null;
 }
 
-
 // ============================================================================
 // Discriminated Union Types
 // ============================================================================
@@ -570,7 +592,7 @@ export type WebSocketServerMessage =
   | WebSocketAlertMessage
   | WebSocketPongResponse
   | WebSocketErrorResponse
-  | { type: 'ping' };  // Server heartbeat
+  | { type: 'ping' }; // Server heartbeat
 
 /**
  * All client-to-server WebSocket message types.
@@ -579,7 +601,7 @@ export type WebSocketClientMessage =
   | WebSocketPingMessage
   | WebSocketSubscribeMessage
   | WebSocketUnsubscribeMessage
-  | { type: 'pong' };  // Client heartbeat response
+  | { type: 'pong' }; // Client heartbeat response
 
 /**
  * All WebSocket message types (both directions).
@@ -639,8 +661,6 @@ export function createMessageDispatcher(handlers: MessageHandlerMap) {
 export function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
 }
-
-
 
 // ============================================================================
 // Type Guards
@@ -735,7 +755,14 @@ export function isErrorMessage(value: unknown): value is WebSocketErrorResponse 
  */
 export function isAlertMessage(value: unknown): value is WebSocketAlertMessage {
   if (!hasTypeProperty(value)) return false;
-  const alertTypes = ['alert_created', 'alert_updated', 'alert_deleted', 'alert_acknowledged', 'alert_dismissed', 'alert_resolved'];
+  const alertTypes = [
+    'alert_created',
+    'alert_updated',
+    'alert_deleted',
+    'alert_acknowledged',
+    'alert_dismissed',
+    'alert_resolved',
+  ];
   if (!alertTypes.includes(value.type as string)) return false;
 
   const msg = value as { type: string; data?: unknown };
@@ -786,7 +813,9 @@ export function isAlertDeletedMessage(value: unknown): value is WebSocketAlertDe
 /**
  * Type guard for WebSocketAlertAcknowledgedMessage.
  */
-export function isAlertAcknowledgedMessage(value: unknown): value is WebSocketAlertAcknowledgedMessage {
+export function isAlertAcknowledgedMessage(
+  value: unknown
+): value is WebSocketAlertAcknowledgedMessage {
   if (!hasTypeProperty(value)) return false;
   return value.type === 'alert_acknowledged' && isAlertMessage(value);
 }

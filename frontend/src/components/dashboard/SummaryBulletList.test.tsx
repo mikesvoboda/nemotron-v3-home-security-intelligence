@@ -11,7 +11,6 @@ import { SummaryBulletList } from './SummaryBulletList';
 
 import type { SummaryBulletPoint } from '@/types/summary';
 
-
 describe('SummaryBulletList', () => {
   const mockBullets: SummaryBulletPoint[] = [
     { icon: 'alert', text: 'Critical event detected', severity: 85 },
@@ -181,7 +180,8 @@ describe('SummaryBulletList', () => {
     });
 
     it('handles long text content', () => {
-      const longText = 'This is a very long bullet point text that should wrap properly within the container without breaking the layout or causing any visual issues.';
+      const longText =
+        'This is a very long bullet point text that should wrap properly within the container without breaking the layout or causing any visual issues.';
       const bullets: SummaryBulletPoint[] = [{ icon: 'pattern', text: longText }];
       render(<SummaryBulletList bullets={bullets} />);
       expect(screen.getByText(longText)).toBeInTheDocument();

@@ -117,12 +117,21 @@ export function MetricsProvider({
   pollingInterval = 5_000,
   enabled = true,
 }: MetricsProviderProps): React.ReactElement {
-  const { data, isLoading, isRefetching, error, isStale, utilization, memoryUsed, temperature, refetch } =
-    useGpuStatsQuery({
-      enabled,
-      refetchInterval: pollingInterval,
-      staleTime: pollingInterval,
-    });
+  const {
+    data,
+    isLoading,
+    isRefetching,
+    error,
+    isStale,
+    utilization,
+    memoryUsed,
+    temperature,
+    refetch,
+  } = useGpuStatsQuery({
+    enabled,
+    refetchInterval: pollingInterval,
+    staleTime: pollingInterval,
+  });
 
   const gpuStats = data ?? DEFAULT_GPU_STATS;
 

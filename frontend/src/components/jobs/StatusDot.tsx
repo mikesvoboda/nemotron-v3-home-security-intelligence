@@ -115,18 +115,18 @@ export default function StatusDot({
       role="img"
       aria-label={`Status: ${status}`}
       className={clsx(
-        'inline-block rounded-full flex-shrink-0',
+        'inline-block flex-shrink-0 rounded-full',
         sizeClasses,
         colorClass,
         {
           // Pending states: ring outline style
-          'ring-2 ring-current bg-transparent': isPending,
+          'bg-transparent ring-2 ring-current': isPending,
           // Processing states: pulsing animation
           'animate-pulse': isProcessing,
           // Final states get no extra styling (just filled)
         },
         // Don't apply ring for final or processing states
-        !isPending && !isFinal && !isProcessing && 'ring-2 ring-current bg-transparent',
+        !isPending && !isFinal && !isProcessing && 'bg-transparent ring-2 ring-current',
         className
       )}
     />

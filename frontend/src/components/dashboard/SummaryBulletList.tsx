@@ -174,7 +174,7 @@ export function SummaryBulletList({
             data-severity={bullet.severity}
           >
             <IconComponent
-              className={`h-4 w-4 mt-0.5 flex-shrink-0 ${iconColorClass}`}
+              className={`mt-0.5 h-4 w-4 flex-shrink-0 ${iconColorClass}`}
               aria-hidden="true"
             />
             <span className={`text-sm leading-relaxed ${textColorClass}`}>{bullet.text}</span>

@@ -382,7 +382,8 @@ export default function AuditTable({
                       className={clsx(
                         'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all',
                         getActionBadgeClasses(log.action),
-                        activeActionFilter === log.action && 'ring-2 ring-white/30 ring-offset-1 ring-offset-[#1F1F1F]',
+                        activeActionFilter === log.action &&
+                          'ring-2 ring-white/30 ring-offset-1 ring-offset-[#1F1F1F]',
                         onActionClick && 'cursor-pointer hover:brightness-110'
                       )}
                       aria-label={`Filter by action: ${formatAction(log.action)}`}

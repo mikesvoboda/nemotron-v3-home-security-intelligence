@@ -24,8 +24,22 @@ import type { ReactNode } from 'react';
 // ============================================================================
 
 const mockCameras = [
-  { id: 'cam-1', name: 'Front Door', status: 'online', folder_path: '/cameras/front', last_seen_at: null, created_at: '2024-01-01' },
-  { id: 'cam-2', name: 'Backyard', status: 'online', folder_path: '/cameras/back', last_seen_at: null, created_at: '2024-01-01' },
+  {
+    id: 'cam-1',
+    name: 'Front Door',
+    status: 'online',
+    folder_path: '/cameras/front',
+    last_seen_at: null,
+    created_at: '2024-01-01',
+  },
+  {
+    id: 'cam-2',
+    name: 'Backyard',
+    status: 'online',
+    folder_path: '/cameras/back',
+    last_seen_at: null,
+    created_at: '2024-01-01',
+  },
 ];
 
 const mockHealth = {
@@ -65,8 +79,20 @@ const mockNotificationPreferences = {
 
 const mockEvents = {
   items: [
-    { id: 1, camera_id: 'cam-1', risk_score: 75, risk_level: 'high', started_at: '2024-01-01T00:00:00Z' },
-    { id: 2, camera_id: 'cam-2', risk_score: 25, risk_level: 'low', started_at: '2024-01-01T01:00:00Z' },
+    {
+      id: 1,
+      camera_id: 'cam-1',
+      risk_score: 75,
+      risk_level: 'high',
+      started_at: '2024-01-01T00:00:00Z',
+    },
+    {
+      id: 2,
+      camera_id: 'cam-2',
+      risk_score: 25,
+      risk_level: 'low',
+      started_at: '2024-01-01T01:00:00Z',
+    },
   ],
   pagination: {
     total: 2,

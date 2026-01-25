@@ -179,7 +179,9 @@ describe('SummaryCards Integration', () => {
 
       // Verify badges - SeverityBadge shows count in parentheses and uppercase labels
       const hourlyCard = screen.getByTestId('summary-card-hourly');
-      expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(1)');
+      expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent(
+        '(1)'
+      );
       expect(screen.getByText('ALL CLEAR')).toBeInTheDocument();
     });
 
@@ -289,7 +291,9 @@ describe('SummaryCards Integration', () => {
       // UI should update with new event count in badge
       await waitFor(() => {
         const hourlyCard = screen.getByTestId('summary-card-hourly');
-        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(2)');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent(
+          '(2)'
+        );
       });
     });
 
@@ -365,7 +369,9 @@ describe('SummaryCards Integration', () => {
 
       await waitFor(() => {
         const hourlyCard = screen.getByTestId('summary-card-hourly');
-        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(1)');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent(
+          '(1)'
+        );
       });
 
       // Prepare updated response
@@ -389,7 +395,9 @@ describe('SummaryCards Integration', () => {
       // Verify UI updates - SeverityBadge shows count in parentheses
       await waitFor(() => {
         const hourlyCard = screen.getByTestId('summary-card-hourly');
-        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(5)');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent(
+          '(5)'
+        );
       });
     });
   });
@@ -598,7 +606,9 @@ describe('SummaryCards Integration', () => {
 
       await waitFor(() => {
         const hourlyCard = screen.getByTestId('summary-card-hourly');
-        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(1)');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent(
+          '(1)'
+        );
       });
 
       // Update hourly to have no events and no severity keywords
@@ -695,7 +705,9 @@ describe('SummaryCards Integration', () => {
       // Verify event count changed in badge
       await waitFor(() => {
         const hourlyCard = screen.getByTestId('summary-card-hourly');
-        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(3)');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent(
+          '(3)'
+        );
       });
     });
 
@@ -712,7 +724,9 @@ describe('SummaryCards Integration', () => {
 
       await waitFor(() => {
         const hourlyCard = screen.getByTestId('summary-card-hourly');
-        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(1)');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent(
+          '(1)'
+        );
       });
 
       // Update to multiple events
@@ -727,7 +741,9 @@ describe('SummaryCards Integration', () => {
 
       await waitFor(() => {
         const hourlyCard = screen.getByTestId('summary-card-hourly');
-        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent('(5)');
+        expect(hourlyCard.querySelector('[data-testid="severity-badge-count"]')).toHaveTextContent(
+          '(5)'
+        );
       });
     });
   });

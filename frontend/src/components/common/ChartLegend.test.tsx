@@ -241,13 +241,7 @@ describe('ChartLegend', () => {
     });
 
     it('uses custom valueFormatter when provided', () => {
-      render(
-        <ChartLegend
-          items={mockItems}
-          showValue
-          valueFormatter={(value) => `${value}%`}
-        />
-      );
+      render(<ChartLegend items={mockItems} showValue valueFormatter={(value) => `${value}%`} />);
 
       expect(screen.getByText('150%')).toBeInTheDocument();
       expect(screen.getByText('89%')).toBeInTheDocument();

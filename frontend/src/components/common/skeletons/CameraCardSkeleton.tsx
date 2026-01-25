@@ -23,16 +23,8 @@ export default function CameraCardSkeleton({ className }: CameraCardSkeletonProp
       role="presentation"
     >
       {/* Thumbnail area */}
-      <div
-        className="relative aspect-video w-full"
-        data-testid="camera-card-skeleton-thumbnail"
-      >
-        <Skeleton
-          variant="rectangular"
-          width="100%"
-          height="100%"
-          animation="shimmer"
-        />
+      <div className="relative aspect-video w-full" data-testid="camera-card-skeleton-thumbnail">
+        <Skeleton variant="rectangular" width="100%" height="100%" animation="shimmer" />
         {/* Status indicator badge */}
         <div
           className="absolute right-2 top-2 flex items-center gap-1.5 rounded-full bg-black/80 px-2 py-1"

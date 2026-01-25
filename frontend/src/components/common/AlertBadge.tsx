@@ -106,12 +106,12 @@ const AlertBadge = forwardRef<HTMLButtonElement, AlertBadgeProps>(function Alert
       className={clsx(
         // Base styles - NVIDIA dark theme
         'inline-flex items-center rounded-lg font-medium',
-        'bg-nvidia-surface border border-nvidia-border',
+        'bg-nvidia-surface border-nvidia-border border',
         'text-nvidia-text-secondary',
         'transition-all duration-200 ease-in-out',
         // Hover and focus states
         'hover:bg-nvidia-surface-light hover:border-nvidia-border-light',
-        'focus:outline-none focus:ring-2 focus:ring-nvidia-green/50 focus:ring-offset-2 focus:ring-offset-nvidia-bg',
+        'focus:ring-nvidia-green/50 focus:ring-offset-nvidia-bg focus:outline-none focus:ring-2 focus:ring-offset-2',
         // Active state when drawer is open
         isOpen && 'bg-nvidia-surface-light border-nvidia-green/50',
         // Animation for new alerts
@@ -139,12 +139,12 @@ const AlertBadge = forwardRef<HTMLButtonElement, AlertBadgeProps>(function Alert
             <span
               className={clsx(
                 'inline-flex items-center justify-center gap-0.5 rounded-full px-1.5',
-                'bg-risk-critical/20 text-risk-critical font-semibold',
+                'bg-risk-critical/20 font-semibold text-risk-critical',
                 sizeClasses.count
               )}
               data-testid="alert-badge-critical"
             >
-              <AlertOctagon className="w-3 h-3" />
+              <AlertOctagon className="h-3 w-3" />
               <span>{critical}</span>
             </span>
           )}
@@ -154,12 +154,12 @@ const AlertBadge = forwardRef<HTMLButtonElement, AlertBadgeProps>(function Alert
             <span
               className={clsx(
                 'inline-flex items-center justify-center gap-0.5 rounded-full px-1.5',
-                'bg-risk-medium/20 text-risk-medium font-semibold',
+                'bg-risk-medium/20 font-semibold text-risk-medium',
                 sizeClasses.count
               )}
               data-testid="alert-badge-warning"
             >
-              <AlertTriangle className="w-3 h-3" />
+              <AlertTriangle className="h-3 w-3" />
               <span>{warning}</span>
             </span>
           )}
@@ -174,7 +174,7 @@ const AlertBadge = forwardRef<HTMLButtonElement, AlertBadgeProps>(function Alert
               )}
               data-testid="alert-badge-info"
             >
-              <Info className="w-3 h-3" />
+              <Info className="h-3 w-3" />
               <span>{info}</span>
             </span>
           )}

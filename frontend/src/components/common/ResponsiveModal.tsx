@@ -10,7 +10,7 @@ import BottomSheet from './BottomSheet';
 import { useIsMobile } from '../../hooks/useMediaQuery';
 
 import type { ModalSize } from './AnimatedModal';
-import type { BottomSheetHeight , ModalTransitionVariant } from './animations';
+import type { BottomSheetHeight, ModalTransitionVariant } from './animations';
 import type { ReactNode } from 'react';
 
 export interface ResponsiveModalProps {

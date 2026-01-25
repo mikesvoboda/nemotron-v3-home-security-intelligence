@@ -2,11 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach, type Mock } from 'vitest';
 
-import EventCard, {
-  CollapsibleDetections,
-  type Detection,
-  type EventCardProps,
-} from './EventCard';
+import EventCard, { CollapsibleDetections, type Detection, type EventCardProps } from './EventCard';
 
 describe('EventCard', () => {
   // Base time for consistent testing
@@ -1656,9 +1652,7 @@ describe('EventCard', () => {
       return {
         mockMediaQuery,
         triggerChange: (newValue: boolean) => {
-          listeners.forEach((listener) =>
-            listener({ matches: newValue } as MediaQueryListEvent)
-          );
+          listeners.forEach((listener) => listener({ matches: newValue } as MediaQueryListEvent));
         },
       };
     };

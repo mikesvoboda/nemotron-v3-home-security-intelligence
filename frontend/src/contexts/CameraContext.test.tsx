@@ -7,11 +7,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  CameraProvider,
-  useCameraContext,
-  useCameraContextOptional,
-} from './CameraContext';
+import { CameraProvider, useCameraContext, useCameraContextOptional } from './CameraContext';
 import { useCamerasQuery } from '../hooks/useCamerasQuery';
 
 import type { Camera } from '../services/api';
@@ -121,7 +117,9 @@ describe('CameraContext', () => {
 
       expect(result.current.getCameraName('front_door')).toBe('Front Door');
       expect(result.current.getCameraName('nonexistent')).toBe('Unknown Camera');
-      expect(result.current.getCameraName('nonexistent', 'Custom Fallback')).toBe('Custom Fallback');
+      expect(result.current.getCameraName('nonexistent', 'Custom Fallback')).toBe(
+        'Custom Fallback'
+      );
     });
 
     it('provides loading state', () => {

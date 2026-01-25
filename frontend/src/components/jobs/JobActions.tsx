@@ -36,7 +36,10 @@ export interface JobActionsProps {
   /** Compact mode shows icon-only buttons */
   compact?: boolean;
   /** Callback when an action succeeds */
-  onSuccess?: (action: JobActionType, response: JobCancelResponse | JobAbortResponse | JobResponse) => void;
+  onSuccess?: (
+    action: JobActionType,
+    response: JobCancelResponse | JobAbortResponse | JobResponse
+  ) => void;
   /** Callback when an action fails */
   onError?: (action: JobActionType, error: Error) => void;
   /** Callback after successful delete (e.g., navigate away) */
@@ -59,21 +62,24 @@ interface DialogConfig {
 const dialogConfigs: Record<'cancel' | 'abort' | 'delete', DialogConfig> = {
   cancel: {
     title: 'Cancel Job',
-    description: 'This will gracefully stop the job. The job will complete its current operation before stopping.',
+    description:
+      'This will gracefully stop the job. The job will complete its current operation before stopping.',
     confirmLabel: 'Cancel Job',
     variant: 'warning',
     loadingText: 'Cancelling...',
   },
   abort: {
     title: 'Force Abort Job',
-    description: 'WARNING: This will forcefully terminate the job immediately. This may cause data inconsistency if the job was in the middle of an operation.',
+    description:
+      'WARNING: This will forcefully terminate the job immediately. This may cause data inconsistency if the job was in the middle of an operation.',
     confirmLabel: 'Force Abort',
     variant: 'danger',
     loadingText: 'Aborting...',
   },
   delete: {
     title: 'Delete Job',
-    description: 'This action cannot be undone. The job record will be permanently deleted from the database.',
+    description:
+      'This action cannot be undone. The job record will be permanently deleted from the database.',
     confirmLabel: 'Delete Job',
     variant: 'danger',
     loadingText: 'Deleting...',
@@ -194,44 +200,48 @@ const JobActions = memo(function JobActions({
     <>
       <div className="flex items-center gap-2">
         {/* Cancel Button */}
-        {canCancel && renderButton(
-          'cancel',
-          <XCircle className="h-4 w-4" />,
-          'Cancel',
-          () => setActiveDialog('cancel'),
-          isCancelling,
-          buttonStyles.cancel
-        )}
+        {canCancel &&
+          renderButton(
+            'cancel',
+            <XCircle className="h-4 w-4" />,
+            'Cancel',
+            () => setActiveDialog('cancel'),
+            isCancelling,
+            buttonStyles.cancel
+          )}
 
         {/* Abort Button */}
-        {canAbort && renderButton(
-          'abort',
-          <Ban className="h-4 w-4" />,
-          'Abort',
-          () => setActiveDialog('abort'),
-          isAborting,
-          buttonStyles.abort
-        )}
+        {canAbort &&
+          renderButton(
+            'abort',
+            <Ban className="h-4 w-4" />,
+            'Abort',
+            () => setActiveDialog('abort'),
+            isAborting,
+            buttonStyles.abort
+          )}
 
         {/* Retry Button - no confirmation needed */}
-        {canRetry && renderButton(
-          'retry',
-          <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />,
-          'Retry',
-          () => void handleRetry(),
-          isRetrying,
-          buttonStyles.retry
-        )}
+        {canRetry &&
+          renderButton(
+            'retry',
+            <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />,
+            'Retry',
+            () => void handleRetry(),
+            isRetrying,
+            buttonStyles.retry
+          )}
 
         {/* Delete Button */}
-        {canDelete && renderButton(
-          'delete',
-          <Trash2 className="h-4 w-4" />,
-          'Delete',
-          () => setActiveDialog('delete'),
-          isDeleting,
-          buttonStyles.delete
-        )}
+        {canDelete &&
+          renderButton(
+            'delete',
+            <Trash2 className="h-4 w-4" />,
+            'Delete',
+            () => setActiveDialog('delete'),
+            isDeleting,
+            buttonStyles.delete
+          )}
       </div>
 
       {/* Cancel Confirmation Dialog */}

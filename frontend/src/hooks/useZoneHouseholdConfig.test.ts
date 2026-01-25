@@ -183,7 +183,6 @@ describe('useZoneHouseholdConfigQuery', () => {
     expect(result.current.data).toBeNull();
     expect(result.current.isError).toBe(false);
   });
-
 });
 // Note: Error handling tests work correctly when the backend returns errors.
 // In local tests with MSW, error responses may be swallowed.
@@ -208,10 +207,9 @@ describe('useEntityTrustQuery', () => {
       })
     );
 
-    const { result } = renderHook(
-      () => useEntityTrustQuery(mockZoneId, 'member', 1),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useEntityTrustQuery(mockZoneId, 'member', 1), {
+      wrapper: createQueryWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -231,20 +229,18 @@ describe('useEntityTrustQuery', () => {
   });
 
   it('should not fetch with invalid entityId (0)', () => {
-    const { result } = renderHook(
-      () => useEntityTrustQuery(mockZoneId, 'member', 0),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useEntityTrustQuery(mockZoneId, 'member', 0), {
+      wrapper: createQueryWrapper(),
+    });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.isFetching).toBe(false);
   });
 
   it('should not fetch with empty zoneId', () => {
-    const { result } = renderHook(
-      () => useEntityTrustQuery('', 'member', 1),
-      { wrapper: createQueryWrapper() }
-    );
+    const { result } = renderHook(() => useEntityTrustQuery('', 'member', 1), {
+      wrapper: createQueryWrapper(),
+    });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.isFetching).toBe(false);

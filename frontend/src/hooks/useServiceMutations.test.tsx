@@ -111,10 +111,7 @@ describe('useServiceMutations', () => {
     it('should handle service not found (404 error)', async () => {
       server.use(
         http.post('/api/system/services/nonexistent/restart', () => {
-          return HttpResponse.json(
-            { detail: "Service 'nonexistent' not found" },
-            { status: 404 }
-          );
+          return HttpResponse.json({ detail: "Service 'nonexistent' not found" }, { status: 404 });
         })
       );
 
@@ -199,10 +196,7 @@ describe('useServiceMutations', () => {
     it('should handle service not found (404 error)', async () => {
       server.use(
         http.post('/api/system/services/nonexistent/start', () => {
-          return HttpResponse.json(
-            { detail: "Service 'nonexistent' not found" },
-            { status: 404 }
-          );
+          return HttpResponse.json({ detail: "Service 'nonexistent' not found" }, { status: 404 });
         })
       );
 
@@ -243,10 +237,7 @@ describe('useServiceMutations', () => {
     it('should handle service not found (404 error)', async () => {
       server.use(
         http.post('/api/system/services/nonexistent/disable', () => {
-          return HttpResponse.json(
-            { detail: "Service 'nonexistent' not found" },
-            { status: 404 }
-          );
+          return HttpResponse.json({ detail: "Service 'nonexistent' not found" }, { status: 404 });
         })
       );
 
@@ -287,10 +278,7 @@ describe('useServiceMutations', () => {
     it('should handle service not found (404 error)', async () => {
       server.use(
         http.post('/api/system/services/nonexistent/enable', () => {
-          return HttpResponse.json(
-            { detail: "Service 'nonexistent' not found" },
-            { status: 404 }
-          );
+          return HttpResponse.json({ detail: "Service 'nonexistent' not found" }, { status: 404 });
         })
       );
 

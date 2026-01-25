@@ -116,14 +116,7 @@ export function SummaryCard({
 
   // Error state - use SummaryCardError component
   if (error && onRetry) {
-    return (
-      <SummaryCardError
-        type={type}
-        error={error}
-        onRetry={onRetry}
-        isRetrying={isRetrying}
-      />
-    );
+    return <SummaryCardError type={type} error={error} onRetry={onRetry} isRetrying={isRetrying} />;
   }
 
   // Empty state - show when no summary data is available
@@ -138,11 +131,7 @@ export function SummaryCard({
     : 'relative mb-4 overflow-hidden border-gray-800 bg-[#1A1A1A] pl-4';
 
   return (
-    <Card
-      className={cardClass}
-      data-testid={`summary-card-${type}`}
-      data-severity={severity.level}
-    >
+    <Card className={cardClass} data-testid={`summary-card-${type}`} data-severity={severity.level}>
       {/* Left accent bar */}
       <div
         className="absolute bottom-0 left-0 top-0 w-1"

@@ -27,8 +27,7 @@ const mockCurrentResult: TestResult = {
 const mockModifiedResult: TestResult = {
   riskScore: 85,
   riskLevel: 'critical',
-  reasoning:
-    'Person detected near entrance exhibiting highly suspicious behavior.',
+  reasoning: 'Person detected near entrance exhibiting highly suspicious behavior.',
   summary: 'Critical risk activity detected at front door.',
   processingTimeMs: 1400,
   tokensUsed: 520,
@@ -50,12 +49,7 @@ const mockLowerResult: TestResult = {
 describe('TestResultsComparison', () => {
   describe('rendering', () => {
     it('renders the component', () => {
-      render(
-        <TestResultsComparison
-          currentResult={null}
-          modifiedResult={null}
-        />
-      );
+      render(<TestResultsComparison currentResult={null} modifiedResult={null} />);
 
       expect(screen.getByTestId('test-results-comparison')).toBeInTheDocument();
     });
@@ -85,13 +79,7 @@ describe('TestResultsComparison', () => {
     });
 
     it('renders loading state', () => {
-      render(
-        <TestResultsComparison
-          currentResult={null}
-          modifiedResult={null}
-          isLoading={true}
-        />
-      );
+      render(<TestResultsComparison currentResult={null} modifiedResult={null} isLoading={true} />);
 
       expect(screen.getAllByText(/Running inference/i)).toHaveLength(2);
     });
@@ -100,23 +88,14 @@ describe('TestResultsComparison', () => {
       const errorMessage = 'Failed to run inference';
 
       render(
-        <TestResultsComparison
-          currentResult={null}
-          modifiedResult={null}
-          error={errorMessage}
-        />
+        <TestResultsComparison currentResult={null} modifiedResult={null} error={errorMessage} />
       );
 
       expect(screen.getByText(errorMessage)).toBeInTheDocument();
     });
 
     it('renders no results message when results are null', () => {
-      render(
-        <TestResultsComparison
-          currentResult={null}
-          modifiedResult={null}
-        />
-      );
+      render(<TestResultsComparison currentResult={null} modifiedResult={null} />);
 
       expect(screen.getAllByText(/No results yet/i)).toHaveLength(2);
     });
@@ -182,9 +161,7 @@ describe('TestResultsComparison', () => {
         />
       );
 
-      expect(
-        screen.getByText(/High risk activity detected at front door/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/High risk activity detected at front door/i)).toBeInTheDocument();
       expect(
         screen.getByText(/Critical risk activity detected at front door/i)
       ).toBeInTheDocument();
@@ -201,9 +178,7 @@ describe('TestResultsComparison', () => {
       expect(
         screen.getByText(/Person detected near entrance with suspicious/i)
       ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Person detected near entrance exhibiting/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Person detected near entrance exhibiting/i)).toBeInTheDocument();
     });
   });
 
@@ -221,12 +196,7 @@ describe('TestResultsComparison', () => {
     });
 
     it('does not show delta summary when results are null', () => {
-      render(
-        <TestResultsComparison
-          currentResult={null}
-          modifiedResult={null}
-        />
-      );
+      render(<TestResultsComparison currentResult={null} modifiedResult={null} />);
 
       expect(screen.queryByTestId('delta-summary')).not.toBeInTheDocument();
     });
@@ -245,10 +215,7 @@ describe('TestResultsComparison', () => {
 
     it('shows negative delta with down arrow when score decreases', () => {
       render(
-        <TestResultsComparison
-          currentResult={mockCurrentResult}
-          modifiedResult={mockLowerResult}
-        />
+        <TestResultsComparison currentResult={mockCurrentResult} modifiedResult={mockLowerResult} />
       );
 
       // Modified score (45) - Current score (72) = -27
@@ -305,12 +272,7 @@ describe('TestResultsComparison', () => {
 
   describe('partial results', () => {
     it('handles only current result', () => {
-      render(
-        <TestResultsComparison
-          currentResult={mockCurrentResult}
-          modifiedResult={null}
-        />
-      );
+      render(<TestResultsComparison currentResult={mockCurrentResult} modifiedResult={null} />);
 
       expect(screen.getByTestId('result-card-current')).toBeInTheDocument();
       expect(screen.getByText('72')).toBeInTheDocument();
@@ -319,12 +281,7 @@ describe('TestResultsComparison', () => {
     });
 
     it('handles only modified result', () => {
-      render(
-        <TestResultsComparison
-          currentResult={null}
-          modifiedResult={mockModifiedResult}
-        />
-      );
+      render(<TestResultsComparison currentResult={null} modifiedResult={mockModifiedResult} />);
 
       expect(screen.getByTestId('result-card-modified')).toBeInTheDocument();
       expect(screen.getByText('85')).toBeInTheDocument();

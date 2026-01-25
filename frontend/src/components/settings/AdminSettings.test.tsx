@@ -192,9 +192,13 @@ describe('AdminSettings', () => {
       ).toBeInTheDocument();
       expect(screen.getByTestId('feature-toggle-reid_enabled-switch')).toBeInTheDocument();
       expect(screen.getByTestId('feature-toggle-scene_change_enabled-switch')).toBeInTheDocument();
-      expect(screen.getByTestId('feature-toggle-clip_generation_enabled-switch')).toBeInTheDocument();
+      expect(
+        screen.getByTestId('feature-toggle-clip_generation_enabled-switch')
+      ).toBeInTheDocument();
       expect(screen.getByTestId('feature-toggle-image_quality_enabled-switch')).toBeInTheDocument();
-      expect(screen.getByTestId('feature-toggle-background_eval_enabled-switch')).toBeInTheDocument();
+      expect(
+        screen.getByTestId('feature-toggle-background_eval_enabled-switch')
+      ).toBeInTheDocument();
     });
 
     it('all feature toggles are enabled by default', () => {
@@ -569,9 +573,7 @@ describe('AdminSettings', () => {
       // Use getAllByRole since there are multiple "Clear Cache" buttons/text
       const confirmButtons = screen.getAllByRole('button', { name: /Clear Cache/ });
       // The confirm button should be the one in the dialog
-      const confirmButton = confirmButtons.find(
-        (btn) => btn.closest('[role="dialog"]') !== null
-      );
+      const confirmButton = confirmButtons.find((btn) => btn.closest('[role="dialog"]') !== null);
       expect(confirmButton).toBeDefined();
       await user.click(confirmButton!);
 
@@ -746,9 +748,7 @@ describe('AdminSettings', () => {
       await waitFor(() => {
         expect(screen.getByText('Create 5 test cameras with realistic names')).toBeInTheDocument();
         expect(screen.getByText('Create 50 test events with detections')).toBeInTheDocument();
-        expect(
-          screen.getByText('Delete all cameras, events, and detections')
-        ).toBeInTheDocument();
+        expect(screen.getByText('Delete all cameras, events, and detections')).toBeInTheDocument();
       });
     });
   });

@@ -233,15 +233,15 @@ describe('JobsPage', () => {
       // The JobHeader component formats the title as "Export #001" (extracts numeric ID)
       await waitFor(() => {
         const detailPanel = screen.getByTestId('job-detail-panel');
-        expect(within(detailPanel).getByRole('heading', { level: 2 })).toHaveTextContent('Export #001');
+        expect(within(detailPanel).getByRole('heading', { level: 2 })).toHaveTextContent(
+          'Export #001'
+        );
       });
     });
 
     it('updates detail panel when different job is selected', async () => {
       vi.mocked(api.searchJobs).mockResolvedValue(mockJobsResponse);
-      vi.mocked(api.fetchJob)
-        .mockResolvedValueOnce(mockJobs[0])
-        .mockResolvedValueOnce(mockJobs[1]);
+      vi.mocked(api.fetchJob).mockResolvedValueOnce(mockJobs[0]).mockResolvedValueOnce(mockJobs[1]);
 
       const user = userEvent.setup();
       renderWithProviders(<JobsPage />);
@@ -254,14 +254,18 @@ describe('JobsPage', () => {
       await user.click(screen.getByTestId('job-item-job-001'));
       await waitFor(() => {
         const detailPanel = screen.getByTestId('job-detail-panel');
-        expect(within(detailPanel).getByRole('heading', { level: 2 })).toHaveTextContent('Export #001');
+        expect(within(detailPanel).getByRole('heading', { level: 2 })).toHaveTextContent(
+          'Export #001'
+        );
       });
 
       // Click second job
       await user.click(screen.getByTestId('job-item-job-002'));
       await waitFor(() => {
         const detailPanel = screen.getByTestId('job-detail-panel');
-        expect(within(detailPanel).getByRole('heading', { level: 2 })).toHaveTextContent('Export #002');
+        expect(within(detailPanel).getByRole('heading', { level: 2 })).toHaveTextContent(
+          'Export #002'
+        );
       });
     });
   });
@@ -276,9 +280,7 @@ describe('JobsPage', () => {
         expect(screen.getByText('No Background Jobs')).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText(/Jobs appear here when you schedule exports/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Jobs appear here when you schedule exports/i)).toBeInTheDocument();
     });
 
     it('shows correct text in empty state', async () => {
@@ -357,9 +359,7 @@ describe('JobsPage', () => {
       await user.selectOptions(filterSelect, 'running');
 
       await waitFor(() => {
-        expect(api.searchJobs).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'running' })
-        );
+        expect(api.searchJobs).toHaveBeenCalledWith(expect.objectContaining({ status: 'running' }));
       });
     });
   });

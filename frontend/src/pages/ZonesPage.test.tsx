@@ -55,17 +55,13 @@ vi.mock('../hooks/useZones', () => ({
 // Mock the zone components to simplify testing
 vi.mock('../components/zones/ZoneTrustMatrix', () => ({
   default: vi.fn(({ zones }) => (
-    <div data-testid="zone-trust-matrix">
-      Trust Matrix: {zones.length} zones
-    </div>
+    <div data-testid="zone-trust-matrix">Trust Matrix: {zones.length} zones</div>
   )),
 }));
 
 vi.mock('../components/zones/ZoneAnomalyFeed', () => ({
   default: vi.fn(({ hoursLookback }) => (
-    <div data-testid="zone-anomaly-feed">
-      Anomaly Feed: {hoursLookback}h lookback
-    </div>
+    <div data-testid="zone-anomaly-feed">Anomaly Feed: {hoursLookback}h lookback</div>
   )),
 }));
 
@@ -115,7 +111,12 @@ function createMockZone(overrides: Partial<Zone> = {}): Zone {
     name: 'Entry Zone',
     zone_type: 'entry_point',
     shape: 'polygon',
-    coordinates: [[0, 0], [100, 0], [100, 100], [0, 100]],
+    coordinates: [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+      [0, 100],
+    ],
     enabled: true,
     color: '#ff0000',
     priority: 1,
@@ -128,14 +129,16 @@ function createMockZone(overrides: Partial<Zone> = {}): Zone {
 /**
  * Sets up the default mocks for cameras and zones.
  */
-function setupMocks(options: {
-  cameras?: Camera[];
-  zones?: Zone[];
-  camerasLoading?: boolean;
-  zonesLoading?: boolean;
-  camerasError?: Error | null;
-  zonesError?: Error | null;
-} = {}) {
+function setupMocks(
+  options: {
+    cameras?: Camera[];
+    zones?: Zone[];
+    camerasLoading?: boolean;
+    zonesLoading?: boolean;
+    camerasError?: Error | null;
+    zonesError?: Error | null;
+  } = {}
+) {
   const {
     cameras = [createMockCamera()],
     zones = [createMockZone()],
@@ -243,9 +246,7 @@ describe('ZonesPage', () => {
         expect(screen.getByText('No zones configured')).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText(/Create zones in the camera settings/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Create zones in the camera settings/i)).toBeInTheDocument();
     });
 
     it('shows empty state when no cameras exist', async () => {
@@ -337,7 +338,9 @@ describe('ZonesPage', () => {
       renderZonesPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { level: 1, name: /zone intelligence/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole('heading', { level: 1, name: /zone intelligence/i })
+        ).toBeInTheDocument();
       });
 
       expect(screen.getByText(/monitor and manage 2 zones/i)).toBeInTheDocument();
@@ -452,9 +455,7 @@ describe('ZonesPage', () => {
 
     it('shows message when no zones match filter', async () => {
       setupMocks({
-        zones: [
-          createMockZone({ id: 'zone-1', name: 'Entry Zone', zone_type: 'entry_point' }),
-        ],
+        zones: [createMockZone({ id: 'zone-1', name: 'Entry Zone', zone_type: 'entry_point' })],
       });
 
       const { user } = renderZonesPage();
@@ -677,7 +678,9 @@ describe('ZonesPage', () => {
       });
 
       const overviewPanel = screen.getByTestId('panel-overview');
-      const toggleButton = within(overviewPanel).getByRole('button', { name: /enter full screen/i });
+      const toggleButton = within(overviewPanel).getByRole('button', {
+        name: /enter full screen/i,
+      });
 
       await user.click(toggleButton);
 
@@ -841,7 +844,9 @@ describe('ZonesPage', () => {
       renderZonesPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { level: 1, name: /zone intelligence/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole('heading', { level: 1, name: /zone intelligence/i })
+        ).toBeInTheDocument();
       });
     });
 

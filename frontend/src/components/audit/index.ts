@@ -7,6 +7,9 @@ export { default as AuditDetailModal } from './AuditDetailModal';
 export { default as EventAuditDetail } from './EventAuditDetail';
 
 export type { AuditEntry } from './AuditTable';
-export type { AuditEntry as AuditEntryInfinite, AuditTableInfiniteProps } from './AuditTableInfinite';
+export type {
+  AuditEntry as AuditEntryInfinite,
+  AuditTableInfiniteProps,
+} from './AuditTableInfinite';
 export type { AuditFilterParams } from './AuditFilters';
 export type { EventAuditDetailProps } from './EventAuditDetail';

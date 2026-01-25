@@ -46,8 +46,7 @@ const mockRestorePromptVersion = vi.fn();
 const mockTestPrompt = vi.fn();
 
 vi.mock('../../services/promptManagementApi', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('../../services/promptManagementApi')>();
+  const actual = await importOriginal<typeof import('../../services/promptManagementApi')>();
   return {
     ...actual,
     fetchPromptForModel: (...args: unknown[]) => mockFetchPromptForModel(...args),
@@ -430,18 +429,12 @@ describe('useUpdatePromptConfig', () => {
     });
 
     expect(result.current.data).toEqual(mockPromptConfig);
-    expect(mockUpdatePromptForModel).toHaveBeenCalledWith(
-      mockModel,
-      variables.request
-    );
+    expect(mockUpdatePromptForModel).toHaveBeenCalledWith(mockModel, variables.request);
   });
 
   it('tracks pending state correctly', async () => {
     mockUpdatePromptForModel.mockImplementation(
-      () =>
-        new Promise((resolve) =>
-          setTimeout(() => resolve(mockPromptConfig), 100)
-        )
+      () => new Promise((resolve) => setTimeout(() => resolve(mockPromptConfig), 100))
     );
 
     const { result } = renderHook(() => useUpdatePromptConfig(), {

@@ -14,10 +14,7 @@ export interface EntityCardSkeletonProps {
 export default function EntityCardSkeleton({ className }: EntityCardSkeletonProps) {
   return (
     <div
-      className={clsx(
-        'rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 shadow-lg',
-        className
-      )}
+      className={clsx('rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 shadow-lg', className)}
       data-testid="entity-card-skeleton"
       aria-hidden="true"
       role="presentation"

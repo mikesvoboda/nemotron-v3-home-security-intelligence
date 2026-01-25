@@ -71,13 +71,7 @@ function LoadingState() {
 /**
  * Error state component
  */
-function ErrorState({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry: () => void;
-}) {
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div
       className="rounded-lg border border-red-500/30 bg-red-500/10 p-4"
@@ -341,9 +335,7 @@ function TopObjectsTable({
               return (
                 <tr key={`${obj.type_name}-${index}`} className="border-b border-gray-800">
                   <td className="py-2 pr-4 font-mono text-gray-200">{obj.type_name}</td>
-                  <td className="py-2 pr-4 text-right text-gray-300">
-                    {formatNumber(obj.count)}
-                  </td>
+                  <td className="py-2 pr-4 text-right text-gray-300">{formatNumber(obj.count)}</td>
                   <td className="py-2 pr-4 text-right text-gray-300">{obj.size_human}</td>
                   <td className="py-2 pr-4">
                     <div className="flex items-center gap-2">
@@ -405,7 +397,9 @@ export default function MemorySnapshotPanel({ className }: MemorySnapshotPanelPr
   const handleTriggerGc = useCallback(async () => {
     try {
       const result = await triggerGc();
-      success(`GC completed: ${result.collected.total} objects collected, ${result.memory.freed_human} freed`);
+      success(
+        `GC completed: ${result.collected.total} objects collected, ${result.memory.freed_human} freed`
+      );
     } catch {
       showError('Failed to trigger garbage collection');
     }
@@ -480,12 +474,7 @@ export default function MemorySnapshotPanel({ className }: MemorySnapshotPanelPr
       </div>
 
       {/* Production Warning */}
-      <Callout
-        title="Performance Impact"
-        icon={AlertTriangle}
-        color="yellow"
-        className="mb-4"
-      >
+      <Callout title="Performance Impact" icon={AlertTriangle} color="yellow" className="mb-4">
         <span className="text-sm">
           Force GC may impact performance temporarily. Tracemalloc adds memory tracking overhead.
           Use in development or during debugging only.
@@ -530,10 +519,7 @@ export default function MemorySnapshotPanel({ className }: MemorySnapshotPanelPr
           />
 
           {/* Top Objects Table */}
-          <TopObjectsTable
-            objects={data.top_objects}
-            totalRss={data.process_rss_bytes}
-          />
+          <TopObjectsTable objects={data.top_objects} totalRss={data.process_rss_bytes} />
 
           {/* Last Updated */}
           <div className="flex items-center gap-2 text-xs text-gray-500">

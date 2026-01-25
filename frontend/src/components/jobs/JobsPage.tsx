@@ -241,11 +241,7 @@ export default function JobsPage() {
           <div className="flex w-full flex-col overflow-hidden rounded-lg border border-gray-800 bg-[#1F1F1F] md:w-1/3 lg:w-2/5">
             {/* Jobs List or Empty Search State */}
             {jobs.length > 0 ? (
-              <JobsList
-                jobs={jobs}
-                selectedJobId={selectedJobId}
-                onSelectJob={handleSelectJob}
-              />
+              <JobsList jobs={jobs} selectedJobId={selectedJobId} onSelectJob={handleSelectJob} />
             ) : (
               <div className="flex flex-1 items-center justify-center p-4">
                 <p className="text-sm text-gray-500">No jobs match your search</p>

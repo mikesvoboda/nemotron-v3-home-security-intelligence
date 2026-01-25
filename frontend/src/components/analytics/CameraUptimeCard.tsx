@@ -13,10 +13,7 @@ import { Card, Title, Text } from '@tremor/react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { useMemo } from 'react';
 
-import {
-  useCameraUptimeQuery,
-  type CameraUptimeDateRange,
-} from '../../hooks/useCameraUptimeQuery';
+import { useCameraUptimeQuery, type CameraUptimeDateRange } from '../../hooks/useCameraUptimeQuery';
 
 // ============================================================================
 // Types

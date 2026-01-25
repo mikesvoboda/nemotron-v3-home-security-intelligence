@@ -48,13 +48,7 @@ import type { ZoneAnomalyAlertProps } from '../../types/zoneAnomaly';
 /**
  * Get the severity icon component based on severity level.
  */
-function SeverityIcon({
-  severity,
-  className,
-}: {
-  severity: AnomalySeverity;
-  className?: string;
-}) {
+function SeverityIcon({ severity, className }: { severity: AnomalySeverity; className?: string }) {
   const iconProps = { className: clsx('h-5 w-5', className) };
 
   switch (severity) {
@@ -71,13 +65,7 @@ function SeverityIcon({
 /**
  * Get the anomaly type icon component.
  */
-function AnomalyTypeIcon({
-  type,
-  className,
-}: {
-  type: AnomalyType;
-  className?: string;
-}) {
+function AnomalyTypeIcon({ type, className }: { type: AnomalyType; className?: string }) {
   const iconProps = { className: clsx('h-4 w-4', className) };
 
   switch (type) {
@@ -178,12 +166,7 @@ function ZoneAnomalyAlertComponent({
       {/* Header with severity icon and title */}
       <div className="flex items-start gap-3">
         {/* Severity Icon */}
-        <div
-          className={clsx(
-            'mt-0.5 shrink-0 rounded-full p-1.5',
-            severityConfig.bgColor
-          )}
-        >
+        <div className={clsx('mt-0.5 shrink-0 rounded-full p-1.5', severityConfig.bgColor)}>
           <SeverityIcon severity={anomaly.severity} className={severityConfig.color} />
         </div>
 
@@ -278,25 +261,19 @@ function ZoneAnomalyAlertComponent({
               {anomaly.expected_value !== null && (
                 <span>
                   Expected:{' '}
-                  <span className="text-text-secondary">
-                    {anomaly.expected_value.toFixed(1)}
-                  </span>
+                  <span className="text-text-secondary">{anomaly.expected_value.toFixed(1)}</span>
                 </span>
               )}
               {anomaly.actual_value !== null && (
                 <span>
                   Actual:{' '}
-                  <span className={severityConfig.color}>
-                    {anomaly.actual_value.toFixed(1)}
-                  </span>
+                  <span className={severityConfig.color}>{anomaly.actual_value.toFixed(1)}</span>
                 </span>
               )}
               {anomaly.deviation !== null && (
                 <span>
                   Deviation:{' '}
-                  <span className={severityConfig.color}>
-                    {anomaly.deviation.toFixed(1)} std
-                  </span>
+                  <span className={severityConfig.color}>{anomaly.deviation.toFixed(1)} std</span>
                 </span>
               )}
             </div>

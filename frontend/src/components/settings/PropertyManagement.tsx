@@ -606,7 +606,15 @@ export default function PropertyManagement({ householdId, className }: PropertyM
         });
       }
     },
-    [areaForm, editingArea, areaPropertyId, validateAreaForm, createArea, updateArea, handleCloseAreaModal]
+    [
+      areaForm,
+      editingArea,
+      areaPropertyId,
+      validateAreaForm,
+      createArea,
+      updateArea,
+      handleCloseAreaModal,
+    ]
   );
 
   const handleOpenDeleteAreaModal = useCallback((area: AreaResponse) => {
@@ -677,9 +685,7 @@ export default function PropertyManagement({ householdId, className }: PropertyM
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-text-primary">Properties</h2>
-          <p className="mt-1 text-sm text-text-secondary">
-            Manage your properties and their areas
-          </p>
+          <p className="mt-1 text-sm text-text-secondary">Manage your properties and their areas</p>
         </div>
         <button
           onClick={handleOpenAddPropertyModal}

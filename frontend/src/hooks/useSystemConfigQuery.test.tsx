@@ -23,9 +23,7 @@ function createTestQueryClient() {
 function createWrapper() {
   const queryClient = createTestQueryClient();
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
+    return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
   };
 }
 
@@ -173,10 +171,9 @@ describe('useSystemConfigQuery', () => {
       })
     );
 
-    const { result } = renderHook(
-      () => useSystemConfigQuery({ staleTime: 1000 }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSystemConfigQuery({ staleTime: 1000 }), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);

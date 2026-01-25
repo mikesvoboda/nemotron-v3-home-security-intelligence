@@ -13,11 +13,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import * as React from 'react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import {
-  ApiErrorBoundary,
-  ApiErrorFallback,
-  useApiErrorHandler,
-} from './ApiErrorBoundary';
+import { ApiErrorBoundary, ApiErrorFallback, useApiErrorHandler } from './ApiErrorBoundary';
 import { ApiError } from '../../services/api';
 import { ErrorCode } from '../../utils/error-handling';
 
@@ -468,12 +464,7 @@ describe('ApiErrorFallback', () => {
     const error = new ApiError(500, 'Test error message');
 
     render(
-      <ApiErrorFallback
-        error={error}
-        isTransient={false}
-        onRetry={() => {}}
-        onRefresh={() => {}}
-      />
+      <ApiErrorFallback error={error} isTransient={false} onRetry={() => {}} onRefresh={() => {}} />
     );
 
     expect(screen.getByText(/test error message/i)).toBeInTheDocument();
@@ -516,7 +507,12 @@ describe('ApiErrorFallback', () => {
     const error = new ApiError(500, 'Internal error');
 
     render(
-      <ApiErrorFallback error={error} isTransient={false} onRetry={() => {}} onRefresh={onRefresh} />
+      <ApiErrorFallback
+        error={error}
+        isTransient={false}
+        onRetry={() => {}}
+        onRefresh={onRefresh}
+      />
     );
 
     fireEvent.click(screen.getByRole('button', { name: /refresh/i }));

@@ -83,9 +83,7 @@ describe('useJobLogsWebSocket', () => {
     });
 
     it('should connect when enabled is true', async () => {
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');
@@ -126,9 +124,7 @@ describe('useJobLogsWebSocket', () => {
 
   describe('connection status', () => {
     it('should report connected status when WebSocket opens', async () => {
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       // Initially disconnected
       expect(result.current.status).toBe('disconnected');
@@ -148,9 +144,7 @@ describe('useJobLogsWebSocket', () => {
         lastHeartbeat: null,
       });
 
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');
@@ -168,9 +162,7 @@ describe('useJobLogsWebSocket', () => {
     });
 
     it('should report failed status when max retries exhausted', async () => {
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');
@@ -192,9 +184,7 @@ describe('useJobLogsWebSocket', () => {
         lastHeartbeat: null,
       });
 
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');
@@ -212,9 +202,7 @@ describe('useJobLogsWebSocket', () => {
 
   describe('log message handling', () => {
     it('should append log entries when receiving log messages', async () => {
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');
@@ -242,9 +230,7 @@ describe('useJobLogsWebSocket', () => {
     });
 
     it('should deduplicate logs based on timestamp and message', async () => {
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');
@@ -270,9 +256,7 @@ describe('useJobLogsWebSocket', () => {
     });
 
     it('should maintain log order by timestamp', async () => {
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');
@@ -302,9 +286,7 @@ describe('useJobLogsWebSocket', () => {
     });
 
     it('should handle log messages with context data', async () => {
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');
@@ -331,9 +313,7 @@ describe('useJobLogsWebSocket', () => {
     });
 
     it('should handle different log levels (DEBUG, INFO, WARNING, ERROR)', async () => {
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');
@@ -384,9 +364,7 @@ describe('useJobLogsWebSocket', () => {
 
     it('should call onConnect callback when connected', async () => {
       const onConnect = vi.fn();
-      renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true, onConnect })
-      );
+      renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true, onConnect }));
 
       await waitFor(() => {
         expect(onConnect).toHaveBeenCalled();
@@ -412,9 +390,7 @@ describe('useJobLogsWebSocket', () => {
 
     it('should call onError callback when error occurs', async () => {
       const onError = vi.fn();
-      renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true, onError })
-      );
+      renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true, onError }));
 
       await waitFor(() => {
         expect(lastSubscriber).not.toBeNull();
@@ -482,9 +458,7 @@ describe('useJobLogsWebSocket', () => {
     });
 
     it('should clear logs when clearLogs is called', async () => {
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');
@@ -515,9 +489,7 @@ describe('useJobLogsWebSocket', () => {
 
   describe('reconnection behavior', () => {
     it('should use exponential backoff for reconnection', async () => {
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');
@@ -559,9 +531,7 @@ describe('useJobLogsWebSocket', () => {
 
   describe('message type filtering', () => {
     it('should ignore non-log messages', async () => {
-      const { result } = renderHook(() =>
-        useJobLogsWebSocket({ jobId: 'job-123', enabled: true })
-      );
+      const { result } = renderHook(() => useJobLogsWebSocket({ jobId: 'job-123', enabled: true }));
 
       await waitFor(() => {
         expect(result.current.status).toBe('connected');

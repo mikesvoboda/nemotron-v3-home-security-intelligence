@@ -21,11 +21,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { cancelJob, abortJob, retryJob, deleteJob } from '../services/api';
 import { queryKeys } from '../services/queryClient';
 
-import type {
-  JobCancelResponse,
-  JobAbortResponse,
-  JobResponse,
-} from '../services/api';
+import type { JobCancelResponse, JobAbortResponse, JobResponse } from '../services/api';
 
 /**
  * Options for useJobMutations hook.

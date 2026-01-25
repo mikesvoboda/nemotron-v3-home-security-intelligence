@@ -91,10 +91,7 @@ describe('useAdminMutations', () => {
     it('should handle errors', async () => {
       server.use(
         http.post('/api/admin/seed/cameras', () => {
-          return HttpResponse.json(
-            { detail: 'Admin access not enabled' },
-            { status: 403 }
-          );
+          return HttpResponse.json({ detail: 'Admin access not enabled' }, { status: 403 });
         })
       );
 
@@ -163,7 +160,12 @@ describe('useAdminMutations', () => {
           return HttpResponse.json({
             message: 'Pipeline latency data seeded successfully',
             samples_per_stage: body.num_samples,
-            stages_seeded: ['watch_to_detect', 'detect_to_batch', 'batch_to_analyze', 'total_pipeline'],
+            stages_seeded: [
+              'watch_to_detect',
+              'detect_to_batch',
+              'batch_to_analyze',
+              'total_pipeline',
+            ],
             time_span_hours: body.time_span_hours,
           });
         })
@@ -189,7 +191,12 @@ describe('useAdminMutations', () => {
           return HttpResponse.json({
             message: 'Pipeline latency data seeded successfully',
             samples_per_stage: 100,
-            stages_seeded: ['watch_to_detect', 'detect_to_batch', 'batch_to_analyze', 'total_pipeline'],
+            stages_seeded: [
+              'watch_to_detect',
+              'detect_to_batch',
+              'batch_to_analyze',
+              'total_pipeline',
+            ],
             time_span_hours: timeSpan,
           });
         })
@@ -213,10 +220,7 @@ describe('useAdminMutations', () => {
         http.delete('/api/admin/seed/clear', async ({ request }) => {
           const body = (await request.json()) as { confirm: string };
           if (body.confirm !== 'DELETE_ALL_DATA') {
-            return HttpResponse.json(
-              { detail: 'Invalid confirmation string' },
-              { status: 400 }
-            );
+            return HttpResponse.json({ detail: 'Invalid confirmation string' }, { status: 400 });
           }
           return HttpResponse.json({
             cameras_cleared: 5,

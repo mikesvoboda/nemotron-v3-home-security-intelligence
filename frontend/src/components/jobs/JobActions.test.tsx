@@ -17,7 +17,6 @@ import JobActions from './JobActions';
 import { useJobMutations } from '../../hooks/useJobMutations';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 
-
 import type { JobStatusEnum } from '../../types/generated';
 
 // Mock the useJobMutations hook
@@ -142,7 +141,9 @@ describe('JobActions', () => {
     });
 
     it('shows confirmation dialog when delete is clicked', async () => {
-      const { user } = renderWithProviders(<JobActions job={{ ...mockJob, status: 'completed' }} />);
+      const { user } = renderWithProviders(
+        <JobActions job={{ ...mockJob, status: 'completed' }} />
+      );
 
       await user.click(screen.getByRole('button', { name: /delete/i }));
 
@@ -251,7 +252,9 @@ describe('JobActions', () => {
         reset: vi.fn(),
       });
 
-      const { user } = renderWithProviders(<JobActions job={{ ...mockJob, status: 'completed' }} />);
+      const { user } = renderWithProviders(
+        <JobActions job={{ ...mockJob, status: 'completed' }} />
+      );
 
       await user.click(screen.getByRole('button', { name: /delete/i }));
       await user.click(screen.getByTestId('dialog-confirm'));
@@ -461,7 +464,13 @@ describe('JobActions', () => {
 
     it('calls onRetry callback with new job after retry', async () => {
       const onRetry = vi.fn();
-      const newJob = { job_id: 'new-job-456', status: 'pending' as const, progress: 0, job_type: 'export', created_at: '2024-01-15T10:00:00Z' };
+      const newJob = {
+        job_id: 'new-job-456',
+        status: 'pending' as const,
+        progress: 0,
+        job_type: 'export',
+        created_at: '2024-01-15T10:00:00Z',
+      };
       const retryJob = vi.fn().mockResolvedValue(newJob);
       vi.mocked(useJobMutations).mockReturnValue({
         cancelJob: vi.fn(),

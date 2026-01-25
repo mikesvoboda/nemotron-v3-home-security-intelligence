@@ -36,7 +36,12 @@ export type { ZoneCanvasProps, Point } from './ZoneCanvas';
 export type { ZoneFormProps, ZoneFormData } from './ZoneForm';
 export type { ZoneListProps } from './ZoneList';
 export type { ZoneStatusCardProps, ActivityLevel, ZoneStatus } from './ZoneStatusCard';
-export type { ZoneActivityHeatmapProps, HeatmapTimeRange, HeatmapDataPoint, HourlyActivity } from './ZoneActivityHeatmap';
+export type {
+  ZoneActivityHeatmapProps,
+  HeatmapTimeRange,
+  HeatmapDataPoint,
+  HourlyActivity,
+} from './ZoneActivityHeatmap';
 export type { ZoneOwnershipPanelProps } from './ZoneOwnershipPanel';
 export type { CameraZoneOverlayProps, OverlayMode } from './CameraZoneOverlay';
 export type { ZoneAlertFeedProps } from '../../types/zoneAlert';

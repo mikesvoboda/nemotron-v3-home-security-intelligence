@@ -123,26 +123,20 @@ export default function GpuSettingsPage() {
   // Handlers
   // ============================================================================
 
-  const handleStrategyChange = useCallback(
-    (strategy: string) => {
-      setLocalStrategy(strategy);
-      setHasChanges(true);
-      // Clear preview when strategy changes
-      setLastApplyResult(null);
-    },
-    []
-  );
+  const handleStrategyChange = useCallback((strategy: string) => {
+    setLocalStrategy(strategy);
+    setHasChanges(true);
+    // Clear preview when strategy changes
+    setLastApplyResult(null);
+  }, []);
 
-  const handleAssignmentChange = useCallback(
-    (service: string, gpuIndex: number | null) => {
-      setLocalAssignments((prev) =>
-        prev.map((a) => (a.service === service ? { ...a, gpu_index: gpuIndex } : a))
-      );
-      setHasChanges(true);
-      setLastApplyResult(null);
-    },
-    []
-  );
+  const handleAssignmentChange = useCallback((service: string, gpuIndex: number | null) => {
+    setLocalAssignments((prev) =>
+      prev.map((a) => (a.service === service ? { ...a, gpu_index: gpuIndex } : a))
+    );
+    setHasChanges(true);
+    setLastApplyResult(null);
+  }, []);
 
   const handlePreview = useCallback(
     async (strategy: string) => {
@@ -180,14 +174,7 @@ export default function GpuSettingsPage() {
     void refetchConfig();
 
     return result;
-  }, [
-    localStrategy,
-    localAssignments,
-    updateConfig,
-    applyConfig,
-    refetchConfig,
-    refetchStatus,
-  ]);
+  }, [localStrategy, localAssignments, updateConfig, applyConfig, refetchConfig, refetchStatus]);
 
   const handleRescanGpus = useCallback(async () => {
     await detectGpus();

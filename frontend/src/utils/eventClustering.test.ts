@@ -107,7 +107,9 @@ describe('eventClustering', () => {
     it('creates multiple clusters for events separated by time', () => {
       const group1 = createMockEvents(3, new Date('2024-01-15T10:00:00Z'));
       const group2 = createMockEvents(3, new Date('2024-01-15T10:15:00Z'));
-      group2.forEach((e, i) => { e.id = 4 + i; });
+      group2.forEach((e, i) => {
+        e.id = 4 + i;
+      });
       const events = [...group1, ...group2];
       const result = clusterEvents(events);
       expect(result).toHaveLength(2);
@@ -126,7 +128,9 @@ describe('eventClustering', () => {
     });
 
     it('calculates highest risk score correctly', () => {
-      const events = createMockEvents(4, new Date('2024-01-15T10:00:00Z'), { riskScores: [30, 85, 50, 60] });
+      const events = createMockEvents(4, new Date('2024-01-15T10:00:00Z'), {
+        riskScores: [30, 85, 50, 60],
+      });
       const result = clusterEvents(events);
       const cluster = result[0] as EventCluster;
       expect(cluster.highestRiskScore).toBe(85);

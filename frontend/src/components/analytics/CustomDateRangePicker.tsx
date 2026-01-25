@@ -65,12 +65,8 @@ export default function CustomDateRangePicker({
   onCancel,
 }: CustomDateRangePickerProps) {
   // Local state for date inputs
-  const [startDateStr, setStartDateStr] = useState(() =>
-    formatDateForInput(initialStartDate)
-  );
-  const [endDateStr, setEndDateStr] = useState(() =>
-    formatDateForInput(initialEndDate)
-  );
+  const [startDateStr, setStartDateStr] = useState(() => formatDateForInput(initialStartDate));
+  const [endDateStr, setEndDateStr] = useState(() => formatDateForInput(initialEndDate));
   const [error, setError] = useState<string | null>(null);
 
   // Parse dates from strings
@@ -99,22 +95,16 @@ export default function CustomDateRangePicker({
   }, [startDate, endDate, onApply]);
 
   // Handle start date change
-  const handleStartDateChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setStartDateStr(e.target.value);
-      setError(null);
-    },
-    []
-  );
+  const handleStartDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setStartDateStr(e.target.value);
+    setError(null);
+  }, []);
 
   // Handle end date change
-  const handleEndDateChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setEndDateStr(e.target.value);
-      setError(null);
-    },
-    []
-  );
+  const handleEndDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEndDateStr(e.target.value);
+    setError(null);
+  }, []);
 
   return (
     <div
@@ -127,10 +117,7 @@ export default function CustomDateRangePicker({
       {/* Date Inputs */}
       <div className="space-y-4">
         <div>
-          <label
-            htmlFor="custom-start-date"
-            className="block text-sm font-medium text-gray-300"
-          >
+          <label htmlFor="custom-start-date" className="block text-sm font-medium text-gray-300">
             Start Date
           </label>
           <input
@@ -147,10 +134,7 @@ export default function CustomDateRangePicker({
         </div>
 
         <div>
-          <label
-            htmlFor="custom-end-date"
-            className="block text-sm font-medium text-gray-300"
-          >
+          <label htmlFor="custom-end-date" className="block text-sm font-medium text-gray-300">
             End Date
           </label>
           <input
@@ -169,10 +153,7 @@ export default function CustomDateRangePicker({
 
       {/* Error Message */}
       {error && (
-        <div
-          role="alert"
-          className="mt-3 rounded bg-red-500/10 px-3 py-2 text-sm text-red-400"
-        >
+        <div role="alert" className="mt-3 rounded bg-red-500/10 px-3 py-2 text-sm text-red-400">
           {error}
         </div>
       )}

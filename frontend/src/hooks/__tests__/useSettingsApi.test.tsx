@@ -278,13 +278,7 @@ describe('useSettingsQuery', () => {
     mockFetch.mockImplementation(
       () =>
         new Promise((resolve) =>
-          setTimeout(
-            () =>
-              resolve(
-                createMockResponse(mockSettingsResponse)
-              ),
-            50
-          )
+          setTimeout(() => resolve(createMockResponse(mockSettingsResponse)), 50)
         )
     );
 

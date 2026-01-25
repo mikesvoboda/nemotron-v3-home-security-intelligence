@@ -29,7 +29,6 @@ import { useModelZooStatusQuery } from '../../hooks/useModelZooStatusQuery';
 
 import type { ModelStatusResponse } from '../../services/api';
 
-
 /**
  * Props for ModelManagementPanel component
  */
@@ -178,11 +177,7 @@ function CategorySection({
 /**
  * Model status summary component
  */
-function ModelStatusSummary({
-  models,
-}: {
-  models: ModelStatusResponse[];
-}) {
+function ModelStatusSummary({ models }: { models: ModelStatusResponse[] }) {
   const counts = useMemo(() => {
     const loaded = models.filter((m) => m.status === 'loaded').length;
     const unloaded = models.filter((m) => m.status === 'unloaded').length;
@@ -310,10 +305,7 @@ export default function ModelManagementPanel({ className }: ModelManagementPanel
   }
 
   return (
-    <div
-      className={clsx('space-y-6', className)}
-      data-testid="model-management-panel"
-    >
+    <div className={clsx('space-y-6', className)} data-testid="model-management-panel">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -348,11 +340,7 @@ export default function ModelManagementPanel({ className }: ModelManagementPanel
       {/* Model Cards Grid by Category */}
       <div data-testid="model-cards-grid" className="space-y-6">
         {modelsByCategory.map(({ category, models: categoryModels }) => (
-          <CategorySection
-            key={category}
-            category={category}
-            models={categoryModels}
-          />
+          <CategorySection key={category} category={category} models={categoryModels} />
         ))}
       </div>
     </div>

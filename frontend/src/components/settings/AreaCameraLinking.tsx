@@ -68,10 +68,7 @@ interface AreaCameraLinkingProps {
  *
  * Users can select cameras and link them to areas, or unlink cameras from areas.
  */
-export default function AreaCameraLinking({
-  householdId = 1,
-  className,
-}: AreaCameraLinkingProps) {
+export default function AreaCameraLinking({ householdId = 1, className }: AreaCameraLinkingProps) {
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
@@ -90,14 +87,22 @@ export default function AreaCameraLinking({
   // Data Fetching
   // ---------------------------------------------------------------------------
   const { cameras, isLoading: isLoadingCameras, error: camerasError } = useCamerasQuery();
-  const { properties, isLoading: isLoadingProperties, error: propertiesError } = usePropertiesQuery({
+  const {
+    properties,
+    isLoading: isLoadingProperties,
+    error: propertiesError,
+  } = usePropertiesQuery({
     householdId,
   });
 
   // Get areas for each property (we need to handle multiple properties)
   // For simplicity, we'll use the first property if available
   const firstPropertyId = properties[0]?.id ?? 0;
-  const { areas, isLoading: isLoadingAreas, error: areasError } = useAreasQuery({
+  const {
+    areas,
+    isLoading: isLoadingAreas,
+    error: areasError,
+  } = useAreasQuery({
     propertyId: firstPropertyId,
     enabled: firstPropertyId > 0,
   });
@@ -119,10 +124,7 @@ export default function AreaCameraLinking({
   // ---------------------------------------------------------------------------
 
   // Set of camera IDs currently linked to the selected area
-  const linkedCameraIds = useMemo(
-    () => new Set(linkedCameras.map((c) => c.id)),
-    [linkedCameras]
-  );
+  const linkedCameraIds = useMemo(() => new Set(linkedCameras.map((c) => c.id)), [linkedCameras]);
 
   // Cameras that are selected but not yet linked to the selected area
   const camerasToLink = useMemo(() => {
@@ -193,9 +195,7 @@ export default function AreaCameraLinking({
       try {
         await linkCamera.mutateAsync({ areaId: selectedAreaId, cameraId });
       } catch (err) {
-        setOperationError(
-          err instanceof Error ? err.message : `Failed to link camera ${cameraId}`
-        );
+        setOperationError(err instanceof Error ? err.message : `Failed to link camera ${cameraId}`);
         setOperationInProgress(null);
         return;
       }
@@ -217,9 +217,7 @@ export default function AreaCameraLinking({
         setOperationSuccess(`Unlinked camera from area`);
         void refetchAreaCameras();
       } catch (err) {
-        setOperationError(
-          err instanceof Error ? err.message : `Failed to unlink camera`
-        );
+        setOperationError(err instanceof Error ? err.message : `Failed to unlink camera`);
       } finally {
         setOperationInProgress(null);
       }
@@ -335,9 +333,7 @@ export default function AreaCameraLinking({
         />
         <div className="flex flex-1 flex-col">
           <span className="text-sm font-medium text-text-primary">{area.name}</span>
-          {area.description && (
-            <span className="text-xs text-gray-500">{area.description}</span>
-          )}
+          {area.description && <span className="text-xs text-gray-500">{area.description}</span>}
         </div>
         {isSelected && <Check className="h-4 w-4 text-primary" />}
       </button>
@@ -403,10 +399,7 @@ export default function AreaCameraLinking({
   if (error) {
     return (
       <div
-        className={clsx(
-          'rounded-lg border border-red-500/20 bg-red-500/10 p-4',
-          className
-        )}
+        className={clsx('rounded-lg border border-red-500/20 bg-red-500/10 p-4', className)}
         data-testid="area-camera-linking-error"
       >
         <div className="flex items-start gap-3">
@@ -425,10 +418,7 @@ export default function AreaCameraLinking({
   // ---------------------------------------------------------------------------
 
   return (
-    <div
-      className={clsx('space-y-6', className)}
-      data-testid="area-camera-linking"
-    >
+    <div className={clsx('space-y-6', className)} data-testid="area-camera-linking">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-text-primary">Link Cameras to Areas</h2>

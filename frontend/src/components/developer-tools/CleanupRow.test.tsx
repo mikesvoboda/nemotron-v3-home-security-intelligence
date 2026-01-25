@@ -32,7 +32,9 @@ describe('CleanupRow', () => {
   it('should render description', () => {
     render(<CleanupRow {...defaultProps} />);
 
-    expect(screen.getByText('Permanently deletes all events from the database.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Permanently deletes all events from the database.')
+    ).toBeInTheDocument();
   });
 
   it('should open confirmation dialog when button is clicked', async () => {
@@ -113,13 +115,7 @@ describe('CleanupRow', () => {
   });
 
   it('should support custom button text', () => {
-    render(
-      <CleanupRow
-        {...defaultProps}
-        buttonText="Clear All Data"
-        loadingText="Clearing..."
-      />
-    );
+    render(<CleanupRow {...defaultProps} buttonText="Clear All Data" loadingText="Clearing..." />);
 
     expect(screen.getByRole('button', { name: /clear all data/i })).toBeInTheDocument();
   });

@@ -65,10 +65,7 @@ export function useSummaryExpansion(
   const { summaryId, defaultExpanded = false } = options;
 
   // Memoize storage key to prevent unnecessary recalculations
-  const storageKey = useMemo(
-    () => `${STORAGE_KEY_PREFIX}${summaryId}`,
-    [summaryId]
-  );
+  const storageKey = useMemo(() => `${STORAGE_KEY_PREFIX}${summaryId}`, [summaryId]);
 
   // Read stored value or use default
   const readStoredValue = useCallback((): boolean => {

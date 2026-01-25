@@ -98,7 +98,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       render(<CamerasSettings />);
@@ -112,7 +112,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       render(<CamerasSettings />);
@@ -133,7 +133,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       render(<CamerasSettings />);
@@ -154,7 +154,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       render(<CamerasSettings />);
@@ -174,7 +174,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: new Error('Network error'),
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       render(<CamerasSettings />);
@@ -219,7 +219,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       render(<CamerasSettings />);
@@ -240,7 +240,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
     });
 
@@ -502,7 +502,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
     });
 
@@ -636,7 +636,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
     });
 
@@ -786,7 +786,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
     });
 
@@ -916,7 +916,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
     });
 
@@ -962,7 +962,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       render(<CamerasSettings />);
@@ -997,7 +997,7 @@ describe('CamerasSettings', () => {
         isRefetching: false,
         error: null,
         refetch: vi.fn(),
-      isPlaceholderData: false,
+        isPlaceholderData: false,
       });
 
       render(<CamerasSettings />);

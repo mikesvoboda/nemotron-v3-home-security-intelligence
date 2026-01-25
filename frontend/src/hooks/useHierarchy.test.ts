@@ -924,9 +924,7 @@ describe('useAreaCamerasQuery', () => {
 
     it('sets error on fetch failure', async () => {
       const errorMessage = 'Failed to fetch area cameras';
-      (api.fetchAreaCameras as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error(errorMessage)
-      );
+      (api.fetchAreaCameras as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
       const { result } = renderHook(() => useAreaCamerasQuery(1), {
         wrapper: createQueryWrapper(),
@@ -1127,13 +1125,14 @@ describe('Hierarchy hooks integration', () => {
   });
 
   it('handles loading states correctly', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    (api.fetchHouseholds as ReturnType<typeof vi.fn>).mockImplementation(() =>
-      new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(mockHouseholds);
-        }, 100);
-      })
+    (api.fetchHouseholds as ReturnType<typeof vi.fn>).mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve(mockHouseholds);
+          }, 100);
+        })
     );
 
     const { result } = renderHook(() => useHouseholdsQuery(), {
@@ -1152,9 +1151,7 @@ describe('Hierarchy hooks integration', () => {
   });
 
   it('handles errors gracefully', async () => {
-    (api.fetchHouseholds as ReturnType<typeof vi.fn>).mockRejectedValue(
-      new Error('Network error')
-    );
+    (api.fetchHouseholds as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
     const { result } = renderHook(() => useHouseholdsQuery(), {
       wrapper: createQueryWrapper(),

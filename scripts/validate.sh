@@ -396,6 +396,27 @@ run_frontend_validation() {
         exit 1
     fi
     print_success "Frontend tests passed"
+
+    # Build and validate chunks for circular dependencies (NEM-3494)
+    print_step "Building frontend and validating chunks..."
+    if ! npm run build --prefix "$FRONTEND_DIR"; then
+        print_error "Frontend build failed"
+        exit 1
+    fi
+    print_success "Frontend build completed"
+
+    print_step "Analyzing build chunks for circular dependencies..."
+    if ! npm run validate:build-chunks --prefix "$FRONTEND_DIR"; then
+        print_error "Build chunk validation failed - circular dependencies detected"
+        echo ""
+        echo "Review vite.config.ts rollupOptions.output.manualChunks configuration."
+        exit 1
+    fi
+    print_success "Build chunk validation passed"
+
+    # Note: Runtime E2E validation tests are available but not run by default
+    # To run full build validation with Playwright (runtime TDZ detection):
+    #   cd frontend && npx playwright test --config playwright.config.build-validation.ts
 }
 
 # ─────────────────────────────────────────────────────────────────────────────

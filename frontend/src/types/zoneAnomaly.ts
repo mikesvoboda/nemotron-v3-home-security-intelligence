@@ -340,8 +340,7 @@ export const ANOMALY_TYPE_CONFIG: Record<AnomalyType, AnomalyTypeConfig> = {
  */
 export function isAnomalySeverity(value: unknown): value is AnomalySeverity {
   return (
-    typeof value === 'string' &&
-    Object.values(AnomalySeverity).includes(value as AnomalySeverity)
+    typeof value === 'string' && Object.values(AnomalySeverity).includes(value as AnomalySeverity)
   );
 }
 
@@ -349,9 +348,7 @@ export function isAnomalySeverity(value: unknown): value is AnomalySeverity {
  * Type guard for AnomalyType enum.
  */
 export function isAnomalyType(value: unknown): value is AnomalyType {
-  return (
-    typeof value === 'string' && Object.values(AnomalyType).includes(value as AnomalyType)
-  );
+  return typeof value === 'string' && Object.values(AnomalyType).includes(value as AnomalyType);
 }
 
 /**

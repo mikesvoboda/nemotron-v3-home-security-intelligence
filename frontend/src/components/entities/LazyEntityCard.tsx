@@ -50,11 +50,7 @@ const LazyEntityCard = memo(function LazyEntityCard(props: EntityCardProps) {
 
   return (
     <div ref={cardRef} data-testid="lazy-entity-card-wrapper">
-      {isVisible ? (
-        <EntityCard {...props} />
-      ) : (
-        <EntityCardSkeleton />
-      )}
+      {isVisible ? <EntityCard {...props} /> : <EntityCardSkeleton />}
     </div>
   );
 });

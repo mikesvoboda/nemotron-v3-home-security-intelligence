@@ -12,7 +12,20 @@
  * @see NEM-2699 - Implement prompt import/export with preview diffs
  */
 
-import { Tab, TabGroup, TabList, TabPanel, TabPanels , Select, SelectItem, Button, Card, Badge, Title, Text } from '@tremor/react';
+import {
+  Tab,
+  TabGroup,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Select,
+  SelectItem,
+  Button,
+  Card,
+  Badge,
+  Title,
+  Text,
+} from '@tremor/react';
 import { Clock, RotateCcw, Edit } from 'lucide-react';
 import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -79,7 +92,11 @@ export default function PromptManagementPage() {
   }, [searchParams]);
 
   // Fetch current config and history for selected model
-  const { data: configData, isLoading: configLoading, error: configError } = usePromptConfig(selectedModel);
+  const {
+    data: configData,
+    isLoading: configLoading,
+    error: configError,
+  } = usePromptConfig(selectedModel);
   const { versions, isLoading: historyLoading } = usePromptHistory(selectedModel);
 
   // Mutations
@@ -169,8 +186,15 @@ export default function PromptManagementPage() {
       <Card className="border-gray-700 bg-gray-900/50">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <label htmlFor="model-select" className="mb-1 block text-sm font-medium text-gray-200">Select Model</label>
-            <Select id="model-select" value={selectedModel} onValueChange={handleModelChange} className="w-64">
+            <label htmlFor="model-select" className="mb-1 block text-sm font-medium text-gray-200">
+              Select Model
+            </label>
+            <Select
+              id="model-select"
+              value={selectedModel}
+              onValueChange={handleModelChange}
+              className="w-64"
+            >
               {MODEL_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}

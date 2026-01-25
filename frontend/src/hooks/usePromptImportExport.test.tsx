@@ -11,11 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import {
-  useExportPrompts,
-  useImportPreview,
-  useImportPrompts,
-} from './usePromptImportExport';
+import { useExportPrompts, useImportPreview, useImportPrompts } from './usePromptImportExport';
 import * as promptApi from '../services/promptManagementApi';
 
 import type {
@@ -226,7 +222,10 @@ describe('useImportPreview', () => {
     });
 
     // Create a mock file with text() method
-    const fileContent = JSON.stringify({ version: '1.0', prompts: { nemotron: { temperature: 0.8 } } });
+    const fileContent = JSON.stringify({
+      version: '1.0',
+      prompts: { nemotron: { temperature: 0.8 } },
+    });
     const testFile = {
       name: 'test.json',
       type: 'application/json',

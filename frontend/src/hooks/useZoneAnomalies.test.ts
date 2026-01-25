@@ -9,7 +9,17 @@
  * - WebSocket real-time updates
  */
 import { renderHook, waitFor, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll, type Mock } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  afterAll,
+  type Mock,
+} from 'vitest';
 
 import { useZoneAnomalies, zoneAnomalyQueryKeys } from './useZoneAnomalies';
 import { createQueryClient } from '../services/queryClient';
@@ -245,9 +255,7 @@ describe('useZoneAnomalies', () => {
       );
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('severity=critical')
-        );
+        expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('severity=critical'));
       });
     });
 
@@ -289,9 +297,7 @@ describe('useZoneAnomalies', () => {
       );
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('unacknowledged_only=true')
-        );
+        expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('unacknowledged_only=true'));
       });
     });
 
@@ -312,7 +318,9 @@ describe('useZoneAnomalies', () => {
       );
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining(`since=${encodeURIComponent(since)}`));
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining(`since=${encodeURIComponent(since)}`)
+        );
       });
     });
 

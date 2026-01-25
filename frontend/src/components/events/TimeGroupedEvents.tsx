@@ -219,10 +219,7 @@ function TimeGroupSection({
           <ChevronIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
           <div className="flex items-center gap-3">
             <span className="text-lg font-semibold text-white">{group.label}</span>
-            <span
-              data-testid={`group-${testIdKey}-date`}
-              className="text-sm text-gray-400"
-            >
+            <span data-testid={`group-${testIdKey}-date`} className="text-sm text-gray-400">
               {group.dateRange}
             </span>
             <span
@@ -265,7 +262,9 @@ function TimeGroupSection({
                       'border border-gray-700 bg-[#1A1A1A]/90 backdrop-blur-sm',
                       'transition-colors hover:border-gray-600 hover:bg-[#252525]/90'
                     )}
-                    aria-label={isSelected ? `Deselect event ${event.id}` : `Select event ${event.id}`}
+                    aria-label={
+                      isSelected ? `Deselect event ${event.id}` : `Select event ${event.id}`
+                    }
                   >
                     {isSelected ? (
                       <CheckSquare className="h-5 w-5 text-[#76B900]" />

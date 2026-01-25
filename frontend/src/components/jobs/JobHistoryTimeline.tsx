@@ -10,7 +10,6 @@
 import { clsx } from 'clsx';
 import { History, AlertCircle } from 'lucide-react';
 
-
 import StatusDot from './StatusDot';
 import TimelineEntry from './TimelineEntry';
 import { useJobHistoryQuery } from '../../hooks/useJobHistoryQuery';
@@ -63,7 +62,7 @@ function TimelineLoading(): React.ReactElement {
 function EmptyHistory(): React.ReactElement {
   return (
     <div className="py-4 text-center text-gray-500">
-      <History className="mx-auto h-8 w-8 mb-2 opacity-50" />
+      <History className="mx-auto mb-2 h-8 w-8 opacity-50" />
       <p>No history available for this job.</p>
     </div>
   );
@@ -75,7 +74,7 @@ function EmptyHistory(): React.ReactElement {
 function HistoryError({ error }: { error: Error }): React.ReactElement {
   return (
     <div className="py-4 text-center text-red-400">
-      <AlertCircle className="mx-auto h-8 w-8 mb-2" />
+      <AlertCircle className="mx-auto mb-2 h-8 w-8" />
       <p>Failed to load job history</p>
       <p className="mt-1 text-sm text-gray-500">{error.message}</p>
     </div>
@@ -132,8 +131,7 @@ export default function JobHistoryTimeline({
   defaultOpen = false,
   className,
 }: JobHistoryTimelineProps): React.ReactElement {
-  const { transitions, currentStatus, isLoading, isError, error } =
-    useJobHistoryQuery(jobId);
+  const { transitions, currentStatus, isLoading, isError, error } = useJobHistoryQuery(jobId);
 
   // Render content based on state
   const renderContent = (): React.ReactElement => {
@@ -175,13 +173,10 @@ export default function JobHistoryTimeline({
       defaultOpen={defaultOpen}
       summary={
         !isLoading && transitions && transitions.length > 0 ? (
-          <SummaryBadge
-            transitionCount={transitions.length}
-            currentStatus={currentStatus}
-          />
+          <SummaryBadge transitionCount={transitions.length} currentStatus={currentStatus} />
         ) : undefined
       }
-      className={clsx('border border-gray-800 rounded-lg', className)}
+      className={clsx('rounded-lg border border-gray-800', className)}
       data-testid="job-history-section"
     >
       {renderContent()}

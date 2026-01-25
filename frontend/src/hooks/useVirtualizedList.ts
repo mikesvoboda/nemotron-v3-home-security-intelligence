@@ -80,7 +80,10 @@ export interface UseVirtualizedListReturn<T> {
   /** Function to scroll to a specific item index */
   scrollToIndex: (index: number, options?: { align?: 'start' | 'center' | 'end' | 'auto' }) => void;
   /** Function to scroll to a specific offset */
-  scrollToOffset: (offset: number, options?: { align?: 'start' | 'center' | 'end' | 'auto' }) => void;
+  scrollToOffset: (
+    offset: number,
+    options?: { align?: 'start' | 'center' | 'end' | 'auto' }
+  ) => void;
   /** Measure element function - pass to item container ref for dynamic sizing */
   measureElement: (element: Element | null) => void;
   /** Whether any items are currently being measured */
@@ -92,7 +95,9 @@ export interface UseVirtualizedListReturn<T> {
   /** Style to apply to the inner container that holds items */
   containerStyle: React.CSSProperties;
   /** Get style for positioning a virtual item */
-  getItemStyle: (virtualItem: ReturnType<Virtualizer<HTMLDivElement, Element>['getVirtualItems']>[0]) => React.CSSProperties;
+  getItemStyle: (
+    virtualItem: ReturnType<Virtualizer<HTMLDivElement, Element>['getVirtualItems']>[0]
+  ) => React.CSSProperties;
 }
 
 // ============================================================================
@@ -175,11 +180,15 @@ export function useVirtualizedList<T>(
   if (enableMeasurement) {
     virtualizerOptions.measureElement = (element) => {
       if (!element) return 0;
-      return horizontal ? element.getBoundingClientRect().width : element.getBoundingClientRect().height;
+      return horizontal
+        ? element.getBoundingClientRect().width
+        : element.getBoundingClientRect().height;
     };
   }
 
-  const virtualizer = useVirtualizer(virtualizerOptions as Parameters<typeof useVirtualizer<HTMLDivElement, Element>>[0]);
+  const virtualizer = useVirtualizer(
+    virtualizerOptions as Parameters<typeof useVirtualizer<HTMLDivElement, Element>>[0]
+  );
 
   // Set up scroll listener if callback provided
   const scrollToIndex = useCallback(
@@ -196,10 +205,7 @@ export function useVirtualizedList<T>(
     [virtualizer]
   );
 
-  const getItem = useCallback(
-    (index: number): T | undefined => items[index],
-    [items]
-  );
+  const getItem = useCallback((index: number): T | undefined => items[index], [items]);
 
   // Container style for absolute positioning
   const containerStyle: React.CSSProperties = {
@@ -210,14 +216,18 @@ export function useVirtualizedList<T>(
 
   // Get style for a virtual item
   const getItemStyle = useCallback(
-    (virtualItem: ReturnType<Virtualizer<HTMLDivElement, Element>['getVirtualItems']>[0]): React.CSSProperties => {
+    (
+      virtualItem: ReturnType<Virtualizer<HTMLDivElement, Element>['getVirtualItems']>[0]
+    ): React.CSSProperties => {
       return {
         position: 'absolute',
         top: horizontal ? 0 : virtualItem.start,
         left: horizontal ? virtualItem.start : 0,
         width: horizontal ? undefined : '100%',
         height: horizontal ? '100%' : undefined,
-        ...(horizontal ? { minWidth: `${virtualItem.size}px` } : { minHeight: `${virtualItem.size}px` }),
+        ...(horizontal
+          ? { minWidth: `${virtualItem.size}px` }
+          : { minHeight: `${virtualItem.size}px` }),
       };
     },
     [horizontal]
@@ -227,8 +237,8 @@ export function useVirtualizedList<T>(
   if (onScroll && parentRef.current) {
     const handleScroll = () => {
       const offset = horizontal
-        ? parentRef.current?.scrollLeft ?? 0
-        : parentRef.current?.scrollTop ?? 0;
+        ? (parentRef.current?.scrollLeft ?? 0)
+        : (parentRef.current?.scrollTop ?? 0);
       onScroll(offset);
     };
     parentRef.current.addEventListener('scroll', handleScroll, { passive: true });

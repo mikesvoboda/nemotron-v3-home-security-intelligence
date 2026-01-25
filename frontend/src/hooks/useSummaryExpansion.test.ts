@@ -16,9 +16,7 @@ describe('useSummaryExpansion', () => {
 
   describe('initialization', () => {
     it('returns defaultExpanded=false by default', () => {
-      const { result } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
       expect(result.current.isExpanded).toBe(false);
     });
@@ -34,9 +32,7 @@ describe('useSummaryExpansion', () => {
     it('restores state from sessionStorage', () => {
       sessionStorage.setItem('summary-expansion-test-1', 'true');
 
-      const { result } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
       expect(result.current.isExpanded).toBe(true);
     });
@@ -54,9 +50,7 @@ describe('useSummaryExpansion', () => {
 
   describe('toggle', () => {
     it('toggles from false to true', () => {
-      const { result } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
       expect(result.current.isExpanded).toBe(false);
 
@@ -82,9 +76,7 @@ describe('useSummaryExpansion', () => {
     });
 
     it('persists toggled state to sessionStorage', () => {
-      const { result } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
       act(() => {
         result.current.toggle();
@@ -102,9 +94,7 @@ describe('useSummaryExpansion', () => {
 
   describe('setExpanded', () => {
     it('sets expanded to true', () => {
-      const { result } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
       act(() => {
         result.current.setExpanded(true);
@@ -126,9 +116,7 @@ describe('useSummaryExpansion', () => {
     });
 
     it('persists state to sessionStorage', () => {
-      const { result } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
       act(() => {
         result.current.setExpanded(true);
@@ -140,9 +128,7 @@ describe('useSummaryExpansion', () => {
 
   describe('clearStorage', () => {
     it('removes item from sessionStorage', () => {
-      const { result } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
       act(() => {
         result.current.setExpanded(true);
@@ -180,8 +166,7 @@ describe('useSummaryExpansion', () => {
       sessionStorage.setItem('summary-expansion-test-1', 'true');
 
       const { result, rerender } = renderHook(
-        ({ summaryId }) =>
-          useSummaryExpansion({ summaryId, defaultExpanded: false }),
+        ({ summaryId }) => useSummaryExpansion({ summaryId, defaultExpanded: false }),
         { initialProps: { summaryId: 'test-1' } }
       );
 
@@ -195,9 +180,7 @@ describe('useSummaryExpansion', () => {
 
   describe('storage key format', () => {
     it('uses correct storage key prefix', () => {
-      const { result } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'hourly-123' })
-      );
+      const { result } = renderHook(() => useSummaryExpansion({ summaryId: 'hourly-123' }));
 
       act(() => {
         result.current.setExpanded(true);
@@ -215,9 +198,7 @@ describe('useSummaryExpansion', () => {
         result.current.setExpanded(true);
       });
 
-      expect(
-        sessionStorage.getItem('summary-expansion-daily-2024-01-18-456')
-      ).toBe('true');
+      expect(sessionStorage.getItem('summary-expansion-daily-2024-01-18-456')).toBe('true');
     });
   });
 
@@ -248,9 +229,7 @@ describe('useSummaryExpansion', () => {
         throw new Error('Storage error');
       });
 
-      const { result } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
       // Should still update state even if storage fails
       act(() => {
@@ -271,9 +250,7 @@ describe('useSummaryExpansion', () => {
         throw new Error('Storage error');
       });
 
-      const { result } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
       // Should not throw
       act(() => {
@@ -289,13 +266,9 @@ describe('useSummaryExpansion', () => {
 
   describe('multiple instances', () => {
     it('maintains independent state for different summaryIds', () => {
-      const { result: result1 } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result: result1 } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
-      const { result: result2 } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-2' })
-      );
+      const { result: result2 } = renderHook(() => useSummaryExpansion({ summaryId: 'test-2' }));
 
       act(() => {
         result1.current.setExpanded(true);
@@ -308,13 +281,9 @@ describe('useSummaryExpansion', () => {
     it('shares state for same summaryId across instances', () => {
       sessionStorage.setItem('summary-expansion-test-1', 'true');
 
-      const { result: result1 } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result: result1 } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
-      const { result: result2 } = renderHook(() =>
-        useSummaryExpansion({ summaryId: 'test-1' })
-      );
+      const { result: result2 } = renderHook(() => useSummaryExpansion({ summaryId: 'test-1' }));
 
       expect(result1.current.isExpanded).toBe(true);
       expect(result2.current.isExpanded).toBe(true);

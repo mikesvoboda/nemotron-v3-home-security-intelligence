@@ -94,11 +94,7 @@ function getComparisonType(original: number, replay: number): 'success' | 'warni
 /**
  * ReplayResultsModal displays the comparison between original and replayed request results.
  */
-export default function ReplayResultsModal({
-  isOpen,
-  onClose,
-  result,
-}: ReplayResultsModalProps) {
+export default function ReplayResultsModal({ isOpen, onClose, result }: ReplayResultsModalProps) {
   // No result state
   if (!result) {
     return (
@@ -203,15 +199,9 @@ export default function ReplayResultsModal({
           )}
         >
           <div className="flex items-center gap-3">
-            {comparisonType === 'success' && (
-              <CheckCircle className="h-5 w-5 text-green-400" />
-            )}
-            {comparisonType === 'warning' && (
-              <AlertTriangle className="h-5 w-5 text-yellow-400" />
-            )}
-            {comparisonType === 'error' && (
-              <XCircle className="h-5 w-5 text-red-400" />
-            )}
+            {comparisonType === 'success' && <CheckCircle className="h-5 w-5 text-green-400" />}
+            {comparisonType === 'warning' && <AlertTriangle className="h-5 w-5 text-yellow-400" />}
+            {comparisonType === 'error' && <XCircle className="h-5 w-5 text-red-400" />}
             <div>
               <p
                 className={clsx(
@@ -257,7 +247,7 @@ export default function ReplayResultsModal({
             <h3 className="mb-2 text-sm font-medium uppercase tracking-wider text-gray-400">
               Replay Duration
             </h3>
-            <p className="text-lg font-mono text-white">
+            <p className="font-mono text-lg text-white">
               {metadata.replay_duration_ms.toFixed(2)} ms
             </p>
           </div>

@@ -191,6 +191,134 @@ See [`/frontend/playwright.config.ts`](../../frontend/playwright.config.ts) for 
 - Navigation timeout: 10 seconds
 - WebKit tests have extended 30s timeout for complex workflows
 
+### Build Validation Tests
+
+**Purpose:** Detect circular dependency issues in Vite builds that can cause TDZ (Temporal Dead Zone) errors at runtime (NEM-3494).
+
+**Location:** `frontend/tests/e2e/specs/build-validation.spec.ts`
+
+**Config:** `frontend/playwright.config.build-validation.ts`
+
+**Background:** Vite's manual chunk splitting was disabled (vite.config.ts:278-283) after circular import deadlocks between vendor chunks caused production errors. These tests ensure the build remains safe.
+
+#### What the Tests Check
+
+1. **Static Analysis (File System):**
+
+   - Analyzes built JavaScript chunks for circular import patterns
+   - Detects self-referencing variable initializations
+   - Identifies excessive imports from same module
+   - Tracks Rollup interop helper usage
+   - Monitors chunk sizes for code splitting issues
+
+2. **Runtime Validation (Browser):**
+   - Verifies React renders without TDZ errors
+   - Detects reference errors during initial page load
+   - Validates all JavaScript modules load successfully
+   - Checks for duplicate module initialization
+   - Monitors script load order
+
+#### Running Build Validation Tests
+
+```bash
+cd frontend
+
+# Build the frontend first (required)
+npm run build
+
+# Run all build validation tests (static + runtime)
+npx playwright test --config playwright.config.build-validation.ts
+
+# Run only static analysis tests
+npx playwright test --config playwright.config.build-validation.ts --grep "Build Validation Tests"
+
+# Run only runtime tests
+npx playwright test --config playwright.config.build-validation.ts --grep "Runtime Build Validation"
+
+# Run with visible browser for debugging
+npx playwright test --config playwright.config.build-validation.ts --headed
+```
+
+**Note:** Build validation tests use a separate Playwright config that:
+
+- Serves the production build via `vite preview` (port 4173)
+- Runs only on Chromium for consistent results
+- Uses longer timeouts for build analysis (30s)
+
+#### Integration with Validation Workflow
+
+Build validation tests are **not** run automatically by `scripts/validate.sh` because:
+
+- They require a production build (adds ~25s to validation time)
+- They analyze static files (can run independently)
+- Runtime tests are more appropriate for pre-release validation
+
+**When to run:**
+
+- **Always:** Before creating PRs that modify `vite.config.ts` or build configuration
+- **Recommended:** After Vite upgrades or dependency updates affecting bundling
+- **Required:** When re-enabling manual chunk splitting (vite.config.ts:278-283)
+- **Optional:** As part of pre-release validation for production deployments
+
+To include in automated validation, add to your pre-PR checklist:
+
+```bash
+# Full validation + build validation
+./scripts/validate.sh && \
+  cd frontend && \
+  npm run build && \
+  npx playwright test --config playwright.config.build-validation.ts
+```
+
+#### Interpreting Results
+
+The tests output detailed analysis:
+
+```
+=== Chunk Analysis Summary ===
+Total chunks: 97
+Chunks analyzed: 97
+
+Interop helper usage:
+  (none detected - good sign)
+
+Large chunks (>500KB):
+  Tracker-M9IbjXzI.js: 829.95 KB
+  index-A0-RzToH.js: 805.83 KB
+
+=== Potential Issues Detected ===
+(none detected)
+```
+
+**What to look for:**
+
+- **Red flags:** Self-referencing patterns, excessive same-module imports (>5)
+- **Warnings:** Chunks >1MB (consider code splitting)
+- **Info:** Interop helper usage (normal for ESM/CJS interop)
+
+#### Troubleshooting
+
+**Test fails with "Production build not found":**
+
+```bash
+cd frontend && npm run build
+```
+
+**Port 4173 already in use:**
+
+```bash
+# Kill existing preview server
+pkill -f "vite preview"
+# Or use a different port in playwright.config.build-validation.ts
+```
+
+**Runtime tests fail with TDZ errors:**
+
+1. Check the console error output in test results
+2. Review recent changes to `vite.config.ts` rollupOptions
+3. Consider if manual chunk splitting was re-enabled incorrectly
+4. Check for new dependencies with circular imports
+
 ### Full Validation
 
 ```bash

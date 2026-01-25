@@ -114,9 +114,7 @@ describe('useDebugConfigQuery', () => {
 
     it('sets error on fetch failure', async () => {
       const errorMessage = 'Failed to fetch config';
-      (api.fetchDebugConfig as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error(errorMessage)
-      );
+      (api.fetchDebugConfig as ReturnType<typeof vi.fn>).mockRejectedValue(new Error(errorMessage));
 
       const { result } = renderHook(() => useDebugConfigQuery({ enabled: true }), {
         wrapper: createQueryWrapper(),

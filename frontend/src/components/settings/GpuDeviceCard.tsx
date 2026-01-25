@@ -100,8 +100,7 @@ export default function GpuDeviceCard({
   isLoading = false,
   className,
 }: GpuDeviceCardProps) {
-  const usagePercent =
-    gpu.vram_total_mb > 0 ? (gpu.vram_used_mb / gpu.vram_total_mb) * 100 : 0;
+  const usagePercent = gpu.vram_total_mb > 0 ? (gpu.vram_used_mb / gpu.vram_total_mb) * 100 : 0;
   const status = getUsageStatus(usagePercent);
   const progressColor = getProgressColor(status);
   const availableMb = gpu.vram_total_mb - gpu.vram_used_mb;

@@ -354,9 +354,7 @@ export default function ZoneEditor({
     <div className="w-80 shrink-0">
       {mode === 'view' && (
         <>
-          <h3 className="mb-4 text-lg font-semibold text-text-primary">
-            Zones ({zones.length})
-          </h3>
+          <h3 className="mb-4 text-lg font-semibold text-text-primary">Zones ({zones.length})</h3>
           <ZoneEditorSidebar
             cameraId={effectiveCameraId}
             zones={zones}
@@ -410,26 +408,22 @@ export default function ZoneEditor({
               : 'Click on the camera view to add polygon points. Double-click to complete the shape.'}
           </p>
           <fieldset className="mt-4">
-            <legend className="block text-sm font-medium text-text-primary">
-              Zone Color
-            </legend>
+            <legend className="block text-sm font-medium text-text-primary">Zone Color</legend>
             <div className="mt-2 flex flex-wrap gap-2">
-              {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'].map(
-                (color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    onClick={() => setDrawColor(color)}
-                    className={clsx(
-                      'h-6 w-6 rounded-full border-2 transition-all',
-                      drawColor === color
-                        ? 'border-white ring-2 ring-primary ring-offset-2 ring-offset-gray-800'
-                        : 'border-transparent hover:border-gray-400'
-                    )}
-                    style={{ backgroundColor: color }}
-                  />
-                )
-              )}
+              {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'].map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setDrawColor(color)}
+                  className={clsx(
+                    'h-6 w-6 rounded-full border-2 transition-all',
+                    drawColor === color
+                      ? 'border-white ring-2 ring-primary ring-offset-2 ring-offset-gray-800'
+                      : 'border-transparent hover:border-gray-400'
+                  )}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
             </div>
           </fieldset>
         </div>
@@ -531,7 +525,7 @@ export default function ZoneEditor({
                   </div>
 
                   {/* Right panel: Form, drawing mode, or sidebar */}
-                  {(mode === 'create' || mode === 'edit') ? (
+                  {mode === 'create' || mode === 'edit' ? (
                     <div className="w-80 shrink-0 border-l border-gray-700 bg-[#1A1A1A] p-4">
                       <h3 className="mb-4 text-lg font-semibold text-text-primary">
                         {mode === 'create' ? 'New Zone' : 'Edit Zone'}

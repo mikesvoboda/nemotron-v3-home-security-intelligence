@@ -1,4 +1,13 @@
-import { ArrowDownUp, Calendar, CheckSquare, Clock, Download, Filter, Layers, Square } from 'lucide-react';
+import {
+  ArrowDownUp,
+  Calendar,
+  CheckSquare,
+  Clock,
+  Download,
+  Filter,
+  Layers,
+  Square,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -20,18 +29,24 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { usePaginationState } from '../../hooks/usePaginationState';
 import { useTimelineData } from '../../hooks/useTimelineData';
+import { bulkUpdateEvents, fetchCameras, searchEvents, updateEvent } from '../../services/api';
 import {
-  bulkUpdateEvents,
-  fetchCameras,
-  searchEvents,
-  updateEvent,
-} from '../../services/api';
-import { clusterEvents, getClusterStats, isEventCluster, type ClusteredItem } from '../../utils/eventClustering';
+  clusterEvents,
+  getClusterStats,
+  isEventCluster,
+  type ClusteredItem,
+} from '../../utils/eventClustering';
 import { countBy } from '../../utils/groupBy';
 import { pipe, getSortTransform, type SortOption } from '../../utils/pipeline';
 import { getRiskLevel } from '../../utils/risk';
 import { parseEventId } from '../../utils/validation';
-import { EmptyState, EventCardSkeleton, InfiniteScrollStatus, PullToRefresh, SafeErrorMessage } from '../common';
+import {
+  EmptyState,
+  EventCardSkeleton,
+  InfiniteScrollStatus,
+  PullToRefresh,
+  SafeErrorMessage,
+} from '../common';
 import RiskBadge from '../common/RiskBadge';
 import { type ActivityEvent } from '../dashboard/ActivityFeed';
 import ExportModal from '../exports/ExportModal';
@@ -79,7 +94,10 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const [viewMode, setViewMode] = useLocalStorage<ViewMode>('timeline-view-mode', 'grid');
 
   // State for clustering toggle - persisted in localStorage
-  const [clusteringEnabled, setClusteringEnabled] = useLocalStorage<boolean>('timeline-clustering-enabled', true);
+  const [clusteringEnabled, setClusteringEnabled] = useLocalStorage<boolean>(
+    'timeline-clustering-enabled',
+    true
+  );
 
   // State for list view sorting (separate from the main sortOption which is dropdown-based)
   const [listSortField, setListSortField] = useState<SortField>('time');
@@ -138,10 +156,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   });
 
   // Timeline scrubber data hook (NEM-2932)
-  const {
-    buckets: timelineBuckets,
-    isLoading: timelineLoading,
-  } = useTimelineData({
+  const { buckets: timelineBuckets, isLoading: timelineLoading } = useTimelineData({
     zoomLevel: timelineZoomLevel,
     startDate: eventFilters.start_date,
     endDate: eventFilters.end_date,
@@ -1015,7 +1030,6 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
             )}
           </div>
 
-
           {/* Results Summary and Bulk Actions */}
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col gap-2">
@@ -1029,7 +1043,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                 <p className="flex items-center gap-1.5 text-sm text-[#76B900]">
                   <Layers className="h-3.5 w-3.5" />
                   <span>
-                    {clusterStats.originalCount} events grouped into {clusterStats.clusterCount} cluster{clusterStats.clusterCount !== 1 ? 's' : ''} ({clusterStats.displayCount} items)
+                    {clusterStats.originalCount} events grouped into {clusterStats.clusterCount}{' '}
+                    cluster{clusterStats.clusterCount !== 1 ? 's' : ''} ({clusterStats.displayCount}{' '}
+                    items)
                   </span>
                 </p>
               )}
@@ -1085,7 +1101,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                         : 'border-gray-700 bg-[#1A1A1A] text-gray-300 hover:border-gray-600 hover:bg-[#252525]'
                     }`}
                     aria-pressed={clusteringEnabled}
-                    title={clusteringEnabled ? 'Disable event clustering' : 'Enable event clustering'}
+                    title={
+                      clusteringEnabled ? 'Disable event clustering' : 'Enable event clustering'
+                    }
                   >
                     <Layers className="h-4 w-4" />
                     <span>Cluster</span>
@@ -1103,13 +1121,16 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                         : 'Select all events'
                     }
                   >
-                    {selectedEventIds.size === filteredEvents.length && filteredEvents.length > 0 ? (
+                    {selectedEventIds.size === filteredEvents.length &&
+                    filteredEvents.length > 0 ? (
                       <CheckSquare className="h-4 w-4 text-[#76B900]" />
                     ) : (
                       <Square className="h-4 w-4" />
                     )}
                     <span>
-                      {selectedEventIds.size > 0 ? `${selectedEventIds.size} selected` : 'Select all'}
+                      {selectedEventIds.size > 0
+                        ? `${selectedEventIds.size} selected`
+                        : 'Select all'}
                     </span>
                   </button>
                 )}
@@ -1290,12 +1311,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
                     // Mobile: Use MobileEventCard with swipe gestures (NEM-3070)
                     if (isMobile) {
-                      return (
-                        <MobileEventCard
-                          key={event.id}
-                          {...getMobileEventCardProps(event)}
-                        />
-                      );
+                      return <MobileEventCard key={event.id} {...getMobileEventCardProps(event)} />;
                     }
 
                     // Desktop: Use EventCard with selection checkbox

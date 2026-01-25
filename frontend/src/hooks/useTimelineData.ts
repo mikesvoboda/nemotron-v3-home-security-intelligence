@@ -8,11 +8,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import type {
-  ZoomLevel,
-  TimelineBucket,
-  Severity,
-} from '../components/events/TimelineScrubber';
+import type { ZoomLevel, TimelineBucket, Severity } from '../components/events/TimelineScrubber';
 
 // API response types
 interface TimelineBucketAPIResponse {

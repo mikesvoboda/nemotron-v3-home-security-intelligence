@@ -813,7 +813,9 @@ export default function HouseholdSettings({ className }: HouseholdSettingsProps)
                       <label className="mb-1 block text-sm text-gray-400">Role *</label>
                       <Select
                         value={memberForm.role}
-                        onValueChange={(v) => setMemberForm((f) => ({ ...f, role: v as MemberRole }))}
+                        onValueChange={(v) =>
+                          setMemberForm((f) => ({ ...f, role: v as MemberRole }))
+                        }
                         data-testid="member-role-select"
                       >
                         {MEMBER_ROLES.map((role) => (

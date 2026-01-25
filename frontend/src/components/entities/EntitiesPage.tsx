@@ -24,7 +24,12 @@ import { useEntitiesInfiniteQuery, type EntityFilters } from '../../hooks/useEnt
 import { useEntityDetailQuery } from '../../hooks/useEntitiesQuery';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { updateEntityTrust } from '../../services/api';
-import { EntityCardSkeleton, FeatureErrorBoundary, InfiniteScrollStatus, SafeErrorMessage } from '../common';
+import {
+  EntityCardSkeleton,
+  FeatureErrorBoundary,
+  InfiniteScrollStatus,
+  SafeErrorMessage,
+} from '../common';
 
 import type { SourceFilter, TrustStatus } from '../../services/api';
 
@@ -729,8 +734,8 @@ function EntitiesPageWithErrorBoundary() {
           <AlertTriangle className="mb-4 h-12 w-12 text-red-400" />
           <h3 className="mb-2 text-lg font-semibold text-red-400">Entities Unavailable</h3>
           <p className="max-w-md text-sm text-gray-400">
-            Unable to load entity tracking. Please refresh the page or try again later.
-            Other parts of the application should still work.
+            Unable to load entity tracking. Please refresh the page or try again later. Other parts
+            of the application should still work.
           </p>
         </div>
       }

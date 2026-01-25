@@ -194,7 +194,9 @@ export function getSeverityStyle(
     borderLeftColor: config.borderColor,
     boxShadow: config.glowShadow || undefined,
     animation:
-      config.shouldPulse && !prefersReducedMotion ? 'pulse-subtle 2s ease-in-out infinite' : undefined,
+      config.shouldPulse && !prefersReducedMotion
+        ? 'pulse-subtle 2s ease-in-out infinite'
+        : undefined,
   };
 }
 

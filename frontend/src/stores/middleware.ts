@@ -37,11 +37,7 @@ export type ImmerSetState<T> = (
 /**
  * State creator type for stores using Immer middleware.
  */
-export type ImmerStateCreator<T> = (
-  set: ImmerSetState<T>,
-  get: () => T,
-  store: StoreApi<T>
-) => T;
+export type ImmerStateCreator<T> = (set: ImmerSetState<T>, get: () => T, store: StoreApi<T>) => T;
 
 /**
  * Transient state slice - state that updates frequently but should not trigger re-renders.
@@ -285,9 +281,7 @@ export function createTransientSlice<T>(initialData: T): TransientSlice<T> {
  * @param selector - Selector function
  * @returns Selector with shallow equality check
  */
-export function createShallowSelector<T, U>(
-  selector: (state: T) => U
-): (state: T) => U {
+export function createShallowSelector<T, U>(selector: (state: T) => U): (state: T) => U {
   // Return the selector as-is; shallow comparison is handled at the hook level
   // This is a utility to document intent and make the pattern clear
   return selector;

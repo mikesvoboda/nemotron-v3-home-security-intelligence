@@ -367,12 +367,7 @@
   }
 
   .animate-shimmer {
-    background: linear-gradient(
-      90deg,
-      rgb(31 31 31) 0%,
-      rgb(55 55 55) 50%,
-      rgb(31 31 31) 100%
-    );
+    background: linear-gradient(90deg, rgb(31 31 31) 0%, rgb(55 55 55) 50%, rgb(31 31 31) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.5s ease-in-out infinite;
   }

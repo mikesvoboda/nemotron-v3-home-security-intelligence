@@ -175,14 +175,8 @@ const DEFAULT_SYSTEM_CONFIG: SystemConfigState = {
 export default function AdminSettings({ className }: AdminSettingsProps) {
   const { debugMode } = useDebugMode();
   const toast = useToast();
-  const {
-    seedCameras,
-    seedEvents,
-    clearSeededData,
-    orphanCleanup,
-    clearCache,
-    flushQueues,
-  } = useAdminMutations();
+  const { seedCameras, seedEvents, clearSeededData, orphanCleanup, clearCache, flushQueues } =
+    useAdminMutations();
 
   // Settings API integration
   const { settings, isLoading: isLoadingSettings, updateMutation } = useSettingsApi();
@@ -250,7 +244,8 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
   // Track if config has changed
   const hasConfigChanges = useMemo(() => {
     return (
-      systemConfig.rateLimiting.requestsPerMinute !== originalConfig.rateLimiting.requestsPerMinute ||
+      systemConfig.rateLimiting.requestsPerMinute !==
+        originalConfig.rateLimiting.requestsPerMinute ||
       systemConfig.rateLimiting.burstSize !== originalConfig.rateLimiting.burstSize ||
       systemConfig.rateLimiting.enabled !== originalConfig.rateLimiting.enabled ||
       systemConfig.queueSettings.maxSize !== originalConfig.queueSettings.maxSize ||
@@ -548,10 +543,7 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {/* Requests per minute */}
                 <div>
-                  <label
-                    htmlFor="requests-per-minute"
-                    className="mb-1 block text-xs text-gray-500"
-                  >
+                  <label htmlFor="requests-per-minute" className="mb-1 block text-xs text-gray-500">
                     Requests/min
                   </label>
                   <NumberInput
@@ -761,9 +753,7 @@ export default function AdminSettings({ className }: AdminSettingsProps) {
                 <RefreshCw className="h-4 w-4 text-blue-400" />
                 <Text className="font-medium text-white">Clear Cache</Text>
               </div>
-              <Text className="mb-4 text-xs text-gray-500">
-                Purge all cached data from Redis
-              </Text>
+              <Text className="mb-4 text-xs text-gray-500">Purge all cached data from Redis</Text>
               <Button
                 onClick={() => setConfirmCacheClear(true)}
                 disabled={clearCache.isPending}

@@ -15,16 +15,7 @@
 
 import { Card, Title, Text } from '@tremor/react';
 import { clsx } from 'clsx';
-import {
-  Settings2,
-  HardDrive,
-  Zap,
-  Shield,
-  Scale,
-  Eye,
-  Loader2,
-  AlertCircle,
-} from 'lucide-react';
+import { Settings2, HardDrive, Zap, Shield, Scale, Eye, Loader2, AlertCircle } from 'lucide-react';
 
 import Button from '../common/Button';
 
@@ -152,9 +143,7 @@ function StrategyOption({
           }
         )}
       >
-        {isSelected && !isDisabled && (
-          <div className="h-2 w-2 rounded-full bg-black" />
-        )}
+        {isSelected && !isDisabled && <div className="h-2 w-2 rounded-full bg-black" />}
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-2">

@@ -92,9 +92,7 @@ function createTestQueryClient() {
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = createTestQueryClient();
   return {
-    ...render(
-      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-    ),
+    ...render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>),
     queryClient,
   };
 }
@@ -128,9 +126,7 @@ describe('PromptTestModal', () => {
         />
       );
 
-      expect(
-        screen.getByText(/A\/B Test Configuration/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/A\/B Test Configuration/i)).toBeInTheDocument();
     });
 
     it('does not render when closed', () => {
@@ -143,9 +139,7 @@ describe('PromptTestModal', () => {
         />
       );
 
-      expect(
-        screen.queryByText(/A\/B Test Configuration/i)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/A\/B Test Configuration/i)).not.toBeInTheDocument();
     });
 
     it('displays Select Test Event section', () => {
@@ -171,9 +165,7 @@ describe('PromptTestModal', () => {
         />
       );
 
-      expect(
-        screen.getByRole('button', { name: /Run Test/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Run Test/i })).toBeInTheDocument();
     });
 
     it('displays rate limit warning', () => {
@@ -186,9 +178,7 @@ describe('PromptTestModal', () => {
         />
       );
 
-      expect(
-        screen.getByText(/A\/B testing is rate-limited/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/A\/B testing is rate-limited/i)).toBeInTheDocument();
     });
 
     it('displays Close button', () => {
@@ -314,9 +304,7 @@ describe('PromptTestModal', () => {
   describe('test execution', () => {
     it('runs A/B test when Run Test is clicked', async () => {
       const user = userEvent.setup();
-      const { testPrompt } = await import(
-        '../../../services/promptManagementApi'
-      );
+      const { testPrompt } = await import('../../../services/promptManagementApi');
 
       renderWithProviders(
         <PromptTestModal

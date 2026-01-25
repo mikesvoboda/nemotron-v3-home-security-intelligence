@@ -119,8 +119,9 @@ export function parseMetricLine(line: string): ParsedMetric | null {
   // Format: metric_name{label1="value1",label2="value2"} 123.45
   // Or: metric_name 123.45
   // SAFE: Parses Prometheus text format from trusted backend /api/metrics; regex is non-exploitable with bounded input
-  // eslint-disable-next-line security/detect-unsafe-regex
-  const regex = /^([a-zA-Z_:][a-zA-Z0-9_:]*)\s*(?:\{([^}]*)\})?\s+(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[+-]?Inf|NaN)$/;
+  const regex =
+    // eslint-disable-next-line security/detect-unsafe-regex -- Prometheus metric format parser, bounded input from trusted source
+    /^([a-zA-Z_:][a-zA-Z0-9_:]*)\s*(?:\{([^}]*)\})?\s+(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[+-]?Inf|NaN)$/;
   const match = trimmedLine.match(regex);
 
   if (!match) {
