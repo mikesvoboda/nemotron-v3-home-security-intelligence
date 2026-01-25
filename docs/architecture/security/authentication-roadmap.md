@@ -2,6 +2,8 @@
 
 > Future authentication implementation considerations for multi-user and remote access scenarios
 
+![Authentication Roadmap Overview](../../images/architecture/security/flow-auth-roadmap.png)
+
 ## Key Files
 
 - `backend/core/config.py:1090-1098` - Current API key authentication settings
@@ -15,6 +17,8 @@ The Home Security Intelligence system is currently designed for **single-user, t
 This document outlines the current authentication state and provides a roadmap for future enhancements if multi-user or remote access requirements emerge.
 
 ## Current Authentication State
+
+![API Key Authentication](../../images/architecture/security/flow-api-key-auth.png)
 
 ### API Key Authentication (Optional)
 

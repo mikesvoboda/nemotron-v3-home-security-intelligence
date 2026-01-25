@@ -2,6 +2,8 @@
 
 > Sensitive data handling, image storage security, and log sanitization
 
+![Data Protection Overview](../../images/architecture/security/technical-data-protection.png)
+
 ## Key Files
 
 - `backend/api/routes/media.py:42-124` - Secure media serving with path validation
@@ -21,6 +23,8 @@ The Home Security Intelligence system handles sensitive data including camera im
 4. **Error Message Filtering** - Removing internal paths and credentials from responses
 
 ## Image and Video Storage Security
+
+![Data Protection Zones](../../images/architecture/security/concept-data-protection-zones.png)
 
 ### Path Traversal Protection
 
@@ -162,6 +166,8 @@ api_keys: list[str] = Field(
 | No plaintext storage   | Keys hashed immediately on load    |
 
 ## Log Sanitization
+
+![Log Sanitization](../../images/architecture/security/concept-log-sanitization.png)
 
 ### Error Message Sanitization
 

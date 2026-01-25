@@ -2,6 +2,8 @@
 
 This document describes the complete WebSocket message flow from connection establishment through event delivery, including authentication, subscription management, heartbeat, and message sequencing.
 
+![WebSocket Message Flow Overview](../../images/architecture/dataflows/flow-websocket-message.png)
+
 ## Connection Sequence Diagram
 
 ```mermaid
@@ -129,6 +131,8 @@ async def validate_websocket_message(
 | `VALIDATION_ERROR`       | Data validation failed      |
 
 ## Message Types
+
+![WebSocket Message Types](../../images/architecture/dataflows/concept-websocket-message-types.png)
 
 **Source:** `backend/api/routes/websocket.py:140-231`
 
@@ -346,6 +350,8 @@ ws.onmessage = (event) => {
 ```
 
 ## Event Broadcasting
+
+![WebSocket Broadcast](../../images/architecture/dataflows/flow-websocket-broadcast.png)
 
 **Source:** `backend/services/event_broadcaster.py:335-400`
 

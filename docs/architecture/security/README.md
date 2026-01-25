@@ -2,6 +2,8 @@
 
 > Security model, input validation, data protection, and hardening guidelines for the AI-powered home security monitoring system
 
+![Security Architecture Overview](../../images/architecture/security/hero-security.png)
+
 ## Overview
 
 This hub documents the security considerations and implementations for the Home Security Intelligence system. The system is designed for **single-user, trusted network deployment** - it operates on a local network without exposure to the public internet.
@@ -18,6 +20,8 @@ While the system does not require authentication by default (configurable via `A
 | Camera data is sensitive | Path traversal protection on all media endpoints |
 
 ## Security Architecture
+
+![Security Middleware Stack](../../images/architecture/security/flow-security-middleware.png)
 
 ```mermaid
 flowchart TB
@@ -98,6 +102,8 @@ flowchart TB
 | Request Recording      | `REQUEST_RECORDING_ENABLED` | `false` |
 
 ## OWASP Top 10 Coverage
+
+![OWASP Coverage](../../images/architecture/security/concept-owasp-coverage.png)
 
 | OWASP Category                | Mitigation                                  | Status      |
 | ----------------------------- | ------------------------------------------- | ----------- |

@@ -2,6 +2,8 @@
 
 This document describes the complete lifecycle of a REST API request, from HTTP reception through response, including middleware processing, route handling, and error responses.
 
+![API Request Flow](../../images/architecture/dataflows/flow-api-request.png)
+
 ## Request Flow Sequence Diagram
 
 ```mermaid
@@ -242,6 +244,8 @@ async def get_queue_stats(
 ```
 
 ## Request Processing Timeline
+
+![Request Timing](../../images/architecture/dataflows/technical-request-timing.png)
 
 ```
 Time 0ms:   Request received by Uvicorn

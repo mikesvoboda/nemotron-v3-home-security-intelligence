@@ -2,6 +2,8 @@
 
 This document describes the detection batching mechanism, including timing windows, Redis data structures, and batch lifecycle management.
 
+![Batch Aggregation Overview](../../images/architecture/dataflows/flow-batch-aggregation.png)
+
 ## Batch Aggregation Overview
 
 **Source:** `backend/services/batch_aggregator.py:1-40`
@@ -18,6 +20,8 @@ This document describes the detection batching mechanism, including timing windo
 ```
 
 ## Timing Diagram
+
+![Batch Timing](../../images/architecture/dataflows/flow-batch-timing.png)
 
 ```
 Timeline for Camera "front_door"
@@ -398,6 +402,8 @@ async def get_memory_pressure_level() -> Any:
 ```
 
 ## Batch Lifecycle State Diagram
+
+![Batch States](../../images/architecture/dataflows/technical-batch-states.png)
 
 ```mermaid
 stateDiagram-v2

@@ -2,6 +2,8 @@
 
 This hub documents the end-to-end data flows within the Home Security Intelligence system. Each document traces data through specific pathways, including timing information, error handling, and recovery mechanisms.
 
+![Dataflows Overview](../../images/architecture/dataflows/hero-dataflows.png)
+
 ## End-to-End Flow Summary
 
 ```
