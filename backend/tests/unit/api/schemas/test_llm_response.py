@@ -400,7 +400,7 @@ class TestLLMRawResponse:
             "reasoning": "Test",
             "threats": ["unknown person"],  # Extra field
             "recommended_actions": ["review footage"],  # Extra field
-            "confidence": {"overall": 0.95},  # NEM-3606: Now uses structured confidence
+            "confidence": 0.95,  # Extra field
         }
 
         response = LLMRawResponse.model_validate(llm_json)

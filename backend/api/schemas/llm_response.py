@@ -8,16 +8,20 @@ Schemas:
     LLMRiskResponse: Validated risk assessment with strict constraints
     LLMRawResponse: Lenient parsing for raw LLM JSON output
     RiskLevel: Enum of valid risk level values
-    RiskFactor: Individual risk factor with name and contribution (NEM-3603)
-    ConfidenceFactors: Breakdown of confidence metrics (NEM-3606)
+    RiskEntity: Entity identified in the risk analysis (NEM-3601)
+    RiskFlag: Risk flags with severity levels (NEM-3601)
+    ConfidenceFactors: Factors affecting confidence in the analysis (NEM-3601)
 """
 
 from __future__ import annotations
 
+import logging
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+logger = logging.getLogger(__name__)
 
 
 class RiskLevel(str, Enum):
@@ -46,110 +50,6 @@ DEFAULT_MEDIUM_MAX = 59
 DEFAULT_HIGH_MAX = 84
 
 
-class RiskFactor(BaseModel):
-    """A single risk factor contributing to the overall risk score (NEM-3603).
-
-    Each risk factor represents a specific aspect of the detection that
-    influenced the final risk score, along with its contribution weight.
-
-    Attributes:
-        name: Name of the risk factor (e.g., "unknown_person", "entry_zone")
-        contribution: Contribution to risk score (positive increases risk, negative decreases)
-        description: Human-readable explanation of this factor
-    """
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "name": "unknown_person",
-                "contribution": 25,
-                "description": "Unrecognized person detected near entry point",
-            }
-        }
-    )
-
-    name: str = Field(..., description="Name of the risk factor")
-    contribution: int = Field(
-        ...,
-        ge=-100,
-        le=100,
-        description="Contribution to risk score (-100 to +100)",
-    )
-    description: str = Field(..., description="Human-readable explanation of this factor")
-
-
-class ConfidenceFactors(BaseModel):
-    """Breakdown of confidence metrics for the risk assessment (NEM-3606).
-
-    This provides transparency into how confident the system is in its
-    risk assessment, broken down by various quality metrics.
-
-    Attributes:
-        overall: Overall confidence in the risk score (0.0-1.0)
-        detection_quality: Confidence based on detection quality/clarity
-        data_completeness: Confidence based on available enrichment data
-        temporal_context: Confidence based on time-of-day/baseline data
-        model_agreement: Confidence based on consistency across models
-    """
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "overall": 0.85,
-                "detection_quality": 0.9,
-                "data_completeness": 0.8,
-                "temporal_context": 0.75,
-                "model_agreement": 0.95,
-            }
-        }
-    )
-
-    overall: float = Field(..., ge=0.0, le=1.0, description="Overall confidence score (0.0-1.0)")
-    detection_quality: float = Field(
-        default=1.0,
-        ge=0.0,
-        le=1.0,
-        description="Confidence based on detection quality/clarity",
-    )
-    data_completeness: float = Field(
-        default=1.0,
-        ge=0.0,
-        le=1.0,
-        description="Confidence based on available enrichment data",
-    )
-    temporal_context: float = Field(
-        default=1.0,
-        ge=0.0,
-        le=1.0,
-        description="Confidence based on time-of-day/baseline data",
-    )
-    model_agreement: float = Field(
-        default=1.0,
-        ge=0.0,
-        le=1.0,
-        description="Confidence based on consistency across models",
-    )
-
-    @field_validator(
-        "overall",
-        "detection_quality",
-        "data_completeness",
-        "temporal_context",
-        "model_agreement",
-        mode="before",
-    )
-    @classmethod
-    def clamp_confidence(cls, v: Any) -> float:
-        """Clamp confidence values to 0.0-1.0 range."""
-        if v is None:
-            return 1.0
-        try:
-            val = float(v)
-            return max(0.0, min(1.0, val))
-        except (ValueError, TypeError):
-            return 1.0
-
-
 def infer_risk_level_from_score(score: int) -> RiskLevel:
     """Infer risk level from score using default thresholds.
 
@@ -173,6 +73,160 @@ def infer_risk_level_from_score(score: int) -> RiskLevel:
             return RiskLevel.CRITICAL
 
 
+# =============================================================================
+# Advanced Risk Analysis Schemas (NEM-3601)
+# =============================================================================
+
+
+class RiskEntity(BaseModel):
+    """Entity identified during risk analysis.
+
+    Entities represent objects of interest detected in the scene that
+    contribute to the overall risk assessment (e.g., people, vehicles,
+    packages).
+
+    Attributes:
+        type: Category of entity (e.g., "person", "vehicle", "package")
+        description: Detailed description of the entity
+        threat_level: Risk level attributed to this entity
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",
+        json_schema_extra={
+            "example": {
+                "type": "person",
+                "description": "Unknown individual near front entrance",
+                "threat_level": "medium",
+            }
+        },
+    )
+
+    type: str = Field(
+        ...,
+        description="Category of entity (e.g., person, vehicle, package)",
+    )
+    description: str = Field(
+        ...,
+        description="Detailed description of the entity",
+    )
+    threat_level: Literal["low", "medium", "high"] = Field(
+        ...,
+        description="Risk level attributed to this entity",
+    )
+
+
+class RiskFlag(BaseModel):
+    """Risk flag indicating a specific concern or anomaly.
+
+    Flags represent specific behaviors, patterns, or conditions that
+    warrant attention (e.g., loitering, nighttime activity, weapon detected).
+
+    Attributes:
+        type: Category of flag (e.g., "loitering", "weapon_detected")
+        description: Explanation of the flag
+        severity: How severe this flag is (warning, alert, critical)
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",
+        json_schema_extra={
+            "example": {
+                "type": "loitering",
+                "description": "Person has been stationary for over 5 minutes",
+                "severity": "warning",
+            }
+        },
+    )
+
+    type: str = Field(
+        ...,
+        description="Category of flag (e.g., loitering, weapon_detected)",
+    )
+    description: str = Field(
+        ...,
+        description="Explanation of the flag",
+    )
+    severity: Literal["warning", "alert", "critical"] = Field(
+        ...,
+        description="Severity level of this flag",
+    )
+
+
+class RiskFactor(BaseModel):
+    """A single risk factor contributing to the overall risk score (NEM-3603).
+
+    Each risk factor represents a specific aspect of the detection that
+    influenced the final risk score, along with its contribution weight.
+
+    Attributes:
+        name: Name of the risk factor (e.g., "unknown_person", "entry_zone")
+        contribution: Contribution to risk score (positive increases risk, negative decreases)
+        description: Human-readable explanation of this factor
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",
+        json_schema_extra={
+            "example": {
+                "name": "unknown_person",
+                "contribution": 25,
+                "description": "Unrecognized person detected near entry point",
+            }
+        },
+    )
+
+    name: str = Field(
+        ...,
+        description="Name of the risk factor (e.g., unknown_person, entry_zone)",
+    )
+    contribution: int = Field(
+        ...,
+        description="Contribution to risk score (positive increases, negative decreases)",
+    )
+    description: str | None = Field(
+        None,
+        description="Human-readable explanation of this factor",
+    )
+
+
+class ConfidenceFactors(BaseModel):
+    """Factors affecting confidence in the risk analysis.
+
+    These factors help explain the reliability of the risk assessment
+    and can be used to understand when additional review may be needed.
+
+    Attributes:
+        detection_quality: Quality of the detection data (good, fair, poor)
+        weather_impact: Impact of weather on detection accuracy
+        enrichment_coverage: Completeness of enrichment data used
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",
+        json_schema_extra={
+            "example": {
+                "detection_quality": "good",
+                "weather_impact": "none",
+                "enrichment_coverage": "full",
+            }
+        },
+    )
+
+    detection_quality: Literal["good", "fair", "poor"] = Field(
+        default="good",
+        description="Quality of the detection data",
+    )
+    weather_impact: Literal["none", "minor", "significant"] = Field(
+        default="none",
+        description="Impact of weather conditions on detection accuracy",
+    )
+    enrichment_coverage: Literal["full", "partial", "minimal"] = Field(
+        default="full",
+        description="Completeness of enrichment data available",
+    )
+
+
 class LLMRiskResponse(BaseModel):
     """Validated risk assessment response from Nemotron LLM.
 
@@ -180,7 +234,6 @@ class LLMRiskResponse(BaseModel):
     - risk_score must be an integer between 0 and 100
     - risk_level must be a valid RiskLevel enum value
     - summary and reasoning are required strings
-    - risk_factors and confidence are optional (NEM-3603, NEM-3606)
 
     This schema should be used after raw LLM JSON has been parsed
     and normalized (e.g., via LLMRawResponse.to_validated_response()).
@@ -190,8 +243,10 @@ class LLMRiskResponse(BaseModel):
         risk_level: Risk classification level
         summary: Human-readable event summary
         reasoning: Detailed reasoning for the risk assessment
-        risk_factors: Breakdown of factors contributing to risk score (NEM-3603)
-        confidence: Confidence metrics for the assessment (NEM-3606)
+        entities: List of entities identified in the analysis (NEM-3601)
+        flags: List of risk flags raised during analysis (NEM-3601)
+        recommended_action: Suggested action to take (NEM-3601)
+        confidence_factors: Factors affecting analysis confidence (NEM-3601)
     """
 
     model_config = ConfigDict(
@@ -202,22 +257,25 @@ class LLMRiskResponse(BaseModel):
                 "risk_level": "high",
                 "summary": "Suspicious activity detected at front entrance",
                 "reasoning": "Person detected at unusual time with unknown vehicle",
-                "risk_factors": [
+                "entities": [
                     {
-                        "name": "unknown_person",
-                        "contribution": 30,
-                        "description": "Unrecognized person",
-                    },
-                    {
-                        "name": "entry_zone",
-                        "contribution": 20,
-                        "description": "Near entry point",
-                    },
+                        "type": "person",
+                        "description": "Unknown individual",
+                        "threat_level": "medium",
+                    }
                 ],
-                "confidence": {
-                    "overall": 0.85,
-                    "detection_quality": 0.9,
-                    "data_completeness": 0.8,
+                "flags": [
+                    {
+                        "type": "nighttime_activity",
+                        "description": "Activity detected outside normal hours",
+                        "severity": "warning",
+                    }
+                ],
+                "recommended_action": "Review camera footage",
+                "confidence_factors": {
+                    "detection_quality": "good",
+                    "weather_impact": "none",
+                    "enrichment_coverage": "full",
                 },
             }
         },
@@ -241,13 +299,22 @@ class LLMRiskResponse(BaseModel):
         ...,
         description="Detailed reasoning for the risk assessment",
     )
-    risk_factors: list[RiskFactor] | None = Field(
-        default=None,
-        description="Breakdown of factors contributing to risk score (NEM-3603)",
+    # Advanced fields (NEM-3601)
+    entities: list[RiskEntity] = Field(
+        default_factory=list,
+        description="Entities identified in the analysis",
     )
-    confidence: ConfidenceFactors | None = Field(
+    flags: list[RiskFlag] = Field(
+        default_factory=list,
+        description="Risk flags raised during analysis",
+    )
+    recommended_action: str | None = Field(
         default=None,
-        description="Confidence metrics for the assessment (NEM-3606)",
+        description="Suggested action to take based on the analysis",
+    )
+    confidence_factors: ConfidenceFactors | None = Field(
+        default=None,
+        description="Factors affecting confidence in the analysis",
     )
 
     @field_validator("risk_score", mode="before")
@@ -316,8 +383,6 @@ class LLMRawResponse(BaseModel):
     - risk_score outside 0-100 range (clamped during validation)
     - Invalid risk_level values (inferred from score during validation)
     - Missing summary/reasoning (defaults provided during validation)
-    - Missing/malformed risk_factors (NEM-3603)
-    - Missing/malformed confidence (NEM-3606)
 
     Use the to_validated_response() method to convert to a strictly
     validated LLMRiskResponse.
@@ -327,8 +392,10 @@ class LLMRawResponse(BaseModel):
         risk_level: Raw risk level string (may be invalid)
         summary: Optional event summary
         reasoning: Optional reasoning text
-        risk_factors: Optional list of risk factors (NEM-3603)
-        confidence: Optional confidence metrics (NEM-3606)
+        entities: Optional list of entities (NEM-3601)
+        flags: Optional list of risk flags (NEM-3601)
+        recommended_action: Optional recommended action (NEM-3601)
+        confidence_factors: Optional confidence factors (NEM-3601)
     """
 
     model_config = ConfigDict(
@@ -339,10 +406,6 @@ class LLMRawResponse(BaseModel):
                 "risk_level": "EXTREME",
                 "summary": "Test",
                 "reasoning": "Test",
-                "risk_factors": [
-                    {"name": "test_factor", "contribution": 50, "description": "Test factor"},
-                ],
-                "confidence": {"overall": 0.85},
             }
         },
     )
@@ -363,13 +426,22 @@ class LLMRawResponse(BaseModel):
         None,
         description="Reasoning text (optional in raw response)",
     )
-    risk_factors: list[dict[str, Any]] | None = Field(
-        None,
-        description="Raw risk factors from LLM (NEM-3603)",
+    # Advanced fields (NEM-3601) - stored as raw dicts for lenient parsing
+    entities: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Raw entities from LLM (validated during conversion)",
     )
-    confidence: dict[str, Any] | None = Field(
+    flags: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Raw flags from LLM (validated during conversion)",
+    )
+    recommended_action: str | None = Field(
         None,
-        description="Raw confidence metrics from LLM (NEM-3606)",
+        description="Recommended action (optional in raw response)",
+    )
+    confidence_factors: dict[str, Any] | None = Field(
+        None,
+        description="Raw confidence factors (validated during conversion)",
     )
 
     @model_validator(mode="before")
@@ -406,8 +478,7 @@ class LLMRawResponse(BaseModel):
         2. Normalizes risk_level to lowercase
         3. Infers risk_level from score if invalid
         4. Provides defaults for missing summary/reasoning
-        5. Validates and normalizes risk_factors (NEM-3603)
-        6. Validates and normalizes confidence (NEM-3606)
+        5. Validates and converts advanced fields (NEM-3601)
 
         Returns:
             Validated LLMRiskResponse instance
@@ -437,57 +508,69 @@ class LLMRawResponse(BaseModel):
         summary = self.summary if self.summary else "Risk analysis completed"
         reasoning = self.reasoning if self.reasoning else "No detailed reasoning provided"
 
-        # Parse and validate risk_factors (NEM-3603)
-        validated_risk_factors: list[RiskFactor] | None = None
-        if self.risk_factors:
-            validated_risk_factors = []
-            for factor in self.risk_factors:
-                try:
-                    if isinstance(factor, dict):
-                        # Ensure required fields exist
-                        name = factor.get("name", "unknown")
-                        contribution = factor.get("contribution", 0)
-                        description = factor.get("description", "")
-                        # Clamp contribution to valid range
-                        try:
-                            contribution = max(-100, min(100, int(contribution)))
-                        except (ValueError, TypeError):
-                            contribution = 0
-                        validated_risk_factors.append(
-                            RiskFactor(
-                                name=str(name),
-                                contribution=contribution,
-                                description=str(description) if description else str(name),
-                            )
-                        )
-                except (ValueError, TypeError, KeyError):
-                    # Skip malformed factors - errors logged at higher level
-                    pass
-            if not validated_risk_factors:
-                validated_risk_factors = None
-
-        # Parse and validate confidence (NEM-3606)
-        validated_confidence: ConfidenceFactors | None = None
-        if self.confidence and isinstance(self.confidence, dict):
-            try:
-                # Extract overall confidence, default to 1.0 if not provided
-                overall = self.confidence.get("overall", 1.0)
-                validated_confidence = ConfidenceFactors(
-                    overall=overall,
-                    detection_quality=self.confidence.get("detection_quality", 1.0),
-                    data_completeness=self.confidence.get("data_completeness", 1.0),
-                    temporal_context=self.confidence.get("temporal_context", 1.0),
-                    model_agreement=self.confidence.get("model_agreement", 1.0),
-                )
-            except (ValueError, TypeError, KeyError):
-                # If parsing fails, leave as None - errors logged at higher level
-                validated_confidence = None
+        # Parse advanced fields (NEM-3601)
+        validated_entities = self._parse_entities()
+        validated_flags = self._parse_flags()
+        validated_confidence_factors = self._parse_confidence_factors()
 
         return LLMRiskResponse(
             risk_score=score,
             risk_level=normalized_level,
             summary=summary,
             reasoning=reasoning,
-            risk_factors=validated_risk_factors,
-            confidence=validated_confidence,
+            entities=validated_entities,
+            flags=validated_flags,
+            recommended_action=self.recommended_action,
+            confidence_factors=validated_confidence_factors,
         )
+
+    def _parse_entities(self) -> list[RiskEntity]:
+        """Parse and validate entities from raw data.
+
+        Invalid entities are filtered out with debug logging to handle
+        malformed LLM output gracefully.
+
+        Returns:
+            List of validated RiskEntity instances
+        """
+        validated: list[RiskEntity] = []
+        for entity_data in self.entities:
+            try:
+                validated.append(RiskEntity.model_validate(entity_data))
+            except Exception as e:
+                # Skip invalid entities with debug logging
+                logger.debug("Skipping invalid entity: %s (error: %s)", entity_data, e)
+        return validated
+
+    def _parse_flags(self) -> list[RiskFlag]:
+        """Parse and validate flags from raw data.
+
+        Invalid flags are filtered out with debug logging to handle
+        malformed LLM output gracefully.
+
+        Returns:
+            List of validated RiskFlag instances
+        """
+        validated: list[RiskFlag] = []
+        for flag_data in self.flags:
+            try:
+                validated.append(RiskFlag.model_validate(flag_data))
+            except Exception as e:
+                # Skip invalid flags with debug logging
+                logger.debug("Skipping invalid flag: %s (error: %s)", flag_data, e)
+        return validated
+
+    def _parse_confidence_factors(self) -> ConfidenceFactors | None:
+        """Parse and validate confidence factors from raw data.
+
+        Returns None if confidence_factors is not provided or invalid.
+
+        Returns:
+            Validated ConfidenceFactors instance or None
+        """
+        if self.confidence_factors is None:
+            return None
+        try:
+            return ConfidenceFactors.model_validate(self.confidence_factors)
+        except Exception:
+            return None
