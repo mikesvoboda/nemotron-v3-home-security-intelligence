@@ -11,6 +11,8 @@ This section provides comprehensive documentation for all REST API endpoints in 
 | Detections | `/api/detections` | Object detection data and media     | [detections-api.md](detections-api.md) |
 | System     | `/api/system`     | Health, monitoring, configuration   | [system-api.md](system-api.md)         |
 
+![API Endpoint Relationship Graph showing connections between Events, Cameras, Detections, and System API domains](../../images/architecture/api-endpoint-graph.png)
+
 ## Cross-Cutting Concerns
 
 | Topic                    | Documentation                                              |
@@ -150,6 +152,10 @@ Rate limits are applied per endpoint tier:
 **Source:** `backend/api/middleware/rate_limit.py`
 
 ## Response Envelope
+
+![Request Lifecycle Flow](../../images/architecture/api-reference/flow-request-lifecycle.png)
+
+![Request-Response Flow diagram showing the complete lifecycle from client request through middleware, routing, and response](../../images/architecture/request-response-flow.png)
 
 All list endpoints use a standardized response envelope:
 

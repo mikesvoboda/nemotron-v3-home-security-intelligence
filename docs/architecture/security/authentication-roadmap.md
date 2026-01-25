@@ -16,6 +16,12 @@ The Home Security Intelligence system is currently designed for **single-user, t
 
 This document outlines the current authentication state and provides a roadmap for future enhancements if multi-user or remote access requirements emerge.
 
+![Auth Evolution](../../images/architecture/security/concept-auth-evolution.png)
+
+![Authentication Flow](../../images/architecture/security/flow-authentication.png)
+
+![Authentication Flow Diagram showing the complete authentication process from user request through validation and response](../../images/architecture/authentication-flow.png)
+
 ## Current Authentication State
 
 ![API Key Authentication](../../images/architecture/security/flow-api-key-auth.png)

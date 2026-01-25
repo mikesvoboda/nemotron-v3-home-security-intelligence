@@ -107,6 +107,12 @@ Alerts use multi-window burn rate calculations for SLO monitoring. Fast burns (1
 | `OTEL_TRACE_SAMPLE_RATE`      | `backend/core/config.py` | `1.0`                      | Trace sampling rate (0.0-1.0) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `backend/core/config.py` | `http://localhost:4317`    | OTLP collector endpoint       |
 
+## Monitoring Stack Components
+
+![Monitoring Stack showing Prometheus, Grafana, Loki, Jaeger, and Alertmanager integration](../../images/architecture/monitoring-stack.png)
+
+The monitoring stack provides comprehensive observability through integrated components that share data and enable cross-correlation between metrics, logs, and traces.
+
 ## Datasources
 
 | Datasource   | Type                           | Purpose                       | Configuration                                                        |

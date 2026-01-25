@@ -4,6 +4,12 @@ This hub provides high-level architecture understanding of the Home Security Int
 
 ## Component Architecture
 
+![Three-Tier Architecture](../../images/architecture/system-overview/concept-three-tier.png)
+
+### Backend Layer Organization
+
+![Backend Layered Architecture](../../images/architecture/backend-layered-architecture.png)
+
 ```mermaid
 flowchart TB
     subgraph Frontend["Frontend Layer"]
@@ -42,6 +48,8 @@ flowchart TB
 ```
 
 ## Service Inventory
+
+![Service Dependency Graph](../../images/architecture/service-dependencies.png)
 
 | Service          | Port                    | Container       | Source                        | Description                             |
 | ---------------- | ----------------------- | --------------- | ----------------------------- | --------------------------------------- |
@@ -118,6 +126,12 @@ flowchart TB
 4. **Analysis**: Nemotron LLM analyzes batches, assigns risk scores
 5. **Broadcast**: Events pushed via Redis pub/sub to WebSocket clients
 6. **Display**: React dashboard updates in real-time
+
+## Script Dependencies
+
+![Script Dependency Graph showing relationships between build, test, and deployment scripts](../../images/architecture/script-dependency-graph.png)
+
+The project includes various scripts for development, testing, and deployment. This dependency graph illustrates how scripts relate to each other and their execution order.
 
 ## Related Documentation
 

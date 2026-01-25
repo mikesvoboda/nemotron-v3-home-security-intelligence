@@ -29,6 +29,10 @@ source_refs:
 
 # AI Pipeline Architecture
 
+![AI Pipeline Architecture Diagram](../images/architecture/ai-pipeline-ai.png)
+
+_AI-generated diagram illustrating the end-to-end AI pipeline architecture with detection, batching, and analysis components._
+
 ![AI Pipeline Hero](../images/ai-pipeline-hero.png)
 
 _AI-generated visualization of the AI detection pipeline from camera input through RT-DETRv2 and Nemotron to security events._

@@ -253,6 +253,10 @@ The LLM produces JSON:
 
 ## Risk Level Mapping
 
+![Risk Analysis Decision Tree](../images/architecture/risk-analysis-decision-tree.png)
+
+_Decision tree diagram showing how the LLM analyzes detection context to determine risk scores and levels._
+
 | Score Range | Level      | Description                        |
 | ----------- | ---------- | ---------------------------------- |
 | 0-29        | `low`      | Normal activity, no concern        |

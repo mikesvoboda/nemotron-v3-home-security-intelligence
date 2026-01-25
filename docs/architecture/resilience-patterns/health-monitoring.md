@@ -107,6 +107,8 @@ class HealthEvent:
 
 ## Health Check Loop
 
+![Health Check Strategy - Periodic monitoring with exponential backoff recovery](../../images/architecture/resilience-patterns/health-check-strategy.png)
+
 The main monitoring loop (`backend/services/health_monitor.py:130-184`):
 
 ```python
