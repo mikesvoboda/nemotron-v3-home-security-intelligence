@@ -61,7 +61,7 @@ export default function ExportColumnSelector({
         if (newSet.size === EXPORT_COLUMNS.length) {
           onChange(null);
         } else {
-          onChange(Array.from(newSet) as ExportColumnName[]);
+          onChange(Array.from(newSet));
         }
       }
     },

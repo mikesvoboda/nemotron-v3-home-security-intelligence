@@ -2,13 +2,14 @@
  * Tests for useSceneChangeSummaryQuery hook (NEM-3580)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react';
 import { ReactNode } from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { useSceneChangeSummaryQuery } from './useSceneChangeSummaryQuery';
 import * as api from '../services/api';
+
 import type { SceneChangeSummary } from '../services/api';
 
 // Mock the API module

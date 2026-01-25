@@ -167,7 +167,6 @@ import type {
   CameraListResponse as GeneratedCameraListResponse,
   CameraPathValidationResponse,
   CameraUpdate,
-  CameraValidationInfo,
   CircuitBreakerResetResponse as GeneratedCircuitBreakerResetResponse,
   CircuitBreakersResponse as GeneratedCircuitBreakersResponse,
   CleanupResponse,
@@ -5814,7 +5813,7 @@ export async function fetchSceneChangeSummary(
   // For a proper implementation, a backend summary endpoint would be more efficient
   const response = await fetchSceneChanges(cameraId, { limit: 100 });
 
-  const changes = response.scene_changes;
+  const changes = response.scene_changes ?? [];
 
   // Filter by date range if days is specified
   const cutoffDate = new Date();

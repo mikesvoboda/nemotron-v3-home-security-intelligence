@@ -25,7 +25,6 @@ Design Document:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -61,19 +60,18 @@ from backend.models.gpu_config import (
 from backend.services.gpu_config_service import (
     REDIS_GPU_CONFIG_PREFIX,
     ApplyResult,
-    GpuAssignment as GpuAssignmentDataclass,
     GpuConfigService,
     RestartStatus,
     ServiceRestartStatus,
+)
+from backend.services.gpu_config_service import (
+    GpuAssignment as GpuAssignmentDataclass,
 )
 from backend.services.gpu_detection_service import (
     AI_SERVICE_VRAM_REQUIREMENTS_MB,
     GpuDevice,
     get_gpu_detection_service,
 )
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger(__name__)
 
@@ -1171,7 +1169,7 @@ async def get_service_health(
 
         # Build service health status list
         services = []
-        for service_name in AI_SERVICE_VRAM_REQUIREMENTS_MB.keys():
+        for service_name in AI_SERVICE_VRAM_REQUIREMENTS_MB:
             # Get restart status from apply state if applicable
             restart_status = None
             if in_progress:

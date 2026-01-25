@@ -14,12 +14,12 @@
 
 import { useMemo, useCallback } from 'react';
 
-import { useNotificationPreferences } from './useNotificationPreferences';
+import { useAudioNotifications } from './useAudioNotifications';
 import {
   useDesktopNotifications,
   type SecurityAlertNotificationOptions,
 } from './useDesktopNotifications';
-import { useAudioNotifications } from './useAudioNotifications';
+import { useNotificationPreferences } from './useNotificationPreferences';
 import {
   usePushNotifications,
   type SecurityAlertOptions as PushSecurityAlertOptions,

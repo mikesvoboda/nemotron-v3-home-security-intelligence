@@ -2,13 +2,14 @@
  * Tests for useCameraPathValidationQuery hook (NEM-3578)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react';
 import { ReactNode } from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { useCameraPathValidationQuery } from './useCameraPathValidationQuery';
 import * as api from '../services/api';
+
 import type { CameraPathValidationResponse } from '../services/api';
 
 // Mock the API module
@@ -145,7 +146,7 @@ describe('useCameraPathValidationQuery', () => {
     expect(result.current.allValid).toBe(true);
   });
 
-  it('does not fetch when disabled', async () => {
+  it('does not fetch when disabled', () => {
     const { result } = renderHook(
       () => useCameraPathValidationQuery({ enabled: false }),
       { wrapper: createWrapper() }

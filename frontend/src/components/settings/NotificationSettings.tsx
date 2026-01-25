@@ -23,6 +23,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 
 import { useCamerasQuery } from '../../hooks/useCamerasQuery';
+import { useIntegratedNotifications } from '../../hooks/useIntegratedNotifications';
 import {
   useNotificationPreferences,
   useCameraNotificationSettings,
@@ -35,7 +36,6 @@ import {
   testNotification,
   type NotificationConfig,
 } from '../../services/api';
-import { useIntegratedNotifications } from '../../hooks/useIntegratedNotifications';
 
 export interface NotificationSettingsProps {
   className?: string;

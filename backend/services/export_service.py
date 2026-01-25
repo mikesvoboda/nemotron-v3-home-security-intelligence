@@ -203,7 +203,7 @@ EXTENDED_EXPORT_COLUMNS: list[tuple[str, str]] = [
 ]
 
 # Map of field names to display names for column lookup
-COLUMN_NAME_MAP: dict[str, str] = {field: name for field, name in EXTENDED_EXPORT_COLUMNS}
+COLUMN_NAME_MAP: dict[str, str] = dict(EXTENDED_EXPORT_COLUMNS)
 
 
 def get_selected_columns(column_names: list[str] | None) -> list[tuple[str, str]]:
@@ -228,7 +228,7 @@ def get_selected_columns(column_names: list[str] | None) -> list[tuple[str, str]
     return selected if selected else EXTENDED_EXPORT_COLUMNS
 
 
-def filter_row_to_dict(row: "EventExportRow", column_names: list[str] | None) -> dict[str, Any]:
+def filter_row_to_dict(row: EventExportRow, column_names: list[str] | None) -> dict[str, Any]:
     """Convert an EventExportRow to a dictionary with selected columns only.
 
     Args:

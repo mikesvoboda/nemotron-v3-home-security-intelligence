@@ -2,13 +2,14 @@
  * Tests for useCameraSnapshotStatus hook (NEM-3579)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react';
 import { ReactNode } from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { useCameraSnapshotStatus } from './useCameraSnapshotStatus';
 import * as api from '../services/api';
+
 import type { CameraSnapshotStatus } from '../services/api';
 
 // Mock the API module
@@ -92,7 +93,7 @@ describe('useCameraSnapshotStatus', () => {
     expect(result.current.suggestion).toContain('Verify the camera folder');
   });
 
-  it('always provides snapshot URL regardless of availability', async () => {
+  it('always provides snapshot URL regardless of availability', () => {
     const mockStatus: CameraSnapshotStatus = {
       available: false,
       url: 'http://localhost:8000/api/cameras/test/snapshot',
