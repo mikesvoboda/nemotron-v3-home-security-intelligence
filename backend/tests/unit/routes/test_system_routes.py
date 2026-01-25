@@ -1619,7 +1619,10 @@ async def test_patch_config_updates_retention_days(tmp_path, monkeypatch) -> Non
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
+        mock_response = MagicMock()
+        response = await system_routes.patch_config(
+            request=mock_request, response=mock_response, update=update, db=mock_db
+        )
 
     assert isinstance(response, ConfigResponse)
     assert response.retention_days == 7
@@ -1658,7 +1661,10 @@ async def test_patch_config_updates_batch_window_seconds(tmp_path, monkeypatch) 
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
+        mock_response = MagicMock()
+        response = await system_routes.patch_config(
+            request=mock_request, response=mock_response, update=update, db=mock_db
+        )
 
     assert isinstance(response, ConfigResponse)
     assert response.batch_window_seconds == 120
@@ -1696,7 +1702,10 @@ async def test_patch_config_updates_batch_idle_timeout(tmp_path, monkeypatch) ->
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
+        mock_response = MagicMock()
+        response = await system_routes.patch_config(
+            request=mock_request, response=mock_response, update=update, db=mock_db
+        )
 
     assert isinstance(response, ConfigResponse)
     assert response.batch_idle_timeout_seconds == 45
@@ -1734,7 +1743,10 @@ async def test_patch_config_updates_detection_threshold(tmp_path, monkeypatch) -
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
+        mock_response = MagicMock()
+        response = await system_routes.patch_config(
+            request=mock_request, response=mock_response, update=update, db=mock_db
+        )
 
     assert isinstance(response, ConfigResponse)
     assert response.detection_confidence_threshold == 0.75
@@ -1773,7 +1785,10 @@ async def test_patch_config_no_changes(tmp_path, monkeypatch) -> None:
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
+        mock_response = MagicMock()
+        response = await system_routes.patch_config(
+            request=mock_request, response=mock_response, update=update, db=mock_db
+        )
 
     assert isinstance(response, ConfigResponse)
     # Cache clear is always called
@@ -1817,7 +1832,10 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
         patch.object(system_routes, "AuditService") as mock_audit,
     ):
         mock_audit.log_action = AsyncMock()
-        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
+        mock_response = MagicMock()
+        response = await system_routes.patch_config(
+            request=mock_request, response=mock_response, update=update, db=mock_db
+        )
 
     assert isinstance(response, ConfigResponse)
     assert response.retention_days == 14
