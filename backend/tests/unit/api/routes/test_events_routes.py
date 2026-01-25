@@ -443,6 +443,7 @@ class TestGetEventRoute:
         mock_event.snooze_until = None
         mock_event.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
         mock_event.detection_id_list = [1, 2, 3]
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         with patch("backend.api.routes.events.get_event_or_404", return_value=mock_event):
             result = await get_event(event_id=1, request=mock_request, db=mock_db)
@@ -480,6 +481,7 @@ class TestUpdateEventRoute:
         mock_event.snooze_until = None
         mock_event.detections = [Mock(id=1), Mock(id=2), Mock(id=3)]
         mock_event.detection_id_list = [1, 2, 3]
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         update_data = EventUpdate(reviewed=True)
 
@@ -968,6 +970,7 @@ class TestUpdateEventRouteComprehensive:
         mock_event.snooze_until = None
         mock_event.detections = []
         mock_event.detection_id_list = [1, 2]
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         update_data = EventUpdate(reviewed=True, notes="Test note")
 
@@ -1010,6 +1013,7 @@ class TestUpdateEventRouteComprehensive:
         mock_event.snooze_until = None
         mock_event.detections = []
         mock_event.detection_id_list = [1]
+        mock_event.version = 1  # Optimistic locking version (NEM-3625)
 
         update_data = EventUpdate(notes="New note")
 
