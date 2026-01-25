@@ -841,3 +841,19 @@ export type {
   UseConditionalContextResult,
   SuspenseResource,
 } from './useContextValue';
+
+// Camera baseline hooks (NEM-3576)
+export {
+  useCameraBaselineQuery,
+  useCameraActivityBaselineQuery,
+  useCameraClassBaselineQuery,
+  cameraBaselineQueryKeys,
+} from './useCameraBaselineQuery';
+export type {
+  UseCameraBaselineQueryOptions,
+  UseCameraBaselineQueryReturn,
+  UseCameraActivityBaselineQueryOptions,
+  UseCameraActivityBaselineQueryReturn,
+  UseCameraClassBaselineQueryOptions,
+  UseCameraClassBaselineQueryReturn,
+} from './useCameraBaselineQuery';

@@ -108,6 +108,12 @@ export type {
   PipelineLatencyHistoryResponse,
   PipelineStageLatency,
   LatencyHistorySnapshot,
+  // Pipeline Status types (NEM-3653)
+  PipelineStatusResponse,
+  BatchAggregatorStatusResponse,
+  BatchInfoResponse,
+  FileWatcherStatusResponse,
+  DegradationStatusResponse,
   // Notification preferences types
   NotificationPreferencesResponse,
   NotificationPreferencesUpdate,
@@ -1508,9 +1514,105 @@ export interface AnomalyConfigUpdate {
   min_samples?: number;
 }
 
+/**
+ * Interpretation of current deviation from baseline.
+ */
+export type DeviationInterpretation =
+  | 'far_below_normal'
+  | 'below_normal'
+  | 'normal'
+  | 'slightly_above_normal'
+  | 'above_normal'
+  | 'far_above_normal';
+
+/**
+ * Activity pattern for a specific hour.
+ */
+export interface HourlyPattern {
+  /** Average number of detections during this hour */
+  avg_detections: number;
+  /** Standard deviation of detection count */
+  std_dev: number;
+  /** Number of samples used for this calculation */
+  sample_count: number;
+}
+
+/**
+ * Activity pattern for a specific day of the week.
+ */
+export interface DailyPattern {
+  /** Average number of detections for this day */
+  avg_detections: number;
+  /** Hour with most activity (0-23) */
+  peak_hour: number;
+  /** Total samples for this day */
+  total_samples: number;
+}
+
+/**
+ * Baseline statistics for a specific object class.
+ */
+export interface ObjectBaseline {
+  /** Average hourly detection count for this object type */
+  avg_hourly: number;
+  /** Hour with most detections of this type (0-23) */
+  peak_hour: number;
+  /** Total detections of this type in the baseline period */
+  total_detections: number;
+}
+
+/**
+ * Current activity deviation from established baseline.
+ */
+export interface CurrentDeviation {
+  /** Deviation score (standard deviations from mean, can be negative) */
+  score: number;
+  /** Human-readable interpretation of the deviation */
+  interpretation: DeviationInterpretation;
+  /** Factors contributing to current deviation */
+  contributing_factors: string[];
+}
+
+/**
+ * Response schema for camera baseline summary endpoint.
+ * Provides comprehensive baseline data for a camera.
+ */
+export interface BaselineSummaryResponse {
+  /** Camera ID */
+  camera_id: string;
+  /** Human-readable camera name */
+  camera_name: string;
+  /** When baseline data collection started (null if no data) */
+  baseline_established: string | null;
+  /** Total number of data points in baseline */
+  data_points: number;
+  /** Activity patterns by hour (0-23) */
+  hourly_patterns: Record<string, HourlyPattern>;
+  /** Activity patterns by day of week (monday-sunday) */
+  daily_patterns: Record<string, DailyPattern>;
+  /** Baseline statistics by object type */
+  object_baselines: Record<string, ObjectBaseline>;
+  /** Current deviation from baseline (null if insufficient data) */
+  current_deviation: CurrentDeviation | null;
+}
+
 // ============================================================================
 // Baseline Analytics Endpoints
 // ============================================================================
+
+/**
+ * Fetch baseline summary data for a camera.
+ * Returns comprehensive baseline including hourly patterns, daily patterns,
+ * object baselines, and current deviation.
+ *
+ * @param cameraId - Camera ID
+ * @returns BaselineSummaryResponse with baseline summary data
+ */
+export async function fetchCameraBaseline(cameraId: string): Promise<BaselineSummaryResponse> {
+  return fetchApi<BaselineSummaryResponse>(
+    `/api/cameras/${encodeURIComponent(cameraId)}/baseline`
+  );
+}
 
 /**
  * Fetch activity baseline data for a camera.
@@ -1829,13 +1931,26 @@ export async function fetchQueuesStatus(): Promise<QueuesStatusResponse> {
 }
 
 /**
- * Fetch pipeline status including FileWatcher, BatchAggregator, and DegradationManager.
- * Returns real-time visibility into the AI processing pipeline.
+ * Fetch combined status of all pipeline operations (NEM-3653).
  *
+ * Returns real-time visibility into the AI processing pipeline including:
+ * - BatchAggregator: Active batches being aggregated
+ * - FileWatcher: Camera directory monitoring status
+ * - DegradationManager: Graceful degradation status
+ *
+ * @param options - Optional fetch options including AbortSignal for cancellation
  * @returns PipelineStatusResponse with status of all pipeline services
+ *
+ * @example
+ * ```typescript
+ * const status = await fetchPipelineStatus();
+ * console.log(`Active batches: ${status.batch_aggregator?.active_batches}`);
+ * ```
  */
-export async function fetchPipelineStatus(): Promise<PipelineStatusResponse> {
-  return fetchApi<PipelineStatusResponse>('/api/system/pipeline');
+export async function fetchPipelineStatus(options?: {
+  signal?: AbortSignal;
+}): Promise<PipelineStatusResponse> {
+  return fetchApi<PipelineStatusResponse>('/api/system/pipeline', options);
 }
 
 // ============================================================================

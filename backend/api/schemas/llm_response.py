@@ -8,14 +8,20 @@ Schemas:
     LLMRiskResponse: Validated risk assessment with strict constraints
     LLMRawResponse: Lenient parsing for raw LLM JSON output
     RiskLevel: Enum of valid risk level values
+    RiskEntity: Entity identified in the risk analysis (NEM-3601)
+    RiskFlag: Risk flags with severity levels (NEM-3601)
+    ConfidenceFactors: Factors affecting confidence in the analysis (NEM-3601)
 """
 
 from __future__ import annotations
 
+import logging
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+logger = logging.getLogger(__name__)
 
 
 class RiskLevel(str, Enum):
@@ -67,6 +73,123 @@ def infer_risk_level_from_score(score: int) -> RiskLevel:
             return RiskLevel.CRITICAL
 
 
+# =============================================================================
+# Advanced Risk Analysis Schemas (NEM-3601)
+# =============================================================================
+
+
+class RiskEntity(BaseModel):
+    """Entity identified during risk analysis.
+
+    Entities represent objects of interest detected in the scene that
+    contribute to the overall risk assessment (e.g., people, vehicles,
+    packages).
+
+    Attributes:
+        type: Category of entity (e.g., "person", "vehicle", "package")
+        description: Detailed description of the entity
+        threat_level: Risk level attributed to this entity
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",
+        json_schema_extra={
+            "example": {
+                "type": "person",
+                "description": "Unknown individual near front entrance",
+                "threat_level": "medium",
+            }
+        },
+    )
+
+    type: str = Field(
+        ...,
+        description="Category of entity (e.g., person, vehicle, package)",
+    )
+    description: str = Field(
+        ...,
+        description="Detailed description of the entity",
+    )
+    threat_level: Literal["low", "medium", "high"] = Field(
+        ...,
+        description="Risk level attributed to this entity",
+    )
+
+
+class RiskFlag(BaseModel):
+    """Risk flag indicating a specific concern or anomaly.
+
+    Flags represent specific behaviors, patterns, or conditions that
+    warrant attention (e.g., loitering, nighttime activity, weapon detected).
+
+    Attributes:
+        type: Category of flag (e.g., "loitering", "weapon_detected")
+        description: Explanation of the flag
+        severity: How severe this flag is (warning, alert, critical)
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",
+        json_schema_extra={
+            "example": {
+                "type": "loitering",
+                "description": "Person has been stationary for over 5 minutes",
+                "severity": "warning",
+            }
+        },
+    )
+
+    type: str = Field(
+        ...,
+        description="Category of flag (e.g., loitering, weapon_detected)",
+    )
+    description: str = Field(
+        ...,
+        description="Explanation of the flag",
+    )
+    severity: Literal["warning", "alert", "critical"] = Field(
+        ...,
+        description="Severity level of this flag",
+    )
+
+
+class ConfidenceFactors(BaseModel):
+    """Factors affecting confidence in the risk analysis.
+
+    These factors help explain the reliability of the risk assessment
+    and can be used to understand when additional review may be needed.
+
+    Attributes:
+        detection_quality: Quality of the detection data (good, fair, poor)
+        weather_impact: Impact of weather on detection accuracy
+        enrichment_coverage: Completeness of enrichment data used
+    """
+
+    model_config = ConfigDict(
+        extra="ignore",
+        json_schema_extra={
+            "example": {
+                "detection_quality": "good",
+                "weather_impact": "none",
+                "enrichment_coverage": "full",
+            }
+        },
+    )
+
+    detection_quality: Literal["good", "fair", "poor"] = Field(
+        default="good",
+        description="Quality of the detection data",
+    )
+    weather_impact: Literal["none", "minor", "significant"] = Field(
+        default="none",
+        description="Impact of weather conditions on detection accuracy",
+    )
+    enrichment_coverage: Literal["full", "partial", "minimal"] = Field(
+        default="full",
+        description="Completeness of enrichment data available",
+    )
+
+
 class LLMRiskResponse(BaseModel):
     """Validated risk assessment response from Nemotron LLM.
 
@@ -83,6 +206,10 @@ class LLMRiskResponse(BaseModel):
         risk_level: Risk classification level
         summary: Human-readable event summary
         reasoning: Detailed reasoning for the risk assessment
+        entities: List of entities identified in the analysis (NEM-3601)
+        flags: List of risk flags raised during analysis (NEM-3601)
+        recommended_action: Suggested action to take (NEM-3601)
+        confidence_factors: Factors affecting analysis confidence (NEM-3601)
     """
 
     model_config = ConfigDict(
@@ -93,6 +220,26 @@ class LLMRiskResponse(BaseModel):
                 "risk_level": "high",
                 "summary": "Suspicious activity detected at front entrance",
                 "reasoning": "Person detected at unusual time with unknown vehicle",
+                "entities": [
+                    {
+                        "type": "person",
+                        "description": "Unknown individual",
+                        "threat_level": "medium",
+                    }
+                ],
+                "flags": [
+                    {
+                        "type": "nighttime_activity",
+                        "description": "Activity detected outside normal hours",
+                        "severity": "warning",
+                    }
+                ],
+                "recommended_action": "Review camera footage",
+                "confidence_factors": {
+                    "detection_quality": "good",
+                    "weather_impact": "none",
+                    "enrichment_coverage": "full",
+                },
             }
         },
     )
@@ -114,6 +261,23 @@ class LLMRiskResponse(BaseModel):
     reasoning: str = Field(
         ...,
         description="Detailed reasoning for the risk assessment",
+    )
+    # Advanced fields (NEM-3601)
+    entities: list[RiskEntity] = Field(
+        default_factory=list,
+        description="Entities identified in the analysis",
+    )
+    flags: list[RiskFlag] = Field(
+        default_factory=list,
+        description="Risk flags raised during analysis",
+    )
+    recommended_action: str | None = Field(
+        default=None,
+        description="Suggested action to take based on the analysis",
+    )
+    confidence_factors: ConfidenceFactors | None = Field(
+        default=None,
+        description="Factors affecting confidence in the analysis",
     )
 
     @field_validator("risk_score", mode="before")
@@ -191,6 +355,10 @@ class LLMRawResponse(BaseModel):
         risk_level: Raw risk level string (may be invalid)
         summary: Optional event summary
         reasoning: Optional reasoning text
+        entities: Optional list of entities (NEM-3601)
+        flags: Optional list of risk flags (NEM-3601)
+        recommended_action: Optional recommended action (NEM-3601)
+        confidence_factors: Optional confidence factors (NEM-3601)
     """
 
     model_config = ConfigDict(
@@ -220,6 +388,23 @@ class LLMRawResponse(BaseModel):
     reasoning: str | None = Field(
         None,
         description="Reasoning text (optional in raw response)",
+    )
+    # Advanced fields (NEM-3601) - stored as raw dicts for lenient parsing
+    entities: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Raw entities from LLM (validated during conversion)",
+    )
+    flags: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="Raw flags from LLM (validated during conversion)",
+    )
+    recommended_action: str | None = Field(
+        None,
+        description="Recommended action (optional in raw response)",
+    )
+    confidence_factors: dict[str, Any] | None = Field(
+        None,
+        description="Raw confidence factors (validated during conversion)",
     )
 
     @model_validator(mode="before")
@@ -256,6 +441,7 @@ class LLMRawResponse(BaseModel):
         2. Normalizes risk_level to lowercase
         3. Infers risk_level from score if invalid
         4. Provides defaults for missing summary/reasoning
+        5. Validates and converts advanced fields (NEM-3601)
 
         Returns:
             Validated LLMRiskResponse instance
@@ -285,9 +471,69 @@ class LLMRawResponse(BaseModel):
         summary = self.summary if self.summary else "Risk analysis completed"
         reasoning = self.reasoning if self.reasoning else "No detailed reasoning provided"
 
+        # Parse advanced fields (NEM-3601)
+        validated_entities = self._parse_entities()
+        validated_flags = self._parse_flags()
+        validated_confidence_factors = self._parse_confidence_factors()
+
         return LLMRiskResponse(
             risk_score=score,
             risk_level=normalized_level,
             summary=summary,
             reasoning=reasoning,
+            entities=validated_entities,
+            flags=validated_flags,
+            recommended_action=self.recommended_action,
+            confidence_factors=validated_confidence_factors,
         )
+
+    def _parse_entities(self) -> list[RiskEntity]:
+        """Parse and validate entities from raw data.
+
+        Invalid entities are filtered out with debug logging to handle
+        malformed LLM output gracefully.
+
+        Returns:
+            List of validated RiskEntity instances
+        """
+        validated: list[RiskEntity] = []
+        for entity_data in self.entities:
+            try:
+                validated.append(RiskEntity.model_validate(entity_data))
+            except Exception as e:
+                # Skip invalid entities with debug logging
+                logger.debug("Skipping invalid entity: %s (error: %s)", entity_data, e)
+        return validated
+
+    def _parse_flags(self) -> list[RiskFlag]:
+        """Parse and validate flags from raw data.
+
+        Invalid flags are filtered out with debug logging to handle
+        malformed LLM output gracefully.
+
+        Returns:
+            List of validated RiskFlag instances
+        """
+        validated: list[RiskFlag] = []
+        for flag_data in self.flags:
+            try:
+                validated.append(RiskFlag.model_validate(flag_data))
+            except Exception as e:
+                # Skip invalid flags with debug logging
+                logger.debug("Skipping invalid flag: %s (error: %s)", flag_data, e)
+        return validated
+
+    def _parse_confidence_factors(self) -> ConfidenceFactors | None:
+        """Parse and validate confidence factors from raw data.
+
+        Returns None if confidence_factors is not provided or invalid.
+
+        Returns:
+            Validated ConfidenceFactors instance or None
+        """
+        if self.confidence_factors is None:
+            return None
+        try:
+            return ConfidenceFactors.model_validate(self.confidence_factors)
+        except Exception:
+            return None

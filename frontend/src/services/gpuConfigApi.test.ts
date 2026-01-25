@@ -124,11 +124,13 @@ const mockGpuStatusResponse: GpuStatusResponse = {
 };
 
 const mockStrategyPreviewResponse: StrategyPreviewResponse = {
+  strategy: 'balanced',
   proposed_assignments: [
     { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
     { service: 'ai-detector', gpu_index: 1, vram_budget_override: null },
     { service: 'ai-enrichment', gpu_index: 0, vram_budget_override: 2.5 },
   ],
+  warnings: [],
 };
 
 // ============================================================================
@@ -720,7 +722,9 @@ describe('previewStrategy', () => {
 
   it('previews manual strategy', async () => {
     const manualPreview: StrategyPreviewResponse = {
+      strategy: 'manual',
       proposed_assignments: [],
+      warnings: [],
     };
     vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(manualPreview));
 

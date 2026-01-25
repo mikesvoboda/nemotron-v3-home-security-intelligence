@@ -130,8 +130,10 @@ export interface EventCardProps {
   ended_at?: string | null;
   onViewDetails?: (eventId: string) => void;
   onClick?: (eventId: string) => void;
-  /** Callback to snooze the event for a duration in seconds */
+  /** Callback to snooze the event for a duration in seconds (0 to clear snooze) */
   onSnooze?: (eventId: string, seconds: number) => void;
+  /** ISO timestamp until which the event is snoozed (NEM-3592) */
+  snoozedUntil?: string;
   className?: string;
   /** When true, adds left margin to header to accommodate an overlaying checkbox */
   hasCheckboxOverlay?: boolean;
@@ -164,6 +166,7 @@ const EventCard = memo(function EventCard({
   onViewDetails,
   onClick,
   onSnooze,
+  snoozedUntil,
   className = '',
   hasCheckboxOverlay = false,
   snooze_until,
@@ -191,6 +194,9 @@ const EventCard = memo(function EventCard({
 
   // Get severity configuration for styling
   const severityConfig = getSeverityConfig(risk_score);
+
+  // Check if event is currently snoozed
+  const isSnoozed = snoozedUntil ? new Date(snoozedUntil) > new Date() : false;
 
   // Handle snooze action
   const handleSnooze = (seconds: number) => {
@@ -317,7 +323,7 @@ const EventCard = memo(function EventCard({
   return (
     /* eslint-disable jsx-a11y/no-static-element-interactions, jsx-a11y/no-noninteractive-tabindex -- Card is accessible via nested buttons (View Details, Snooze) when they exist; role="button" intentionally omitted to avoid WCAG nested-interactive violation */
     <div
-      className={`rounded-lg border border-gray-800 ${getBorderWidthClass()} shadow-lg transition-all hover:border-gray-700 ${getSeverityClasses()} ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
+      className={`rounded-lg border border-gray-800 ${getBorderWidthClass()} shadow-lg transition-all hover:border-gray-700 ${getSeverityClasses()} ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${isSnoozed ? 'opacity-60' : ''} ${className}`}
       data-testid={`event-card-${id}`}
       data-severity={severityConfig.level}
       onClick={isClickable ? handleCardClick : undefined}
@@ -380,6 +386,14 @@ const EventCard = memo(function EventCard({
             {/* Snooze Badge (NEM-3640) */}
             <SnoozeBadge snoozeUntil={snooze_until} size="sm" />
           </div>
+
+          {/* Snooze Indicator (NEM-3592) */}
+          {isSnoozed && snoozedUntil && (
+            <div className="mb-3 flex items-center gap-1.5 rounded-full bg-purple-500/20 px-2 py-0.5 text-xs text-purple-400 w-fit">
+              <Moon className="h-3 w-3" />
+              <span>Snoozed until {formatTimestamp(snoozedUntil)}</span>
+            </div>
+          )}
 
           {/* Object Type Badges */}
           {uniqueObjectTypes.length > 0 && (
@@ -516,6 +530,14 @@ const EventCard = memo(function EventCard({
                 </button>
                 {showSnoozeMenu && (
                   <div className="absolute right-0 z-10 mt-1 w-40 rounded-md border border-gray-700 bg-gray-800 py-1 shadow-lg">
+                    {isSnoozed && (
+                      <button
+                        onClick={() => handleSnooze(0)}
+                        className="block w-full px-4 py-2 text-left text-sm text-purple-400 hover:bg-gray-700"
+                      >
+                        Clear snooze
+                      </button>
+                    )}
                     <button
                       onClick={() => handleSnooze(900)}
                       className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
@@ -539,6 +561,12 @@ const EventCard = memo(function EventCard({
                       className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
                     >
                       8 hours
+                    </button>
+                    <button
+                      onClick={() => handleSnooze(86400)}
+                      className="block w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-700"
+                    >
+                      24 hours
                     </button>
                   </div>
                 )}

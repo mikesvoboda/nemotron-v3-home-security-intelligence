@@ -6,6 +6,7 @@ from functools import cached_property
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from backend.api.schemas.llm_response import ConfidenceFactors, RiskEntity, RiskFlag
 from backend.api.schemas.pagination import PaginationMeta
 
 # Default severity thresholds (matches backend.services.severity)
@@ -120,6 +121,20 @@ class EventResponse(BaseModel):
                     "errors": {},
                     "success_rate": 1.0,
                 },
+                "entities": [
+                    {
+                        "type": "person",
+                        "description": "Individual in casual clothing",
+                        "threat_level": "low",
+                    }
+                ],
+                "flags": [],
+                "recommended_action": None,
+                "confidence_factors": {
+                    "detection_quality": "good",
+                    "weather_impact": "none",
+                    "enrichment_coverage": "full",
+                },
             }
         },
     )
@@ -171,6 +186,23 @@ class EventResponse(BaseModel):
     deleted_at: datetime | None = Field(
         None,
         description="Timestamp when the event was soft-deleted (null if not deleted)",
+    )
+    # Advanced risk analysis fields (NEM-3601)
+    entities: list[RiskEntity] = Field(
+        default_factory=list,
+        description="Entities identified in the analysis (people, vehicles, objects)",
+    )
+    flags: list[RiskFlag] = Field(
+        default_factory=list,
+        description="Risk flags raised during analysis",
+    )
+    recommended_action: str | None = Field(
+        None,
+        description="Suggested action based on the analysis",
+    )
+    confidence_factors: ConfidenceFactors | None = Field(
+        None,
+        description="Factors affecting confidence in the analysis",
     )
 
     def model_dump_list(self) -> dict:

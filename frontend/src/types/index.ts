@@ -17,6 +17,33 @@
 export * from './generated';
 
 // ============================================================================
+// Advanced Risk Analysis Types (NEM-3601)
+// ============================================================================
+
+export type {
+  ThreatLevel,
+  FlagSeverity,
+  DetectionQuality,
+  WeatherImpact,
+  EnrichmentCoverage,
+  RiskEntity,
+  RiskFlag,
+  ConfidenceFactors,
+  AdvancedRiskAnalysis,
+} from './risk-analysis';
+
+export {
+  isThreatLevel,
+  isFlagSeverity,
+  isRiskEntity,
+  isRiskFlag,
+  isConfidenceFactors,
+  THREAT_LEVEL_CONFIG,
+  FLAG_SEVERITY_CONFIG,
+  CONFIDENCE_FACTOR_CONFIG,
+} from './risk-analysis';
+
+// ============================================================================
 // Async State Types
 // ============================================================================
 

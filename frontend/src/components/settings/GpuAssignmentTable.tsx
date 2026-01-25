@@ -10,7 +10,8 @@
 
 import { Card, Title, Text, Badge } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Cpu, AlertTriangle } from 'lucide-react';
+import { Cpu, AlertTriangle, RotateCcw } from 'lucide-react';
+import { useState, useCallback } from 'react';
 
 import type { GpuDevice, GpuAssignment, ServiceStatus } from '../../hooks/useGpuConfig';
 
@@ -38,6 +39,8 @@ export interface GpuAssignmentTableProps {
   strategy: string;
   /** Callback when an assignment is changed */
   onAssignmentChange: (service: string, gpuIndex: number | null) => void;
+  /** Callback when VRAM budget override is changed */
+  onVramOverrideChange?: (service: string, vramOverride: number | null) => void;
   /** Whether the table is in loading state */
   isLoading?: boolean;
   /** Whether changes are pending (not yet saved) */
@@ -135,6 +138,97 @@ function LoadingRow() {
 }
 
 /**
+ * Props for VramOverrideInput component
+ */
+interface VramOverrideInputProps {
+  service: string;
+  currentValue: number;
+  hasOverride: boolean;
+  defaultValue: number;
+  onChange: (value: number | null) => void;
+  disabled?: boolean;
+}
+
+/**
+ * VRAM budget override input with reset button
+ */
+function VramOverrideInput({
+  service,
+  currentValue,
+  hasOverride,
+  defaultValue,
+  onChange,
+  disabled = false,
+}: VramOverrideInputProps) {
+  const [localValue, setLocalValue] = useState(currentValue.toString());
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleBlur = useCallback(() => {
+    setIsEditing(false);
+    const numValue = parseFloat(localValue);
+    if (isNaN(numValue) || numValue <= 0) {
+      // Reset to current value if invalid
+      setLocalValue(currentValue.toString());
+      return;
+    }
+    // Only call onChange if value actually changed
+    if (numValue !== currentValue) {
+      onChange(numValue);
+    }
+  }, [localValue, currentValue, onChange]);
+
+  const handleReset = useCallback(() => {
+    onChange(null);
+    setLocalValue(defaultValue.toString());
+  }, [onChange, defaultValue]);
+
+  // Update local value when prop changes
+  if (!isEditing && localValue !== currentValue.toString()) {
+    setLocalValue(currentValue.toString());
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="number"
+        value={localValue}
+        onChange={(e) => {
+          setIsEditing(true);
+          setLocalValue(e.target.value);
+        }}
+        onBlur={handleBlur}
+        disabled={disabled}
+        step="0.1"
+        min="0.1"
+        className={clsx(
+          'w-20 rounded-lg border bg-gray-800 px-2 py-1 text-sm text-white',
+          'focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]',
+          {
+            'border-gray-700': !hasOverride,
+            'border-[#76B900]': hasOverride,
+            'cursor-not-allowed opacity-60': disabled,
+          }
+        )}
+        data-testid={`vram-override-${service}`}
+        aria-label={`VRAM budget override for ${service}`}
+      />
+      <span className="text-xs text-gray-400">GB</span>
+      {hasOverride && !disabled && (
+        <button
+          type="button"
+          onClick={handleReset}
+          className="rounded p-1 text-gray-400 hover:bg-gray-700 hover:text-white"
+          title="Reset to default"
+          data-testid={`vram-reset-${service}`}
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
  * GpuAssignmentTable component for managing service-to-GPU assignments
  */
 export default function GpuAssignmentTable({
@@ -143,6 +237,7 @@ export default function GpuAssignmentTable({
   serviceStatuses,
   strategy,
   onAssignmentChange,
+  onVramOverrideChange,
   isLoading = false,
   hasPendingChanges = false,
   className,
@@ -264,14 +359,27 @@ export default function GpuAssignmentTable({
 
                     {/* VRAM Required */}
                     <td className="px-4 py-3">
-                      <span
-                        className={clsx('text-sm', {
-                          'text-white': !overVram,
-                          'text-orange-400': overVram,
-                        })}
-                      >
-                        {formatVram(vramRequired)}
-                      </span>
+                      {isManual && onVramOverrideChange ? (
+                        <VramOverrideInput
+                          service={assignment.service}
+                          currentValue={vramRequired}
+                          hasOverride={
+                            assignment.vram_budget_override !== null &&
+                            assignment.vram_budget_override !== undefined
+                          }
+                          defaultValue={DEFAULT_VRAM_REQUIREMENTS[assignment.service] ?? 2.0}
+                          onChange={(value) => onVramOverrideChange(assignment.service, value)}
+                        />
+                      ) : (
+                        <span
+                          className={clsx('text-sm', {
+                            'text-white': !overVram,
+                            'text-orange-400': overVram,
+                          })}
+                        >
+                          {formatVram(vramRequired)}
+                        </span>
+                      )}
                     </td>
 
                     {/* Status */}
