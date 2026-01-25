@@ -5346,7 +5346,8 @@
             "type": "boolean"
           },
           "detection_confidence_threshold": {
-            "description": "Minimum confidence threshold for detections (0.0-1.0)",
+            "deprecated": true,
+            "description": "DEPRECATED: Use /api/v1/settings detection.confidence_threshold instead. Minimum confidence threshold for detections (0.0-1.0). This field will be removed in a future version.",
             "maximum": 1.0,
             "minimum": 0.0,
             "title": "Detection Confidence Threshold",
@@ -5423,7 +5424,8 @@
                 "type": "null"
               }
             ],
-            "description": "Minimum confidence threshold for detections (0.0-1.0)",
+            "deprecated": true,
+            "description": "DEPRECATED: Use /api/v1/settings detection.confidence_threshold instead. Minimum confidence threshold for detections (0.0-1.0). This field will be removed in a future version.",
             "title": "Detection Confidence Threshold"
           },
           "retention_days": {
@@ -23051,6 +23053,18 @@
             ],
             "description": "LLM-generated event summary",
             "title": "Summary"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL to event thumbnail image (from first detection)",
+            "title": "Thumbnail Url"
           }
         },
         "required": [
@@ -38354,7 +38368,7 @@
     },
     "/api/system/config": {
       "get": {
-        "description": "Get public configuration settings.\n\nReturns non-sensitive application configuration values.\nDoes NOT expose database URLs, API keys, or other secrets.\n\nReturns:\n    ConfigResponse with public configuration settings",
+        "description": "Get public configuration settings.\n\nReturns non-sensitive application configuration values.\nDoes NOT expose database URLs, API keys, or other secrets.\n\nNote: The detection_confidence_threshold field is deprecated.\nUse /api/v1/settings detection.confidence_threshold instead.\n\nReturns:\n    ConfigResponse with public configuration settings",
         "operationId": "system_get_config",
         "responses": {
           "200": {
@@ -38374,7 +38388,7 @@
         ]
       },
       "patch": {
-        "description": "Patch processing-related configuration and persist runtime overrides.\n\nRequires API key authentication when api_key_enabled is True in settings.\nProvide the API key via X-API-Key header.\n\nNotes:\n- This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the\n  settings cache so subsequent `get_settings()` calls observe the new values.",
+        "description": "Patch processing-related configuration and persist runtime overrides.\n\nRequires API key authentication when api_key_enabled is True in settings.\nProvide the API key via X-API-Key header.\n\nNote: The detection_confidence_threshold field is deprecated.\nUse PATCH /api/v1/settings with detection.confidence_threshold instead.\n\nNotes:\n- This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the\n  settings cache so subsequent `get_settings()` calls observe the new values.",
         "operationId": "system_patch_config",
         "parameters": [
           {
