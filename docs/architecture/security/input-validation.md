@@ -2,6 +2,8 @@
 
 > Pydantic validation patterns, SQL injection prevention, and request sanitization
 
+![Input Validation Overview](../../images/architecture/security/flow-input-validation.png)
+
 ## Key Files
 
 - `backend/api/schemas/camera.py:36-137` - Camera input validation with path traversal prevention
@@ -24,6 +26,8 @@ The Home Security Intelligence system uses a layered input validation approach:
 This follows OWASP guidelines for input validation: validate on the server side, use allowlists where possible, and sanitize output.
 
 ## Pydantic Schema Validation
+
+![Pydantic Validation](../../images/architecture/security/technical-pydantic-validation.png)
 
 ### Field Constraints
 
@@ -174,6 +178,8 @@ def _validate_polygon_geometry(coords: list[list[float]]) -> list[list[float]]:
 
 ## SQL Injection Prevention
 
+![SQL Injection Prevention](../../images/architecture/security/concept-sql-injection-prevention.png)
+
 ### SQLAlchemy ORM Usage
 
 The system uses SQLAlchemy ORM exclusively, which provides automatic parameterization:
@@ -269,7 +275,7 @@ Sensitive data is redacted from error messages:
 
 ```python
 # From backend/core/sanitization.py:159-169
-# Pattern matches: protocol://user:pass@host
+# Pattern matches: protocol://user:pass@host  # pragma: allowlist secret
 url_credentials_pattern = re.compile(
     r"([a-zA-Z][a-zA-Z0-9+.-]*://)?([^:@\s/]+):([^@\s/]+)@([^\s]+)", re.IGNORECASE  # pragma: allowlist secret
 )

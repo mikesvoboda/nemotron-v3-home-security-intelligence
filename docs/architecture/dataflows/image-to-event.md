@@ -2,6 +2,8 @@
 
 This document traces the complete journey of a camera image from upload to security event creation, including all processing stages, timing, and error handling.
 
+![Image to Event Overview](../../images/architecture/dataflows/flow-image-to-event.png)
+
 ## Flow Sequence Diagram
 
 ```mermaid
@@ -352,6 +354,8 @@ After successful LLM analysis, an Event record is created in PostgreSQL with:
 **Buffer size:** 100 messages
 
 ## End-to-End Timing Summary
+
+![Image to Event Timing](../../images/architecture/dataflows/technical-image-to-event-timing.png)
 
 | Stage                | Typical Duration | Max Duration    |
 | -------------------- | ---------------- | --------------- |

@@ -2,6 +2,8 @@
 
 This document describes the application lifecycle, including startup initialization sequence, signal handling, and graceful shutdown procedures.
 
+![Startup Shutdown Overview](../../images/architecture/dataflows/flow-startup.png)
+
 ## Application Lifecycle Overview
 
 **Source:** `backend/main.py:461-479`
@@ -314,6 +316,8 @@ def get_shutdown_event() -> asyncio.Event:
 ```
 
 ## Shutdown Sequence
+
+![Shutdown Sequence](../../images/architecture/dataflows/flow-shutdown-sequence.png)
 
 ### Graceful Shutdown Order
 

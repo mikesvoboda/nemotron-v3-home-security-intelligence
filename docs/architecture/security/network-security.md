@@ -2,6 +2,8 @@
 
 > CORS configuration, trusted network assumptions, and SSRF protection
 
+![Network Security Overview](../../images/architecture/security/concept-network-zones.png)
+
 ## Key Files
 
 - `backend/core/config.py:572-585` - CORS origins configuration
@@ -62,6 +64,8 @@ flowchart TB
 
 ## CORS Configuration
 
+![CORS Configuration](../../images/architecture/security/technical-cors-configuration.png)
+
 ### Default Origins
 
 CORS is configured to allow common local development origins:
@@ -118,6 +122,8 @@ export CORS_ORIGINS='["http://192.168.1.100:3000","http://dashboard.local:3000"]
 ```
 
 ## SSRF Protection
+
+![SSRF Protection](../../images/architecture/security/technical-ssrf-protection.png)
 
 ### Overview
 
