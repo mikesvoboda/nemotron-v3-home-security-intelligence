@@ -108,12 +108,6 @@ export type {
   PipelineLatencyHistoryResponse,
   PipelineStageLatency,
   LatencyHistorySnapshot,
-  // Pipeline Status types (NEM-3653)
-  PipelineStatusResponse,
-  BatchAggregatorStatusResponse,
-  BatchInfoResponse,
-  FileWatcherStatusResponse,
-  DegradationStatusResponse,
   // Notification preferences types
   NotificationPreferencesResponse,
   NotificationPreferencesUpdate,
@@ -1514,105 +1508,9 @@ export interface AnomalyConfigUpdate {
   min_samples?: number;
 }
 
-/**
- * Interpretation of current deviation from baseline.
- */
-export type DeviationInterpretation =
-  | 'far_below_normal'
-  | 'below_normal'
-  | 'normal'
-  | 'slightly_above_normal'
-  | 'above_normal'
-  | 'far_above_normal';
-
-/**
- * Activity pattern for a specific hour.
- */
-export interface HourlyPattern {
-  /** Average number of detections during this hour */
-  avg_detections: number;
-  /** Standard deviation of detection count */
-  std_dev: number;
-  /** Number of samples used for this calculation */
-  sample_count: number;
-}
-
-/**
- * Activity pattern for a specific day of the week.
- */
-export interface DailyPattern {
-  /** Average number of detections for this day */
-  avg_detections: number;
-  /** Hour with most activity (0-23) */
-  peak_hour: number;
-  /** Total samples for this day */
-  total_samples: number;
-}
-
-/**
- * Baseline statistics for a specific object class.
- */
-export interface ObjectBaseline {
-  /** Average hourly detection count for this object type */
-  avg_hourly: number;
-  /** Hour with most detections of this type (0-23) */
-  peak_hour: number;
-  /** Total detections of this type in the baseline period */
-  total_detections: number;
-}
-
-/**
- * Current activity deviation from established baseline.
- */
-export interface CurrentDeviation {
-  /** Deviation score (standard deviations from mean, can be negative) */
-  score: number;
-  /** Human-readable interpretation of the deviation */
-  interpretation: DeviationInterpretation;
-  /** Factors contributing to current deviation */
-  contributing_factors: string[];
-}
-
-/**
- * Response schema for camera baseline summary endpoint.
- * Provides comprehensive baseline data for a camera.
- */
-export interface BaselineSummaryResponse {
-  /** Camera ID */
-  camera_id: string;
-  /** Human-readable camera name */
-  camera_name: string;
-  /** When baseline data collection started (null if no data) */
-  baseline_established: string | null;
-  /** Total number of data points in baseline */
-  data_points: number;
-  /** Activity patterns by hour (0-23) */
-  hourly_patterns: Record<string, HourlyPattern>;
-  /** Activity patterns by day of week (monday-sunday) */
-  daily_patterns: Record<string, DailyPattern>;
-  /** Baseline statistics by object type */
-  object_baselines: Record<string, ObjectBaseline>;
-  /** Current deviation from baseline (null if insufficient data) */
-  current_deviation: CurrentDeviation | null;
-}
-
 // ============================================================================
 // Baseline Analytics Endpoints
 // ============================================================================
-
-/**
- * Fetch baseline summary data for a camera.
- * Returns comprehensive baseline including hourly patterns, daily patterns,
- * object baselines, and current deviation.
- *
- * @param cameraId - Camera ID
- * @returns BaselineSummaryResponse with baseline summary data
- */
-export async function fetchCameraBaseline(cameraId: string): Promise<BaselineSummaryResponse> {
-  return fetchApi<BaselineSummaryResponse>(
-    `/api/cameras/${encodeURIComponent(cameraId)}/baseline`
-  );
-}
 
 /**
  * Fetch activity baseline data for a camera.
@@ -1663,74 +1561,6 @@ export async function updateAnomalyConfig(config: AnomalyConfigUpdate): Promise<
     method: 'PATCH',
     body: JSON.stringify(config),
   });
-}
-
-// ============================================================================
-// Camera Baseline Anomaly Types (NEM-3577)
-// ============================================================================
-
-/**
- * A single anomaly event detected against the camera baseline.
- * Represents a detection that significantly deviated from expected patterns.
- */
-export interface CameraAnomalyEvent {
-  /** When the anomaly was detected (ISO 8601 format) */
-  timestamp: string;
-  /** Object class that triggered the anomaly (e.g., "person", "vehicle") */
-  detection_class: string;
-  /** Anomaly score (0.0-1.0, higher is more anomalous) */
-  anomaly_score: number;
-  /** Expected frequency for this class at this time (baseline) */
-  expected_frequency: number;
-  /** Observed frequency that triggered the anomaly */
-  observed_frequency: number;
-  /** Human-readable explanation of why this is anomalous */
-  reason: string;
-}
-
-/**
- * Response from the camera baseline anomalies endpoint.
- */
-export interface CameraAnomaliesResponse {
-  /** Camera ID */
-  camera_id: string;
-  /** List of anomaly events within the queried period */
-  anomalies: CameraAnomalyEvent[];
-  /** Total number of anomalies returned */
-  count: number;
-  /** Number of days covered by this query */
-  period_days: number;
-}
-
-// ============================================================================
-// Camera Baseline Anomaly Endpoints (NEM-3577)
-// ============================================================================
-
-/**
- * Fetch recent anomaly events for a camera.
- * Returns detections that significantly deviated from the established baseline
- * activity patterns within the specified time period.
- *
- * @param cameraId - Camera ID
- * @param days - Number of days to look back (default: 7, max: 90)
- * @returns CameraAnomaliesResponse with list of anomaly events
- *
- * @example
- * ```typescript
- * // Fetch anomalies from the last 7 days
- * const anomalies = await fetchCameraAnomalies('front-door');
- *
- * // Fetch anomalies from the last 30 days
- * const anomalies = await fetchCameraAnomalies('front-door', 30);
- * ```
- */
-export async function fetchCameraAnomalies(
-  cameraId: string,
-  days: number = 7
-): Promise<CameraAnomaliesResponse> {
-  return fetchApi<CameraAnomaliesResponse>(
-    `/api/cameras/${encodeURIComponent(cameraId)}/baseline/anomalies?days=${days}`
-  );
 }
 
 // ============================================================================
@@ -1931,26 +1761,13 @@ export async function fetchQueuesStatus(): Promise<QueuesStatusResponse> {
 }
 
 /**
- * Fetch combined status of all pipeline operations (NEM-3653).
+ * Fetch pipeline status including FileWatcher, BatchAggregator, and DegradationManager.
+ * Returns real-time visibility into the AI processing pipeline.
  *
- * Returns real-time visibility into the AI processing pipeline including:
- * - BatchAggregator: Active batches being aggregated
- * - FileWatcher: Camera directory monitoring status
- * - DegradationManager: Graceful degradation status
- *
- * @param options - Optional fetch options including AbortSignal for cancellation
  * @returns PipelineStatusResponse with status of all pipeline services
- *
- * @example
- * ```typescript
- * const status = await fetchPipelineStatus();
- * console.log(`Active batches: ${status.batch_aggregator?.active_batches}`);
- * ```
  */
-export async function fetchPipelineStatus(options?: {
-  signal?: AbortSignal;
-}): Promise<PipelineStatusResponse> {
-  return fetchApi<PipelineStatusResponse>('/api/system/pipeline', options);
+export async function fetchPipelineStatus(): Promise<PipelineStatusResponse> {
+  return fetchApi<PipelineStatusResponse>('/api/system/pipeline');
 }
 
 // ============================================================================
@@ -3663,112 +3480,6 @@ export async function testNotification(
     method: 'POST',
     body: JSON.stringify(body),
   });
-}
-
-// ============================================================================
-// Notification History Types and Endpoints
-// ============================================================================
-
-/**
- * A single notification delivery history entry.
- * @see backend/api/schemas/notification.py:NotificationHistoryEntry
- */
-export interface NotificationHistoryEntry {
-  /** Unique identifier for this delivery record */
-  id: string;
-  /** Alert ID that triggered this notification */
-  alert_id: string;
-  /** Notification channel used (email, webhook, push) */
-  channel: NotificationChannel;
-  /** Recipient identifier (email address, webhook URL, etc.) */
-  recipient: string | null;
-  /** Whether the delivery was successful */
-  success: boolean;
-  /** Error message if delivery failed */
-  error: string | null;
-  /** Timestamp when notification was delivered (ISO 8601) */
-  delivered_at: string | null;
-  /** Timestamp when record was created (ISO 8601) */
-  created_at: string;
-}
-
-/**
- * Response containing paginated notification history.
- * @see backend/api/schemas/notification.py:NotificationHistoryResponse
- */
-export interface NotificationHistoryResponse {
-  /** List of notification history entries */
-  entries: NotificationHistoryEntry[];
-  /** Total count of entries matching filters */
-  count: number;
-  /** Maximum number of results returned */
-  limit: number;
-  /** Number of results skipped */
-  offset: number;
-}
-
-/**
- * Query parameters for fetching notification history.
- */
-export interface NotificationHistoryQueryParams {
-  /** Filter by alert ID */
-  alert_id?: string;
-  /** Filter by notification channel */
-  channel?: NotificationChannel;
-  /** Filter by success status */
-  success?: boolean;
-  /** Maximum number of results (1-100, default 50) */
-  limit?: number;
-  /** Number of results to skip (default 0) */
-  offset?: number;
-}
-
-/**
- * Fetch notification delivery history with optional filters.
- *
- * @param params - Optional query parameters for filtering and pagination
- * @returns NotificationHistoryResponse with delivery history entries
- *
- * @example
- * // Fetch all history
- * const history = await fetchNotificationHistory();
- *
- * // Fetch only failed webhook notifications
- * const failedWebhooks = await fetchNotificationHistory({
- *   channel: 'webhook',
- *   success: false,
- * });
- *
- * // Fetch history for a specific alert
- * const alertHistory = await fetchNotificationHistory({
- *   alert_id: 'alert-123',
- * });
- */
-export async function fetchNotificationHistory(
-  params?: NotificationHistoryQueryParams
-): Promise<NotificationHistoryResponse> {
-  const searchParams = new URLSearchParams();
-
-  if (params?.alert_id) {
-    searchParams.set('alert_id', params.alert_id);
-  }
-  if (params?.channel) {
-    searchParams.set('channel', params.channel);
-  }
-  if (params?.success !== undefined) {
-    searchParams.set('success', String(params.success));
-  }
-  if (params?.limit !== undefined) {
-    searchParams.set('limit', String(params.limit));
-  }
-  if (params?.offset !== undefined) {
-    searchParams.set('offset', String(params.offset));
-  }
-
-  const queryString = searchParams.toString();
-  const url = queryString ? `/api/notification/history?${queryString}` : '/api/notification/history';
-
-  return fetchApi<NotificationHistoryResponse>(url);
 }
 
 // ============================================================================
