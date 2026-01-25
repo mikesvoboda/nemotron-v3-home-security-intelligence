@@ -130,10 +130,12 @@ const mockGpuStatusResponse: GpuStatusResponse = {
 };
 
 const mockStrategyPreviewResponse: StrategyPreviewResponse = {
+  strategy: 'balanced',
   proposed_assignments: [
     { service: 'ai-llm', gpu_index: 0, vram_budget_override: null },
     { service: 'ai-detector', gpu_index: 1, vram_budget_override: null },
   ],
+  warnings: [],
 };
 
 // ============================================================================

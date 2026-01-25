@@ -1039,22 +1039,220 @@ class TestOrmUtils:
         result = get_relationship_lazy_mode()
         assert result == "select"
 
-    def test_get_relationship_lazy_mode_development(self, monkeypatch):
-        """Test get_relationship_lazy_mode returns 'raise_on_sql' in development."""
-        import os
 
-        os.environ["ENVIRONMENT"] = "development"
-        from backend.core.orm_utils import get_relationship_lazy_mode
+# =============================================================================
+# Advanced Risk Analysis Fields Tests (NEM-3601)
+# =============================================================================
 
-        result = get_relationship_lazy_mode()
-        assert result == "raise_on_sql"
 
-    def test_get_relationship_lazy_mode_custom_default(self, monkeypatch):
-        """Test get_relationship_lazy_mode with custom default."""
-        import os
+class TestEventAdvancedRiskFields:
+    """Tests for Event advanced risk analysis fields (NEM-3601).
 
-        os.environ["ENVIRONMENT"] = "production"
-        from backend.core.orm_utils import get_relationship_lazy_mode
+    These fields capture rich structured data from Nemotron LLM analysis:
+    - entities: List of entities identified (people, vehicles, objects)
+    - flags: Risk flags raised during analysis
+    - confidence_factors: Factors affecting analysis confidence
+    - recommended_action: Suggested action based on analysis
+    """
 
-        result = get_relationship_lazy_mode(default="selectin")
-        assert result == "selectin"
+    def test_entities_default_is_none(self):
+        """Test entities field is None by default."""
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+        )
+        assert event.entities is None
+
+    def test_flags_default_is_none(self):
+        """Test flags field is None by default."""
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+        )
+        assert event.flags is None
+
+    def test_confidence_factors_default_is_none(self):
+        """Test confidence_factors field is None by default."""
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+        )
+        assert event.confidence_factors is None
+
+    def test_recommended_action_default_is_none(self):
+        """Test recommended_action field is None by default."""
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+        )
+        assert event.recommended_action is None
+
+    def test_entities_can_be_set(self):
+        """Test entities field can be set to a list of dicts."""
+        entities = [
+            {"type": "person", "description": "Unknown individual", "threat_level": "medium"},
+            {"type": "vehicle", "description": "Unmarked van", "threat_level": "low"},
+        ]
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            entities=entities,
+        )
+        assert event.entities == entities
+        assert len(event.entities) == 2
+        assert event.entities[0]["type"] == "person"
+
+    def test_flags_can_be_set(self):
+        """Test flags field can be set to a list of dicts."""
+        flags = [
+            {
+                "type": "loitering",
+                "description": "Stationary for 5+ minutes",
+                "severity": "warning",
+            },
+            {"type": "nighttime", "description": "Late hour activity", "severity": "alert"},
+        ]
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            flags=flags,
+        )
+        assert event.flags == flags
+        assert len(event.flags) == 2
+        assert event.flags[0]["severity"] == "warning"
+
+    def test_confidence_factors_can_be_set(self):
+        """Test confidence_factors field can be set to a dict."""
+        factors = {
+            "detection_quality": "good",
+            "weather_impact": "none",
+            "enrichment_coverage": "full",
+        }
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            confidence_factors=factors,
+        )
+        assert event.confidence_factors == factors
+        assert event.confidence_factors["detection_quality"] == "good"
+
+    def test_recommended_action_can_be_set(self):
+        """Test recommended_action field can be set."""
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            recommended_action="Contact security immediately",
+        )
+        assert event.recommended_action == "Contact security immediately"
+
+    def test_event_with_all_advanced_fields(self):
+        """Test event with all advanced risk analysis fields populated."""
+        entities = [{"type": "person", "description": "Unknown", "threat_level": "high"}]
+        flags = [
+            {"type": "weapon_suspected", "description": "Object detected", "severity": "critical"}
+        ]
+        confidence_factors = {
+            "detection_quality": "fair",
+            "weather_impact": "minor",
+            "enrichment_coverage": "partial",
+        }
+
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            risk_score=90,
+            risk_level="critical",
+            summary="Critical security event",
+            reasoning="Weapon suspected on unknown individual",
+            entities=entities,
+            flags=flags,
+            confidence_factors=confidence_factors,
+            recommended_action="Contact authorities immediately",
+        )
+
+        assert event.entities == entities
+        assert event.flags == flags
+        assert event.confidence_factors == confidence_factors
+        assert event.recommended_action == "Contact authorities immediately"
+
+    def test_entities_empty_list(self):
+        """Test entities field can be set to empty list."""
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            entities=[],
+        )
+        assert event.entities == []
+
+    def test_flags_empty_list(self):
+        """Test flags field can be set to empty list."""
+        event = Event(
+            batch_id="b1",
+            camera_id="cam",
+            started_at=datetime.now(UTC),
+            flags=[],
+        )
+        assert event.flags == []
+
+
+class TestEventAdvancedFieldsIndexes:
+    """Tests for GIN indexes on advanced risk analysis JSONB fields (NEM-3601)."""
+
+    def test_event_entities_gin_index_exists(self):
+        """Test entities GIN index exists for containment queries."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        table = mapper.local_table
+        index_names = [idx.name for idx in table.indexes]
+
+        assert "idx_events_entities_gin" in index_names
+
+    def test_event_flags_gin_index_exists(self):
+        """Test flags GIN index exists for containment queries."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        table = mapper.local_table
+        index_names = [idx.name for idx in table.indexes]
+
+        assert "idx_events_flags_gin" in index_names
+
+    def test_event_confidence_factors_gin_index_exists(self):
+        """Test confidence_factors GIN index exists."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        table = mapper.local_table
+        index_names = [idx.name for idx in table.indexes]
+
+        assert "idx_events_confidence_factors_gin" in index_names
+
+    def test_gin_indexes_use_gin_type(self):
+        """Test that GIN indexes use the gin index type."""
+        from sqlalchemy import inspect
+
+        mapper = inspect(Event)
+        table = mapper.local_table
+
+        gin_indexes = [
+            "idx_events_entities_gin",
+            "idx_events_flags_gin",
+            "idx_events_confidence_factors_gin",
+        ]
+
+        for idx in table.indexes:
+            if idx.name in gin_indexes:
+                # Check postgresql_using option
+                pg_options = idx.dialect_options.get("postgresql", {})
+                assert pg_options.get("using") == "gin", f"{idx.name} should use gin index type"

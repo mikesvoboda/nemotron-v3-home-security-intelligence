@@ -16,6 +16,25 @@ vi.mock('../../services/api', () => ({
   fetchConfig: vi.fn(() => Promise.resolve({ grafana_url: '/grafana' })),
 }));
 
+// Mock useCameraAnalytics hook
+vi.mock('../../hooks/useCameraAnalytics', () => ({
+  useCameraAnalytics: () => ({
+    camerasWithAll: [
+      { id: '', name: 'All Cameras' },
+      { id: 'front-door', name: 'Front Door' },
+    ],
+    selectedCameraId: undefined,
+    setSelectedCameraId: vi.fn(),
+    selectedCamera: undefined,
+    totalDetections: 1250,
+    detectionsByClass: { person: 500, car: 350 },
+    averageConfidence: 0.87,
+    isLoadingCameras: false,
+    isLoadingStats: false,
+    statsError: null,
+  }),
+}));
+
 // Mock native analytics components to avoid their dependencies
 vi.mock('./CameraUptimeCard', () => ({
   default: ({ dateRange }: { dateRange: { startDate: string; endDate: string } }) => (
@@ -71,6 +90,14 @@ vi.mock('./PipelineLatencyPanel', () => ({
       Pipeline Latency Mock
     </div>
   ),
+}));
+
+vi.mock('./CameraAnalyticsSelector', () => ({
+  default: () => <div data-testid="camera-analytics-selector">Camera Selector Mock</div>,
+}));
+
+vi.mock('./CameraAnalyticsDetail', () => ({
+  default: () => <div data-testid="camera-analytics-detail">Camera Analytics Detail Mock</div>,
 }));
 
 const renderWithRouter = () => {

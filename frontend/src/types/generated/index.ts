@@ -76,6 +76,7 @@ export type EventListResponse = components['schemas']['EventListResponse'];
 export type EventStatsResponse = components['schemas']['EventStatsResponse'];
 export type EventsByRiskLevel = components['schemas']['EventsByRiskLevel'];
 export type EventsByCamera = components['schemas']['EventsByCamera'];
+export type RiskDistributionItem = components['schemas']['RiskDistributionItem'];
 
 // Detection types
 export type Detection = components['schemas']['DetectionResponse'];
@@ -486,6 +487,9 @@ export type FeedbackStatsResponse = components['schemas']['FeedbackStatsResponse
 export type RecordingResponse = components['schemas']['RecordingResponse'];
 export type RecordingsListResponse = components['schemas']['RecordingsListResponse'];
 export type ReplayResponse = components['schemas']['ReplayResponse'];
+
+// Degradation Mode enum (NEM-3653)
+export type DegradationModeEnum = components['schemas']['DegradationModeEnum'];
 
 // Import the components type for use in type aliases
 import type { components } from './api';

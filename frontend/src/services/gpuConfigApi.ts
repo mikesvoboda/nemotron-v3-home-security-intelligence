@@ -132,8 +132,12 @@ export interface GpuStatusResponse {
  * Response from strategy preview endpoint.
  */
 export interface StrategyPreviewResponse {
+  /** Strategy used for preview */
+  strategy: string;
   /** Proposed assignments for the given strategy */
   proposed_assignments: GpuAssignment[];
+  /** Warnings about the proposed configuration */
+  warnings: string[];
 }
 
 // ============================================================================

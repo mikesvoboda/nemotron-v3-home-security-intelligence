@@ -14,11 +14,14 @@
 import { BarChart3, RefreshCw, ExternalLink, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
+import CameraAnalyticsDetail from './CameraAnalyticsDetail';
+import CameraAnalyticsSelector from './CameraAnalyticsSelector';
 import CameraUptimeCard from './CameraUptimeCard';
 import DetectionTrendsCard from './DetectionTrendsCard';
 import ObjectDistributionCard from './ObjectDistributionCard';
 import PipelineLatencyPanel from './PipelineLatencyPanel';
 import RiskHistoryCard from './RiskHistoryCard';
+import { useCameraAnalytics } from '../../hooks/useCameraAnalytics';
 import { fetchConfig } from '../../services/api';
 import { resolveGrafanaUrl } from '../../utils/grafanaUrl';
 import { FeatureErrorBoundary } from '../common/FeatureErrorBoundary';
@@ -36,6 +39,20 @@ export default function AnalyticsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grafana');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Camera analytics hook for native view
+  const {
+    camerasWithAll,
+    selectedCameraId,
+    setSelectedCameraId,
+    selectedCamera,
+    totalDetections,
+    detectionsByClass,
+    averageConfidence,
+    isLoadingCameras,
+    isLoadingStats,
+    statsError,
+  } = useCameraAnalytics();
 
   // Fetch Grafana URL from config and resolve for remote access
   useEffect(() => {
@@ -206,16 +223,40 @@ export default function AnalyticsPage() {
 
       {/* Native analytics components */}
       {viewMode === 'native' && (
-        <div
-          className="grid grid-cols-1 gap-6 p-6 md:grid-cols-2 xl:grid-cols-4"
-          data-testid="native-analytics-view"
-        >
-          <DetectionTrendsCard dateRange={dateRange} />
-          <RiskHistoryCard dateRange={dateRange} />
-          <ObjectDistributionCard dateRange={dateRange} />
-          <CameraUptimeCard dateRange={dateRange} />
-          <div className="md:col-span-2 xl:col-span-4">
-            <PipelineLatencyPanel refreshInterval={30000} />
+        <div className="p-6" data-testid="native-analytics-view">
+          {/* Camera filter header */}
+          <div
+            className="mb-6 flex items-center justify-between"
+            data-testid="native-analytics-header"
+          >
+            <CameraAnalyticsSelector
+              cameras={camerasWithAll}
+              selectedCameraId={selectedCameraId ?? ''}
+              onCameraChange={setSelectedCameraId}
+              isLoading={isLoadingCameras}
+            />
+          </div>
+
+          {/* Analytics cards grid */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {/* Camera-specific detection analytics */}
+            <CameraAnalyticsDetail
+              totalDetections={totalDetections}
+              detectionsByClass={detectionsByClass}
+              averageConfidence={averageConfidence}
+              isLoading={isLoadingStats}
+              error={statsError}
+              cameraName={selectedCamera?.name}
+            />
+            <DetectionTrendsCard dateRange={dateRange} />
+            <RiskHistoryCard dateRange={dateRange} />
+            <ObjectDistributionCard dateRange={dateRange} />
+            <CameraUptimeCard dateRange={dateRange} />
+
+            {/* Pipeline latency (full width) */}
+            <div className="md:col-span-2 xl:col-span-4">
+              <PipelineLatencyPanel refreshInterval={30000} />
+            </div>
           </div>
         </div>
       )}

@@ -3,6 +3,9 @@
 These tests cover the LLM response validation schemas including:
 - LLMRiskResponse: Risk assessment response from Nemotron
 - LLMRawResponse: Raw parsed response before validation
+- RiskEntity: Entity identified in the risk analysis
+- RiskFlag: Risk flags with severity levels
+- ConfidenceFactors: Factors affecting confidence in the analysis
 """
 
 import pytest
@@ -570,3 +573,428 @@ class TestLLMResponseValidation:
             raw = LLMRawResponse(risk_score=score, risk_level="invalid")
             validated = raw.to_validated_response()
             assert validated.risk_level == "critical", f"Score {score} should map to critical"
+
+
+class TestRiskEntity:
+    """Tests for the RiskEntity schema (NEM-3601)."""
+
+    def test_valid_risk_entity(self):
+        """Test valid RiskEntity with all fields."""
+        from backend.api.schemas.llm_response import RiskEntity
+
+        entity = RiskEntity(
+            type="person",
+            description="Unknown individual near front entrance",
+            threat_level="medium",
+        )
+
+        assert entity.type == "person"
+        assert entity.description == "Unknown individual near front entrance"
+        assert entity.threat_level == "medium"
+
+    def test_valid_threat_levels(self):
+        """Test all valid threat levels are accepted."""
+        from backend.api.schemas.llm_response import RiskEntity
+
+        for level in ["low", "medium", "high"]:
+            entity = RiskEntity(
+                type="vehicle",
+                description="Test",
+                threat_level=level,
+            )
+            assert entity.threat_level == level
+
+    def test_invalid_threat_level_fails(self):
+        """Test invalid threat_level raises validation error."""
+        from backend.api.schemas.llm_response import RiskEntity
+
+        with pytest.raises(ValidationError) as exc_info:
+            RiskEntity(
+                type="person",
+                description="Test",
+                threat_level="critical",  # Invalid - not in enum
+            )
+
+        errors = exc_info.value.errors()
+        assert any(e["loc"] == ("threat_level",) for e in errors)
+
+    def test_missing_required_fields_fails(self):
+        """Test missing required fields raise validation error."""
+        from backend.api.schemas.llm_response import RiskEntity
+
+        with pytest.raises(ValidationError):
+            RiskEntity(type="person")  # type: ignore[call-arg]
+
+
+class TestRiskFlag:
+    """Tests for the RiskFlag schema (NEM-3601)."""
+
+    def test_valid_risk_flag(self):
+        """Test valid RiskFlag with all fields."""
+        from backend.api.schemas.llm_response import RiskFlag
+
+        flag = RiskFlag(
+            type="loitering",
+            description="Person has been stationary for extended period",
+            severity="warning",
+        )
+
+        assert flag.type == "loitering"
+        assert flag.description == "Person has been stationary for extended period"
+        assert flag.severity == "warning"
+
+    def test_valid_severities(self):
+        """Test all valid severities are accepted."""
+        from backend.api.schemas.llm_response import RiskFlag
+
+        for severity in ["warning", "alert", "critical"]:
+            flag = RiskFlag(
+                type="test_flag",
+                description="Test",
+                severity=severity,
+            )
+            assert flag.severity == severity
+
+    def test_invalid_severity_fails(self):
+        """Test invalid severity raises validation error."""
+        from backend.api.schemas.llm_response import RiskFlag
+
+        with pytest.raises(ValidationError) as exc_info:
+            RiskFlag(
+                type="test",
+                description="Test",
+                severity="low",  # Invalid - not in enum
+            )
+
+        errors = exc_info.value.errors()
+        assert any(e["loc"] == ("severity",) for e in errors)
+
+
+class TestConfidenceFactors:
+    """Tests for the ConfidenceFactors schema (NEM-3601)."""
+
+    def test_default_confidence_factors(self):
+        """Test ConfidenceFactors with default values."""
+        from backend.api.schemas.llm_response import ConfidenceFactors
+
+        factors = ConfidenceFactors()
+
+        assert factors.detection_quality == "good"
+        assert factors.weather_impact == "none"
+        assert factors.enrichment_coverage == "full"
+
+    def test_custom_confidence_factors(self):
+        """Test ConfidenceFactors with custom values."""
+        from backend.api.schemas.llm_response import ConfidenceFactors
+
+        factors = ConfidenceFactors(
+            detection_quality="poor",
+            weather_impact="significant",
+            enrichment_coverage="minimal",
+        )
+
+        assert factors.detection_quality == "poor"
+        assert factors.weather_impact == "significant"
+        assert factors.enrichment_coverage == "minimal"
+
+    def test_valid_detection_quality_values(self):
+        """Test all valid detection_quality values."""
+        from backend.api.schemas.llm_response import ConfidenceFactors
+
+        for quality in ["good", "fair", "poor"]:
+            factors = ConfidenceFactors(detection_quality=quality)
+            assert factors.detection_quality == quality
+
+    def test_valid_weather_impact_values(self):
+        """Test all valid weather_impact values."""
+        from backend.api.schemas.llm_response import ConfidenceFactors
+
+        for impact in ["none", "minor", "significant"]:
+            factors = ConfidenceFactors(weather_impact=impact)
+            assert factors.weather_impact == impact
+
+    def test_valid_enrichment_coverage_values(self):
+        """Test all valid enrichment_coverage values."""
+        from backend.api.schemas.llm_response import ConfidenceFactors
+
+        for coverage in ["full", "partial", "minimal"]:
+            factors = ConfidenceFactors(enrichment_coverage=coverage)
+            assert factors.enrichment_coverage == coverage
+
+    def test_invalid_detection_quality_fails(self):
+        """Test invalid detection_quality raises validation error."""
+        from backend.api.schemas.llm_response import ConfidenceFactors
+
+        with pytest.raises(ValidationError) as exc_info:
+            ConfidenceFactors(detection_quality="excellent")
+
+        errors = exc_info.value.errors()
+        assert any(e["loc"] == ("detection_quality",) for e in errors)
+
+
+class TestLLMRiskResponseAdvancedFields:
+    """Tests for advanced fields in LLMRiskResponse (NEM-3601)."""
+
+    def test_response_with_entities(self):
+        """Test LLMRiskResponse with entities list."""
+        from backend.api.schemas.llm_response import LLMRiskResponse, RiskEntity
+
+        response = LLMRiskResponse(
+            risk_score=75,
+            risk_level="high",
+            summary="Suspicious activity detected",
+            reasoning="Unknown person near entrance",
+            entities=[
+                RiskEntity(
+                    type="person",
+                    description="Unknown individual",
+                    threat_level="medium",
+                )
+            ],
+        )
+
+        assert len(response.entities) == 1
+        assert response.entities[0].type == "person"
+
+    def test_response_with_flags(self):
+        """Test LLMRiskResponse with flags list."""
+        from backend.api.schemas.llm_response import LLMRiskResponse, RiskFlag
+
+        response = LLMRiskResponse(
+            risk_score=65,
+            risk_level="high",
+            summary="Person loitering",
+            reasoning="Extended stationary period",
+            flags=[
+                RiskFlag(
+                    type="loitering",
+                    description="Stationary for 5+ minutes",
+                    severity="warning",
+                )
+            ],
+        )
+
+        assert len(response.flags) == 1
+        assert response.flags[0].type == "loitering"
+
+    def test_response_with_recommended_action(self):
+        """Test LLMRiskResponse with recommended_action."""
+        from backend.api.schemas.llm_response import LLMRiskResponse
+
+        response = LLMRiskResponse(
+            risk_score=85,
+            risk_level="critical",
+            summary="Potential threat detected",
+            reasoning="Armed individual identified",
+            recommended_action="Contact authorities immediately",
+        )
+
+        assert response.recommended_action == "Contact authorities immediately"
+
+    def test_response_with_confidence_factors(self):
+        """Test LLMRiskResponse with confidence_factors."""
+        from backend.api.schemas.llm_response import ConfidenceFactors, LLMRiskResponse
+
+        response = LLMRiskResponse(
+            risk_score=50,
+            risk_level="medium",
+            summary="Activity detected",
+            reasoning="Normal activity",
+            confidence_factors=ConfidenceFactors(
+                detection_quality="fair",
+                weather_impact="minor",
+                enrichment_coverage="partial",
+            ),
+        )
+
+        assert response.confidence_factors is not None
+        assert response.confidence_factors.detection_quality == "fair"
+
+    def test_response_with_all_advanced_fields(self):
+        """Test LLMRiskResponse with all advanced fields populated."""
+        from backend.api.schemas.llm_response import (
+            ConfidenceFactors,
+            LLMRiskResponse,
+            RiskEntity,
+            RiskFlag,
+        )
+
+        response = LLMRiskResponse(
+            risk_score=90,
+            risk_level="critical",
+            summary="Multiple threats detected",
+            reasoning="Detailed analysis",
+            entities=[
+                RiskEntity(type="person", description="Unknown", threat_level="high"),
+                RiskEntity(type="vehicle", description="Unmarked van", threat_level="medium"),
+            ],
+            flags=[
+                RiskFlag(
+                    type="weapon_detected", description="Possible weapon", severity="critical"
+                ),
+                RiskFlag(type="nighttime_activity", description="Late hour", severity="warning"),
+            ],
+            recommended_action="Review footage and contact security",
+            confidence_factors=ConfidenceFactors(
+                detection_quality="good",
+                weather_impact="none",
+                enrichment_coverage="full",
+            ),
+        )
+
+        assert len(response.entities) == 2
+        assert len(response.flags) == 2
+        assert response.recommended_action is not None
+        assert response.confidence_factors is not None
+
+    def test_response_defaults_for_advanced_fields(self):
+        """Test that advanced fields default to empty/None appropriately."""
+        from backend.api.schemas.llm_response import LLMRiskResponse
+
+        response = LLMRiskResponse(
+            risk_score=50,
+            risk_level="medium",
+            summary="Test",
+            reasoning="Test",
+        )
+
+        assert response.entities == []
+        assert response.flags == []
+        assert response.recommended_action is None
+        assert response.confidence_factors is None
+
+    def test_model_dump_includes_advanced_fields(self):
+        """Test model_dump includes advanced fields."""
+        from backend.api.schemas.llm_response import (
+            ConfidenceFactors,
+            LLMRiskResponse,
+            RiskEntity,
+            RiskFlag,
+        )
+
+        response = LLMRiskResponse(
+            risk_score=75,
+            risk_level="high",
+            summary="Test",
+            reasoning="Test",
+            entities=[RiskEntity(type="person", description="Test", threat_level="low")],
+            flags=[RiskFlag(type="test", description="Test", severity="warning")],
+            recommended_action="Review",
+            confidence_factors=ConfidenceFactors(),
+        )
+
+        data = response.model_dump()
+
+        assert "entities" in data
+        assert "flags" in data
+        assert "recommended_action" in data
+        assert "confidence_factors" in data
+        assert len(data["entities"]) == 1
+        assert len(data["flags"]) == 1
+
+
+class TestLLMRawResponseAdvancedFields:
+    """Tests for advanced fields in LLMRawResponse (NEM-3601)."""
+
+    def test_raw_response_with_advanced_fields(self):
+        """Test LLMRawResponse parses advanced fields from LLM output."""
+        from backend.api.schemas.llm_response import LLMRawResponse
+
+        llm_json = {
+            "risk_score": 80,
+            "risk_level": "high",
+            "summary": "Multiple threats",
+            "reasoning": "Analysis",
+            "entities": [{"type": "person", "description": "Unknown", "threat_level": "high"}],
+            "flags": [{"type": "weapon", "description": "Possible weapon", "severity": "critical"}],
+            "recommended_action": "Contact police",
+            "confidence_factors": {
+                "detection_quality": "good",
+                "weather_impact": "none",
+                "enrichment_coverage": "full",
+            },
+        }
+
+        response = LLMRawResponse.model_validate(llm_json)
+
+        assert response.risk_score == 80
+        assert len(response.entities) == 1
+        assert len(response.flags) == 1
+        assert response.recommended_action == "Contact police"
+        assert response.confidence_factors is not None
+
+    def test_raw_response_to_validated_preserves_advanced_fields(self):
+        """Test to_validated_response preserves advanced fields."""
+        from backend.api.schemas.llm_response import LLMRawResponse
+
+        raw = LLMRawResponse(
+            risk_score=75,
+            risk_level="high",
+            summary="Test",
+            reasoning="Test",
+            entities=[{"type": "person", "description": "Test", "threat_level": "medium"}],
+            flags=[{"type": "test", "description": "Test", "severity": "warning"}],
+            recommended_action="Review footage",
+            confidence_factors={
+                "detection_quality": "fair",
+                "weather_impact": "minor",
+                "enrichment_coverage": "partial",
+            },
+        )
+
+        validated = raw.to_validated_response()
+
+        assert len(validated.entities) == 1
+        assert validated.entities[0].type == "person"
+        assert len(validated.flags) == 1
+        assert validated.flags[0].type == "test"
+        assert validated.recommended_action == "Review footage"
+        assert validated.confidence_factors is not None
+        assert validated.confidence_factors.detection_quality == "fair"
+
+    def test_raw_response_handles_invalid_entity_gracefully(self):
+        """Test raw response handles invalid entity data gracefully."""
+        from backend.api.schemas.llm_response import LLMRawResponse
+
+        # Entity with invalid threat_level
+        raw = LLMRawResponse(
+            risk_score=50,
+            risk_level="medium",
+            entities=[{"type": "person", "description": "Test", "threat_level": "extreme"}],
+        )
+
+        validated = raw.to_validated_response()
+        # Invalid entities should be filtered out
+        assert validated.entities == []
+
+    def test_raw_response_handles_invalid_flag_gracefully(self):
+        """Test raw response handles invalid flag data gracefully."""
+        from backend.api.schemas.llm_response import LLMRawResponse
+
+        # Flag with invalid severity
+        raw = LLMRawResponse(
+            risk_score=50,
+            risk_level="medium",
+            flags=[{"type": "test", "description": "Test", "severity": "low"}],
+        )
+
+        validated = raw.to_validated_response()
+        # Invalid flags should be filtered out
+        assert validated.flags == []
+
+    def test_raw_response_handles_missing_advanced_fields(self):
+        """Test raw response handles missing advanced fields."""
+        from backend.api.schemas.llm_response import LLMRawResponse
+
+        raw = LLMRawResponse(
+            risk_score=50,
+            risk_level="medium",
+            # No advanced fields provided
+        )
+
+        validated = raw.to_validated_response()
+
+        assert validated.entities == []
+        assert validated.flags == []
+        assert validated.recommended_action is None
+        assert validated.confidence_factors is None

@@ -14,7 +14,7 @@ from sqlalchemy import (
     Text,
     case,
 )
-from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, declared_attr, deferred, mapped_column, relationship
 
@@ -81,6 +81,27 @@ class Event(Base):
     # This column is auto-populated by a database trigger on INSERT/UPDATE
     # Combines: summary, reasoning, object_types, and camera_name (via join)
     search_vector: Mapped[Any] = mapped_column(TSVECTOR, nullable=True)
+
+    # ==========================================================================
+    # Advanced Risk Analysis Fields (NEM-3601)
+    # ==========================================================================
+    # These fields store structured data from the LLM's advanced risk analysis.
+    # They are JSONB columns to support flexible schema and efficient querying.
+
+    # Entities identified in the analysis (people, vehicles, objects)
+    # Each entity has: type, description, threat_level
+    entities: Mapped[list[dict] | None] = mapped_column(JSONB, nullable=True)
+
+    # Risk flags raised during analysis (loitering, weapon detected, etc.)
+    # Each flag has: type, description, severity
+    flags: Mapped[list[dict] | None] = mapped_column(JSONB, nullable=True)
+
+    # Factors affecting the confidence of the analysis
+    # Contains: detection_quality, weather_impact, enrichment_coverage
+    confidence_factors: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
+    # Suggested action to take based on the analysis
+    recommended_action: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Soft delete timestamp for preserving referential integrity
     deleted_at: Mapped[datetime | None] = mapped_column(
@@ -179,6 +200,11 @@ class Event(Base):
             "id",
             postgresql_where="reviewed = false",
         ),
+        # NEM-3601: GIN indexes for JSONB columns to enable efficient containment queries
+        # These allow fast queries like "find events with critical flags"
+        Index("idx_events_entities_gin", "entities", postgresql_using="gin"),
+        Index("idx_events_flags_gin", "flags", postgresql_using="gin"),
+        Index("idx_events_confidence_factors_gin", "confidence_factors", postgresql_using="gin"),
         # CHECK constraints for enum-like columns and business rules
         CheckConstraint(
             "risk_level IS NULL OR risk_level IN ('low', 'medium', 'high', 'critical')",

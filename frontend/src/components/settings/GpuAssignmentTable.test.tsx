@@ -280,4 +280,125 @@ describe('GpuAssignmentTable', () => {
       expect(select).toHaveAttribute('aria-label', 'GPU assignment for ai-llm');
     });
   });
+
+  describe('VRAM budget override editing', () => {
+    const onVramOverrideChangeMock = vi.fn();
+
+    it('should render VRAM override input in manual mode', () => {
+      renderWithProviders(
+        <GpuAssignmentTable
+          {...defaultProps}
+          strategy="manual"
+          onVramOverrideChange={onVramOverrideChangeMock}
+        />
+      );
+
+      expect(screen.getByTestId('vram-override-ai-llm')).toBeInTheDocument();
+    });
+
+    it('should not render VRAM override input in non-manual mode', () => {
+      renderWithProviders(
+        <GpuAssignmentTable
+          {...defaultProps}
+          strategy="balanced"
+          onVramOverrideChange={onVramOverrideChangeMock}
+        />
+      );
+
+      expect(screen.queryByTestId('vram-override-ai-llm')).not.toBeInTheDocument();
+    });
+
+    it('should show current VRAM value in input', () => {
+      const assignmentsWithOverride: GpuAssignment[] = [
+        { service: 'ai-llm', gpu_index: 0, vram_budget_override: 10.5 },
+      ];
+
+      renderWithProviders(
+        <GpuAssignmentTable
+          {...defaultProps}
+          assignments={assignmentsWithOverride}
+          onVramOverrideChange={onVramOverrideChangeMock}
+        />
+      );
+
+      const input = screen.getByTestId('vram-override-ai-llm');
+      expect(input).toHaveValue('10.5');
+    });
+
+    it('should show default VRAM when no override', () => {
+      renderWithProviders(
+        <GpuAssignmentTable {...defaultProps} onVramOverrideChange={onVramOverrideChangeMock} />
+      );
+
+      const input = screen.getByTestId('vram-override-ai-llm');
+      // Default for ai-llm is 8.0 GB, value may be '8' or '8.0'
+      expect(input).toHaveValue(8);
+    });
+
+    it('should call onVramOverrideChange when input changes', async () => {
+      const onVramOverrideChange = vi.fn();
+      const { user } = renderWithProviders(
+        <GpuAssignmentTable {...defaultProps} onVramOverrideChange={onVramOverrideChange} />
+      );
+
+      const input = screen.getByTestId('vram-override-ai-llm');
+      await user.clear(input);
+      await user.type(input, '12.5');
+      await user.tab(); // Trigger blur to commit change
+
+      expect(onVramOverrideChange).toHaveBeenCalledWith('ai-llm', 12.5);
+    });
+
+    it('should call onVramOverrideChange with null when reset to default', async () => {
+      const assignmentsWithOverride: GpuAssignment[] = [
+        { service: 'ai-llm', gpu_index: 0, vram_budget_override: 10.5 },
+      ];
+      const onVramOverrideChange = vi.fn();
+      const { user } = renderWithProviders(
+        <GpuAssignmentTable
+          {...defaultProps}
+          assignments={assignmentsWithOverride}
+          onVramOverrideChange={onVramOverrideChange}
+        />
+      );
+
+      const resetButton = screen.getByTestId('vram-reset-ai-llm');
+      await user.click(resetButton);
+
+      expect(onVramOverrideChange).toHaveBeenCalledWith('ai-llm', null);
+    });
+
+    it('should show reset button only when override is set', () => {
+      const assignmentsWithOverride: GpuAssignment[] = [
+        { service: 'ai-llm', gpu_index: 0, vram_budget_override: 10.5 },
+        { service: 'ai-detector', gpu_index: 0, vram_budget_override: null },
+      ];
+
+      renderWithProviders(
+        <GpuAssignmentTable
+          {...defaultProps}
+          assignments={assignmentsWithOverride}
+          onVramOverrideChange={onVramOverrideChangeMock}
+        />
+      );
+
+      expect(screen.getByTestId('vram-reset-ai-llm')).toBeInTheDocument();
+      expect(screen.queryByTestId('vram-reset-ai-detector')).not.toBeInTheDocument();
+    });
+
+    it('should validate VRAM input is a positive number', async () => {
+      const onVramOverrideChange = vi.fn();
+      const { user } = renderWithProviders(
+        <GpuAssignmentTable {...defaultProps} onVramOverrideChange={onVramOverrideChange} />
+      );
+
+      const input = screen.getByTestId('vram-override-ai-llm');
+      await user.clear(input);
+      await user.type(input, '-5');
+      await user.tab();
+
+      // Should not call with invalid value
+      expect(onVramOverrideChange).not.toHaveBeenCalledWith('ai-llm', -5);
+    });
+  });
 });

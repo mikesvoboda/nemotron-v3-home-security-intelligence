@@ -25,6 +25,7 @@ import {
   type CircuitBreakersResponse,
   type WorkerStatus,
 } from '../../services/api';
+import { BatchStatisticsDashboard } from '../batch';
 import { ErrorState } from '../common';
 import {
   ProfilingPanel,
@@ -377,6 +378,19 @@ export default function SystemMonitoringPage() {
           className="mb-6"
           data-testid="pipeline-flow-visualization"
         />
+
+        {/* Batch Processing Statistics - Full width (NEM-3653) */}
+        <div id="section-batch-statistics" className="mb-6">
+          <CollapsibleSection
+            title="Batch Processing Statistics"
+            icon={<BarChart2 className="h-5 w-5 text-[#76B900]" />}
+            isOpen={sectionStates['batch-statistics']}
+            onToggle={() => toggleSection('batch-statistics')}
+            data-testid="batch-statistics-section"
+          >
+            <BatchStatisticsDashboard data-testid="batch-statistics-dashboard" />
+          </CollapsibleSection>
+        </div>
 
         {/* Two-column grid for actionable panels */}
         <div className="grid gap-6 lg:grid-cols-2">
