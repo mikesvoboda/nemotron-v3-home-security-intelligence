@@ -860,13 +860,15 @@ export type {
   SuspenseResource,
 } from './useContextValue';
 
-// Camera baseline hooks (NEM-3576)
-export {
-  useCameraBaselineQuery,
-  useCameraActivityBaselineQuery,
-  useCameraClassBaselineQuery,
-  cameraBaselineQueryKeys,
-} from './useCameraBaselineQuery';
+// Batch status monitoring hook (NEM-3652)
+export { useBatchStatus, default as useBatchStatusDefault } from './useBatchStatus';
+export type {
+  ActiveBatch,
+  QueueDepths,
+  BatchStats,
+  UseBatchStatusOptions,
+  UseBatchStatusReturn,
+} from './useBatchStatus';
 export type {
   UseCameraBaselineQueryOptions,
   UseCameraBaselineQueryReturn,

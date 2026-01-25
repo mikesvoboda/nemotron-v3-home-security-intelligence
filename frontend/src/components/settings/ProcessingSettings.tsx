@@ -1,6 +1,16 @@
-import { Card, Title, Text, Button } from '@tremor/react';
-import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from 'lucide-react';
-import { useEffect, useState, useCallback } from 'react';
+import { Badge, Card, ProgressBar, Title, Text, Button } from '@tremor/react';
+import {
+  AlertCircle,
+  AlertTriangle,
+  Activity,
+  Settings as SettingsIcon,
+  Save,
+  RotateCcw,
+  Trash2,
+  Wifi,
+  WifiOff,
+} from 'lucide-react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 
 import CleanupPreviewPanel from './CleanupPreviewPanel';
 import DetectionThresholdsPanel from './DetectionThresholdsPanel';
@@ -10,6 +20,7 @@ import RateLimitingSettings from './RateLimitingSettings';
 import SeverityThresholds from './SeverityThresholds';
 import StorageDashboard from './StorageDashboard';
 import { useSettingsQuery, useUpdateSettings } from '../../hooks/useSettingsApi';
+import { useBatchStatus } from '../../hooks/useBatchStatus';
 import {
   fetchConfig,
   updateConfig,
@@ -26,14 +37,14 @@ export interface ProcessingSettingsProps {
   className?: string;
 }
 
+interface ValidationWarning {
+  field: string;
+  message: string;
+  severity: 'warning' | 'error';
+}
+
 /**
- * ProcessingSettings component displays and allows editing of event processing configuration
- * - Fetches settings from /api/system/config endpoint
- * - Allows editing batch window, idle timeout, retention period, and confidence threshold
- * - Uses range sliders for intuitive value adjustment
- * - Saves changes via PATCH /api/system/config endpoint
- * - Shows storage usage and provides data cleanup button
- * - Handles loading, error, and success states
+ * ProcessingSettings component - NEM-3655: Validation feedback, NEM-3652: Real-time status
  */
 export default function ProcessingSettings({ className }: ProcessingSettingsProps) {
   const [config, setConfig] = useState<SystemConfig | null>(null);
@@ -56,6 +67,39 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
   } = useSettingsQuery();
   const updateSettingsMutation = useUpdateSettings();
 
+  const { activeBatches, stats, isConnected } = useBatchStatus({
+    enabled: true,
+    batchWindowSeconds: editedConfig?.batch_window_seconds ?? 90,
+  });
+
+  const validationWarnings = useMemo((): ValidationWarning[] => {
+    if (!editedConfig) return [];
+    const warnings: ValidationWarning[] = [];
+    if (editedConfig.batch_idle_timeout_seconds >= editedConfig.batch_window_seconds) {
+      warnings.push({
+        field: 'idle_timeout',
+        message: `Idle timeout (${editedConfig.batch_idle_timeout_seconds}s) should be less than batch window (${editedConfig.batch_window_seconds}s) for optimal batching.`,
+        severity: 'warning',
+      });
+    }
+    if (editedConfig.batch_window_seconds < 60) {
+      warnings.push({ field: 'batch_window', message: 'Short batch windows may result in incomplete event grouping and higher processing overhead.', severity: 'warning' });
+    }
+    if (editedConfig.batch_window_seconds > 180) {
+      warnings.push({ field: 'batch_window', message: 'Long batch windows delay event processing. Consider a shorter window for faster alerts.', severity: 'warning' });
+    }
+    if (editedConfig.detection_confidence_threshold < 0.3) {
+      warnings.push({ field: 'confidence', message: 'Low confidence threshold may result in many false positive detections.', severity: 'warning' });
+    }
+    if (editedConfig.detection_confidence_threshold > 0.9) {
+      warnings.push({ field: 'confidence', message: 'High confidence threshold may miss legitimate detections.', severity: 'warning' });
+    }
+    if (editedConfig.retention_days < 7) {
+      warnings.push({ field: 'retention', message: 'Short retention period. Historical data will be deleted quickly.', severity: 'warning' });
+    }
+    return warnings;
+  }, [editedConfig]);
+
   useEffect(() => {
     const loadConfig = async () => {
       try {
@@ -70,7 +114,6 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
         setLoading(false);
       }
     };
-
     void loadConfig();
   }, []);
 
@@ -110,12 +153,10 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
 
   const handleSave = async () => {
     if (!editedConfig || !hasChanges) return;
-
     try {
       setSaving(true);
       setError(null);
       setSuccess(false);
-
       const updates: SystemConfigUpdate = {
         batch_window_seconds: editedConfig.batch_window_seconds,
         batch_idle_timeout_seconds: editedConfig.batch_idle_timeout_seconds,
@@ -124,13 +165,10 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
         detection_confidence_threshold: editedConfig.detection_confidence_threshold,
         fast_path_confidence_threshold: editedConfig.fast_path_confidence_threshold,
       };
-
       const updatedConfig = await updateConfig(updates);
       setConfig(updatedConfig);
       setEditedConfig(updatedConfig);
       setSuccess(true);
-
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save configuration');
@@ -152,11 +190,8 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
       setCleaning(true);
       setError(null);
       setCleanupResult(null);
-
       const result = await triggerCleanup();
       setCleanupResult(result);
-
-      // Clear cleanup result after 10 seconds
       setTimeout(() => setCleanupResult(null), 10000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to run cleanup');
@@ -196,72 +231,88 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
           </div>
         )}
 
+        {validationWarnings.length > 0 && (
+          <div className="mb-4 space-y-2" data-testid="validation-warnings" role="alert" aria-label="Configuration validation warnings">
+            {validationWarnings.map((warning, index) => (
+              <div key={`${warning.field}-${index}`} className={`flex items-start gap-2 rounded-lg border p-3 ${warning.severity === 'error' ? 'border-red-500/30 bg-red-500/10' : 'border-yellow-500/30 bg-yellow-500/10'}`}>
+                <AlertTriangle className={`h-4 w-4 flex-shrink-0 mt-0.5 ${warning.severity === 'error' ? 'text-red-400' : 'text-yellow-400'}`} />
+                <Text className={`text-sm ${warning.severity === 'error' ? 'text-red-400' : 'text-yellow-400'}`}>{warning.message}</Text>
+              </div>
+            ))}
+          </div>
+        )}
+
         {!loading && editedConfig && (
           <div className="space-y-6">
-            {/* Batch Window Duration */}
+            <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-4" data-testid="batch-status-monitor">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-[#76B900]" />
+                  <Text className="font-medium text-white">Batch Processing Status</Text>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isConnected ? (
+                    <>
+                      <Wifi className="h-4 w-4 text-green-500" />
+                      <Badge color="green" size="sm">Connected</Badge>
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="h-4 w-4 text-red-400" />
+                      <Badge color="red" size="sm">Disconnected</Badge>
+                    </>
+                  )}
+                </div>
+              </div>
+              {activeBatches.length > 0 ? (
+                <div className="space-y-2">
+                  <Text className="text-xs text-gray-400">Active Batches</Text>
+                  {activeBatches.map((batch) => (
+                    <div key={batch.batchId} className="rounded bg-gray-900/50 p-2">
+                      <div className="mb-1 flex items-center justify-between text-sm">
+                        <Text className="text-gray-300">{batch.cameraId}</Text>
+                        <Text className="text-gray-400">{batch.detectionCount} detection{batch.detectionCount !== 1 ? 's' : ''}</Text>
+                      </div>
+                      <ProgressBar value={batch.progress} color="green" className="h-1" />
+                      <Text className="mt-1 text-xs text-gray-500">{Math.round(batch.duration)}s / {editedConfig.batch_window_seconds}s</Text>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Text className="text-sm text-gray-500">No active batches</Text>
+              )}
+              {stats.batchesProcessed > 0 && (
+                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-gray-700 pt-3 text-xs">
+                  <div><Text className="text-gray-500">Batches Processed</Text><Text className="font-medium text-white">{stats.batchesProcessed}</Text></div>
+                  <div><Text className="text-gray-500">Avg Batch Size</Text><Text className="font-medium text-white">{stats.avgBatchSize.toFixed(1)} detections</Text></div>
+                  <div><Text className="text-gray-500">Total Detections</Text><Text className="font-medium text-white">{stats.detectionsProcessed}</Text></div>
+                  <div><Text className="text-gray-500">Avg Duration</Text><Text className="font-medium text-white">{stats.avgBatchDuration.toFixed(1)}s</Text></div>
+                </div>
+              )}
+            </div>
+
             <div>
               <div className="mb-2 flex items-end justify-between">
                 <div>
                   <Text className="font-medium text-gray-300">Batch Window Duration</Text>
-                  <Text className="mt-1 text-xs text-gray-300">
-                    Time window for grouping detections into events (seconds)
-                  </Text>
+                  <Text className="mt-1 text-xs text-gray-300">Time window for grouping detections into events (seconds)</Text>
                 </div>
-                <Text className="text-lg font-semibold text-white">
-                  {editedConfig.batch_window_seconds}s
-                </Text>
+                <Text className="text-lg font-semibold text-white">{editedConfig.batch_window_seconds}s</Text>
               </div>
-              <input
-                type="range"
-                min="30"
-                max="300"
-                step="10"
-                value={editedConfig.batch_window_seconds}
-                onChange={(e) =>
-                  setEditedConfig((prev) =>
-                    prev ? { ...prev, batch_window_seconds: parseInt(e.target.value) } : prev
-                  )
-                }
-                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
-                aria-label="Batch window duration in seconds"
-              />
-              <div className="mt-1 flex justify-between text-xs text-gray-300">
-                <span>30s</span>
-                <span>300s</span>
-              </div>
+              <input type="range" min="30" max="300" step="10" value={editedConfig.batch_window_seconds} onChange={(e) => setEditedConfig((prev) => prev ? { ...prev, batch_window_seconds: parseInt(e.target.value) } : prev)} className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]" aria-label="Batch window duration in seconds" />
+              <div className="mt-1 flex justify-between text-xs text-gray-300"><span>30s</span><span>300s</span></div>
             </div>
 
-            {/* Idle Timeout */}
             <div>
               <div className="mb-2 flex items-end justify-between">
                 <div>
                   <Text className="font-medium text-gray-300">Idle Timeout</Text>
-                  <Text className="mt-1 text-xs text-gray-300">
-                    Time to wait before processing incomplete batch (seconds)
-                  </Text>
+                  <Text className="mt-1 text-xs text-gray-300">Time to wait before processing incomplete batch (seconds)</Text>
                 </div>
-                <Text className="text-lg font-semibold text-white">
-                  {editedConfig.batch_idle_timeout_seconds}s
-                </Text>
+                <Text className="text-lg font-semibold text-white">{editedConfig.batch_idle_timeout_seconds}s</Text>
               </div>
-              <input
-                type="range"
-                min="10"
-                max="120"
-                step="5"
-                value={editedConfig.batch_idle_timeout_seconds}
-                onChange={(e) =>
-                  setEditedConfig((prev) =>
-                    prev ? { ...prev, batch_idle_timeout_seconds: parseInt(e.target.value) } : prev
-                  )
-                }
-                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
-                aria-label="Batch idle timeout in seconds"
-              />
-              <div className="mt-1 flex justify-between text-xs text-gray-300">
-                <span>10s</span>
-                <span>120s</span>
-              </div>
+              <input type="range" min="10" max="120" step="5" value={editedConfig.batch_idle_timeout_seconds} onChange={(e) => setEditedConfig((prev) => prev ? { ...prev, batch_idle_timeout_seconds: parseInt(e.target.value) } : prev)} className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]" aria-label="Batch idle timeout in seconds" />
+              <div className="mt-1 flex justify-between text-xs text-gray-300"><span>10s</span><span>120s</span></div>
             </div>
 
             {/* Retention Period - Events/Detections */}
@@ -273,28 +324,10 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                     Number of days to retain events and detections
                   </Text>
                 </div>
-                <Text className="text-lg font-semibold text-white">
-                  {editedConfig.retention_days} days
-                </Text>
+                <Text className="text-lg font-semibold text-white">{editedConfig.retention_days} days</Text>
               </div>
-              <input
-                type="range"
-                min="1"
-                max="90"
-                step="1"
-                value={editedConfig.retention_days}
-                onChange={(e) =>
-                  setEditedConfig((prev) =>
-                    prev ? { ...prev, retention_days: parseInt(e.target.value) } : prev
-                  )
-                }
-                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
-                aria-label="Retention period in days"
-              />
-              <div className="mt-1 flex justify-between text-xs text-gray-300">
-                <span>1 day</span>
-                <span>90 days</span>
-              </div>
+              <input type="range" min="1" max="90" step="1" value={editedConfig.retention_days} onChange={(e) => setEditedConfig((prev) => prev ? { ...prev, retention_days: parseInt(e.target.value) } : prev)} className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]" aria-label="Retention period in days" />
+              <div className="mt-1 flex justify-between text-xs text-gray-300"><span>1 day</span><span>90 days</span></div>
             </div>
 
             {/* Log Retention Period */}
@@ -339,30 +372,10 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                     Minimum confidence for object detection (0.0 - 1.0)
                   </Text>
                 </div>
-                <Text className="text-lg font-semibold text-white">
-                  {editedConfig.detection_confidence_threshold?.toFixed(2) ?? '0.50'}
-                </Text>
+                <Text className="text-lg font-semibold text-white">{editedConfig.detection_confidence_threshold?.toFixed(2) ?? '0.50'}</Text>
               </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={editedConfig.detection_confidence_threshold}
-                onChange={(e) =>
-                  setEditedConfig((prev) =>
-                    prev
-                      ? { ...prev, detection_confidence_threshold: parseFloat(e.target.value) }
-                      : prev
-                  )
-                }
-                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
-                aria-label="Detection confidence threshold"
-              />
-              <div className="mt-1 flex justify-between text-xs text-gray-300">
-                <span>0.00</span>
-                <span>1.00</span>
-              </div>
+              <input type="range" min="0" max="1" step="0.01" value={editedConfig.detection_confidence_threshold} onChange={(e) => setEditedConfig((prev) => prev ? { ...prev, detection_confidence_threshold: parseFloat(e.target.value) } : prev)} className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]" aria-label="Detection confidence threshold" />
+              <div className="mt-1 flex justify-between text-xs text-gray-300"><span>0.00</span><span>1.00</span></div>
             </div>
 
             {/* Fast-Path Confidence Threshold */}
@@ -405,15 +418,9 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
               <StorageDashboard />
             </div>
 
-            {/* Action Buttons */}
             <div className="flex gap-3 border-t border-gray-800 pt-4">
-              <Button
-                onClick={() => void handleSave()}
-                disabled={!hasChanges || saving}
-                className="flex-1 bg-[#76B900] text-gray-950 hover:bg-[#5c8f00] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {saving ? 'Saving...' : 'Save Changes'}
+              <Button onClick={() => void handleSave()} disabled={!hasChanges || saving} className="flex-1 bg-[#76B900] text-gray-950 hover:bg-[#5c8f00] disabled:cursor-not-allowed disabled:opacity-50">
+                <Save className="mr-2 h-4 w-4" />{saving ? 'Saving...' : 'Save Changes'}
               </Button>
               <Button
                 onClick={handleReset}
@@ -428,31 +435,19 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
             </div>
 
             <div className="border-t border-gray-800 pt-4">
-              <Button
-                onClick={() => void handleClearData()}
-                disabled={cleaning}
-                variant="secondary"
-                className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {cleaning ? 'Running Cleanup...' : 'Clear Old Data'}
+              <Button onClick={() => void handleClearData()} disabled={cleaning} variant="secondary" className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50">
+                <Trash2 className="mr-2 h-4 w-4" />{cleaning ? 'Running Cleanup...' : 'Clear Old Data'}
               </Button>
               {cleanupResult && (
                 <div className="mt-3 rounded-lg border border-green-500/30 bg-green-500/10 p-3">
                   <Text className="mb-2 font-medium text-green-400">Cleanup Complete</Text>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <Text className="text-gray-300">Events deleted:</Text>
-                    <Text className="text-white">{cleanupResult.events_deleted}</Text>
-                    <Text className="text-gray-300">Detections deleted:</Text>
-                    <Text className="text-white">{cleanupResult.detections_deleted}</Text>
-                    <Text className="text-gray-300">GPU stats deleted:</Text>
-                    <Text className="text-white">{cleanupResult.gpu_stats_deleted}</Text>
-                    <Text className="text-gray-300">Logs deleted:</Text>
-                    <Text className="text-white">{cleanupResult.logs_deleted}</Text>
-                    <Text className="text-gray-300">Thumbnails deleted:</Text>
-                    <Text className="text-white">{cleanupResult.thumbnails_deleted}</Text>
-                    <Text className="text-gray-300">Retention period:</Text>
-                    <Text className="text-white">{cleanupResult.retention_days} days</Text>
+                    <Text className="text-gray-300">Events deleted:</Text><Text className="text-white">{cleanupResult.events_deleted}</Text>
+                    <Text className="text-gray-300">Detections deleted:</Text><Text className="text-white">{cleanupResult.detections_deleted}</Text>
+                    <Text className="text-gray-300">GPU stats deleted:</Text><Text className="text-white">{cleanupResult.gpu_stats_deleted}</Text>
+                    <Text className="text-gray-300">Logs deleted:</Text><Text className="text-white">{cleanupResult.logs_deleted}</Text>
+                    <Text className="text-gray-300">Thumbnails deleted:</Text><Text className="text-white">{cleanupResult.thumbnails_deleted}</Text>
+                    <Text className="text-gray-300">Retention period:</Text><Text className="text-white">{cleanupResult.retention_days} days</Text>
                   </div>
                 </div>
               )}
@@ -542,8 +537,6 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
 
       {/* Cleanup Preview Panel - Preview retention policy impact */}
       <CleanupPreviewPanel className="mt-6" />
-
-      {/* Severity Thresholds - Display risk score thresholds */}
       <SeverityThresholds className="mt-6" />
 
       {/* Anomaly Detection Settings */}
