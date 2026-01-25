@@ -6,12 +6,14 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Body, Depends, Request
+from fastapi import APIRouter, Body, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.notification import (
     NotificationChannel,
     NotificationConfigResponse,
+    NotificationHistoryEntry,
+    NotificationHistoryResponse,
     TestNotificationRequest,
     TestNotificationResponse,
 )
@@ -240,3 +242,61 @@ async def test_notification(
             str(e),
             f"An error occurred while testing {channel.value} notification",
         )
+
+
+@router.get("/history", response_model=NotificationHistoryResponse)
+async def get_notification_history(
+    alert_id: str | None = Query(None, description="Filter by alert ID"),
+    channel: NotificationChannel | None = Query(None, description="Filter by channel"),
+    success: bool | None = Query(None, description="Filter by success status"),
+    limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+) -> NotificationHistoryResponse:
+    """Get notification delivery history with optional filters.
+
+    Returns paginated notification delivery records with optional filtering
+    by alert ID, channel type, and success status.
+
+    Note: This endpoint returns the structure for notification history.
+    A future enhancement will persist delivery records to the database
+    and return actual history data.
+
+    Args:
+        alert_id: Optional alert ID to filter by
+        channel: Optional notification channel to filter by
+        success: Optional success status to filter by
+        limit: Maximum number of results to return (1-100, default 50)
+        offset: Number of results to skip for pagination (default 0)
+
+    Returns:
+        NotificationHistoryResponse with delivery history entries
+    """
+    # Note: Currently returns empty list since notification deliveries
+    # are not yet persisted to the database. This provides the API structure
+    # for frontend integration. A future task (NotificationDelivery model)
+    # will enable actual history tracking.
+    #
+    # When implemented, this will query the notification_deliveries table
+    # with the provided filters and return paginated results.
+
+    logger.debug(
+        "Notification history requested",
+        extra={
+            "alert_id": alert_id,
+            "channel": channel.value if channel else None,
+            "success": success,
+            "limit": limit,
+            "offset": offset,
+        },
+    )
+
+    # Return empty response with correct structure
+    # This allows frontend to integrate now while backend persistence is added later
+    entries: list[NotificationHistoryEntry] = []
+
+    return NotificationHistoryResponse(
+        entries=entries,
+        count=0,
+        limit=limit,
+        offset=offset,
+    )

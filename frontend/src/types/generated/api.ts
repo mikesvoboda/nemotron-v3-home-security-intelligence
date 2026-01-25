@@ -4880,6 +4880,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notification/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Notification History
+         * @description Get notification delivery history with optional filters.
+         *
+         *     Returns paginated notification delivery records with optional filtering
+         *     by alert ID, channel type, and success status.
+         *
+         *     Note: This endpoint returns the structure for notification history.
+         *     A future enhancement will persist delivery records to the database
+         *     and return actual history data.
+         *
+         *     Args:
+         *         alert_id: Optional alert ID to filter by
+         *         channel: Optional notification channel to filter by
+         *         success: Optional success status to filter by
+         *         limit: Maximum number of results to return (1-100, default 50)
+         *         offset: Number of results to skip for pagination (default 0)
+         *
+         *     Returns:
+         *         NotificationHistoryResponse with delivery history entries
+         */
+        get: operations["notification_get_notification_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notification/test": {
         parameters: {
             query?: never;
@@ -19187,6 +19224,101 @@ export interface components {
             webhook_timeout_seconds?: number | null;
         };
         /**
+         * NotificationHistoryEntry
+         * @description Schema for a notification history entry.
+         * @example {
+         *       "alert_id": "550e8400-e29b-41d4-a716-446655440001",
+         *       "channel": "email",
+         *       "created_at": "2025-12-28T12:00:29Z",
+         *       "delivered_at": "2025-12-28T12:00:30Z",
+         *       "id": "550e8400-e29b-41d4-a716-446655440002",
+         *       "recipient": "user@example.com",
+         *       "success": true
+         *     }
+         */
+        NotificationHistoryEntry: {
+            /**
+             * Alert Id
+             * @description Associated alert ID
+             */
+            alert_id: string;
+            /** @description Notification channel */
+            channel: components["schemas"]["NotificationChannel"];
+            /**
+             * Created At
+             * Format: date-time
+             * @description Record creation timestamp
+             */
+            created_at: string;
+            /**
+             * Delivered At
+             * @description Delivery timestamp
+             */
+            delivered_at?: string | null;
+            /**
+             * Error
+             * @description Error message if failed
+             */
+            error?: string | null;
+            /**
+             * Id
+             * @description Notification delivery ID
+             */
+            id: string;
+            /**
+             * Recipient
+             * @description Recipient identifier
+             */
+            recipient?: string | null;
+            /**
+             * Success
+             * @description Whether delivery was successful
+             */
+            success: boolean;
+        };
+        /**
+         * NotificationHistoryResponse
+         * @description Schema for notification history list response.
+         * @example {
+         *       "count": 1,
+         *       "entries": [
+         *         {
+         *           "alert_id": "550e8400-e29b-41d4-a716-446655440001",
+         *           "channel": "email",
+         *           "created_at": "2025-12-28T12:00:29Z",
+         *           "delivered_at": "2025-12-28T12:00:30Z",
+         *           "id": "550e8400-e29b-41d4-a716-446655440002",
+         *           "recipient": "user@example.com",
+         *           "success": true
+         *         }
+         *       ],
+         *       "limit": 50,
+         *       "offset": 0
+         *     }
+         */
+        NotificationHistoryResponse: {
+            /**
+             * Count
+             * @description Total number of entries matching filters
+             */
+            count: number;
+            /**
+             * Entries
+             * @description Notification history entries
+             */
+            entries: components["schemas"]["NotificationHistoryEntry"][];
+            /**
+             * Limit
+             * @description Maximum number of results returned
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Number of results skipped
+             */
+            offset: number;
+        };
+        /**
          * NotificationPreferencesResponse
          * @description Schema for notification preferences response.
          * @example {
@@ -32104,6 +32236,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotificationConfigResponse"];
+                };
+            };
+        };
+    };
+    notification_get_notification_history: {
+        parameters: {
+            query?: {
+                /** @description Filter by alert ID */
+                alert_id?: string | null;
+                /** @description Filter by channel */
+                channel?: components["schemas"]["NotificationChannel"] | null;
+                /** @description Filter by success status */
+                success?: boolean | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

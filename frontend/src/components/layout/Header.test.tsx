@@ -3,17 +3,20 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import Header from './Header';
+import { ThemeProvider } from '../../contexts';
 import * as useConnectionStatusModule from '../../hooks/useConnectionStatus';
 import * as useHealthStatusQueryModule from '../../hooks/useHealthStatusQuery';
 
 import type { ChannelStatus, ConnectionState } from '../../hooks/useWebSocketStatus';
 
-// Helper to render Header with Router context
+// Helper to render Header with Router and Theme context
 const renderHeader = (initialRoute: string = '/') => {
   return render(
-    <MemoryRouter initialEntries={[initialRoute]}>
-      <Header />
-    </MemoryRouter>
+    <ThemeProvider defaultMode="dark">
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <Header />
+      </MemoryRouter>
+    </ThemeProvider>
   );
 };
 

@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Clock, Eye, Moon, Timer, TrendingUp } from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 
+import EnrichmentBadges, { type EnrichmentSummary } from './EnrichmentBadges';
 import {
   calculateAverageConfidence,
   calculateMaxConfidence,
@@ -12,13 +13,15 @@ import {
   getConfidenceTextColorClass,
   sortDetectionsByConfidence,
 } from '../../utils/confidence';
-import { getRiskLevel } from '../../utils/risk';
+import { getRiskColor, getRiskLevel } from '../../utils/risk';
 import { getSeverityConfig } from '../../utils/severityColors';
 import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
 import SnoozeBadge from '../common/SnoozeBadge';
 import TruncatedText from '../common/TruncatedText';
+
+import type { EnrichmentData } from '../../types/enrichment';
 
 export interface Detection {
   label: string;
@@ -134,6 +137,14 @@ export interface EventCardProps {
   hasCheckboxOverlay?: boolean;
   /** ISO timestamp until which alerts for this event are snoozed (NEM-3640) */
   snooze_until?: string | null;
+  /** Enrichment summary data for badge display */
+  enrichmentSummary?: EnrichmentSummary;
+  /** Full enrichment data (alternative to enrichmentSummary) */
+  enrichmentData?: EnrichmentData | null;
+  /** Whether enrichment is currently being processed */
+  isEnrichmentPending?: boolean;
+  /** Callback when enrichment badges are clicked to expand full EnrichmentPanel */
+  onExpandEnrichment?: (eventId: string) => void;
 }
 
 /**
@@ -156,6 +167,10 @@ const EventCard = memo(function EventCard({
   className = '',
   hasCheckboxOverlay = false,
   snooze_until,
+  enrichmentSummary,
+  enrichmentData,
+  isEnrichmentPending,
+  onExpandEnrichment,
 }: EventCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
@@ -374,6 +389,39 @@ const EventCard = memo(function EventCard({
               ))}
             </div>
           )}
+
+          {/* Enrichment Badges */}
+          <EnrichmentBadges
+            enrichmentSummary={enrichmentSummary}
+            enrichmentData={enrichmentData}
+            isEnrichmentPending={isEnrichmentPending}
+            onExpandEnrichment={onExpandEnrichment ? () => onExpandEnrichment(id) : undefined}
+            className="mb-3"
+          />
+
+          {/* Risk Score Progress Bar */}
+          <div className="mb-3">
+            <div className="mb-1.5 flex items-center justify-between text-xs text-text-secondary">
+              <span className="font-medium">Risk Score</span>
+              <span className="font-semibold">{risk_score}/100</span>
+            </div>
+            <div
+              className="h-2 w-full overflow-hidden rounded-full bg-gray-800"
+              role="progressbar"
+              aria-valuenow={risk_score}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Risk score: ${risk_score} out of 100`}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-500 ease-out"
+                style={{
+                  width: `${risk_score}%`,
+                  backgroundColor: getRiskColor(riskLevel),
+                }}
+              />
+            </div>
+          </div>
 
           {/* AI Summary - truncated to 2 lines for better scannability */}
           <div className="mb-3">

@@ -12,7 +12,10 @@
  * - Dark theme consistent with existing UI
  */
 
+import { Calendar, RotateCcw } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
+
+import DateRangePickerModal from './DateRangePickerModal';
 
 // Severity level type
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
@@ -49,6 +52,16 @@ export interface TimelineScrubberProps {
   isLoading?: boolean;
   /** Additional CSS classes */
   className?: string;
+  /** Callback for custom date range selection (NEM-3585) */
+  onCustomRangeSelect?: (startDate: string, endDate: string) => void;
+  /** Whether custom range is currently active (NEM-3585) */
+  isCustomRangeActive?: boolean;
+  /** Callback when reset is clicked to clear custom range (NEM-3585) */
+  onReset?: () => void;
+  /** Initial start date for the date picker (YYYY-MM-DD format) */
+  initialStartDate?: string;
+  /** Initial end date for the date picker (YYYY-MM-DD format) */
+  initialEndDate?: string;
 }
 
 // Severity color mapping - NVIDIA green (#76B900) for low severity
@@ -226,6 +239,11 @@ export default function TimelineScrubber({
   currentRange,
   isLoading = false,
   className = '',
+  onCustomRangeSelect,
+  isCustomRangeActive = false,
+  onReset,
+  initialStartDate,
+  initialEndDate,
 }: TimelineScrubberProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredBucket, setHoveredBucket] = useState<{
@@ -235,6 +253,15 @@ export default function TimelineScrubber({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartIndex, setDragStartIndex] = useState<number | null>(null);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+
+  // Handle custom date range selection (NEM-3585)
+  const handleCustomRangeApply = useCallback(
+    (startDate: string, endDate: string) => {
+      onCustomRangeSelect?.(startDate, endDate);
+    },
+    [onCustomRangeSelect]
+  );
 
   // Calculate max event count for scaling bars
   const maxCount = useMemo(() => {
@@ -469,6 +496,37 @@ export default function TimelineScrubber({
             {totalEvents} event{totalEvents !== 1 ? 's' : ''} in {timeRangeText}
           </span>
         </div>
+        {/* Custom Date Range Controls (NEM-3585) */}
+        <div className="flex items-center gap-2">
+          {/* Reset Button - only show when custom range is active */}
+          {isCustomRangeActive && onReset && (
+            <button
+              onClick={onReset}
+              className="flex items-center gap-1.5 rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-1 text-xs text-gray-400 transition-colors hover:border-gray-600 hover:bg-gray-800 hover:text-white"
+              data-testid="timeline-reset-button"
+              aria-label="Reset to default date range"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset
+            </button>
+          )}
+          {/* Custom Range Button */}
+          {onCustomRangeSelect && (
+            <button
+              onClick={() => setIsDatePickerOpen(true)}
+              className={`flex items-center gap-1.5 rounded-md border px-3 py-1 text-xs transition-colors ${
+                isCustomRangeActive
+                  ? 'border-[#76B900] bg-[#76B900]/10 text-[#76B900]'
+                  : 'border-gray-700 bg-[#1A1A1A] text-gray-400 hover:border-gray-600 hover:bg-gray-800 hover:text-white'
+              }`}
+              data-testid="custom-range-button"
+              aria-label="Select custom date range"
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              Custom Range
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Timeline bars container */}
@@ -545,6 +603,17 @@ export default function TimelineScrubber({
           bucket={hoveredBucket.bucket}
           position={hoveredBucket.position}
           zoomLevel={zoomLevel}
+        />
+      )}
+
+      {/* Date Range Picker Modal (NEM-3585) */}
+      {onCustomRangeSelect && (
+        <DateRangePickerModal
+          isOpen={isDatePickerOpen}
+          onClose={() => setIsDatePickerOpen(false)}
+          initialStartDate={initialStartDate}
+          initialEndDate={initialEndDate}
+          onApply={handleCustomRangeApply}
         />
       )}
     </div>

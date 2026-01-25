@@ -356,3 +356,16 @@ export {
   formatWaitTime,
   formatThroughput,
 } from './queue';
+
+// ============================================================================
+// Severity Types
+// ============================================================================
+
+export type {
+  SeverityLevel,
+  SeverityDefinition,
+  SeverityThresholds,
+  SeverityMetadata,
+} from './severity';
+
+export { DEFAULT_SEVERITY_THRESHOLDS, DEFAULT_SEVERITY_DEFINITIONS } from './severity';
