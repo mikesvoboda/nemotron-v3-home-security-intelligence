@@ -12,6 +12,8 @@
  * - Pipeline latency monitoring
  * - Event patterns and insights visualization (NEM-3618)
  * - Hourly/daily summaries (NEM-3595)
+ * - Detection trends visualization (NEM-3659)
+ * - Detection confidence metrics (NEM-3662)
  *
  * All detailed metrics are rendered by Grafana for consistency with
  * other monitoring dashboards and reduced frontend complexity.
@@ -21,6 +23,8 @@ import { BarChart3, RefreshCw, ExternalLink, AlertCircle, AlertTriangle } from '
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
 import CameraUptimeCard from './CameraUptimeCard';
+import ConfidenceMetricsCard from './ConfidenceMetricsCard';
+import DetectionTrendsChart from './DetectionTrendsChart';
 import PipelineLatencyPanel from './PipelineLatencyPanel';
 import RiskHistoryCard from './RiskHistoryCard';
 import RiskScoreDistributionCard from './RiskScoreDistributionCard';
@@ -264,6 +268,15 @@ export default function AnalyticsPage() {
           <div className="mb-6 mt-6">
             <h2 className="mb-4 text-lg font-semibold text-white">Event Patterns & Insights</h2>
             <InsightsCharts data-testid="insights-charts" />
+          </div>
+
+          {/* Detection Analytics Section (NEM-3659, NEM-3662) */}
+          <div className="mb-6">
+            <h2 className="mb-4 text-lg font-semibold text-white">Detection Analytics</h2>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <DetectionTrendsChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
+              <ConfidenceMetricsCard refreshInterval={30000} />
+            </div>
           </div>
 
           {/* Infrastructure Metrics */}
