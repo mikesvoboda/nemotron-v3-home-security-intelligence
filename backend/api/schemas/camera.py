@@ -2,6 +2,8 @@
 
 NEM-2569: Enhanced Pydantic validation with explicit validators and field constraints
 for comprehensive server-side input validation.
+
+NEM-3597: Added property_id and areas relationships for camera organization.
 """
 
 import re
@@ -14,6 +16,7 @@ from backend.models.enums import CameraStatus
 
 # Re-export CameraStatus for convenient imports from this module
 __all__ = [
+    "CameraAreaSummary",
     "CameraCreate",
     "CameraListResponse",
     "CameraPathValidationResponse",
@@ -34,71 +37,34 @@ _FORBIDDEN_NAME_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 
 
 def _validate_folder_path(v: str) -> str:
-    """Validate folder_path for security and correctness.
-
-    Args:
-        v: The folder path string to validate
-
-    Returns:
-        The validated folder path
-
-    Raises:
-        ValueError: If path traversal is detected, path is empty/too long,
-                   or contains forbidden characters
-    """
-    # Check for path traversal attempts
+    """Validate folder_path for security and correctness."""
     if ".." in v:
         raise ValueError("Path traversal (..) not allowed in folder_path")
-
-    # Check path length (already enforced by Field max_length, but explicit check)
     if not v or len(v) > 500:
         raise ValueError("folder_path must be between 1 and 500 characters")
-
-    # Check for forbidden characters
     if _FORBIDDEN_PATH_CHARS.search(v):
         raise ValueError(
             'folder_path contains forbidden characters (< > : " | ? * or control characters)'
         )
-
     return v
 
 
 def _validate_camera_name(v: str) -> str:
-    """Validate and sanitize camera name.
-
-    NEM-2569: Added explicit name validation for security and data quality.
-
-    Args:
-        v: The camera name string to validate
-
-    Returns:
-        The validated and sanitized camera name (with leading/trailing whitespace stripped)
-
-    Raises:
-        ValueError: If name contains control characters or is whitespace-only
-    """
-    # Strip leading/trailing whitespace
+    """Validate and sanitize camera name."""
     stripped = v.strip()
-
-    # Check if name is effectively empty after stripping
     if not stripped:
         raise ValueError("Camera name cannot be empty or whitespace-only")
-
-    # Check for forbidden control characters (including null, tab, newline, etc.)
     if _FORBIDDEN_NAME_CHARS.search(v):
         raise ValueError(
             "Camera name contains forbidden characters (control characters like null, tab, or newline)"
         )
-
     return stripped
 
 
 class CameraCreate(BaseModel):
     """Schema for creating a new camera.
 
-    NEM-2569: Enhanced with explicit Pydantic validators for:
-    - Name: Control character rejection, whitespace stripping, empty validation
-    - Folder path: Path traversal prevention, forbidden character rejection
+    NEM-3597: Added property_id for multi-property organization.
     """
 
     model_config = ConfigDict(
@@ -107,6 +73,7 @@ class CameraCreate(BaseModel):
                 "name": "Front Door Camera",
                 "folder_path": "/export/foscam/front_door",
                 "status": "online",
+                "property_id": 1,
             }
         }
     )
@@ -119,28 +86,26 @@ class CameraCreate(BaseModel):
         default=CameraStatus.ONLINE,
         description="Camera status (online, offline, error, unknown)",
     )
+    property_id: int | None = Field(
+        default=None,
+        description="ID of the property this camera belongs to (for multi-property organization)",
+    )
 
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
-        """Validate and sanitize camera name.
-
-        NEM-2569: Rejects control characters, strips whitespace.
-        """
         return _validate_camera_name(v)
 
     @field_validator("folder_path")
     @classmethod
     def validate_folder_path(cls, v: str) -> str:
-        """Validate folder_path for security."""
         return _validate_folder_path(v)
 
 
 class CameraUpdate(BaseModel):
     """Schema for updating an existing camera.
 
-    NEM-2569: Enhanced with explicit Pydantic validators for partial updates.
-    All fields are optional; only provided fields are validated.
+    NEM-3597: Added property_id for multi-property organization.
     """
 
     model_config = ConfigDict(
@@ -148,6 +113,7 @@ class CameraUpdate(BaseModel):
             "example": {
                 "name": "Front Door Camera - Updated",
                 "status": "offline",
+                "property_id": 2,
             }
         }
     )
@@ -159,15 +125,14 @@ class CameraUpdate(BaseModel):
     status: CameraStatus | None = Field(
         None, description="Camera status (online, offline, error, unknown)"
     )
+    property_id: int | None = Field(
+        None,
+        description="ID of the property this camera belongs to (for multi-property organization)",
+    )
 
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str | None) -> str | None:
-        """Validate and sanitize camera name for updates.
-
-        NEM-2569: Rejects control characters, strips whitespace.
-        Returns None unchanged for partial updates.
-        """
         if v is None:
             return v
         return _validate_camera_name(v)
@@ -175,14 +140,38 @@ class CameraUpdate(BaseModel):
     @field_validator("folder_path")
     @classmethod
     def validate_folder_path(cls, v: str | None) -> str | None:
-        """Validate folder_path for security."""
         if v is None:
             return v
         return _validate_folder_path(v)
 
 
+class CameraAreaSummary(BaseModel):
+    """Schema for area summary in camera context (minimal area info).
+
+    NEM-3597: Provides minimal area information for camera responses.
+    """
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": 1,
+                "name": "Front Yard",
+                "color": "#3B82F6",
+            }
+        },
+    )
+
+    id: int = Field(..., description="Unique area identifier")
+    name: str = Field(..., description="Area name")
+    color: str = Field(..., description="Hex color code for UI display")
+
+
 class CameraResponse(BaseModel):
-    """Schema for camera response."""
+    """Schema for camera response.
+
+    NEM-3597: Added property_id and areas for camera organization.
+    """
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -194,6 +183,8 @@ class CameraResponse(BaseModel):
                 "status": "online",
                 "created_at": "2025-12-23T10:00:00Z",
                 "last_seen_at": "2025-12-23T12:00:00Z",
+                "property_id": 1,
+                "areas": [{"id": 1, "name": "Front Yard", "color": "#3B82F6"}],
             }
         },
     )
@@ -206,13 +197,18 @@ class CameraResponse(BaseModel):
     status: CameraStatus = Field(..., description="Camera status (online, offline, error, unknown)")
     created_at: datetime = Field(..., description="Timestamp when camera was created")
     last_seen_at: datetime | None = Field(None, description="Last time camera was active")
+    property_id: int | None = Field(
+        None,
+        description="ID of the property this camera belongs to (NEM-3597)",
+    )
+    areas: list[CameraAreaSummary] = Field(
+        default_factory=list,
+        description="List of areas this camera monitors (NEM-3597)",
+    )
 
 
 class CameraListResponse(BaseModel):
-    """Schema for camera list response.
-
-    NEM-2075: Standardized pagination envelope with items + pagination structure.
-    """
+    """Schema for camera list response."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -225,6 +221,8 @@ class CameraListResponse(BaseModel):
                         "status": "online",
                         "created_at": "2025-12-23T10:00:00Z",
                         "last_seen_at": "2025-12-23T12:00:00Z",
+                        "property_id": 1,
+                        "areas": [{"id": 1, "name": "Front Yard", "color": "#3B82F6"}],
                     }
                 ],
                 "pagination": {
@@ -244,12 +242,7 @@ class CameraListResponse(BaseModel):
 
 
 class DeletedCamerasListResponse(BaseModel):
-    """Schema for listing soft-deleted cameras (trash view).
-
-    NEM-1955: Provides a trash view of soft-deleted cameras that can be restored.
-    Cameras are ordered by deleted_at descending (most recently deleted first).
-    NEM-2075: Standardized pagination envelope with items + pagination structure.
-    """
+    """Schema for listing soft-deleted cameras (trash view)."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -281,10 +274,7 @@ class DeletedCamerasListResponse(BaseModel):
 
 
 class CameraValidationInfo(BaseModel):
-    """Schema for individual camera validation result.
-
-    NEM-2063: Response model for camera path validation details.
-    """
+    """Schema for individual camera validation result."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -312,11 +302,7 @@ class CameraValidationInfo(BaseModel):
 
 
 class CameraPathValidationResponse(BaseModel):
-    """Schema for camera path validation response.
-
-    NEM-2063: Response model for the /api/cameras/validation/paths endpoint.
-    Validates all camera folder paths against the configured base path.
-    """
+    """Schema for camera path validation response."""
 
     model_config = ConfigDict(
         json_schema_extra={
