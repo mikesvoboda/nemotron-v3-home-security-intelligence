@@ -351,13 +351,14 @@ async def classify_actions(
             )
 
             # Prepare inputs for X-CLIP
-            # X-CLIP processor expects videos as List[List[PIL.Image]]
-            # where outer list is batch of videos, inner list is frames per video
-            # We have a single video with multiple frames
+            # NOTE: Despite the X-CLIP model being designed for video, the XCLIPProcessor
+            # in transformers 4.57+ uses `images=` parameter for video frames, NOT `videos=`.
+            # The `videos=` parameter returns None for pixel_values.
+            # Pass frames directly (list of numpy arrays) - no wrapping in outer list.
             try:
                 inputs = processor(
                     text=prompts,
-                    videos=[validated_frames],  # Wrap in list - single video with multiple frames
+                    images=validated_frames,  # Use images= for video frames (transformers 4.57+)
                     return_tensors="pt",
                     padding=True,
                 )

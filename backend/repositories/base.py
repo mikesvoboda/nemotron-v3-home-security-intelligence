@@ -328,12 +328,13 @@ class Repository[T: "Base"]:
             # Build the INSERT ... ON CONFLICT DO UPDATE statement
             pk_column_names = [col.name for col in pk_columns]
 
-            # Columns to update on conflict (all non-PK columns)
-            update_columns = {
-                col.name: getattr(entity, col.name)
-                for col in self.model_class.__table__.columns
-                if col.name not in pk_column_names
-            }
+            # Columns to update on conflict (all non-PK columns with non-None values)
+            update_columns = {}
+            for col in self.model_class.__table__.columns:
+                if col.name not in pk_column_names:
+                    value = getattr(entity, col.name, None)
+                    if value is not None:
+                        update_columns[col.name] = value
 
             insert_stmt = pg_insert(self.model_class).values(**entity_data)
 
@@ -353,6 +354,7 @@ class Repository[T: "Base"]:
                 result = await self.session.execute(final_stmt)
                 saved_entity: T = result.scalar_one()
                 await self.session.flush()
+                await self.session.refresh(saved_entity)
                 return saved_entity
             except IntegrityError:
                 # If upsert fails due to other constraints, fall back to merge
