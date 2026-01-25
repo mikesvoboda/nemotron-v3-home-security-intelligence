@@ -142,8 +142,10 @@ class TestParseAcceptHeader:
         """Test that unknown MIME type defaults to CSV."""
         assert parse_accept_header("text/html") == ExportFormat.CSV
         assert parse_accept_header("application/xml") == ExportFormat.CSV
-        # application/json also defaults to CSV since JSON export isn't supported
-        assert parse_accept_header("application/json") == ExportFormat.CSV
+
+    def test_json_returns_json(self):
+        """Test that application/json returns JSON format (NEM-3611)."""
+        assert parse_accept_header("application/json") == ExportFormat.JSON
 
     def test_wildcard_defaults_to_csv(self):
         """Test that */* defaults to CSV."""

@@ -185,6 +185,7 @@ class EventFactory(factory.Factory):
     search_vector = None
     deleted_at: datetime | None = None
     snooze_until: datetime | None = None
+    version: int = 1  # Optimistic locking version (NEM-3625)
 
     class Params:
         """Traits for common event configurations."""
