@@ -2516,6 +2516,10 @@ export interface DetectionsListParams {
   end_date?: string;
   /** Minimum confidence score (0-1) */
   min_confidence?: number;
+  /** Filter by labels (NEM-3641). Detections must have ALL specified labels. */
+  labels?: string[];
+  /** Filter by media type: 'image' or 'video' (NEM-3642) */
+  media_type?: 'image' | 'video';
   /** Maximum number of results per page */
   limit?: number;
   /** Number of results to skip (deprecated, use cursor) */
@@ -2543,6 +2547,12 @@ export async function fetchDetections(
     if (params.min_confidence !== undefined) {
       queryParams.append('min_confidence', String(params.min_confidence));
     }
+    // NEM-3641: Labels filter - append each label separately for list parameter
+    if (params.labels && params.labels.length > 0) {
+      params.labels.forEach((label) => queryParams.append('labels', label));
+    }
+    // NEM-3642: Media type filter
+    if (params.media_type) queryParams.append('media_type', params.media_type);
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
     if (params.cursor) {
       queryParams.append('cursor', params.cursor);

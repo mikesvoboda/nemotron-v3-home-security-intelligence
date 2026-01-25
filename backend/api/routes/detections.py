@@ -102,6 +102,7 @@ VALID_DETECTION_LIST_FIELDS = frozenset(
         "video_width",
         "video_height",
         "enrichment_data",
+        "labels",  # NEM-3641: Labels for categorization and filtering
     }
 )
 
@@ -184,6 +185,14 @@ async def list_detections(
     min_confidence: float | None = Query(
         None, ge=0.0, le=1.0, description="Minimum confidence score"
     ),
+    labels: list[str] | None = Query(
+        None,
+        description="Filter by labels (NEM-3641). Detections must have ALL specified labels.",
+    ),
+    media_type: str | None = Query(
+        None,
+        description="Filter by media type: 'image' or 'video' (NEM-3642)",
+    ),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip (deprecated, use cursor)"),
     cursor: str | None = Query(None, description="Pagination cursor from previous response"),
@@ -192,7 +201,7 @@ async def list_detections(
         description="Comma-separated list of fields to include in response (sparse fieldsets). "
         "Valid fields: id, camera_id, file_path, file_type, detected_at, object_type, confidence, "
         "bbox_x, bbox_y, bbox_width, bbox_height, thumbnail_path, media_type, duration, "
-        "video_codec, video_width, video_height, enrichment_data",
+        "video_codec, video_width, video_height, enrichment_data, labels",
     ),
     db: AsyncSession = Depends(get_read_db),
 ) -> DetectionListResponse:
@@ -211,6 +220,8 @@ async def list_detections(
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
         min_confidence: Optional minimum confidence score (0-1)
+        labels: Optional list of labels to filter by (NEM-3641). Requires ALL specified labels.
+        media_type: Optional media type filter ('image' or 'video') (NEM-3642)
         limit: Maximum number of results to return (1-100, default 50)
         offset: Number of results to skip (deprecated, use cursor instead)
         cursor: Pagination cursor from previous response's next_cursor field
@@ -272,6 +283,18 @@ async def list_detections(
         query = query.where(Detection.detected_at <= normalized_end_date)
     if min_confidence is not None:
         query = query.where(Detection.confidence >= min_confidence)
+
+    # NEM-3641: Filter by labels (JSONB containment - detections must have ALL specified labels)
+    if labels:
+        from sqlalchemy import cast
+        from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
+
+        for label in labels:
+            query = query.where(Detection.labels.op("@>")(cast([label], PG_JSONB)))
+
+    # NEM-3642: Filter by media type
+    if media_type:
+        query = query.where(Detection.media_type == media_type)
 
     # Apply cursor-based pagination filter (takes precedence over offset)
     if cursor_data:
@@ -349,6 +372,7 @@ async def list_detections(
                 "video_width": detection.video_width,
                 "video_height": detection.video_height,
                 "enrichment_data": detection.enrichment_data,
+                "labels": detection.labels or [],  # NEM-3641: Include labels in sparse fieldsets
             }
             filtered_detection = filter_fields(detection_dict, validated_fields)
             detection_dicts.append(filtered_detection)

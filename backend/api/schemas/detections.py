@@ -222,6 +222,11 @@ class DetectionResponse(BaseModel):
         description="Timestamp when detection was associated with the event (NEM-3629). "
         "Only populated when fetching detections for an event with order_detections_by=created_at.",
     )
+    # NEM-3641: Labels for categorization and filtering
+    labels: list[str] | None = Field(
+        default=None,
+        description="Labels for categorization and filtering (e.g., outdoor, motion-detected)",
+    )
 
     def model_dump_list(self) -> dict:
         """Serialize for list views (exclude detail-only fields).

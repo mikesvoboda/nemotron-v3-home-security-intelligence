@@ -51,6 +51,10 @@ export interface DetectionFilters {
   end_date?: string;
   /** Minimum confidence score (0-1) */
   min_confidence?: number;
+  /** Filter by labels (NEM-3641). Detections must have ALL specified labels. */
+  labels?: string[];
+  /** Filter by media type: 'image' or 'video' (NEM-3642) */
+  media_type?: 'image' | 'video';
 }
 
 /**
