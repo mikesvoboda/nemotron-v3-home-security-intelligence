@@ -62,6 +62,21 @@ vi.mock('react-joyride', () => ({
           >
             Close
           </button>
+          {/* Simulates overlay click or escape key - close action without tour:end */}
+          <button
+            data-testid="joyride-overlay-close"
+            onClick={() =>
+              callback({
+                action: 'close',
+                index: 0,
+                status: 'running',
+                type: 'tooltip',
+                lifecycle: 'complete',
+              })
+            }
+          >
+            Overlay Close
+          </button>
           <button
             data-testid="joyride-finish"
             onClick={() =>
@@ -193,6 +208,83 @@ describe('ProductTour', () => {
       await waitFor(() => {
         expect(localStorage.getItem(TOUR_COMPLETED_KEY)).toBe('true');
       });
+    });
+
+    it('persists dismissal across page visits - tour does not show after completion', async () => {
+      // First visit: tour runs and user completes it
+      const { unmount } = renderWithRouter(<ProductTour />);
+      expect(screen.getByTestId('joyride-mock')).toBeInTheDocument();
+
+      const finishButton = screen.getByTestId('joyride-finish');
+      fireEvent.click(finishButton);
+
+      await waitFor(() => {
+        expect(localStorage.getItem(TOUR_COMPLETED_KEY)).toBe('true');
+      });
+
+      unmount();
+
+      // Second visit: tour should NOT show
+      renderWithRouter(<ProductTour />);
+      expect(screen.queryByTestId('joyride-mock')).not.toBeInTheDocument();
+    });
+
+    it('persists dismissal across page visits - tour does not show after skip', async () => {
+      // First visit: tour runs and user skips it
+      const { unmount } = renderWithRouter(<ProductTour />);
+      expect(screen.getByTestId('joyride-mock')).toBeInTheDocument();
+
+      const skipButton = screen.getByTestId('joyride-skip');
+      fireEvent.click(skipButton);
+
+      await waitFor(() => {
+        expect(localStorage.getItem(TOUR_SKIPPED_KEY)).toBe('true');
+      });
+
+      unmount();
+
+      // Second visit: tour should NOT show
+      renderWithRouter(<ProductTour />);
+      expect(screen.queryByTestId('joyride-mock')).not.toBeInTheDocument();
+    });
+
+    it('persists dismissal across page visits - tour does not show after close', async () => {
+      // First visit: tour runs and user closes it
+      const { unmount } = renderWithRouter(<ProductTour />);
+      expect(screen.getByTestId('joyride-mock')).toBeInTheDocument();
+
+      const closeButton = screen.getByTestId('joyride-close');
+      fireEvent.click(closeButton);
+
+      await waitFor(() => {
+        expect(localStorage.getItem(TOUR_COMPLETED_KEY)).toBe('true');
+      });
+
+      unmount();
+
+      // Second visit: tour should NOT show
+      renderWithRouter(<ProductTour />);
+      expect(screen.queryByTestId('joyride-mock')).not.toBeInTheDocument();
+    });
+
+    it('persists dismissal when closing via overlay click (NEM-3518)', async () => {
+      // This tests the bug fix for NEM-3518 where close via overlay/escape
+      // might not trigger tour:end event
+      const { unmount } = renderWithRouter(<ProductTour />);
+      expect(screen.getByTestId('joyride-mock')).toBeInTheDocument();
+
+      const overlayCloseButton = screen.getByTestId('joyride-overlay-close');
+      fireEvent.click(overlayCloseButton);
+
+      await waitFor(() => {
+        expect(localStorage.getItem(TOUR_COMPLETED_KEY)).toBe('true');
+      });
+
+      unmount();
+
+      // Second visit: tour should NOT show
+      renderWithRouter(<ProductTour />);
+      expect(screen.queryByTestId('joyride-mock')).not.toBeInTheDocument();
     });
   });
 
