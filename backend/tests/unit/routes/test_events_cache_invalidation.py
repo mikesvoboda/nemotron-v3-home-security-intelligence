@@ -41,6 +41,7 @@ def sample_event() -> Event:
         notes=None,
         is_fast_path=False,
         object_types="person",
+        version=1,  # Optimistic locking version (NEM-3625)
     )
 
 
