@@ -66,6 +66,7 @@ jobs:
           --health-retries 5
 
     env:
+      ENVIRONMENT: test # Use test environment to bypass production password validation
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
       TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test # pragma: allowlist secret
 
