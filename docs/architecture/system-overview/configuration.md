@@ -278,6 +278,12 @@ def validate_grafana_url_field(cls, v: Any) -> str:
     return validate_grafana_url(url_str)
 ```
 
+## Environment Variable Cascade
+
+![Environment Variable Cascade showing the hierarchy and precedence of configuration sources](../../images/architecture/env-variable-cascade.png)
+
+The configuration system follows a clear precedence hierarchy where environment variables override file-based settings, enabling flexible deployment across different environments.
+
 ## Environment Files
 
 | File              | Purpose                         |

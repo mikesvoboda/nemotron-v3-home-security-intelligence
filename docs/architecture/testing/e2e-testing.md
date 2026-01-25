@@ -217,6 +217,8 @@ export async function setupApiMocks(
 
 #### Custom Test Fixture
 
+![Frontend Test Provider Hierarchy](../../images/architecture/frontend-test-providers.png)
+
 From `frontend/tests/e2e/fixtures/index.ts:1-67`:
 
 ```typescript

@@ -6,6 +6,12 @@ This document describes the container architecture, network configuration, GPU p
 
 All services run as containers on a single Docker/Podman network (`security-net`), enabling service discovery by container name.
 
+### Deployment Mode Options
+
+![Deployment Mode Options - AI Generated](../../images/architecture/deployment-modes-ai.png)
+
+![Deployment Mode Options - Technical Diagram](../../images/architecture/deployment-modes-graphviz.png)
+
 ```mermaid
 flowchart TB
     subgraph Host["Host Machine (GPU Server)"]
@@ -259,6 +265,12 @@ AI services have longer start periods due to model loading:
 **Note:** AI services (ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment) do not have CPU/memory limits to allow full GPU utilization.
 
 ## Service Dependencies
+
+![Container Startup Flow](../../images/architecture/system-overview/flow-container-startup.png)
+
+### Backend Initialization Sequence
+
+![Backend Initialization Lifecycle](../../images/architecture/backend-init-lifecycle.png)
 
 **Source:** `docker-compose.prod.yml:353-376`
 

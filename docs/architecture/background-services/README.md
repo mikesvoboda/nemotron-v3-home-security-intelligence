@@ -199,6 +199,12 @@ logger.info(
 )
 ```
 
+## Alert Engine Architecture
+
+![Alert Engine Architecture showing notification pipeline components and message flow](../../images/architecture/alert-engine.png)
+
+The alert engine provides the notification pipeline for security events, integrating with the background services to deliver timely alerts based on risk thresholds and user preferences.
+
 ## Related Documentation
 
 - [Pipeline Architecture](../pipeline/README.md) - Detection and analysis pipeline

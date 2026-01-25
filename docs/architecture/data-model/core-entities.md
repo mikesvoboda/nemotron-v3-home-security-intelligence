@@ -270,6 +270,12 @@ feedback: Mapped[EventFeedback | None]          # One-to-one
 detections: Mapped[list[Detection]]             # Many-to-many via junction
 ```
 
+### Cascade Delete Behavior
+
+![Database Cascade Delete Relationships](../../images/architecture/database-cascade-delete.png)
+
+When a parent entity is deleted, all related child entities are automatically removed through PostgreSQL's `ON DELETE CASCADE` foreign key constraints. This ensures referential integrity without requiring application-level cleanup.
+
 ### Helper Properties
 
 ```python

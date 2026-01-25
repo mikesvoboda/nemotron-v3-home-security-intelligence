@@ -4,6 +4,8 @@ This directory contains comprehensive documentation for the resilience patterns 
 
 ## Pattern Overview
 
+![Resilience Pattern Architecture - Circuit breakers, retry handlers, and health monitoring](../../images/architecture/resilience-patterns/resilience-overview-graphviz.png)
+
 | Pattern                                         | Purpose                                          | Source File                               |
 | ----------------------------------------------- | ------------------------------------------------ | ----------------------------------------- |
 | [Circuit Breaker](circuit-breaker.md)           | Prevents cascading failures by failing fast      | `backend/services/circuit_breaker.py`     |

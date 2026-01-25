@@ -78,6 +78,8 @@ graph TD
 
 ### Middleware Execution Order
 
+![Middleware Processing Chain - Request and response flow through middleware stack](../../images/architecture/middleware/middleware-chain.png)
+
 Middleware in Starlette/FastAPI executes in **reverse registration order** for requests and **registration order** for responses. The middleware registered first wraps all subsequent middleware:
 
 ```

@@ -10,6 +10,12 @@ All API schemas are defined using Pydantic v2 and are located in `backend/api/sc
 - Response serialization
 - OpenAPI documentation generation
 
+### Schema Inheritance Hierarchy
+
+![Pydantic Schema Inheritance Hierarchy](../../images/architecture/pydantic-schema-hierarchy.png)
+
+The schema design follows a consistent inheritance pattern where base schemas define common fields, and specialized schemas extend them for create, update, and response operations.
+
 ## Common Patterns
 
 ### Pagination Envelope

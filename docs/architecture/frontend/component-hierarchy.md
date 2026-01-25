@@ -168,6 +168,8 @@ function PageComponent() {
 
 ## Dashboard Page
 
+![Dashboard Layout Wireframe](../../images/architecture/dashboard-wireframe.png)
+
 The `DashboardPage` (`frontend/src/components/dashboard/DashboardPage.tsx:61-507`) is the main entry point:
 
 ### Component Composition

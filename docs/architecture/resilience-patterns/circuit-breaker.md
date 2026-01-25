@@ -14,6 +14,10 @@ The `CircuitBreaker` class (`backend/services/circuit_breaker.py:258-982`) imple
 
 ## State Diagram
 
+![Circuit Breaker State Transitions](../../images/architecture/resilience-patterns/flow-circuit-states.png)
+
+![Circuit Breaker State Machine - CLOSED, OPEN, and HALF_OPEN transitions](../../images/architecture/circuit-breaker-states.png)
+
 ```
                     +-------------------+
                     |      CLOSED       |
