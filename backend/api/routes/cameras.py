@@ -455,7 +455,6 @@ async def create_camera(
         # Re-add camera since we rolled back the audit log
         db.add(camera)
         await db.commit()
-    await db.refresh(camera)
 
     # Invalidate cameras cache (NEM-1682: use specific method with reason)
     try:
@@ -463,7 +462,9 @@ async def create_camera(
     except Exception as e:
         logger.warning(f"Cache invalidation failed: {e}")
 
-    return camera
+    # NEM-3597: Re-fetch camera with areas relationship loaded to avoid lazy loading
+    # issues during response serialization (MissingGreenlet error)
+    return await get_camera_or_404(camera_id, db, load_areas=True)
 
 
 @router.patch("/{camera_id}", response_model=CameraResponse)
