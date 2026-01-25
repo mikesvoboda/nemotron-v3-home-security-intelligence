@@ -478,4 +478,218 @@ describe('TimelineScrubber', () => {
       expect(bars.length).toBe(100);
     });
   });
+
+  describe('custom date range (NEM-3585)', () => {
+    it('renders custom range button when onCustomRangeSelect is provided', () => {
+      const onCustomRangeSelect = vi.fn();
+      const { container } = render(
+        <TimelineScrubber {...defaultProps} onCustomRangeSelect={onCustomRangeSelect} />
+      );
+      expect(container.querySelector('[data-testid="custom-range-button"]')).toBeInTheDocument();
+    });
+
+    it('does not render custom range button when onCustomRangeSelect is not provided', () => {
+      const { container } = render(<TimelineScrubber {...defaultProps} />);
+      expect(container.querySelector('[data-testid="custom-range-button"]')).not.toBeInTheDocument();
+    });
+
+    it('opens date picker modal when custom range button is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const onCustomRangeSelect = vi.fn();
+      render(
+        <TimelineScrubber {...defaultProps} onCustomRangeSelect={onCustomRangeSelect} />
+      );
+
+      const customRangeButton = screen.getByTestId('custom-range-button');
+      await user.click(customRangeButton);
+
+      expect(screen.getByTestId('date-range-picker-modal')).toBeInTheDocument();
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('calls onCustomRangeSelect when date range is applied', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const onCustomRangeSelect = vi.fn();
+      render(
+        <TimelineScrubber
+          {...defaultProps}
+          onCustomRangeSelect={onCustomRangeSelect}
+          initialStartDate="2024-01-01"
+          initialEndDate="2024-01-15"
+        />
+      );
+
+      // Open the date picker
+      const customRangeButton = screen.getByTestId('custom-range-button');
+      await user.click(customRangeButton);
+
+      // Apply the date range
+      const applyButton = screen.getByTestId('date-range-apply');
+      await user.click(applyButton);
+
+      expect(onCustomRangeSelect).toHaveBeenCalledWith('2024-01-01', '2024-01-15');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('renders reset button when isCustomRangeActive is true', () => {
+      const onReset = vi.fn();
+      const onCustomRangeSelect = vi.fn();
+      render(
+        <TimelineScrubber
+          {...defaultProps}
+          onCustomRangeSelect={onCustomRangeSelect}
+          isCustomRangeActive
+          onReset={onReset}
+        />
+      );
+      expect(screen.getByTestId('timeline-reset-button')).toBeInTheDocument();
+    });
+
+    it('does not render reset button when isCustomRangeActive is false', () => {
+      const onReset = vi.fn();
+      const onCustomRangeSelect = vi.fn();
+      render(
+        <TimelineScrubber
+          {...defaultProps}
+          onCustomRangeSelect={onCustomRangeSelect}
+          isCustomRangeActive={false}
+          onReset={onReset}
+        />
+      );
+      expect(screen.queryByTestId('timeline-reset-button')).not.toBeInTheDocument();
+    });
+
+    it('calls onReset when reset button is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const onReset = vi.fn();
+      const onCustomRangeSelect = vi.fn();
+      render(
+        <TimelineScrubber
+          {...defaultProps}
+          onCustomRangeSelect={onCustomRangeSelect}
+          isCustomRangeActive
+          onReset={onReset}
+        />
+      );
+
+      const resetButton = screen.getByTestId('timeline-reset-button');
+      await user.click(resetButton);
+
+      expect(onReset).toHaveBeenCalledTimes(1);
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('custom range button shows active state when isCustomRangeActive is true', () => {
+      const onCustomRangeSelect = vi.fn();
+      render(
+        <TimelineScrubber
+          {...defaultProps}
+          onCustomRangeSelect={onCustomRangeSelect}
+          isCustomRangeActive
+        />
+      );
+      const customRangeButton = screen.getByTestId('custom-range-button');
+      expect(customRangeButton).toHaveClass('border-[#76B900]');
+      expect(customRangeButton).toHaveClass('text-[#76B900]');
+    });
+
+    it('custom range button shows inactive state when isCustomRangeActive is false', () => {
+      const onCustomRangeSelect = vi.fn();
+      render(
+        <TimelineScrubber
+          {...defaultProps}
+          onCustomRangeSelect={onCustomRangeSelect}
+          isCustomRangeActive={false}
+        />
+      );
+      const customRangeButton = screen.getByTestId('custom-range-button');
+      expect(customRangeButton).toHaveClass('border-gray-700');
+      expect(customRangeButton).toHaveClass('text-gray-400');
+    });
+
+    it('passes initial dates to the date picker modal', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const onCustomRangeSelect = vi.fn();
+      render(
+        <TimelineScrubber
+          {...defaultProps}
+          onCustomRangeSelect={onCustomRangeSelect}
+          initialStartDate="2024-01-10"
+          initialEndDate="2024-01-20"
+        />
+      );
+
+      // Open the date picker
+      const customRangeButton = screen.getByTestId('custom-range-button');
+      await user.click(customRangeButton);
+
+      // Check that initial dates are populated
+      const startInput = screen.getByTestId('start-date-input');
+      const endInput = screen.getByTestId('end-date-input');
+
+      expect((startInput as HTMLInputElement).value).toBe('2024-01-10');
+      expect((endInput as HTMLInputElement).value).toBe('2024-01-20');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('closes date picker modal when cancel is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const onCustomRangeSelect = vi.fn();
+      render(
+        <TimelineScrubber {...defaultProps} onCustomRangeSelect={onCustomRangeSelect} />
+      );
+
+      // Open the date picker
+      const customRangeButton = screen.getByTestId('custom-range-button');
+      await user.click(customRangeButton);
+      expect(screen.getByTestId('date-range-picker-modal')).toBeInTheDocument();
+
+      // Cancel
+      const cancelButton = screen.getByTestId('date-range-cancel');
+      await user.click(cancelButton);
+
+      // Modal should be closed
+      expect(screen.queryByTestId('date-range-picker-modal')).not.toBeInTheDocument();
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('has accessible label on custom range button', () => {
+      const onCustomRangeSelect = vi.fn();
+      render(
+        <TimelineScrubber {...defaultProps} onCustomRangeSelect={onCustomRangeSelect} />
+      );
+      const customRangeButton = screen.getByTestId('custom-range-button');
+      expect(customRangeButton).toHaveAttribute('aria-label', 'Select custom date range');
+    });
+
+    it('has accessible label on reset button', () => {
+      const onReset = vi.fn();
+      const onCustomRangeSelect = vi.fn();
+      render(
+        <TimelineScrubber
+          {...defaultProps}
+          onCustomRangeSelect={onCustomRangeSelect}
+          isCustomRangeActive
+          onReset={onReset}
+        />
+      );
+      const resetButton = screen.getByTestId('timeline-reset-button');
+      expect(resetButton).toHaveAttribute('aria-label', 'Reset to default date range');
+    });
+  });
 });

@@ -16474,6 +16474,143 @@
         "title": "NotificationConfigResponse",
         "type": "object"
       },
+      "NotificationHistoryEntry": {
+        "description": "Schema for a notification history entry.",
+        "example": {
+          "alert_id": "550e8400-e29b-41d4-a716-446655440001",
+          "channel": "email",
+          "created_at": "2025-12-28T12:00:29Z",
+          "delivered_at": "2025-12-28T12:00:30Z",
+          "id": "550e8400-e29b-41d4-a716-446655440002",
+          "recipient": "user@example.com",
+          "success": true
+        },
+        "properties": {
+          "alert_id": {
+            "description": "Associated alert ID",
+            "title": "Alert Id",
+            "type": "string"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/NotificationChannel",
+            "description": "Notification channel"
+          },
+          "created_at": {
+            "description": "Record creation timestamp",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Delivery timestamp",
+            "title": "Delivered At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error message if failed",
+            "title": "Error"
+          },
+          "id": {
+            "description": "Notification delivery ID",
+            "title": "Id",
+            "type": "string"
+          },
+          "recipient": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Recipient identifier",
+            "title": "Recipient"
+          },
+          "success": {
+            "description": "Whether delivery was successful",
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "alert_id",
+          "channel",
+          "success",
+          "created_at"
+        ],
+        "title": "NotificationHistoryEntry",
+        "type": "object"
+      },
+      "NotificationHistoryResponse": {
+        "description": "Schema for notification history list response.",
+        "example": {
+          "count": 1,
+          "entries": [
+            {
+              "alert_id": "550e8400-e29b-41d4-a716-446655440001",
+              "channel": "email",
+              "created_at": "2025-12-28T12:00:29Z",
+              "delivered_at": "2025-12-28T12:00:30Z",
+              "id": "550e8400-e29b-41d4-a716-446655440002",
+              "recipient": "user@example.com",
+              "success": true
+            }
+          ],
+          "limit": 50,
+          "offset": 0
+        },
+        "properties": {
+          "count": {
+            "description": "Total number of entries matching filters",
+            "title": "Count",
+            "type": "integer"
+          },
+          "entries": {
+            "description": "Notification history entries",
+            "items": {
+              "$ref": "#/components/schemas/NotificationHistoryEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "limit": {
+            "description": "Maximum number of results returned",
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "description": "Number of results skipped",
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "entries",
+          "count",
+          "limit",
+          "offset"
+        ],
+        "title": "NotificationHistoryResponse",
+        "type": "object"
+      },
       "NotificationPreferencesResponse": {
         "description": "Schema for notification preferences response.",
         "example": {
@@ -34835,6 +34972,121 @@
           }
         },
         "summary": "Get Notification Config",
+        "tags": [
+          "notification"
+        ]
+      }
+    },
+    "/api/notification/history": {
+      "get": {
+        "description": "Get notification delivery history with optional filters.\n\nReturns paginated notification delivery records with optional filtering\nby alert ID, channel type, and success status.\n\nNote: This endpoint returns the structure for notification history.\nA future enhancement will persist delivery records to the database\nand return actual history data.\n\nArgs:\n    alert_id: Optional alert ID to filter by\n    channel: Optional notification channel to filter by\n    success: Optional success status to filter by\n    limit: Maximum number of results to return (1-100, default 50)\n    offset: Number of results to skip for pagination (default 0)\n\nReturns:\n    NotificationHistoryResponse with delivery history entries",
+        "operationId": "notification_get_notification_history",
+        "parameters": [
+          {
+            "description": "Filter by alert ID",
+            "in": "query",
+            "name": "alert_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by alert ID",
+              "title": "Alert Id"
+            }
+          },
+          {
+            "description": "Filter by channel",
+            "in": "query",
+            "name": "channel",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/NotificationChannel"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by channel",
+              "title": "Channel"
+            }
+          },
+          {
+            "description": "Filter by success status",
+            "in": "query",
+            "name": "success",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by success status",
+              "title": "Success"
+            }
+          },
+          {
+            "description": "Maximum number of results",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of results",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of results to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of results to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Notification History",
         "tags": [
           "notification"
         ]

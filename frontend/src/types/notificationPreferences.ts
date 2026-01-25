@@ -161,3 +161,66 @@ export interface QuietHoursPeriodsListResponse {
     has_more: boolean;
   };
 }
+
+// ============================================================================
+// Notification History Types
+// ============================================================================
+
+/**
+ * Notification channel types for history entries.
+ */
+export type NotificationChannel = 'email' | 'webhook' | 'push';
+
+/**
+ * A single notification delivery history entry.
+ * Mirrors backend schema: backend/api/schemas/notification.py:NotificationHistoryEntry
+ */
+export interface NotificationHistoryEntry {
+  /** Unique identifier for this delivery record */
+  id: string;
+  /** Alert ID that triggered this notification */
+  alert_id: string;
+  /** Notification channel used (email, webhook, push) */
+  channel: NotificationChannel;
+  /** Recipient identifier (email address, webhook URL, etc.) */
+  recipient: string | null;
+  /** Whether the delivery was successful */
+  success: boolean;
+  /** Error message if delivery failed */
+  error: string | null;
+  /** Timestamp when notification was delivered (ISO 8601) */
+  delivered_at: string | null;
+  /** Timestamp when record was created (ISO 8601) */
+  created_at: string;
+}
+
+/**
+ * Response containing paginated notification history.
+ * Mirrors backend schema: backend/api/schemas/notification.py:NotificationHistoryResponse
+ */
+export interface NotificationHistoryResponse {
+  /** List of notification history entries */
+  entries: NotificationHistoryEntry[];
+  /** Total count of entries matching filters */
+  count: number;
+  /** Maximum number of results returned */
+  limit: number;
+  /** Number of results skipped */
+  offset: number;
+}
+
+/**
+ * Query parameters for fetching notification history.
+ */
+export interface NotificationHistoryQueryParams {
+  /** Filter by alert ID */
+  alert_id?: string;
+  /** Filter by notification channel */
+  channel?: NotificationChannel;
+  /** Filter by success status */
+  success?: boolean;
+  /** Maximum number of results (1-100, default 50) */
+  limit?: number;
+  /** Number of results to skip (default 0) */
+  offset?: number;
+}

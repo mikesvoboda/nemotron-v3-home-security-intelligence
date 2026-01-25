@@ -14,6 +14,7 @@ import { useAIMetrics } from '../../hooks/useAIMetrics';
 import { useDateRangeState } from '../../hooks/useDateRangeState';
 import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
 import { useRecentEventsQuery } from '../../hooks/useRecentEventsQuery';
+import { useSceneChangeEvents } from '../../hooks/useSceneChangeEvents';
 import { useSummaries } from '../../hooks/useSummaries';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
 import {
@@ -82,6 +83,13 @@ export default function DashboardPage() {
   // WebSocket hooks for real-time data
   const { events: wsEvents, isConnected: eventsConnected } = useEventStream();
   const { status: systemStatus, isConnected: systemConnected } = useSystemStatus();
+
+  // Scene change detection WebSocket hook (NEM-3575)
+  // Provides real-time alerts for camera tampering/view changes
+  const { activeCameraIds: sceneChangeActivityIds } = useSceneChangeEvents({
+    showToasts: true, // Toast notifications handled by the hook
+    activityTimeoutMs: 30000, // Activity indicator visible for 30 seconds
+  });
 
   // Fetch summaries for dashboard cards (hourly and daily summaries)
   const {
@@ -428,7 +436,13 @@ export default function DashboardPage() {
         )}
         renderAISummaryRow={(props) => <AIPerformanceSummaryRow {...props} />}
         renderCameraGrid={(props) =>
-          props ? <CameraGrid cameras={props.cameras} onCameraClick={props.onCameraClick} /> : null
+          props ? (
+            <CameraGrid
+              cameras={props.cameras}
+              onCameraClick={props.onCameraClick}
+              sceneChangeActivityIds={sceneChangeActivityIds}
+            />
+          ) : null
         }
         renderActivityFeed={(props) =>
           props ? (

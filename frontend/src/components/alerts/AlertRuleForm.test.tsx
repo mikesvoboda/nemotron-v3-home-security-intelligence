@@ -10,6 +10,22 @@ import AlertRuleForm, { type AlertRuleFormData } from './AlertRuleForm';
 
 import type { Camera } from '../../services/api';
 
+// Mock the API module for threshold preview
+vi.mock('../../services/api', async () => {
+  const actual = await vi.importActual('../../services/api');
+  return {
+    ...actual,
+    testAlertRule: vi.fn().mockResolvedValue({
+      rule_id: 'test-rule',
+      rule_name: 'Test Rule',
+      events_tested: 100,
+      events_matched: 25,
+      match_rate: 25.0,
+      results: [],
+    }),
+  };
+});
+
 // Mock cameras for testing
 const mockCameras: Camera[] = [
   {
@@ -55,7 +71,8 @@ describe('AlertRuleForm', () => {
 
       // Trigger Conditions section
       expect(screen.getByText('Trigger Conditions')).toBeInTheDocument();
-      expect(screen.getByLabelText(/Risk Threshold/)).toBeInTheDocument();
+      // Risk threshold now uses slider with aria-label
+      expect(screen.getByLabelText('Risk threshold slider')).toBeInTheDocument();
       expect(screen.getByLabelText(/Min Confidence/)).toBeInTheDocument();
       expect(screen.getByText('Object Types')).toBeInTheDocument();
       expect(screen.getByText('Cameras')).toBeInTheDocument();
@@ -538,7 +555,8 @@ describe('AlertRuleForm', () => {
       expect(screen.getByLabelText('Rule Name *')).toBeInTheDocument();
       expect(screen.getByLabelText('Description')).toBeInTheDocument();
       expect(screen.getByLabelText('Severity')).toBeInTheDocument();
-      expect(screen.getByLabelText(/Risk Threshold/)).toBeInTheDocument();
+      // Risk threshold now uses slider with aria-label
+      expect(screen.getByLabelText('Risk threshold slider')).toBeInTheDocument();
       expect(screen.getByLabelText(/Min Confidence/)).toBeInTheDocument();
       expect(screen.getByLabelText('Cooldown (seconds)')).toBeInTheDocument();
     });
@@ -582,6 +600,81 @@ describe('AlertRuleForm', () => {
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
       });
+    });
+  });
+
+  describe('Risk Threshold Slider', () => {
+    it('should render the risk threshold slider', () => {
+      render(<AlertRuleForm {...defaultProps} />);
+
+      expect(screen.getByTestId('alert-rule-risk-threshold-slider')).toBeInTheDocument();
+    });
+
+    it('should render severity zone labels in slider', () => {
+      render(<AlertRuleForm {...defaultProps} />);
+
+      // Use the zone labels container to find the slider zone labels
+      const zoneLabels = screen.getByTestId('alert-rule-risk-threshold-zone-labels');
+      expect(zoneLabels).toBeInTheDocument();
+      // Check that zone ranges are visible (unique to slider)
+      expect(screen.getByText('0-25')).toBeInTheDocument();
+      expect(screen.getByText('26-50')).toBeInTheDocument();
+      expect(screen.getByText('51-75')).toBeInTheDocument();
+      expect(screen.getByText('76-100')).toBeInTheDocument();
+    });
+
+    it('should render numeric input for threshold', () => {
+      render(<AlertRuleForm {...defaultProps} />);
+
+      expect(screen.getByTestId('alert-rule-risk-threshold-numeric-input')).toBeInTheDocument();
+    });
+
+    it('should show initial threshold value', () => {
+      render(
+        <AlertRuleForm {...defaultProps} initialData={{ risk_threshold: 75 }} />
+      );
+
+      const numericInput = screen.getByTestId<HTMLInputElement>(
+        'alert-rule-risk-threshold-numeric-input'
+      );
+      expect(numericInput.value).toBe('75');
+    });
+
+    it('should submit with threshold value from slider', async () => {
+      const onSubmit = vi.fn();
+      render(
+        <AlertRuleForm
+          {...defaultProps}
+          onSubmit={onSubmit}
+          initialData={{ risk_threshold: 60 }}
+        />
+      );
+
+      const nameInput = screen.getByTestId('alert-rule-name-input');
+      await userEvent.type(nameInput, 'Test Rule');
+
+      const submitButton = screen.getByTestId('alert-rule-form-submit');
+      await userEvent.click(submitButton);
+
+      await waitFor(() => {
+        expect(onSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({ risk_threshold: 60 })
+        );
+      });
+    });
+
+    it('should show threshold preview component', () => {
+      render(<AlertRuleForm {...defaultProps} />);
+
+      expect(screen.getByTestId('alert-rule-threshold-preview')).toBeInTheDocument();
+    });
+
+    it('should show "save rule" message when no ruleId provided', () => {
+      render(<AlertRuleForm {...defaultProps} />);
+
+      expect(
+        screen.getByText('Save rule to see threshold preview')
+      ).toBeInTheDocument();
     });
   });
 });

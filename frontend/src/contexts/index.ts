@@ -70,3 +70,19 @@ export type { MetricsContextData, MetricsProviderProps } from './MetricsContext'
 export { AnnouncementContext, AnnouncementProvider, useAnnounce } from './AnnouncementContext';
 
 export type { AnnouncementContextType, AnnouncementProviderProps } from './AnnouncementContext';
+
+// Theme context for light/dark mode (NEM-3609)
+export {
+  ThemeContext,
+  ThemeProvider,
+  useTheme,
+  useThemeOptional,
+  THEME_STORAGE_KEY,
+} from './ThemeContext';
+
+export type {
+  ThemeContextValue,
+  ThemeMode,
+  ResolvedTheme,
+  ThemeProviderProps,
+} from './ThemeContext';

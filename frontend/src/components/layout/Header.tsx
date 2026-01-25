@@ -8,7 +8,7 @@ import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
 import { useSceneChangeAlerts } from '../../hooks/useSceneChangeAlerts';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
 import { useStorageStatusStore, CRITICAL_USAGE_THRESHOLD } from '../../stores/storage-status-store';
-import { WebSocketStatus } from '../common';
+import { ThemeToggle, WebSocketStatus } from '../common';
 import IconButton from '../common/IconButton';
 import SceneChangeAlert from '../common/SceneChangeAlert';
 import { AIServiceStatus } from '../status/AIServiceStatus';
@@ -284,6 +284,11 @@ export default function Header() {
 
         {/* Contextual documentation link */}
         <PageDocsLink />
+
+        {/* Theme Toggle (NEM-3609) */}
+        <div className="hidden sm:block" data-testid="theme-toggle-container">
+          <ThemeToggle showMenu size="sm" variant="ghost" />
+        </div>
 
         {/* Scene Change Alerts */}
         <SceneChangeAlert
