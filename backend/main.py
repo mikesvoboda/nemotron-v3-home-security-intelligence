@@ -64,6 +64,7 @@ from backend.api.routes import (
     prompt_management,
     queues,
     rum,
+    scheduled_reports,
     services,
     settings_api,
     summaries,
@@ -1153,6 +1154,7 @@ app.include_router(notification_preferences.router)
 app.include_router(prompt_management.router)
 app.include_router(queues.router)
 app.include_router(rum.router)
+app.include_router(scheduled_reports.router)
 app.include_router(services.router)
 app.include_router(settings_api.router)
 app.include_router(summaries.router)

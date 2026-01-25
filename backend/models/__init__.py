@@ -63,6 +63,7 @@ from .prometheus_alert import PrometheusAlert, PrometheusAlertStatus
 from .prompt_config import PromptConfig
 from .property import Property
 from .scene_change import SceneChange, SceneChangeType
+from .scheduled_report import ReportFormat, ReportFrequency, ScheduledReport
 from .summary import Summary, SummaryType
 from .user_calibration import UserCalibration
 from .zone_anomaly import AnomalySeverity, AnomalyType, ZoneAnomaly
@@ -132,9 +133,12 @@ __all__ = [
     "QuietHoursPeriod",
     "ReIDEmbedding",
     "RegisteredVehicle",
+    "ReportFormat",
+    "ReportFrequency",
     "RiskLevel",
     "SceneChange",
     "SceneChangeType",
+    "ScheduledReport",
     "Severity",
     "Summary",
     "SummaryType",

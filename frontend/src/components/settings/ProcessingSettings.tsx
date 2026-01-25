@@ -3,6 +3,7 @@ import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from '
 import { useEffect, useState } from 'react';
 
 import CleanupPreviewPanel from './CleanupPreviewPanel';
+import DetectionThresholdsPanel from './DetectionThresholdsPanel';
 import DlqMonitor from './DlqMonitor';
 import SeverityThresholds from './SeverityThresholds';
 import StorageDashboard from './StorageDashboard';
@@ -358,6 +359,9 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
           </div>
         )}
       </Card>
+
+      {/* Detection Thresholds Panel - Configure AI detection sensitivity */}
+      <DetectionThresholdsPanel className="mt-6" />
 
       {/* Cleanup Preview Panel - Preview retention policy impact */}
       <CleanupPreviewPanel className="mt-6" />
