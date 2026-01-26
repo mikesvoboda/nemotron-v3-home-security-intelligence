@@ -268,11 +268,51 @@ export class TypedWebSocketEmitter {
       return false;
     }
 
+    // Handle batched messages (NEM-3738)
+    // Unpack the batch and emit each individual message
+    if (eventType === 'batch') {
+      return this.handleBatchMessage(message as WebSocketEventMap['batch']);
+    }
+
     // Extract payload - for messages with data field, use data; otherwise use message
     const msg = message as Record<string, unknown>;
     const payload = 'data' in msg && msg.data !== undefined ? msg.data : message;
 
     this.emit(eventType, payload as WebSocketEventMap[typeof eventType]);
+
+    return true;
+  }
+
+  /**
+   * Handle a batched message by emitting each individual message (NEM-3738).
+   *
+   * Also emits the batch message itself to any 'batch' handlers for monitoring.
+   *
+   * @param batchMessage - The batch message payload
+   * @returns true if the batch was processed
+   * @internal
+   */
+  private handleBatchMessage(batchMessage: WebSocketEventMap['batch']): boolean {
+    // First, emit the batch message itself to batch handlers
+    // This allows monitoring/metrics components to track batching efficiency
+    this.emit('batch', batchMessage);
+
+    // Process each message in the batch
+    for (const individualMessage of batchMessage.messages) {
+      // Each message in the batch should have its own type field
+      const msgType = extractEventType(individualMessage);
+
+      if (msgType && msgType !== 'batch') {
+        // Extract payload from the individual message
+        const msgRecord = individualMessage;
+        const payload =
+          'data' in msgRecord && msgRecord.data !== undefined
+            ? msgRecord.data
+            : individualMessage;
+
+        this.emit(msgType, payload as WebSocketEventMap[typeof msgType]);
+      }
+    }
 
     return true;
   }

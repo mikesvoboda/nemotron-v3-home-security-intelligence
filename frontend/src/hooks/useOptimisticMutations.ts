@@ -11,10 +11,13 @@
  * 5. On success: replace optimistic data with server response
  * 6. On settled: invalidate queries for consistency
  *
+ * Uses TanStack Query v5 context.client pattern (NEM-3752) for accessing
+ * the QueryClient directly in mutation callbacks.
+ *
  * @module hooks/useOptimisticMutations
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, type QueryClient } from '@tanstack/react-query';
 
 import {
   updateSettings,
@@ -34,24 +37,39 @@ import {
   type QuietHoursPeriodResponse,
   type QuietHoursPeriodCreate,
 } from '../services/api';
-import { cancelOutgoingQueries, rollbackSingle } from '../services/optimisticUpdates';
 import { queryKeys } from '../services/queryClient';
 
-// ============================================================================
-// Types
-// ============================================================================
+
+// =============================================================================
+// Helpers
+// =============================================================================
 
 /**
- * Context for optimistic mutation rollback
+ * Helper to cancel outgoing queries using the provided client.
  */
-interface OptimisticContext<T> {
-  previousData: T | undefined;
-  optimisticId?: string | number;
+async function cancelOutgoingQueries(
+  client: QueryClient,
+  queryKey: readonly unknown[]
+): Promise<void> {
+  await client.cancelQueries({ queryKey });
 }
 
-// ============================================================================
+/**
+ * Helper to rollback a single item query to its previous state.
+ */
+function rollbackSingle<T>(
+  client: QueryClient,
+  queryKey: readonly unknown[],
+  previousData: T | undefined
+): void {
+  if (previousData !== undefined) {
+    client.setQueryData(queryKey, previousData);
+  }
+}
+
+// =============================================================================
 // useOptimisticSettingsUpdate - Settings with optimistic update
-// ============================================================================
+// =============================================================================
 
 /**
  * Options for useOptimisticSettingsUpdate
@@ -91,6 +109,8 @@ export interface UseOptimisticSettingsUpdateReturn {
  * Provides instant UI feedback by immediately applying the update
  * to the cache, with automatic rollback on error.
  *
+ * Uses TanStack Query v5 context.client pattern for QueryClient access.
+ *
  * @param options - Configuration options
  * @returns Mutation functions and state
  *
@@ -110,16 +130,15 @@ export function useOptimisticSettingsUpdate(
   options: UseOptimisticSettingsUpdateOptions = {}
 ): UseOptimisticSettingsUpdateReturn {
   const { onSuccess, onError } = options;
-  const queryClient = useQueryClient();
   const settingsKey = settingsQueryKeys.current();
 
   const mutation = useMutation({
     mutationFn: updateSettings,
 
-    onMutate: async (update: SettingsUpdate) => {
-      await cancelOutgoingQueries(queryClient, settingsKey);
+    onMutate: async (update: SettingsUpdate, { client }) => {
+      await cancelOutgoingQueries(client, settingsKey);
 
-      const previousData = queryClient.getQueryData<SettingsResponse>(settingsKey);
+      const previousData = client.getQueryData<SettingsResponse>(settingsKey);
 
       // Apply optimistic update - merge updates with current data
       if (previousData) {
@@ -148,26 +167,26 @@ export function useOptimisticSettingsUpdate(
           }),
         };
 
-        queryClient.setQueryData(settingsKey, optimisticData);
+        client.setQueryData(settingsKey, optimisticData);
       }
 
       return { previousData };
     },
 
-    onError: (error, _variables, context?: OptimisticContext<SettingsResponse>) => {
+    onError: (error, _variables, context, { client }) => {
       if (context?.previousData) {
-        rollbackSingle(queryClient, settingsKey, context.previousData);
+        rollbackSingle(client, settingsKey, context.previousData);
       }
       onError?.(error);
     },
 
-    onSuccess: (data) => {
-      queryClient.setQueryData(settingsKey, data);
+    onSuccess: (data, _variables, _context, { client }) => {
+      client.setQueryData(settingsKey, data);
       onSuccess?.(data);
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.all });
+    onSettled: (_data, _error, _variables, _context, { client }) => {
+      void client.invalidateQueries({ queryKey: settingsQueryKeys.all });
     },
   });
 
@@ -183,9 +202,9 @@ export function useOptimisticSettingsUpdate(
   };
 }
 
-// ============================================================================
+// =============================================================================
 // useOptimisticNotificationPreferencesUpdate
-// ============================================================================
+// =============================================================================
 
 /**
  * Options for useOptimisticNotificationPreferencesUpdate
@@ -220,6 +239,8 @@ export interface UseOptimisticNotificationPreferencesUpdateReturn {
 /**
  * Hook for updating notification preferences with optimistic updates.
  *
+ * Uses TanStack Query v5 context.client pattern for QueryClient access.
+ *
  * @param options - Configuration options
  * @returns Mutation functions and state
  *
@@ -235,16 +256,15 @@ export function useOptimisticNotificationPreferencesUpdate(
   options: UseOptimisticNotificationPreferencesUpdateOptions = {}
 ): UseOptimisticNotificationPreferencesUpdateReturn {
   const { onSuccess, onError } = options;
-  const queryClient = useQueryClient();
   const prefsKey = queryKeys.notifications.preferences.global;
 
   const mutation = useMutation({
     mutationFn: updateNotificationPreferences,
 
-    onMutate: async (update: NotificationPreferencesUpdate) => {
-      await cancelOutgoingQueries(queryClient, prefsKey);
+    onMutate: async (update: NotificationPreferencesUpdate, { client }) => {
+      await cancelOutgoingQueries(client, prefsKey);
 
-      const previousData = queryClient.getQueryData<NotificationPreferencesResponse>(prefsKey);
+      const previousData = client.getQueryData<NotificationPreferencesResponse>(prefsKey);
 
       // Apply optimistic update with null filtering
       if (previousData) {
@@ -256,26 +276,26 @@ export function useOptimisticNotificationPreferencesUpdate(
             update.risk_filters !== undefined && { risk_filters: update.risk_filters }),
           ...(update.sound !== null && update.sound !== undefined && { sound: update.sound }),
         };
-        queryClient.setQueryData(prefsKey, optimisticData);
+        client.setQueryData(prefsKey, optimisticData);
       }
 
       return { previousData };
     },
 
-    onError: (error, _variables, context?: OptimisticContext<NotificationPreferencesResponse>) => {
+    onError: (error, _variables, context, { client }) => {
       if (context?.previousData) {
-        rollbackSingle(queryClient, prefsKey, context.previousData);
+        rollbackSingle(client, prefsKey, context.previousData);
       }
       onError?.(error);
     },
 
-    onSuccess: (data) => {
-      queryClient.setQueryData(prefsKey, data);
+    onSuccess: (data, _variables, _context, { client }) => {
+      client.setQueryData(prefsKey, data);
       onSuccess?.(data);
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.preferences.all });
+    onSettled: (_data, _error, _variables, _context, { client }) => {
+      void client.invalidateQueries({ queryKey: queryKeys.notifications.preferences.all });
     },
   });
 
@@ -290,9 +310,9 @@ export function useOptimisticNotificationPreferencesUpdate(
   };
 }
 
-// ============================================================================
+// =============================================================================
 // useOptimisticCameraNotificationSettingUpdate
-// ============================================================================
+// =============================================================================
 
 /**
  * Options for useOptimisticCameraNotificationSettingUpdate
@@ -330,6 +350,8 @@ export interface UseOptimisticCameraNotificationSettingUpdateReturn {
 /**
  * Hook for updating camera notification settings with optimistic updates.
  *
+ * Uses TanStack Query v5 context.client pattern for QueryClient access.
+ *
  * @param options - Configuration options
  * @returns Mutation functions and state
  */
@@ -337,7 +359,6 @@ export function useOptimisticCameraNotificationSettingUpdate(
   options: UseOptimisticCameraNotificationSettingUpdateOptions = {}
 ): UseOptimisticCameraNotificationSettingUpdateReturn {
   const { onSuccess, onError } = options;
-  const queryClient = useQueryClient();
   const listKey = queryKeys.notifications.preferences.cameras.list();
 
   const mutation = useMutation({
@@ -349,21 +370,24 @@ export function useOptimisticCameraNotificationSettingUpdate(
       update: CameraNotificationSettingUpdate;
     }) => updateCameraNotificationSetting(cameraId, update),
 
-    onMutate: async ({
-      cameraId,
-      update,
-    }: {
-      cameraId: string;
-      update: CameraNotificationSettingUpdate;
-    }) => {
-      await cancelOutgoingQueries(queryClient, listKey);
+    onMutate: async (
+      {
+        cameraId,
+        update,
+      }: {
+        cameraId: string;
+        update: CameraNotificationSettingUpdate;
+      },
+      { client }
+    ) => {
+      await cancelOutgoingQueries(client, listKey);
 
-      const previousData = queryClient.getQueryData<{
+      const previousData = client.getQueryData<{
         items: CameraNotificationSettingResponse[];
       }>(listKey);
 
       // Optimistically update the camera setting in the list
-      queryClient.setQueryData<{ items: CameraNotificationSettingResponse[] }>(listKey, (old) => {
+      client.setQueryData<{ items: CameraNotificationSettingResponse[] }>(listKey, (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -385,23 +409,19 @@ export function useOptimisticCameraNotificationSettingUpdate(
       return { previousData };
     },
 
-    onError: (
-      error,
-      _variables,
-      context?: OptimisticContext<{ items: CameraNotificationSettingResponse[] }>
-    ) => {
+    onError: (error, _variables, context, { client }) => {
       if (context?.previousData) {
-        queryClient.setQueryData(listKey, context.previousData);
+        client.setQueryData(listKey, context.previousData);
       }
       onError?.(error);
     },
 
-    onSuccess: (data, variables) => {
+    onSuccess: (data, variables, _context, { client }) => {
       // Update both list and detail caches
-      void queryClient.invalidateQueries({
+      void client.invalidateQueries({
         queryKey: queryKeys.notifications.preferences.cameras.all,
       });
-      void queryClient.invalidateQueries({
+      void client.invalidateQueries({
         queryKey: queryKeys.notifications.preferences.cameras.detail(variables.cameraId),
       });
       onSuccess?.(data);
@@ -419,9 +439,9 @@ export function useOptimisticCameraNotificationSettingUpdate(
   };
 }
 
-// ============================================================================
+// =============================================================================
 // useOptimisticQuietHoursPeriodMutations
-// ============================================================================
+// =============================================================================
 
 /**
  * Options for useOptimisticQuietHoursPeriodMutations
@@ -452,6 +472,8 @@ export interface UseOptimisticQuietHoursPeriodMutationsReturn {
 /**
  * Hook for quiet hours period mutations with optimistic updates.
  *
+ * Uses TanStack Query v5 context.client pattern for QueryClient access.
+ *
  * @param options - Configuration options
  * @returns Create and delete mutations with optimistic updates
  *
@@ -475,16 +497,15 @@ export function useOptimisticQuietHoursPeriodMutations(
   options: UseOptimisticQuietHoursPeriodMutationsOptions = {}
 ): UseOptimisticQuietHoursPeriodMutationsReturn {
   const { onCreateSuccess, onCreateError, onDeleteSuccess, onDeleteError } = options;
-  const queryClient = useQueryClient();
   const listKey = queryKeys.notifications.preferences.quietHours.list();
 
   const createPeriod = useMutation({
     mutationFn: createQuietHoursPeriod,
 
-    onMutate: async (newPeriod: QuietHoursPeriodCreate) => {
-      await cancelOutgoingQueries(queryClient, listKey);
+    onMutate: async (newPeriod: QuietHoursPeriodCreate, { client }) => {
+      await cancelOutgoingQueries(client, listKey);
 
-      const previousData = queryClient.getQueryData<{
+      const previousData = client.getQueryData<{
         items: QuietHoursPeriodResponse[];
       }>(listKey);
 
@@ -497,7 +518,7 @@ export function useOptimisticQuietHoursPeriodMutations(
         days: newPeriod.days ?? [],
       };
 
-      queryClient.setQueryData<{
+      client.setQueryData<{
         items: QuietHoursPeriodResponse[];
         pagination: { total: number; limit: number; offset: number };
       }>(listKey, (old) => ({
@@ -508,20 +529,16 @@ export function useOptimisticQuietHoursPeriodMutations(
       return { previousData, optimisticId: optimisticPeriod.id };
     },
 
-    onError: (
-      error,
-      _variables,
-      context?: OptimisticContext<{ items: QuietHoursPeriodResponse[] }>
-    ) => {
+    onError: (error, _variables, context, { client }) => {
       if (context?.previousData) {
-        queryClient.setQueryData(listKey, context.previousData);
+        client.setQueryData(listKey, context.previousData);
       }
       onCreateError?.(error);
     },
 
-    onSuccess: (data, _variables, context) => {
+    onSuccess: (data, _variables, context, { client }) => {
       // Replace optimistic item with real one
-      queryClient.setQueryData<{
+      client.setQueryData<{
         items: QuietHoursPeriodResponse[];
         pagination?: { total: number; limit: number; offset: number };
       }>(listKey, (old) => ({
@@ -531,8 +548,8 @@ export function useOptimisticQuietHoursPeriodMutations(
       onCreateSuccess?.(data);
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({
+    onSettled: (_data, _error, _variables, _context, { client }) => {
+      void client.invalidateQueries({
         queryKey: queryKeys.notifications.preferences.quietHours.all,
       });
     },
@@ -541,15 +558,15 @@ export function useOptimisticQuietHoursPeriodMutations(
   const deletePeriod = useMutation({
     mutationFn: deleteQuietHoursPeriod,
 
-    onMutate: async (periodId: string) => {
-      await cancelOutgoingQueries(queryClient, listKey);
+    onMutate: async (periodId: string, { client }) => {
+      await cancelOutgoingQueries(client, listKey);
 
-      const previousData = queryClient.getQueryData<{
+      const previousData = client.getQueryData<{
         items: QuietHoursPeriodResponse[];
       }>(listKey);
 
       // Optimistically remove the period
-      queryClient.setQueryData<{ items: QuietHoursPeriodResponse[] }>(listKey, (old) => ({
+      client.setQueryData<{ items: QuietHoursPeriodResponse[] }>(listKey, (old) => ({
         items: (old?.items ?? []).filter((item) => item.id !== periodId),
         pagination: {
           total: Math.max(0, (old?.items?.length ?? 0) - 1),
@@ -561,13 +578,9 @@ export function useOptimisticQuietHoursPeriodMutations(
       return { previousData };
     },
 
-    onError: (
-      error,
-      _variables,
-      context?: OptimisticContext<{ items: QuietHoursPeriodResponse[] }>
-    ) => {
+    onError: (error, _variables, context, { client }) => {
       if (context?.previousData) {
-        queryClient.setQueryData(listKey, context.previousData);
+        client.setQueryData(listKey, context.previousData);
       }
       onDeleteError?.(error);
     },
@@ -576,8 +589,8 @@ export function useOptimisticQuietHoursPeriodMutations(
       onDeleteSuccess?.();
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({
+    onSettled: (_data, _error, _variables, _context, { client }) => {
+      void client.invalidateQueries({
         queryKey: queryKeys.notifications.preferences.quietHours.all,
       });
     },

@@ -52,9 +52,7 @@ from PIL import Image
 # =============================================================================
 
 DEFAULT_YOLO26_PATH = Path(os.environ.get("YOLO26_MODEL_PATH", "/models/yolo26"))
-DEFAULT_YOLO26_PATH = Path(
-    os.environ.get("YOLO26_MODEL_PATH", "/models/yolo26v2/yolo26_v2_r101vd")
-)
+DEFAULT_YOLO26_PATH = Path(os.environ.get("YOLO26_MODEL_PATH", "/models/yolo26v2/yolo26_v2_r101vd"))
 DEFAULT_EXPORT_PATH = Path(os.environ.get("EXPORT_PATH", "/models/yolo26/exports"))
 DEFAULT_OUTPUT_PATH = Path(os.environ.get("BENCHMARK_OUTPUT", "/benchmarks/yolo26-vs-yolo26.md"))
 

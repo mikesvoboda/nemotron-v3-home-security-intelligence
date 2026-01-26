@@ -14,12 +14,13 @@ FastAPI-based HTTP server that wraps YOLO26m TensorRT object detection model for
 
 ```
 ai/yolo26/
-├── AGENTS.md          # This file
-├── __init__.py        # Package init (version 1.0.0)
-├── Dockerfile         # Container build (TensorRT 24.09)
-├── model.py           # FastAPI inference server
-├── requirements.txt   # Python dependencies
-└── README.md          # Usage documentation
+├── AGENTS.md            # This file
+├── __init__.py          # Package init (version 1.0.0)
+├── Dockerfile           # Container build (TensorRT 24.09)
+├── model.py             # FastAPI inference server
+├── export_tensorrt.py   # TensorRT INT8/FP16 export script (NEM-3768)
+├── requirements.txt     # Python dependencies
+└── README.md            # Usage documentation
 ```
 
 ## Key Files
@@ -180,10 +181,30 @@ curl -X POST http://localhost:8095/detect/batch \
 | Variable                       | Default                                      | Description                                        |
 | ------------------------------ | -------------------------------------------- | -------------------------------------------------- |
 | `YOLO26_MODEL_PATH`            | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path                               |
+| `YOLO26_MODEL_PATH_INT8`       | (empty)                                      | INT8 engine path (alternative config)              |
 | `YOLO26_CONFIDENCE`            | `0.5`                                        | Min confidence threshold                           |
 | `YOLO26_CACHE_CLEAR_FREQUENCY` | `1`                                          | Clear CUDA cache every N detections (0 to disable) |
 | `HOST`                         | `0.0.0.0`                                    | Bind address                                       |
 | `PORT`                         | `8095`                                       | Server port                                        |
+
+## INT8 Quantization (NEM-3768)
+
+INT8 provides ~2x throughput improvement with <1% mAP accuracy drop.
+
+**Export INT8 Engine:**
+
+```bash
+python ai/yolo26/export_tensorrt.py \
+    --model yolo26m.pt \
+    --int8 \
+    --data config/yolo26_calibration.yaml \
+    --extract-frames
+```
+
+**Use INT8 Engine:**
+Set `YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_int8.engine` in `.env`
+
+**Calibration Config:** `config/yolo26_calibration.yaml`
 
 ## Inference Pipeline
 

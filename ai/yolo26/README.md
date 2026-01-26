@@ -6,6 +6,7 @@ HTTP server wrapping YOLO26m TensorRT object detection model for home security m
 
 - FastAPI-based REST API
 - CUDA/GPU acceleration with TensorRT optimization
+- **INT8 and FP16 precision support** for optimal throughput/accuracy tradeoff
 - Ultralytics YOLO inference engine
 - Batch processing support
 - Filters to security-relevant classes only
@@ -21,12 +22,92 @@ pip install -r requirements.txt
 
 YOLO26 uses a pre-exported TensorRT engine for optimal inference speed. Configure the model path with `YOLO26_MODEL_PATH`:
 
-- Default path: `/models/yolo26/exports/yolo26m_fp16.engine`
-- Production path: `/export/ai_models/model-zoo/yolo26/exports/yolo26m_fp16.engine`
+- **FP16 (default)**: `/models/yolo26/exports/yolo26m_fp16.engine`
+- **INT8 (2x throughput)**: `/models/yolo26/exports/yolo26m_int8.engine`
+- Production path: `/export/ai_models/model-zoo/yolo26/exports/`
+
+### Precision Options
+
+| Precision | Latency | VRAM   | Accuracy     | Use Case                      |
+| --------- | ------- | ------ | ------------ | ----------------------------- |
+| **FP16**  | 10-20ms | ~2GB   | Baseline     | Default, highest accuracy     |
+| **INT8**  | 5-10ms  | ~1.5GB | <1% mAP drop | High throughput, multi-camera |
 
 ### Exporting TensorRT Engine
 
-To export a new TensorRT engine (requires matching TensorRT version):
+Use the export script for reproducible engine generation:
+
+```bash
+# Export FP16 engine (default, higher accuracy)
+python ai/yolo26/export_tensorrt.py --model yolo26m.pt --output exports/
+
+# Export INT8 engine (2x throughput, requires calibration)
+python ai/yolo26/export_tensorrt.py \
+    --model yolo26m.pt \
+    --int8 \
+    --data config/yolo26_calibration.yaml \
+    --output exports/
+
+# Export INT8 with video frame extraction for calibration
+python ai/yolo26/export_tensorrt.py \
+    --model yolo26m.pt \
+    --int8 \
+    --data config/yolo26_calibration.yaml \
+    --extract-frames \
+    --output exports/
+```
+
+### INT8 Calibration
+
+INT8 quantization requires representative calibration images to determine optimal
+quantization parameters. The calibration dataset should:
+
+- Contain 100-500 images representative of deployment conditions
+- Cover various lighting conditions, camera angles, and object types
+- Include all security-relevant object classes (person, car, truck, etc.)
+
+**Calibration Dataset Configuration** (`config/yolo26_calibration.yaml`):
+
+```yaml
+path: /path/to/calibration/images
+train: .
+val: .
+names:
+  0: person
+  1: bicycle
+  2: car
+  # ... (see full config for all classes)
+```
+
+**Frame Extraction for Videos**:
+
+If your calibration data includes videos, use `--extract-frames` to automatically
+extract frames:
+
+```bash
+python ai/yolo26/export_tensorrt.py \
+    --int8 \
+    --data config/yolo26_calibration.yaml \
+    --extract-frames
+```
+
+### Benchmarking and Validation
+
+Compare FP16 vs INT8 performance:
+
+```bash
+# Benchmark inference latency
+python ai/yolo26/export_tensorrt.py --benchmark exports/yolo26m_fp16.engine
+python ai/yolo26/export_tensorrt.py --benchmark exports/yolo26m_int8.engine
+
+# Validate accuracy (requires COCO-format dataset)
+python ai/yolo26/export_tensorrt.py --validate exports/yolo26m_fp16.engine --data coco.yaml
+python ai/yolo26/export_tensorrt.py --validate exports/yolo26m_int8.engine --data coco.yaml
+```
+
+### Legacy Export (Simple)
+
+For quick exports without the script:
 
 ```python
 from ultralytics import YOLO
@@ -36,6 +117,9 @@ model = YOLO("yolo26m.pt")
 
 # Export to TensorRT FP16
 model.export(format="engine", half=True)
+
+# Export to TensorRT INT8 (requires calibration data)
+model.export(format="engine", int8=True, data="config/yolo26_calibration.yaml")
 ```
 
 ## Running the Server
@@ -176,6 +260,7 @@ Environment variables:
 | Variable                       | Default                                      | Description                                        |
 | ------------------------------ | -------------------------------------------- | -------------------------------------------------- |
 | `YOLO26_MODEL_PATH`            | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path                               |
+| `YOLO26_MODEL_PATH_INT8`       | (empty)                                      | INT8 engine path (alternative config)              |
 | `YOLO26_CONFIDENCE`            | `0.5`                                        | Min confidence threshold                           |
 | `YOLO26_CACHE_CLEAR_FREQUENCY` | `1`                                          | Clear CUDA cache every N detections (0 to disable) |
 | `HOST`                         | `0.0.0.0`                                    | Bind address                                       |
@@ -183,8 +268,9 @@ Environment variables:
 
 ## Performance
 
-- Expected inference time: 10-20ms per image (on RTX A5500 with TensorRT)
-- Expected VRAM usage: ~2GB
+- Expected inference time: 10-20ms per image (FP16 on RTX A5500 with TensorRT)
+- Expected inference time: 5-10ms per image (INT8, 2x throughput)
+- Expected VRAM usage: ~2GB (FP16), ~1.5GB (INT8)
 - Batch processing improves throughput for multiple images
 - TensorRT provides 2-3x speedup over native PyTorch
 

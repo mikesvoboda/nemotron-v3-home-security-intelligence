@@ -1,0 +1,61 @@
+# YOLO26 INT8 Calibration Dataset Configuration
+#
+# This YAML file defines the calibration dataset for TensorRT INT8 quantization.
+# TensorRT uses representative images during calibration to determine optimal
+# scaling factors for INT8 quantization, which affects model accuracy.
+#
+# Calibration Requirements:
+# - Requires 100-500 representative images from the target domain
+# - Images should cover the typical distribution of inputs (lighting, angles, objects)
+# - More diverse calibration data generally leads to better INT8 accuracy
+#
+# For home security, the synthetic dataset covers:
+# - Normal activities: deliveries, pets, residents, vehicles, yard work
+# - Suspicious activities: casing, loitering, prowling, tailgating
+# - Threats: break-in attempts, package theft, vandalism, weapons
+#
+# Note: For videos, run export_tensorrt.py with --extract-frames to extract
+# frames before calibration.
+
+# Base path for calibration images
+# In production, point to extracted frames from synthetic videos
+path: /home/msvoboda/github/nemotron-v3-home-security-intelligence/data/synthetic
+
+# Training and validation paths (relative to 'path')
+# The calibration process uses images from these directories
+train: .
+val: .
+
+# COCO class names for security-relevant objects
+# Maps class IDs to names for objects detected in home security monitoring
+# Only security-relevant classes are included (9 of 80 COCO classes)
+names:
+  0: person
+  1: bicycle
+  2: car
+  3: motorcycle
+  5: bus
+  7: truck
+  14: bird
+  15: cat
+  16: dog
+# Calibration Notes:
+# -----------------
+# 1. INT8 quantization typically achieves 2x throughput vs FP16 with <1% mAP drop
+# 2. Calibration images should be 640x640 (or your target inference resolution)
+# 3. Run calibration on the same GPU architecture as deployment
+# 4. TensorRT caches calibration data in .cache files for subsequent exports
+#
+# Expected Performance (RTX A5500):
+# - FP16: 10-20ms inference, ~2GB VRAM
+# - INT8: 5-10ms inference, ~1.5GB VRAM
+#
+# Export Commands:
+# ---------------
+# See ai/yolo26/export_tensorrt.py for the export script.
+#
+# Basic INT8 export:
+#   python ai/yolo26/export_tensorrt.py --int8 --data config/yolo26_calibration.yaml
+#
+# With frame extraction from videos:
+#   python ai/yolo26/export_tensorrt.py --int8 --data config/yolo26_calibration.yaml --extract-frames

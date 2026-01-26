@@ -14,11 +14,12 @@
  * - POST /api/system/services/{name}/enable - Enable a disabled service
  *
  * Implements optimistic updates for instant UI feedback.
+ * Uses TanStack Query v5 context.client pattern (NEM-3752).
  *
  * @module hooks/useServiceMutations
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
 import {
   restartService as restartServiceApi,
@@ -29,9 +30,9 @@ import {
 } from '../services/api';
 import { queryKeys } from '../services/queryClient';
 
-// ============================================================================
+// =============================================================================
 // Types
-// ============================================================================
+// =============================================================================
 
 /**
  * Context for optimistic update rollback
@@ -61,25 +62,24 @@ function updateServiceStatus(
   };
 }
 
-// ============================================================================
+// =============================================================================
 // Mutation Hooks
-// ============================================================================
+// =============================================================================
 
 /**
  * Mutation hook for restarting a service with optimistic update.
+ * Uses TanStack Query v5 context.client pattern.
  */
 export function useRestartServiceMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: restartServiceApi,
 
-    onMutate: async (serviceName: string): Promise<ServiceOptimisticContext> => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.system.health });
+    onMutate: async (serviceName: string, { client }): Promise<ServiceOptimisticContext> => {
+      await client.cancelQueries({ queryKey: queryKeys.system.health });
 
-      const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
+      const previousHealth = client.getQueryData<HealthResponse>(queryKeys.system.health);
 
-      queryClient.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
+      client.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
         updateServiceStatus(old, serviceName, 'restarting')
       );
 
@@ -89,34 +89,34 @@ export function useRestartServiceMutation() {
     onError: (
       _error: Error,
       _serviceName: string,
-      context: ServiceOptimisticContext | undefined
+      context: ServiceOptimisticContext | undefined,
+      { client }
     ) => {
       if (context?.previousHealth) {
-        queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
+        client.setQueryData(queryKeys.system.health, context.previousHealth);
       }
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.system.health });
+    onSettled: (_data, _error, _serviceName, _context, { client }) => {
+      void client.invalidateQueries({ queryKey: queryKeys.system.health });
     },
   });
 }
 
 /**
  * Mutation hook for starting a stopped service with optimistic update.
+ * Uses TanStack Query v5 context.client pattern.
  */
 export function useStartServiceMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: startServiceApi,
 
-    onMutate: async (serviceName: string): Promise<ServiceOptimisticContext> => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.system.health });
+    onMutate: async (serviceName: string, { client }): Promise<ServiceOptimisticContext> => {
+      await client.cancelQueries({ queryKey: queryKeys.system.health });
 
-      const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
+      const previousHealth = client.getQueryData<HealthResponse>(queryKeys.system.health);
 
-      queryClient.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
+      client.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
         updateServiceStatus(old, serviceName, 'starting')
       );
 
@@ -126,34 +126,34 @@ export function useStartServiceMutation() {
     onError: (
       _error: Error,
       _serviceName: string,
-      context: ServiceOptimisticContext | undefined
+      context: ServiceOptimisticContext | undefined,
+      { client }
     ) => {
       if (context?.previousHealth) {
-        queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
+        client.setQueryData(queryKeys.system.health, context.previousHealth);
       }
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.system.health });
+    onSettled: (_data, _error, _serviceName, _context, { client }) => {
+      void client.invalidateQueries({ queryKey: queryKeys.system.health });
     },
   });
 }
 
 /**
  * Mutation hook for stopping/disabling a service with optimistic update.
+ * Uses TanStack Query v5 context.client pattern.
  */
 export function useStopServiceMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: stopServiceApi,
 
-    onMutate: async (serviceName: string): Promise<ServiceOptimisticContext> => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.system.health });
+    onMutate: async (serviceName: string, { client }): Promise<ServiceOptimisticContext> => {
+      await client.cancelQueries({ queryKey: queryKeys.system.health });
 
-      const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
+      const previousHealth = client.getQueryData<HealthResponse>(queryKeys.system.health);
 
-      queryClient.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
+      client.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
         updateServiceStatus(old, serviceName, 'stopping')
       );
 
@@ -163,34 +163,34 @@ export function useStopServiceMutation() {
     onError: (
       _error: Error,
       _serviceName: string,
-      context: ServiceOptimisticContext | undefined
+      context: ServiceOptimisticContext | undefined,
+      { client }
     ) => {
       if (context?.previousHealth) {
-        queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
+        client.setQueryData(queryKeys.system.health, context.previousHealth);
       }
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.system.health });
+    onSettled: (_data, _error, _serviceName, _context, { client }) => {
+      void client.invalidateQueries({ queryKey: queryKeys.system.health });
     },
   });
 }
 
 /**
  * Mutation hook for enabling a disabled service with optimistic update.
+ * Uses TanStack Query v5 context.client pattern.
  */
 export function useEnableServiceMutation() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: enableServiceApi,
 
-    onMutate: async (serviceName: string): Promise<ServiceOptimisticContext> => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.system.health });
+    onMutate: async (serviceName: string, { client }): Promise<ServiceOptimisticContext> => {
+      await client.cancelQueries({ queryKey: queryKeys.system.health });
 
-      const previousHealth = queryClient.getQueryData<HealthResponse>(queryKeys.system.health);
+      const previousHealth = client.getQueryData<HealthResponse>(queryKeys.system.health);
 
-      queryClient.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
+      client.setQueryData<HealthResponse>(queryKeys.system.health, (old) =>
         updateServiceStatus(old, serviceName, 'starting')
       );
 
@@ -200,22 +200,23 @@ export function useEnableServiceMutation() {
     onError: (
       _error: Error,
       _serviceName: string,
-      context: ServiceOptimisticContext | undefined
+      context: ServiceOptimisticContext | undefined,
+      { client }
     ) => {
       if (context?.previousHealth) {
-        queryClient.setQueryData(queryKeys.system.health, context.previousHealth);
+        client.setQueryData(queryKeys.system.health, context.previousHealth);
       }
     },
 
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.system.health });
+    onSettled: (_data, _error, _serviceName, _context, { client }) => {
+      void client.invalidateQueries({ queryKey: queryKeys.system.health });
     },
   });
 }
 
-// ============================================================================
+// =============================================================================
 // Combined Hook
-// ============================================================================
+// =============================================================================
 
 /**
  * Combined hook providing all service mutation functions.

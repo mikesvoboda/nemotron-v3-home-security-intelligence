@@ -58,7 +58,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | ------------------------ | -------------------------------------------- | -------------------------- |
 | `file_watcher.py`        | Monitor camera directories for media uploads | Yes                        |
 | `dedupe.py`              | Prevent duplicate file processing            | Yes                        |
-| `detector_client.py`     | Send images to YOLO26v2 for detection       | Yes                        |
+| `detector_client.py`     | Send images to YOLO26v2 for detection        | Yes                        |
 | `batch_aggregator.py`    | Group detections into time-based batches     | Yes                        |
 | `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp        | Yes                        |
 | `nemotron_streaming.py`  | Streaming LLM response extensions            | No (import directly)       |
@@ -1247,13 +1247,13 @@ await registry.clear_state(name)
 | Source     | Method                         | Metrics                               |
 | ---------- | ------------------------------ | ------------------------------------- |
 | GPU        | pynvml or HTTP fallback        | Utilization, VRAM, temperature, power |
-| YOLO26v2  | HTTP `/health` endpoint        | Status, VRAM, model name, device      |
+| YOLO26v2   | HTTP `/health` endpoint        | Status, VRAM, model name, device      |
 | Nemotron   | HTTP `/slots` endpoint         | Status, active/total slots, context   |
 | PostgreSQL | SQL queries (pg_stat_activity) | Connections, cache hit ratio, txns    |
 | Redis      | redis-py INFO command          | Clients, memory, hit ratio, blocked   |
 | Host       | psutil                         | CPU%, RAM GB, disk GB                 |
 | Containers | HTTP health endpoints          | Status, health for each container     |
-| Inference  | PipelineLatencyTracker         | YOLO26/Nemotron/pipeline latencies   |
+| Inference  | PipelineLatencyTracker         | YOLO26/Nemotron/pipeline latencies    |
 
 **Alert Thresholds:**
 
@@ -1294,7 +1294,7 @@ await collector.close()
 | Category       | Services                                           | Restart Policy        |
 | -------------- | -------------------------------------------------- | --------------------- |
 | Infrastructure | PostgreSQL (:5432), Redis (:6379)                  | Critical - aggressive |
-| AI             | YOLO26v2, Nemotron, Florence-2, CLIP, Enrichment  | Standard backoff      |
+| AI             | YOLO26v2, Nemotron, Florence-2, CLIP, Enrichment   | Standard backoff      |
 | Monitoring     | Prometheus, Grafana, Redis Exporter, JSON Exporter | Lenient               |
 
 **Key Classes:**
@@ -1869,7 +1869,7 @@ if not cb.is_open("ai_service"):
 | ---------- | --------------------------- | -------- |
 | database   | PostgreSQL connection/query | Yes      |
 | redis      | Redis connection/memory     | Yes      |
-| ai_service | Nemotron + YOLO26v2 health | No       |
+| ai_service | Nemotron + YOLO26v2 health  | No       |
 | gpu        | CUDA availability/memory    | No       |
 | storage    | Disk space for /export      | No       |
 
