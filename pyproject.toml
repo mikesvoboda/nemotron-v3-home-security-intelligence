@@ -89,6 +89,7 @@ dev = [
     "pytest-clarity>=1.0.0",  # Better assertion diffs
     "pytest-randomly>=4.0.0",  # Randomize test execution order
     "pytest-deadfixtures>=3.0.0",  # Detect unused fixtures
+    "pytest-testmon>=2.1.0",  # Affected-only test execution
     "fakeredis>=2.20.0",
     "testcontainers>=4.0.0",
     "hypothesis>=6.100.0",  # Property-based testing
@@ -176,6 +177,7 @@ test = [
     "pytest-clarity>=1.0.0",  # Better assertion diffs
     "pytest-randomly>=4.0.0",  # Randomize test execution order
     "pytest-deadfixtures>=3.0.0",  # Detect unused fixtures
+    "pytest-testmon>=2.1.0",  # Affected-only test execution
     "fakeredis>=2.20.0",
     "testcontainers>=4.0.0",
     "hypothesis>=6.100.0",  # Property-based testing
@@ -384,6 +386,9 @@ asyncio_default_fixture_loop_scope = "function"
 addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short -p randomly"
 timeout = 5
 timeout_method = "thread"
+# pytest-testmon is opt-in via --testmon flag for affected-only test execution
+# Usage: pytest --testmon (only runs tests affected by code changes)
+# Usage: pytest (runs all tests, default behavior)
 markers = [
     "asyncio: mark test as an async test",
     "unit: mark test as a unit test",

@@ -74,6 +74,22 @@ flowchart TB
 **Note:** Backend combined coverage (unit + integration) must reach 95% (see `pyproject.toml`).
 Frontend thresholds: 83% statements, 77% branches, 81% functions, 84% lines (see `vite.config.ts`).
 
+## Quick Reference
+
+```bash
+# Fast feedback (TDD cycle)
+pytest --testmon                              # Only affected tests (fastest)
+pytest backend/tests/unit/ -m "not slow"      # Fast unit tests only
+
+# Full validation
+./scripts/validate.sh                         # Pre-PR validation
+pytest backend/tests/ --cov=backend           # All tests with coverage
+
+# Coverage report
+pytest backend/tests/ --cov=backend --cov-report=html
+open coverage/backend/index.html
+```
+
 ## Running Tests
 
 ### Backend Tests
@@ -102,6 +118,9 @@ pytest backend/tests/ -v --timeout=0
 
 # Parallel execution (4 workers)
 pytest backend/tests/ -v -n 4
+
+# Affected-only tests (TDD fast feedback)
+pytest --testmon
 ```
 
 ### Frontend Tests
@@ -403,6 +422,61 @@ Tests are marked as `slow` when they:
 - Perform complex computations (AI inference, large datasets)
 
 See `scripts/audit-test-durations.py` for test duration analysis.
+
+### Affected-Only Test Execution (pytest-testmon)
+
+For even faster feedback, use `pytest-testmon` to run only tests affected by code changes:
+
+```bash
+# First run: runs all tests and creates .testmondata tracking database
+pytest --testmon
+
+# Subsequent runs: only runs tests affected by code changes since last run
+pytest --testmon
+
+# Force full test run (ignores testmon cache)
+pytest
+
+# Combine with other options
+pytest --testmon -m "not slow"                    # Fast feedback: only affected, exclude slow
+pytest --testmon backend/tests/unit/ -n auto      # Only affected unit tests, parallel
+
+# Clear testmon cache (forces full re-run next time)
+rm .testmondata*
+```
+
+**How it works:**
+
+- `pytest-testmon` tracks which tests cover which source files
+- On subsequent runs with `--testmon`, it only runs tests that cover files that changed
+- Significantly faster than running all tests during active development
+- Best for TDD workflows and rapid iteration cycles
+
+**When to use:**
+
+- ✅ **Local development:** During active TDD cycles for instant feedback
+- ✅ **Feature branches:** When iterating on a specific module
+- ✅ **Pre-commit checks:** Quick validation before committing
+- ❌ **CI pipelines:** CI should always run full test suite for validation
+- ❌ **Before PRs:** Always run full validation (`./scripts/validate.sh`)
+
+**Limitations:**
+
+- Only tracks Python source files (not config, templates, or external files)
+- May miss indirect dependencies (e.g., fixtures, conftest.py changes)
+- Cache can become stale (clear with `rm .testmondata*` if unsure)
+- Automatically deactivated when selecting specific tests manually (e.g., `pytest test_file.py::test_name --testmon`)
+
+**Performance improvement:**
+After making a small change to a single service module, testmon might run only 50-100 tests instead of 7193 unit tests, reducing feedback time from ~60s to ~5s.
+
+**CI Integration Note:**
+This implementation keeps testmon **opt-in via --testmon flag only**. CI workflows continue running full test suites by default (without `--testmon`). This ensures:
+
+- ✅ CI always validates the complete test suite for reliability
+- ✅ No risk of missing test failures due to stale testmon cache
+- ✅ Local developers opt-in when they want fast feedback
+- ✅ No CI workflow changes required
 
 ## Fixtures
 
