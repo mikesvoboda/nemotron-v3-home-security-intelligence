@@ -1,4 +1,16 @@
-import { ChevronDown, ChevronUp, Clock, Eye, Moon, Timer, TrendingUp } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Download,
+  Eye,
+  Film,
+  Loader2,
+  Moon,
+  RefreshCw,
+  Timer,
+  TrendingUp,
+} from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 
 import {
@@ -134,6 +146,14 @@ export interface EventCardProps {
   hasCheckboxOverlay?: boolean;
   /** ISO timestamp until which alerts for this event are snoozed (NEM-3640) */
   snooze_until?: string | null;
+  /** Callback to generate/regenerate video clip for this event (NEM-3870) */
+  onGenerateClip?: (eventId: string) => void;
+  /** Callback to download the video clip (NEM-3870) */
+  onDownloadClip?: (eventId: string) => void;
+  /** Whether clip generation is in progress (NEM-3870) */
+  isGeneratingClip?: boolean;
+  /** URL of the generated clip if available (NEM-3870) */
+  clipUrl?: string | null;
 }
 
 /**
@@ -156,6 +176,10 @@ const EventCard = memo(function EventCard({
   className = '',
   hasCheckboxOverlay = false,
   snooze_until,
+  onGenerateClip,
+  onDownloadClip,
+  isGeneratingClip = false,
+  clipUrl,
 }: EventCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
@@ -495,6 +519,52 @@ const EventCard = memo(function EventCard({
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Clip Generation Buttons (NEM-3870) */}
+            {onGenerateClip && (
+              <button
+                onClick={() => onGenerateClip(id)}
+                disabled={isGeneratingClip}
+                className="flex items-center gap-2 rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={
+                  isGeneratingClip
+                    ? 'Generating clip...'
+                    : clipUrl
+                      ? 'Regenerate video clip'
+                      : 'Generate video clip'
+                }
+              >
+                {isGeneratingClip ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : clipUrl ? (
+                  <>
+                    <RefreshCw className="h-4 w-4" />
+                    Regenerate
+                  </>
+                ) : (
+                  <>
+                    <Film className="h-4 w-4" />
+                    Generate Clip
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Download Clip Button - only shown when clip is available (NEM-3870) */}
+            {clipUrl && onDownloadClip && (
+              <button
+                onClick={() => onDownloadClip(id)}
+                disabled={isGeneratingClip}
+                className="flex items-center gap-2 rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Download video clip"
+              >
+                <Download className="h-4 w-4" />
+                Download
+              </button>
             )}
 
             {/* View Details Button */}

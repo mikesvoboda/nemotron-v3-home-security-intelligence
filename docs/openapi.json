@@ -3339,7 +3339,7 @@
         "type": "object"
       },
       "BatchSettingsUpdate": {
-        "description": "Batch settings update schema (all fields optional).\n\nUsed for PATCH /api/v1/settings to partially update batch processing settings.",
+        "description": "Batch settings update schema (all fields optional).\n\nUsed for PATCH /api/v1/settings to partially update batch processing settings.\nValidates that idle_timeout_seconds < window_seconds when both are provided.",
         "example": {
           "window_seconds": 120
         },

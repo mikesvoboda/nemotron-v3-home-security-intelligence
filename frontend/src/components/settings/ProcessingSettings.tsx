@@ -2,6 +2,9 @@ import { Card, Title, Text, Button } from '@tremor/react';
 import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 
+import BatchPresetSelector from './BatchPresetSelector';
+import BatchSettingsTooltips from './BatchSettingsTooltips';
+import BatchStatusMonitor from './BatchStatusMonitor';
 import CleanupPreviewPanel from './CleanupPreviewPanel';
 import DetectionThresholdsPanel from './DetectionThresholdsPanel';
 import DlqMonitor from './DlqMonitor';
@@ -21,6 +24,8 @@ import {
   type AnomalyConfig,
 } from '../../services/api';
 import AnomalyConfigPanel from '../analytics/AnomalyConfigPanel';
+
+import type { BatchPreset } from '../../utils/batchSettingsValidation';
 
 export interface ProcessingSettingsProps {
   className?: string;
@@ -198,6 +203,27 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
 
         {!loading && editedConfig && (
           <div className="space-y-6">
+            {/* Batch Status Monitor (NEM-3872) */}
+            <BatchStatusMonitor />
+
+            {/* Batch Presets (NEM-3873) */}
+            <BatchPresetSelector
+              currentWindowSeconds={editedConfig.batch_window_seconds}
+              currentIdleTimeoutSeconds={editedConfig.batch_idle_timeout_seconds}
+              onSelect={(preset: BatchPreset) => {
+                setEditedConfig((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        batch_window_seconds: preset.windowSeconds,
+                        batch_idle_timeout_seconds: preset.idleTimeoutSeconds,
+                      }
+                    : prev
+                );
+              }}
+              disabled={saving}
+            />
+
             {/* Batch Window Duration */}
             <div>
               <div className="mb-2 flex items-end justify-between">
@@ -263,6 +289,12 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 <span>120s</span>
               </div>
             </div>
+
+            {/* Batch Settings Validation & Latency Preview (NEM-3873) */}
+            <BatchSettingsTooltips
+              windowSeconds={editedConfig.batch_window_seconds}
+              idleTimeoutSeconds={editedConfig.batch_idle_timeout_seconds}
+            />
 
             {/* Retention Period - Events/Detections */}
             <div>

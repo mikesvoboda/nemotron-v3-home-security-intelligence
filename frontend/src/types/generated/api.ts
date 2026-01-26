@@ -10735,6 +10735,7 @@ export interface components {
          * @description Batch settings update schema (all fields optional).
          *
          *     Used for PATCH /api/v1/settings to partially update batch processing settings.
+         *     Validates that idle_timeout_seconds < window_seconds when both are provided.
          * @example {
          *       "window_seconds": 120
          *     }

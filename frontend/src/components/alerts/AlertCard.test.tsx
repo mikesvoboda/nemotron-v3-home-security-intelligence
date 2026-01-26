@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import AlertCard from './AlertCard';
 
@@ -18,12 +18,14 @@ describe('AlertCard', () => {
   let mockOnAcknowledge: ReturnType<typeof vi.fn<(params: AlertActionParams) => void>>;
   let mockOnDismiss: ReturnType<typeof vi.fn<(params: AlertActionParams) => void>>;
   let mockOnSnooze: ReturnType<typeof vi.fn<(alertId: string, seconds: number) => void>>;
+  let mockOnUnsnooze: ReturnType<typeof vi.fn<(alertId: string) => void>>;
   let mockOnViewEvent: ReturnType<typeof vi.fn<(eventId: number) => void>>;
 
   beforeEach(() => {
     mockOnAcknowledge = vi.fn();
     mockOnDismiss = vi.fn();
     mockOnSnooze = vi.fn();
+    mockOnUnsnooze = vi.fn();
     mockOnViewEvent = vi.fn();
   });
 
@@ -32,7 +34,7 @@ describe('AlertCard', () => {
     eventId: 123,
     severity: 'high',
     status: 'pending',
-    timestamp: minutesAgo(30), // 30 minutes ago for relative time display
+    timestamp: '2024-01-15T11:30:00Z', // 30 minutes ago for relative time display
     camera_name: 'Front Door',
     risk_score: 75,
     summary: 'Person detected near entrance',
@@ -41,6 +43,7 @@ describe('AlertCard', () => {
     onAcknowledge: mockOnAcknowledge,
     onDismiss: mockOnDismiss,
     onSnooze: mockOnSnooze,
+    onUnsnooze: mockOnUnsnooze,
     onViewEvent: mockOnViewEvent,
     ...overrides,
   });
@@ -208,41 +211,7 @@ describe('AlertCard', () => {
       expect(handleViewEvent).toHaveBeenCalledWith(123);
     });
 
-    it('displays snooze dropdown menu', async () => {
-      const user = userEvent.setup();
-
-      render(<AlertCard {...mockAlert} />);
-
-      // Click the dropdown trigger button
-      const menuBtn = screen.getByRole('button', { name: /more options/i });
-      await user.click(menuBtn);
-
-      // Should show snooze options
-      await waitFor(() => {
-        expect(screen.getByText('Snooze 15 min')).toBeInTheDocument();
-      });
-    });
-
-    it('calls onSnooze with correct duration when snooze option is clicked', async () => {
-      const handleSnooze = vi.fn();
-      const user = userEvent.setup();
-
-      render(<AlertCard {...mockAlert} onSnooze={handleSnooze} />);
-
-      // Open dropdown
-      const menuBtn = screen.getByRole('button', { name: /more options/i });
-      await user.click(menuBtn);
-
-      // Click 1 hour snooze
-      await waitFor(() => {
-        expect(screen.getByText('Snooze 1 hour')).toBeInTheDocument();
-      });
-
-      const snoozeOption = screen.getByText('Snooze 1 hour');
-      await user.click(snoozeOption);
-
-      expect(handleSnooze).toHaveBeenCalledWith('alert-1', 3600);
-    });
+    // NEM-3871: Snooze tests moved to dedicated 'Snooze Button' describe block
 
     it('does not show acknowledge button for acknowledged alerts', () => {
       render(<AlertCard {...mockAlert} status="acknowledged" />);
@@ -380,7 +349,125 @@ describe('AlertCard', () => {
       expect(screen.getByRole('button', { name: /acknowledge/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /dismiss/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /view event/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /more options/i })).toBeInTheDocument();
+    });
+  });
+
+  // NEM-3871: Tests for shared SnoozeButton component integration
+  describe('Snooze Button (NEM-3871)', () => {
+    const MOCK_NOW = new Date('2024-01-15T12:00:00Z');
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(MOCK_NOW);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('renders SnoozeButton component with data-testid', () => {
+      const alert = createMockAlert();
+      render(<AlertCard {...alert} />);
+
+      // Should use the shared SnoozeButton component
+      expect(screen.getByTestId('snooze-button')).toBeInTheDocument();
+    });
+
+    it('shows standard snooze options (15min, 1hr, 4hr, 24hr)', () => {
+      const alert = createMockAlert();
+      render(<AlertCard {...alert} />);
+
+      // Click the snooze button (use fireEvent to avoid fake timer issues)
+      fireEvent.click(screen.getByTestId('snooze-button'));
+
+      // Should show standardized snooze options (no 30 min option)
+      expect(screen.getByText('15 minutes')).toBeInTheDocument();
+      expect(screen.getByText('1 hour')).toBeInTheDocument();
+      expect(screen.getByText('4 hours')).toBeInTheDocument();
+      expect(screen.getByText('24 hours')).toBeInTheDocument();
+      // Should NOT have 30 min snooze option (the regex must not match "30 minutes ago" timestamp)
+      expect(screen.queryByText('30 minutes')).not.toBeInTheDocument();
+    });
+
+    it('calls onSnooze with alertId and seconds when snooze option clicked', () => {
+      const alert = createMockAlert();
+      render(<AlertCard {...alert} />);
+
+      fireEvent.click(screen.getByTestId('snooze-button'));
+      fireEvent.click(screen.getByText('1 hour'));
+
+      expect(mockOnSnooze).toHaveBeenCalledWith('alert-1', 3600);
+    });
+
+    it('calls onUnsnooze when unsnooze option clicked for snoozed event', () => {
+      const futureTime = new Date(MOCK_NOW.getTime() + 60 * 60 * 1000).toISOString(); // 1 hour from now
+      const alert = createMockAlert({ snooze_until: futureTime });
+      render(<AlertCard {...alert} />);
+
+      fireEvent.click(screen.getByTestId('snooze-button'));
+      fireEvent.click(screen.getByTestId('unsnooze-option'));
+
+      expect(mockOnUnsnooze).toHaveBeenCalledWith('alert-1');
+    });
+
+    it('shows "Snoozed" text when event is snoozed', () => {
+      const futureTime = new Date(MOCK_NOW.getTime() + 60 * 60 * 1000).toISOString();
+      const alert = createMockAlert({ snooze_until: futureTime });
+      render(<AlertCard {...alert} />);
+
+      expect(screen.getByText('Snoozed')).toBeInTheDocument();
+    });
+
+    it('does not render snooze button when onSnooze is not provided', () => {
+      const alert = createMockAlert({ onSnooze: undefined, onUnsnooze: undefined });
+      render(<AlertCard {...alert} />);
+
+      expect(screen.queryByTestId('snooze-button')).not.toBeInTheDocument();
+    });
+  });
+
+  // NEM-3871: Tests for SnoozeBadge display
+  describe('Snooze Badge (NEM-3871)', () => {
+    const MOCK_NOW = new Date('2024-01-15T12:00:00Z');
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(MOCK_NOW);
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('displays SnoozeBadge when event is snoozed', () => {
+      const futureTime = new Date(MOCK_NOW.getTime() + 60 * 60 * 1000).toISOString();
+      const alert = createMockAlert({ snooze_until: futureTime });
+      render(<AlertCard {...alert} />);
+
+      expect(screen.getByTestId('snooze-badge')).toBeInTheDocument();
+    });
+
+    it('does not display SnoozeBadge when event is not snoozed', () => {
+      const alert = createMockAlert({ snooze_until: null });
+      render(<AlertCard {...alert} />);
+
+      expect(screen.queryByTestId('snooze-badge')).not.toBeInTheDocument();
+    });
+
+    it('does not display SnoozeBadge when snooze_until is in the past', () => {
+      const pastTime = new Date(MOCK_NOW.getTime() - 60 * 60 * 1000).toISOString(); // 1 hour ago
+      const alert = createMockAlert({ snooze_until: pastTime });
+      render(<AlertCard {...alert} />);
+
+      expect(screen.queryByTestId('snooze-badge')).not.toBeInTheDocument();
+    });
+
+    it('SnoozeBadge shows snooze until time', () => {
+      const futureTime = new Date(MOCK_NOW.getTime() + 2.5 * 60 * 60 * 1000).toISOString();
+      const alert = createMockAlert({ snooze_until: futureTime });
+      render(<AlertCard {...alert} />);
+
+      expect(screen.getByText(/snoozed until/i)).toBeInTheDocument();
     });
   });
 });
