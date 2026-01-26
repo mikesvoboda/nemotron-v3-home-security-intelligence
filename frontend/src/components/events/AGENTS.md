@@ -42,6 +42,8 @@ Contains components for displaying, filtering, and interacting with security eve
 | `MobileEventCard.test.tsx`          | Test suite for MobileEventCard                 |
 | `ReidMatchesPanel.tsx`              | Panel for re-identification matches            |
 | `ReidMatchesPanel.test.tsx`         | Test suite for ReidMatchesPanel                |
+| `RiskFactorsBreakdown.tsx`          | Collapsible risk factors breakdown (NEM-3671)  |
+| `RiskFactorsBreakdown.test.tsx`     | Test suite for RiskFactorsBreakdown            |
 | `ThumbnailStrip.tsx`                | Detection thumbnail strip                      |
 | `ThumbnailStrip.test.tsx`           | Test suite for ThumbnailStrip                  |
 | `TimeGroupedEvents.tsx`             | Events grouped by time periods                 |

@@ -27,6 +27,7 @@ import EventVideoPlayer from './EventVideoPlayer';
 import FeedbackForm from './FeedbackForm';
 import MatchedEntitiesSection from './MatchedEntitiesSection';
 import ReidMatchesPanel from './ReidMatchesPanel';
+import RiskFactorsBreakdown from './RiskFactorsBreakdown';
 import ThumbnailStrip from './ThumbnailStrip';
 import { useEventDetectionsQuery } from '../../hooks/useEventDetectionsQuery';
 import { useToast } from '../../hooks/useToast';
@@ -818,19 +819,17 @@ export default function EventDetailModal({
                         </div>
                       )}
 
-                      {/* AI Reasoning */}
-                      {event.reasoning && (
-                        <div className="mb-6" data-testid="ai-reasoning">
-                          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                            AI Reasoning
-                          </h3>
-                          <div className="rounded-lg bg-[#76B900]/10 p-4">
-                            <p className="text-sm leading-relaxed text-gray-300">
-                              {event.reasoning}
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                      {/* Risk Factors Breakdown (NEM-3671) */}
+                      <RiskFactorsBreakdown
+                        riskScore={event.risk_score}
+                        reasoning={event.reasoning}
+                        entities={event.entities}
+                        flags={event.flags}
+                        recommendedAction={event.recommended_action}
+                        confidenceFactors={event.confidence_factors}
+                        isReviewed={event.reviewed}
+                        className="mb-6"
+                      />
 
                       {/* Detections with Color-Coded Confidence */}
                       {event.detections.length > 0 && (
