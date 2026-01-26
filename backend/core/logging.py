@@ -159,7 +159,7 @@ SENSITIVE_FIELD_NAMES = frozenset(
         "api_key",
         "api_keys",
         "admin_api_key",
-        "rtdetr_api_key",
+        "yolo26_api_key",
         "nemotron_api_key",
         "smtp_password",
         "database_url",
@@ -1142,7 +1142,7 @@ def log_exception_with_context(
                 e,
                 "Detection request timed out",
                 camera_id=camera_id,
-                service="rtdetr",
+                service="yolo26",
                 timeout_seconds=30,
             )
     """
