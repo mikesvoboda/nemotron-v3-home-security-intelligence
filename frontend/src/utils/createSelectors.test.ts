@@ -268,10 +268,11 @@ describe('createSelectors', () => {
 
   describe('type safety', () => {
     it('provides correct types for ExtractState', () => {
-      const _useTestStore = createSelectors(createTestStore());
+      const useTestStore = createSelectors(createTestStore());
 
       // This is a compile-time test - if it compiles, types are correct
-      type State = ExtractState<typeof _useTestStore>;
+      type State = ExtractState<typeof useTestStore>;
+      void useTestStore; // Satisfy ESLint - variable used for type extraction
 
       // Type assertions (these would fail to compile if types were wrong)
       const _count: State['count'] = 0;
@@ -286,10 +287,11 @@ describe('createSelectors', () => {
     });
 
     it('provides correct types for SelectorKeys', () => {
-      const _useTestStore = createSelectors(createTestStore());
+      const useTestStore = createSelectors(createTestStore());
 
       // This is a compile-time test
-      type Keys = SelectorKeys<typeof _useTestStore>;
+      type Keys = SelectorKeys<typeof useTestStore>;
+      void useTestStore; // Satisfy ESLint - variable used for type extraction
 
       // These should all be valid keys
       const validKeys: Keys[] = [
