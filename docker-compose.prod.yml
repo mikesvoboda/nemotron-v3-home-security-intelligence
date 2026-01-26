@@ -32,7 +32,8 @@
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: 30)
 #   - CTX_SIZE: LLM context window size (default: 131072)
-#   - HF_CACHE: HuggingFace cache directory (default: ~/.cache/huggingface)
+#   - HF_CACHE: HuggingFace cache directory (default: uses hf_cache volume)
+#   - HF_HUB_OFFLINE: Enable offline mode for HuggingFace Hub (default: 0, set to 1 for production)
 #   - REDIS_PASSWORD: Redis authentication password (optional, for production use)
 #   - GF_ADMIN_PASSWORD: Grafana admin password (default: admin, anonymous access enabled)
 
@@ -131,15 +132,20 @@ services:
     ports:
       - '8090:8090'
     volumes:
+      # Persistent HuggingFace cache volume (NEM-3812)
       # :U tells Podman to recursively chown the volume to match container user (rtdetr)
       # Docker ignores the :U flag, making this backward compatible
-      - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface:U
+      - hf_cache:/cache/huggingface:U
     environment:
       - SERVICE_NAME=ai-detector
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}
       - RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}
+      # HuggingFace cache configuration (NEM-3812)
+      - HF_HOME=/cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
+      - HF_HUB_DISABLE_TELEMETRY=1
     healthcheck:
       test:
         [
@@ -268,11 +274,17 @@ services:
       - '8092:8092'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
+      # Persistent HuggingFace cache volume (NEM-3812)
+      - hf_cache:/cache/huggingface:U
     environment:
       - SERVICE_NAME=ai-florence
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - MODEL_PATH=/models/florence-2-large
+      # HuggingFace cache configuration (NEM-3812)
+      - HF_HOME=/cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
+      - HF_HUB_DISABLE_TELEMETRY=1
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
       interval: 10s
@@ -312,12 +324,18 @@ services:
       - '8093:8093'
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
+      # Persistent HuggingFace cache volume (NEM-3812)
+      - hf_cache:/cache/huggingface:U
     environment:
       - SERVICE_NAME=ai-clip
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - CLIP_MODEL_PATH=/models/clip-vit-l
       - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-false}
+      # HuggingFace cache configuration (NEM-3812)
+      - HF_HOME=/cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
+      - HF_HUB_DISABLE_TELEMETRY=1
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
       interval: 10s
@@ -368,6 +386,8 @@ services:
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-gender-classifier:/models/vit-gender-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
+      # Persistent HuggingFace cache volume (NEM-3812)
+      - hf_cache:/cache/huggingface:U
     environment:
       - SERVICE_NAME=ai-enrichment
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
@@ -387,6 +407,10 @@ services:
       # VRAM management
       - VRAM_BUDGET_GB=6.8
       - MODEL_LOAD_TIMEOUT=30
+      # HuggingFace cache configuration (NEM-3812)
+      - HF_HOME=/cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
+      - HF_HUB_DISABLE_TELEMETRY=1
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
       interval: 10s
@@ -1201,6 +1225,10 @@ volumes:
   redis_data:
     driver: local
   elasticsearch_data:
+    driver: local
+  # Persistent HuggingFace cache volume (NEM-3812)
+  # Shared across all AI services to avoid re-downloading models
+  hf_cache:
     driver: local
   # Redis Sentinel volumes (uncomment when enabling Sentinel)
   # sentinel1_data:

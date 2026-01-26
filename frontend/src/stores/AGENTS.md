@@ -17,6 +17,8 @@ Stores manage application state that needs to persist across sessions or be shar
 | ---------------------------------- | ----------------------------------------------------- |
 | `middleware.ts`                    | Zustand middleware utilities (Immer, selectors)       |
 | `middleware.test.ts`               | Tests for middleware utilities                        |
+| `../utils/createSelectors.ts`      | Auto-selector generator for optimized re-renders      |
+| `../utils/createSelectors.test.ts` | Tests for auto-selector utility                       |
 | `dashboard-config-store.ts`        | Dashboard widget configuration store (Zustand)        |
 | `dashboard-config-store.test.ts`   | Tests for dashboard configuration store               |
 | `dashboardConfig.ts`               | Legacy dashboard config (deprecated, use new store)   |
@@ -262,12 +264,71 @@ interface StoreState {
 }
 ```
 
+## Auto-Selectors for Optimized Re-renders (NEM-3787)
+
+The `createSelectors` utility auto-generates individual property selectors to prevent unnecessary re-renders. Instead of manually creating selectors for each property, wrap your store with `createSelectors`.
+
+### Usage
+
+```typescript
+import { createSelectors } from '../utils/createSelectors';
+
+// Create base store
+const useEventStoreBase = create<EventState>()((set) => ({
+  events: [],
+  filters: { riskLevel: null },
+  selectedEventId: null,
+  setFilters: (filters) => set({ filters }),
+  setSelectedEventId: (id) => set({ selectedEventId: id }),
+}));
+
+// Wrap with auto-selectors
+export const useEventStore = createSelectors(useEventStoreBase);
+```
+
+### In Components
+
+```typescript
+// Only re-renders when events change
+const events = useEventStore.use.events();
+
+// Only re-renders when filters change
+const filters = useEventStore.use.filters();
+
+// Actions are stable references (don't cause re-renders)
+const setFilters = useEventStore.use.setFilters();
+
+// Traditional usage still works
+const { events, filters } = useEventStore();
+```
+
+### Benefits
+
+- **Automatic memoization**: Components only re-render when their selected value changes
+- **Type-safe**: All selectors are fully typed based on the store state
+- **Clean API**: Simple `.use.propertyName()` syntax
+- **Zero boilerplate**: No need to manually create selectors for each property
+
+### Type Helpers
+
+```typescript
+import { ExtractState, SelectorKeys } from '../utils/createSelectors';
+
+// Extract state type from store
+type EventState = ExtractState<typeof useEventStore>;
+
+// Get all selector keys
+type Keys = SelectorKeys<typeof useEventStore>;
+// 'events' | 'filters' | 'selectedEventId' | 'setFilters' | 'setSelectedEventId'
+```
+
 ## Performance Guidelines
 
-1. **Use selectors** - Subscribe to specific state slices, not entire store
-2. **Batch high-frequency updates** - Use `createWebSocketEventHandler` for rapid events
-3. **Avoid object recreation** - Store derived state (counts, flags) in the store
-4. **Use shallow comparison** - Import `shallow` from `zustand/shallow` for object selectors
+1. **Use auto-selectors** - Wrap stores with `createSelectors` for automatic optimization
+2. **Use selectors** - Subscribe to specific state slices, not entire store
+3. **Batch high-frequency updates** - Use `createWebSocketEventHandler` for rapid events
+4. **Avoid object recreation** - Store derived state (counts, flags) in the store
+5. **Use shallow comparison** - Import `shallow` from `zustand/shallow` for object selectors
 
 ```typescript
 import { shallow } from 'zustand/shallow';
@@ -280,6 +341,10 @@ const { cpu, gpu } = useStore(
 
 // Bad: Creates new object each render, always triggers re-render
 const metrics = useStore((state) => ({ cpu: state.cpu, gpu: state.gpu }));
+
+// Best: Use auto-selectors
+const cpu = useStore.use.cpu();
+const gpu = useStore.use.gpu();
 ```
 
 ## Adding New Stores

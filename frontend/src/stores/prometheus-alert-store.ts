@@ -13,6 +13,8 @@
  * separate from AI-generated security alerts.
  */
 
+import { useShallow } from 'zustand/react/shallow';
+
 import { createImmerSelectorStore, type ImmerSetState } from './middleware';
 
 import type { PrometheusAlertPayload, PrometheusAlertSeverity } from '../types/websocket-events';
@@ -215,7 +217,8 @@ export const usePrometheusAlertStore = createImmerSelectorStore<PrometheusAlertS
         draft.totalCount = 0;
       });
     },
-  })
+  }),
+  { name: 'prometheus-alert-store' }
 );
 
 // ============================================================================
@@ -293,3 +296,58 @@ export const selectHasActiveAlerts = (state: PrometheusAlertState): boolean => {
 export const selectHasCriticalAlerts = (state: PrometheusAlertState): boolean => {
   return state.criticalCount > 0;
 };
+
+// ============================================================================
+// Shallow Hooks for Selective Subscriptions (NEM-3790)
+// ============================================================================
+
+/**
+ * Hook to select alert counts with shallow equality.
+ * Prevents re-renders when only the alerts object changes but counts stay the same.
+ *
+ * @example
+ * ```tsx
+ * const { criticalCount, warningCount, infoCount, totalCount } = usePrometheusAlertCounts();
+ * ```
+ */
+export function usePrometheusAlertCounts() {
+  return usePrometheusAlertStore(
+    useShallow((state) => ({
+      criticalCount: state.criticalCount,
+      warningCount: state.warningCount,
+      infoCount: state.infoCount,
+      totalCount: state.totalCount,
+    }))
+  );
+}
+
+/**
+ * Hook to select alerts map.
+ *
+ * @example
+ * ```tsx
+ * const alerts = usePrometheusAlerts();
+ * ```
+ */
+export function usePrometheusAlerts() {
+  return usePrometheusAlertStore((state) => state.alerts);
+}
+
+/**
+ * Hook to select prometheus alert actions only.
+ * Actions are stable references and don't cause re-renders.
+ *
+ * @example
+ * ```tsx
+ * const { handlePrometheusAlert, removeAlert, clear } = usePrometheusAlertActions();
+ * ```
+ */
+export function usePrometheusAlertActions() {
+  return usePrometheusAlertStore(
+    useShallow((state) => ({
+      handlePrometheusAlert: state.handlePrometheusAlert,
+      removeAlert: state.removeAlert,
+      clear: state.clear,
+    }))
+  );
+}

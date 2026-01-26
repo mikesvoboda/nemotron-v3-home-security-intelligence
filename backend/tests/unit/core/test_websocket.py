@@ -212,6 +212,34 @@ class MockEventBroadcaster:
         """
         return 0
 
+    def get_client_format(self, websocket: Any) -> str:
+        """Get the serialization format for a client (NEM-3737).
+
+        Args:
+            websocket: The client's WebSocket connection.
+
+        Returns:
+            The client's preferred SerializationFormat, defaults to "json".
+        """
+        return "json"
+
+    def set_client_format(self, websocket: Any, format: str) -> None:
+        """Set the serialization format for a client (NEM-3737).
+
+        Args:
+            websocket: The client's WebSocket connection.
+            format: The new serialization format string.
+        """
+        pass  # Mock implementation does nothing
+
+    def get_format_statistics(self) -> dict[str, int]:
+        """Get statistics on client serialization formats (NEM-3737).
+
+        Returns:
+            Dictionary with counts of clients using each format.
+        """
+        return {"json": len(self._connections), "zlib": 0, "msgpack": 0}
+
     async def broadcast_scene_change(self, scene_change_data: dict[str, Any]) -> int:
         """Broadcast a scene change message to all connected WebSocket clients.
 

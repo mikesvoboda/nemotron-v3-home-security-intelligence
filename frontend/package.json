@@ -44,6 +44,7 @@
     "@tanstack/react-query-persist-client": "^5.90.22",
     "@tanstack/react-virtual": "^3.13.18",
     "@tremor/react": "^3.17.4",
+    "@msgpack/msgpack": "^3.0.0",
     "@types/pako": "^2.0.3",
     "clsx": "^2.1.0",
     "cmdk": "^1.1.1",

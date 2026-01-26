@@ -14,7 +14,8 @@
  */
 
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { devtools, persist, createJSONStorage } from 'zustand/middleware';
+import { useShallow } from 'zustand/react/shallow';
 
 // ============================================================================
 // Types
@@ -264,108 +265,115 @@ function migrateFromV1(): DashboardConfigState | null {
  * ```
  */
 export const useDashboardConfigStore = create<DashboardConfigStore>()(
-  persist(
-    (set, get) => ({
-      // Initial state
-      ...DEFAULT_CONFIG_STATE,
+  devtools(
+    persist(
+      (set, get) => ({
+        // Initial state
+        ...DEFAULT_CONFIG_STATE,
 
-      // Actions
-      setWidgetVisibility: (widgetId: WidgetId, visible: boolean) => {
-        set((state) => ({
-          widgets: state.widgets.map((widget) =>
-            widget.id === widgetId ? { ...widget, visible } : widget
-          ),
-        }));
-      },
+        // Actions
+        setWidgetVisibility: (widgetId: WidgetId, visible: boolean) => {
+          set(
+            (state) => ({
+              widgets: state.widgets.map((widget) =>
+                widget.id === widgetId ? { ...widget, visible } : widget
+              ),
+            }),
+            undefined,
+            `setWidgetVisibility/${widgetId}/${visible}`
+          );
+        },
 
-      moveWidgetUp: (widgetId: WidgetId) => {
-        const { widgets } = get();
-        const index = widgets.findIndex((w) => w.id === widgetId);
+        moveWidgetUp: (widgetId: WidgetId) => {
+          const { widgets } = get();
+          const index = widgets.findIndex((w) => w.id === widgetId);
 
-        if (index <= 0) {
-          return; // Already at top or not found
-        }
-
-        const newWidgets = [...widgets];
-        [newWidgets[index - 1], newWidgets[index]] = [newWidgets[index], newWidgets[index - 1]];
-
-        set({ widgets: newWidgets });
-      },
-
-      moveWidgetDown: (widgetId: WidgetId) => {
-        const { widgets } = get();
-        const index = widgets.findIndex((w) => w.id === widgetId);
-
-        if (index < 0 || index >= widgets.length - 1) {
-          return; // Already at bottom or not found
-        }
-
-        const newWidgets = [...widgets];
-        [newWidgets[index], newWidgets[index + 1]] = [newWidgets[index + 1], newWidgets[index]];
-
-        set({ widgets: newWidgets });
-      },
-
-      setTheme: (theme: ThemeSetting) => {
-        set({ theme });
-      },
-
-      setRefreshInterval: (refreshInterval: number) => {
-        set({ refreshInterval: Math.max(0, refreshInterval) });
-      },
-
-      setCompactMode: (compactMode: boolean) => {
-        set({ compactMode });
-      },
-
-      reset: () => {
-        set({ ...DEFAULT_CONFIG_STATE });
-      },
-    }),
-    {
-      name: STORAGE_KEY,
-      storage: createJSONStorage(() => localStorage),
-      version: CONFIG_VERSION,
-      migrate: (persistedState, version) => {
-        // Type the persisted state
-        const state = persistedState as DashboardConfigState | undefined;
-
-        // Handle migration from no version or version 1
-        if (version === 0 || version === 1 || !state) {
-          // Try to migrate from V1 localStorage
-          const v1State = migrateFromV1();
-          if (v1State) {
-            // Clean up old V1 storage
-            try {
-              localStorage.removeItem('dashboard-config');
-            } catch {
-              // Ignore cleanup errors
-            }
-            return v1State;
+          if (index <= 0) {
+            return; // Already at top or not found
           }
-          // Return fresh defaults if no V1 data
-          return { ...DEFAULT_CONFIG_STATE };
-        }
 
-        // For current version, merge widgets with defaults to handle new widgets
-        if (state.widgets) {
-          return {
-            ...state,
-            widgets: mergeWidgetsWithDefaults(state.widgets),
-            version: CONFIG_VERSION,
-          };
-        }
+          const newWidgets = [...widgets];
+          [newWidgets[index - 1], newWidgets[index]] = [newWidgets[index], newWidgets[index - 1]];
 
-        return state as DashboardConfigStore;
-      },
-      partialize: (state) => ({
-        widgets: state.widgets,
-        theme: state.theme,
-        refreshInterval: state.refreshInterval,
-        compactMode: state.compactMode,
-        version: state.version,
+          set({ widgets: newWidgets }, undefined, `moveWidgetUp/${widgetId}`);
+        },
+
+        moveWidgetDown: (widgetId: WidgetId) => {
+          const { widgets } = get();
+          const index = widgets.findIndex((w) => w.id === widgetId);
+
+          if (index < 0 || index >= widgets.length - 1) {
+            return; // Already at bottom or not found
+          }
+
+          const newWidgets = [...widgets];
+          [newWidgets[index], newWidgets[index + 1]] = [newWidgets[index + 1], newWidgets[index]];
+
+          set({ widgets: newWidgets }, undefined, `moveWidgetDown/${widgetId}`);
+        },
+
+        setTheme: (theme: ThemeSetting) => {
+          set({ theme }, undefined, `setTheme/${theme}`);
+        },
+
+        setRefreshInterval: (refreshInterval: number) => {
+          set({ refreshInterval: Math.max(0, refreshInterval) }, undefined, 'setRefreshInterval');
+        },
+
+        setCompactMode: (compactMode: boolean) => {
+          set({ compactMode }, undefined, `setCompactMode/${compactMode}`);
+        },
+
+        reset: () => {
+          set({ ...DEFAULT_CONFIG_STATE }, undefined, 'reset');
+        },
       }),
-    }
+      {
+        name: STORAGE_KEY,
+        storage: createJSONStorage(() => localStorage),
+        version: CONFIG_VERSION,
+        migrate: (persistedState, version) => {
+          // Type the persisted state
+          const state = persistedState as DashboardConfigState | undefined;
+
+          // Handle migration from no version or version 1
+          if (version === 0 || version === 1 || !state) {
+            // Try to migrate from V1 localStorage
+            const v1State = migrateFromV1();
+            if (v1State) {
+              // Clean up old V1 storage
+              try {
+                localStorage.removeItem('dashboard-config');
+              } catch {
+                // Ignore cleanup errors
+              }
+              return v1State;
+            }
+            // Return fresh defaults if no V1 data
+            return { ...DEFAULT_CONFIG_STATE };
+          }
+
+          // For current version, merge widgets with defaults to handle new widgets
+          if (state.widgets) {
+            return {
+              ...state,
+              widgets: mergeWidgetsWithDefaults(state.widgets),
+              version: CONFIG_VERSION,
+            };
+          }
+
+          return state as DashboardConfigStore;
+        },
+        partialize: (state) => ({
+          widgets: state.widgets,
+          theme: state.theme,
+          refreshInterval: state.refreshInterval,
+          compactMode: state.compactMode,
+          version: state.version,
+        }),
+      }
+    ),
+    { name: 'dashboard-config-store', enabled: import.meta.env.DEV }
   )
 );
 
@@ -468,4 +476,79 @@ export function setDashboardConfig(config: DashboardConfig): void {
     widgets: config.widgets,
     version: config.version,
   });
+}
+
+// ============================================================================
+// Shallow Hooks for Selective Subscriptions (NEM-3790)
+// ============================================================================
+
+/**
+ * Hook to select widget configuration with shallow equality.
+ * Prevents re-renders when only unrelated state changes.
+ *
+ * @example
+ * ```tsx
+ * const { widgets, version } = useDashboardWidgets();
+ * ```
+ */
+export function useDashboardWidgets() {
+  return useDashboardConfigStore(
+    useShallow((state) => ({
+      widgets: state.widgets,
+      version: state.version,
+    }))
+  );
+}
+
+/**
+ * Hook to select theme settings with shallow equality.
+ * Prevents re-renders when only widget state changes.
+ *
+ * @example
+ * ```tsx
+ * const { theme, compactMode } = useDashboardTheme();
+ * ```
+ */
+export function useDashboardTheme() {
+  return useDashboardConfigStore(
+    useShallow((state) => ({
+      theme: state.theme,
+      compactMode: state.compactMode,
+    }))
+  );
+}
+
+/**
+ * Hook to select refresh interval setting.
+ *
+ * @example
+ * ```tsx
+ * const refreshInterval = useDashboardRefreshInterval();
+ * ```
+ */
+export function useDashboardRefreshInterval() {
+  return useDashboardConfigStore((state) => state.refreshInterval);
+}
+
+/**
+ * Hook to select dashboard config actions only.
+ * Actions are stable references and don't cause re-renders.
+ *
+ * @example
+ * ```tsx
+ * const { setWidgetVisibility, setTheme, reset } = useDashboardConfigActions();
+ * ```
+ */
+export function useDashboardConfigActions() {
+  return useDashboardConfigStore(
+    useShallow((state) => ({
+      setWidgetVisibility: state.setWidgetVisibility,
+      moveWidgetUp: state.moveWidgetUp,
+      moveWidgetDown: state.moveWidgetDown,
+      setTheme: state.setTheme,
+      setRefreshInterval: state.setRefreshInterval,
+      setCompactMode: state.setCompactMode,
+      reset: state.reset,
+    }))
+  );
 }

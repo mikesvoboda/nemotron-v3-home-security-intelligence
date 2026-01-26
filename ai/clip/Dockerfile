@@ -55,7 +55,12 @@ COPY ai/clip/tensorrt_inference.py .
 ENV HOST=0.0.0.0
 ENV PORT=8093
 ENV CLIP_MODEL_PATH=/models/clip-vit-l
+# HuggingFace cache configuration (NEM-3812)
+# HF_HOME is the root directory, others are derived for backward compatibility
 ENV HF_HOME=/cache/huggingface
+ENV HF_HUB_CACHE=/cache/huggingface/hub
+ENV TRANSFORMERS_CACHE=/cache/huggingface
+ENV HF_HUB_DISABLE_TELEMETRY=1
 
 # TensorRT environment variables (disabled by default)
 # Set CLIP_USE_TENSORRT=true and CLIP_ENGINE_PATH to enable TensorRT

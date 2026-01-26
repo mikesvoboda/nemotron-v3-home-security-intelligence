@@ -1,21 +1,22 @@
-"""WebSocket message compression utilities (NEM-3154).
+"""WebSocket message compression and serialization utilities (NEM-3154, NEM-3737).
 
-This module provides application-level compression for WebSocket messages,
-implementing threshold-based compression to reduce bandwidth usage for large
-payloads (especially detection payloads with base64-encoded images).
+This module provides application-level compression and serialization for WebSocket
+messages, supporting both zlib compression and MessagePack binary serialization.
 
-Compression Protocol:
-- Messages smaller than the configured threshold are sent as plain JSON text
-- Messages larger than the threshold are compressed with zlib/deflate
-- Compressed messages are sent as binary with a magic header byte (0x00)
-- The frontend decompresses binary messages that start with the magic byte
+Serialization Formats:
+- JSON (default): Plain text JSON messages, no magic byte
+- ZLIB: Compressed JSON with magic byte 0x00 prefix (threshold-based)
+- MSGPACK: MessagePack binary with magic byte 0x01 prefix (30-50% smaller than JSON)
 
-Why application-level compression?
-- Per-message deflate (RFC 7692) is negotiated during handshake but not all
-  proxies/load balancers support it reliably
-- Application-level compression gives us explicit control over when to compress
-- We can set a threshold to avoid CPU overhead for small messages
-- Enables compression metrics and monitoring
+Magic Byte Protocol:
+- 0x00: zlib-compressed JSON (NEM-3154)
+- 0x01: MessagePack binary (NEM-3737)
+- Other: Plain JSON text (no prefix)
+
+Content Negotiation:
+- Format is negotiated during WebSocket handshake via query param: ?format=msgpack
+- Default is JSON with zlib compression for large messages
+- MessagePack is recommended for high-throughput scenarios
 
 Usage:
     from backend.core.websocket.compression import (
@@ -23,19 +24,26 @@ Usage:
         decompress_message,
         should_compress,
         get_compression_stats,
+        SerializationFormat,
+        prepare_message_with_format,
     )
 
-    # Check if compression is beneficial
-    if should_compress(json_message):
-        compressed = compress_message(json_message)
-        await ws.send_bytes(compressed)
-    else:
-        await ws.send_text(json_message)
+    # Using specific format
+    prepared, format_used = prepare_message_with_format(
+        message, format=SerializationFormat.MSGPACK
+    )
+    await ws.send_bytes(prepared)
+
+    # Auto-detect and decode
+    decoded = decode_message_auto(received_bytes)
 """
+
+from __future__ import annotations
 
 import json
 import zlib
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 
 from backend.core.config import get_settings
@@ -43,8 +51,41 @@ from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Magic byte prefix for compressed messages (0x00 is not valid JSON/UTF-8 start)
+# Magic byte prefix for zlib-compressed messages (0x00 is not valid JSON/UTF-8 start)
 COMPRESSION_MAGIC_BYTE = b"\x00"
+
+# Magic byte prefix for MessagePack messages (0x01 - distinct from zlib's 0x00)
+MSGPACK_MAGIC_BYTE = b"\x01"
+
+
+class SerializationFormat(str, Enum):
+    """WebSocket message serialization format.
+
+    Supported formats for WebSocket message encoding (NEM-3737).
+    Format is negotiated during WebSocket handshake via query param.
+    """
+
+    JSON = "json"  # Plain JSON text (default, no magic byte)
+    ZLIB = "zlib"  # zlib-compressed JSON (magic byte 0x00)
+    MSGPACK = "msgpack"  # MessagePack binary (magic byte 0x01)
+
+    @classmethod
+    def from_query_param(cls, value: str | None) -> SerializationFormat:
+        """Parse serialization format from query parameter.
+
+        Args:
+            value: Query parameter value (e.g., "msgpack", "json", "zlib")
+
+        Returns:
+            SerializationFormat enum value, defaults to JSON if invalid/missing
+        """
+        if not value:
+            return cls.JSON
+        try:
+            return cls(value.lower())
+        except ValueError:
+            logger.warning(f"Unknown serialization format: {value}, defaulting to JSON")
+            return cls.JSON
 
 
 @dataclass
@@ -283,7 +324,7 @@ def prepare_message(
 
 
 def is_compressed_message(data: bytes) -> bool:
-    """Check if a message is compressed (has magic byte prefix).
+    """Check if a message is zlib-compressed (has magic byte prefix 0x00).
 
     Args:
         data: The message bytes to check.
@@ -292,3 +333,166 @@ def is_compressed_message(data: bytes) -> bool:
         True if the message has the compression magic byte prefix.
     """
     return isinstance(data, bytes) and data.startswith(COMPRESSION_MAGIC_BYTE)
+
+
+def is_msgpack_message(data: bytes) -> bool:
+    """Check if a message is MessagePack encoded (has magic byte prefix 0x01).
+
+    Args:
+        data: The message bytes to check.
+
+    Returns:
+        True if the message has the MessagePack magic byte prefix.
+    """
+    return isinstance(data, bytes) and data.startswith(MSGPACK_MAGIC_BYTE)
+
+
+def detect_format(data: bytes | str) -> SerializationFormat:
+    """Detect the serialization format of a message.
+
+    Args:
+        data: The message data (bytes or string).
+
+    Returns:
+        Detected SerializationFormat.
+    """
+    if isinstance(data, str):
+        return SerializationFormat.JSON
+    if is_compressed_message(data):
+        return SerializationFormat.ZLIB
+    if is_msgpack_message(data):
+        return SerializationFormat.MSGPACK
+    return SerializationFormat.JSON
+
+
+def encode_msgpack(data: dict[str, Any], *, track_stats: bool = True) -> bytes:
+    """Encode a dictionary to MessagePack binary format with magic byte prefix.
+
+    Args:
+        data: Dictionary to encode
+        track_stats: Whether to update global statistics (passed through)
+
+    Returns:
+        MessagePack encoded bytes with magic byte prefix (0x01)
+
+    Raises:
+        ValueError: If encoding fails
+    """
+    from backend.core.websocket.msgpack_serialization import MessagePackEncoder
+
+    return MessagePackEncoder.encode(data, track_stats=track_stats)
+
+
+def decode_msgpack(data: bytes, *, track_stats: bool = True) -> dict[str, Any]:
+    """Decode MessagePack binary data to a dictionary.
+
+    Args:
+        data: MessagePack encoded bytes (with or without magic byte)
+        track_stats: Whether to update global statistics on error
+
+    Returns:
+        Decoded dictionary
+
+    Raises:
+        ValueError: If decoding fails
+    """
+    from backend.core.websocket.msgpack_serialization import MessagePackEncoder
+
+    return MessagePackEncoder.decode(data, track_stats=track_stats)
+
+
+def decode_message_auto(data: bytes | str) -> dict[str, Any]:
+    """Decode a WebSocket message, auto-detecting the format.
+
+    Handles all supported formats:
+    - MessagePack (magic byte 0x01)
+    - zlib-compressed JSON (magic byte 0x00)
+    - Plain JSON text
+
+    Args:
+        data: The message data in any supported format.
+
+    Returns:
+        Decoded dictionary.
+
+    Raises:
+        ValueError: If decoding fails for any format.
+    """
+    if isinstance(data, str):
+        try:
+            parsed = json.loads(data)
+            return dict(parsed) if isinstance(parsed, dict) else parsed
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to decode JSON string: {e}") from e
+
+    detected = detect_format(data)
+
+    if detected == SerializationFormat.MSGPACK:
+        result = decode_msgpack(data)
+        return dict(result) if isinstance(result, dict) else result
+    if detected == SerializationFormat.ZLIB:
+        decompressed = decompress_message(data)
+        parsed = json.loads(decompressed)
+        return dict(parsed) if isinstance(parsed, dict) else parsed
+    # Plain JSON bytes
+    try:
+        parsed = json.loads(data.decode("utf-8"))
+        return dict(parsed) if isinstance(parsed, dict) else parsed
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise ValueError(f"Failed to decode JSON bytes: {e}") from e
+
+
+def prepare_message_with_format(
+    message: str | dict[str, Any],
+    *,
+    format: SerializationFormat = SerializationFormat.JSON,
+    threshold: int | None = None,
+    level: int | None = None,
+    track_stats: bool = True,
+) -> tuple[bytes | str, SerializationFormat]:
+    """Prepare a message for sending using the specified format.
+
+    This is the unified entry point for message serialization, supporting
+    all formats: JSON, zlib compression, and MessagePack.
+
+    Args:
+        message: The message to prepare (JSON string or dict).
+        format: Serialization format to use.
+        threshold: Override compression threshold (for zlib format).
+        level: Override compression level (for zlib format).
+        track_stats: Whether to update global statistics.
+
+    Returns:
+        Tuple of (prepared_message, format_used).
+        - JSON: (JSON string, SerializationFormat.JSON)
+        - ZLIB: (bytes with 0x00 magic header, SerializationFormat.ZLIB)
+        - MSGPACK: (bytes with 0x01 magic header, SerializationFormat.MSGPACK)
+    """
+    # Serialize dict to JSON string/dict depending on format
+    if format == SerializationFormat.MSGPACK:
+        # MessagePack works directly with dicts
+        message_dict = json.loads(message) if isinstance(message, str) else message
+        try:
+            encoded = encode_msgpack(message_dict, track_stats=track_stats)
+            return encoded, SerializationFormat.MSGPACK
+        except ValueError:
+            logger.warning("MessagePack encoding failed, falling back to JSON")
+            # Fall through to JSON
+
+    if format == SerializationFormat.ZLIB:
+        # Use existing compression logic
+        prepared, was_compressed = prepare_message(
+            message, threshold=threshold, level=level, track_stats=track_stats
+        )
+        if was_compressed:
+            return prepared, SerializationFormat.ZLIB
+        return prepared, SerializationFormat.JSON
+
+    # For JSON format, serialize the message to a JSON string
+    message_str = json.dumps(message) if isinstance(message, dict) else message
+
+    if track_stats:
+        _compression_stats.total_messages += 1
+        _compression_stats.uncompressed_messages += 1
+
+    return message_str, SerializationFormat.JSON
