@@ -46,11 +46,13 @@ ai/enrichment/
 ├── requirements.txt       # Python dependencies
 ├── models/                # Model implementations
 │   ├── __init__.py        # Model exports
-│   ├── pose_estimator.py  # YOLOv8n-pose wrapper
+│   ├── pose_estimator.py  # YOLOv8n-pose wrapper (TensorRT support)
 │   ├── threat_detector.py # Weapon detection
 │   ├── demographics.py    # Age/gender estimation
 │   ├── person_reid.py     # OSNet re-ID embeddings
 │   └── action_recognizer.py # X-CLIP action recognition
+├── scripts/               # Utility scripts
+│   └── export_pose_tensorrt.py  # Export pose model to TensorRT
 ├── tests/                 # Unit tests
 │   ├── conftest.py        # Test fixtures
 │   ├── test_model_manager.py     # Model manager unit tests
@@ -153,6 +155,24 @@ Human pose estimation with 17 COCO keypoints.
 - Detects 17 COCO keypoints (nose, eyes, ears, shoulders, elbows, wrists, hips, knees, ankles)
 - Classifies body posture (standing, crouching, running, reaching_up, etc.)
 - Flags suspicious poses for security analysis
+- **TensorRT acceleration** for 2-3x speedup (NEM-3838)
+
+**TensorRT Acceleration:**
+
+Enable TensorRT for faster pose estimation inference:
+
+```bash
+# Set environment variable
+export POSE_USE_TENSORRT=true
+
+# Or export model manually with the script
+python ai/enrichment/scripts/export_pose_tensorrt.py --model /models/yolov8n-pose.pt
+
+# Benchmark PyTorch vs TensorRT
+python ai/enrichment/scripts/export_pose_tensorrt.py --benchmark
+```
+
+TensorRT engines are GPU-architecture specific. Rebuild for each target GPU.
 
 **Posture Classifications:**
 
@@ -351,23 +371,26 @@ Analyze human pose keypoints (legacy ViTPose+ endpoint).
 
 ## Environment Variables
 
-| Variable              | Default                                  | Description                      |
-| --------------------- | ---------------------------------------- | -------------------------------- |
-| `HOST`                | `0.0.0.0`                                | Bind address                     |
-| `PORT`                | `8094`                                   | Listen port                      |
-| `VRAM_BUDGET_GB`      | `6.8`                                    | VRAM budget for on-demand models |
-| `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification` | Vehicle classifier path          |
-| `PET_MODEL_PATH`      | `/models/pet-classifier`                 | Pet classifier path              |
-| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionCLIP model path           |
-| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-small`        | Depth estimator path             |
-| `POSE_MODEL_PATH`     | `/models/yolov8n-pose/yolov8n-pose.pt`   | YOLOv8n-pose model path          |
-| `THREAT_MODEL_PATH`   | `/models/threat-detection`               | Threat detection model path      |
-| `AGE_MODEL_PATH`      | `/models/vit-age-classifier`             | Age classifier path              |
-| `GENDER_MODEL_PATH`   | `/models/vit-gender-classifier`          | Gender classifier path           |
-| `REID_MODEL_PATH`     | `/models/osnet-reid`                     | OSNet ReID model path            |
-| `ACTION_MODEL_PATH`   | `microsoft/xclip-base-patch32`           | X-CLIP model path                |
-| `VITPOSE_MODEL_PATH`  | `/models/vitpose-plus-small`             | ViTPose+ model path (legacy)     |
-| `HF_HOME`             | `/cache/huggingface`                     | HuggingFace cache dir            |
+| Variable                    | Default                                  | Description                            |
+| --------------------------- | ---------------------------------------- | -------------------------------------- |
+| `HOST`                      | `0.0.0.0`                                | Bind address                           |
+| `PORT`                      | `8094`                                   | Listen port                            |
+| `VRAM_BUDGET_GB`            | `6.8`                                    | VRAM budget for on-demand models       |
+| `VEHICLE_MODEL_PATH`        | `/models/vehicle-segment-classification` | Vehicle classifier path                |
+| `PET_MODEL_PATH`            | `/models/pet-classifier`                 | Pet classifier path                    |
+| `CLOTHING_MODEL_PATH`       | `/models/fashion-clip`                   | FashionCLIP model path                 |
+| `DEPTH_MODEL_PATH`          | `/models/depth-anything-v2-small`        | Depth estimator path                   |
+| `POSE_MODEL_PATH`           | `/models/yolov8n-pose/yolov8n-pose.pt`   | YOLOv8n-pose model path                |
+| `POSE_USE_TENSORRT`         | `false`                                  | Enable TensorRT for pose (2-3x faster) |
+| `POSE_TENSORRT_ENGINE_PATH` | (auto)                                   | Custom TensorRT engine path            |
+| `POSE_TENSORRT_FP16`        | `true`                                   | Use FP16 precision for TensorRT        |
+| `THREAT_MODEL_PATH`         | `/models/threat-detection`               | Threat detection model path            |
+| `AGE_MODEL_PATH`            | `/models/vit-age-classifier`             | Age classifier path                    |
+| `GENDER_MODEL_PATH`         | `/models/vit-gender-classifier`          | Gender classifier path                 |
+| `REID_MODEL_PATH`           | `/models/osnet-reid`                     | OSNet ReID model path                  |
+| `ACTION_MODEL_PATH`         | `microsoft/xclip-base-patch32`           | X-CLIP model path                      |
+| `VITPOSE_MODEL_PATH`        | `/models/vitpose-plus-small`             | ViTPose+ model path (legacy)           |
+| `HF_HOME`                   | `/cache/huggingface`                     | HuggingFace cache dir                  |
 
 ## Model Links
 

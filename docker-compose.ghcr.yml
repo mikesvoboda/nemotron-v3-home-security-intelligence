@@ -25,6 +25,16 @@ version: '3.8'
 services:
   postgres:
     image: docker.io/library/postgres:16-alpine
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
     ports:
       - '5432:5432'
     volumes:
@@ -54,6 +64,16 @@ services:
     # - GHCR_OWNER: e.g. "your-org" or "your-user"
     # - GHCR_REPO:  e.g. "nemotron-v3-home-security-intelligence"
     image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/backend:${IMAGE_TAG:-latest}
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/appuser/.cache
     ports:
       - '8000:8000'
     volumes:
@@ -104,6 +124,15 @@ services:
 
   redis:
     image: docker.io/library/redis:7.4-alpine3.21
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
     ports:
       - '6379:6379'
     volumes:
@@ -131,6 +160,12 @@ services:
       dockerfile: Dockerfile
       target: prod
     image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
+      - /var/cache/nginx
     ports:
       # Map external port to internal 8080 (nginx-unprivileged runs on 8080)
       - '${FRONTEND_PORT:-5173}:8080'

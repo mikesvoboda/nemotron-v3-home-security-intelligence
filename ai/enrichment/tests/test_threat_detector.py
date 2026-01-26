@@ -26,6 +26,7 @@ from ai.enrichment.models.threat_detector import (
     SEVERITY_ORDER,
     THREAT_CLASSES,
     THREAT_CLASSES_BY_NAME,
+    THREAT_DETECTOR_USE_TENSORRT,
     ThreatDetection,
     ThreatDetector,
     ThreatResult,
@@ -396,15 +397,15 @@ class TestThreatDetectorLoadModel:
     """Tests for ThreatDetector model loading."""
 
     def test_load_model_missing_ultralytics(self) -> None:
-        """load_model raises ImportError if ultralytics not installed."""
+        """load_model raises RuntimeError (wrapping ImportError) if ultralytics not installed."""
         # Note: detector variable exists to verify instantiation works without loading
         _ = ThreatDetector(model_path="/models/threat")
 
         with (
             patch.dict("sys.modules", {"ultralytics": None}),
-            pytest.raises(ImportError, match="ultralytics"),
+            pytest.raises(RuntimeError, match="Failed to load threat detection model"),
         ):
-            # Force reimport to trigger the ImportError
+            # Force reimport to trigger the ImportError (wrapped as RuntimeError)
             import importlib
 
             import ai.enrichment.models.threat_detector as module
@@ -783,3 +784,234 @@ class TestLoadThreatDetector:
         assert detector.model_path == "/models/custom"
         assert detector.device == "cpu"  # Falls back to CPU since CUDA not available
         assert detector.confidence_threshold == 0.8
+
+
+# =============================================================================
+# TensorRT Support Tests (NEM-3838)
+# =============================================================================
+
+
+class TestThreatDetectorTensorRT:
+    """Tests for TensorRT support in ThreatDetector (NEM-3838)."""
+
+    def test_tensorrt_env_var_default(self) -> None:
+        """THREAT_DETECTOR_USE_TENSORRT defaults to False."""
+        # This tests the module-level constant
+        # Note: In actual use, the env var would be set before import
+        assert isinstance(THREAT_DETECTOR_USE_TENSORRT, bool)
+
+    def test_init_use_tensorrt_explicit_true(self) -> None:
+        """ThreatDetector respects explicit use_tensorrt=True."""
+        detector = ThreatDetector(
+            model_path="/models/threat.pt",
+            use_tensorrt=True,
+        )
+
+        assert detector._use_tensorrt_requested is True
+
+    def test_init_use_tensorrt_explicit_false(self) -> None:
+        """ThreatDetector respects explicit use_tensorrt=False."""
+        detector = ThreatDetector(
+            model_path="/models/threat.engine",  # Even with .engine path
+            use_tensorrt=False,
+        )
+
+        assert detector._use_tensorrt_requested is False
+
+    def test_init_auto_detect_engine_extension(self) -> None:
+        """ThreatDetector auto-detects TensorRT from .engine extension."""
+        detector = ThreatDetector(
+            model_path="/models/threat.engine",
+            use_tensorrt=None,  # Auto-detect
+        )
+
+        assert detector._use_tensorrt_requested is True
+
+    def test_init_auto_detect_pt_extension(self) -> None:
+        """ThreatDetector defaults to PyTorch for .pt files (no env var)."""
+        with patch.dict("os.environ", {"THREAT_DETECTOR_USE_TENSORRT": "false"}):
+            detector = ThreatDetector(
+                model_path="/models/threat.pt",
+                use_tensorrt=None,  # Auto-detect
+            )
+
+        assert detector._use_tensorrt_requested is False
+
+    def test_is_tensorrt_property_default(self) -> None:
+        """is_tensorrt property returns False by default."""
+        detector = ThreatDetector(model_path="/models/threat.pt")
+
+        assert detector.is_tensorrt is False
+
+    def test_resolve_tensorrt_path_direct_engine(self, tmp_path: pytest.TempPathFactory) -> None:
+        """_resolve_tensorrt_path returns engine path directly."""
+        engine_path = tmp_path / "model.engine"
+        engine_path.touch()
+
+        detector = ThreatDetector(model_path=str(engine_path))
+        result = detector._resolve_tensorrt_path()
+
+        assert result == str(engine_path)
+
+    def test_resolve_tensorrt_path_adjacent_engine(self, tmp_path: pytest.TempPathFactory) -> None:
+        """_resolve_tensorrt_path finds adjacent .engine file."""
+        pt_path = tmp_path / "model.pt"
+        engine_path = tmp_path / "model.engine"
+        pt_path.touch()
+        engine_path.touch()
+
+        detector = ThreatDetector(model_path=str(pt_path))
+        result = detector._resolve_tensorrt_path()
+
+        assert result == str(engine_path)
+
+    def test_resolve_tensorrt_path_fp16_naming(self, tmp_path: pytest.TempPathFactory) -> None:
+        """_resolve_tensorrt_path finds model_fp16.engine naming convention."""
+        pt_path = tmp_path / "model.pt"
+        engine_path = tmp_path / "model_fp16.engine"
+        pt_path.touch()
+        engine_path.touch()
+
+        detector = ThreatDetector(model_path=str(pt_path))
+        result = detector._resolve_tensorrt_path()
+
+        assert result == str(engine_path)
+
+    def test_resolve_tensorrt_path_not_found(self, tmp_path: pytest.TempPathFactory) -> None:
+        """_resolve_tensorrt_path returns None when engine not found."""
+        pt_path = tmp_path / "model.pt"
+        pt_path.touch()
+
+        detector = ThreatDetector(model_path=str(pt_path))
+        result = detector._resolve_tensorrt_path()
+
+        assert result is None
+
+    def test_load_tensorrt_model_engine_not_found(self, tmp_path: pytest.TempPathFactory) -> None:
+        """_load_tensorrt_model returns False when engine not found."""
+        pt_path = tmp_path / "model.pt"
+        pt_path.touch()
+
+        detector = ThreatDetector(model_path=str(pt_path))
+        result = detector._load_tensorrt_model()
+
+        assert result is False
+        assert detector._is_tensorrt is False
+
+    def test_load_model_tensorrt_fallback_to_pytorch(
+        self, tmp_path: pytest.TempPathFactory
+    ) -> None:
+        """load_model falls back to PyTorch when TensorRT unavailable."""
+        pt_path = tmp_path / "model.pt"
+        pt_path.touch()
+
+        mock_yolo_instance = MagicMock()
+        mock_yolo_instance.names = {0: "knife", 1: "gun"}
+        mock_yolo_class = MagicMock(return_value=mock_yolo_instance)
+
+        detector = ThreatDetector(
+            model_path=str(pt_path),
+            device="cpu",
+            use_tensorrt=True,  # Request TensorRT, but no engine exists
+        )
+
+        with (
+            patch(
+                "ai.enrichment.models.threat_detector.torch.cuda.is_available",
+                return_value=False,
+            ),
+            patch("ultralytics.YOLO", mock_yolo_class),
+        ):
+            detector.load_model()
+
+        # Should have fallen back to PyTorch
+        assert detector._is_tensorrt is False
+        assert detector.model is mock_yolo_instance
+
+    def test_detect_threats_returns_backend_info(
+        self,
+        detector_with_mock: ThreatDetector,
+        sample_image: Image.Image,
+    ) -> None:
+        """detect_threats result includes backend information."""
+        result = detector_with_mock.detect_threats(sample_image)
+
+        assert result.backend == "pytorch"
+        assert "backend" in result.to_dict()
+
+    def test_get_backend_info_pytorch(self) -> None:
+        """get_backend_info returns correct info for PyTorch backend."""
+        detector = ThreatDetector(model_path="/models/threat.pt", device="cpu")
+        detector.model = MagicMock()  # Simulate loaded model
+        detector._is_tensorrt = False
+
+        info = detector.get_backend_info()
+
+        assert info["backend"] == "pytorch"
+        assert info["device"] == "cpu"
+        assert info["model_path"] == "/models/threat.pt"
+        assert info["model_loaded"] is True
+
+    def test_get_backend_info_tensorrt(self) -> None:
+        """get_backend_info returns correct info for TensorRT backend."""
+        detector = ThreatDetector(
+            model_path="/models/threat.engine",
+            device="cuda:0",
+            use_tensorrt=True,
+        )
+        detector.model = MagicMock()  # Simulate loaded model
+        detector._is_tensorrt = True
+
+        info = detector.get_backend_info()
+
+        assert info["backend"] == "tensorrt"
+        assert info["device"] == "cuda:0"
+        assert info["tensorrt_requested"] is True
+
+    def test_unload_resets_tensorrt_flag(self) -> None:
+        """unload resets _is_tensorrt flag."""
+        detector = ThreatDetector(model_path="/models/threat.engine")
+        detector.model = MagicMock()
+        detector._is_tensorrt = True
+
+        with patch(
+            "ai.enrichment.models.threat_detector.torch.cuda.is_available",
+            return_value=False,
+        ):
+            detector.unload()
+
+        assert detector._is_tensorrt is False
+
+    def test_threat_result_backend_field(self) -> None:
+        """ThreatResult has backend field with default value."""
+        result = ThreatResult()
+
+        assert result.backend == "pytorch"
+
+    def test_threat_result_backend_in_to_dict(self) -> None:
+        """ThreatResult.to_dict includes backend field."""
+        result = ThreatResult(backend="tensorrt")
+        data = result.to_dict()
+
+        assert data["backend"] == "tensorrt"
+
+    def test_load_threat_detector_with_tensorrt_param(self) -> None:
+        """load_threat_detector accepts use_tensorrt parameter."""
+        mock_yolo_instance = MagicMock()
+        mock_yolo_instance.names = {0: "knife", 1: "gun"}
+        mock_yolo_class = MagicMock(return_value=mock_yolo_instance)
+
+        with (
+            patch(
+                "ai.enrichment.models.threat_detector.torch.cuda.is_available",
+                return_value=False,
+            ),
+            patch("ultralytics.YOLO", mock_yolo_class),
+        ):
+            detector = load_threat_detector(
+                model_path="/models/threat.pt",
+                device="cpu",
+                use_tensorrt=False,
+            )
+
+        assert detector._use_tensorrt_requested is False

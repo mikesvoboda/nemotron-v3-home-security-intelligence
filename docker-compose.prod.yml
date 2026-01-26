@@ -39,7 +39,17 @@ version: '3.8'
 
 services:
   postgres:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     image: docker.io/library/postgres:16-alpine
+    # Security: Read-only root filesystem with tmpfs for required write paths
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
     ports:
       - '5432:5432'
     volumes:
@@ -101,6 +111,16 @@ services:
           memory: 1G
 
   ai-detector:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem with tmpfs for temp and PyTorch cache
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/rtdetr/.cache # PyTorch compile cache
     labels:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-detector'
@@ -143,6 +163,16 @@ services:
               capabilities: [gpu]
 
   ai-llm:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem with tmpfs for temp files
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/llama/.cache # llama.cpp temp cache
     labels:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-llm'
@@ -175,6 +205,16 @@ services:
 
   # Florence-2 vision-language model for dense captioning and visual understanding
   ai-florence:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem with tmpfs for temp and PyTorch cache
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/florence/.cache # PyTorch compile cache
     labels:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-florence'
@@ -209,6 +249,16 @@ services:
 
   # CLIP ViT-L model for entity re-identification embeddings
   ai-clip:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem with tmpfs for temp and PyTorch cache
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/clip/.cache # PyTorch compile cache
     labels:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-clip'
@@ -224,6 +274,7 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - CLIP_MODEL_PATH=/models/clip-vit-l
+      - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-false}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
       interval: 10s
@@ -243,6 +294,16 @@ services:
 
   # Combined enrichment service for vehicle, pet, clothing, pose, threat, age, gender, reid, and action classification
   ai-enrichment:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem with tmpfs for temp and PyTorch cache
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/enrichment/.cache # PyTorch compile cache
     labels:
       pyroscope.profile: 'true'
       pyroscope.service: 'ai-enrichment'
@@ -301,6 +362,16 @@ services:
               capabilities: [gpu]
 
   backend:
+    # Security: Read-only root filesystem with tmpfs for temp files
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/appuser/.cache
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -401,6 +472,15 @@ services:
               capabilities: [gpu]
 
   redis:
+    # Security: Read-only root filesystem with tmpfs for temp files
+    read_only: true
+    tmpfs:
+      - /tmp
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     image: docker.io/library/redis:7.4-alpine3.21
     ports:
       - '6379:6379'
@@ -560,6 +640,17 @@ services:
   #         memory: 64M
 
   frontend:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem with tmpfs for nginx runtime
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run # nginx pid file
+      - /var/cache/nginx # nginx cache
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -571,10 +662,9 @@ services:
       # HTTPS port mapping (only used when SSL_ENABLED=true)
       # Default 8443 to avoid privileged port issues with rootless containers
       - '${FRONTEND_HTTPS_PORT:-8443}:8443'
-    # Optional: Mount pre-existing certificates from host
-    # If not mounted, container auto-generates self-signed certs when SSL_ENABLED=true
-    # volumes:
-    #   - ${SSL_CERT_DIR:-./certs}:/etc/nginx/certs:ro
+    volumes:
+      # SSL certificates - writable for auto-generation, or mount pre-existing certs
+      - frontend_certs:/etc/nginx/certs:U
     environment:
       # Extra SANs for the auto-generated certificate (e.g., your server's IP)
       # Format: IP:192.168.1.100,DNS:myhost.local
@@ -623,6 +713,13 @@ services:
   # Elasticsearch for Jaeger trace storage (NEM-3053)
   # Single-node deployment with 30-day retention via ILM
   elasticsearch:
+    # Security hardening: Drop all capabilities except IPC_LOCK for memory locking
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - IPC_LOCK # Required for bootstrap.memory_lock=true (mlockall)
     image: docker.io/elasticsearch:8.12.0
     environment:
       # Single-node discovery (no cluster)
@@ -670,6 +767,11 @@ services:
   # Provides trace collection, storage, and visualization for cross-service request correlation
   # Uses Elasticsearch backend for persistent storage with 30-day retention
   jaeger:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     image: docker.io/jaegertracing/all-in-one:1.54
     ports:
       - '16686:16686' # Jaeger UI
@@ -707,6 +809,11 @@ services:
           memory: 512M
 
   prometheus:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     image: docker.io/prom/prometheus:v2.48.0
     ports:
       - '9090:9090'
@@ -737,6 +844,11 @@ services:
           memory: 512M
 
   grafana:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     image: docker.io/grafana/grafana:10.2.3
     ports:
       - '3002:3000'
@@ -798,6 +910,11 @@ services:
           memory: 256M
 
   redis-exporter:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     image: docker.io/oliver006/redis_exporter:v1.55.0
     ports:
       - '9121:9121'
@@ -822,6 +939,11 @@ services:
           memory: 64M
 
   json-exporter:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     image: docker.io/prometheuscommunity/json-exporter:v0.6.0
     ports:
       - '7979:7979'
@@ -840,6 +962,11 @@ services:
 
   # Alertmanager for alert routing, grouping, and delivery (NEM-1631)
   alertmanager:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     image: docker.io/prom/alertmanager:v0.27.0
     ports:
       - '9093:9093'
@@ -869,6 +996,11 @@ services:
   # Blackbox Exporter for synthetic monitoring (NEM-1637)
   # Probes endpoints for availability, latency, and health status
   blackbox-exporter:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     image: docker.io/prom/blackbox-exporter:v0.24.0
     ports:
       - '9115:9115'
@@ -895,6 +1027,11 @@ services:
   # Loki for log aggregation (NEM-3093)
   # Receives logs from Alloy and stores them for querying via Grafana
   loki:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     image: docker.io/grafana/loki:2.9.4
     container_name: loki
     volumes:
@@ -923,6 +1060,11 @@ services:
   # NEM-3514: Upgraded from 1.4.0 to 1.18.0 to fix "unknown profile type: seconds" error.
   # Fix: https://github.com/grafana/pyroscope/pull/4568 (released in v1.9.2+)
   pyroscope:
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     image: docker.io/grafana/pyroscope:1.18.0
     container_name: pyroscope
     volumes:
@@ -957,6 +1099,8 @@ services:
     # CAP_BPF: Linux 5.8+ BPF program loading
     # CAP_DAC_READ_SEARCH: Read files without permission checks
     # CAP_SYS_RESOURCE: Resource limits for cgroup access
+    cap_drop:
+      - ALL
     cap_add:
       - SYS_ADMIN
       - SYS_PTRACE
@@ -1026,6 +1170,9 @@ volumes:
   loki_data:
     driver: local
   pyroscope_data:
+    driver: local
+  # Frontend SSL certificates volume for auto-generation with read-only filesystem
+  frontend_certs:
     driver: local
 
 networks:

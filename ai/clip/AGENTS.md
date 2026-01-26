@@ -7,18 +7,20 @@ FastAPI-based HTTP server that wraps CLIP ViT-L model for generating 768-dimensi
 ## Port and Resources
 
 - **Port**: 8093
-- **Expected VRAM**: ~800 MB
+- **Expected VRAM**: ~800 MB (PyTorch) / ~600 MB (TensorRT)
 - **Embedding Dimension**: 768
 
 ## Directory Contents
 
 ```
 ai/clip/
-├── AGENTS.md          # This file
-├── Dockerfile         # Container build (PyTorch + CUDA 12.4)
-├── model.py           # FastAPI embedding server
-├── test_model.py      # Unit tests (pytest)
-└── requirements.txt   # Python dependencies
+├── AGENTS.md              # This file
+├── Dockerfile             # Container build (PyTorch + CUDA 12.4)
+├── model.py               # FastAPI embedding server
+├── tensorrt_inference.py  # TensorRT inference backend (NEM-3838)
+├── export_onnx.py         # ONNX export script for TensorRT conversion
+├── test_model.py          # Unit tests (pytest)
+└── requirements.txt       # Python dependencies
 ```
 
 ## Key Files
@@ -258,12 +260,57 @@ if result.anomaly_score > 0.5:
 
 ## Environment Variables
 
-| Variable          | Default              | Description            |
-| ----------------- | -------------------- | ---------------------- |
-| `CLIP_MODEL_PATH` | `/models/clip-vit-l` | HuggingFace model path |
-| `HOST`            | `0.0.0.0`            | Bind address           |
-| `PORT`            | `8093`               | Server port            |
-| `HF_HOME`         | `/cache/huggingface` | HuggingFace cache dir  |
+| Variable            | Default              | Description                          |
+| ------------------- | -------------------- | ------------------------------------ |
+| `CLIP_MODEL_PATH`   | `/models/clip-vit-l` | HuggingFace model path               |
+| `HOST`              | `0.0.0.0`            | Bind address                         |
+| `PORT`              | `8093`               | Server port                          |
+| `HF_HOME`           | `/cache/huggingface` | HuggingFace cache dir                |
+| `CLIP_USE_TENSORRT` | `false`              | Enable TensorRT backend (true/false) |
+| `CLIP_ENGINE_PATH`  | (none)               | Path to TensorRT engine file         |
+
+## TensorRT Acceleration (NEM-3838)
+
+TensorRT provides 1.5-2x faster inference for embedding extraction. To enable:
+
+### 1. Export ONNX Model
+
+```bash
+python export_onnx.py export \
+    --model-path /models/clip-vit-l \
+    --output /models/clip-vit-l/vision_encoder.onnx
+```
+
+### 2. Convert to TensorRT
+
+```bash
+python export_onnx.py tensorrt \
+    --onnx /models/clip-vit-l/vision_encoder.onnx \
+    --output /models/clip-vit-l/vision_encoder_fp16.engine \
+    --precision fp16 \
+    --max-batch 8
+```
+
+### 3. Enable TensorRT in Environment
+
+```bash
+export CLIP_USE_TENSORRT=true
+export CLIP_ENGINE_PATH=/models/clip-vit-l/vision_encoder_fp16.engine
+```
+
+### Full Pipeline (export + validate + convert)
+
+```bash
+python export_onnx.py pipeline \
+    --model-path /models/clip-vit-l \
+    --output-dir /models/clip-vit-l \
+    --precision fp16
+```
+
+### Validation
+
+The export process validates that TensorRT embeddings match PyTorch embeddings
+with cosine similarity > 0.99, ensuring identical quality.
 
 ## Embedding Details
 

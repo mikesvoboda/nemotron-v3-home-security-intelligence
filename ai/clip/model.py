@@ -1,10 +1,22 @@
-"""CLIP Embedding Server
+"""CLIP Embedding Server.
 
 HTTP server wrapping CLIP ViT-L model for generating embeddings
 used in entity re-identification across cameras.
 
 Port: 8093 (configurable via PORT env var)
-Expected VRAM: ~800MB
+Expected VRAM: ~800MB (PyTorch) / ~600MB (TensorRT)
+
+TensorRT Support:
+    Set CLIP_USE_TENSORRT=true and CLIP_ENGINE_PATH=/path/to/engine.engine
+    to use TensorRT acceleration (1.5-2x faster inference).
+    Falls back to PyTorch automatically if TensorRT is unavailable.
+
+Environment Variables:
+    CLIP_MODEL_PATH: HuggingFace model path (default: /models/clip-vit-l)
+    CLIP_USE_TENSORRT: Enable TensorRT backend (true/false, default: false)
+    CLIP_ENGINE_PATH: Path to TensorRT engine (required if TensorRT enabled)
+    HOST: Bind address (default: 0.0.0.0)
+    PORT: Server port (default: 8093)
 """
 
 import base64
@@ -124,6 +136,12 @@ MODEL_LOADED = Gauge(
 GPU_MEMORY_USED_GB = Gauge(
     "clip_gpu_memory_used_gb",
     "GPU memory used in GB",
+)
+
+# Backend type gauge (0 = pytorch, 1 = tensorrt)
+BACKEND_TYPE = Gauge(
+    "clip_backend_type",
+    "Inference backend type (0=pytorch, 1=tensorrt)",
 )
 
 # Size limits for image uploads (10MB is reasonable for security camera images)
@@ -361,34 +379,125 @@ class HealthResponse(BaseModel):
     cuda_available: bool
     vram_used_gb: float | None = None
     embedding_dimension: int = EMBEDDING_DIMENSION
+    backend: str = "pytorch"  # 'pytorch' or 'tensorrt'
+    tensorrt_engine_path: str | None = None
 
 
 class CLIPEmbeddingModel:
-    """CLIP ViT-L model wrapper for generating embeddings."""
+    """CLIP ViT-L model wrapper for generating embeddings.
+
+    Supports both PyTorch and TensorRT backends. TensorRT provides 1.5-2x
+    speedup for embedding extraction but requires a pre-built engine file.
+
+    Attributes:
+        model_path: Path to HuggingFace model.
+        device: CUDA device to use.
+        use_tensorrt: Whether to use TensorRT backend.
+        tensorrt_engine_path: Path to TensorRT engine (if TensorRT enabled).
+        backend_type: Current backend type ('pytorch' or 'tensorrt').
+    """
 
     def __init__(
         self,
         model_path: str,
         device: str = "cuda:0",
+        use_tensorrt: bool | None = None,
+        tensorrt_engine_path: str | None = None,
     ):
         """Initialize CLIP model.
 
         Args:
             model_path: Path to HuggingFace model directory or model name
             device: Device to run inference on (cuda:0, cpu)
+            use_tensorrt: Use TensorRT backend. If None, reads from CLIP_USE_TENSORRT.
+            tensorrt_engine_path: Path to TensorRT engine. If None, reads CLIP_ENGINE_PATH.
         """
         self.model_path = model_path
         self.device = device
         self.model: Any = None
         self.processor: Any = None
 
+        # TensorRT backend objects
+        self._tensorrt_backend: Any = None
+        self.backend_type: str = "pytorch"
+
+        # Determine TensorRT settings from params or environment
+        if use_tensorrt is None:
+            use_tensorrt = os.environ.get("CLIP_USE_TENSORRT", "false").lower() in (
+                "true",
+                "1",
+                "yes",
+            )
+        self.use_tensorrt = use_tensorrt
+
+        if tensorrt_engine_path is None:
+            tensorrt_engine_path = os.environ.get("CLIP_ENGINE_PATH")
+        self.tensorrt_engine_path = tensorrt_engine_path
+
         logger.info(f"Initializing CLIP model from {self.model_path}")
         logger.info(f"Device: {device}")
+        logger.info(f"TensorRT enabled: {self.use_tensorrt}")
+        if self.tensorrt_engine_path:
+            logger.info(f"TensorRT engine: {self.tensorrt_engine_path}")
 
     def load_model(self) -> None:
-        """Load the model into memory using HuggingFace Transformers."""
+        """Load the model into memory.
+
+        If TensorRT is enabled and the engine file exists, uses TensorRT backend.
+        Otherwise falls back to PyTorch with HuggingFace Transformers.
+        """
+        # Try TensorRT first if enabled
+        if self.use_tensorrt and self.tensorrt_engine_path:
+            if self._try_load_tensorrt():
+                return  # Successfully loaded TensorRT
+
+        # Fall back to PyTorch
+        self._load_pytorch()
+
+    def _try_load_tensorrt(self) -> bool:
+        """Attempt to load TensorRT backend.
+
+        Returns:
+            True if TensorRT loaded successfully, False otherwise.
+        """
         try:
-            logger.info("Loading CLIP model with HuggingFace Transformers...")
+            # Check if engine file exists
+            if not os.path.exists(self.tensorrt_engine_path):  # type: ignore[arg-type]
+                logger.warning(
+                    f"TensorRT engine not found: {self.tensorrt_engine_path}, "
+                    "falling back to PyTorch"
+                )
+                return False
+
+            # Import TensorRT backend
+            from tensorrt_inference import CLIPTensorRTInference
+
+            logger.info("Loading CLIP with TensorRT backend...")
+            self._tensorrt_backend = CLIPTensorRTInference(
+                engine_path=self.tensorrt_engine_path,  # type: ignore[arg-type]
+                device=self.device,
+            )
+            self.backend_type = "tensorrt"
+
+            # Still need processor for text encoding (classify, similarity endpoints)
+            self.processor = CLIPProcessor.from_pretrained(self.model_path)
+
+            logger.info("TensorRT backend loaded successfully")
+            logger.info(f"  Engine: {self.tensorrt_engine_path}")
+            logger.info(f"  Device: {self.device}")
+            return True
+
+        except ImportError as e:
+            logger.warning(f"TensorRT import failed: {e}, falling back to PyTorch")
+            return False
+        except Exception as e:
+            logger.warning(f"TensorRT load failed: {e}, falling back to PyTorch")
+            return False
+
+    def _load_pytorch(self) -> None:
+        """Load PyTorch backend with HuggingFace Transformers."""
+        try:
+            logger.info("Loading CLIP model with HuggingFace Transformers (PyTorch)...")
 
             # Determine device and dtype
             if "cuda" in self.device and torch.cuda.is_available():
@@ -426,13 +535,14 @@ class CLIPEmbeddingModel:
 
             # Set model to evaluation mode
             self.model.eval()
+            self.backend_type = "pytorch"
 
             # Warmup inference
             self._warmup()
-            logger.info("Model loaded and warmed up successfully")
+            logger.info("PyTorch backend loaded and warmed up successfully")
 
         except Exception as e:
-            logger.error(f"Failed to load model: {e}")
+            logger.error(f"Failed to load PyTorch model: {e}")
             raise
 
     def _warmup(self, num_iterations: int = 3) -> None:
@@ -454,12 +564,20 @@ class CLIPEmbeddingModel:
     def extract_embedding(self, image: Image.Image) -> tuple[list[float], float]:
         """Generate a 768-dimensional embedding from an image.
 
+        Uses TensorRT backend if available, otherwise PyTorch.
+
         Args:
             image: PIL Image to process
 
         Returns:
             Tuple of (embedding list, inference_time_ms)
         """
+        # Use TensorRT backend if available
+        if self._tensorrt_backend is not None:
+            result: tuple[list[float], float] = self._tensorrt_backend.extract_embedding(image)
+            return result
+
+        # PyTorch backend
         if self.model is None or self.processor is None:
             raise RuntimeError("Model not loaded")
 
@@ -505,6 +623,7 @@ class CLIPEmbeddingModel:
         - 2.0 = opposite direction (theoretically maximum anomaly)
 
         In practice, scores are clamped to [0, 1] for usability.
+        Uses TensorRT backend if available.
 
         Args:
             image: PIL Image to analyze
@@ -513,9 +632,16 @@ class CLIPEmbeddingModel:
         Returns:
             Tuple of (anomaly_score, similarity, inference_time_ms)
         """
+        # Use TensorRT backend if available
+        if self._tensorrt_backend is not None:
+            result: tuple[float, float, float] = self._tensorrt_backend.compute_anomaly_score(
+                image, baseline_embedding
+            )
+            return result
+
         start_time = time.perf_counter()
 
-        # Extract embedding for current image
+        # Extract embedding for current image (PyTorch path)
         current_embedding, _ = self.extract_embedding(image)
 
         # Convert to tensors for cosine similarity computation
@@ -902,14 +1028,23 @@ async def health_check() -> HealthResponse:
     device = "cuda:0" if cuda_available else "cpu"
     vram_used = get_vram_usage() if cuda_available else None
 
+    # Determine if model is loaded (either PyTorch or TensorRT)
+    model_loaded = model is not None and (
+        model.model is not None or model._tensorrt_backend is not None
+    )
+    backend_type = model.backend_type if model is not None else "pytorch"
+    engine_path = model.tensorrt_engine_path if model is not None else None
+
     return HealthResponse(
-        status="healthy" if model is not None and model.model is not None else "degraded",
+        status="healthy" if model_loaded else "degraded",
         model="clip-vit-large-patch14",
-        model_loaded=model is not None and model.model is not None,
+        model_loaded=model_loaded,
         device=device,
         cuda_available=cuda_available,
         vram_used_gb=vram_used,
         embedding_dimension=EMBEDDING_DIMENSION,
+        backend=backend_type,
+        tensorrt_engine_path=engine_path,
     )
 
 
@@ -920,8 +1055,15 @@ async def metrics() -> Response:
     Returns metrics in Prometheus text format for scraping.
     Updates GPU metrics gauges before returning.
     """
-    # Update model status gauge
-    MODEL_LOADED.set(1 if model is not None and model.model is not None else 0)
+    # Update model status gauge (either PyTorch or TensorRT)
+    model_loaded = model is not None and (
+        model.model is not None or model._tensorrt_backend is not None
+    )
+    MODEL_LOADED.set(1 if model_loaded else 0)
+
+    # Update backend type gauge (0=pytorch, 1=tensorrt)
+    if model is not None:
+        BACKEND_TYPE.set(1 if model.backend_type == "tensorrt" else 0)
 
     # Update GPU metrics gauges
     if torch.cuda.is_available():
@@ -942,7 +1084,11 @@ async def embed(request: EmbedRequest) -> EmbedResponse:
     Returns:
         Embedding results with the 768-dim vector and inference time
     """
-    if model is None or model.model is None:
+    # Check if model is loaded (either PyTorch or TensorRT)
+    model_loaded = model is not None and (
+        model.model is not None or model._tensorrt_backend is not None
+    )
+    if not model_loaded:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     try:
@@ -978,6 +1124,7 @@ async def embed(request: EmbedRequest) -> EmbedResponse:
 
         # Generate embedding with metrics tracking
         start_time = time.perf_counter()
+        assert model is not None  # Already checked at start of function
         embedding, inference_time_ms = model.extract_embedding(image)
         latency_seconds = time.perf_counter() - start_time
 

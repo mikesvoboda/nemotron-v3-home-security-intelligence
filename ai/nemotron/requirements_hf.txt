@@ -1,0 +1,31 @@
+# Requirements for Nemotron HuggingFace Server with BitsAndBytes Quantization
+# This file is for the HuggingFace Transformers-based server (model_hf.py)
+# For the llama.cpp-based server, see the Dockerfile which builds from source
+
+# Core dependencies
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.10.0
+
+# HuggingFace Transformers
+transformers>=4.57.3
+accelerate>=1.12.0
+huggingface-hub>=0.36.0
+
+# PyTorch (CUDA 12.1 wheels - adjust URL for different CUDA versions)
+# Install separately with: pip install torch --index-url https://download.pytorch.org/whl/cu121
+torch>=2.0.0
+
+# BitsAndBytes quantization (NEM-3810)
+# Provides 4-bit and 8-bit quantization for efficient LLM inference
+# Requires CUDA-capable GPU
+bitsandbytes>=0.44.0
+
+# Metrics
+prometheus-client>=0.21.0
+
+# Optional: sentencepiece for some tokenizers
+sentencepiece>=0.2.0
+
+# Optional: protobuf for some model configs
+protobuf>=4.25.0

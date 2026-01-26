@@ -26,6 +26,11 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
     ports:
       - '5432:5432'
     volumes:
@@ -53,6 +58,11 @@ services:
   # Uses hosted endpoint if AI_MODELS_PATH not set
   ai-detector:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-detector:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/rtdetr/.cache
     profiles:
       - with-ai # Run with: docker compose --profile with-ai -f docker-compose.staging.yml up -d
     ports:
@@ -88,6 +98,11 @@ services:
   # Nemotron LLM for risk analysis
   ai-llm:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-llm:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/llama/.cache
     profiles:
       - with-ai
     ports:
@@ -117,6 +132,11 @@ services:
   # Florence-2 vision-language model for dense captioning
   ai-florence:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-florence:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/florence/.cache
     profiles:
       - with-ai
     ports:
@@ -145,6 +165,11 @@ services:
   # CLIP ViT-L for entity re-identification
   ai-clip:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-clip:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/clip/.cache
     profiles:
       - with-ai
     ports:
@@ -173,6 +198,11 @@ services:
   # Combined enrichment service for vehicle, pet, and clothing classification
   ai-enrichment:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-enrichment:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/enrichment/.cache
     profiles:
       - with-ai
     ports:
@@ -206,6 +236,10 @@ services:
 
   redis:
     image: redis:7.4-alpine3.21
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
     ports:
       - '6379:6379'
     volumes:
@@ -245,6 +279,11 @@ services:
 
   backend:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/backend:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/appuser/.cache
     ports:
       - '8000:8000'
     volumes:
@@ -301,6 +340,12 @@ services:
 
   frontend:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
+      - /var/cache/nginx
     ports:
       - '${FRONTEND_PORT:-5173}:5173'
     depends_on:

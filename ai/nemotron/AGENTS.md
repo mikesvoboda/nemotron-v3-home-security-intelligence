@@ -9,7 +9,7 @@ Contains configuration for **NVIDIA Nemotron** language models that power AI-dri
 ## Port and Resources
 
 - **Port**: 8091
-- **Server**: llama.cpp with CUDA 13.1.0
+- **Server**: llama.cpp with CUDA 13.1.0 (or HuggingFace Transformers for `model_hf.py`)
 - **Inference Time**: 2-5s per analysis
 - **Format**: ChatML with `<|im_start|>` / `<|im_end|>` message delimiters
 
@@ -19,6 +19,7 @@ Contains configuration for **NVIDIA Nemotron** language models that power AI-dri
 ai/nemotron/
 ├── AGENTS.md       # This file
 ├── Dockerfile      # Multi-stage build for llama.cpp with CUDA
+├── model_hf.py     # HuggingFace Transformers server with quantization & FlashAttention-2
 ├── config.json     # llama.cpp server config reference
 └── .gitkeep        # Placeholder (GGUF models downloaded at runtime)
 ```
@@ -68,6 +69,81 @@ For development and resource-constrained environments.
 | **VRAM Required**  | ~3 GB                                                                                                       |
 | **Context Window** | 4,096 tokens                                                                                                |
 | **Startup Script** | `../start_llm.sh`                                                                                           |
+
+## HuggingFace Transformers Server (model_hf.py)
+
+An alternative inference server using native HuggingFace Transformers with performance optimizations.
+
+### Features
+
+- **BitsAndBytes Quantization (NEM-3810)**: 4-bit and 8-bit quantization for reduced VRAM usage
+- **FlashAttention-2 (NEM-3811)**: 2-4x faster attention computation on Ampere+ GPUs
+- **torch.compile()**: Additional inference optimization via PyTorch 2.0+
+
+### Environment Variables
+
+| Variable                       | Default                          | Description                                          |
+| ------------------------------ | -------------------------------- | ---------------------------------------------------- |
+| `NEMOTRON_MODEL_PATH`          | `nvidia/Nemotron-3-Nano-30B-A3B` | HuggingFace model path or name                       |
+| `NEMOTRON_QUANTIZATION`        | `4bit`                           | Quantization mode: `4bit`, `8bit`, `none`            |
+| `NEMOTRON_4BIT_QUANT_TYPE`     | `nf4`                            | 4-bit type: `nf4` (recommended), `fp4`               |
+| `NEMOTRON_4BIT_DOUBLE_QUANT`   | `true`                           | Enable double quantization for extra memory savings  |
+| `NEMOTRON_COMPUTE_DTYPE`       | `float16`                        | Compute dtype: `float16`, `bfloat16`                 |
+| `NEMOTRON_USE_FLASH_ATTENTION` | `true`                           | Enable FlashAttention-2 (auto-detects compatibility) |
+| `NEMOTRON_MAX_NEW_TOKENS`      | `1536`                           | Maximum tokens to generate                           |
+| `NEMOTRON_USE_COMPILE`         | `true`                           | Enable torch.compile() optimization                  |
+
+### FlashAttention-2 Requirements
+
+FlashAttention-2 provides 2-4x speedup for attention layers but requires:
+
+1. **GPU**: NVIDIA Ampere (SM 8.0) or newer
+   - Data center: A100, A10, A30, A40, H100, H200
+   - Consumer: RTX 3090/3080/3070/3060, RTX 4090/4080/4070/4060
+2. **PyTorch**: 2.0 or newer
+3. **Package**: `flash-attn>=2.5.0` (optional, falls back to SDPA if not installed)
+
+Install flash-attn (requires CUDA compilation):
+
+```bash
+pip install flash-attn --no-build-isolation
+```
+
+### Starting the HuggingFace Server
+
+```bash
+# With default settings (4-bit quantization + FlashAttention-2)
+python ai/nemotron/model_hf.py
+
+# With custom settings
+NEMOTRON_QUANTIZATION=8bit \
+NEMOTRON_USE_FLASH_ATTENTION=false \
+python ai/nemotron/model_hf.py
+```
+
+### Health Check Response
+
+The `/health` endpoint shows optimization status:
+
+```json
+{
+  "status": "healthy",
+  "model": "Nemotron-3-Nano-30B-A3B",
+  "model_loaded": true,
+  "device": "cuda:0",
+  "cuda_available": true,
+  "vram_used_gb": 17.2,
+  "quantization": "4bit",
+  "quantization_details": {
+    "mode": "4bit",
+    "quant_type": "nf4",
+    "double_quant": true,
+    "compute_dtype": "torch.float16"
+  },
+  "attention_implementation": "flash_attention_2",
+  "flash_attention_available": true
+}
+```
 
 ## Key Files
 
