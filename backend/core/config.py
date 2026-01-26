@@ -13,7 +13,7 @@ import os
 import sys
 from functools import cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import AnyHttpUrl, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -746,6 +746,12 @@ class Settings(BaseSettings):
         "Prevents memory exhaustion and LLM timeouts with large batches.",
     )
 
+    # Detector selection
+    detector_type: Literal["rtdetr", "yolo26"] = Field(
+        default="rtdetr",
+        description="Object detection model to use: rtdetr (RT-DETRv2) or yolo26 (YOLO26 TensorRT)",
+    )
+
     # AI service endpoints (validated as URLs using Pydantic AnyHttpUrl)
     # Stored as str after validation for compatibility with httpx clients
     # Development: http://localhost:8090 (local dev)
@@ -753,6 +759,13 @@ class Settings(BaseSettings):
     rtdetr_url: str = Field(
         default="http://localhost:8090",
         description="RT-DETRv2 detection service URL. Development: http://localhost:8090, Docker: http://ai-detector:8090",
+    )
+    # YOLO26 Detector Settings
+    # Development: http://localhost:8095 (local dev)
+    # Docker: http://ai-yolo26:8095 (container network)
+    yolo26_url: str = Field(
+        default="http://ai-yolo26:8095",
+        description="URL of the YOLO26 detection service",
     )
     # Development: http://localhost:8091 (local dev)
     # Docker: http://ai-llm:8091 (container network)
@@ -766,6 +779,10 @@ class Settings(BaseSettings):
     rtdetr_api_key: SecretStr | None = Field(
         default=None,
         description="API key for RT-DETRv2 service authentication (optional, sent via X-API-Key header)",
+    )
+    yolo26_api_key: SecretStr | None = Field(
+        default=None,
+        description="Optional API key for YOLO26 service authentication",
     )
     nemotron_api_key: SecretStr | None = Field(
         default=None,
@@ -790,6 +807,18 @@ class Settings(BaseSettings):
         ge=10.0,
         le=300.0,
         description="Maximum time (seconds) to wait for RT-DETR detection response",
+    )
+    yolo26_read_timeout: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=120.0,
+        description="Read timeout for YOLO26 inference requests (seconds)",
+    )
+    yolo26_confidence: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="YOLO26 detection confidence threshold",
     )
     nemotron_read_timeout: float = Field(
         default=120.0,
@@ -915,7 +944,7 @@ class Settings(BaseSettings):
         description="Test prompt used for Nemotron warmup. Should be simple and quick to process.",
     )
 
-    @field_validator("rtdetr_url", "nemotron_url", mode="before")
+    @field_validator("rtdetr_url", "yolo26_url", "nemotron_url", mode="before")
     @classmethod
     def validate_ai_service_urls(cls, v: Any) -> str:
         """Validate AI service URLs using Pydantic's AnyHttpUrl validator.

@@ -155,9 +155,22 @@ frontend/
   src/hooks/           # Custom hooks
   src/services/        # API client
 ai/
-  rtdetr/              # RT-DETRv2 detection server
+  rtdetr/              # RT-DETRv2 detection server (default)
+  yolo26/              # YOLO26 detection server (alternative, 5x faster)
   nemotron/            # Nemotron model files
 docs/decisions/        # Architectural decision records
+```
+
+## Detector Configuration
+
+The system supports two object detectors. Configure via `DETECTOR_TYPE` environment variable:
+
+```bash
+# Default: RT-DETRv2 (transformer-based, higher accuracy)
+DETECTOR_TYPE=rtdetr
+
+# Alternative: YOLO26 (5.3x faster, 174 FPS with TensorRT)
+DETECTOR_TYPE=yolo26
 ```
 
 ## Session Workflow
