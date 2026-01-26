@@ -23,6 +23,7 @@ import PipelineLatencyPanel from './PipelineLatencyPanel';
 import RiskHistoryCard from './RiskHistoryCard';
 import RiskScoreDistributionCard from './RiskScoreDistributionCard';
 import RiskScoreTrendCard from './RiskScoreTrendCard';
+import WeekOverWeekCard from './WeekOverWeekCard';
 import { useCameraAnalytics } from '../../hooks/useCameraAnalytics';
 import { fetchConfig } from '../../services/api';
 import { resolveGrafanaUrl } from '../../utils/grafanaUrl';
@@ -197,6 +198,7 @@ export default function AnalyticsPage() {
               Refresh
             </button>
           )}
+
         </div>
       </div>
 
@@ -248,6 +250,9 @@ export default function AnalyticsPage() {
               error={statsError}
               cameraName={selectedCamera?.name}
             />
+          </div>
+          <div className="md:col-span-2">
+            <WeekOverWeekCard />
           </div>
           <DetectionTrendsCard dateRange={dateRange} />
           <RiskHistoryCard dateRange={dateRange} />

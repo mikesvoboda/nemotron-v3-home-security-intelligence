@@ -124,6 +124,10 @@ vi.mock('./CameraAnalyticsDetail', () => ({
   default: () => <div data-testid="camera-analytics-detail">Camera Analytics Detail Mock</div>,
 }));
 
+vi.mock('./WeekOverWeekCard', () => ({
+  default: () => <div data-testid="week-over-week-card">Week Over Week Mock</div>,
+}));
+
 const renderWithRouter = () => {
   return render(
     <MemoryRouter>
