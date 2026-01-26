@@ -1574,7 +1574,8 @@ async def test_get_config_returns_settings() -> None:
     mock_settings.debug = False
 
     with patch.object(system_routes, "get_settings", return_value=mock_settings):
-        response = await system_routes.get_config()
+        mock_response = MagicMock()
+        response = await system_routes.get_config(response=mock_response)
 
     assert isinstance(response, ConfigResponse)
     assert response.app_name == "Home Security Intelligence"
