@@ -9,6 +9,7 @@ import {
   Bell,
   Brain,
   Briefcase,
+  Calendar,
   ClipboardCheck,
   Clock,
   Cpu,
@@ -90,6 +91,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { id: 'audit', label: 'Audit Log', icon: Shield, path: '/audit' },
       { id: 'data', label: 'Data Management', icon: Database, path: '/data' },
+      { id: 'scheduled-reports', label: 'Scheduled Reports', icon: Calendar, path: '/scheduled-reports' },
       { id: 'webhooks', label: 'Webhooks', icon: Webhook, path: '/webhooks' },
       { id: 'trash', label: 'Trash', icon: Trash2, path: '/trash' },
       { id: 'gpu-settings', label: 'GPU Settings', icon: Cpu, path: '/settings/gpu' },
