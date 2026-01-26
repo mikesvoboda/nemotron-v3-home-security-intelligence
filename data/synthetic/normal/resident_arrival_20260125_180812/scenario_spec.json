@@ -6,9 +6,7 @@
   "scene": {
     "location": "front_porch",
     "camera_type": "doorbell",
-    "camera_effects": [
-      "fisheye_distortion"
-    ],
+    "camera_effects": ["fisheye_distortion"],
     "timestamp_overlay": true,
     "resolution": "1080p"
   },
@@ -60,15 +58,8 @@
       "expected_factors": []
     },
     "florence_caption": {
-      "must_contain": [
-        "person",
-        "door"
-      ],
-      "must_not_contain": [
-        "suspicious",
-        "threat",
-        "weapon"
-      ]
+      "must_contain": ["person", "door"],
+      "must_not_contain": ["suspicious", "threat", "weapon"]
     }
   },
   "generation": {
@@ -85,19 +76,14 @@
         "lighting": "porch_light"
       },
       "scene_overrides": {
-        "camera_effects": [
-          "fisheye_distortion",
-          "ir_night_vision"
-        ]
+        "camera_effects": ["fisheye_distortion", "ir_night_vision"]
       },
       "expected_output_overrides": {
         "risk": {
           "min_score": 5,
           "max_score": 25,
           "level": "low",
-          "expected_factors": [
-            "nighttime"
-          ]
+          "expected_factors": ["nighttime"]
         }
       }
     },
@@ -142,9 +128,7 @@
             "clothing": "casual",
             "face_visible": true,
             "carrying_items": true,
-            "items": [
-              "grocery_bags"
-            ]
+            "items": ["grocery_bags"]
           },
           "behavior_notes": "Walking to door while carrying multiple shopping bags"
         }
@@ -179,9 +163,7 @@
             "clothing": "raincoat_or_umbrella",
             "face_visible": true,
             "carrying_items": true,
-            "items": [
-              "umbrella"
-            ]
+            "items": ["umbrella"]
           }
         }
       ],

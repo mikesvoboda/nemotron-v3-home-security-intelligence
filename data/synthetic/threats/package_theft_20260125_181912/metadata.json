@@ -7,9 +7,7 @@
   "count_generated": 1,
   "count_failed": 0,
   "generated_at": "2026-01-25T23:19:49.198561+00:00",
-  "files": [
-    "media/001.png"
-  ],
+  "files": ["media/001.png"],
   "applied_modifiers": {
     "variation": null,
     "time": null,

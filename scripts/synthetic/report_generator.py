@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -206,7 +206,7 @@ class ReportGenerator:
         Returns:
             Dictionary containing the complete report structure
         """
-        tested_at = datetime.now(timezone.utc).isoformat()
+        tested_at = datetime.now(UTC).isoformat()
 
         if generated_at is None:
             # Default to tested_at if not provided
@@ -275,9 +275,7 @@ class ReportGenerator:
         models_tested = len({r.model_name for r in results})
 
         # Calculate average inference time
-        inference_times = [
-            r.inference_time_ms for r in results if r.inference_time_ms is not None
-        ]
+        inference_times = [r.inference_time_ms for r in results if r.inference_time_ms is not None]
         avg_inference_time_ms = (
             sum(inference_times) / len(inference_times) if inference_times else None
         )
@@ -293,9 +291,7 @@ class ReportGenerator:
             ),
         )
 
-    def format_failures(
-        self, results: Sequence[SampleModelResult]
-    ) -> list[FailureDetail]:
+    def format_failures(self, results: Sequence[SampleModelResult]) -> list[FailureDetail]:
         """Extract and format failure details from results.
 
         Args:
@@ -342,9 +338,7 @@ class ReportGenerator:
             print(f"Error saving report to {output_path}: {e}")
             return False
 
-    def save_report_for_run(
-        self, report: dict[str, Any], run_id: str | None = None
-    ) -> Path | None:
+    def save_report_for_run(self, report: dict[str, Any], run_id: str | None = None) -> Path | None:
         """Save a report to the default results directory.
 
         Uses the run_id from the report or a provided override to generate

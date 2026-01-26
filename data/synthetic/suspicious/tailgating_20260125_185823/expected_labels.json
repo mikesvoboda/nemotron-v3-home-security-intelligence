@@ -36,20 +36,10 @@
     "min_score": 60,
     "max_score": 85,
     "level": "high",
-    "expected_factors": [
-      "tailgating",
-      "obscured_face",
-      "concealment_attempt"
-    ]
+    "expected_factors": ["tailgating", "obscured_face", "concealment_attempt"]
   },
   "florence_caption": {
-    "must_contain": [
-      "person",
-      "people"
-    ],
-    "must_not_contain": [
-      "delivery",
-      "uniform"
-    ]
+    "must_contain": ["person", "people"],
+    "must_not_contain": ["delivery", "uniform"]
   }
 }

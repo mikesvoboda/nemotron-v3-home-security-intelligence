@@ -36,9 +36,7 @@
   ],
 
   "expected_outputs": {
-    "detections": [
-      { "class": "car", "min_confidence": 0.80, "count": 1 }
-    ],
+    "detections": [{ "class": "car", "min_confidence": 0.8, "count": 1 }],
     "license_plate": {
       "detected": true,
       "text_pattern": "^[A-Z0-9]{5,8}$"
@@ -155,7 +153,7 @@
       ],
       "expected_output_overrides": {
         "detections": [
-          { "class": "car", "min_confidence": 0.80, "count": 1 },
+          { "class": "car", "min_confidence": 0.8, "count": 1 },
           { "class": "person", "min_confidence": 0.75, "count": 1 }
         ],
         "face": {
@@ -178,9 +176,7 @@
         }
       ],
       "expected_output_overrides": {
-        "detections": [
-          { "class": "motorcycle", "min_confidence": 0.75, "count": 1 }
-        ],
+        "detections": [{ "class": "motorcycle", "min_confidence": 0.75, "count": 1 }],
         "vehicle": {
           "type": "motorcycle",
           "color": "black"
@@ -201,9 +197,7 @@
         }
       ],
       "expected_output_overrides": {
-        "detections": [
-          { "class": "car", "min_confidence": 0.80, "count": 2 }
-        ]
+        "detections": [{ "class": "car", "min_confidence": 0.8, "count": 2 }]
       }
     }
   ]

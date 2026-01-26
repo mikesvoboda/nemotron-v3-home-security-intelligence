@@ -7,11 +7,7 @@
   "count_generated": 3,
   "count_failed": 0,
   "generated_at": "2026-01-25T23:42:19.454544+00:00",
-  "files": [
-    "media/001.mp4",
-    "media/002.mp4",
-    "media/003.mp4"
-  ],
+  "files": ["media/001.mp4", "media/002.mp4", "media/003.mp4"],
   "applied_modifiers": {
     "variation": null,
     "time": null,

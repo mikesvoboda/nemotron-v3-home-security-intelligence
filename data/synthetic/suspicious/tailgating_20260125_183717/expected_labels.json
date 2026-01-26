@@ -36,20 +36,10 @@
     "min_score": 45,
     "max_score": 70,
     "level": "medium",
-    "expected_factors": [
-      "tailgating",
-      "unauthorized_entry_attempt",
-      "social_engineering"
-    ]
+    "expected_factors": ["tailgating", "unauthorized_entry_attempt", "social_engineering"]
   },
   "florence_caption": {
-    "must_contain": [
-      "person",
-      "people"
-    ],
-    "must_not_contain": [
-      "delivery",
-      "uniform"
-    ]
+    "must_contain": ["person", "people"],
+    "must_not_contain": ["delivery", "uniform"]
   }
 }
