@@ -621,7 +621,7 @@ Provides FastAPI-compatible dependency functions that inject services from the D
 | `get_context_enricher_dependency`       | ContextEnricher         | Detection context enrichment      |
 | `get_enrichment_pipeline_dependency`    | EnrichmentPipeline      | Full enrichment pipeline          |
 | `get_nemotron_analyzer_dependency`      | NemotronAnalyzer        | LLM risk analysis                 |
-| `get_detector_dependency`               | DetectorClient          | YOLO26 object detection           |
+| `get_detector_dependency`               | DetectorClient          | YOLO26 object detection          |
 | `get_face_detector_service_dependency`  | FaceDetectorService     | Face detection in person regions  |
 | `get_plate_detector_service_dependency` | PlateDetectorService    | License plate detection           |
 | `get_ocr_service_dependency`            | OCRService              | Plate text recognition            |
