@@ -183,7 +183,7 @@ class TestCollectGpuFallback:
         Regression test for NEM-1266: int_from_float validation error.
         """
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
             collector = PerformanceCollector()
 
@@ -218,7 +218,7 @@ class TestCollectGpuFallback:
     async def test_collect_gpu_fallback_handles_int_values(self) -> None:
         """Test that GPU fallback works when API returns int values."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
             collector = PerformanceCollector()
 
@@ -249,7 +249,7 @@ class TestCollectGpuFallback:
     async def test_collect_gpu_fallback_handles_missing_values(self) -> None:
         """Test that GPU fallback uses default values when fields are missing."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
             collector = PerformanceCollector()
 
@@ -279,7 +279,7 @@ class TestCollectGpuFallback:
     async def test_collect_gpu_fallback_returns_none_on_error(self) -> None:
         """Test that GPU fallback returns None on HTTP error."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
             collector = PerformanceCollector()
 
@@ -296,7 +296,7 @@ class TestCollectGpuFallback:
     async def test_collect_gpu_fallback_returns_none_on_non_200(self) -> None:
         """Test that GPU fallback returns None on non-200 status."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
             collector = PerformanceCollector()
 
@@ -326,7 +326,7 @@ class TestCollectGpuMetrics:
         Regression test for NEM-1266: int_from_float validation error.
         """
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
             collector = PerformanceCollector()
             collector._pynvml_available = False  # Force fallback path
@@ -579,7 +579,7 @@ class TestCollectContainerHealth:
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(
                 frontend_url="http://frontend:8080",
-                rtdetr_url="http://ai-detector:8090",
+                yolo26_url="http://ai-detector:8090",
                 nemotron_url="http://ai-llm:8091",
             )
 
@@ -819,14 +819,14 @@ class TestAlertGeneration:
 # =============================================================================
 
 
-class TestCollectRtdetrMetrics:
-    """Tests for collect_rtdetr_metrics method."""
+class TestCollectYolo26Metrics:
+    """Tests for collect_yolo26_metrics method."""
 
     @pytest.mark.asyncio
-    async def test_collect_rtdetr_metrics_healthy(self) -> None:
+    async def test_collect_yolo26_metrics_healthy(self) -> None:
         """Test successful RT-DETRv2 metrics collection."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
             collector = PerformanceCollector()
 
@@ -844,7 +844,7 @@ class TestCollectRtdetrMetrics:
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
 
-                result = await collector.collect_rtdetr_metrics()
+                result = await collector.collect_yolo26_metrics()
 
                 assert result is not None
                 assert result.status == "healthy"
@@ -853,10 +853,10 @@ class TestCollectRtdetrMetrics:
                 assert result.device == "cuda:0"
 
     @pytest.mark.asyncio
-    async def test_collect_rtdetr_metrics_unhealthy_status(self) -> None:
+    async def test_collect_yolo26_metrics_unhealthy_status(self) -> None:
         """Test RT-DETRv2 metrics with unhealthy status."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
             collector = PerformanceCollector()
 
@@ -874,16 +874,16 @@ class TestCollectRtdetrMetrics:
                 mock_client.get.return_value = mock_response
                 mock_get_client.return_value = mock_client
 
-                result = await collector.collect_rtdetr_metrics()
+                result = await collector.collect_yolo26_metrics()
 
                 assert result is not None
                 assert result.status == "unhealthy"
 
     @pytest.mark.asyncio
-    async def test_collect_rtdetr_metrics_connection_error(self) -> None:
+    async def test_collect_yolo26_metrics_connection_error(self) -> None:
         """Test RT-DETRv2 metrics returns unreachable on connection error."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
-            mock_settings.return_value = MagicMock(rtdetr_url="http://ai-detector:8090")
+            mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
             collector = PerformanceCollector()
 
@@ -892,7 +892,7 @@ class TestCollectRtdetrMetrics:
                 mock_client.get.side_effect = Exception("Connection refused")
                 mock_get_client.return_value = mock_client
 
-                result = await collector.collect_rtdetr_metrics()
+                result = await collector.collect_yolo26_metrics()
 
                 assert result is not None
                 assert result.status == "unreachable"
@@ -1662,7 +1662,7 @@ class TestCollectAll:
             )
 
             rtdetr_metrics = AiModelMetrics(
-                status="healthy", vram_gb=5.0, model="rtdetr", device="cuda:0"
+                status="healthy", vram_gb=5.0, model="yolo26", device="cuda:0"
             )
 
             nemotron_metrics = NemotronMetrics(
@@ -1708,7 +1708,7 @@ class TestCollectAll:
 
             with (
                 patch.object(collector, "collect_gpu_metrics", return_value=gpu_metrics),
-                patch.object(collector, "collect_rtdetr_metrics", return_value=rtdetr_metrics),
+                patch.object(collector, "collect_yolo26_metrics", return_value=rtdetr_metrics),
                 patch.object(collector, "collect_nemotron_metrics", return_value=nemotron_metrics),
                 patch.object(collector, "collect_host_metrics", return_value=host_metrics),
                 patch.object(
@@ -1724,7 +1724,7 @@ class TestCollectAll:
 
                 assert result is not None
                 assert result.gpu == gpu_metrics
-                assert "rtdetr" in result.ai_models
+                assert "yolo26" in result.ai_models
                 assert "nemotron" in result.ai_models
                 assert result.nemotron == nemotron_metrics
                 assert result.inference == inference_metrics
@@ -1745,7 +1745,7 @@ class TestCollectAll:
             # Mock all collector methods to return None
             with (
                 patch.object(collector, "collect_gpu_metrics", return_value=None),
-                patch.object(collector, "collect_rtdetr_metrics", return_value=None),
+                patch.object(collector, "collect_yolo26_metrics", return_value=None),
                 patch.object(collector, "collect_nemotron_metrics", return_value=None),
                 patch.object(collector, "collect_host_metrics", return_value=None),
                 patch.object(collector, "collect_postgresql_metrics", return_value=None),
@@ -1816,7 +1816,7 @@ class TestCollectAll:
 
             with (
                 patch.object(collector, "collect_gpu_metrics", return_value=gpu_metrics),
-                patch.object(collector, "collect_rtdetr_metrics", return_value=None),
+                patch.object(collector, "collect_yolo26_metrics", return_value=None),
                 patch.object(collector, "collect_nemotron_metrics", return_value=None),
                 patch.object(collector, "collect_host_metrics", return_value=host_metrics),
                 patch.object(

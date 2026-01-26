@@ -447,7 +447,7 @@ class SystemBroadcaster:
                     "closed": 5
                 },
                 "breakers": {
-                    "rtdetr": {"state": "closed", "failure_count": 0},
+                    "yolo26": {"state": "closed", "failure_count": 0},
                     "nemotron": {"state": "closed", "failure_count": 0},
                     ...
                 }
@@ -830,7 +830,7 @@ class SystemBroadcaster:
                 "health": health_status,
                 "ai": {
                     "status": ai_status,
-                    "rtdetr": "healthy" if ai_health["rtdetr"] else "unhealthy",
+                    "yolo26": "healthy" if ai_health["yolo26"] else "unhealthy",
                     "nemotron": "healthy" if ai_health["nemotron"] else "unhealthy",
                 },
             },

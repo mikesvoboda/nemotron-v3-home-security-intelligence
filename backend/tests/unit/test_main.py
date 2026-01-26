@@ -39,7 +39,7 @@ class TestInitCircuitBreakers:
 
         # Should return all 4 known services
         assert len(breaker_names) == 4
-        assert "rtdetr" in breaker_names
+        assert "yolo26" in breaker_names
         assert "nemotron" in breaker_names
         assert "postgresql" in breaker_names
         assert "redis" in breaker_names
@@ -53,7 +53,7 @@ class TestInitCircuitBreakers:
         registry = _get_registry()
         all_status = registry.get_all_status()
 
-        assert "rtdetr" in all_status
+        assert "yolo26" in all_status
         assert "nemotron" in all_status
         assert "postgresql" in all_status
         assert "redis" in all_status
@@ -68,7 +68,7 @@ class TestInitCircuitBreakers:
         all_status = registry.get_all_status()
 
         # AI services should have failure_threshold=5
-        rtdetr_config = all_status["rtdetr"]["config"]
+        rtdetr_config = all_status["yolo26"]["config"]
         nemotron_config = all_status["nemotron"]["config"]
         assert rtdetr_config["failure_threshold"] == 5
         assert nemotron_config["failure_threshold"] == 5

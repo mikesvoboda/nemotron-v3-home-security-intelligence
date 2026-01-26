@@ -55,7 +55,7 @@ def mock_ai_health_settings():
     get_settings() to return valid settings without environment validation.
     """
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
     with patch.object(system_routes, "get_settings", return_value=mock_settings):
@@ -1358,7 +1358,7 @@ async def test_get_health_all_healthy() -> None:
 
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
     # Patch AI health check to avoid network calls
@@ -1366,7 +1366,7 @@ async def test_get_health_all_healthy() -> None:
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
         ),
         patch.object(
@@ -1405,7 +1405,7 @@ async def test_get_health_degraded_when_redis_unhealthy() -> None:
 
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
     # Patch AI health check to avoid network calls
@@ -1413,7 +1413,7 @@ async def test_get_health_degraded_when_redis_unhealthy() -> None:
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
         ),
         patch.object(
@@ -1446,7 +1446,7 @@ async def test_get_health_unhealthy_when_database_down() -> None:
 
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
     # Patch AI health check to avoid network calls
@@ -1454,7 +1454,7 @@ async def test_get_health_unhealthy_when_database_down() -> None:
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
         ),
         patch.object(
@@ -1486,7 +1486,7 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
 
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
     # Patch AI health check to avoid network calls
@@ -1494,7 +1494,7 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
         ),
         patch.object(
@@ -1526,7 +1526,7 @@ async def test_get_health_redis_none() -> None:
 
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
     # Patch AI health check to avoid network calls
@@ -1534,7 +1534,7 @@ async def test_get_health_redis_none() -> None:
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
         ),
         patch.object(
@@ -2237,7 +2237,7 @@ async def test_check_ai_services_health() -> None:
     with (
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
         ),
         patch.object(
@@ -2673,7 +2673,7 @@ async def test_trigger_cleanup_logs_operation() -> None:
 
 
 @pytest.mark.asyncio
-async def test_check_rtdetr_health_success() -> None:
+async def test_check_yolo26_health_success() -> None:
     """Test RT-DETR health check returns healthy when service responds."""
     with patch("httpx.AsyncClient.get") as mock_get:
         mock_response = MagicMock()
@@ -2681,17 +2681,17 @@ async def test_check_rtdetr_health_success() -> None:
         mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
 
-        is_healthy, error = await system_routes._check_rtdetr_health("http://localhost:8090", 3.0)
+        is_healthy, error = await system_routes._check_yolo26_health("http://localhost:8090", 3.0)
 
         assert is_healthy is True
         assert error is None
 
 
 @pytest.mark.asyncio
-async def test_check_rtdetr_health_connection_refused() -> None:
+async def test_check_yolo26_health_connection_refused() -> None:
     """Test RT-DETR health check handles connection refused error."""
     with patch("httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused")):
-        is_healthy, error = await system_routes._check_rtdetr_health("http://localhost:8090", 3.0)
+        is_healthy, error = await system_routes._check_yolo26_health("http://localhost:8090", 3.0)
 
         assert is_healthy is False
         assert error is not None
@@ -2699,10 +2699,10 @@ async def test_check_rtdetr_health_connection_refused() -> None:
 
 
 @pytest.mark.asyncio
-async def test_check_rtdetr_health_timeout() -> None:
+async def test_check_yolo26_health_timeout() -> None:
     """Test RT-DETR health check handles timeout error."""
     with patch("httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Timeout")):
-        is_healthy, error = await system_routes._check_rtdetr_health("http://localhost:8090", 3.0)
+        is_healthy, error = await system_routes._check_yolo26_health("http://localhost:8090", 3.0)
 
         assert is_healthy is False
         assert error is not None
@@ -2710,7 +2710,7 @@ async def test_check_rtdetr_health_timeout() -> None:
 
 
 @pytest.mark.asyncio
-async def test_check_rtdetr_health_http_error() -> None:
+async def test_check_yolo26_health_http_error() -> None:
     """Test RT-DETR health check handles HTTP error status."""
     with patch("httpx.AsyncClient.get") as mock_get:
         mock_response = MagicMock()
@@ -2720,7 +2720,7 @@ async def test_check_rtdetr_health_http_error() -> None:
         )
         mock_get.return_value = mock_response
 
-        is_healthy, error = await system_routes._check_rtdetr_health("http://localhost:8090", 3.0)
+        is_healthy, error = await system_routes._check_yolo26_health("http://localhost:8090", 3.0)
 
         assert is_healthy is False
         assert error is not None
@@ -2728,10 +2728,10 @@ async def test_check_rtdetr_health_http_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_check_rtdetr_health_unexpected_error() -> None:
+async def test_check_yolo26_health_unexpected_error() -> None:
     """Test RT-DETR health check handles unexpected error."""
     with patch("httpx.AsyncClient.get", side_effect=OSError("Unexpected network error")):
-        is_healthy, error = await system_routes._check_rtdetr_health("http://localhost:8090", 3.0)
+        is_healthy, error = await system_routes._check_yolo26_health("http://localhost:8090", 3.0)
 
         assert is_healthy is False
         assert error is not None
@@ -2809,14 +2809,14 @@ async def test_check_ai_services_health_both_healthy() -> None:
     """Test AI services health check when both services are healthy."""
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
         ),
         patch.object(
@@ -2830,7 +2830,7 @@ async def test_check_ai_services_health_both_healthy() -> None:
         assert status.status == "healthy"
         assert status.message == "AI services operational"
         assert status.details is not None
-        assert status.details["rtdetr"] == "healthy"
+        assert status.details["yolo26"] == "healthy"
         assert status.details["nemotron"] == "healthy"
 
 
@@ -2839,14 +2839,14 @@ async def test_check_ai_services_health_rtdetr_down() -> None:
     """Test AI services health check when RT-DETR is down but Nemotron is up."""
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(False, "RT-DETR service returned HTTP 500"),
         ),
         patch.object(
@@ -2863,7 +2863,7 @@ async def test_check_ai_services_health_rtdetr_down() -> None:
         assert "Nemotron" in status.message
         assert "operational" in status.message
         assert status.details is not None
-        assert "500" in status.details["rtdetr"]
+        assert "500" in status.details["yolo26"]
         assert status.details["nemotron"] == "healthy"
 
 
@@ -2872,14 +2872,14 @@ async def test_check_ai_services_health_nemotron_down() -> None:
     """Test AI services health check when Nemotron is down but RT-DETR is up."""
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
         ),
         patch.object(
@@ -2896,7 +2896,7 @@ async def test_check_ai_services_health_nemotron_down() -> None:
         assert "RT-DETR" in status.message
         assert "operational" in status.message
         assert status.details is not None
-        assert status.details["rtdetr"] == "healthy"
+        assert status.details["yolo26"] == "healthy"
         assert "500" in status.details["nemotron"]
 
 
@@ -2905,14 +2905,14 @@ async def test_check_ai_services_health_both_down() -> None:
     """Test AI services health check when both services are down."""
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(False, "RT-DETR service returned HTTP 500"),
         ),
         patch.object(
@@ -2926,7 +2926,7 @@ async def test_check_ai_services_health_both_down() -> None:
         assert status.status == "unhealthy"
         assert status.message == "All AI services unavailable"
         assert status.details is not None
-        assert "500" in status.details["rtdetr"]
+        assert "500" in status.details["yolo26"]
         assert "503" in status.details["nemotron"]
 
 
@@ -2944,7 +2944,7 @@ async def test_check_ai_services_health_returns_details() -> None:
     """Test that AI services health check always returns details dict."""
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8001"
+    mock_settings.yolo26_url = "http://localhost:8001"
     mock_settings.nemotron_url = "http://localhost:8002"
 
     # Both services down should still populate details
@@ -2952,7 +2952,7 @@ async def test_check_ai_services_health_returns_details() -> None:
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(False, "RT-DETR connection refused"),
         ),
         patch.object(
@@ -2964,7 +2964,7 @@ async def test_check_ai_services_health_returns_details() -> None:
         status = await system_routes.check_ai_services_health()
 
         assert status.details is not None
-        assert "rtdetr" in status.details
+        assert "yolo26" in status.details
         assert "nemotron" in status.details
 
 
@@ -2975,25 +2975,25 @@ async def test_check_ai_services_health_uses_config_urls() -> None:
         patch.object(system_routes, "get_settings") as mock_settings,
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
-        ) as mock_rtdetr,
+        ) as mock_yolo26,
         patch.object(
             system_routes,
             "_check_nemotron_health_with_circuit_breaker",
             return_value=(True, None),
         ) as mock_nemotron,
     ):
-        mock_settings.return_value.rtdetr_url = "http://custom-rtdetr:9000"
+        mock_settings.return_value.yolo26_url = "http://custom-rtdetr:9000"
         mock_settings.return_value.nemotron_url = "http://custom-nemotron:9001"
 
         await system_routes.check_ai_services_health()
 
         # Verify the circuit breaker health check functions were called
-        mock_rtdetr.assert_called_once()
+        mock_yolo26.assert_called_once()
         mock_nemotron.assert_called_once()
         # Verify the config URLs were passed
-        assert mock_rtdetr.call_args[0][0] == "http://custom-rtdetr:9000"
+        assert mock_yolo26.call_args[0][0] == "http://custom-rtdetr:9000"
         assert mock_nemotron.call_args[0][0] == "http://custom-nemotron:9001"
 
 
@@ -3028,11 +3028,11 @@ class TestCircuitBreaker:
         """Test that circuit opens after failure threshold is reached."""
         cb = system_routes.CircuitBreaker(failure_threshold=2)
 
-        cb.record_failure("rtdetr", "Connection refused")
-        cb.record_failure("rtdetr", "Connection refused")
+        cb.record_failure("yolo26", "Connection refused")
+        cb.record_failure("yolo26", "Connection refused")
 
-        assert cb.is_open("rtdetr") is True
-        assert cb.get_state("rtdetr") == "open"
+        assert cb.is_open("yolo26") is True
+        assert cb.get_state("yolo26") == "open"
 
     def test_circuit_breaker_caches_last_error(self) -> None:
         """Test that circuit breaker caches the last error message."""
@@ -3068,11 +3068,11 @@ class TestCircuitBreaker:
         """Test that circuit breaker tracks services independently."""
         cb = system_routes.CircuitBreaker(failure_threshold=2)
 
-        cb.record_failure("rtdetr", "error")
-        cb.record_failure("rtdetr", "error")
+        cb.record_failure("yolo26", "error")
+        cb.record_failure("yolo26", "error")
         cb.record_failure("nemotron", "error")
 
-        assert cb.is_open("rtdetr") is True
+        assert cb.is_open("yolo26") is True
         assert cb.is_open("nemotron") is False  # Only 1 failure
 
     def test_circuit_breaker_get_cached_error_returns_none_for_unknown(self) -> None:
@@ -3082,17 +3082,17 @@ class TestCircuitBreaker:
 
 
 @pytest.mark.asyncio
-async def test_check_rtdetr_health_with_circuit_breaker_skips_when_open() -> None:
+async def test_check_yolo26_health_with_circuit_breaker_skips_when_open() -> None:
     """Test that circuit breaker skips health check when circuit is open."""
     # Reset the global circuit breaker state
     system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=2)
 
     # Open the circuit by recording failures
-    system_routes._health_circuit_breaker.record_failure("rtdetr", "Connection refused")
-    system_routes._health_circuit_breaker.record_failure("rtdetr", "Connection refused")
+    system_routes._health_circuit_breaker.record_failure("yolo26", "Connection refused")
+    system_routes._health_circuit_breaker.record_failure("yolo26", "Connection refused")
 
     # Health check should return cached error without making HTTP call
-    is_healthy, error = await system_routes._check_rtdetr_health_with_circuit_breaker(
+    is_healthy, error = await system_routes._check_yolo26_health_with_circuit_breaker(
         "http://localhost:8090", 3.0
     )
 
@@ -3101,15 +3101,15 @@ async def test_check_rtdetr_health_with_circuit_breaker_skips_when_open() -> Non
 
 
 @pytest.mark.asyncio
-async def test_check_rtdetr_health_with_circuit_breaker_makes_call_when_closed() -> None:
+async def test_check_yolo26_health_with_circuit_breaker_makes_call_when_closed() -> None:
     """Test that circuit breaker performs health check when circuit is closed."""
     # Reset the global circuit breaker state
     system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=3)
 
     with patch.object(
-        system_routes, "_check_rtdetr_health", return_value=(True, None)
+        system_routes, "_check_yolo26_health", return_value=(True, None)
     ) as mock_check:
-        is_healthy, error = await system_routes._check_rtdetr_health_with_circuit_breaker(
+        is_healthy, error = await system_routes._check_yolo26_health_with_circuit_breaker(
             "http://localhost:8090", 3.0
         )
 
@@ -3144,14 +3144,14 @@ async def test_circuit_breaker_records_failure_on_health_check_error() -> None:
     system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=3)
 
     with patch.object(
-        system_routes, "_check_rtdetr_health", return_value=(False, "Connection refused")
+        system_routes, "_check_yolo26_health", return_value=(False, "Connection refused")
     ):
-        await system_routes._check_rtdetr_health_with_circuit_breaker("http://localhost:8090", 3.0)
-        await system_routes._check_rtdetr_health_with_circuit_breaker("http://localhost:8090", 3.0)
-        await system_routes._check_rtdetr_health_with_circuit_breaker("http://localhost:8090", 3.0)
+        await system_routes._check_yolo26_health_with_circuit_breaker("http://localhost:8090", 3.0)
+        await system_routes._check_yolo26_health_with_circuit_breaker("http://localhost:8090", 3.0)
+        await system_routes._check_yolo26_health_with_circuit_breaker("http://localhost:8090", 3.0)
 
     # Circuit should now be open after 3 failures
-    assert system_routes._health_circuit_breaker.is_open("rtdetr") is True
+    assert system_routes._health_circuit_breaker.is_open("yolo26") is True
 
 
 @pytest.mark.asyncio
@@ -3159,13 +3159,13 @@ async def test_circuit_breaker_records_success_on_health_check_success() -> None
     """Test that circuit breaker records success when health check succeeds."""
     # Reset with 1 failure already recorded
     system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=3)
-    system_routes._health_circuit_breaker.record_failure("rtdetr", "Previous error")
+    system_routes._health_circuit_breaker.record_failure("yolo26", "Previous error")
 
-    with patch.object(system_routes, "_check_rtdetr_health", return_value=(True, None)):
-        await system_routes._check_rtdetr_health_with_circuit_breaker("http://localhost:8090", 3.0)
+    with patch.object(system_routes, "_check_yolo26_health", return_value=(True, None)):
+        await system_routes._check_yolo26_health_with_circuit_breaker("http://localhost:8090", 3.0)
 
     # Failure count should be reset to 0
-    assert system_routes._health_circuit_breaker._failures.get("rtdetr", 0) == 0
+    assert system_routes._health_circuit_breaker._failures.get("yolo26", 0) == 0
 
 
 # =============================================================================
@@ -3606,7 +3606,7 @@ async def test_get_circuit_breakers_with_closed_breakers() -> None:
     """Test get_circuit_breakers with circuit breakers in closed state."""
     mock_registry = MagicMock()
     mock_registry.get_all_status.return_value = {
-        "rtdetr": {
+        "yolo26": {
             "state": "closed",
             "failure_count": 0,
             "success_count": 0,
@@ -3643,9 +3643,9 @@ async def test_get_circuit_breakers_with_closed_breakers() -> None:
 
     assert response.total_count == 2
     assert response.open_count == 0
-    assert "rtdetr" in response.circuit_breakers
+    assert "yolo26" in response.circuit_breakers
     assert "nemotron" in response.circuit_breakers
-    assert response.circuit_breakers["rtdetr"].state.value == "closed"
+    assert response.circuit_breakers["yolo26"].state.value == "closed"
     assert response.circuit_breakers["nemotron"].failure_count == 1
 
 
@@ -3654,7 +3654,7 @@ async def test_get_circuit_breakers_with_open_breaker() -> None:
     """Test get_circuit_breakers when a circuit breaker is open."""
     mock_registry = MagicMock()
     mock_registry.get_all_status.return_value = {
-        "rtdetr": {
+        "yolo26": {
             "state": "open",
             "failure_count": 5,
             "success_count": 0,
@@ -3676,8 +3676,8 @@ async def test_get_circuit_breakers_with_open_breaker() -> None:
 
     assert response.total_count == 1
     assert response.open_count == 1
-    assert response.circuit_breakers["rtdetr"].state.value == "open"
-    assert response.circuit_breakers["rtdetr"].rejected_calls == 25
+    assert response.circuit_breakers["yolo26"].state.value == "open"
+    assert response.circuit_breakers["yolo26"].rejected_calls == 25
 
 
 @pytest.mark.asyncio
@@ -3685,7 +3685,7 @@ async def test_get_circuit_breakers_with_half_open_breaker() -> None:
     """Test get_circuit_breakers when a circuit breaker is in half-open state."""
     mock_registry = MagicMock()
     mock_registry.get_all_status.return_value = {
-        "rtdetr": {
+        "yolo26": {
             "state": "half_open",
             "failure_count": 0,
             "success_count": 1,
@@ -3707,8 +3707,8 @@ async def test_get_circuit_breakers_with_half_open_breaker() -> None:
 
     assert response.total_count == 1
     assert response.open_count == 0  # half_open is not counted as open
-    assert response.circuit_breakers["rtdetr"].state.value == "half_open"
-    assert response.circuit_breakers["rtdetr"].success_count == 1
+    assert response.circuit_breakers["yolo26"].state.value == "half_open"
+    assert response.circuit_breakers["yolo26"].success_count == 1
 
 
 @pytest.mark.asyncio
@@ -3719,7 +3719,7 @@ async def test_reset_circuit_breaker_success() -> None:
 
     mock_registry = MagicMock()
     mock_registry.get.return_value = mock_breaker
-    mock_registry.list_names.return_value = ["rtdetr", "nemotron"]
+    mock_registry.list_names.return_value = ["yolo26", "nemotron"]
 
     # After reset, state should be closed
     def reset_side_effect():
@@ -3728,9 +3728,9 @@ async def test_reset_circuit_breaker_success() -> None:
     mock_breaker.reset.side_effect = reset_side_effect
 
     with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
-        response = await system_routes.reset_circuit_breaker("rtdetr")
+        response = await system_routes.reset_circuit_breaker("yolo26")
 
-    assert response.name == "rtdetr"
+    assert response.name == "yolo26"
     assert response.previous_state.value == "open"
     assert response.new_state.value == "closed"
     assert "reset successfully" in response.message
@@ -3741,7 +3741,7 @@ async def test_reset_circuit_breaker_success() -> None:
 async def test_reset_circuit_breaker_not_found() -> None:
     """Test resetting a circuit breaker that doesn't exist."""
     mock_registry = MagicMock()
-    mock_registry.list_names.return_value = ["rtdetr", "nemotron"]
+    mock_registry.list_names.return_value = ["yolo26", "nemotron"]
 
     with (
         patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry),
@@ -3806,7 +3806,7 @@ async def test_reset_circuit_breaker_valid_name_formats() -> None:
     mock_registry.get.return_value = mock_breaker
 
     valid_names = [
-        "rtdetr",
+        "yolo26",
         "nemotron",
         "ai_detector",
         "service-1",
@@ -3836,7 +3836,7 @@ async def test_reset_circuit_breaker_no_registered_breakers() -> None:
         patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry),
         pytest.raises(HTTPException) as exc_info,
     ):
-        await system_routes.reset_circuit_breaker("rtdetr")
+        await system_routes.reset_circuit_breaker("yolo26")
 
     assert exc_info.value.status_code == 404
     assert "No circuit breakers are currently registered" in str(exc_info.value.detail)
@@ -3993,14 +3993,14 @@ async def test_check_ai_services_health_uses_bounded_checks() -> None:
     """Test that check_ai_services_health uses bounded health checks."""
     # Verify the semaphore is being used by checking that both checks complete
     mock_settings = MagicMock()
-    mock_settings.rtdetr_url = "http://localhost:8090"
+    mock_settings.yolo26_url = "http://localhost:8090"
     mock_settings.nemotron_url = "http://localhost:8091"
 
     with (
         patch.object(system_routes, "get_settings", return_value=mock_settings),
         patch.object(
             system_routes,
-            "_check_rtdetr_health_with_circuit_breaker",
+            "_check_yolo26_health_with_circuit_breaker",
             return_value=(True, None),
         ),
         patch.object(

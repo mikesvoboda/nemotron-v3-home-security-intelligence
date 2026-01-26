@@ -134,13 +134,13 @@ async def test_check_redis_health_full_unhealthy_on_exception() -> None:
 async def test_check_ai_service_health_healthy() -> None:
     """Test that AI service health returns healthy when endpoint responds 200."""
     mock_settings = MagicMock(spec=Settings)
-    mock_settings.rtdetr_url = "http://ai-detector:8090"
+    mock_settings.yolo26_url = "http://ai-detector:8090"
 
     service_config = {
-        "name": "rtdetr",
+        "name": "yolo26",
         "display_name": "RT-DETRv2 Object Detection",
-        "url_attr": "rtdetr_url",
-        "circuit_breaker_name": "rtdetr",
+        "url_attr": "yolo26_url",
+        "circuit_breaker_name": "yolo26",
         "critical": True,
     }
 
@@ -156,7 +156,7 @@ async def test_check_ai_service_health_healthy() -> None:
 
             result = await _check_ai_service_health(service_config, mock_settings)
 
-    assert result.name == "rtdetr"
+    assert result.name == "yolo26"
     assert result.display_name == "RT-DETRv2 Object Detection"
     assert result.status == ServiceHealthState.HEALTHY
     assert result.url == "http://ai-detector:8090"
@@ -167,13 +167,13 @@ async def test_check_ai_service_health_healthy() -> None:
 async def test_check_ai_service_health_unhealthy_http_error() -> None:
     """Test that AI service health returns unhealthy on HTTP error."""
     mock_settings = MagicMock(spec=Settings)
-    mock_settings.rtdetr_url = "http://ai-detector:8090"
+    mock_settings.yolo26_url = "http://ai-detector:8090"
 
     service_config = {
-        "name": "rtdetr",
+        "name": "yolo26",
         "display_name": "RT-DETRv2 Object Detection",
-        "url_attr": "rtdetr_url",
-        "circuit_breaker_name": "rtdetr",
+        "url_attr": "yolo26_url",
+        "circuit_breaker_name": "yolo26",
         "critical": True,
     }
 
@@ -197,13 +197,13 @@ async def test_check_ai_service_health_unhealthy_http_error() -> None:
 async def test_check_ai_service_health_unhealthy_connection_refused() -> None:
     """Test that AI service health returns unhealthy on connection error."""
     mock_settings = MagicMock(spec=Settings)
-    mock_settings.rtdetr_url = "http://ai-detector:8090"
+    mock_settings.yolo26_url = "http://ai-detector:8090"
 
     service_config = {
-        "name": "rtdetr",
+        "name": "yolo26",
         "display_name": "RT-DETRv2 Object Detection",
-        "url_attr": "rtdetr_url",
-        "circuit_breaker_name": "rtdetr",
+        "url_attr": "yolo26_url",
+        "circuit_breaker_name": "yolo26",
         "critical": True,
     }
 
@@ -225,13 +225,13 @@ async def test_check_ai_service_health_unhealthy_connection_refused() -> None:
 async def test_check_ai_service_health_unhealthy_timeout() -> None:
     """Test that AI service health returns unhealthy on timeout."""
     mock_settings = MagicMock(spec=Settings)
-    mock_settings.rtdetr_url = "http://ai-detector:8090"
+    mock_settings.yolo26_url = "http://ai-detector:8090"
 
     service_config = {
-        "name": "rtdetr",
+        "name": "yolo26",
         "display_name": "RT-DETRv2 Object Detection",
-        "url_attr": "rtdetr_url",
-        "circuit_breaker_name": "rtdetr",
+        "url_attr": "yolo26_url",
+        "circuit_breaker_name": "yolo26",
         "critical": True,
     }
 
@@ -253,13 +253,13 @@ async def test_check_ai_service_health_unhealthy_timeout() -> None:
 async def test_check_ai_service_health_unknown_when_url_not_configured() -> None:
     """Test that AI service health returns unknown when URL is not configured."""
     mock_settings = MagicMock(spec=Settings)
-    mock_settings.rtdetr_url = None  # Not configured
+    mock_settings.yolo26_url = None  # Not configured
 
     service_config = {
-        "name": "rtdetr",
+        "name": "yolo26",
         "display_name": "RT-DETRv2 Object Detection",
-        "url_attr": "rtdetr_url",
-        "circuit_breaker_name": "rtdetr",
+        "url_attr": "yolo26_url",
+        "circuit_breaker_name": "yolo26",
         "critical": True,
     }
 
@@ -273,13 +273,13 @@ async def test_check_ai_service_health_unknown_when_url_not_configured() -> None
 async def test_check_ai_service_health_skips_when_circuit_open() -> None:
     """Test that AI service health skips check when circuit breaker is open."""
     mock_settings = MagicMock(spec=Settings)
-    mock_settings.rtdetr_url = "http://ai-detector:8090"
+    mock_settings.yolo26_url = "http://ai-detector:8090"
 
     service_config = {
-        "name": "rtdetr",
+        "name": "yolo26",
         "display_name": "RT-DETRv2 Object Detection",
-        "url_attr": "rtdetr_url",
-        "circuit_breaker_name": "rtdetr",
+        "url_attr": "yolo26_url",
+        "circuit_breaker_name": "yolo26",
         "critical": True,
     }
 
@@ -304,7 +304,7 @@ def test_get_circuit_breaker_summary_all_closed() -> None:
     """Test circuit breaker summary when all circuits are closed."""
     with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
         mock_registry.return_value.get_all_status.return_value = {
-            "rtdetr": {"state": "closed", "failure_count": 0},
+            "yolo26": {"state": "closed", "failure_count": 0},
             "nemotron": {"state": "closed", "failure_count": 0},
             "florence": {"state": "closed", "failure_count": 0},
         }
@@ -315,14 +315,14 @@ def test_get_circuit_breaker_summary_all_closed() -> None:
     assert result.closed == 3
     assert result.open == 0
     assert result.half_open == 0
-    assert result.breakers["rtdetr"] == CircuitState.CLOSED
+    assert result.breakers["yolo26"] == CircuitState.CLOSED
 
 
 def test_get_circuit_breaker_summary_with_open() -> None:
     """Test circuit breaker summary with some circuits open."""
     with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
         mock_registry.return_value.get_all_status.return_value = {
-            "rtdetr": {"state": "open", "failure_count": 5},
+            "yolo26": {"state": "open", "failure_count": 5},
             "nemotron": {"state": "closed", "failure_count": 0},
             "florence": {"state": "half_open", "failure_count": 2},
         }
@@ -333,7 +333,7 @@ def test_get_circuit_breaker_summary_with_open() -> None:
     assert result.closed == 1
     assert result.open == 1
     assert result.half_open == 1
-    assert result.breakers["rtdetr"] == CircuitState.OPEN
+    assert result.breakers["yolo26"] == CircuitState.OPEN
     assert result.breakers["nemotron"] == CircuitState.CLOSED
     assert result.breakers["florence"] == CircuitState.HALF_OPEN
 
@@ -406,7 +406,7 @@ def test_ai_services_config_critical_services() -> None:
     critical_services = [s for s in AI_SERVICES_CONFIG if s["critical"]]
     critical_names = [s["name"] for s in critical_services]
 
-    assert "rtdetr" in critical_names
+    assert "yolo26" in critical_names
     assert "nemotron" in critical_names
 
     # Non-critical should not be marked critical
@@ -417,7 +417,7 @@ def test_ai_services_config_critical_services() -> None:
 
 def test_ai_services_config_all_services_present() -> None:
     """Test that all expected AI services are configured."""
-    expected_services = ["rtdetr", "nemotron", "florence", "clip", "enrichment"]
+    expected_services = ["yolo26", "nemotron", "florence", "clip", "enrichment"]
     actual_services = [s["name"] for s in AI_SERVICES_CONFIG]
 
     for service in expected_services:

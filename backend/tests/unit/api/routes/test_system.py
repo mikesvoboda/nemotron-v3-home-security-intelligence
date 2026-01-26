@@ -1790,7 +1790,7 @@ class TestPerformanceMetricsEndpoint:
                 power_watts=31,
             ),
             ai_models={
-                "rtdetr": AiModelMetrics(
+                "yolo26": AiModelMetrics(
                     status="healthy",
                     vram_gb=0.17,
                     model="rtdetr_r50vd_coco_o365",
@@ -1880,7 +1880,7 @@ class TestPerformanceMetricsEndpoint:
             assert "alerts" in data
 
             # Verify nested structure
-            assert data["ai_models"]["rtdetr"]["status"] == "healthy"
+            assert data["ai_models"]["yolo26"]["status"] == "healthy"
             assert data["databases"]["postgresql"]["status"] == "healthy"
             assert len(data["containers"]) == 2
             assert len(data["alerts"]) == 1
@@ -2062,7 +2062,7 @@ class TestCheckAIServicesHealth:
         # Mock the circuit breaker checks
         with (
             patch(
-                "backend.api.routes.system._check_rtdetr_health_with_circuit_breaker",
+                "backend.api.routes.system._check_yolo26_health_with_circuit_breaker",
                 new=AsyncMock(return_value=(True, None)),
             ),
             patch(
@@ -2082,7 +2082,7 @@ class TestCheckAIServicesHealth:
         # Mock the circuit breaker checks - RT-DETR healthy, Nemotron unhealthy
         with (
             patch(
-                "backend.api.routes.system._check_rtdetr_health_with_circuit_breaker",
+                "backend.api.routes.system._check_yolo26_health_with_circuit_breaker",
                 new=AsyncMock(return_value=(True, None)),
             ),
             patch(
