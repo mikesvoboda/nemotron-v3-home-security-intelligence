@@ -183,7 +183,8 @@ class CLIPVisionONNXExporter:
         wrapper = VisionEncoderWrapper(vision_model, visual_projection)
         wrapper.eval()
 
-        # Export to ONNX
+        # Export to ONNX using legacy exporter (embeds weights inline for TensorRT)
+        # PyTorch 2.x dynamo export creates external data files not supported by TensorRT
         start_time = time.time()
         torch.onnx.export(
             wrapper,
@@ -194,6 +195,7 @@ class CLIPVisionONNXExporter:
             dynamic_axes=dynamic_axes,
             opset_version=self.opset_version,
             do_constant_folding=True,
+            dynamo=False,  # Force legacy exporter to embed weights inline
         )
         export_time = time.time() - start_time
 

@@ -626,6 +626,38 @@ class CLIPEmbeddingModel:
 
         logger.info("Warmup complete")
 
+    @staticmethod
+    def _extract_features_tensor(features: Any) -> torch.Tensor:
+        """Extract tensor from model output (handles transformers 5.0+ API changes).
+
+        In transformers 5.0+, get_image_features() and get_text_features() return
+        BaseModelOutputWithPooling objects instead of raw tensors. This helper
+        handles both the old (tensor) and new (object) return types.
+
+        Args:
+            features: Output from get_image_features() or get_text_features(),
+                     can be a tensor (transformers <5.0) or BaseModelOutputWithPooling
+                     (transformers >=5.0).
+
+        Returns:
+            The features as a torch.Tensor.
+
+        Raises:
+            TypeError: If features type is not recognized.
+        """
+        # Direct tensor return type (older transformers versions)
+        if isinstance(features, torch.Tensor):
+            return features
+
+        # Object return type with pooler_output attribute (transformers 5.0+)
+        if hasattr(features, "pooler_output") and features.pooler_output is not None:
+            return features.pooler_output
+        elif hasattr(features, "last_hidden_state"):
+            # Fallback to CLS token from last_hidden_state
+            return features.last_hidden_state[:, 0, :]
+        else:
+            raise TypeError(f"Unexpected features type: {type(features)}. Cannot extract tensor.")
+
     def extract_embedding(self, image: Image.Image) -> tuple[list[float], float]:
         """Generate a 768-dimensional embedding from an image.
 
@@ -661,12 +693,13 @@ class CLIPEmbeddingModel:
 
         # Generate embedding
         with torch.inference_mode():
-            image_features = self.model.get_image_features(**inputs)
+            raw_features = self.model.get_image_features(**inputs)
+            image_features = self._extract_features_tensor(raw_features)
 
             # Normalize embedding with epsilon to prevent division by zero (NEM-1100)
             epsilon = 1e-8
             image_features = image_features / (
-                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
             )
 
         # Convert to list
@@ -853,11 +886,12 @@ class CLIPEmbeddingModel:
 
         # Get image features
         with torch.inference_mode():
-            image_features = self.model.get_image_features(**image_inputs)
+            raw_image_features = self.model.get_image_features(**image_inputs)
+            image_features = self._extract_features_tensor(raw_image_features)
             # Normalize image features with epsilon for numerical stability
             epsilon = 1e-8
             image_features = image_features / (
-                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
             )
 
         # Collect text embeddings for all template-label combinations
@@ -872,10 +906,11 @@ class CLIPEmbeddingModel:
             text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
 
             with torch.inference_mode():
-                text_features = self.model.get_text_features(**text_inputs)
+                raw_text_features = self.model.get_text_features(**text_inputs)
+                text_features = self._extract_features_tensor(raw_text_features)
                 # Normalize text features with epsilon
                 text_features = text_features / (
-                    text_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                    torch.norm(text_features, p=2, dim=-1, keepdim=True) + epsilon
                 )
 
             all_template_embeddings.append(text_features)
@@ -887,7 +922,7 @@ class CLIPEmbeddingModel:
 
         # Re-normalize the averaged embeddings
         ensemble_embeddings = ensemble_embeddings / (
-            ensemble_embeddings.norm(p=2, dim=-1, keepdim=True) + epsilon
+            torch.norm(ensemble_embeddings, p=2, dim=-1, keepdim=True) + epsilon
         )
 
         # Compute similarities: (1, num_labels)
@@ -949,16 +984,18 @@ class CLIPEmbeddingModel:
 
         # Generate embeddings
         with torch.inference_mode():
-            image_features = self.model.get_image_features(**image_inputs)
-            text_features = self.model.get_text_features(**text_inputs)
+            raw_image_features = self.model.get_image_features(**image_inputs)
+            raw_text_features = self.model.get_text_features(**text_inputs)
+            image_features = self._extract_features_tensor(raw_image_features)
+            text_features = self._extract_features_tensor(raw_text_features)
 
             # Normalize embeddings with epsilon to prevent division by zero (NEM-1100)
             epsilon = 1e-8
             image_features = image_features / (
-                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
             )
             text_features = text_features / (
-                text_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(text_features, p=2, dim=-1, keepdim=True) + epsilon
             )
 
             # Compute cosine similarity
@@ -1003,16 +1040,18 @@ class CLIPEmbeddingModel:
 
         # Generate embeddings
         with torch.inference_mode():
-            image_features = self.model.get_image_features(**image_inputs)
-            text_features = self.model.get_text_features(**text_inputs)
+            raw_image_features = self.model.get_image_features(**image_inputs)
+            raw_text_features = self.model.get_text_features(**text_inputs)
+            image_features = self._extract_features_tensor(raw_image_features)
+            text_features = self._extract_features_tensor(raw_text_features)
 
             # Normalize embeddings with epsilon to prevent division by zero (NEM-1100)
             epsilon = 1e-8
             image_features = image_features / (
-                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
             )
             text_features = text_features / (
-                text_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(text_features, p=2, dim=-1, keepdim=True) + epsilon
             )
 
             # Compute cosine similarities (1, num_texts)
