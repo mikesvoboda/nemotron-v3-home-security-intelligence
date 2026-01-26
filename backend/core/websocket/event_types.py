@@ -182,6 +182,9 @@ class WebSocketEventType(StrEnum):
     SCENE_CHANGE_DETECTED = "scene_change.detected"
     """Camera scene change detected (potential tampering)."""
 
+    SCENE_CHANGE_ACKNOWLEDGED = "scene_change.acknowledged"
+    """Camera scene change acknowledged by user (NEM-3555)."""
+
     # ==========================================================================
     # Prometheus Alert Events - Infrastructure monitoring (NEM-3122)
     # ==========================================================================
@@ -534,6 +537,12 @@ EVENT_TYPE_METADATA: dict[WebSocketEventType, dict[str, Any]] = {
         "channel": "events",
         "requires_payload": True,
         "payload_fields": ["id", "camera_id", "change_type", "similarity_score"],
+    },
+    WebSocketEventType.SCENE_CHANGE_ACKNOWLEDGED: {
+        "description": "Camera scene change acknowledged by user (NEM-3555)",
+        "channel": "events",
+        "requires_payload": True,
+        "payload_fields": ["id", "camera_id", "acknowledged", "acknowledged_at"],
     },
     # Prometheus alert events (NEM-3122)
     WebSocketEventType.PROMETHEUS_ALERT: {

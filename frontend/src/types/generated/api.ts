@@ -11897,6 +11897,8 @@ export interface components {
              * @description Lower body clothing description
              */
             lower?: string | null;
+            /** @description Model that produced this result */
+            model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
             /**
              * Upper
              * @description Upper body clothing description
@@ -12915,6 +12917,8 @@ export interface components {
              * @description Estimated distance in meters
              */
             estimated_distance_m?: number | null;
+            /** @description Model that produced this result */
+            model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
         };
         /**
          * DetectionBulkCreateItem
@@ -13677,6 +13681,35 @@ export interface components {
          * @enum {string}
          */
         DeviationInterpretation: "far_below_normal" | "below_normal" | "normal" | "slightly_above_normal" | "above_normal" | "far_above_normal";
+        /**
+         * EnrichmentModelInfo
+         * @description Information about the AI model that produced an enrichment result (NEM-3535).
+         *
+         *     Exposes which model processed each enrichment, enabling model performance
+         *     tracking and debugging.
+         * @example {
+         *       "inference_time_ms": 25.3,
+         *       "model_name": "yolov11-face",
+         *       "model_version": "1.0.0"
+         *     }
+         */
+        EnrichmentModelInfo: {
+            /**
+             * Inference Time Ms
+             * @description Time taken for model inference in milliseconds
+             */
+            inference_time_ms?: number | null;
+            /**
+             * Model Name
+             * @description Name of the AI model that produced this enrichment
+             */
+            model_name: string;
+            /**
+             * Model Version
+             * @description Version of the model (if available)
+             */
+            model_version?: string | null;
+        };
         /**
          * EnrichmentResponse
          * @description Structured enrichment data for a single detection.
@@ -16070,6 +16103,8 @@ export interface components {
              * @default false
              */
             detected: boolean;
+            /** @description Model that produced this result */
+            model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
         };
         /**
          * FeatureSettings
@@ -17652,6 +17687,8 @@ export interface components {
              * @description Whether image has low quality
              */
             is_low_quality?: boolean | null;
+            /** @description Model that produced this result */
+            model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
             /**
              * Quality Change Detected
              * @description Whether sudden quality change was detected
@@ -18851,6 +18888,8 @@ export interface components {
              * @default false
              */
             detected: boolean;
+            /** @description Model that produced this result */
+            model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
             /**
              * Ocr Confidence
              * @description OCR confidence
@@ -20832,6 +20871,8 @@ export interface components {
              * @description Whether classified as household pet
              */
             is_household_pet?: boolean | null;
+            /** @description Model that produced this result */
+            model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
             /**
              * Type
              * @description Pet type (cat, dog)
@@ -21262,6 +21303,8 @@ export interface components {
              * @description Body keypoints [[x, y, conf], ...]
              */
             keypoints?: number[][] | null;
+            /** @description Model that produced this result */
+            model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
             /**
              * Posture
              * @description Detected posture (standing, sitting, etc.)
@@ -26054,6 +26097,8 @@ export interface components {
              * @description Whether vehicle is commercial/delivery
              */
             is_commercial?: boolean | null;
+            /** @description Model that produced this result */
+            model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
             /**
              * Type
              * @description Vehicle type (sedan, suv, truck, etc.)
@@ -26087,6 +26132,8 @@ export interface components {
              * @default false
              */
             detected: boolean;
+            /** @description Model that produced this result */
+            model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
             /**
              * Score
              * @description Violence probability score
@@ -26113,6 +26160,8 @@ export interface components {
              * @description Classification confidence
              */
             confidence?: number | null;
+            /** @description Model that produced this result */
+            model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
         };
         /**
          * WebSocketBroadcasterStatus

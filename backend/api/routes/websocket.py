@@ -1025,3 +1025,130 @@ async def websocket_job_logs(
             "WebSocket job logs connection cleaned up",
             extra={"connection_id": connection_id, "job_id": job_id},
         )
+
+
+@router.websocket("/ws/detections")
+async def websocket_detections_endpoint(
+    websocket: WebSocket,
+    redis: RedisClient = Depends(get_redis),
+    _token_valid: bool = Depends(validate_websocket_token),
+) -> None:
+    """WebSocket endpoint for real-time AI detection events (NEM-3554)."""
+    if not await check_websocket_rate_limit(websocket, redis):
+        logger.warning("WebSocket connection rejected: rate limit exceeded for /ws/detections")
+        await websocket.close(code=1008)
+        return
+
+    if not await authenticate_websocket(websocket):
+        logger.warning("WebSocket connection rejected: authentication failed for /ws/detections")
+        return
+
+    broadcaster = await get_broadcaster(redis)
+    settings = get_settings()
+    idle_timeout = settings.websocket_idle_timeout_seconds
+    heartbeat_interval = settings.websocket_ping_interval_seconds
+
+    connection_id = f"ws-detections-{uuid.uuid4().hex[:8]}"
+    set_connection_id(connection_id)
+
+    heartbeat_stop = asyncio.Event()
+    heartbeat_task: asyncio.Task[None] | None = None
+    subscription_manager = get_subscription_manager()
+    sequence_tracker = get_sequence_tracker()
+
+    try:
+        await broadcaster.connect(websocket)
+        subscription_manager.register_connection(connection_id)
+        subscription_manager.subscribe(connection_id, ["detection.*"])
+        sequence_tracker.register_connection(connection_id, websocket)
+        logger.info(
+            "WebSocket client connected to /ws/detections", extra={"connection_id": connection_id}
+        )
+
+        heartbeat_task = asyncio.create_task(
+            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop, connection_id)
+        )
+
+        while True:
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=idle_timeout)
+                logger.debug(f"Received message from WebSocket client: {data}")
+
+                if data == "ping":
+                    await websocket.send_text('{"type":"pong"}')
+                    continue
+
+                message = await validate_websocket_message(websocket, data)
+                if message is not None:
+                    await handle_validated_message(websocket, message, connection_id)
+
+            except TimeoutError:
+                logger.info(
+                    f"WebSocket idle timeout ({idle_timeout}s) - closing connection",
+                    extra={"connection_id": connection_id, "timeout_seconds": idle_timeout},
+                )
+                await websocket.close(code=1000, reason="Idle timeout")
+                break
+            except WebSocketDisconnect as e:
+                logger.info(
+                    f"WebSocket client disconnected normally (code={e.code})",
+                    extra={
+                        "connection_id": connection_id,
+                        "disconnect_code": e.code,
+                        "disconnect_reason": getattr(e, "reason", None),
+                    },
+                )
+                break
+            except Exception:
+                if websocket.client_state == WebSocketState.DISCONNECTED:
+                    logger.info(
+                        "WebSocket client disconnected unexpectedly",
+                        extra={"connection_id": connection_id},
+                    )
+                    break
+                logger.error(
+                    "Error receiving WebSocket message",
+                    exc_info=True,
+                    extra={"connection_id": connection_id},
+                )
+                try:
+                    if websocket.client_state == WebSocketState.CONNECTED:
+                        await websocket.close(code=1011, reason="Internal error")
+                except Exception:
+                    logger.debug(
+                        "Failed to close WebSocket gracefully (connection already broken)",
+                        extra={"connection_id": connection_id},
+                    )
+                break
+
+    except WebSocketDisconnect as e:
+        logger.info(
+            f"WebSocket client disconnected during handshake (code={e.code})",
+            extra={
+                "connection_id": connection_id,
+                "disconnect_code": e.code,
+                "disconnect_reason": getattr(e, "reason", None),
+            },
+        )
+    except Exception:
+        logger.error(
+            "WebSocket error",
+            exc_info=True,
+            extra={"connection_id": connection_id},
+        )
+    finally:
+        heartbeat_stop.set()
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
+        await broadcaster.disconnect(websocket)
+        subscription_manager.remove_connection(connection_id)
+        sequence_tracker.remove_connection(connection_id, websocket)
+        set_connection_id(None)
+        logger.info(
+            "WebSocket connection cleaned up for /ws/detections",
+            extra={"connection_id": connection_id},
+        )

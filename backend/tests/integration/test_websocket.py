@@ -401,6 +401,24 @@ async def sample_detection(integration_db, sample_camera):
 # WebSocket Connection Tests
 
 
+class TestWebSocketDetectionsChannel:
+    """Tests for /ws/detections WebSocket endpoint (NEM-3554)."""
+
+    def test_detections_websocket_connection(self, sync_client):
+        """Test connecting to /ws/detections endpoint."""
+        with sync_client.websocket_connect("/ws/detections") as websocket:
+            assert websocket is not None
+
+    def test_detections_websocket_multiple_connections(self, sync_client):
+        """Test multiple concurrent connections to /ws/detections."""
+        with (
+            sync_client.websocket_connect("/ws/detections") as ws1,
+            sync_client.websocket_connect("/ws/detections") as ws2,
+        ):
+            assert ws1 is not None
+            assert ws2 is not None
+
+
 class TestWebSocketEventChannel:
     """Tests for /ws/events WebSocket endpoint."""
 

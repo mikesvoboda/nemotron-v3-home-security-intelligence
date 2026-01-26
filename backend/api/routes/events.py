@@ -2048,11 +2048,19 @@ async def get_event_detections(
         HTTPException: 404 if event not found
         HTTPException: 400 if invalid order_detections_by value
     """
+    # NEM-3664: Handle Query object in Python 3.14+ (for direct function calls in tests)
+    # When called directly (not via FastAPI), Query objects may not be resolved
+    from fastapi.params import Query as QueryParam
+
+    resolved_order_by = order_detections_by
+    if isinstance(order_detections_by, QueryParam):
+        resolved_order_by = order_detections_by.default
+
     # Validate order_detections_by parameter
-    if order_detections_by not in VALID_DETECTION_ORDER_BY:
+    if resolved_order_by not in VALID_DETECTION_ORDER_BY:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid order_detections_by value: {order_detections_by}. "
+            detail=f"Invalid order_detections_by value: {resolved_order_by}. "
             f"Valid values are: {', '.join(sorted(VALID_DETECTION_ORDER_BY))}",
         )
 
@@ -2076,7 +2084,7 @@ async def get_event_detections(
     # NEM-3629: Use different query strategies based on ordering
     # Build response items based on query type
     items: list[Detection | dict[str, Any]]
-    if order_detections_by == "created_at":
+    if resolved_order_by == "created_at":
         # Join with EventDetection to get association timestamp and order by it
         junction_query = (
             select(Detection, EventDetection.created_at.label("association_created_at"))
