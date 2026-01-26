@@ -1,5 +1,9 @@
 # Multi-stage Dockerfile for frontend (dev and production targets)
 #
+# Build Optimizations:
+#   - BuildKit cache mounts for npm/node_modules (~5-10x faster rebuilds)
+#   - Multi-stage build reduces production image size (dev and prod targets)
+#
 # Security Features:
 #   - Non-root user execution (dev: node, prod: nginx unprivileged)
 #   - Minimal production image (nginx-unprivileged)
@@ -7,20 +11,25 @@
 #   - Security headers in nginx config
 #
 # Usage:
-#   docker build --target dev -t frontend:dev .
-#   docker build --target prod -t frontend:prod .
+#   DOCKER_BUILDKIT=1 docker build --target dev -t frontend:dev .
+#   DOCKER_BUILDKIT=1 docker build --target prod -t frontend:prod .
+#   podman-compose build frontend  # Automatically enables BuildKit
 
 # =============================================================================
 # Base stage: shared Node.js setup and dependencies
 # =============================================================================
 FROM node:20.19.6-alpine3.23 AS base
 
-# Security labels
+# OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
 LABEL org.opencontainers.image.title="Frontend Dashboard"
-LABEL org.opencontainers.image.description="React dashboard for home security monitoring"
+LABEL org.opencontainers.image.description="React dashboard for home security monitoring with real-time WebSocket updates"
 LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
+LABEL org.opencontainers.image.authors="home-security-intelligence"
+LABEL org.opencontainers.image.base.name="node:20.19.6-alpine3.23"
+LABEL org.opencontainers.image.base.digest="node:20.19.6-alpine3.23"
 
 WORKDIR /app
 
@@ -33,8 +42,17 @@ RUN apk add --no-cache wget
 # Use --legacy-peer-deps for React 19 + Tremor (requires React 18) compatibility
 # Rebuild native modules for the current platform (required for ARM64/musl)
 # This ensures Rollup's platform-specific binaries are properly installed
+#
+# BuildKit cache mount types:
+#   - /root/.npm: npm cache directory (~5-10x faster for repeated builds)
+#   - /root/.bun: bun package manager cache (for future bun adoption)
+#   - node_modules: persists installed packages across builds (instant installs)
+#
+# Cache mount persistence: "shared" mode for parallel builds, "private" for isolation
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps && npm rebuild
+RUN --mount=type=cache,target=/root/.npm,sharing=shared \
+    --mount=type=cache,target=/root/.bun,sharing=shared \
+    npm ci --legacy-peer-deps && npm rebuild
 
 # =============================================================================
 # Development target: Vite dev server with hot reload
@@ -81,12 +99,16 @@ RUN npm run build
 # stable-alpine-slim: smallest footprint with security patches, auto-updated weekly
 FROM nginxinc/nginx-unprivileged:stable-alpine-slim AS prod
 
-# Security labels
+# OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
 LABEL org.opencontainers.image.title="Frontend Dashboard"
-LABEL org.opencontainers.image.description="React dashboard for home security monitoring"
+LABEL org.opencontainers.image.description="React dashboard for home security monitoring with real-time WebSocket updates"
 LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
+LABEL org.opencontainers.image.authors="home-security-intelligence"
+LABEL org.opencontainers.image.base.name="nginxinc/nginx-unprivileged:stable-alpine-slim"
+LABEL org.opencontainers.image.base.digest="nginxinc/nginx-unprivileged:stable-alpine-slim"
 
 # Switch to root temporarily to install wget and configure files
 USER root

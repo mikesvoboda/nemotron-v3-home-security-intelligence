@@ -1,48 +1,87 @@
-# Dependencies
+# Build context optimization for frontend Docker builds
+# This file reduces build context size by excluding unnecessary files
+
+# Node.js dependencies (will be reinstalled in container)
 node_modules/
+pnpm-lock.yaml
+
+# Build artifacts (will be rebuilt in container)
+dist/
+build/
+.next/
+.nuxt/
+
+# Package manager logs
 npm-debug.log*
+npm-error.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+pnpm-error.log*
 
-# Testing
+# Testing artifacts
 coverage/
 .nyc_output/
+.coverage
+.coverage.*
 *.test.ts
 *.test.tsx
 *.spec.ts
 *.spec.tsx
 tests/
+__tests__/
+cypress/
+playwright/
 
-# Build artifacts (will be rebuilt in container)
-dist/
-build/
-
-# IDE
+# IDE and editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.DS_Store
+Thumbs.db
+.editorconfig
 
-# Git
+# Git and version control
 .git/
 .gitignore
 .gitattributes
+.gitea/
 
 # CI/CD
 .github/
+.circleci/
+.gitlab-ci.yml
+.travis.yml
+.github/workflows/
 
-# Environment files
+# Environment and sensitive files
 .env
 .env.*
+.env.local
+.env.*.local
 !.env.example
 
-# Documentation
+# Documentation and changelog
+docs/
 *.md
 !README.md
-docs/
+CHANGELOG.md
+LICENSE
 
-# Misc
+# Development-only directories
+.beads/
+mutants/
+custom/
+
+# Security scanning
+.trivyignore
+.bandit.yml
+.bandit.baseline
+
+# System files
+.cache/
+*.swp
+*.swo
 .DS_Store
-Thumbs.db

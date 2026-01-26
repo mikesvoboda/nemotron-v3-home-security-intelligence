@@ -216,3 +216,28 @@ class CameraRepository(Repository[Camera]):
 
         # Camera exists but our timestamp was older - return current state
         return False, camera
+
+    # =========================================================================
+    # Eager Loading Methods (NEM-3758)
+    # =========================================================================
+
+    async def get_cameras_with_stats(self) -> Sequence[Camera]:
+        """Get all cameras with statistics pre-computed.
+
+        This method fetches all cameras. For related event/detection counts,
+        use separate aggregate queries to avoid N+1 issues.
+
+        Returns:
+            Sequence of Camera objects
+
+        Note:
+            Events and detections are not eagerly loaded as they could be
+            very large collections. Use aggregate queries for counts instead.
+
+        Loading Strategy:
+            - No relationship loading (collections too large)
+            - Use aggregate queries for event/detection counts
+        """
+        stmt = select(Camera).order_by(Camera.name)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()

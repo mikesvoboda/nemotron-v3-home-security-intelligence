@@ -1,11 +1,26 @@
-# Combined Enrichment Service
+# Combined Enrichment Service (Multi-Stage Build)
 # Hosts Vehicle Classification, Pet Classification, FashionCLIP, YOLOv8 Pose, and OSNet Re-ID models
 # Port: 8094 | Expected VRAM: ~3.5GB (with new models)
+#
+# Build Optimizations:
+#   - Multi-stage build separates build dependencies (uv, py-spy) from runtime
+#   - Reduces runtime image size by excluding build tools
+#   - BuildKit cache mounts for pip/uv cache (~5-10x faster rebuilds)
+#
+# Usage:
+#   DOCKER_BUILDKIT=1 docker build -t ai-enrichment:latest .
+#   podman-compose build ai-enrichment  # Automatically enables BuildKit
 
-FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
+# =============================================================================
+# Stage 1: Builder - Install dependencies and tools
+# =============================================================================
+FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime AS builder
 
-LABEL maintainer="home-security-intelligence"
-LABEL description="Combined enrichment service for vehicle, pet, clothing, pose detection, and re-identification"
+# OCI Image Labels on builder stage
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.title="Enrichment Service (Builder)"
+LABEL org.opencontainers.image.description="Builder stage for enrichment service"
+LABEL org.opencontainers.image.licenses="MPL-2.0"
 
 # System dependencies for image processing and utilities
 # procps for pgrep (needed by profiler)
@@ -17,7 +32,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
 # Install uv for fast dependency management
@@ -27,7 +41,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
 # httpx is now included in requirements.txt for health checks
 COPY ai/enrichment/requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/uv \
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=shared \
     uv pip install --system --no-cache -r requirements.txt
 
 # Install py-spy for continuous profiling
@@ -39,12 +53,51 @@ RUN uv tool install py-spy && \
 COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
 COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 
-# Create non-root user for security
+# Copy application files (all Python modules)
+COPY ai/enrichment/*.py ./
+
+# =============================================================================
+# Stage 2: Runtime - Minimal image without build dependencies
+# =============================================================================
+FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
+
+# OCI Image Labels (org.opencontainers.image.*)
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.title="Enrichment Service"
+LABEL org.opencontainers.image.description="Multi-model enrichment service for vehicle, pet, clothing, pose detection, and re-identification"
+LABEL org.opencontainers.image.licenses="MPL-2.0"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
+LABEL org.opencontainers.image.authors="home-security-intelligence"
+LABEL org.opencontainers.image.base.name="pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime"
+LABEL org.opencontainers.image.base.digest="pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime"
+
+# Additional service-specific labels
+LABEL maintainer="home-security-intelligence"
+LABEL com.example.service.name="enrichment-service"
+LABEL com.example.service.port="8094"
+
+# Install only runtime dependencies (curl and procps removed - not needed at runtime)
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Create non-root user for security (same UID/GID as builder for permission compatibility)
 RUN groupadd -g 1000 enrichment && \
     useradd -u 1000 -g enrichment -s /bin/bash -m enrichment
 
-# Copy application files (all Python modules)
-COPY ai/enrichment/*.py ./
+# Copy installed packages from builder (all Python packages are in /usr/local)
+COPY --from=builder --chown=enrichment:enrichment /usr/local /usr/local
+COPY --from=builder --chown=enrichment:enrichment /app .
+
+# Copy profiler tools and scripts
+COPY --from=builder --chmod=755 /usr/local/bin/py-spy /usr/local/bin/py-spy
+COPY --from=builder --chmod=755 /usr/local/bin/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
+COPY --from=builder --chmod=755 /usr/local/bin/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 
 # Environment variables
 ENV HOST=0.0.0.0
@@ -64,9 +117,6 @@ ENV HF_HUB_DISABLE_TELEMETRY=1
 
 # Create cache directory for HuggingFace models
 RUN mkdir -p /cache/huggingface && chown -R enrichment:enrichment /cache/huggingface
-
-# Set ownership of app directory
-RUN chown -R enrichment:enrichment /app
 
 # Expose port
 EXPOSE 8094

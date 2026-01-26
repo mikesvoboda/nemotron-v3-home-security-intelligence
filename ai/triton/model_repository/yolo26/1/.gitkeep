@@ -1,0 +1,3 @@
+# Placeholder for YOLO26 TensorRT model
+# Place model.plan file here after exporting from Ultralytics
+# See ai/triton/AGENTS.md for conversion instructions

@@ -1,0 +1,112 @@
+# YOLO26 Object Detection Model Configuration for Triton Inference Server
+#
+# This configuration defines the YOLO26m model for object detection in home security
+# monitoring. YOLO26 is a modern YOLO variant optimized for real-time detection.
+#
+# TensorRT Plan Format: Uses pre-converted TensorRT engine for optimal inference
+# Dynamic Batching: Enables automatic request batching for throughput optimization
+#
+# Usage:
+#   1. Export YOLO26 to TensorRT: python ai/yolo26/export_tensorrt.py
+#   2. Place yolo26m_fp16.engine as ai/triton/model_repository/yolo26/1/model.plan
+#   3. Start Triton server with this model repository
+#
+# Note: YOLO26 is an alternative to RT-DETR. Use one or the other based on
+# the DETECTOR_TYPE setting in the backend configuration.
+
+name: "yolo26"
+platform: "tensorrt_plan"
+
+# Maximum batch size for dynamic batching
+# YOLO models typically handle larger batches efficiently
+max_batch_size: 8
+
+# Input tensor specification
+# YOLO expects NCHW format RGB images (typically 640x640)
+input [
+  {
+    name: "images"
+    data_type: TYPE_FP32
+    format: FORMAT_NCHW
+    dims: [ 3, 640, 640 ]
+  }
+]
+
+# Output tensor specifications
+# YOLO26 outputs combined detection tensor with boxes, scores, and classes
+output [
+  {
+    # YOLO outputs all detections in a single tensor
+    # Format: [batch, num_detections, 6] where 6 = [x1, y1, x2, y2, confidence, class_id]
+    name: "output0"
+    data_type: TYPE_FP32
+    dims: [ -1, 6 ]  # -1 indicates variable number of detections
+  }
+]
+
+# Dynamic batching configuration for automatic request coalescing
+dynamic_batching {
+  # Preferred batch sizes for scheduling
+  # YOLO models are efficient with larger batches
+  preferred_batch_size: [ 2, 4, 8 ]
+
+  # Maximum time to wait for more requests to batch (in microseconds)
+  # YOLO is faster than RT-DETR, so we can use a shorter delay
+  max_queue_delay_microseconds: 50000
+
+  # Preserve input ordering
+  preserve_ordering: true
+
+  # Priority configuration
+  default_priority_level: 1
+  priority_levels: 3
+}
+
+# Instance group configuration
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]  # Primary GPU
+  }
+]
+
+# Version policy
+version_policy: { latest: { num_versions: 1 }}
+
+# Model parameters
+parameters: {
+  key: "confidence_threshold"
+  value: { string_value: "0.5" }
+}
+
+parameters: {
+  key: "iou_threshold"
+  value: { string_value: "0.45" }
+}
+
+# Optimization settings
+optimization {
+  cuda {
+    graphs: true
+    busy_wait_events: true
+  }
+  input_pinned_memory { enable: true }
+  output_pinned_memory { enable: true }
+}
+
+# Model warmup configuration
+model_warmup [
+  {
+    name: "warmup_yolo26"
+    batch_size: 1
+    inputs: {
+      key: "images"
+      value: {
+        data_type: TYPE_FP32
+        dims: [ 3, 640, 640 ]
+        zero_data: true
+      }
+    }
+  }
+]

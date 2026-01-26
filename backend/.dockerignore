@@ -1,4 +1,7 @@
-# Python
+# Build context optimization for backend Docker builds
+# This file reduces build context size by excluding unnecessary files
+
+# Python cache and build artifacts
 __pycache__/
 *.py[cod]
 *$py.class
@@ -8,9 +11,22 @@ __pycache__/
 dist/
 build/
 *.egg
+*.wheel
+
+# Python development tools cache
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.tox/
+*.cover
+
+# Testing and coverage artifacts
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+.hypothesis/
+mutants/
 
 # Virtual environments
 .venv/
@@ -18,49 +34,60 @@ venv/
 ENV/
 env/
 
-# IDE
+# IDE and editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.DS_Store
+Thumbs.db
 
-# Testing and coverage
-.coverage
-.coverage.*
-htmlcov/
-coverage/
-*.cover
-.hypothesis/
-
-# Database (keep schema, ignore data)
+# Database files (keep data volume)
 *.db
 *.db-journal
 *.db-shm
 *.db-wal
-data/
 
-# Documentation
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+.gitea/
+
+# CI/CD
+.github/
+.circleci/
+.gitlab-ci.yml
+
+# Documentation and README
 docs/
 *.md
 !README.md
 
-# Git
-.git/
-.gitignore
-.gitattributes
-
-# CI/CD
-.github/
-
-# Environment files
+# Environment and sensitive files
 .env
 .env.*
+.secrets.baseline
+.gitleaks.toml
 
-# Tests
+# Tests (excluded from container)
 tests/
-*.test.py
 test_*.py
+*_test.py
+*.test.py
 
-# Examples
+# Examples and examples
 examples/
+custom/
+.beads/
+
+# Security scanning
+.trivyignore
+.bandit.yml
+.bandit.baseline
+
+# Logging and runtime
+logs/
+data/logs/
+*.log

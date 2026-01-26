@@ -767,7 +767,7 @@ export type {
   UseDashboardDataReturn,
 } from './useDashboardData';
 
-// React 19 performance optimization hooks (NEM-3421)
+// React 19 performance optimization hooks (NEM-3421, NEM-3750)
 export {
   useDeferredFilter,
   useDeferredSearch,
@@ -778,6 +778,13 @@ export type {
   UseDeferredFilterResult,
   UseDeferredSearchOptions,
 } from './useDeferredFilter';
+
+// React 19 deferred list rendering hook (NEM-3750)
+export { useDeferredList, default as useDeferredListDefault } from './useDeferredList';
+export type {
+  UseDeferredListOptions,
+  UseDeferredListResult,
+} from './useDeferredList';
 
 // Virtualized list hook (NEM-3423)
 export { useVirtualizedList, default as useVirtualizedListDefault } from './useVirtualizedList';

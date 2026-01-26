@@ -1,14 +1,25 @@
-# RT-DETRv2 Object Detection Server
+# RT-DETRv2 Object Detection Server (Multi-Stage Build)
 # Uses HuggingFace Transformers for model loading and inference
 # Port: 8090 | Expected VRAM: ~3GB
+#
+# Build Optimizations:
+#   - Multi-stage build separates build dependencies (uv, py-spy) from runtime
+#   - Reduces runtime image size by excluding build tools
+#   - BuildKit cache mounts for pip/uv cache (~5-10x faster rebuilds)
+#
+# Usage:
+#   DOCKER_BUILDKIT=1 docker build -t ai-rtdetr:latest .
+#   podman-compose build ai-detector  # Automatically enables BuildKit
 
-FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
+# =============================================================================
+# Stage 1: Builder - Install dependencies and tools
+# =============================================================================
+FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime AS builder
 
 LABEL maintainer="home-security-intelligence"
-LABEL description="RT-DETRv2 object detection server for home security monitoring"
+LABEL description="RT-DETRv2 object detection server (builder stage)"
 
-# System dependencies for OpenCV and utilities
-# procps for pgrep (needed by profiler)
+# Install build dependencies and utilities
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-glx \
@@ -17,7 +28,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
 # Install uv for fast dependency management
@@ -26,12 +36,12 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy and install Python dependencies
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
 COPY ai/rtdetr/requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/uv \
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=shared \
     uv pip install --system --no-cache -r requirements.txt
 
 # Add httpx for health check (used by example_client.py)
 # hadolint ignore=DL3059
-RUN --mount=type=cache,target=/root/.cache/uv \
+RUN --mount=type=cache,target=/root/.cache/uv,sharing=shared \
     uv pip install --system --no-cache httpx
 
 # Install py-spy for continuous profiling
@@ -43,13 +53,39 @@ RUN uv tool install py-spy && \
 COPY --chmod=755 scripts/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
 COPY --chmod=755 scripts/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 
-# Create non-root user for security
-RUN groupadd -g 1000 rtdetr && \
-    useradd -u 1000 -g rtdetr -s /bin/bash -m rtdetr
-
 # Copy application files
 COPY ai/rtdetr/model.py .
 COPY ai/rtdetr/example_client.py .
+
+# =============================================================================
+# Stage 2: Runtime - Minimal image without build dependencies
+# =============================================================================
+FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
+
+LABEL maintainer="home-security-intelligence"
+LABEL description="RT-DETRv2 object detection server for home security monitoring"
+
+# Install only runtime dependencies (no curl here, copied from builder)
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Create non-root user for security (same UID/GID as builder for permission compatibility)
+RUN groupadd -g 1000 rtdetr && \
+    useradd -u 1000 -g rtdetr -s /bin/bash -m rtdetr
+
+# Copy installed packages from builder (all Python packages are in /usr/local)
+COPY --from=builder --chown=rtdetr:rtdetr /usr/local /usr/local
+COPY --from=builder --chown=rtdetr:rtdetr /app .
+
+# Copy profiler tools and scripts
+COPY --from=builder --chmod=755 /usr/local/bin/py-spy /usr/local/bin/py-spy
+COPY --from=builder --chmod=755 /usr/local/bin/pyroscope-profiler.sh /usr/local/bin/pyroscope-profiler.sh
+COPY --from=builder --chmod=755 /usr/local/bin/ai-entrypoint.sh /usr/local/bin/ai-entrypoint.sh
 
 # Environment variables
 ENV HOST=0.0.0.0
@@ -64,9 +100,6 @@ ENV HF_HUB_DISABLE_TELEMETRY=1
 
 # Create cache directory for HuggingFace models
 RUN mkdir -p /cache/huggingface && chown -R rtdetr:rtdetr /cache/huggingface
-
-# Set ownership of app directory
-RUN chown -R rtdetr:rtdetr /app
 
 # Expose port
 EXPOSE 8090

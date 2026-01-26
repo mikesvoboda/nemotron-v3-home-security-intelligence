@@ -73,6 +73,15 @@ from .detections import (
     PetEnrichmentData,
     VehicleEnrichmentData,
 )
+
+# Discriminated union error handling (NEM-3777)
+from .discriminated_union_errors import (
+    DiscriminatedUnionError,
+    DiscriminatedUnionErrorHandler,
+    extract_discriminator_error,
+    format_discriminated_union_error,
+    get_valid_discriminator_values,
+)
 from .enrichment import (
     ClothingEnrichment,
     DepthEnrichment,
@@ -192,6 +201,14 @@ from .notification import (
     SendNotificationRequest,
     TestNotificationRequest,
     TestNotificationResponse,
+)
+
+# OpenAPI customization utilities (NEM-3780)
+from .openapi_customization import (
+    OpenAPISchemaConfig,
+    create_openapi_model,
+    with_openapi_example,
+    with_openapi_examples,
 )
 from .pagination import (
     PaginatedResponse,
@@ -500,6 +517,17 @@ __all__ = [  # noqa: RUF022
     "ZoneListResponse",
     "ZoneResponse",
     "ZoneUpdate",
+    # OpenAPI customization (NEM-3780)
+    "OpenAPISchemaConfig",
+    "create_openapi_model",
+    "with_openapi_example",
+    "with_openapi_examples",
+    # Discriminated union errors (NEM-3777)
+    "DiscriminatedUnionError",
+    "DiscriminatedUnionErrorHandler",
+    "extract_discriminator_error",
+    "format_discriminated_union_error",
+    "get_valid_discriminator_values",
     # Functions and utilities
     "build_camera_links",
     "build_detection_links",

@@ -258,15 +258,17 @@ export default function SystemMonitoringPage() {
 
   // Poll for telemetry updates every 5 seconds
   useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const telemetryData = await fetchTelemetry();
-        setTelemetry(telemetryData);
-      } catch (err) {
-        if (err instanceof Error && err.message !== 'Failed to fetch') {
-          console.error('Failed to update telemetry:', err);
+    const interval = setInterval(() => {
+      void (async () => {
+        try {
+          const telemetryData = await fetchTelemetry();
+          setTelemetry(telemetryData);
+        } catch (err) {
+          if (err instanceof Error && err.message !== 'Failed to fetch') {
+            console.error('Failed to update telemetry:', err);
+          }
         }
-      }
+      })();
     }, 5000);
 
     return () => clearInterval(interval);

@@ -384,6 +384,15 @@ class Settings(BaseSettings):
         description="Maximum time in seconds to wait for pool warming to complete. If pool "
         "warming exceeds this timeout, startup continues with partially warmed pool.",
     )
+    # Prepared statement cache configuration (NEM-3760)
+    prepared_statement_cache_size: int = Field(
+        default=100,
+        ge=10,
+        le=1000,
+        description="Maximum number of prepared statements to cache for query plan reuse. "
+        "Higher values can improve performance for applications with many distinct queries. "
+        "Automatically disabled when use_pgbouncer=True. NEM-3760.",
+    )
 
     # Redis configuration
     # Development: redis://localhost:6379/0 (local dev)

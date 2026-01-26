@@ -1679,6 +1679,388 @@ class RedisClient:
                 break
         return keys
 
+    # =========================================================================
+    # Pipeline Batching for Multi-Key Operations (NEM-3763)
+    # =========================================================================
+
+    @contextlib.asynccontextmanager
+    async def pipeline(self, transaction: bool = False) -> AsyncGenerator[Redis]:
+        """Create a Redis pipeline for batching multiple commands.
+
+        Pipelines batch multiple commands together and send them in a single
+        round-trip to Redis, reducing network latency for bulk operations.
+
+        Args:
+            transaction: If True, wrap commands in MULTI/EXEC for atomicity.
+                Default is False for better performance when atomicity is not needed.
+
+        Yields:
+            Redis pipeline object that can be used to queue commands.
+
+        Example:
+            async with redis.pipeline() as pipe:
+                pipe.get("key1")
+                pipe.get("key2")
+                pipe.set("key3", "value")
+            # Commands are executed on context exit
+        """
+        client = self._ensure_connected()
+        pipe = client.pipeline(transaction=transaction)
+        try:
+            yield pipe
+            await pipe.execute()
+        finally:
+            # Pipeline cleanup happens automatically
+            pass
+
+    async def batch_get(self, keys: list[str], *, chunk_size: int = 1000) -> list[Any | None]:
+        """Get multiple values from Redis in a single pipeline operation.
+
+        Uses Redis pipelines to batch multiple GET commands, reducing
+        round-trips from O(n) to O(1) for n keys.
+
+        Args:
+            keys: List of keys to retrieve
+            chunk_size: Maximum keys per pipeline (default: 1000).
+                Large batches are split to avoid memory issues.
+
+        Returns:
+            List of values in the same order as keys.
+            None for keys that don't exist.
+        """
+        if not keys:
+            return []
+
+        client = self._ensure_connected()
+        results: list[Any | None] = []
+
+        # Process in chunks to avoid memory issues with very large batches
+        for i in range(0, len(keys), chunk_size):
+            chunk = keys[i : i + chunk_size]
+            pipe = client.pipeline(transaction=False)
+
+            for key in chunk:
+                pipe.get(key)
+
+            chunk_results = await pipe.execute()
+
+            # Deserialize JSON and handle errors
+            for result in chunk_results:
+                if result is None:
+                    results.append(None)
+                elif isinstance(result, Exception):
+                    # Handle partial failures gracefully
+                    results.append(None)
+                else:
+                    try:
+                        results.append(json.loads(result))
+                    except (json.JSONDecodeError, TypeError):
+                        results.append(result)
+
+        return results
+
+    async def batch_set(
+        self,
+        mapping: dict[str, Any],
+        *,
+        expire: int | None = None,
+        atomic: bool = False,
+    ) -> bool:
+        """Set multiple key-value pairs in a single pipeline operation.
+
+        Uses Redis pipelines to batch multiple SET commands, reducing
+        round-trips from O(n) to O(1) for n key-value pairs.
+
+        Args:
+            mapping: Dictionary of key-value pairs to set
+            expire: Optional TTL in seconds for all keys
+            atomic: If True, use MULTI/EXEC for atomicity (default: False)
+
+        Returns:
+            True if all operations succeeded
+        """
+        if not mapping:
+            return True
+
+        client = self._ensure_connected()
+        pipe = client.pipeline(transaction=atomic)
+
+        for key, value in mapping.items():
+            serialized = json.dumps(value)
+            if expire:
+                pipe.set(key, serialized, ex=expire)
+            else:
+                pipe.set(key, serialized)
+
+        await pipe.execute()
+        return True
+
+    async def batch_delete(self, keys: list[str]) -> int:
+        """Delete multiple keys in a single pipeline operation.
+
+        Uses Redis pipelines to batch multiple DELETE commands, reducing
+        round-trips from O(n) to O(1) for n keys.
+
+        Args:
+            keys: List of keys to delete
+
+        Returns:
+            Number of keys that were actually deleted
+        """
+        if not keys:
+            return 0
+
+        client = self._ensure_connected()
+        pipe = client.pipeline(transaction=False)
+
+        for key in keys:
+            pipe.delete(key)
+
+        results = await pipe.execute()
+        return sum(1 for r in results if r == 1)
+
+    async def batch_hgetall(self, keys: list[str]) -> list[dict[str, str]]:
+        """Get all fields from multiple hashes in a single pipeline operation.
+
+        Uses Redis pipelines to batch multiple HGETALL commands, reducing
+        round-trips from O(n) to O(1) for n hash keys.
+
+        Args:
+            keys: List of hash keys to retrieve
+
+        Returns:
+            List of dictionaries, one per key. Empty dict for missing keys.
+        """
+        if not keys:
+            return []
+
+        client = self._ensure_connected()
+        pipe = client.pipeline(transaction=False)
+
+        for key in keys:
+            pipe.hgetall(key)
+
+        results = await pipe.execute()
+        return [r if isinstance(r, dict) else {} for r in results]
+
+    async def batch_incr(self, keys: list[str]) -> list[int]:
+        """Increment multiple keys in a single pipeline operation.
+
+        Uses Redis pipelines to batch multiple INCR commands, reducing
+        round-trips from O(n) to O(1) for n keys.
+
+        Args:
+            keys: List of keys to increment
+
+        Returns:
+            List of new values after incrementing
+        """
+        if not keys:
+            return []
+
+        client = self._ensure_connected()
+        pipe = client.pipeline(transaction=False)
+
+        for key in keys:
+            pipe.incr(key)
+
+        results = await pipe.execute()
+        return [int(r) for r in results]
+
+    async def batch_exists(self, keys: list[str]) -> list[bool]:
+        """Check existence of multiple keys in a single pipeline operation.
+
+        Uses Redis pipelines to batch multiple EXISTS commands, reducing
+        round-trips from O(n) to O(1) for n keys.
+
+        Args:
+            keys: List of keys to check
+
+        Returns:
+            List of booleans indicating whether each key exists
+        """
+        if not keys:
+            return []
+
+        client = self._ensure_connected()
+        pipe = client.pipeline(transaction=False)
+
+        for key in keys:
+            pipe.exists(key)
+
+        results = await pipe.execute()
+        return [r == 1 for r in results]
+
+    # =========================================================================
+    # Adaptive TTL Based on Access Patterns (NEM-3764)
+    # =========================================================================
+
+    async def get_with_adaptive_ttl(
+        self,
+        key: str,
+        fetch_fn: Callable[[], Awaitable[Any]],
+        *,
+        base_ttl: int = 300,
+        hit_threshold: int = 10,
+        ttl_multiplier: int = 2,
+        max_ttl: int | None = None,
+    ) -> Any:
+        """Get a value with adaptive TTL that extends based on access patterns.
+
+        Implements a cache-aside pattern where frequently accessed keys
+        automatically have their TTL extended, optimizing cache utilization.
+
+        Access Pattern Logic:
+        1. On cache hit: Increment access counter and check if threshold exceeded
+        2. If access count > hit_threshold: Extend TTL by ttl_multiplier
+        3. On cache miss: Call fetch_fn, store result with base_ttl, reset counter
+
+        Args:
+            key: Cache key
+            fetch_fn: Async function to fetch data on cache miss
+            base_ttl: Base TTL in seconds (default: 300)
+            hit_threshold: Number of hits before extending TTL (default: 10)
+            ttl_multiplier: Multiplier for TTL extension (default: 2)
+            max_ttl: Maximum TTL cap (default: None, no cap)
+
+        Returns:
+            Cached or fetched value
+
+        Example:
+            async def fetch_user(user_id: str) -> dict:
+                return await db.get_user(user_id)
+
+            user = await redis.get_with_adaptive_ttl(
+                f"user:{user_id}",
+                lambda: fetch_user(user_id),
+                base_ttl=300,
+                hit_threshold=10,
+            )
+        """
+        client = self._ensure_connected()
+
+        # Try to get cached value
+        cached = await client.get(key)
+
+        if cached is not None:
+            # Cache hit - track access and potentially extend TTL
+            try:
+                access_count = await client.incr(f"{key}:hits")
+
+                if access_count > hit_threshold:
+                    # Extend TTL for frequently accessed key
+                    new_ttl = base_ttl * ttl_multiplier
+                    if max_ttl is not None:
+                        new_ttl = min(new_ttl, max_ttl)
+                    await client.expire(key, new_ttl)
+            except Exception as e:
+                # Don't fail the request if tracking fails - log and continue
+                logger.debug(
+                    f"Failed to track access for key '{key}': {e}",
+                    extra={"key": key, "error": str(e)},
+                )
+
+            # Deserialize and return cached value
+            try:
+                return json.loads(cached)
+            except (json.JSONDecodeError, TypeError):
+                return cached
+
+        # Cache miss - fetch data
+        data = await fetch_fn()
+
+        # Store with base TTL
+        serialized = json.dumps(data)
+        await client.setex(key, base_ttl, serialized)
+
+        # Reset access counter
+        await client.delete(f"{key}:hits")
+
+        return data
+
+    async def set_with_adaptive_ttl(
+        self,
+        key: str,
+        value: Any,
+        *,
+        base_ttl: int = 300,
+        volatile: bool = False,
+    ) -> bool:
+        """Set a value with adaptive TTL based on data volatility.
+
+        Volatile data (frequently changing) gets a reduced TTL to ensure
+        freshness, while stable data gets the full base TTL.
+
+        Args:
+            key: Cache key
+            value: Value to store
+            base_ttl: Base TTL in seconds (default: 300)
+            volatile: If True, use reduced TTL (default: False)
+
+        Returns:
+            True if successful
+        """
+        client = self._ensure_connected()
+
+        # Volatile data gets half the TTL for freshness
+        ttl = base_ttl // 2 if volatile else base_ttl
+
+        serialized = json.dumps(value)
+        await client.setex(key, ttl, serialized)
+        return True
+
+    async def track_access(self, key: str, *, counter_ttl: int = 3600) -> int:
+        """Track access to a key for adaptive TTL decisions.
+
+        Increments an access counter for the key and sets a TTL on the counter
+        to prevent unbounded growth.
+
+        Args:
+            key: The key being accessed
+            counter_ttl: TTL for the counter in seconds (default: 3600)
+
+        Returns:
+            Current access count
+        """
+        client = self._ensure_connected()
+        hits_key = f"{key}:hits"
+
+        count = await client.incr(hits_key)
+        await client.expire(hits_key, counter_ttl)
+
+        return cast("int", count)
+
+    async def get_access_count(self, key: str) -> int:
+        """Get the current access count for a key.
+
+        Args:
+            key: The key to check
+
+        Returns:
+            Access count, or 0 if not tracked
+        """
+        client = self._ensure_connected()
+        result = await client.get(f"{key}:hits")
+        if result is None:
+            return 0
+        try:
+            return int(result)
+        except (ValueError, TypeError):
+            return 0
+
+    async def reset_access_count(self, key: str) -> bool:
+        """Reset the access count for a key.
+
+        Args:
+            key: The key to reset
+
+        Returns:
+            True if the counter was deleted, False if it didn't exist
+        """
+        client = self._ensure_connected()
+        result = cast("int", await client.delete(f"{key}:hits"))
+        return result > 0
+
 
 class SentinelClient:
     """Redis Sentinel client for high availability with automatic failover (NEM-3413).
