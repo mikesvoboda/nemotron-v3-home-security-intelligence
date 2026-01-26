@@ -30,6 +30,8 @@ import {
   downloadEventMedia,
   EventVersionConflictError,
   fetchCameras,
+  generateEventClip,
+  getEventClipUrl,
   searchEvents,
   updateEvent,
 } from '../../services/api';
@@ -130,6 +132,11 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // State for event detail modal
   const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
 
+  // State for clip generation (NEM-3870)
+  // Maps event ID to generating state and clip URL
+  const [clipGeneratingIds, setClipGeneratingIds] = useState<Set<number>>(new Set());
+  const [clipUrls, setClipUrls] = useState<Map<number, string>>(new Map());
+
   // WebSocket hook for real-time live activity
   const { events: wsEvents, isConnected: wsConnected } = useEventStream();
 
@@ -216,6 +223,68 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       }
     },
     [snooze, unsnooze]
+  );
+
+  // Handle clip generation for EventCard (NEM-3870)
+  const handleGenerateClip = useCallback(
+    async (eventId: string) => {
+      const id = parseInt(eventId, 10);
+
+      // Mark as generating
+      setClipGeneratingIds((prev) => new Set(prev).add(id));
+
+      try {
+        const response = await generateEventClip(id);
+
+        if (response.status === 'completed' && response.clip_url) {
+          // Store the clip URL - clip_url is guaranteed non-null after the check above
+          const clipUrl = response.clip_url;
+          setClipUrls((prev) => {
+            const newMap = new Map(prev);
+            newMap.set(id, getEventClipUrl(clipUrl));
+            return newMap;
+          });
+          toastSuccess('Video clip generated successfully');
+        } else if (response.status === 'failed') {
+          toastError(response.message || 'Failed to generate clip');
+        }
+      } catch (err) {
+        console.error('Failed to generate clip:', err);
+        toastError(err instanceof Error ? err.message : 'Failed to generate clip');
+      } finally {
+        // Remove from generating set
+        setClipGeneratingIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(id);
+          return newSet;
+        });
+      }
+    },
+    [toastSuccess, toastError]
+  );
+
+  // Handle clip download for EventCard (NEM-3870)
+  const handleDownloadClip = useCallback(
+    (eventId: string) => {
+      const id = parseInt(eventId, 10);
+      const clipUrl = clipUrls.get(id);
+
+      if (!clipUrl) {
+        toastError('Clip not available');
+        return;
+      }
+
+      // Create a download link
+      const link = document.createElement('a');
+      link.href = clipUrl;
+      link.download = `event_${id}_clip.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toastSuccess('Download started');
+    },
+    [clipUrls, toastSuccess, toastError]
   );
 
   // Convert query error to string
@@ -666,6 +735,11 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       // Snooze functionality (NEM-3592)
       onSnooze: handleSnooze,
       snoozedUntil: event.snooze_until || undefined,
+      // Clip generation functionality (NEM-3870)
+      onGenerateClip: (eventId: string) => void handleGenerateClip(eventId),
+      onDownloadClip: handleDownloadClip,
+      isGeneratingClip: clipGeneratingIds.has(event.id),
+      clipUrl: clipUrls.get(event.id) ?? undefined,
     };
   };
 

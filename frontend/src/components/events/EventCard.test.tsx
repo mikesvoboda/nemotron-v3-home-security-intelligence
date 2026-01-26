@@ -2396,4 +2396,127 @@ describe('snooze functionality', () => {
       vi.setSystemTime(BASE_TIME);
     });
   });
+
+  describe('clip generation button (NEM-3870)', () => {
+    it('renders generate clip button when onGenerateClip is provided', () => {
+      const handleGenerateClip = vi.fn();
+      render(<EventCard {...mockProps} onGenerateClip={handleGenerateClip} />);
+
+      const clipButton = screen.getByRole('button', { name: /generate video clip/i });
+      expect(clipButton).toBeInTheDocument();
+    });
+
+    it('does not render generate clip button when onGenerateClip is not provided', () => {
+      render(<EventCard {...mockProps} />);
+
+      const clipButton = screen.queryByRole('button', { name: /generate video clip/i });
+      expect(clipButton).not.toBeInTheDocument();
+    });
+
+    it('calls onGenerateClip with event id when clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleGenerateClip = vi.fn();
+      render(<EventCard {...mockProps} onGenerateClip={handleGenerateClip} />);
+
+      const clipButton = screen.getByRole('button', { name: /generate video clip/i });
+      await user.click(clipButton);
+
+      expect(handleGenerateClip).toHaveBeenCalledWith('event-123');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('shows spinner when isGeneratingClip is true', () => {
+      const handleGenerateClip = vi.fn();
+      render(
+        <EventCard
+          {...mockProps}
+          onGenerateClip={handleGenerateClip}
+          isGeneratingClip={true}
+        />
+      );
+
+      const clipButton = screen.getByRole('button', { name: /generating clip/i });
+      expect(clipButton).toBeDisabled();
+      expect(clipButton).toHaveTextContent('Generating');
+    });
+
+    it('shows download button when clipUrl is provided', () => {
+      const handleGenerateClip = vi.fn();
+      const handleDownloadClip = vi.fn();
+      render(
+        <EventCard
+          {...mockProps}
+          onGenerateClip={handleGenerateClip}
+          onDownloadClip={handleDownloadClip}
+          clipUrl="http://localhost/api/media/clips/event_123.mp4"
+        />
+      );
+
+      const downloadButton = screen.getByRole('button', { name: /download video clip/i });
+      expect(downloadButton).toBeInTheDocument();
+    });
+
+    it('calls onDownloadClip when download button is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleGenerateClip = vi.fn();
+      const handleDownloadClip = vi.fn();
+      render(
+        <EventCard
+          {...mockProps}
+          onGenerateClip={handleGenerateClip}
+          onDownloadClip={handleDownloadClip}
+          clipUrl="http://localhost/api/media/clips/event_123.mp4"
+        />
+      );
+
+      const downloadButton = screen.getByRole('button', { name: /download video clip/i });
+      await user.click(downloadButton);
+
+      expect(handleDownloadClip).toHaveBeenCalledWith('event-123');
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('shows regenerate option when clip is already available', () => {
+      const handleGenerateClip = vi.fn();
+      render(
+        <EventCard
+          {...mockProps}
+          onGenerateClip={handleGenerateClip}
+          clipUrl="http://localhost/api/media/clips/event_123.mp4"
+        />
+      );
+
+      // Should show regenerate button instead of generate
+      const regenerateButton = screen.getByRole('button', { name: /regenerate video clip/i });
+      expect(regenerateButton).toBeInTheDocument();
+    });
+
+    it('disables generate/download buttons during generation', () => {
+      const handleGenerateClip = vi.fn();
+      const handleDownloadClip = vi.fn();
+      render(
+        <EventCard
+          {...mockProps}
+          onGenerateClip={handleGenerateClip}
+          onDownloadClip={handleDownloadClip}
+          clipUrl="http://localhost/api/media/clips/event_123.mp4"
+          isGeneratingClip={true}
+        />
+      );
+
+      // Regenerate button should be disabled and show spinner
+      const regenerateButton = screen.getByRole('button', { name: /generating clip/i });
+      expect(regenerateButton).toBeDisabled();
+
+      // Download button should also be disabled during generation
+      const downloadButton = screen.getByRole('button', { name: /download video clip/i });
+      expect(downloadButton).toBeDisabled();
+    });
+  });
 });
