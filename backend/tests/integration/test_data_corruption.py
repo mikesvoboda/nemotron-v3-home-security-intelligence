@@ -704,8 +704,8 @@ class TestDataConsistency:
             await session.execute(
                 text(
                     """
-                    INSERT INTO events (batch_id, camera_id, started_at, risk_level, reviewed, is_fast_path)
-                    VALUES (:batch_id, :camera_id, :started_at, :risk_level, :reviewed, :is_fast_path)
+                    INSERT INTO events (batch_id, camera_id, started_at, risk_level, reviewed, is_fast_path, flagged)
+                    VALUES (:batch_id, :camera_id, :started_at, :risk_level, :reviewed, :is_fast_path, :flagged)
                     """
                 ),
                 {
@@ -715,6 +715,7 @@ class TestDataConsistency:
                     "risk_level": "invalid_level",  # Invalid enum value
                     "reviewed": False,
                     "is_fast_path": False,
+                    "flagged": False,
                 },
             )
             await session.flush()
