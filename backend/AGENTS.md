@@ -11,7 +11,7 @@ _Sequence diagram showing typical request flow through Browser, Nginx, FastAPI, 
 The backend is a FastAPI-based REST API server for an AI-powered home security monitoring system. It orchestrates:
 
 - **Camera management** - Track cameras, zones, and their upload directories
-- **AI detection pipeline** - File watching, RT-DETRv2 object detection, batch aggregation, Nemotron risk analysis
+- **AI detection pipeline** - File watching, YOLO26 object detection, batch aggregation, Nemotron risk analysis
 - **Data persistence** - PostgreSQL database for structured data (cameras, detections, events, GPU stats, logs)
 - **Real-time capabilities** - Redis for queues, pub/sub, and caching with backpressure handling
 - **Media serving** - Secure file serving with path traversal protection
@@ -146,7 +146,7 @@ See `core/AGENTS.md` for detailed documentation. The core layer contains 28 modu
 - API settings (host, port, CORS, rate limiting)
 - File watching settings (Foscam base path, polling options)
 - Retention and batch processing timings
-- AI service endpoints (RT-DETR, Nemotron)
+- AI service endpoints (YOLO26, Nemotron)
 - Detection and fast path thresholds
 - Logging configuration (file, database, rotation)
 - TLS/HTTPS settings (mode-based: disabled, self_signed, provided)
@@ -443,7 +443,7 @@ See `services/AGENTS.md` for detailed documentation. The service layer contains 
 | Service                  | Purpose                                     |
 | ------------------------ | ------------------------------------------- |
 | `file_watcher.py`        | Monitors camera directories for new uploads |
-| `detector_client.py`     | RT-DETRv2 HTTP client for object detection  |
+| `detector_client.py`     | YOLO26 HTTP client for object detection     |
 | `batch_aggregator.py`    | Groups detections into time-based batches   |
 | `nemotron_analyzer.py`   | LLM risk analysis via llama.cpp             |
 | `nemotron_streaming.py`  | Streaming LLM responses                     |
@@ -620,7 +620,7 @@ Camera uploads -> FileWatcher -> detection_queue (Redis)
                                       |
                               DetectionQueueWorker
                                       |
-                               DetectorClient -> RT-DETRv2
+                               DetectorClient -> YOLO26
                                       |
                                Detection (DB)
                                       |
@@ -819,7 +819,7 @@ REDIS_URL=redis://localhost:6379/0
 FOSCAM_BASE_PATH=/export/foscam
 
 # AI service endpoints
-RTDETR_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
 
 # Detection settings

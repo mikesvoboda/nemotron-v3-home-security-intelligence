@@ -4,7 +4,7 @@
 
 Contains AI inference services for home security monitoring. This directory houses multiple containerized HTTP servers that provide GPU-accelerated AI capabilities:
 
-1. **RT-DETRv2** - Object detection (people, vehicles, animals)
+1. **YOLO26** - Object detection (people, vehicles, animals)
 2. **Nemotron** - LLM risk reasoning and analysis
 3. **CLIP** - Entity re-identification via embeddings
 4. **Florence-2** - Vision-language attribute extraction
@@ -30,28 +30,9 @@ ai/
 │   ├── tensorrt_utils.py  # ONNX-to-TensorRT conversion, engine management
 │   ├── tensorrt_inference.py  # Base classes for TensorRT-accelerated models
 │   └── tests/             # Unit tests
-├── triton/                # NVIDIA Triton Inference Server integration (NEM-3769)
-│   ├── AGENTS.md          # Triton documentation
-│   ├── __init__.py        # Package exports
-│   ├── client.py          # Async Triton client wrapper
-│   ├── model_repository/  # Triton model repository
-│   │   ├── rtdetr/        # RT-DETR model config
-│   │   │   ├── config.pbtxt
-│   │   │   └── 1/         # Version 1 (model.plan placed here)
-│   │   └── yolo26/        # YOLO26 model config
-│   │       ├── config.pbtxt
-│   │       └── 1/         # Version 1 (model.plan placed here)
-│   └── tests/             # Unit tests for Triton client
-├── rtdetr/                # RT-DETRv2 object detection server
-│   ├── AGENTS.md          # RT-DETRv2 documentation
-│   ├── Dockerfile         # Container build (PyTorch + CUDA)
-│   ├── model.py           # FastAPI server (HuggingFace Transformers)
-│   ├── example_client.py  # Python client example
 │   ├── test_model.py      # Unit tests (pytest)
 │   ├── requirements.txt   # Python dependencies
-│   ├── README.md          # Usage documentation
-│   ├── __init__.py        # Package init (version 1.0.0)
-│   └── .gitkeep           # Placeholder
+│   └── __init__.py        # Package init
 ├── nemotron/              # Nemotron LLM model files
 │   ├── AGENTS.md          # Nemotron documentation
 │   ├── Dockerfile         # Multi-stage build for llama.cpp
@@ -95,14 +76,6 @@ ai/
 
 ## Service Overview
 
-| Service    | Port | Model                | HuggingFace                                                                                       | Purpose                         |
-| ---------- | ---- | -------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------- |
-| RT-DETRv2  | 8090 | RT-DETRv2            | [PekingU/rtdetr_r50vd_coco_o365](https://huggingface.co/PekingU/rtdetr_r50vd_coco_o365)           | Object detection                |
-| Nemotron   | 8091 | Nemotron-3-Nano-30B  | [nvidia/Nemotron-3-Nano-30B-A3B-GGUF](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) | Risk reasoning                  |
-| Florence-2 | 8092 | Florence-2-Large     | [microsoft/Florence-2-large](https://huggingface.co/microsoft/Florence-2-large)                   | Dense captioning                |
-| CLIP       | 8093 | CLIP ViT-L           | [openai/clip-vit-large-patch14](https://huggingface.co/openai/clip-vit-large-patch14)             | Entity embeddings               |
-| Enrichment | 8094 | Model Zoo (9 models) | See [enrichment/AGENTS.md](enrichment/AGENTS.md)                                                  | On-demand detection enrichment  |
-| Triton     | 8097 | Multi-model server   | [NVIDIA Triton](https://github.com/triton-inference-server/server)                                | Production model serving (gRPC) |
 
 ## Model Zoo Overview
 
@@ -176,7 +149,7 @@ Camera Images
       │
       ▼
 ┌─────────────┐      ┌───────────────────────────────────┐
-│  RT-DETRv2  │─────▶│          Enrichment (8094)        │
+│   YOLO26    │─────▶│          Enrichment (8094)        │
 │   (8090)    │      │    On-Demand Model Loading        │
 └─────────────┘      │  ┌─────────────────────────────┐  │
       │              │  │ Threat │ Pose  │ Clothing  │  │
@@ -208,7 +181,7 @@ The backend communicates with AI services via HTTP clients:
 
 | Backend Service                         | AI Service | Purpose                           |
 | --------------------------------------- | ---------- | --------------------------------- |
-| `backend/services/detector_client.py`   | RT-DETRv2  | Send images, get detections       |
+| `backend/services/detector_client.py`   | YOLO26     | Send images, get detections       |
 | `backend/services/nemotron_analyzer.py` | Nemotron   | Analyze batches, get risk         |
 | `backend/services/enrichment_client.py` | Enrichment | Unified enrichment for detections |
 | `backend/services/reid_matcher.py`      | Enrichment | Person re-ID matching             |
@@ -217,14 +190,14 @@ The backend communicates with AI services via HTTP clients:
 
 ## Environment Variables
 
-### RT-DETRv2
+### YOLO26
 
-| Variable            | Default                                        | Description              |
-| ------------------- | ---------------------------------------------- | ------------------------ |
-| `RTDETR_MODEL_PATH` | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` | HuggingFace model path   |
-| `RTDETR_CONFIDENCE` | `0.5`                                          | Min confidence threshold |
-| `HOST`              | `0.0.0.0`                                      | Bind address             |
-| `PORT`              | `8090`                                         | Server port              |
+| Variable            | Default                                      | Description              |
+| ------------------- | -------------------------------------------- | ------------------------ |
+| `YOLO26_MODEL_PATH` | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path     |
+| `YOLO26_CONFIDENCE` | `0.5`                                        | Min confidence threshold |
+| `HOST`              | `0.0.0.0`                                    | Bind address             |
+| `PORT`              | `8090`                                       | Server port              |
 
 ### Nemotron
 
@@ -255,7 +228,7 @@ The backend communicates with AI services via HTTP clients:
 
 ## Security-Relevant Classes
 
-RT-DETRv2 filters detections to these classes only:
+YOLO26 filters detections to these classes only:
 
 ```python
 SECURITY_CLASSES = {"person", "car", "truck", "dog", "cat", "bird", "bicycle", "motorcycle", "bus"}
@@ -287,7 +260,7 @@ The enrichment service provides structured context to Nemotron for better risk a
 - **GPU**: NVIDIA with CUDA support (tested on RTX A5500 24GB + RTX A400 4GB)
 - **Container Runtime**: Docker or Podman with NVIDIA Container Toolkit
 - **Total VRAM**: ~22 GB for all services running simultaneously
-  - RT-DETRv2: ~650 MB
+  - YOLO26: ~100 MB (TensorRT FP16)
   - Nemotron: ~21.7 GB
   - Florence-2: ~1.5 GB
   - CLIP: ~1.2 GB
@@ -357,12 +330,12 @@ podman-compose -f docker-compose.prod.yml \
 
 Downloads or locates models:
 
-- Nemotron: HuggingFace (bartowski/nemotron-mini-4b-instruct-GGUF)
-- RT-DETRv2: HuggingFace models auto-download
+- Nemotron: HuggingFace (nvidia/Nemotron-3-Nano-30B-A3B-GGUF)
+- YOLO26: Ultralytics models auto-download
 
 ### `start_detector.sh`
 
-Runs RT-DETRv2 server (`python model.py`) on port 8090.
+Runs YOLO26 server (`python model.py`) on port 8090.
 
 ### `start_llm.sh`
 
@@ -521,7 +494,7 @@ For detailed documentation, see `triton/AGENTS.md` and `docs/plans/triton-migrat
 ## Entry Points
 
 1. **Pipeline overview**: This file
-2. **Detection server**: `rtdetr/AGENTS.md` and `rtdetr/model.py`
+2. **Detection server**: `yolo26/AGENTS.md` and `yolo26/model.py`
 3. **LLM server**: `nemotron/AGENTS.md`
 4. **CLIP server**: `clip/AGENTS.md` and `clip/model.py`
 5. **Florence server**: `florence/AGENTS.md` and `florence/model.py`

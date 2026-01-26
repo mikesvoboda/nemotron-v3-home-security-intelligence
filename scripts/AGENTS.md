@@ -56,7 +56,7 @@ scripts/
 
   # AI Pipeline Scripts
   benchmark_model_zoo.py             # Model Zoo performance benchmarks
-  benchmark_yolo26_accuracy.py       # YOLO26 vs RT-DETRv2 accuracy comparison
+  benchmark_yolo26_accuracy.py       # YOLO26 accuracy benchmarks
   download-model-zoo.py              # Download AI model zoo models
   download_yolo26.py                 # Download YOLO26 model weights
   export_yolo26.py                   # Export YOLO26 to ONNX/TensorRT
@@ -587,7 +587,7 @@ python scripts/benchmark_model_zoo.py --output results.md    # Custom output
 
 **Services Tested:**
 
-1. RT-DETRv2 (port 8090) - object detection
+1. YOLO26 (port 8090) - object detection
 2. Florence-2 (port 8092) - dense captioning
 3. CLIP (port 8093) - entity embeddings
 4. Enrichment (port 8094) - vehicle/pet/clothing
@@ -640,7 +640,7 @@ uv run python scripts/export_yolo26.py --force
 **Output Locations:**
 
 - Exported models: `/export/ai_models/model-zoo/yolo26/exports/`
-- Benchmark report: `docs/benchmarks/yolo26-vs-rtdetr.md`
+- Benchmark report: `docs/benchmarks/yolo26-benchmarks.md`
 - Local report: `/export/ai_models/model-zoo/yolo26/exports/EXPORT_REPORT.md`
 
 **Requirements:**

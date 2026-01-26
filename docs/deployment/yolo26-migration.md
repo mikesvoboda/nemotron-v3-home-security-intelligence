@@ -1,45 +1,30 @@
-# YOLO26 Migration Guide
+# YOLO26 Deployment Guide
 
-This guide documents how to migrate from RT-DETRv2 to YOLO26 for object detection in the Home Security Intelligence system.
+This guide documents the YOLO26 object detection service deployment in the Home Security Intelligence system.
 
 ## Overview
 
 ### What is YOLO26?
 
-YOLO26 is the latest generation of the YOLO (You Only Look Once) object detection family, featuring:
+YOLO26 is the object detection model used in this project, featuring:
 
 - **CNN-based architecture** optimized for real-time inference
 - **Built-in NMS** (Non-Maximum Suppression) - no post-processing required
 - **TensorRT optimization** for NVIDIA GPUs with FP16 precision
 - **Security-focused class filtering** for home monitoring (person, car, truck, dog, cat, bird, bicycle, motorcycle, bus)
 
-### Why Migrate?
+### Performance Characteristics
 
-YOLO26 with TensorRT FP16 offers significant performance improvements over RT-DETRv2:
+YOLO26 with TensorRT FP16 provides excellent performance for security monitoring:
 
-| Metric           | RT-DETRv2 PyTorch | YOLO26m TensorRT FP16 | Improvement |
-| ---------------- | ----------------- | --------------------- | ----------- |
-| Mean Latency     | 30.64ms           | 5.76ms                | **5.3x**    |
-| P95 Latency      | 31.90ms           | 6.29ms                | **5.1x**    |
-| P99 Latency      | 32.56ms           | 6.44ms                | **5.1x**    |
-| Throughput (FPS) | 33                | 174                   | **5.3x**    |
-| VRAM Usage       | ~570 MB           | ~100 MB               | **5.7x**    |
-| Model Size       | ~350 MB           | 43.1 MB               | **8.1x**    |
-
-### When to Migrate
-
-Consider migrating to YOLO26 when:
-
-- You need **lower latency** for real-time alerting
-- You want to **reduce GPU memory usage** for multi-model deployments
-- You have **NVIDIA GPUs** with TensorRT support (RTX 20xx+, Quadro, Tesla)
-- Your use case prioritizes **throughput over maximum accuracy**
-
-Keep RT-DETRv2 when:
-
-- You need the **highest possible accuracy** for edge cases
-- You don't have TensorRT-compatible hardware
-- You're using **non-NVIDIA GPUs** (AMD, Intel)
+| Metric           | YOLO26m TensorRT FP16 |
+| ---------------- | --------------------- |
+| Mean Latency     | 5.76ms                |
+| P95 Latency      | 6.29ms                |
+| P99 Latency      | 6.44ms                |
+| Throughput (FPS) | 174                   |
+| VRAM Usage       | ~100 MB               |
+| Model Size       | 43.1 MB               |
 
 ## Prerequisites
 
@@ -91,8 +76,7 @@ If the engine file doesn't exist, see [Exporting TensorRT Engines](#exporting-te
 
 | Variable                       | Default                                      | Description                                      |
 | ------------------------------ | -------------------------------------------- | ------------------------------------------------ |
-| `DETECTOR_TYPE`                | `rtdetr`                                     | Detection model: `rtdetr` or `yolo26`            |
-| `YOLO26_URL`                   | `http://ai-yolo26:8095`                      | YOLO26 service endpoint (Docker network)         |
+| `YOLO26_URL`                   | `http://ai-yolo26:8090`                      | YOLO26 service endpoint (Docker network)         |
 | `YOLO26_CONFIDENCE`            | `0.5`                                        | Minimum confidence threshold (0.0-1.0)           |
 | `YOLO26_MODEL_PATH`            | `/models/yolo26/exports/yolo26m_fp16.engine` | Path to TensorRT engine inside container         |
 | `YOLO26_API_KEY`               | (none)                                       | Optional API key for service authentication      |
@@ -135,14 +119,11 @@ podman-compose -f docker-compose.prod.yml build --no-cache ai-yolo26
 podman images | grep ai-yolo26
 ```
 
-### Step 3: Update Environment Configuration
+### Step 3: Configure YOLO26
 
-Edit your `.env` file to enable YOLO26:
+Configure YOLO26 options in your `.env` file:
 
 ```bash
-# Add or update these variables in .env
-DETECTOR_TYPE=yolo26
-
 # Optional: Adjust confidence threshold if needed
 YOLO26_CONFIDENCE=0.5
 
