@@ -276,7 +276,6 @@ class DetectorClient:
 
         # YOLO26 is the only supported detector
         self._detector_type = "yolo26"
-        self._model_version = "yolo26m"  # YOLO26 medium model
         self._detector_url = settings.yolo26_url
         self._api_key = settings.yolo26_api_key
         read_timeout = settings.yolo26_read_timeout
@@ -638,7 +637,7 @@ class DetectorClient:
                 span,
                 model_name=self._detector_type,
                 model_version=self._model_version,
-                model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics",
+                model_provider="huggingface" if self._detector_type == "rtdetr" else "ultralytics",
                 device="cuda:0",  # Default GPU device
                 batch_size=1,  # Single image per request
             )
@@ -990,7 +989,7 @@ class DetectorClient:
         """Send image to detector service and store detections.
 
         Reads the image file, sends it to the configured detector service
-        (YOLO26v2 or YOLO26 based on DETECTOR_TYPE setting) with retry logic,
+        (RT-DETRv2 or YOLO26 based on DETECTOR_TYPE setting) with retry logic,
         parses the response, filters by confidence threshold, and stores detections
         in the database.
 
