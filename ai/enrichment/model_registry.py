@@ -7,7 +7,7 @@ loader/unloader functions, and loading triggers.
 The registry is used by OnDemandModelManager to know which models are available
 and how to load them on-demand when needed for specific detection types.
 
-Available models (9 total):
+Available models (10 total):
 - fashion_clip: Clothing attribute extraction (~800MB, MEDIUM priority)
 - vehicle_classifier: Vehicle type classification (~1.5GB, MEDIUM priority)
 - pet_classifier: Cat/dog classification (~200MB, MEDIUM priority)
@@ -17,6 +17,7 @@ Available models (9 total):
 - demographics: Age-gender from face crops (~500MB, HIGH priority)
 - person_reid: OSNet re-identification (~100MB, MEDIUM priority)
 - action_recognizer: X-CLIP video action recognition (~1.5GB, LOW priority)
+- yolo26_detector: YOLO26 secondary object detection (~100MB, LOW priority)
 """
 
 from __future__ import annotations
@@ -477,6 +478,19 @@ def create_model_registry(device: str = "cuda:0") -> dict[str, ModelConfig]:
         unloader_fn=_unload_demographics_estimator,
     )
 
+    # YOLO26 Detector - Optional secondary object detector (~100MB)
+    # Trigger conditions: Used for fine-grained object detection or validation
+    # Use case: Complement RT-DETRv2 with YOLO26 for specific tasks
+    # Reference: https://docs.ultralytics.com/models/
+    yolo26_path = os.environ.get("YOLO26_ENRICHMENT_MODEL_PATH", "/models/yolo26m.pt")
+    registry["yolo26_detector"] = ModelConfig(
+        name="yolo26_detector",
+        vram_mb=100,
+        priority=ModelPriority.LOW,  # Optional secondary detector
+        loader_fn=lambda: _create_yolo26_detector(yolo26_path, device),
+        unloader_fn=_unload_yolo26_detector,
+    )
+
     logger.info(f"Model registry created with {len(registry)} models")
     return registry
 
@@ -620,6 +634,33 @@ def _unload_demographics_estimator(model: Any) -> None:
 
     Args:
         model: The DemographicsEstimator instance to unload
+    """
+    if hasattr(model, "unload"):
+        model.unload()
+
+
+def _create_yolo26_detector(model_path: str, device: str) -> Any:
+    """Create and load a YOLO26Detector instance.
+
+    Args:
+        model_path: Path to YOLO26 model file
+        device: Device to load the model on
+
+    Returns:
+        Loaded YOLO26Detector instance
+    """
+    from models.yolo26_detector import YOLO26Detector
+
+    detector = YOLO26Detector(model_path=model_path, device=device)
+    detector.load_model()
+    return detector
+
+
+def _unload_yolo26_detector(model: Any) -> None:
+    """Unload a YOLO26Detector instance.
+
+    Args:
+        model: The YOLO26Detector instance to unload
     """
     if hasattr(model, "unload"):
         model.unload()

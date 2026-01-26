@@ -1736,8 +1736,9 @@ async def test_detector_client_has_circuit_breaker():
     client = DetectorClient(max_retries=1)
 
     # Verify circuit breaker is present with correct configuration
+    # Circuit breaker is named per detector type (e.g., "detector_rtdetr", "detector_yolo26")
     assert client._circuit_breaker is not None
-    assert client._circuit_breaker.name == "rtdetr"
+    assert client._circuit_breaker.name == f"detector_{client.detector_type}"
     assert client._circuit_breaker.config.failure_threshold == 5
     assert client._circuit_breaker.config.recovery_timeout == 60.0
 
@@ -2023,7 +2024,8 @@ async def test_detector_client_get_circuit_breaker_status():
     status = detector_client._circuit_breaker.get_status()
 
     assert "name" in status
-    assert status["name"] == "rtdetr"
+    # Circuit breaker is named per detector type (e.g., "detector_rtdetr", "detector_yolo26")
+    assert status["name"] == f"detector_{detector_client.detector_type}"
     assert "state" in status
     assert "failure_count" in status
     assert "config" in status

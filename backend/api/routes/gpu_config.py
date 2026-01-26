@@ -1084,6 +1084,10 @@ AI_SERVICE_METADATA: dict[str, dict[str, str]] = {
         "display_name": "CLIP",
         "description": "CLIP image-text embedding model",
     },
+    "ai-yolo26": {
+        "display_name": "YOLO26 Detector",
+        "description": "YOLO26m TensorRT object detection (alternative detector)",
+    },
 }
 
 

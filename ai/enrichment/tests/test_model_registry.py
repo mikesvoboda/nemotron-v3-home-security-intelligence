@@ -38,6 +38,7 @@ EXPECTED_MODELS = [
     "demographics",
     "person_reid",
     "action_recognizer",
+    "yolo26_detector",
 ]
 
 # Expected VRAM values for each model
@@ -51,6 +52,7 @@ EXPECTED_VRAM = {
     "demographics": 500,
     "person_reid": 100,
     "action_recognizer": 1500,
+    "yolo26_detector": 100,
 }
 
 # Expected priorities for each model
@@ -64,6 +66,7 @@ EXPECTED_PRIORITIES = {
     "demographics": ModelPriority.HIGH,
     "person_reid": ModelPriority.MEDIUM,
     "action_recognizer": ModelPriority.LOW,
+    "yolo26_detector": ModelPriority.LOW,
 }
 
 
@@ -107,8 +110,8 @@ class TestCreateModelRegistry:
     """Tests for create_model_registry function."""
 
     def test_registry_contains_all_models(self, registry) -> None:
-        """Registry contains all 9 expected models."""
-        assert len(registry) == 9
+        """Registry contains all 10 expected models."""
+        assert len(registry) == 10
         for model_name in EXPECTED_MODELS:
             assert model_name in registry, f"Missing model: {model_name}"
 
@@ -152,8 +155,8 @@ class TestVRAMConfiguration:
     def test_total_vram_within_budget(self, registry) -> None:
         """Total potential VRAM is calculated correctly."""
         total = sum(config.vram_mb for config in registry.values())
-        # 800 + 1500 + 200 + 150 + 300 + 400 + 500 + 100 + 1500 = 5450 MB
-        expected_total = 5450
+        # 800 + 1500 + 200 + 150 + 300 + 400 + 500 + 100 + 1500 + 100 = 5550 MB
+        expected_total = 5550
         assert total == expected_total, f"Total VRAM mismatch: {total} != {expected_total}"
 
 
@@ -184,9 +187,10 @@ class TestPriorityConfiguration:
         assert registry["threat_detector"].priority == ModelPriority.CRITICAL
 
     def test_expensive_models_are_low_priority(self, registry) -> None:
-        """Expensive models have LOW priority."""
+        """Expensive or optional models have LOW priority."""
         assert registry["action_recognizer"].priority == ModelPriority.LOW
         assert registry["depth_estimator"].priority == ModelPriority.LOW
+        assert registry["yolo26_detector"].priority == ModelPriority.LOW
 
     def test_priority_ordering_for_eviction(self, registry) -> None:
         """Priority values follow eviction order (higher = evicted first)."""
@@ -324,6 +328,16 @@ class TestEnvironmentVariableSupport:
         with patch.dict(os.environ, {"ACTION_MODEL_PATH": test_path}):
             _registry = create_model_registry(device="cpu")
             assert os.environ.get("ACTION_MODEL_PATH") == test_path
+
+    def test_yolo26_model_path_env(
+        self,
+        mock_model_imports,  # noqa: ARG002 - Fixture dependency for side effects
+    ) -> None:
+        """YOLO26_ENRICHMENT_MODEL_PATH environment variable is used."""
+        test_path = "/custom/path/yolo26m.pt"
+        with patch.dict(os.environ, {"YOLO26_ENRICHMENT_MODEL_PATH": test_path}):
+            _registry = create_model_registry(device="cpu")
+            assert os.environ.get("YOLO26_ENRICHMENT_MODEL_PATH") == test_path
 
 
 # =============================================================================
@@ -502,7 +516,7 @@ class TestDeviceConfiguration:
     ) -> None:
         """CPU device can be specified."""
         registry = create_model_registry(device="cpu")
-        assert len(registry) == 9
+        assert len(registry) == 10
 
     def test_custom_cuda_device(
         self,
@@ -510,4 +524,4 @@ class TestDeviceConfiguration:
     ) -> None:
         """Custom CUDA device can be specified."""
         registry = create_model_registry(device="cuda:1")
-        assert len(registry) == 9
+        assert len(registry) == 10

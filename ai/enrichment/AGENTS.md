@@ -20,17 +20,18 @@ Combined enrichment service providing on-demand model loading for comprehensive 
 - **Port**: 8094 (configurable via `PORT`)
 - **Total VRAM Budget**: ~6.8 GB (configurable)
 
-| Model                  | VRAM    | Priority | Purpose                         |
-| ---------------------- | ------- | -------- | ------------------------------- |
-| Threat Detector        | ~400 MB | CRITICAL | Weapon detection (gun, knife)   |
-| Pose Estimator         | ~300 MB | HIGH     | Body posture analysis           |
-| Demographics           | ~500 MB | HIGH     | Age/gender estimation           |
-| FashionCLIP            | ~800 MB | HIGH     | Clothing attributes             |
-| Vehicle Classification | ~1.5 GB | MEDIUM   | Vehicle type (car, truck, etc.) |
-| Pet Classifier         | ~200 MB | MEDIUM   | Cat/dog classification          |
-| Person ReID            | ~100 MB | MEDIUM   | OSNet re-ID embeddings          |
-| Depth Anything V2      | ~150 MB | LOW      | Distance estimation             |
-| Action Recognizer      | ~1.5 GB | LOW      | X-CLIP video action recognition |
+| Model                  | VRAM    | Priority | Purpose                           |
+| ---------------------- | ------- | -------- | --------------------------------- |
+| Threat Detector        | ~400 MB | CRITICAL | Weapon detection (gun, knife)     |
+| Pose Estimator         | ~300 MB | HIGH     | Body posture analysis             |
+| Demographics           | ~500 MB | HIGH     | Age/gender estimation             |
+| FashionCLIP            | ~800 MB | HIGH     | Clothing attributes               |
+| Vehicle Classification | ~1.5 GB | MEDIUM   | Vehicle type (car, truck, etc.)   |
+| Pet Classifier         | ~200 MB | MEDIUM   | Cat/dog classification            |
+| Person ReID            | ~100 MB | MEDIUM   | OSNet re-ID embeddings            |
+| Depth Anything V2      | ~150 MB | LOW      | Distance estimation               |
+| Action Recognizer      | ~1.5 GB | LOW      | X-CLIP video action recognition   |
+| YOLO26 Detector        | ~100 MB | LOW      | Secondary object detection (opt.) |
 
 ## Directory Contents
 
@@ -50,7 +51,8 @@ ai/enrichment/
 │   ├── threat_detector.py # Weapon detection
 │   ├── demographics.py    # Age/gender estimation
 │   ├── person_reid.py     # OSNet re-ID embeddings
-│   └── action_recognizer.py # X-CLIP action recognition
+│   ├── action_recognizer.py # X-CLIP action recognition
+│   └── yolo26_detector.py # YOLO26 secondary detector
 ├── scripts/               # Utility scripts
 │   └── export_pose_tensorrt.py  # Export pose model to TensorRT
 ├── tests/                 # Unit tests
@@ -58,7 +60,8 @@ ai/enrichment/
 │   ├── test_model_manager.py     # Model manager unit tests
 │   ├── test_pose_estimator.py    # Pose estimation tests
 │   ├── test_demographics.py      # Demographics tests
-│   └── test_action_recognizer.py # Action recognition tests
+│   ├── test_action_recognizer.py # Action recognition tests
+│   └── test_yolo26_detector.py   # YOLO26 detector tests
 └── test_model.py          # Integration tests
 ```
 
@@ -130,7 +133,7 @@ status = manager.get_status()
 
 Defines model configurations and the `create_model_registry()` factory function.
 
-**Available Models (9 total):**
+**Available Models (10 total):**
 
 | Model Name         | VRAM   | Priority | Trigger Conditions                |
 | ------------------ | ------ | -------- | --------------------------------- |
@@ -143,6 +146,7 @@ Defines model configurations and the `create_model_registry()` factory function.
 | demographics       | 500 MB | HIGH     | Person with face detected         |
 | person_reid        | 100 MB | MEDIUM   | Person detected for tracking      |
 | action_recognizer  | 1.5 GB | LOW      | Suspicious pose + multiple frames |
+| yolo26_detector    | 100 MB | LOW      | Optional secondary detection      |
 
 ### Model Implementations
 
@@ -255,6 +259,31 @@ SUSPICIOUS_ACTIONS = {
     "looking around suspiciously"
 }
 ```
+
+#### `models/yolo26_detector.py` (YOLO26 Object Detection)
+
+Optional secondary object detector using YOLO26 (Ultralytics).
+
+**Use Cases:**
+
+- Fine-grained object detection complementing RT-DETRv2
+- Domain-specific detection tasks with custom models
+- Detection validation and cross-checking
+
+**Model Variants:**
+
+- `yolo26n`: Nano (~3.5MB, fastest)
+- `yolo26s`: Small (~11MB)
+- `yolo26m`: Medium (~25MB, recommended) - ~100MB VRAM
+- `yolo26l`: Large (~45MB)
+- `yolo26x`: Extra-large (~98MB, most accurate)
+
+**Features:**
+
+- Supports batch inference (NEM-3377)
+- 80 COCO classes by default
+- Configurable confidence threshold
+- Class filtering support
 
 ### `vitpose.py` (Legacy Pose Analyzer)
 
@@ -371,26 +400,27 @@ Analyze human pose keypoints (legacy ViTPose+ endpoint).
 
 ## Environment Variables
 
-| Variable                    | Default                                  | Description                            |
-| --------------------------- | ---------------------------------------- | -------------------------------------- |
-| `HOST`                      | `0.0.0.0`                                | Bind address                           |
-| `PORT`                      | `8094`                                   | Listen port                            |
-| `VRAM_BUDGET_GB`            | `6.8`                                    | VRAM budget for on-demand models       |
-| `VEHICLE_MODEL_PATH`        | `/models/vehicle-segment-classification` | Vehicle classifier path                |
-| `PET_MODEL_PATH`            | `/models/pet-classifier`                 | Pet classifier path                    |
-| `CLOTHING_MODEL_PATH`       | `/models/fashion-clip`                   | FashionCLIP model path                 |
-| `DEPTH_MODEL_PATH`          | `/models/depth-anything-v2-small`        | Depth estimator path                   |
-| `POSE_MODEL_PATH`           | `/models/yolov8n-pose/yolov8n-pose.pt`   | YOLOv8n-pose model path                |
-| `POSE_USE_TENSORRT`         | `false`                                  | Enable TensorRT for pose (2-3x faster) |
-| `POSE_TENSORRT_ENGINE_PATH` | (auto)                                   | Custom TensorRT engine path            |
-| `POSE_TENSORRT_FP16`        | `true`                                   | Use FP16 precision for TensorRT        |
-| `THREAT_MODEL_PATH`         | `/models/threat-detection`               | Threat detection model path            |
-| `AGE_MODEL_PATH`            | `/models/vit-age-classifier`             | Age classifier path                    |
-| `GENDER_MODEL_PATH`         | `/models/vit-gender-classifier`          | Gender classifier path                 |
-| `REID_MODEL_PATH`           | `/models/osnet-reid`                     | OSNet ReID model path                  |
-| `ACTION_MODEL_PATH`         | `microsoft/xclip-base-patch32`           | X-CLIP model path                      |
-| `VITPOSE_MODEL_PATH`        | `/models/vitpose-plus-small`             | ViTPose+ model path (legacy)           |
-| `HF_HOME`                   | `/cache/huggingface`                     | HuggingFace cache dir                  |
+| Variable                       | Default                                  | Description                            |
+| ------------------------------ | ---------------------------------------- | -------------------------------------- |
+| `HOST`                         | `0.0.0.0`                                | Bind address                           |
+| `PORT`                         | `8094`                                   | Listen port                            |
+| `VRAM_BUDGET_GB`               | `6.8`                                    | VRAM budget for on-demand models       |
+| `VEHICLE_MODEL_PATH`           | `/models/vehicle-segment-classification` | Vehicle classifier path                |
+| `PET_MODEL_PATH`               | `/models/pet-classifier`                 | Pet classifier path                    |
+| `CLOTHING_MODEL_PATH`          | `/models/fashion-clip`                   | FashionCLIP model path                 |
+| `DEPTH_MODEL_PATH`             | `/models/depth-anything-v2-small`        | Depth estimator path                   |
+| `POSE_MODEL_PATH`              | `/models/yolov8n-pose/yolov8n-pose.pt`   | YOLOv8n-pose model path                |
+| `POSE_USE_TENSORRT`            | `false`                                  | Enable TensorRT for pose (2-3x faster) |
+| `POSE_TENSORRT_ENGINE_PATH`    | (auto)                                   | Custom TensorRT engine path            |
+| `POSE_TENSORRT_FP16`           | `true`                                   | Use FP16 precision for TensorRT        |
+| `THREAT_MODEL_PATH`            | `/models/threat-detection`               | Threat detection model path            |
+| `AGE_MODEL_PATH`               | `/models/vit-age-classifier`             | Age classifier path                    |
+| `GENDER_MODEL_PATH`            | `/models/vit-gender-classifier`          | Gender classifier path                 |
+| `REID_MODEL_PATH`              | `/models/osnet-reid`                     | OSNet ReID model path                  |
+| `ACTION_MODEL_PATH`            | `microsoft/xclip-base-patch32`           | X-CLIP model path                      |
+| `YOLO26_ENRICHMENT_MODEL_PATH` | `/models/yolo26m.pt`                     | YOLO26 detector model path             |
+| `VITPOSE_MODEL_PATH`           | `/models/vitpose-plus-small`             | ViTPose+ model path (legacy)           |
+| `HF_HOME`                      | `/cache/huggingface`                     | HuggingFace cache dir                  |
 
 ## Model Links
 
@@ -406,6 +436,7 @@ Analyze human pose keypoints (legacy ViTPose+ endpoint).
 | Age Classifier             | [nateraw/vit-age-classifier](https://huggingface.co/nateraw/vit-age-classifier)                                                                 | Age range estimation                 |
 | OSNet                      | [torchreid/osnet_x0_25](https://github.com/KaiyangZhou/deep-person-reid)                                                                        | Person re-identification             |
 | X-CLIP                     | [microsoft/xclip-base-patch32](https://huggingface.co/microsoft/xclip-base-patch32)                                                             | Video action recognition             |
+| YOLO26                     | [ultralytics](https://docs.ultralytics.com/models/)                                                                                             | Secondary object detection           |
 
 ## Backend Integration
 
@@ -501,5 +532,6 @@ curl -X POST http://localhost:8094/enrich \
 6. **Demographics**: `models/demographics.py:DemographicsEstimator` - Age/gender estimation
 7. **Re-ID**: `models/person_reid.py:PersonReID` - OSNet embedding extraction
 8. **Action recognition**: `models/action_recognizer.py:ActionRecognizer` - X-CLIP video analysis
-9. **Backend client**: `backend/services/enrichment_client.py` - HTTP client
-10. **Backend pipeline**: `backend/services/enrichment_pipeline.py` - Orchestration
+9. **YOLO26 detection**: `models/yolo26_detector.py:YOLO26Detector` - Secondary object detection
+10. **Backend client**: `backend/services/enrichment_client.py` - HTTP client
+11. **Backend pipeline**: `backend/services/enrichment_pipeline.py` - Orchestration

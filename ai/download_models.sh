@@ -17,6 +17,7 @@
 #     - Pet-Classifier (ResNet-18) - Cat/dog detection
 #     - Depth-Anything-V2-Small - Depth estimation
 #     - ViTPose+ Small - Pose estimation
+#     - YOLO26 (n/s/m) - ~67MB - Object detection (Ultralytics)
 #
 # Security:
 #   - Direct downloads: SHA256 checksum verification
@@ -487,6 +488,74 @@ clone_or_update_hf "depth-anything/Depth-Anything-V2-Small-hf" "$DEPTH_DIR" "Dep
 
 echo ""
 echo "=========================================="
+echo "7/7 - YOLO26 (Object Detection - Ultralytics)"
+echo "=========================================="
+echo ""
+
+# YOLO26 models - downloaded via Ultralytics Python SDK
+# These are PyTorch .pt files from GitHub releases
+YOLO26_DIR="${AI_MODELS_PATH}/model-zoo/yolo26"
+mkdir -p "$YOLO26_DIR"
+
+# YOLO26 model URLs (from ultralytics/assets GitHub releases)
+YOLO26_RELEASE_URL="https://github.com/ultralytics/assets/releases/download/v8.4.0"
+
+# Download YOLO26 Nano (2.6M params, ~5.3MB)
+YOLO26N_FILE="${YOLO26_DIR}/yolo26n.pt"
+if [ -f "$YOLO26N_FILE" ]; then
+    echo "[SKIP] YOLO26-Nano already exists: $YOLO26N_FILE"
+else
+    echo "[DOWNLOAD] YOLO26-Nano (~5.3MB)"
+    echo "           From: ${YOLO26_RELEASE_URL}/yolo26n.pt"
+    wget --progress=bar:force -O "$YOLO26N_FILE" "${YOLO26_RELEASE_URL}/yolo26n.pt" || {
+        echo "[ERROR] Failed to download YOLO26-Nano"
+        rm -f "$YOLO26N_FILE"
+    }
+    echo "[OK] YOLO26-Nano downloaded"
+fi
+
+# Download YOLO26 Small (10M params, ~19.5MB)
+YOLO26S_FILE="${YOLO26_DIR}/yolo26s.pt"
+if [ -f "$YOLO26S_FILE" ]; then
+    echo "[SKIP] YOLO26-Small already exists: $YOLO26S_FILE"
+else
+    echo "[DOWNLOAD] YOLO26-Small (~19.5MB)"
+    echo "           From: ${YOLO26_RELEASE_URL}/yolo26s.pt"
+    wget --progress=bar:force -O "$YOLO26S_FILE" "${YOLO26_RELEASE_URL}/yolo26s.pt" || {
+        echo "[ERROR] Failed to download YOLO26-Small"
+        rm -f "$YOLO26S_FILE"
+    }
+    echo "[OK] YOLO26-Small downloaded"
+fi
+
+# Download YOLO26 Medium (21.9M params, ~42.2MB)
+YOLO26M_FILE="${YOLO26_DIR}/yolo26m.pt"
+if [ -f "$YOLO26M_FILE" ]; then
+    echo "[SKIP] YOLO26-Medium already exists: $YOLO26M_FILE"
+else
+    echo "[DOWNLOAD] YOLO26-Medium (~42.2MB)"
+    echo "           From: ${YOLO26_RELEASE_URL}/yolo26m.pt"
+    wget --progress=bar:force -O "$YOLO26M_FILE" "${YOLO26_RELEASE_URL}/yolo26m.pt" || {
+        echo "[ERROR] Failed to download YOLO26-Medium"
+        rm -f "$YOLO26M_FILE"
+    }
+    echo "[OK] YOLO26-Medium downloaded"
+fi
+
+echo ""
+echo "[INFO] YOLO26 models downloaded to: $YOLO26_DIR"
+echo "       - yolo26n.pt (Nano):   2.6M params, ~5.3MB,  fastest"
+echo "       - yolo26s.pt (Small):  10M params,  ~19.5MB, balanced"
+echo "       - yolo26m.pt (Medium): 21.9M params, ~42.2MB, highest accuracy"
+echo ""
+echo "       YOLO26 features:"
+echo "       - End-to-end NMS-free inference"
+echo "       - Up to 43% faster CPU inference vs YOLO11"
+echo "       - Optimized for edge/mobile deployment"
+echo "       - Requires ultralytics>=8.4.0"
+
+echo ""
+echo "=========================================="
 echo "Download Complete!"
 echo "=========================================="
 echo ""
@@ -503,7 +572,11 @@ echo "      ├── fashion-clip/                  (Clothing)"
 echo "      ├── vehicle-segment-classification/ (Vehicles)"
 echo "      ├── pet-classifier/                (Pets)"
 echo "      ├── vitpose-plus-small/            (Pose)"
-echo "      └── depth-anything-v2-small/       (Depth)"
+echo "      ├── depth-anything-v2-small/       (Depth)"
+echo "      └── yolo26/                        (YOLO26 detection)"
+echo "          ├── yolo26n.pt                 (Nano - fastest)"
+echo "          ├── yolo26s.pt                 (Small - balanced)"
+echo "          └── yolo26m.pt                 (Medium - accurate)"
 echo ""
 echo "Security verification:"
 echo "  - Direct downloads: SHA256 checksum verification"

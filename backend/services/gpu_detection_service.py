@@ -38,6 +38,7 @@ AI_SERVICE_VRAM_REQUIREMENTS_MB: dict[str, int] = {
     "ai-enrichment": 2048,  # Age/Gender/ReID models combined: ~2GB
     "ai-florence": 4096,  # Florence-2 model: ~4GB
     "ai-clip": 2048,  # CLIP model: ~2GB
+    "ai-yolo26": 100,  # YOLO26m TensorRT: ~100MB
 }
 
 

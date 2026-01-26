@@ -1,0 +1,26 @@
+# YOLO26 Detection Server Dependencies
+
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Deep learning
+ultralytics>=8.4.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# TensorRT support (included in base image)
+# tensorrt>=10.0.0
+
+# Image processing
+pillow>=10.0.0
+opencv-python>=4.8.0
+numpy>=1.26.0
+
+# Utilities
+pydantic>=2.4.0
+
+# Monitoring
+nvidia-ml-py>=12.560.30
+prometheus-client>=0.21.0

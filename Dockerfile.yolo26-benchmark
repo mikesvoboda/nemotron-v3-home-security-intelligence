@@ -1,0 +1,54 @@
+# YOLO26 GPU Benchmark Container with TensorRT Support
+# Provides Python 3.12 + CUDA + TensorRT for optimal inference benchmarking
+#
+# Build:
+#   podman build -t yolo26-benchmark -f Dockerfile.yolo26-benchmark .
+#
+# Run:
+#   podman run --rm --device nvidia.com/gpu=all \
+#       -v /export/ai_models/model-zoo:/models:z \
+#       -v $(pwd)/scripts:/scripts:z \
+#       -v $(pwd)/docs/benchmarks:/benchmarks:z \
+#       yolo26-benchmark python3 /scripts/benchmark_yolo26_gpu.py --export
+
+FROM nvcr.io/nvidia/tensorrt:24.09-py3
+
+LABEL maintainer="home-security-intelligence"
+LABEL description="YOLO26 benchmark container with TensorRT and ONNX Runtime GPU support"
+LABEL python.version="3.12"
+
+# System dependencies
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# Install Python packages for benchmarking
+# TensorRT is pre-installed in nvcr.io/nvidia/tensorrt base image
+# Note: ultralytics has built-in TensorRT export support
+# hadolint ignore=DL3013,DL3059,SC2261
+RUN pip install --no-cache-dir \
+    ultralytics>=8.3.0 \
+    torch>=2.5.0 \
+    torchvision>=0.20.0 \
+    onnxruntime-gpu>=1.19.0 \
+    transformers>=4.45.0 \
+    numpy>=1.26.0 \
+    pillow>=10.0.0 \
+    && python3 -c "import tensorrt; print(f'TensorRT version: {tensorrt.__version__}')" \
+    && mkdir -p /exports /benchmarks
+
+# Default environment variables
+ENV YOLO26_MODEL_PATH=/models/yolo26
+ENV RTDETR_MODEL_PATH=/models/rt-detrv2/rtdetr_v2_r101vd
+ENV BENCHMARK_OUTPUT=/benchmarks/yolo26-vs-rtdetr.md
+
+# Health check - verify GPU is accessible
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+    CMD python3 -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'"
+
+# Default command runs the benchmark
+CMD ["python3", "/scripts/benchmark_yolo26_gpu.py", "--help"]
