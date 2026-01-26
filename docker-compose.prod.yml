@@ -10,6 +10,25 @@
 # GPU Requirements:
 #   - NVIDIA GPU with CUDA support required for AI services
 #   - nvidia-container-toolkit must be installed
+#   - For multi-GPU systems, GPUs are assigned based on compute capability and memory
+#   - Set NVIDIA_VISIBLE_DEVICES or use device ordering for consistent assignment across restarts
+#
+# GPU Device Ordering (Optional - for consistent multi-GPU assignment):
+#   - RT-DETRv2 (8090): GPU 0 (primary detector)
+#   - YOLO26 (8095): GPU 0 (alternative detector, use one or the other)
+#   - Nemotron (8091): GPU 1 (LLM, requires 24GB+ VRAM)
+#   - Enrichment (8094): GPU 0 or GPU 1 (multi-model service)
+#   - Florence (8092): GPU 0 or GPU 1 (vision-language model)
+#   - CLIP (8093): GPU 0 or GPU 1 (embeddings)
+#
+# For consistent device assignment across restarts, set in your environment:
+#   export NVIDIA_VISIBLE_DEVICES=GPU-<uuid-0>,GPU-<uuid-1>
+#   export CUDA_DEVICE_ORDER=PCI_BUS_ID
+#
+# Or modify the environment in the compose file by adding:
+#   environment:
+#     - NVIDIA_VISIBLE_DEVICES=<gpu-devices>
+#     - CUDA_DEVICE_ORDER=PCI_BUS_ID
 #
 # Credential Management (Choose One Approach):
 #
@@ -28,6 +47,7 @@
 #   - FRONTEND_PORT: Host port for frontend HTTP (default: 5173)
 #   - FRONTEND_HTTPS_PORT: Host port for frontend HTTPS (default: 8443)
 #   - FRONTEND_INTERNAL_PORT: Container port for nginx (default: 8080, used for health checks)
+#   - RTDETR_CONFIDENCE: Detection confidence threshold (default: 0.5)
 #   - YOLO26_CONFIDENCE: YOLO26 detection confidence threshold (default: 0.5)
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: 30)
 #   - CTX_SIZE: LLM context window size (default: 131072)
@@ -113,13 +133,62 @@ services:
           cpus: '2'
           memory: 1G
 
-  # YOLO26 TensorRT-optimized object detection
+  ai-detector:
+    tmpfs:
+      - /tmp
+      - /home/rtdetr/.cache # PyTorch compile cache
+    labels:
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-detector'
+    build:
+      context: .
+      dockerfile: ai/rtdetr/Dockerfile
+    ports:
+      - '8090:8090'
+    volumes:
+      # Persistent HuggingFace cache volume (NEM-3812)
+      # :U tells Podman to recursively chown the volume to match container user (rtdetr)
+      # Docker ignores the :U flag, making this backward compatible
+      - hf_cache:/cache/huggingface:U
+    environment:
+      - SERVICE_NAME=ai-detector
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
+      - PYROSCOPE_URL=http://pyroscope:4040
+      - RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}
+      - RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}
+      # HuggingFace cache configuration (NEM-3812)
+      - HF_HOME=/cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
+      - HF_HUB_DISABLE_TELEMETRY=1
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=0
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import httpx; r = httpx.get('http://localhost:8090/health'); exit(0 if r.status_code == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # YOLO26 TensorRT-optimized object detection (alternative to RT-DETRv2)
   # Enable by setting DETECTOR_TYPE=yolo26 in backend environment
-  #
-  # INT8 Quantization (NEM-3768):
-  # For 2x throughput improvement, set YOLO26_MODEL_PATH env var to INT8 engine in .env
-  # INT8 engine must be pre-exported using ai/yolo26/export_tensorrt.py
-  # See ai/yolo26/README.md for calibration and export instructions
   ai-yolo26:
     labels:
       pyroscope.profile: 'true'
@@ -136,16 +205,11 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
-      # Model precision: FP16 (default) or INT8 (2x throughput, <1% accuracy drop)
-      # To use INT8:
-      #   1. Export engine: python ai/yolo26/export_tensorrt.py --int8 --data config/yolo26_calibration.yaml
-      #   2. Set in .env: YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_int8.engine
-      - YOLO26_MODEL_PATH=${YOLO26_MODEL_PATH:-/models/yolo26/exports/yolo26m_fp16.engine}
-      # INT8 engine path (alternative to overriding YOLO26_MODEL_PATH)
-      # Set YOLO26_MODEL_PATH_INT8=/models/yolo26/exports/yolo26m_int8.engine in .env
-      - YOLO26_MODEL_PATH_INT8=${YOLO26_MODEL_PATH_INT8:-}
-      # GPU memory management (NEM-3803)
-      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      - YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test:
         [
@@ -165,12 +229,9 @@ services:
       resources:
         reservations:
           devices:
-            # YOLO26 TensorRT: ~150MB - can run on smaller GPU
             - driver: nvidia
-              device_ids: ['${GPU_YOLO26:-1}']
+              count: 1
               capabilities: [gpu]
-              options:
-                memory: 1500m
 
   ai-llm:
     tmpfs:
@@ -187,10 +248,13 @@ services:
     volumes:
       - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
     environment:
-      - GPU_LAYERS=${GPU_LAYERS:-45}
+      - GPU_LAYERS=${GPU_LAYERS:-35}
       # Reduced context for home security analysis (was 131072, saves ~8GB VRAM)
-      - CTX_SIZE=${CTX_SIZE:-65536}
-      # GPU assignment from .env (default: GPU 0 for LLM - requires ~22GB VRAM)
+      - CTX_SIZE=${CTX_SIZE:-32768}
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      # Nemotron typically uses GPU 1 on multi-GPU systems
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
       - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
@@ -205,15 +269,12 @@ services:
       resources:
         reservations:
           devices:
-            # GPU assignment from .env (default: GPU 0 for LLM - requires ~22GB VRAM)
             - driver: nvidia
-              device_ids: ['${GPU_LLM:-0}']
+              count: 1
               capabilities: [gpu]
-              options:
-                memory: 24g
 
   # Florence-2 vision-language model for dense captioning and visual understanding
-  # Assigned to GPU 1 (A400 4GB) - shares with CLIP (~722MB) and YOLO26 (~1GB)
+  # Assigned to GPU 1 (A400 4GB) - shares with CLIP for multi-GPU distribution
   ai-florence:
     tmpfs:
       - /tmp
@@ -235,24 +296,16 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - MODEL_PATH=/models/florence-2-large
-      # Disable accelerate device_map to avoid final_logits_bias device placement error
-      - FLORENCE_USE_ACCELERATE=0
-      # GPU assignment from .env (default: GPU 1 for non-LLM models)
-      - CUDA_VISIBLE_DEVICES=0
       # HuggingFace cache configuration (NEM-3812)
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
-      # GPU memory management (NEM-3803)
-      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
-      test:
-        [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8092/health'); exit(0 if r.status_code == 200 else 1)",
-        ]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -264,16 +317,12 @@ services:
       resources:
         reservations:
           devices:
-            # Florence needs ~4GB (1.5GB model + inference) - too big for A400
-            # Assigned to GPU 0 (A5500 24GB) by default for headroom
+            # GPU 1 (A400 4GB) - Florence uses ~2GB, shares with CLIP (~940MB)
             - driver: nvidia
-              device_ids: ['${GPU_FLORENCE:-0}']
+              device_ids: ['1']
               capabilities: [gpu]
-              options:
-                memory: 4g
 
   # CLIP ViT-L model for entity re-identification embeddings
-  # Assigned to GPU 1 (A400 4GB) - shares with YOLO26 (~150MB)
   ai-clip:
     tmpfs:
       - /tmp
@@ -287,20 +336,23 @@ services:
     ports:
       - '8093:8093'
     volumes:
-      # Read-only model mount (HuggingFace CLIP weights)
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
-      # Writable mount for TensorRT engine cache (persists between restarts)
-      - clip-tensorrt-cache:/cache/tensorrt
+      # Persistent HuggingFace cache volume (NEM-3812)
+      - hf_cache:/cache/huggingface:U
     environment:
       - SERVICE_NAME=ai-clip
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - CLIP_MODEL_PATH=/models/clip-vit-l
-      # TensorRT acceleration (1.5-2x faster inference, auto-exports engine on first run)
-      - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
-      - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
-      # GPU memory management (NEM-3803)
-      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-false}
+      # HuggingFace cache configuration (NEM-3812)
+      - HF_HOME=/cache/huggingface
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
+      - HF_HUB_DISABLE_TELEMETRY=1
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
       interval: 10s
@@ -314,80 +366,11 @@ services:
       resources:
         reservations:
           devices:
-            # CLIP ViT-L: ~550MB - can run on smaller GPU
             - driver: nvidia
-              device_ids: ['${GPU_CLIP:-1}']
+              count: 1
               capabilities: [gpu]
-              options:
-                memory: 1500m
 
-  # Lightweight enrichment service for small, efficient models (GPU 1)
-  # Hosts: pose, threat, reid, pet, depth models (~1.2GB total)
-  ai-enrichment-light:
-    tmpfs:
-      - /tmp
-      - /home/enrichment/.cache
-    labels:
-      pyroscope.profile: 'true'
-      pyroscope.service: 'ai-enrichment-light'
-    build:
-      context: .
-      dockerfile: ai/enrichment-light/Dockerfile
-    ports:
-      - '8096:8096'
-    volumes:
-      # Light models for GPU 1
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
-      # TensorRT engine cache (persists compiled engines across restarts)
-      - enrichment-light-tensorrt-cache:/cache/tensorrt
-    environment:
-      - SERVICE_NAME=ai-enrichment-light
-      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
-      - PYROSCOPE_URL=http://pyroscope:4040
-      # Model assignment configuration (which models this service loads)
-      # Set to 'light' to load on this service, 'heavy' to skip
-      - ENRICHMENT_POSE_SERVICE=${ENRICHMENT_POSE_SERVICE:-light}
-      - ENRICHMENT_THREAT_SERVICE=${ENRICHMENT_THREAT_SERVICE:-light}
-      - ENRICHMENT_REID_SERVICE=${ENRICHMENT_REID_SERVICE:-light}
-      - ENRICHMENT_PET_SERVICE=${ENRICHMENT_PET_SERVICE:-light}
-      - ENRICHMENT_DEPTH_SERVICE=${ENRICHMENT_DEPTH_SERVICE:-light}
-      # Light model paths
-      - POSE_MODEL_PATH=/models/yolov8n-pose/yolov8n-pose.pt
-      - THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
-      - REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
-      - PET_MODEL_PATH=/models/pet-classifier
-      - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
-      # TensorRT acceleration for YOLO models
-      - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
-      - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
-      # GPU memory management (NEM-3803)
-      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8096/health']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            # Enrichment-light: ~1.2GB - pose, threat, reid, pet, depth models
-            - driver: nvidia
-              device_ids: ['${GPU_ENRICHMENT_LIGHT:-1}']
-              capabilities: [gpu]
-              options:
-                memory: 2g
-
-  # Heavy enrichment service for large transformer models (GPU 0)
-  # Hosts: vehicle, fashion, demographics, action models (~4.3GB total)
+  # Combined enrichment service for vehicle, pet, clothing, pose, threat, age, gender, reid, and action classification
   ai-enrichment:
     tmpfs:
       - /tmp
@@ -401,11 +384,17 @@ services:
     ports:
       - '8094:8094'
     volumes:
-      # Heavy models only (light models moved to ai-enrichment-light)
+      # Existing model volumes (now on-demand)
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
+      # New model volumes
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-age-classifier:/models/vit-age-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-gender-classifier:/models/vit-gender-classifier:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
       # Persistent HuggingFace cache volume (NEM-3812)
       - hf_cache:/cache/huggingface:U
@@ -413,37 +402,35 @@ services:
       - SERVICE_NAME=ai-enrichment
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      # Heavy models only (light models on ai-enrichment-light)
+      # Existing models (now on-demand)
       - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
+      - PET_MODEL_PATH=/models/pet-classifier
       - CLOTHING_MODEL_PATH=/models/fashion-clip
+      - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
+      # New models (paths include specific model files where needed)
+      - POSE_MODEL_PATH=/models/yolov8n-pose/yolov8n-pose.pt
+      - THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
       - AGE_MODEL_PATH=/models/vit-age-classifier
       - GENDER_MODEL_PATH=/models/vit-gender-classifier
+      - REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
       - ACTION_MODEL_PATH=/models/xclip-base-patch32
-      # VRAM management for heavy models
-      - VRAM_BUDGET_GB=6.0
+      # VRAM management
+      - VRAM_BUDGET_GB=6.8
       - MODEL_LOAD_TIMEOUT=30
       # HuggingFace cache configuration (NEM-3812)
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
-      # Preload models at startup (comma-separated) to keep resident in memory
-      # Available: vehicle_classifier, fashion_clip, depth_estimator, pose_analyzer, pet_classifier
-      # Only vehicle and clothing models are on heavy service (others on light)
-      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_PRELOAD_MODELS:-vehicle_classifier,fashion_clip}
-      # GPU memory management (NEM-3803)
-      - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
-      test:
-        [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8094/health'); exit(0 if r.status_code == 200 else 1)",
-        ]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 120s
+      start_period: 180s
     restart: unless-stopped
     networks:
       - security-net
@@ -451,13 +438,85 @@ services:
       resources:
         reservations:
           devices:
-            # Enrichment-heavy: ~4.3GB - vehicle, fashion, demographics, action models
-            # Default to GPU 0 (larger GPU) due to memory requirements
             - driver: nvidia
-              device_ids: ['${GPU_ENRICHMENT:-0}']
+              count: 1
               capabilities: [gpu]
-              options:
-                memory: 5g
+
+  # =============================================================================
+  # NVIDIA Triton Inference Server (NEM-3769) - Optional
+  # =============================================================================
+  # Triton provides production-grade model serving with:
+  # - Automatic dynamic batching for improved GPU utilization
+  # - Model versioning and A/B testing
+  # - Multi-model serving on single server
+  # - Native Prometheus metrics
+  #
+  # Enable by setting TRITON_ENABLED=true in .env
+  # When enabled, configure backend to use Triton:
+  #   - TRITON_URL=triton:8001
+  #   - DETECTOR_TYPE=triton
+  #
+  # Model Repository Setup:
+  #   1. Convert models to TensorRT format
+  #   2. Place engines in ai/triton/model_repository/<model>/1/model.plan
+  #   3. Restart Triton service
+  #
+  # See ai/triton/AGENTS.md for detailed setup instructions.
+  triton:
+    image: nvcr.io/nvidia/tritonserver:24.01-py3
+    # Only start if TRITON_ENABLED is true
+    profiles:
+      - triton
+    ports:
+      - '${TRITON_HTTP_PORT:-8096}:8000' # HTTP inference endpoint
+      - '${TRITON_GRPC_PORT:-8097}:8001' # gRPC inference endpoint (preferred)
+      - '${TRITON_METRICS_PORT:-8098}:8002' # Prometheus metrics
+    volumes:
+      # Model repository with TensorRT engines
+      - ./ai/triton/model_repository:/models:ro
+      # HuggingFace cache for model downloads (if using ensemble models)
+      - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface:ro
+    environment:
+      # GPU device ordering for consistent assignment
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=${TRITON_CUDA_VISIBLE_DEVICES:-0}
+      # HuggingFace cache location
+      - HF_HOME=/cache/huggingface
+      - TRANSFORMERS_CACHE=/cache/huggingface
+    command:
+      - tritonserver
+      - --model-repository=/models
+      # Strict model config disabled - auto-complete model configurations
+      - --strict-model-config=false
+      # Enable explicit model control for selective loading
+      - --model-control-mode=explicit
+      # Load specific models at startup
+      - --load-model=rtdetr
+      - --load-model=yolo26
+      # Enable GPU metrics for monitoring
+      - --metrics-interval-ms=1000
+      # Log verbosity (0=minimal, 1=standard, 2=verbose)
+      - --log-verbose=1
+      # Allow gRPC to accept max 256MB messages (for batch inference)
+      - --grpc-infer-allocation-pool-size=16
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/v2/health/ready']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   backend:
     # NOTE: Security hardening temporarily disabled for nvidia-cdi-hook compatibility
@@ -476,8 +535,6 @@ services:
       - ./backend/data:/app/data:z,U
       - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
-      # DEV: Mount backend source for hot-reload (comment out for production deployments)
-      - ./backend:/app/backend:ro,z
     environment:
       # Free-threaded Python: Disabled - standard Python 3.14 image doesn't support no-GIL
       # To enable, use python:3.14t-slim-bookworm image and uncomment:
@@ -494,23 +551,20 @@ services:
       # Pyroscope continuous profiling (enabled by default, set PYROSCOPE_ENABLED=false to disable)
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
+      - RTDETR_URL=http://ai-detector:8090
       - NEMOTRON_URL=http://ai-llm:8091
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
-      - ENRICHMENT_LIGHT_URL=http://ai-enrichment-light:8096
-      # Enrichment model assignment (determines request routing)
-      # Set to 'light' for GPU 1 (A400) or 'heavy' for GPU 0 (A5500)
-      - ENRICHMENT_POSE_SERVICE=${ENRICHMENT_POSE_SERVICE:-light}
-      - ENRICHMENT_THREAT_SERVICE=${ENRICHMENT_THREAT_SERVICE:-light}
-      - ENRICHMENT_REID_SERVICE=${ENRICHMENT_REID_SERVICE:-light}
-      - ENRICHMENT_PET_SERVICE=${ENRICHMENT_PET_SERVICE:-light}
-      - ENRICHMENT_DEPTH_SERVICE=${ENRICHMENT_DEPTH_SERVICE:-light}
-      - ENRICHMENT_VEHICLE_SERVICE=${ENRICHMENT_VEHICLE_SERVICE:-heavy}
-      - ENRICHMENT_CLOTHING_SERVICE=${ENRICHMENT_CLOTHING_SERVICE:-heavy}
-      - ENRICHMENT_ACTION_SERVICE=${ENRICHMENT_ACTION_SERVICE:-heavy}
-      - ENRICHMENT_DEMOGRAPHICS_SERVICE=${ENRICHMENT_DEMOGRAPHICS_SERVICE:-heavy}
       - YOLO26_URL=http://ai-yolo26:8095
+      # Triton Inference Server (NEM-3769) - optional, requires profile 'triton'
+      - TRITON_ENABLED=${TRITON_ENABLED:-false}
+      - TRITON_URL=triton:8001
+      - TRITON_HTTP_URL=triton:8000
+      - TRITON_PROTOCOL=${TRITON_PROTOCOL:-grpc}
+      - TRITON_TIMEOUT=${TRITON_TIMEOUT:-60}
+      - TRITON_MODEL=${TRITON_MODEL:-yolo26}
+      # YOLO26 is 5.3x faster than RT-DETRv2 with TensorRT
       - DETECTOR_TYPE=${DETECTOR_TYPE:-yolo26}
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}
       # Always use /cameras (container mount point) regardless of host env var
@@ -536,12 +590,12 @@ services:
       # AI services have health-based startup ordering (NEM-1582)
       # Backend will start after critical AI services are healthy
       # Expected startup times:
-      #   - ai-yolo26 (YOLO26): ~60s (TensorRT model loading)
+      #   - ai-detector (RT-DETR): ~60s (model loading)
       #   - ai-llm (Nemotron): ~120s (LLM loading, largest model)
       #   - ai-florence: ~60s (Florence-2 model loading)
       #   - ai-clip: ~60s (CLIP model loading)
       #   - ai-enrichment: ~180s (multiple models: vehicle, pet, clothing, depth)
-      ai-yolo26:
+      ai-detector:
         condition: service_healthy
       ai-llm:
         condition: service_healthy
@@ -551,6 +605,8 @@ services:
       # ai-clip:
       #   condition: service_healthy
       # ai-enrichment:
+      #   condition: service_healthy
+      # ai-yolo26:
       #   condition: service_healthy
     healthcheck:
       test:
@@ -577,8 +633,6 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
-              options:
-                memory: 2g
 
   redis:
     tmpfs:
@@ -1264,8 +1318,6 @@ volumes:
   # Shared across all AI services to avoid re-downloading models
   hf_cache:
     driver: local
-  enrichment-light-tensorrt-cache:
-    driver: local
   # Redis Sentinel volumes (uncomment when enabling Sentinel)
   # sentinel1_data:
   #   driver: local
@@ -1278,8 +1330,6 @@ volumes:
   grafana_data:
     driver: local
   alertmanager_data:
-    driver: local
-  clip-tensorrt-cache:
     driver: local
   loki_data:
     driver: local
