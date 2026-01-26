@@ -47,12 +47,11 @@ from torch_optimizations import BatchConfig, BatchProcessor  # noqa: E402
 logger = logging.getLogger(__name__)
 
 # TensorRT configuration from environment
-# Supports both THREAT_USE_TENSORRT (preferred) and THREAT_DETECTOR_USE_TENSORRT (legacy)
-THREAT_USE_TENSORRT = os.environ.get("THREAT_USE_TENSORRT", "false").lower() in (
+THREAT_DETECTOR_USE_TENSORRT = os.environ.get("THREAT_DETECTOR_USE_TENSORRT", "false").lower() in (
     "true",
     "1",
     "yes",
-) or os.environ.get("THREAT_DETECTOR_USE_TENSORRT", "false").lower() in ("true", "1", "yes")
+)
 
 # Severity levels for different threat types
 # Critical: Firearms that can cause mass casualties
@@ -236,7 +235,9 @@ class ThreatDetector:
             self._use_tensorrt_requested = use_tensorrt
         else:
             # Auto-detect: env var or .engine extension
-            self._use_tensorrt_requested = THREAT_USE_TENSORRT or model_path.endswith(".engine")
+            self._use_tensorrt_requested = THREAT_DETECTOR_USE_TENSORRT or model_path.endswith(
+                ".engine"
+            )
 
         # Batch processing configuration (NEM-3377)
         self.batch_processor = BatchProcessor(BatchConfig(max_batch_size=max_batch_size))
@@ -248,20 +249,12 @@ class ThreatDetector:
     def _resolve_tensorrt_path(self) -> str | None:
         """Resolve the TensorRT engine path from model path.
 
-        Checks multiple locations in order:
-        1. Custom path from THREAT_TENSORRT_ENGINE_PATH env var
-        2. Direct .engine file if model_path is .engine
-        3. Adjacent .engine file for .pt models
-        4. Engine in cache directory
+        If model_path is a .pt file, looks for adjacent .engine file.
+        If model_path is already a .engine file, returns it directly.
 
         Returns:
             Path to TensorRT engine if found, None otherwise.
         """
-        # Check custom path from environment
-        custom_path = os.environ.get("THREAT_TENSORRT_ENGINE_PATH")
-        if custom_path and os.path.exists(custom_path):
-            return custom_path
-
         model_path = Path(self.model_path)
 
         # Direct .engine file
@@ -280,145 +273,19 @@ class ThreatDetector:
             if engine_path.exists():
                 return str(engine_path)
 
-        # Check cache directory
-        cache_dir = Path(os.environ.get("TENSORRT_ENGINE_CACHE", "/cache/tensorrt"))
-        cache_engine = Path(custom_path) if custom_path else cache_dir / "threat-detector.engine"
-        if cache_engine.exists():
-            return str(cache_engine)
-
-        return None
-
-    def _export_to_tensorrt(self) -> str | None:
-        """Export the PyTorch model to TensorRT engine format.
-
-        Uses Ultralytics native export functionality. Since models are
-        mounted read-only, copies the model to a writable cache directory
-        before exporting.
-
-        Returns:
-            Path to the exported engine file, or None if export fails.
-        """
-        import shutil
-
-        try:
-            from ultralytics import YOLO
-        except ImportError:
-            logger.warning("ultralytics package not available for TensorRT export")
-            return None
-
-        # Get target engine path
-        custom_path = os.environ.get("THREAT_TENSORRT_ENGINE_PATH")
-        cache_dir = Path(os.environ.get("TENSORRT_ENGINE_CACHE", "/cache/tensorrt"))
-        engine_path = custom_path or str(cache_dir / "threat-detector.engine")
-
-        # Check if engine already exists
-        if os.path.exists(engine_path):
-            logger.info(f"TensorRT engine already exists: {engine_path}")
-            return engine_path
-
-        logger.info(f"Exporting threat detector to TensorRT engine: {engine_path}")
-        logger.info("This may take several minutes on first run...")
-
-        try:
-            cache_dir.mkdir(parents=True, exist_ok=True)
-
-            # Copy model to cache directory (models are mounted read-only)
-            model_filename = Path(self.model_path).name
-            cache_model_path = cache_dir / model_filename
-
-            if not cache_model_path.exists():
-                logger.info(f"Copying model to cache: {cache_model_path}")
-                shutil.copy2(self.model_path, cache_model_path)
-
-            # Load the PyTorch model from cache copy
-            pt_model = YOLO(str(cache_model_path))
-
-            # Export to TensorRT using Ultralytics native export
-            use_fp16 = os.environ.get("THREAT_TENSORRT_FP16", "true").lower() in (
-                "true",
-                "1",
-                "yes",
-            )
-            export_result = pt_model.export(
-                format="engine",
-                half=use_fp16,
-                device=self.device.replace("cuda:", "") if "cuda" in self.device else "0",
-            )
-
-            # Find and move the exported engine to expected path
-            result_path = self._find_and_move_engine(
-                export_result, engine_path, cache_dir, model_filename
-            )
-            if result_path:
-                logger.info(f"TensorRT engine exported successfully: {result_path}")
-                return result_path
-
-            logger.warning("TensorRT export completed but engine file not found")
-            return None
-
-        except Exception as e:
-            logger.warning(f"TensorRT export failed: {e}")
-            logger.info("Falling back to PyTorch inference")
-            return None
-
-    def _find_and_move_engine(
-        self,
-        export_result: str | None,
-        engine_path: str,
-        cache_dir: Path,
-        model_filename: str,
-    ) -> str | None:
-        """Find exported TensorRT engine and move to expected path.
-
-        Args:
-            export_result: Path returned by Ultralytics export
-            engine_path: Expected final engine path
-            cache_dir: Cache directory path
-            model_filename: Original model filename
-
-        Returns:
-            Final engine path if found, None otherwise.
-        """
-        import shutil
-
-        # Check if export returned a valid path
-        if export_result and os.path.exists(str(export_result)):
-            if str(export_result) != engine_path:
-                logger.info(f"Moving engine from {export_result} to {engine_path}")
-                shutil.move(str(export_result), engine_path)
-            return engine_path
-
-        # Check if engine was created at expected path
-        if os.path.exists(engine_path):
-            return engine_path
-
-        # Check if created next to cached model
-        cache_engine = cache_dir / model_filename.replace(".pt", ".engine")
-        if cache_engine.exists():
-            if str(cache_engine) != engine_path:
-                shutil.move(str(cache_engine), engine_path)
-            return engine_path
-
         return None
 
     def _load_tensorrt_model(self) -> bool:
         """Attempt to load TensorRT engine.
 
-        If no engine exists, attempts to export one automatically.
-
         Returns:
             True if TensorRT model loaded successfully, False otherwise.
         """
         engine_path = self._resolve_tensorrt_path()
-
-        # If no engine found, try to export one
-        if engine_path is None:
-            logger.info("TensorRT engine not found, attempting to export...")
-            engine_path = self._export_to_tensorrt()
-
         if engine_path is None:
             logger.warning(
-                f"TensorRT engine not available for {self.model_path}. Falling back to PyTorch."
+                f"TensorRT engine not found for {self.model_path}. "
+                "Export with: python ai/enrichment/scripts/export_threat_tensorrt.py"
             )
             return False
 

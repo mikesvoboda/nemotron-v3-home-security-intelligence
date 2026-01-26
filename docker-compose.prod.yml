@@ -332,7 +332,67 @@ services:
               count: 1
               capabilities: [gpu]
 
-  # Combined enrichment service for vehicle, pet, clothing, pose, threat, age, gender, reid, and action classification
+  # Lightweight enrichment service for small, efficient models (GPU 1)
+  # Hosts: pose, threat, reid, pet, depth models (~1.2GB total)
+  ai-enrichment-light:
+    tmpfs:
+      - /tmp
+      - /home/enrichment/.cache
+    labels:
+      pyroscope.profile: 'true'
+      pyroscope.service: 'ai-enrichment-light'
+    build:
+      context: .
+      dockerfile: ai/enrichment-light/Dockerfile
+    ports:
+      - '8096:8096'
+    volumes:
+      # Light models for GPU 1
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
+    environment:
+      - SERVICE_NAME=ai-enrichment-light
+      - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
+      - PYROSCOPE_URL=http://pyroscope:4040
+      # Model assignment configuration (which models this service loads)
+      # Set to 'light' to load on this service, 'heavy' to skip
+      - ENRICHMENT_POSE_SERVICE=${ENRICHMENT_POSE_SERVICE:-light}
+      - ENRICHMENT_THREAT_SERVICE=${ENRICHMENT_THREAT_SERVICE:-light}
+      - ENRICHMENT_REID_SERVICE=${ENRICHMENT_REID_SERVICE:-light}
+      - ENRICHMENT_PET_SERVICE=${ENRICHMENT_PET_SERVICE:-light}
+      - ENRICHMENT_DEPTH_SERVICE=${ENRICHMENT_DEPTH_SERVICE:-light}
+      # Light model paths
+      - POSE_MODEL_PATH=/models/yolov8n-pose/yolov8n-pose.pt
+      - THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
+      - REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
+      - PET_MODEL_PATH=/models/pet-classifier
+      - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
+      # TensorRT acceleration for YOLO models
+      - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
+      - THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8096/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            # GPU 1 (A400 4GB) - Light models use ~1.2GB
+            - driver: nvidia
+              device_ids: ['1']
+              capabilities: [gpu]
+
+  # Heavy enrichment service for large transformer models (GPU 0)
+  # Hosts: vehicle, fashion, demographics, action models (~4.3GB total)
   ai-enrichment:
     tmpfs:
       - /tmp
@@ -346,17 +406,11 @@ services:
     ports:
       - '8094:8094'
     volumes:
-      # Existing model volumes (now on-demand)
+      # Heavy models only (light models moved to ai-enrichment-light)
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
-      # New model volumes
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolov8n-pose:/models/yolov8n-pose:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/threat-detection-yolov8n:/models/threat-detection-yolov8n:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-age-classifier:/models/vit-age-classifier:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vit-gender-classifier:/models/vit-gender-classifier:ro
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/osnet-x0-25:/models/osnet-x0-25:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/xclip-base-patch32:/models/xclip-base-patch32:ro
       # Persistent HuggingFace cache volume (NEM-3812)
       - hf_cache:/cache/huggingface:U
@@ -364,23 +418,14 @@ services:
       - SERVICE_NAME=ai-enrichment
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
-      # Existing models (now on-demand)
+      # Heavy models only (light models on ai-enrichment-light)
       - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
-      - PET_MODEL_PATH=/models/pet-classifier
       - CLOTHING_MODEL_PATH=/models/fashion-clip
-      - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
-      # New models (paths include specific model files where needed)
-      - POSE_MODEL_PATH=/models/yolov8n-pose/yolov8n-pose.pt
-      - THREAT_MODEL_PATH=/models/threat-detection-yolov8n/weights/best.pt
       - AGE_MODEL_PATH=/models/vit-age-classifier
       - GENDER_MODEL_PATH=/models/vit-gender-classifier
-      - REID_MODEL_PATH=/models/osnet-x0-25/osnet_x0_25.pth
       - ACTION_MODEL_PATH=/models/xclip-base-patch32
-      # TensorRT acceleration (2-3x faster inference, auto-exports engine on first run)
-      - POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
-      - THREAT_DETECTOR_USE_TENSORRT=${THREAT_DETECTOR_USE_TENSORRT:-true}
-      # VRAM management
-      - VRAM_BUDGET_GB=6.8
+      # VRAM management for heavy models
+      - VRAM_BUDGET_GB=6.0
       - MODEL_LOAD_TIMEOUT=30
       # HuggingFace cache configuration (NEM-3812)
       - HF_HOME=/cache/huggingface
@@ -391,7 +436,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 180s
+      start_period: 120s
     restart: unless-stopped
     networks:
       - security-net
@@ -399,8 +444,9 @@ services:
       resources:
         reservations:
           devices:
+            # GPU 0 (A5500 24GB) - Heavy transformer models
             - driver: nvidia
-              count: 1
+              device_ids: ['0']
               capabilities: [gpu]
 
   backend:
@@ -440,6 +486,18 @@ services:
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
+      - ENRICHMENT_LIGHT_URL=http://ai-enrichment-light:8096
+      # Enrichment model assignment (determines request routing)
+      # Set to 'light' for GPU 1 (A400) or 'heavy' for GPU 0 (A5500)
+      - ENRICHMENT_POSE_SERVICE=${ENRICHMENT_POSE_SERVICE:-light}
+      - ENRICHMENT_THREAT_SERVICE=${ENRICHMENT_THREAT_SERVICE:-light}
+      - ENRICHMENT_REID_SERVICE=${ENRICHMENT_REID_SERVICE:-light}
+      - ENRICHMENT_PET_SERVICE=${ENRICHMENT_PET_SERVICE:-light}
+      - ENRICHMENT_DEPTH_SERVICE=${ENRICHMENT_DEPTH_SERVICE:-light}
+      - ENRICHMENT_VEHICLE_SERVICE=${ENRICHMENT_VEHICLE_SERVICE:-heavy}
+      - ENRICHMENT_CLOTHING_SERVICE=${ENRICHMENT_CLOTHING_SERVICE:-heavy}
+      - ENRICHMENT_ACTION_SERVICE=${ENRICHMENT_ACTION_SERVICE:-heavy}
+      - ENRICHMENT_DEMOGRAPHICS_SERVICE=${ENRICHMENT_DEMOGRAPHICS_SERVICE:-heavy}
       - YOLO26_URL=http://ai-yolo26:8095
       - DETECTOR_TYPE=${DETECTOR_TYPE:-yolo26}
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}

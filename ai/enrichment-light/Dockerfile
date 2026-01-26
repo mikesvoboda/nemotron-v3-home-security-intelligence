@@ -23,13 +23,8 @@ WORKDIR /app
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Copy and install base dependencies first
+# Copy and install Python dependencies
 # Use BuildKit cache mount to cache uv downloads between builds (~5-10x faster)
-COPY requirements-base.txt .
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-cache -r requirements-base.txt
-
-# Copy and install service-specific Python dependencies
 COPY ai/enrichment-light/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --system --no-cache -r requirements.txt
@@ -50,8 +45,6 @@ RUN groupadd -g 1000 enrichment && \
 # Copy application files
 COPY ai/enrichment-light/*.py ./
 COPY ai/enrichment-light/models/*.py ./models/
-# Copy shared utilities from ai/ directory
-COPY ai/torch_optimizations.py ./
 
 # Environment variables
 ENV HOST=0.0.0.0
@@ -70,13 +63,9 @@ ENV HF_HUB_DISABLE_TELEMETRY=1
 # TensorRT acceleration for YOLO models
 ENV POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
 ENV THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
-# TensorRT engine cache directory (writable for non-root user)
-ENV TENSORRT_ENGINE_CACHE=/cache/tensorrt
-ENV POSE_TENSORRT_ENGINE_PATH=/cache/tensorrt/yolov8n-pose.engine
-ENV THREAT_TENSORRT_ENGINE_PATH=/cache/tensorrt/threat-detector.engine
 
-# Create cache directories for HuggingFace and TensorRT engines
-RUN mkdir -p /cache/huggingface /cache/tensorrt && chown -R enrichment:enrichment /cache
+# Create cache directory for HuggingFace models
+RUN mkdir -p /cache/huggingface && chown -R enrichment:enrichment /cache/huggingface
 
 # Set ownership of app directory
 RUN chown -R enrichment:enrichment /app
