@@ -51,6 +51,7 @@ class TestCorrelationIdMiddleware:
         assert response.headers.get("X-Correlation-ID") == test_correlation_id
 
     @pytest.mark.asyncio
+    @pytest.mark.timeout(30)  # This test is slow due to FastAPI app startup
     async def test_correlation_id_available_in_context(self) -> None:
         """Verify correlation ID is available via get_request_id() during request."""
         from unittest.mock import patch

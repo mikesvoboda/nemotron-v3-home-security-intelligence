@@ -907,14 +907,24 @@ class TestGlobalRegistry:
     @pytest.mark.asyncio
     async def test_get_service_registry_creates_singleton(self) -> None:
         """Test that get_service_registry creates a singleton."""
+        from unittest.mock import patch
+
         # Reset first
         reset_service_registry()
 
-        # This will attempt to initialize Redis, which may fail in tests
-        # So we just verify the function is callable
-        # In production, this would return a ServiceRegistry
-        try:
+        # Mock Redis initialization to avoid actual connection attempts
+        # which can crash test workers in parallel mode
+        mock_redis = AsyncMock()
+        with patch(
+            "backend.core.redis.init_redis",
+            return_value=mock_redis,
+        ):
             registry = await get_service_registry()
             assert isinstance(registry, ServiceRegistry)
-        except Exception:  # Expected in test environment without Redis
-            pass
+
+            # Calling again should return the same singleton
+            registry2 = await get_service_registry()
+            assert registry is registry2
+
+        # Clean up
+        reset_service_registry()
