@@ -101,8 +101,8 @@ Camera Upload (FTP)
 | File stability time          | 2.0s    | `backend/services/file_watcher.py:362`      |
 | Batch window                 | 90s     | `backend/services/batch_aggregator.py:145`  |
 | Batch idle timeout           | 30s     | `backend/services/batch_aggregator.py:146`  |
-| YOLO26 connect timeout       | 10s     | `backend/services/detector_client.py:97`    |
-| YOLO26 read timeout          | 60s     | `backend/services/detector_client.py:98`    |
+| YOLO26 connect timeout    | 10s     | `backend/services/detector_client.py:97`    |
+| YOLO26 read timeout       | 60s     | `backend/services/detector_client.py:98`    |
 | Nemotron connect timeout     | 10s     | `backend/services/nemotron_analyzer.py:130` |
 | Nemotron read timeout        | 120s    | `backend/services/nemotron_analyzer.py:131` |
 | WebSocket idle timeout       | 300s    | Configurable in settings                    |
@@ -112,7 +112,7 @@ Camera Upload (FTP)
 
 | Service    | Failure Threshold | Recovery Timeout | Source                                        |
 | ---------- | ----------------- | ---------------- | --------------------------------------------- |
-| YOLO26     | 5                 | 60s              | `backend/services/detector_client.py:300-310` |
+| YOLO26  | 5                 | 60s              | `backend/services/detector_client.py:300-310` |
 | Nemotron   | 5                 | 30s              | `backend/main.py:265-270`                     |
 | PostgreSQL | 10                | 60s              | `backend/main.py:273-278`                     |
 | Redis      | 10                | 60s              | `backend/main.py:273-278`                     |

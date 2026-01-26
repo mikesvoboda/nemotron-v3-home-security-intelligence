@@ -552,7 +552,7 @@
         "type": "object"
       },
       "AiModelMetrics": {
-        "description": "Metrics for YOLO26v2 model.",
+        "description": "Metrics for YOLO26 model.",
         "example": {
           "device": "cuda:0",
           "model": "yolo26_r50vd_coco_o365",
@@ -2821,8 +2821,8 @@
           "model_contribution_rates": {
             "clothing": 0.72,
             "florence": 0.85,
-            "weather": 0.95,
-            "yolo26": 0.98
+            "yolo26": 0.98,
+            "weather": 0.95
           },
           "total_events": 1250
         },
@@ -6206,10 +6206,10 @@
             "florence": 38,
             "image_quality": 40,
             "pet": 3,
+            "yolo26": 45,
             "vehicle": 8,
             "violence": 5,
             "weather": 42,
-            "yolo26": 45,
             "zones": 30
           }
         },
@@ -9080,10 +9080,10 @@
             "florence": true,
             "image_quality": true,
             "pet": false,
+            "yolo26": true,
             "vehicle": false,
             "violence": false,
             "weather": true,
-            "yolo26": true,
             "zones": true
           },
           "enrichment_utilization": 0.85,
@@ -14106,14 +14106,14 @@
             "analysis": 0,
             "detection": 0
           },
-          "throughput": {
-            "events_per_min": 2.1,
-            "images_per_min": 12.4
-          },
           "yolo26_latency_ms": {
             "avg": 45,
             "p95": 82,
             "p99": 120
+          },
+          "throughput": {
+            "events_per_min": 2.1,
+            "images_per_min": 12.4
           }
         },
         "properties": {
@@ -14141,20 +14141,20 @@
             "title": "Queues",
             "type": "object"
           },
+          "yolo26_latency_ms": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "YOLO26 latency stats (avg, p95, p99)",
+            "title": "Rtdetr Latency Ms",
+            "type": "object"
+          },
           "throughput": {
             "additionalProperties": {
               "type": "number"
             },
             "description": "Throughput metrics (images_per_min, events_per_min)",
             "title": "Throughput",
-            "type": "object"
-          },
-          "yolo26_latency_ms": {
-            "additionalProperties": {
-              "type": "number"
-            },
-            "description": "YOLO26v2 latency stats (avg, p95, p99)",
-            "title": "Yolo26 Latency Ms",
             "type": "object"
           }
         },
@@ -16337,10 +16337,10 @@
           "florence": true,
           "image_quality": true,
           "pet": false,
+          "yolo26": true,
           "vehicle": false,
           "violence": false,
           "weather": true,
-          "yolo26": true,
           "zones": true
         },
         "properties": {
@@ -16386,6 +16386,12 @@
             "title": "Pet",
             "type": "boolean"
           },
+          "yolo26": {
+            "default": false,
+            "description": "YOLO26 object detection",
+            "title": "Rtdetr",
+            "type": "boolean"
+          },
           "vehicle": {
             "default": false,
             "description": "Vehicle classification",
@@ -16402,12 +16408,6 @@
             "default": false,
             "description": "Weather classification",
             "title": "Weather",
-            "type": "boolean"
-          },
-          "yolo26": {
-            "default": false,
-            "description": "YOLO26 object detection",
-            "title": "Yolo26",
             "type": "boolean"
           },
           "zones": {
@@ -23781,7 +23781,7 @@
           "service": {
             "category": "ai",
             "container_id": "abc123...",
-            "display_name": "YOLO26v2",
+            "display_name": "YOLO26",
             "enabled": true,
             "failure_count": 0,
             "image": "ghcr.io/.../yolo26:latest",
@@ -23986,7 +23986,7 @@
         "example": {
           "category": "ai",
           "container_id": "abc123def456",
-          "display_name": "YOLO26v2",
+          "display_name": "YOLO26",
           "enabled": true,
           "failure_count": 0,
           "image": "ghcr.io/.../yolo26:latest",
@@ -24015,7 +24015,7 @@
             "title": "Container Id"
           },
           "display_name": {
-            "description": "Human-readable display name (e.g., 'YOLO26v2', 'PostgreSQL')",
+            "description": "Human-readable display name (e.g., 'YOLO26', 'PostgreSQL')",
             "title": "Display Name",
             "type": "string"
           },
@@ -24178,7 +24178,7 @@
             {
               "category": "ai",
               "container_id": "abc123...",
-              "display_name": "YOLO26v2",
+              "display_name": "YOLO26",
               "enabled": true,
               "failure_count": 0,
               "image": "ghcr.io/.../yolo26:latest",
@@ -40992,7 +40992,7 @@
     },
     "/api/system/models": {
       "get": {
-        "description": "Get the current status of all models in the Model Zoo.\n\nReturns comprehensive information about all AI models available in the system,\nincluding their VRAM requirements, loading status, and configuration.\n\n**VRAM Budget**: The Model Zoo has a dedicated VRAM budget of 1650 MB,\nseparate from the YOLO26v2 detector and Nemotron LLM allocations.\n\n**Loading Strategy**: Models are loaded sequentially (one at a time) to\nprevent VRAM fragmentation and ensure stable operation.\n\n**Model Categories**:\n- detection: Object detection models (YOLO variants)\n- recognition: Face and license plate recognition\n- ocr: Optical character recognition\n- embedding: Visual embedding models (CLIP)\n- depth-estimation: Depth estimation models\n- pose: Human pose estimation\n\nReturns:\n    ModelRegistryResponse with VRAM stats and all model statuses",
+        "description": "Get the current status of all models in the Model Zoo.\n\nReturns comprehensive information about all AI models available in the system,\nincluding their VRAM requirements, loading status, and configuration.\n\n**VRAM Budget**: The Model Zoo has a dedicated VRAM budget of 1650 MB,\nseparate from the YOLO26 detector and Nemotron LLM allocations.\n\n**Loading Strategy**: Models are loaded sequentially (one at a time) to\nprevent VRAM fragmentation and ensure stable operation.\n\n**Model Categories**:\n- detection: Object detection models (YOLO variants)\n- recognition: Face and license plate recognition\n- ocr: Optical character recognition\n- embedding: Visual embedding models (CLIP)\n- depth-estimation: Depth estimation models\n- pose: Human pose estimation\n\nReturns:\n    ModelRegistryResponse with VRAM stats and all model statuses",
         "operationId": "system_get_models",
         "responses": {
           "200": {
@@ -41101,7 +41101,7 @@
     },
     "/api/system/performance": {
       "get": {
-        "description": "Get current system performance metrics.\n\nCollects and returns real-time metrics from all system components:\n- GPU: Utilization, VRAM usage, temperature, power consumption\n- AI Models: YOLO26v2 and Nemotron status and resource usage\n- Inference: Latency percentiles and throughput metrics\n- Databases: PostgreSQL and Redis connection status and performance\n- Host: CPU, RAM, and disk usage\n- Containers: Health status of all running containers\n- Alerts: Active performance alerts when thresholds are exceeded\n\nThis endpoint powers the System Performance Dashboard and provides\na comprehensive snapshot of system health at the time of the request.\n\nReturns:\n    PerformanceUpdate with all available metrics. Fields may be None\n    if a particular metric source is unavailable.\n\nRaises:\n    HTTPException: 503 if performance collector is not initialized\n    HTTPException: 500 if metric collection fails",
+        "description": "Get current system performance metrics.\n\nCollects and returns real-time metrics from all system components:\n- GPU: Utilization, VRAM usage, temperature, power consumption\n- AI Models: YOLO26 and Nemotron status and resource usage\n- Inference: Latency percentiles and throughput metrics\n- Databases: PostgreSQL and Redis connection status and performance\n- Host: CPU, RAM, and disk usage\n- Containers: Health status of all running containers\n- Alerts: Active performance alerts when thresholds are exceeded\n\nThis endpoint powers the System Performance Dashboard and provides\na comprehensive snapshot of system health at the time of the request.\n\nReturns:\n    PerformanceUpdate with all available metrics. Fields may be None\n    if a particular metric source is unavailable.\n\nRaises:\n    HTTPException: 503 if performance collector is not initialized\n    HTTPException: 500 if metric collection fails",
         "operationId": "system_get_performance_metrics",
         "responses": {
           "200": {

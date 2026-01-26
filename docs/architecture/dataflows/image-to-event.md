@@ -362,7 +362,7 @@ After successful LLM analysis, an Event record is created in PostgreSQL with:
 | File stability wait  | 2s               | 2s              |
 | Image validation     | <100ms           | 500ms           |
 | Detection queue wait | Variable         | Depends on load |
-| YOLO26 inference     | 200-500ms        | 60s (timeout)   |
+| YOLO26 inference  | 200-500ms        | 60s (timeout)   |
 | Batch aggregation    | 30-90s           | 90s (window)    |
 | Analysis queue wait  | Variable         | Depends on load |
 | Enrichment pipeline  | 500ms-5s         | 30s (timeout)   |

@@ -2674,7 +2674,7 @@ async def test_trigger_cleanup_logs_operation() -> None:
 
 @pytest.mark.asyncio
 async def test_check_yolo26_health_success() -> None:
-    """Test RT-DETR health check returns healthy when service responds."""
+    """Test YOLO26 health check returns healthy when service responds."""
     with patch("httpx.AsyncClient.get") as mock_get:
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -2689,7 +2689,7 @@ async def test_check_yolo26_health_success() -> None:
 
 @pytest.mark.asyncio
 async def test_check_yolo26_health_connection_refused() -> None:
-    """Test RT-DETR health check handles connection refused error."""
+    """Test YOLO26 health check handles connection refused error."""
     with patch("httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused")):
         is_healthy, error = await system_routes._check_yolo26_health("http://localhost:8090", 3.0)
 
@@ -2700,7 +2700,7 @@ async def test_check_yolo26_health_connection_refused() -> None:
 
 @pytest.mark.asyncio
 async def test_check_yolo26_health_timeout() -> None:
-    """Test RT-DETR health check handles timeout error."""
+    """Test YOLO26 health check handles timeout error."""
     with patch("httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Timeout")):
         is_healthy, error = await system_routes._check_yolo26_health("http://localhost:8090", 3.0)
 
@@ -2711,7 +2711,7 @@ async def test_check_yolo26_health_timeout() -> None:
 
 @pytest.mark.asyncio
 async def test_check_yolo26_health_http_error() -> None:
-    """Test RT-DETR health check handles HTTP error status."""
+    """Test YOLO26 health check handles HTTP error status."""
     with patch("httpx.AsyncClient.get") as mock_get:
         mock_response = MagicMock()
         mock_response.status_code = 500
@@ -2729,7 +2729,7 @@ async def test_check_yolo26_health_http_error() -> None:
 
 @pytest.mark.asyncio
 async def test_check_yolo26_health_unexpected_error() -> None:
-    """Test RT-DETR health check handles unexpected error."""
+    """Test YOLO26 health check handles unexpected error."""
     with patch("httpx.AsyncClient.get", side_effect=OSError("Unexpected network error")):
         is_healthy, error = await system_routes._check_yolo26_health("http://localhost:8090", 3.0)
 
@@ -2835,8 +2835,8 @@ async def test_check_ai_services_health_both_healthy() -> None:
 
 
 @pytest.mark.asyncio
-async def test_check_ai_services_health_rtdetr_down() -> None:
-    """Test AI services health check when RT-DETR is down but Nemotron is up."""
+async def test_check_ai_services_health_yolo26_down() -> None:
+    """Test AI services health check when YOLO26 is down but Nemotron is up."""
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
     mock_settings.yolo26_url = "http://localhost:8001"
@@ -2847,7 +2847,7 @@ async def test_check_ai_services_health_rtdetr_down() -> None:
         patch.object(
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
-            return_value=(False, "RT-DETR service returned HTTP 500"),
+            return_value=(False, "YOLO26 service returned HTTP 500"),
         ),
         patch.object(
             system_routes,
@@ -2858,7 +2858,7 @@ async def test_check_ai_services_health_rtdetr_down() -> None:
         status = await system_routes.check_ai_services_health()
 
         assert status.status == "degraded"
-        assert "RT-DETR" in status.message
+        assert "YOLO26" in status.message
         assert "unavailable" in status.message
         assert "Nemotron" in status.message
         assert "operational" in status.message
@@ -2869,7 +2869,7 @@ async def test_check_ai_services_health_rtdetr_down() -> None:
 
 @pytest.mark.asyncio
 async def test_check_ai_services_health_nemotron_down() -> None:
-    """Test AI services health check when Nemotron is down but RT-DETR is up."""
+    """Test AI services health check when Nemotron is down but YOLO26 is up."""
     # Mock settings to avoid environment validation issues
     mock_settings = MagicMock()
     mock_settings.yolo26_url = "http://localhost:8001"
@@ -2893,7 +2893,7 @@ async def test_check_ai_services_health_nemotron_down() -> None:
         assert status.status == "degraded"
         assert "Nemotron" in status.message
         assert "unavailable" in status.message
-        assert "RT-DETR" in status.message
+        assert "YOLO26" in status.message
         assert "operational" in status.message
         assert status.details is not None
         assert status.details["yolo26"] == "healthy"
@@ -2913,7 +2913,7 @@ async def test_check_ai_services_health_both_down() -> None:
         patch.object(
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
-            return_value=(False, "RT-DETR service returned HTTP 500"),
+            return_value=(False, "YOLO26 service returned HTTP 500"),
         ),
         patch.object(
             system_routes,
@@ -2953,7 +2953,7 @@ async def test_check_ai_services_health_returns_details() -> None:
         patch.object(
             system_routes,
             "_check_yolo26_health_with_circuit_breaker",
-            return_value=(False, "RT-DETR connection refused"),
+            return_value=(False, "YOLO26 connection refused"),
         ),
         patch.object(
             system_routes,
@@ -2984,7 +2984,7 @@ async def test_check_ai_services_health_uses_config_urls() -> None:
             return_value=(True, None),
         ) as mock_nemotron,
     ):
-        mock_settings.return_value.yolo26_url = "http://custom-rtdetr:9000"
+        mock_settings.return_value.yolo26_url = "http://custom-yolo26:9000"
         mock_settings.return_value.nemotron_url = "http://custom-nemotron:9001"
 
         await system_routes.check_ai_services_health()
@@ -2993,7 +2993,7 @@ async def test_check_ai_services_health_uses_config_urls() -> None:
         mock_yolo26.assert_called_once()
         mock_nemotron.assert_called_once()
         # Verify the config URLs were passed
-        assert mock_yolo26.call_args[0][0] == "http://custom-rtdetr:9000"
+        assert mock_yolo26.call_args[0][0] == "http://custom-yolo26:9000"
         assert mock_nemotron.call_args[0][0] == "http://custom-nemotron:9001"
 
 
