@@ -21,7 +21,6 @@ import pytest
 from fastapi import HTTPException
 
 from backend.api.schemas.alerts import AlertSeverity
-from backend.core.constants import CacheInvalidationReason
 from backend.models.alert import Alert, AlertRule, AlertStatusEnum
 from backend.models.alert import AlertSeverity as ModelAlertSeverity
 
@@ -302,6 +301,7 @@ class TestCreateRule:
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
+        mock_background_tasks = MagicMock()
 
         rule_data = AlertRuleCreate(
             name="Test Rule",
@@ -331,16 +331,17 @@ class TestCreateRule:
 
             mock_rule_class.return_value = mock_rule_instance
 
-            result = await create_rule(rule_data, db=mock_db, cache=mock_cache)
+            result = await create_rule(
+                rule_data, background_tasks=mock_background_tasks, db=mock_db, cache=mock_cache
+            )
 
             assert result.id == "new-rule-id"
             assert result.name == "Test Rule"
             assert result.severity == AlertSeverity.MEDIUM
             mock_db.add.assert_called_once()
             mock_db.commit.assert_called_once()
-            mock_cache.invalidate_alerts.assert_called_once_with(
-                reason=CacheInvalidationReason.ALERT_RULE_CREATED
-            )
+            # NEM-3744: Cache invalidation is now deferred to background task
+            mock_background_tasks.add_task.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_create_rule_with_schedule(self) -> None:
@@ -354,6 +355,7 @@ class TestCreateRule:
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
+        mock_background_tasks = MagicMock()
 
         schedule = AlertRuleSchedule(
             days=["monday", "tuesday"],
@@ -397,11 +399,13 @@ class TestCreateRule:
 
             mock_rule_class.return_value = mock_rule_instance
 
-            result = await create_rule(rule_data, db=mock_db, cache=mock_cache)
+            result = await create_rule(
+                rule_data, background_tasks=mock_background_tasks, db=mock_db, cache=mock_cache
+            )
 
             assert result.name == "Night Alert"
             assert result.schedule is not None
-            mock_cache.invalidate_alerts.assert_called_once()
+            mock_background_tasks.add_task.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_create_rule_severity_enum_conversion(self) -> None:
@@ -411,6 +415,7 @@ class TestCreateRule:
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
+        mock_background_tasks = MagicMock()
 
         rule_data = AlertRuleCreate(name="Critical Rule", severity=AlertSeverity.CRITICAL)
 
@@ -436,19 +441,21 @@ class TestCreateRule:
 
             mock_rule_class.return_value = mock_rule_instance
 
-            result = await create_rule(rule_data, db=mock_db, cache=mock_cache)
+            result = await create_rule(
+                rule_data, background_tasks=mock_background_tasks, db=mock_db, cache=mock_cache
+            )
 
             assert result.severity == AlertSeverity.CRITICAL
 
     @pytest.mark.asyncio
     async def test_create_rule_cache_invalidation_failure(self) -> None:
-        """Test creating rule continues when cache invalidation fails."""
+        """Test creating rule schedules background task even if cache would fail."""
         from backend.api.routes.alerts import create_rule
         from backend.api.schemas.alerts import AlertRuleCreate, AlertSeverity
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
-        mock_cache.invalidate_alerts.side_effect = Exception("Redis error")
+        mock_background_tasks = MagicMock()
 
         rule_data = AlertRuleCreate(name="Test Rule", severity=AlertSeverity.LOW)
 
@@ -474,11 +481,14 @@ class TestCreateRule:
 
             mock_rule_class.return_value = mock_rule_instance
 
-            # Should not raise exception, just log warning
-            result = await create_rule(rule_data, db=mock_db, cache=mock_cache)
+            # Background task is scheduled (actual cache invalidation happens later)
+            result = await create_rule(
+                rule_data, background_tasks=mock_background_tasks, db=mock_db, cache=mock_cache
+            )
 
             assert result.id == "rule-id"
             mock_db.commit.assert_called_once()
+            mock_background_tasks.add_task.assert_called_once()
 
 
 class TestGetRule:
@@ -545,6 +555,7 @@ class TestUpdateRule:
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
+        mock_background_tasks = MagicMock()
 
         # Mock existing rule
         mock_rule = MagicMock(spec=AlertRule)
@@ -572,6 +583,7 @@ class TestUpdateRule:
             result = await update_rule(
                 rule_id="rule-id",
                 rule_data=rule_update,
+                background_tasks=mock_background_tasks,
                 db=mock_db,
                 cache=mock_cache,
             )
@@ -579,9 +591,8 @@ class TestUpdateRule:
             # Only enabled should be updated
             assert mock_rule.enabled is False
             mock_db.commit.assert_called_once()
-            mock_cache.invalidate_alerts.assert_called_once_with(
-                reason=CacheInvalidationReason.ALERT_RULE_UPDATED
-            )
+            # NEM-3744: Cache invalidation is now deferred to background task
+            mock_background_tasks.add_task.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_update_rule_severity_conversion(self) -> None:
@@ -591,6 +602,7 @@ class TestUpdateRule:
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
+        mock_background_tasks = MagicMock()
 
         mock_rule = MagicMock(spec=AlertRule)
         mock_rule.id = "rule-id"
@@ -617,6 +629,7 @@ class TestUpdateRule:
             await update_rule(
                 rule_id="rule-id",
                 rule_data=rule_update,
+                background_tasks=mock_background_tasks,
                 db=mock_db,
                 cache=mock_cache,
             )
@@ -631,6 +644,7 @@ class TestUpdateRule:
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
+        mock_background_tasks = MagicMock()
 
         rule_update = AlertRuleUpdate(enabled=False)
 
@@ -642,6 +656,7 @@ class TestUpdateRule:
                 await update_rule(
                     rule_id="nonexistent",
                     rule_data=rule_update,
+                    background_tasks=mock_background_tasks,
                     db=mock_db,
                     cache=mock_cache,
                 )
@@ -650,13 +665,13 @@ class TestUpdateRule:
 
     @pytest.mark.asyncio
     async def test_update_rule_cache_invalidation_failure(self) -> None:
-        """Test updating rule continues when cache invalidation fails."""
+        """Test updating rule schedules background task even if cache would fail."""
         from backend.api.routes.alerts import update_rule
         from backend.api.schemas.alerts import AlertRuleUpdate
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
-        mock_cache.invalidate_alerts.side_effect = Exception("Redis error")
+        mock_background_tasks = MagicMock()
 
         mock_rule = MagicMock(spec=AlertRule)
         mock_rule.id = "rule-id"
@@ -680,16 +695,18 @@ class TestUpdateRule:
         rule_update = AlertRuleUpdate(enabled=False)
 
         with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
-            # Should not raise exception, just log warning
+            # Background task is scheduled (actual cache invalidation happens later)
             result = await update_rule(
                 rule_id="rule-id",
                 rule_data=rule_update,
+                background_tasks=mock_background_tasks,
                 db=mock_db,
                 cache=mock_cache,
             )
 
             assert result.id == "rule-id"
             mock_db.commit.assert_called_once()
+            mock_background_tasks.add_task.assert_called_once()
 
 
 class TestDeleteRule:
@@ -702,19 +719,24 @@ class TestDeleteRule:
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
+        mock_background_tasks = MagicMock()
 
         mock_rule = MagicMock(spec=AlertRule)
         mock_rule.id = "rule-to-delete"
 
         with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
-            result = await delete_rule(rule_id="rule-to-delete", db=mock_db, cache=mock_cache)
+            result = await delete_rule(
+                rule_id="rule-to-delete",
+                background_tasks=mock_background_tasks,
+                db=mock_db,
+                cache=mock_cache,
+            )
 
             assert result is None  # 204 No Content
             mock_db.delete.assert_called_once_with(mock_rule)
             mock_db.commit.assert_called_once()
-            mock_cache.invalidate_alerts.assert_called_once_with(
-                reason=CacheInvalidationReason.ALERT_RULE_DELETED
-            )
+            # NEM-3744: Cache invalidation is now deferred to background task
+            mock_background_tasks.add_task.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_delete_rule_not_found(self) -> None:
@@ -723,35 +745,47 @@ class TestDeleteRule:
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
+        mock_background_tasks = MagicMock()
 
         with patch(
             "backend.api.routes.alerts.get_alert_rule_or_404",
             side_effect=HTTPException(status_code=404, detail="Rule not found"),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await delete_rule(rule_id="nonexistent", db=mock_db, cache=mock_cache)
+                await delete_rule(
+                    rule_id="nonexistent",
+                    background_tasks=mock_background_tasks,
+                    db=mock_db,
+                    cache=mock_cache,
+                )
 
             assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
     async def test_delete_rule_cache_invalidation_failure(self) -> None:
-        """Test deleting rule continues when cache invalidation fails."""
+        """Test deleting rule schedules background task even if cache would fail."""
         from backend.api.routes.alerts import delete_rule
 
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
-        mock_cache.invalidate_alerts.side_effect = Exception("Redis error")
+        mock_background_tasks = MagicMock()
 
         mock_rule = MagicMock(spec=AlertRule)
         mock_rule.id = "rule-to-delete"
 
         with patch("backend.api.routes.alerts.get_alert_rule_or_404", return_value=mock_rule):
-            # Should not raise exception, just log warning
-            result = await delete_rule(rule_id="rule-to-delete", db=mock_db, cache=mock_cache)
+            # Background task is scheduled (actual cache invalidation happens later)
+            result = await delete_rule(
+                rule_id="rule-to-delete",
+                background_tasks=mock_background_tasks,
+                db=mock_db,
+                cache=mock_cache,
+            )
 
             assert result is None
             mock_db.delete.assert_called_once()
             mock_db.commit.assert_called_once()
+            mock_background_tasks.add_task.assert_called_once()
 
 
 class TestTestRule:
