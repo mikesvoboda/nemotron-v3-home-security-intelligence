@@ -396,14 +396,14 @@ def warmup_models() -> None:
 
     if pose_estimator is not None:
         try:
-            pose_estimator.detect(dummy_image)
+            pose_estimator.estimate_pose(dummy_image)
             logger.info("Pose estimator warmup complete")
         except Exception as e:
             logger.warning(f"Pose estimator warmup failed: {e}")
 
     if threat_detector is not None:
         try:
-            threat_detector.detect(dummy_image)
+            threat_detector.detect_threats(dummy_image)
             logger.info("Threat detector warmup complete")
         except Exception as e:
             logger.warning(f"Threat detector warmup failed: {e}")
@@ -587,16 +587,21 @@ async def analyze_pose(request: ImageRequest):
     start_time = time.perf_counter()
     try:
         image = decode_image(request.image_base64)
-        result = await asyncio.to_thread(pose_estimator.detect, image)
+        result = await asyncio.to_thread(pose_estimator.estimate_pose, image)
         inference_ms = (time.perf_counter() - start_time) * 1000
 
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="pose-analyze", status="success").inc()
         INFERENCE_LATENCY_SECONDS.labels(endpoint="pose-analyze").observe(inference_ms / 1000)
 
+        # Convert PoseResult dataclass to response format
+        keypoints = [
+            {"name": kp.name, "x": kp.x, "y": kp.y, "confidence": kp.confidence}
+            for kp in result.keypoints
+        ]
         return PoseResponse(
-            keypoints=result.get("keypoints", []),
-            posture=result.get("posture", "unknown"),
-            alerts=result.get("alerts", []),  # Empty for YOLOv8 pose
+            keypoints=keypoints,
+            posture=result.pose_class,
+            alerts=["suspicious_pose"] if result.is_suspicious else [],
             inference_time_ms=round(inference_ms, 2),
         )
     except HTTPException:
@@ -616,16 +621,19 @@ async def detect_threats(request: ImageRequest):
     start_time = time.perf_counter()
     try:
         image = decode_image(request.image_base64)
-        result = await asyncio.to_thread(threat_detector.detect, image)
+        result = await asyncio.to_thread(threat_detector.detect_threats, image)
         inference_ms = (time.perf_counter() - start_time) * 1000
 
         INFERENCE_REQUESTS_TOTAL.labels(endpoint="threat-detect", status="success").inc()
         INFERENCE_LATENCY_SECONDS.labels(endpoint="threat-detect").observe(inference_ms / 1000)
 
+        # Convert ThreatResult dataclass to response format
+        threats = [t.to_dict() for t in result.threats]
+        max_conf = max((t.confidence for t in result.threats), default=0.0)
         return ThreatResponse(
-            threats_detected=result.get("detections", []),
-            is_threat=result.get("is_threat", False),
-            max_confidence=result.get("max_confidence", 0.0),
+            threats_detected=threats,
+            is_threat=result.has_threat,
+            max_confidence=max_conf,
             inference_time_ms=round(inference_ms, 2),
         )
     except HTTPException:
