@@ -431,7 +431,7 @@ class TestCircuitBreakerActivation:
         assert circuit_breaker.get_state() == CircuitState.OPEN
 
         # Wait for recovery timeout
-        await asyncio.sleep(1.2)  # circuit breaker timing - mocked
+        await asyncio.sleep(1.2)  # mocked: circuit breaker timing
 
         # Attempt a call to trigger half-open
         try:
@@ -457,7 +457,7 @@ class TestCircuitBreakerActivation:
                 pass
 
         # Wait for recovery timeout
-        await asyncio.sleep(1.2)  # circuit breaker timing - mocked
+        await asyncio.sleep(1.2)  # mocked: circuit breaker timing
 
         # Perform successful calls to recover
         for _ in range(2):  # success_threshold = 2
@@ -484,7 +484,7 @@ class TestCircuitBreakerActivation:
                 pass
 
         # Wait for recovery timeout
-        await asyncio.sleep(1.2)  # circuit breaker timing - mocked
+        await asyncio.sleep(1.2)  # mocked: circuit breaker timing
 
         # Enter half-open
         try:
