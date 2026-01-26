@@ -367,6 +367,106 @@
         "title": "AccessSchedule",
         "type": "object"
       },
+      "ActiveDwellerResponse": {
+        "description": "Response for an object currently dwelling in a zone.\n\nIncludes real-time dwell time calculation.",
+        "example": {
+          "camera_id": "front_door",
+          "current_dwell_seconds": 150.3,
+          "entry_time": "2026-01-26T12:00:00Z",
+          "object_class": "person",
+          "record_id": 1,
+          "track_id": 42
+        },
+        "properties": {
+          "camera_id": {
+            "description": "ID of the camera",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "current_dwell_seconds": {
+            "description": "Current dwell time in seconds (calculated at request time)",
+            "minimum": 0.0,
+            "title": "Current Dwell Seconds",
+            "type": "number"
+          },
+          "entry_time": {
+            "description": "When the object entered the zone",
+            "format": "date-time",
+            "title": "Entry Time",
+            "type": "string"
+          },
+          "object_class": {
+            "description": "Classification of the object",
+            "title": "Object Class",
+            "type": "string"
+          },
+          "record_id": {
+            "description": "ID of the dwell time record",
+            "title": "Record Id",
+            "type": "integer"
+          },
+          "track_id": {
+            "description": "Tracking ID of the object",
+            "title": "Track Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "record_id",
+          "track_id",
+          "camera_id",
+          "object_class",
+          "entry_time",
+          "current_dwell_seconds"
+        ],
+        "title": "ActiveDwellerResponse",
+        "type": "object"
+      },
+      "ActiveDwellersListResponse": {
+        "description": "List of objects currently dwelling in a zone.",
+        "example": {
+          "dwellers": [
+            {
+              "camera_id": "front_door",
+              "current_dwell_seconds": 150.3,
+              "entry_time": "2026-01-26T12:00:00Z",
+              "object_class": "person",
+              "record_id": 1,
+              "track_id": 42
+            }
+          ],
+          "total": 1,
+          "zone_id": 1
+        },
+        "properties": {
+          "dwellers": {
+            "description": "List of objects currently in the zone",
+            "items": {
+              "$ref": "#/components/schemas/ActiveDwellerResponse"
+            },
+            "title": "Dwellers",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of active dwellers",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "zone_id": {
+            "description": "ID of the polygon zone",
+            "title": "Zone Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "zone_id",
+          "dwellers",
+          "total"
+        ],
+        "title": "ActiveDwellersListResponse",
+        "type": "object"
+      },
       "ActivityBaselineEntry": {
         "description": "A single activity baseline entry for a specific hour and day combination.\n\nThis represents one cell in the 24x7 activity heatmap (168 total entries).",
         "example": {
@@ -7893,6 +7993,235 @@
         "title": "DeviationInterpretation",
         "type": "string"
       },
+      "DwellHistoryResponse": {
+        "description": "Historical dwell time records for a zone.",
+        "example": {
+          "end_time": "2026-01-26T13:00:00Z",
+          "records": [
+            {
+              "camera_id": "front_door",
+              "entry_time": "2026-01-26T12:00:00Z",
+              "exit_time": "2026-01-26T12:05:30Z",
+              "id": 1,
+              "is_active": false,
+              "object_class": "person",
+              "total_seconds": 330.0,
+              "track_id": 42,
+              "triggered_alert": true,
+              "zone_id": 1
+            }
+          ],
+          "start_time": "2026-01-26T11:00:00Z",
+          "total": 1,
+          "zone_id": 1
+        },
+        "properties": {
+          "end_time": {
+            "description": "End of the query time window",
+            "format": "date-time",
+            "title": "End Time",
+            "type": "string"
+          },
+          "records": {
+            "description": "Dwell time records in the time window",
+            "items": {
+              "$ref": "#/components/schemas/DwellTimeRecordResponse"
+            },
+            "title": "Records",
+            "type": "array"
+          },
+          "start_time": {
+            "description": "Start of the query time window",
+            "format": "date-time",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "total": {
+            "description": "Total number of records",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "zone_id": {
+            "description": "ID of the polygon zone",
+            "title": "Zone Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "zone_id",
+          "records",
+          "total",
+          "start_time",
+          "end_time"
+        ],
+        "title": "DwellHistoryResponse",
+        "type": "object"
+      },
+      "DwellStatisticsResponse": {
+        "description": "Statistics for dwell time in a zone.",
+        "example": {
+          "alerts_triggered": 3,
+          "avg_dwell_seconds": 120.5,
+          "end_time": "2026-01-26T23:59:59Z",
+          "max_dwell_seconds": 600.0,
+          "min_dwell_seconds": 5.0,
+          "start_time": "2026-01-26T00:00:00Z",
+          "total_records": 50,
+          "zone_id": 1
+        },
+        "properties": {
+          "alerts_triggered": {
+            "description": "Number of loitering alerts triggered",
+            "minimum": 0.0,
+            "title": "Alerts Triggered",
+            "type": "integer"
+          },
+          "avg_dwell_seconds": {
+            "description": "Average dwell time in seconds",
+            "minimum": 0.0,
+            "title": "Avg Dwell Seconds",
+            "type": "number"
+          },
+          "end_time": {
+            "description": "End of the statistics time window",
+            "format": "date-time",
+            "title": "End Time",
+            "type": "string"
+          },
+          "max_dwell_seconds": {
+            "description": "Maximum dwell time in seconds",
+            "minimum": 0.0,
+            "title": "Max Dwell Seconds",
+            "type": "number"
+          },
+          "min_dwell_seconds": {
+            "description": "Minimum dwell time in seconds",
+            "minimum": 0.0,
+            "title": "Min Dwell Seconds",
+            "type": "number"
+          },
+          "start_time": {
+            "description": "Start of the statistics time window",
+            "format": "date-time",
+            "title": "Start Time",
+            "type": "string"
+          },
+          "total_records": {
+            "description": "Total number of completed dwell records",
+            "minimum": 0.0,
+            "title": "Total Records",
+            "type": "integer"
+          },
+          "zone_id": {
+            "description": "ID of the polygon zone",
+            "title": "Zone Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "zone_id",
+          "total_records",
+          "avg_dwell_seconds",
+          "max_dwell_seconds",
+          "min_dwell_seconds",
+          "alerts_triggered",
+          "start_time",
+          "end_time"
+        ],
+        "title": "DwellStatisticsResponse",
+        "type": "object"
+      },
+      "DwellTimeRecordResponse": {
+        "description": "Response schema for a dwell time record.\n\nIncludes computed fields and database identifiers.",
+        "example": {
+          "camera_id": "front_door",
+          "entry_time": "2026-01-26T12:00:00Z",
+          "exit_time": "2026-01-26T12:05:30Z",
+          "id": 1,
+          "is_active": false,
+          "object_class": "person",
+          "total_seconds": 330.0,
+          "track_id": 42,
+          "triggered_alert": true,
+          "zone_id": 1
+        },
+        "properties": {
+          "camera_id": {
+            "description": "ID of the camera where detection occurred",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "entry_time": {
+            "description": "Timestamp when object entered the zone",
+            "format": "date-time",
+            "title": "Entry Time",
+            "type": "string"
+          },
+          "exit_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timestamp when object exited the zone (null if still present)",
+            "title": "Exit Time"
+          },
+          "id": {
+            "description": "Unique dwell time record identifier",
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "default": false,
+            "description": "Whether the object is still in the zone (no exit time)",
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "object_class": {
+            "description": "Classification of the object (e.g., person)",
+            "title": "Object Class",
+            "type": "string"
+          },
+          "total_seconds": {
+            "description": "Total dwell time in seconds",
+            "minimum": 0.0,
+            "title": "Total Seconds",
+            "type": "number"
+          },
+          "track_id": {
+            "description": "Tracking ID of the detected object",
+            "title": "Track Id",
+            "type": "integer"
+          },
+          "triggered_alert": {
+            "description": "Whether this dwell time triggered a loitering alert",
+            "title": "Triggered Alert",
+            "type": "boolean"
+          },
+          "zone_id": {
+            "description": "ID of the polygon zone",
+            "title": "Zone Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "zone_id",
+          "track_id",
+          "camera_id",
+          "object_class",
+          "id",
+          "entry_time",
+          "total_seconds",
+          "triggered_alert"
+        ],
+        "title": "DwellTimeRecordResponse",
+        "type": "object"
+      },
       "EnrichmentModelInfo": {
         "description": "Information about the AI model that produced an enrichment result (NEM-3535).\n\nExposes which model processed each enrichment, enabling model performance\ntracking and debugging.",
         "example": {
@@ -13615,6 +13944,267 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "HeatmapListResponse": {
+        "description": "Response containing a list of heatmap metadata records.\n\nUsed for querying historical heatmaps without the full image data.\n\nAttributes:\n    heatmaps: List of heatmap metadata records.\n    total: Total number of heatmaps matching the query.",
+        "example": {
+          "heatmaps": [
+            {
+              "camera_id": "front_door",
+              "created_at": "2026-01-26T11:00:00Z",
+              "height": 48,
+              "id": 1,
+              "resolution": "hourly",
+              "time_bucket": "2026-01-26T10:00:00Z",
+              "total_detections": 150,
+              "updated_at": "2026-01-26T11:00:00Z",
+              "width": 64
+            }
+          ],
+          "total": 1
+        },
+        "properties": {
+          "heatmaps": {
+            "description": "List of heatmap metadata records",
+            "items": {
+              "$ref": "#/components/schemas/HeatmapMetadata"
+            },
+            "title": "Heatmaps",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of heatmaps matching the query",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "heatmaps",
+          "total"
+        ],
+        "title": "HeatmapListResponse",
+        "type": "object"
+      },
+      "HeatmapMetadata": {
+        "description": "Metadata about a heatmap record.\n\nAttributes:\n    id: Unique identifier of the heatmap record.\n    camera_id: ID of the camera this heatmap belongs to.\n    time_bucket: Start time of the aggregation period.\n    resolution: Aggregation resolution (hourly, daily, weekly).\n    width: Width of the heatmap grid in pixels.\n    height: Height of the heatmap grid in pixels.\n    total_detections: Total number of detections in this time bucket.\n    created_at: When this record was created.\n    updated_at: When this record was last updated.",
+        "example": {
+          "camera_id": "front_door",
+          "created_at": "2026-01-26T11:00:00Z",
+          "height": 48,
+          "id": 1,
+          "resolution": "hourly",
+          "time_bucket": "2026-01-26T10:00:00Z",
+          "total_detections": 150,
+          "updated_at": "2026-01-26T11:00:00Z",
+          "width": 64
+        },
+        "properties": {
+          "camera_id": {
+            "description": "ID of the camera this heatmap belongs to",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "When this record was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "height": {
+            "description": "Height of the heatmap grid in pixels",
+            "minimum": 1.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Unique identifier of the heatmap record",
+            "title": "Id",
+            "type": "integer"
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/HeatmapResolution",
+            "description": "Aggregation resolution (hourly, daily, weekly)"
+          },
+          "time_bucket": {
+            "description": "Start time of the aggregation period",
+            "format": "date-time",
+            "title": "Time Bucket",
+            "type": "string"
+          },
+          "total_detections": {
+            "description": "Total number of detections in this time bucket",
+            "minimum": 0.0,
+            "title": "Total Detections",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "When this record was last updated",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "width": {
+            "description": "Width of the heatmap grid in pixels",
+            "minimum": 1.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "camera_id",
+          "time_bucket",
+          "resolution",
+          "width",
+          "height",
+          "total_detections",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "HeatmapMetadata",
+        "type": "object"
+      },
+      "HeatmapResolution": {
+        "description": "Resolution levels for heatmap data aggregation.",
+        "enum": [
+          "hourly",
+          "daily",
+          "weekly"
+        ],
+        "title": "HeatmapResolution",
+        "type": "string"
+      },
+      "HeatmapResponse": {
+        "description": "Response containing a heatmap image and metadata.\n\nThe image is returned as a base64-encoded PNG string that can be\ndirectly used in HTML img tags or decoded for further processing.\n\nAttributes:\n    camera_id: ID of the camera this heatmap belongs to.\n    resolution: Aggregation resolution used.\n    time_bucket: Start time of the aggregation period.\n    image_base64: Base64-encoded PNG image of the heatmap.\n    width: Width of the heatmap image in pixels.\n    height: Height of the heatmap image in pixels.\n    total_detections: Total detections used to generate this heatmap.\n    colormap: Name of the colormap used (e.g., 'jet', 'hot', 'viridis').",
+        "example": {
+          "camera_id": "front_door",
+          "colormap": "jet",
+          "height": 480,
+          "image_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk...",
+          "resolution": "hourly",
+          "time_bucket": "2026-01-26T10:00:00Z",
+          "total_detections": 150,
+          "width": 640
+        },
+        "properties": {
+          "camera_id": {
+            "description": "ID of the camera this heatmap belongs to",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "colormap": {
+            "default": "jet",
+            "description": "Name of the colormap used (e.g., 'jet', 'hot', 'viridis')",
+            "title": "Colormap",
+            "type": "string"
+          },
+          "height": {
+            "description": "Height of the heatmap image in pixels",
+            "minimum": 1.0,
+            "title": "Height",
+            "type": "integer"
+          },
+          "image_base64": {
+            "description": "Base64-encoded PNG image of the heatmap",
+            "title": "Image Base64",
+            "type": "string"
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/HeatmapResolution",
+            "description": "Aggregation resolution used"
+          },
+          "time_bucket": {
+            "description": "Start time of the aggregation period",
+            "format": "date-time",
+            "title": "Time Bucket",
+            "type": "string"
+          },
+          "total_detections": {
+            "description": "Total detections used to generate this heatmap",
+            "minimum": 0.0,
+            "title": "Total Detections",
+            "type": "integer"
+          },
+          "width": {
+            "description": "Width of the heatmap image in pixels",
+            "minimum": 1.0,
+            "title": "Width",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "camera_id",
+          "resolution",
+          "time_bucket",
+          "image_base64",
+          "width",
+          "height",
+          "total_detections"
+        ],
+        "title": "HeatmapResponse",
+        "type": "object"
+      },
+      "HeatmapSnapshotRequest": {
+        "description": "Request to force save the current heatmap accumulator.\n\nAttributes:\n    resolution: Resolution at which to save the snapshot.",
+        "example": {
+          "resolution": "hourly"
+        },
+        "properties": {
+          "resolution": {
+            "$ref": "#/components/schemas/HeatmapResolution",
+            "default": "hourly",
+            "description": "Resolution at which to save the snapshot"
+          }
+        },
+        "title": "HeatmapSnapshotRequest",
+        "type": "object"
+      },
+      "HeatmapSnapshotResponse": {
+        "description": "Response after saving a heatmap snapshot.\n\nAttributes:\n    success: Whether the snapshot was saved successfully.\n    message: Status message.\n    heatmap_id: ID of the created heatmap record, if successful.\n    total_detections: Number of detections in the saved snapshot.",
+        "example": {
+          "heatmap_id": 42,
+          "message": "Heatmap snapshot saved successfully",
+          "success": true,
+          "total_detections": 150
+        },
+        "properties": {
+          "heatmap_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of the created heatmap record, if successful",
+            "title": "Heatmap Id"
+          },
+          "message": {
+            "description": "Status message",
+            "title": "Message",
+            "type": "string"
+          },
+          "success": {
+            "description": "Whether the snapshot was saved successfully",
+            "title": "Success",
+            "type": "boolean"
+          },
+          "total_detections": {
+            "default": 0,
+            "description": "Number of detections in the saved snapshot",
+            "minimum": 0.0,
+            "title": "Total Detections",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "success",
+          "message"
+        ],
+        "title": "HeatmapSnapshotResponse",
+        "type": "object"
+      },
       "HostMetrics": {
         "description": "Host system metrics from psutil.",
         "example": {
@@ -15847,6 +16437,343 @@
         "title": "LicensePlateEnrichment",
         "type": "object"
       },
+      "LineZoneCreate": {
+        "description": "Schema for creating a new line zone.\n\nRequires camera_id to associate the zone with a specific camera.",
+        "example": {
+          "alert_on_cross": true,
+          "camera_id": "front_door",
+          "end_x": 400,
+          "end_y": 200,
+          "name": "Front Door Entry Line",
+          "start_x": 100,
+          "start_y": 200,
+          "target_classes": [
+            "person"
+          ]
+        },
+        "properties": {
+          "alert_on_cross": {
+            "default": true,
+            "description": "Whether to generate alerts when objects cross this line",
+            "title": "Alert On Cross",
+            "type": "boolean"
+          },
+          "camera_id": {
+            "description": "ID of the camera this line zone belongs to",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "end_x": {
+            "description": "X coordinate of line end point (pixels)",
+            "minimum": 0.0,
+            "title": "End X",
+            "type": "integer"
+          },
+          "end_y": {
+            "description": "Y coordinate of line end point (pixels)",
+            "minimum": 0.0,
+            "title": "End Y",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Descriptive name for the line zone",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "start_x": {
+            "description": "X coordinate of line start point (pixels)",
+            "minimum": 0.0,
+            "title": "Start X",
+            "type": "integer"
+          },
+          "start_y": {
+            "description": "Y coordinate of line start point (pixels)",
+            "minimum": 0.0,
+            "title": "Start Y",
+            "type": "integer"
+          },
+          "target_classes": {
+            "description": "Object classes to track for this line (e.g., person, car, dog)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Target Classes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "start_x",
+          "start_y",
+          "end_x",
+          "end_y",
+          "camera_id"
+        ],
+        "title": "LineZoneCreate",
+        "type": "object"
+      },
+      "LineZoneListResponse": {
+        "description": "Paginated list of line zones.",
+        "example": {
+          "total": 1,
+          "zones": [
+            {
+              "alert_on_cross": true,
+              "camera_id": "front_door",
+              "created_at": "2026-01-26T10:00:00Z",
+              "end_x": 400,
+              "end_y": 200,
+              "id": 1,
+              "in_count": 42,
+              "name": "Front Door Entry Line",
+              "out_count": 38,
+              "start_x": 100,
+              "start_y": 200,
+              "target_classes": [
+                "person"
+              ]
+            }
+          ]
+        },
+        "properties": {
+          "total": {
+            "description": "Total number of line zones",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "zones": {
+            "description": "List of line zones",
+            "items": {
+              "$ref": "#/components/schemas/LineZoneResponse"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "zones",
+          "total"
+        ],
+        "title": "LineZoneListResponse",
+        "type": "object"
+      },
+      "LineZoneResponse": {
+        "description": "Response schema for a line zone.\n\nIncludes computed counts from crossing events.",
+        "example": {
+          "alert_on_cross": true,
+          "camera_id": "front_door",
+          "created_at": "2026-01-26T10:00:00Z",
+          "end_x": 400,
+          "end_y": 200,
+          "id": 1,
+          "in_count": 42,
+          "name": "Front Door Entry Line",
+          "out_count": 38,
+          "start_x": 100,
+          "start_y": 200,
+          "target_classes": [
+            "person"
+          ]
+        },
+        "properties": {
+          "alert_on_cross": {
+            "default": true,
+            "description": "Whether to generate alerts when objects cross this line",
+            "title": "Alert On Cross",
+            "type": "boolean"
+          },
+          "camera_id": {
+            "description": "ID of the camera this line zone belongs to",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "Timestamp when the zone was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "end_x": {
+            "description": "X coordinate of line end point (pixels)",
+            "minimum": 0.0,
+            "title": "End X",
+            "type": "integer"
+          },
+          "end_y": {
+            "description": "Y coordinate of line end point (pixels)",
+            "minimum": 0.0,
+            "title": "End Y",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Unique line zone identifier",
+            "title": "Id",
+            "type": "integer"
+          },
+          "in_count": {
+            "default": 0,
+            "description": "Total number of inbound crossings",
+            "minimum": 0.0,
+            "title": "In Count",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Descriptive name for the line zone",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "out_count": {
+            "default": 0,
+            "description": "Total number of outbound crossings",
+            "minimum": 0.0,
+            "title": "Out Count",
+            "type": "integer"
+          },
+          "start_x": {
+            "description": "X coordinate of line start point (pixels)",
+            "minimum": 0.0,
+            "title": "Start X",
+            "type": "integer"
+          },
+          "start_y": {
+            "description": "Y coordinate of line start point (pixels)",
+            "minimum": 0.0,
+            "title": "Start Y",
+            "type": "integer"
+          },
+          "target_classes": {
+            "description": "Object classes to track for this line (e.g., person, car, dog)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Target Classes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "start_x",
+          "start_y",
+          "end_x",
+          "end_y",
+          "id",
+          "camera_id",
+          "created_at"
+        ],
+        "title": "LineZoneResponse",
+        "type": "object"
+      },
+      "LineZoneUpdate": {
+        "description": "Schema for updating an existing line zone.\n\nAll fields are optional; only provided fields are updated.",
+        "example": {
+          "alert_on_cross": false,
+          "name": "Updated Entry Line"
+        },
+        "properties": {
+          "alert_on_cross": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether to generate alerts when objects cross this line",
+            "title": "Alert On Cross"
+          },
+          "end_x": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "X coordinate of line end point",
+            "title": "End X"
+          },
+          "end_y": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Y coordinate of line end point",
+            "title": "End Y"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descriptive name for the line zone",
+            "title": "Name"
+          },
+          "start_x": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "X coordinate of line start point",
+            "title": "Start X"
+          },
+          "start_y": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Y coordinate of line start point",
+            "title": "Start Y"
+          },
+          "target_classes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Object classes to track for this line",
+            "title": "Target Classes"
+          }
+        },
+        "title": "LineZoneUpdate",
+        "type": "object"
+      },
       "LogEntryResponse": {
         "description": "Schema for a single log entry in query responses.\n\nThis schema is used for GET /api/logs responses and represents\na log record from the database.\n\nAttributes:\n    id: Unique log entry identifier\n    timestamp: When the log was created (UTC)\n    level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)\n    component: Component that generated the log (e.g., \"backend.api.routes.events\")\n    message: The log message content\n    camera_id: Optional camera ID associated with this log\n    event_id: Optional event ID associated with this log\n    request_id: Optional request ID for correlation\n    detection_id: Optional detection ID associated with this log\n    duration_ms: Optional duration in milliseconds (for timing logs)\n    extra: Additional structured context data (JSON)\n    source: Log source (backend or frontend)",
         "example": {
@@ -16149,6 +17076,149 @@
           "pagination"
         ],
         "title": "LogsListResponse",
+        "type": "object"
+      },
+      "LoiteringAlert": {
+        "description": "Alert generated when an object exceeds the loitering threshold.\n\nThis schema represents a loitering event where an object has been\ndetected in a zone for longer than the configured threshold.",
+        "example": {
+          "camera_id": "front_door",
+          "dwell_seconds": 350.5,
+          "entry_time": "2026-01-26T12:00:00Z",
+          "object_class": "person",
+          "record_id": 123,
+          "threshold_seconds": 300.0,
+          "track_id": 42,
+          "zone_id": 1
+        },
+        "properties": {
+          "camera_id": {
+            "description": "ID of the camera where detection occurred",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "dwell_seconds": {
+            "description": "Current dwell time in seconds",
+            "minimum": 0.0,
+            "title": "Dwell Seconds",
+            "type": "number"
+          },
+          "entry_time": {
+            "description": "When the object entered the zone",
+            "format": "date-time",
+            "title": "Entry Time",
+            "type": "string"
+          },
+          "object_class": {
+            "description": "Classification of the loitering object",
+            "title": "Object Class",
+            "type": "string"
+          },
+          "record_id": {
+            "description": "ID of the associated dwell time record",
+            "title": "Record Id",
+            "type": "integer"
+          },
+          "threshold_seconds": {
+            "description": "Loitering threshold that was exceeded",
+            "minimum": 0.0,
+            "title": "Threshold Seconds",
+            "type": "number"
+          },
+          "track_id": {
+            "description": "Tracking ID of the loitering object",
+            "title": "Track Id",
+            "type": "integer"
+          },
+          "zone_id": {
+            "description": "ID of the polygon zone where loitering detected",
+            "title": "Zone Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "zone_id",
+          "track_id",
+          "camera_id",
+          "object_class",
+          "entry_time",
+          "dwell_seconds",
+          "threshold_seconds",
+          "record_id"
+        ],
+        "title": "LoiteringAlert",
+        "type": "object"
+      },
+      "LoiteringCheckRequest": {
+        "description": "Request to check for loitering in a zone.",
+        "example": {
+          "threshold_seconds": 300.0
+        },
+        "properties": {
+          "threshold_seconds": {
+            "description": "Dwell time threshold in seconds to trigger loitering alert",
+            "exclusiveMinimum": 0.0,
+            "title": "Threshold Seconds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "threshold_seconds"
+        ],
+        "title": "LoiteringCheckRequest",
+        "type": "object"
+      },
+      "LoiteringCheckResponse": {
+        "description": "Response containing loitering alerts for a zone.",
+        "example": {
+          "alerts": [
+            {
+              "camera_id": "front_door",
+              "dwell_seconds": 350.5,
+              "entry_time": "2026-01-26T12:00:00Z",
+              "object_class": "person",
+              "record_id": 123,
+              "threshold_seconds": 300.0,
+              "track_id": 42,
+              "zone_id": 1
+            }
+          ],
+          "threshold_seconds": 300.0,
+          "total_alerts": 1,
+          "zone_id": 1
+        },
+        "properties": {
+          "alerts": {
+            "description": "Loitering alerts detected",
+            "items": {
+              "$ref": "#/components/schemas/LoiteringAlert"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "threshold_seconds": {
+            "description": "Threshold used for checking",
+            "title": "Threshold Seconds",
+            "type": "number"
+          },
+          "total_alerts": {
+            "description": "Total number of alerts",
+            "minimum": 0.0,
+            "title": "Total Alerts",
+            "type": "integer"
+          },
+          "zone_id": {
+            "description": "ID of the polygon zone checked",
+            "title": "Zone Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "zone_id",
+          "threshold_seconds",
+          "alerts",
+          "total_alerts"
+        ],
+        "title": "LoiteringCheckResponse",
         "type": "object"
       },
       "MediaErrorResponse": {
@@ -19283,6 +20353,408 @@
           "analyzer"
         ],
         "title": "PipelineWorkersStatus",
+        "type": "object"
+      },
+      "PolygonZoneCreate": {
+        "description": "Schema for creating a new polygon zone.\n\nRequires camera_id to associate the zone with a specific camera.",
+        "example": {
+          "alert_threshold": 1,
+          "camera_id": "front_door",
+          "color": "#FF0000",
+          "is_active": true,
+          "name": "Restricted Area",
+          "polygon": [
+            [
+              100,
+              100
+            ],
+            [
+              400,
+              100
+            ],
+            [
+              400,
+              300
+            ],
+            [
+              100,
+              300
+            ]
+          ],
+          "target_classes": [
+            "person"
+          ],
+          "zone_type": "restricted"
+        },
+        "properties": {
+          "alert_threshold": {
+            "default": 0,
+            "description": "Number of objects that trigger an alert (0 = any entry alerts)",
+            "minimum": 0.0,
+            "title": "Alert Threshold",
+            "type": "integer"
+          },
+          "camera_id": {
+            "description": "ID of the camera this polygon zone belongs to",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "color": {
+            "default": "#FF0000",
+            "description": "Hex color for UI display",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Color",
+            "type": "string"
+          },
+          "is_active": {
+            "default": true,
+            "description": "Whether the zone is actively monitoring",
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Descriptive name for the polygon zone",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "polygon": {
+            "description": "List of [x, y] points defining the polygon (minimum 3 points)",
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "minItems": 3,
+            "title": "Polygon",
+            "type": "array"
+          },
+          "target_classes": {
+            "description": "Object classes to monitor in this zone",
+            "items": {
+              "type": "string"
+            },
+            "title": "Target Classes",
+            "type": "array"
+          },
+          "zone_type": {
+            "$ref": "#/components/schemas/PolygonZoneType",
+            "default": "monitored",
+            "description": "Type of zone: restricted, monitored, or entry"
+          }
+        },
+        "required": [
+          "name",
+          "polygon",
+          "camera_id"
+        ],
+        "title": "PolygonZoneCreate",
+        "type": "object"
+      },
+      "PolygonZoneListResponse": {
+        "description": "Paginated list of polygon zones.",
+        "example": {
+          "total": 1,
+          "zones": [
+            {
+              "alert_threshold": 1,
+              "camera_id": "front_door",
+              "color": "#FF0000",
+              "created_at": "2026-01-26T10:00:00Z",
+              "current_count": 0,
+              "id": 1,
+              "is_active": true,
+              "name": "Restricted Area",
+              "polygon": [
+                [
+                  100,
+                  100
+                ],
+                [
+                  400,
+                  100
+                ],
+                [
+                  400,
+                  300
+                ],
+                [
+                  100,
+                  300
+                ]
+              ],
+              "target_classes": [
+                "person"
+              ],
+              "zone_type": "restricted"
+            }
+          ]
+        },
+        "properties": {
+          "total": {
+            "description": "Total number of polygon zones",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "zones": {
+            "description": "List of polygon zones",
+            "items": {
+              "$ref": "#/components/schemas/PolygonZoneResponse"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "zones",
+          "total"
+        ],
+        "title": "PolygonZoneListResponse",
+        "type": "object"
+      },
+      "PolygonZoneResponse": {
+        "description": "Response schema for a polygon zone.\n\nIncludes current occupancy count.",
+        "example": {
+          "alert_threshold": 1,
+          "camera_id": "front_door",
+          "color": "#FF0000",
+          "created_at": "2026-01-26T10:00:00Z",
+          "current_count": 0,
+          "id": 1,
+          "is_active": true,
+          "name": "Restricted Area",
+          "polygon": [
+            [
+              100,
+              100
+            ],
+            [
+              400,
+              100
+            ],
+            [
+              400,
+              300
+            ],
+            [
+              100,
+              300
+            ]
+          ],
+          "target_classes": [
+            "person"
+          ],
+          "zone_type": "restricted"
+        },
+        "properties": {
+          "alert_threshold": {
+            "default": 0,
+            "description": "Number of objects that trigger an alert (0 = any entry alerts)",
+            "minimum": 0.0,
+            "title": "Alert Threshold",
+            "type": "integer"
+          },
+          "camera_id": {
+            "description": "ID of the camera this zone belongs to",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "color": {
+            "default": "#FF0000",
+            "description": "Hex color for UI display",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Color",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "Timestamp when the zone was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current_count": {
+            "default": 0,
+            "description": "Current object count in zone",
+            "minimum": 0.0,
+            "title": "Current Count",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Unique polygon zone identifier",
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_active": {
+            "default": true,
+            "description": "Whether the zone is actively monitoring",
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Descriptive name for the polygon zone",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "polygon": {
+            "description": "List of [x, y] points defining the polygon (minimum 3 points)",
+            "items": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "minItems": 3,
+            "title": "Polygon",
+            "type": "array"
+          },
+          "target_classes": {
+            "description": "Object classes to monitor in this zone",
+            "items": {
+              "type": "string"
+            },
+            "title": "Target Classes",
+            "type": "array"
+          },
+          "zone_type": {
+            "$ref": "#/components/schemas/PolygonZoneType",
+            "default": "monitored",
+            "description": "Type of zone: restricted, monitored, or entry"
+          }
+        },
+        "required": [
+          "name",
+          "polygon",
+          "id",
+          "camera_id",
+          "created_at"
+        ],
+        "title": "PolygonZoneResponse",
+        "type": "object"
+      },
+      "PolygonZoneType": {
+        "description": "Type classification for polygon zones.",
+        "enum": [
+          "restricted",
+          "monitored",
+          "entry"
+        ],
+        "title": "PolygonZoneType",
+        "type": "string"
+      },
+      "PolygonZoneUpdate": {
+        "description": "Schema for updating an existing polygon zone.\n\nAll fields are optional; only provided fields are updated.",
+        "example": {
+          "alert_threshold": 2,
+          "is_active": false,
+          "name": "Updated Restricted Area"
+        },
+        "properties": {
+          "alert_threshold": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of objects that trigger an alert",
+            "title": "Alert Threshold"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Hex color for UI display",
+            "title": "Color"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the zone is actively monitoring",
+            "title": "Is Active"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descriptive name for the polygon zone",
+            "title": "Name"
+          },
+          "polygon": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "minItems": 3,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "List of [x, y] points defining the polygon",
+            "title": "Polygon"
+          },
+          "target_classes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Object classes to monitor in this zone",
+            "title": "Target Classes"
+          },
+          "zone_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PolygonZoneType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Type of zone: restricted, monitored, or entry"
+          }
+        },
+        "title": "PolygonZoneUpdate",
         "type": "object"
       },
       "PoseEnrichment": {
@@ -29885,6 +31357,848 @@
         ]
       }
     },
+    "/api/analytics-zones/line-zones": {
+      "post": {
+        "description": "Create a new line zone for a camera.\n\nLine zones are virtual tripwires that detect and count objects\ncrossing from one side to the other. They are defined by start\nand end coordinates (in pixels).\n\nArgs:\n    data: Line zone creation data including camera_id and coordinates.\n    db: Database session.\n\nReturns:\n    The created LineZone with initial counts set to zero.\n\nRaises:\n    HTTPException: 404 if camera not found.",
+        "operationId": "analytics-zones_create_line_zone",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LineZoneCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineZoneResponse"
+                }
+              }
+            },
+            "description": "Line zone created successfully"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create a new line zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/line-zones/camera/{camera_id}": {
+      "get": {
+        "description": "Get all line zones for a camera.\n\nArgs:\n    camera_id: ID of the camera to get zones for.\n    db: Database session.\n\nReturns:\n    List of LineZone objects for the camera.\n\nRaises:\n    HTTPException: 404 if camera not found.",
+        "operationId": "analytics-zones_get_line_zones_by_camera",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineZoneListResponse"
+                }
+              }
+            },
+            "description": "Line zones retrieved successfully"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get all line zones for a camera",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/line-zones/{zone_id}": {
+      "delete": {
+        "description": "Delete a line zone.\n\nArgs:\n    zone_id: ID of the line zone to delete.\n    db: Database session.\n\nRaises:\n    HTTPException: 404 if line zone not found.",
+        "operationId": "analytics-zones_delete_line_zone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Line zone deleted successfully"
+          },
+          "404": {
+            "description": "Line zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete a line zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      },
+      "get": {
+        "description": "Get a line zone by ID.\n\nArgs:\n    zone_id: The unique identifier of the line zone.\n    db: Database session.\n\nReturns:\n    The LineZone with current crossing counts.\n\nRaises:\n    HTTPException: 404 if line zone not found.",
+        "operationId": "analytics-zones_get_line_zone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineZoneResponse"
+                }
+              }
+            },
+            "description": "Line zone retrieved successfully"
+          },
+          "404": {
+            "description": "Line zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get a line zone by ID",
+        "tags": [
+          "analytics-zones"
+        ]
+      },
+      "patch": {
+        "description": "Update a line zone.\n\nOnly the fields present in the request body are updated.\n\nArgs:\n    zone_id: ID of the line zone to update.\n    data: Update data with optional fields.\n    db: Database session.\n\nReturns:\n    The updated LineZone.\n\nRaises:\n    HTTPException: 404 if line zone not found.",
+        "operationId": "analytics-zones_update_line_zone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LineZoneUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineZoneResponse"
+                }
+              }
+            },
+            "description": "Line zone updated successfully"
+          },
+          "404": {
+            "description": "Line zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update a line zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/line-zones/{zone_id}/reset-counts": {
+      "post": {
+        "description": "Reset crossing counts for a line zone.\n\nSets both in_count and out_count to zero.\n\nArgs:\n    zone_id: ID of the line zone.\n    db: Database session.\n\nReturns:\n    The LineZone with reset counts.\n\nRaises:\n    HTTPException: 404 if line zone not found.",
+        "operationId": "analytics-zones_reset_line_zone_counts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineZoneResponse"
+                }
+              }
+            },
+            "description": "Counts reset successfully"
+          },
+          "404": {
+            "description": "Line zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reset crossing counts for a line zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/polygon-zones": {
+      "post": {
+        "description": "Create a new polygon zone for a camera.\n\nPolygon zones monitor activity within defined areas.\nSupports various zone types for different monitoring scenarios.\n\nArgs:\n    data: Polygon zone creation data including camera_id and polygon.\n    db: Database session.\n\nReturns:\n    The created PolygonZone with initial count set to zero.\n\nRaises:\n    HTTPException: 404 if camera not found.",
+        "operationId": "analytics-zones_create_polygon_zone",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolygonZoneCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolygonZoneResponse"
+                }
+              }
+            },
+            "description": "Polygon zone created successfully"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create a new polygon zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/polygon-zones/camera/{camera_id}": {
+      "get": {
+        "description": "Get all polygon zones for a camera.\n\nArgs:\n    camera_id: ID of the camera to get zones for.\n    db: Database session.\n    active_only: If True, only return zones where is_active=True.\n        Defaults to True.\n\nReturns:\n    List of PolygonZone objects for the camera.\n\nRaises:\n    HTTPException: 404 if camera not found.",
+        "operationId": "analytics-zones_get_polygon_zones_by_camera",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "If True, only return active zones. If False, return all zones.",
+            "in": "query",
+            "name": "active_only",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "If True, only return active zones. If False, return all zones.",
+              "title": "Active Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolygonZoneListResponse"
+                }
+              }
+            },
+            "description": "Polygon zones retrieved successfully"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get all polygon zones for a camera",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/polygon-zones/{zone_id}": {
+      "delete": {
+        "description": "Delete a polygon zone.\n\nArgs:\n    zone_id: ID of the polygon zone to delete.\n    db: Database session.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
+        "operationId": "analytics-zones_delete_polygon_zone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Polygon zone deleted successfully"
+          },
+          "404": {
+            "description": "Polygon zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete a polygon zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      },
+      "get": {
+        "description": "Get a polygon zone by ID.\n\nArgs:\n    zone_id: The unique identifier of the polygon zone.\n    db: Database session.\n\nReturns:\n    The PolygonZone with current object count.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
+        "operationId": "analytics-zones_get_polygon_zone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolygonZoneResponse"
+                }
+              }
+            },
+            "description": "Polygon zone retrieved successfully"
+          },
+          "404": {
+            "description": "Polygon zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get a polygon zone by ID",
+        "tags": [
+          "analytics-zones"
+        ]
+      },
+      "patch": {
+        "description": "Update a polygon zone.\n\nOnly the fields present in the request body are updated.\n\nArgs:\n    zone_id: ID of the polygon zone to update.\n    data: Update data with optional fields.\n    db: Database session.\n\nReturns:\n    The updated PolygonZone.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
+        "operationId": "analytics-zones_update_polygon_zone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolygonZoneUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolygonZoneResponse"
+                }
+              }
+            },
+            "description": "Polygon zone updated successfully"
+          },
+          "404": {
+            "description": "Polygon zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update a polygon zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/polygon-zones/{zone_id}/check-loitering": {
+      "post": {
+        "description": "Check for loitering in a polygon zone.\n\nIdentifies objects that have been dwelling in the zone longer than\nthe specified threshold. Returns alerts for all objects exceeding\nthe threshold, marking them as triggered in the database.\n\nArgs:\n    zone_id: ID of the polygon zone.\n    request: Loitering check request with threshold.\n    db: Database session.\n\nReturns:\n    Loitering alerts for objects exceeding the threshold.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
+        "operationId": "analytics-zones_check_loitering",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoiteringCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoiteringCheckResponse"
+                }
+              }
+            },
+            "description": "Loitering check completed successfully"
+          },
+          "404": {
+            "description": "Polygon zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Check for loitering in a polygon zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/polygon-zones/{zone_id}/dwell-history": {
+      "get": {
+        "description": "Get historical dwell time records for a polygon zone.\n\nReturns all dwell time records that overlap with the specified time window.\nBy default, retrieves the last 24 hours of data.\n\nArgs:\n    zone_id: ID of the polygon zone.\n    db: Database session.\n    start_time: Start of the time window (defaults to 24 hours ago).\n    end_time: End of the time window (defaults to now).\n    include_active: Whether to include currently active records.\n\nReturns:\n    Historical dwell time records.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
+        "operationId": "analytics-zones_get_dwell_history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Start of time window (defaults to 24 hours ago)",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Start of time window (defaults to 24 hours ago)",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "End of time window (defaults to now)",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "End of time window (defaults to now)",
+              "title": "End Time"
+            }
+          },
+          {
+            "description": "Whether to include currently active dwellers",
+            "in": "query",
+            "name": "include_active",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "Whether to include currently active dwellers",
+              "title": "Include Active",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DwellHistoryResponse"
+                }
+              }
+            },
+            "description": "Dwell history retrieved successfully"
+          },
+          "404": {
+            "description": "Polygon zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get dwell time history for a polygon zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/polygon-zones/{zone_id}/dwell-statistics": {
+      "get": {
+        "description": "Get dwell time statistics for a polygon zone.\n\nReturns aggregated statistics including average, min, max dwell times\nand the number of loitering alerts triggered in the time window.\n\nArgs:\n    zone_id: ID of the polygon zone.\n    db: Database session.\n    start_time: Start of the statistics window (defaults to 24 hours ago).\n    end_time: End of the statistics window (defaults to now).\n\nReturns:\n    Dwell time statistics for the zone.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
+        "operationId": "analytics-zones_get_dwell_statistics",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Start of statistics window (defaults to 24 hours ago)",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Start of statistics window (defaults to 24 hours ago)",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "End of statistics window (defaults to now)",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "End of statistics window (defaults to now)",
+              "title": "End Time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DwellStatisticsResponse"
+                }
+              }
+            },
+            "description": "Dwell statistics retrieved successfully"
+          },
+          "404": {
+            "description": "Polygon zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get dwell time statistics for a polygon zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/polygon-zones/{zone_id}/dwellers": {
+      "get": {
+        "description": "Get all objects currently dwelling in a polygon zone.\n\nReturns objects that have entered the zone but have not yet exited.\nEach object includes the current dwell time calculated at request time.\n\nArgs:\n    zone_id: ID of the polygon zone.\n    db: Database session.\n\nReturns:\n    List of active dwellers with current dwell times.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
+        "operationId": "analytics-zones_get_active_dwellers",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveDwellersListResponse"
+                }
+              }
+            },
+            "description": "Active dwellers retrieved successfully"
+          },
+          "404": {
+            "description": "Polygon zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get active dwellers in a polygon zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
+    "/api/analytics-zones/polygon-zones/{zone_id}/toggle-active": {
+      "post": {
+        "description": "Toggle the active status of a polygon zone.\n\nToggles is_active between True and False.\n\nArgs:\n    zone_id: ID of the polygon zone.\n    db: Database session.\n\nReturns:\n    The PolygonZone with updated active status.\n\nRaises:\n    HTTPException: 404 if polygon zone not found.",
+        "operationId": "analytics-zones_toggle_polygon_zone_active",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "zone_id",
+            "required": true,
+            "schema": {
+              "title": "Zone Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolygonZoneResponse"
+                }
+              }
+            },
+            "description": "Active status toggled successfully"
+          },
+          "404": {
+            "description": "Polygon zone not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Toggle the active status of a polygon zone",
+        "tags": [
+          "analytics-zones"
+        ]
+      }
+    },
     "/api/analytics/camera-uptime": {
       "get": {
         "description": "Get uptime percentage per camera.\n\nReturns uptime percentage and detection count for each camera.\nUptime is calculated based on the number of days with at least one detection\ndivided by the total days in the date range.\n\nArgs:\n    start_date: Start date (inclusive)\n    end_date: End date (inclusive)\n    db: Database session\n\nReturns:\n    CameraUptimeResponse with per-camera uptime data\n\nRaises:\n    HTTPException: 400 if start_date is after end_date",
@@ -36582,6 +38896,496 @@
         "summary": "Get Unified AI Services Health Status",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/heatmaps/camera/{camera_id}": {
+      "get": {
+        "description": "Get the current heatmap image for a camera.\n\nReturns a heatmap visualization based on the current in-memory accumulator\nfor the specified camera. If no accumulator exists, returns an empty heatmap.\n\nArgs:\n    camera_id: ID of the camera.\n    resolution: Requested resolution (for metadata).\n    output_width: Width of the output image in pixels.\n    output_height: Height of the output image in pixels.\n    colormap: Matplotlib colormap name.\n    db: Database session.\n\nReturns:\n    HeatmapResponse with base64-encoded image and metadata.\n\nRaises:\n    HTTPException: 404 if camera not found.",
+        "operationId": "heatmaps_get_current_heatmap",
+        "parameters": [
+          {
+            "description": "Camera ID",
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "description": "Camera ID",
+              "title": "Camera Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Heatmap resolution",
+            "in": "query",
+            "name": "resolution",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/HeatmapResolution",
+              "default": "hourly",
+              "description": "Heatmap resolution"
+            }
+          },
+          {
+            "description": "Output image width",
+            "in": "query",
+            "name": "output_width",
+            "required": false,
+            "schema": {
+              "default": 640,
+              "description": "Output image width",
+              "maximum": 4096,
+              "minimum": 100,
+              "title": "Output Width",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Output image height",
+            "in": "query",
+            "name": "output_height",
+            "required": false,
+            "schema": {
+              "default": 480,
+              "description": "Output image height",
+              "maximum": 4096,
+              "minimum": 100,
+              "title": "Output Height",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Colormap name (e.g., jet, hot, viridis)",
+            "in": "query",
+            "name": "colormap",
+            "required": false,
+            "schema": {
+              "default": "jet",
+              "description": "Colormap name (e.g., jet, hot, viridis)",
+              "title": "Colormap",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeatmapResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Current Heatmap",
+        "tags": [
+          "heatmaps"
+        ]
+      }
+    },
+    "/api/heatmaps/camera/{camera_id}/accumulator": {
+      "delete": {
+        "description": "Reset the heatmap accumulator for a camera.\n\nClears all accumulated detection data from memory. This does not\naffect saved heatmap records in the database.\n\nArgs:\n    camera_id: ID of the camera.\n    db: Database session.\n\nReturns:\n    Dictionary with reset status.\n\nRaises:\n    HTTPException: 404 if camera not found.",
+        "operationId": "heatmaps_reset_heatmap_accumulator",
+        "parameters": [
+          {
+            "description": "Camera ID",
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "description": "Camera ID",
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Heatmaps Reset Heatmap Accumulator",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Reset Heatmap Accumulator",
+        "tags": [
+          "heatmaps"
+        ]
+      }
+    },
+    "/api/heatmaps/camera/{camera_id}/history": {
+      "get": {
+        "description": "Get historical heatmap metadata for a camera.\n\nReturns a list of heatmap metadata records for the specified time range.\nDoes not include the full heatmap images - use the individual heatmap\nendpoint to retrieve specific images.\n\nArgs:\n    camera_id: ID of the camera.\n    start_time: Start of the time range.\n    end_time: End of the time range.\n    resolution: Optional filter by resolution level.\n    limit: Maximum number of records to return.\n    offset: Number of records to skip.\n    db: Database session.\n\nReturns:\n    HeatmapListResponse with metadata records and total count.\n\nRaises:\n    HTTPException: 400 if start_time is after end_time.\n    HTTPException: 404 if camera not found.",
+        "operationId": "heatmaps_get_heatmap_history",
+        "parameters": [
+          {
+            "description": "Camera ID",
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "description": "Camera ID",
+              "title": "Camera Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Start of the time range (ISO format)",
+            "in": "query",
+            "name": "start_time",
+            "required": true,
+            "schema": {
+              "description": "Start of the time range (ISO format)",
+              "format": "date-time",
+              "title": "Start Time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "End of the time range (ISO format)",
+            "in": "query",
+            "name": "end_time",
+            "required": true,
+            "schema": {
+              "description": "End of the time range (ISO format)",
+              "format": "date-time",
+              "title": "End Time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by resolution level",
+            "in": "query",
+            "name": "resolution",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/HeatmapResolution"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by resolution level",
+              "title": "Resolution"
+            }
+          },
+          {
+            "description": "Maximum number of records to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of records to return",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of records to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of records to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeatmapListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Bad request - Invalid date range"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Heatmap History",
+        "tags": [
+          "heatmaps"
+        ]
+      }
+    },
+    "/api/heatmaps/camera/{camera_id}/merged": {
+      "get": {
+        "description": "Get a merged heatmap from multiple records in a time range.\n\nCombines all heatmap data in the specified time range into a single\nvisualization, showing activity patterns across the entire period.\n\nArgs:\n    camera_id: ID of the camera.\n    start_time: Start of the time range.\n    end_time: End of the time range.\n    resolution: Optional filter by resolution level.\n    db: Database session.\n\nReturns:\n    HeatmapResponse with merged heatmap image.\n\nRaises:\n    HTTPException: 400 if start_time is after end_time.\n    HTTPException: 404 if camera not found or no data in range.",
+        "operationId": "heatmaps_get_merged_heatmap",
+        "parameters": [
+          {
+            "description": "Camera ID",
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "description": "Camera ID",
+              "title": "Camera Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Start of the time range (ISO format)",
+            "in": "query",
+            "name": "start_time",
+            "required": true,
+            "schema": {
+              "description": "Start of the time range (ISO format)",
+              "format": "date-time",
+              "title": "Start Time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "End of the time range (ISO format)",
+            "in": "query",
+            "name": "end_time",
+            "required": true,
+            "schema": {
+              "description": "End of the time range (ISO format)",
+              "format": "date-time",
+              "title": "End Time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by resolution level",
+            "in": "query",
+            "name": "resolution",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/HeatmapResolution"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by resolution level",
+              "title": "Resolution"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeatmapResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Bad request - Invalid date range"
+          },
+          "404": {
+            "description": "Camera not found or no heatmap data"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Merged Heatmap",
+        "tags": [
+          "heatmaps"
+        ]
+      }
+    },
+    "/api/heatmaps/camera/{camera_id}/snapshot": {
+      "post": {
+        "description": "Force save the current heatmap accumulator to the database.\n\nManually triggers a snapshot of the current in-memory heatmap data\nfor the specified camera. Useful for debugging or manual data capture.\n\nArgs:\n    camera_id: ID of the camera.\n    request: Snapshot request with resolution.\n    db: Database session.\n\nReturns:\n    HeatmapSnapshotResponse with save status.\n\nRaises:\n    HTTPException: 404 if camera not found.",
+        "operationId": "heatmaps_save_heatmap_snapshot",
+        "parameters": [
+          {
+            "description": "Camera ID",
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "description": "Camera ID",
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeatmapSnapshotRequest",
+                "default": {
+                  "resolution": "hourly"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeatmapSnapshotResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Save Heatmap Snapshot",
+        "tags": [
+          "heatmaps"
+        ]
+      }
+    },
+    "/api/heatmaps/camera/{camera_id}/stats": {
+      "get": {
+        "description": "Get statistics about the current heatmap accumulator for a camera.\n\nReturns information about the in-memory accumulator including total\ndetections, dimensions, and intensity statistics.\n\nArgs:\n    camera_id: ID of the camera.\n    db: Database session.\n\nReturns:\n    Dictionary with accumulator statistics.\n\nRaises:\n    HTTPException: 404 if camera not found.",
+        "operationId": "heatmaps_get_heatmap_stats",
+        "parameters": [
+          {
+            "description": "Camera ID",
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "description": "Camera ID",
+              "title": "Camera Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Heatmaps Get Heatmap Stats",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Camera not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Heatmap Stats",
+        "tags": [
+          "heatmaps"
         ]
       }
     },

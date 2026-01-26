@@ -43,6 +43,7 @@ from backend.api.routes import (
     alertmanager,
     alerts,
     analytics,
+    analytics_zones,
     audit,
     calibration,
     cameras,
@@ -55,6 +56,7 @@ from backend.api.routes import (
     feedback,
     gpu_config,
     health_ai_services,
+    heatmaps,
     hierarchy,
     household,
     jobs,
@@ -1165,6 +1167,7 @@ app.include_router(alertmanager.router)
 app.include_router(alerts.router)
 app.include_router(alerts.alerts_instance_router)
 app.include_router(analytics.router)
+app.include_router(analytics_zones.router)
 app.include_router(audit.router)
 app.include_router(calibration.router)
 app.include_router(cameras.router)
@@ -1177,6 +1180,7 @@ app.include_router(exports.router)
 app.include_router(feedback.router)
 app.include_router(gpu_config.router)
 app.include_router(health_ai_services.router)
+app.include_router(heatmaps.router)
 app.include_router(hierarchy.router)
 app.include_router(hierarchy.property_router)
 app.include_router(hierarchy.area_router)

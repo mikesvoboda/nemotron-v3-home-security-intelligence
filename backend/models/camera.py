@@ -10,10 +10,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from .enums import CameraStatus
 
 if TYPE_CHECKING:
+    from .analytics_zone import LineZone, PolygonZone
     from .area import Area
     from .baseline import ActivityBaseline, ClassBaseline
     from .camera_zone import CameraZone
     from .detection import Detection
+    from .dwell_time import DwellTimeRecord
     from .event import Event
     from .property import Property
     from .scene_change import SceneChange
@@ -141,6 +143,15 @@ class Camera(Base):
     )
     tracks: Mapped[list[Track]] = relationship(
         "Track", back_populates="camera", cascade="all, delete-orphan"
+    )
+    line_zones: Mapped[list[LineZone]] = relationship(
+        "LineZone", back_populates="camera", cascade="all, delete-orphan"
+    )
+    polygon_zones: Mapped[list[PolygonZone]] = relationship(
+        "PolygonZone", back_populates="camera", cascade="all, delete-orphan"
+    )
+    dwell_time_records: Mapped[list[DwellTimeRecord]] = relationship(
+        "DwellTimeRecord", back_populates="camera", cascade="all, delete-orphan"
     )
 
     @property

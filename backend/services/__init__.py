@@ -91,6 +91,7 @@ from .degradation_manager import (
     reset_degradation_manager,
 )
 from .detector_client import DetectorClient, DetectorUnavailableError
+from .dwell_time_service import DwellTimeService, get_dwell_time_service
 from .enrichment_pipeline import (
     BoundingBox,
     DetectionInput,
@@ -192,6 +193,10 @@ from .job_tracker import (
     get_job_tracker,
     reset_job_tracker,
 )
+from .line_zone_service import (
+    LineZoneService,
+    get_line_zone_service,
+)
 from .managed_service import (
     ManagedService,
     ServiceConfig,
@@ -261,6 +266,7 @@ from .plate_detector import (
     detect_plates,
     is_vehicle_class,
 )
+from .polygon_zone_service import PolygonZoneService, get_polygon_zone_service
 from .reid_service import (
     DEFAULT_SIMILARITY_THRESHOLD,
     EMBEDDING_DIMENSION,
@@ -425,6 +431,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "DetectionInput",
     "DetectorClient",
     "DetectorUnavailableError",
+    "DwellTimeService",
     "EnrichedContext",
     "EnrichmentPipeline",
     "EnrichmentResult",
@@ -462,6 +469,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "JobTimeoutService",
     "JobTracker",
     "LicensePlateResult",
+    "LineZoneService",
+    "PolygonZoneService",
     "ModelConfig",
     "ModelManager",
     "NemotronAnalyzer",
@@ -549,6 +558,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_db_audit_service",
     "get_dedupe_service",
     "get_degradation_manager",
+    "get_dwell_time_service",
     "get_enabled_models",
     "get_enrichment_pipeline",
     "get_evaluation_queue",
@@ -561,6 +571,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_job_status_service",
     "get_job_timeout_service",
     "get_job_tracker",
+    "get_line_zone_service",
+    "get_polygon_zone_service",
     "get_model_config",
     "get_model_manager",
     "get_model_zoo",
