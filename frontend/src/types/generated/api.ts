@@ -9521,7 +9521,7 @@ export interface paths {
          *         background_tasks: FastAPI background tasks for async processing
          *
          *     Returns:
-         *         WebhookProcessingResponse with processing status
+         *         WebhookResponse with processing status
          */
         post: operations["webhooks_receive_alertmanager_webhook"];
         delete?: never;
@@ -32225,10 +32225,10 @@ export interface components {
              */
             total: number;
             /** Webhooks */
-            webhooks?: components["schemas"]["WebhookResponse"][];
+            webhooks?: components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"][];
         };
         /**
-         * WebhookProcessingResponse
+         * WebhookResponse
          * @description Schema for webhook processing response.
          * @example {
          *       "message": "Processed 1 alert(s)",
@@ -32237,7 +32237,7 @@ export interface components {
          *       "status": "ok"
          *     }
          */
-        WebhookProcessingResponse: {
+        WebhookResponse: {
             /**
              * Message
              * @description Human-readable status message
@@ -32258,100 +32258,6 @@ export interface components {
              * @description Processing status (ok or error)
              */
             status: string;
-        };
-        /**
-         * WebhookResponse
-         * @description Full webhook configuration response.
-         *
-         *     Returns complete webhook information including configuration,
-         *     metadata, and delivery statistics.
-         *
-         *     Attributes:
-         *         id: Unique webhook identifier.
-         *         name: Webhook name.
-         *         url: Webhook endpoint URL.
-         *         event_types: Subscribed event types.
-         *         integration_type: Integration type.
-         *         enabled: Whether active.
-         *         custom_headers: Custom HTTP headers.
-         *         payload_template: Jinja2 payload template.
-         *         max_retries: Max retry attempts.
-         *         retry_delay_seconds: Initial retry delay.
-         *         created_at: Creation timestamp.
-         *         updated_at: Last update timestamp.
-         *         total_deliveries: Total delivery attempts.
-         *         successful_deliveries: Successful delivery count.
-         *         last_delivery_at: Last delivery timestamp.
-         *         last_delivery_status: Status of last delivery.
-         */
-        WebhookResponse: {
-            /**
-             * Created At
-             * Format: date-time
-             * @description Creation timestamp
-             */
-            created_at: string;
-            /** Custom Headers */
-            custom_headers?: {
-                [key: string]: string;
-            };
-            /**
-             * Enabled
-             * @description Whether active
-             */
-            enabled: boolean;
-            /**
-             * Event Types
-             * @description Subscribed events
-             */
-            event_types: components["schemas"]["WebhookEventType"][];
-            /**
-             * Id
-             * @description Unique webhook identifier
-             */
-            id: string;
-            /** @description Integration type */
-            integration_type: components["schemas"]["IntegrationType"];
-            /**
-             * Last Delivery At
-             * @description Last delivery timestamp
-             */
-            last_delivery_at?: string | null;
-            last_delivery_status?: components["schemas"]["WebhookDeliveryStatus"] | null;
-            /** Max Retries */
-            max_retries: number;
-            /**
-             * Name
-             * @description Webhook name
-             */
-            name: string;
-            /** Payload Template */
-            payload_template?: string | null;
-            /** Retry Delay Seconds */
-            retry_delay_seconds: number;
-            /**
-             * Successful Deliveries
-             * @description Successful deliveries
-             * @default 0
-             */
-            successful_deliveries: number;
-            /**
-             * Total Deliveries
-             * @description Total delivery attempts
-             * @default 0
-             */
-            total_deliveries: number;
-            /**
-             * Updated At
-             * Format: date-time
-             * @description Last update timestamp
-             */
-            updated_at: string;
-            /**
-             * Url
-             * @description Webhook endpoint URL
-             */
-            url: string;
         };
         /**
          * WebhookTestNotificationRequest
@@ -33201,6 +33107,100 @@ export interface components {
             shape?: components["schemas"]["CameraZoneShape"] | null;
             /** @description Type of zone */
             zone_type?: components["schemas"]["CameraZoneType"] | null;
+        };
+        /**
+         * WebhookResponse
+         * @description Full webhook configuration response.
+         *
+         *     Returns complete webhook information including configuration,
+         *     metadata, and delivery statistics.
+         *
+         *     Attributes:
+         *         id: Unique webhook identifier.
+         *         name: Webhook name.
+         *         url: Webhook endpoint URL.
+         *         event_types: Subscribed event types.
+         *         integration_type: Integration type.
+         *         enabled: Whether active.
+         *         custom_headers: Custom HTTP headers.
+         *         payload_template: Jinja2 payload template.
+         *         max_retries: Max retry attempts.
+         *         retry_delay_seconds: Initial retry delay.
+         *         created_at: Creation timestamp.
+         *         updated_at: Last update timestamp.
+         *         total_deliveries: Total delivery attempts.
+         *         successful_deliveries: Successful delivery count.
+         *         last_delivery_at: Last delivery timestamp.
+         *         last_delivery_status: Status of last delivery.
+         */
+        backend__api__schemas__outbound_webhook__WebhookResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            created_at: string;
+            /** Custom Headers */
+            custom_headers?: {
+                [key: string]: string;
+            };
+            /**
+             * Enabled
+             * @description Whether active
+             */
+            enabled: boolean;
+            /**
+             * Event Types
+             * @description Subscribed events
+             */
+            event_types: components["schemas"]["WebhookEventType"][];
+            /**
+             * Id
+             * @description Unique webhook identifier
+             */
+            id: string;
+            /** @description Integration type */
+            integration_type: components["schemas"]["IntegrationType"];
+            /**
+             * Last Delivery At
+             * @description Last delivery timestamp
+             */
+            last_delivery_at?: string | null;
+            last_delivery_status?: components["schemas"]["WebhookDeliveryStatus"] | null;
+            /** Max Retries */
+            max_retries: number;
+            /**
+             * Name
+             * @description Webhook name
+             */
+            name: string;
+            /** Payload Template */
+            payload_template?: string | null;
+            /** Retry Delay Seconds */
+            retry_delay_seconds: number;
+            /**
+             * Successful Deliveries
+             * @description Successful deliveries
+             * @default 0
+             */
+            successful_deliveries: number;
+            /**
+             * Total Deliveries
+             * @description Total delivery attempts
+             * @default 0
+             */
+            total_deliveries: number;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description Last update timestamp
+             */
+            updated_at: string;
+            /**
+             * Url
+             * @description Webhook endpoint URL
+             */
+            url: string;
         };
     };
     responses: never;
@@ -42073,7 +42073,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WebhookResponse"];
+                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
                 };
             };
             /** @description Validation error */
@@ -42233,7 +42233,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WebhookResponse"];
+                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
                 };
             };
             /** @description Webhook not found */
@@ -42325,7 +42325,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WebhookResponse"];
+                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
                 };
             };
             /** @description Webhook not found */
@@ -42418,7 +42418,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WebhookResponse"];
+                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
                 };
             };
             /** @description Webhook not found */
@@ -42463,7 +42463,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WebhookResponse"];
+                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
                 };
             };
             /** @description Webhook not found */
@@ -46098,7 +46098,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WebhookProcessingResponse"];
+                    "application/json": components["schemas"]["WebhookResponse"];
                 };
             };
             /** @description Invalid payload format */
