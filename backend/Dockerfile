@@ -12,7 +12,11 @@
 #   docker build --target prod -t backend:prod .
 
 # =============================================================================
-# Base stage: shared Python setup with build dependencies
+# Base stage: shared dependencies (backend-specific extensions to base image)
+#
+# Extends shared base image to add backend-specific system dependencies
+# and build tools. This reduces build time by caching common Python packages
+# in the ghcr.io/mikesvoboda/nemotron-base image.
 #
 # Python Image Options:
 #   Standard (GIL enabled):     python:3.14-slim-bookworm
@@ -26,7 +30,8 @@
 # Free-threading overhead: ~5-10% slower for single-threaded code
 # =============================================================================
 # FROM ghcr.io/mikesvoboda/python:3.14t-slim-bookworm AS base
-FROM python:3.14-slim-bookworm AS base
+# hadolint ignore=DL3007
+FROM ghcr.io/mikesvoboda/nemotron-base:latest AS base
 
 # OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
@@ -36,18 +41,14 @@ LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
 LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
 LABEL org.opencontainers.image.authors="home-security-intelligence"
-LABEL org.opencontainers.image.base.name="python:3.14-slim-bookworm"
-LABEL org.opencontainers.image.base.digest="python:3.14-slim-bookworm"
+LABEL org.opencontainers.image.base.name="ghcr.io/mikesvoboda/nemotron-base:latest"
+LABEL org.opencontainers.image.base.digest="ghcr.io/mikesvoboda/nemotron-base:latest"
 
 WORKDIR /app
 
-# Install build dependencies for Python packages with C extensions
-# and runtime dependencies for healthcheck and video processing
+# Install backend-specific system dependencies (video processing, web utilities)
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libc6-dev \
-    libffi-dev \
     wget \
     curl \
     ffmpeg \
@@ -55,9 +56,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
-
-# Install uv for fast dependency management
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Copy dependency files from project root (context is project root in CI)
 COPY pyproject.toml uv.lock ./
