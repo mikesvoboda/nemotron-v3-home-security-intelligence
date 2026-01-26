@@ -14,7 +14,7 @@
 | ----------------------- | ------------------------------- | --------- | ---- | ----------- | ------------------- |
 | Nemotron-3-Nano-30B-A3B | Risk reasoning (production)     | ~14.7 GB  | 8091 | llama.cpp   | 131,072 tokens      |
 | Nemotron Mini 4B        | Risk reasoning (development)    | ~3 GB     | 8091 | llama.cpp   | 4,096 tokens        |
-| RT-DETRv2               | Object detection                | ~0.65 GB  | 8090 | HuggingFace | -                   |
+| YOLO26m                 | Object detection                | ~0.1 GB   | 8090 | Ultralytics | -                   |
 | Florence-2-Large        | Dense captioning, OCR           | ~1.2 GB   | 8092 | HuggingFace | -                   |
 | CLIP ViT-L              | Entity re-ID, anomaly detection | ~0.8 GB   | 8093 | HuggingFace | 768-dim embedding   |
 | FashionCLIP             | Clothing classification         | ~0.8 GB   | 8094 | OpenCLIP    | Zero-shot           |
@@ -98,19 +98,27 @@ A smaller, faster model for development and resource-constrained environments.
 
 ---
 
-### RT-DETRv2 (Object Detection)
+### YOLO26 (Object Detection)
 
-Real-time object detection using transformer architecture for accurate detection of security-relevant objects.
+Real-time object detection using CNN architecture optimized for speed with TensorRT FP16 inference.
 
-| Specification      | Value                                                                                   |
-| ------------------ | --------------------------------------------------------------------------------------- |
-| **HuggingFace**    | [PekingU/rtdetr_r50vd_coco_o365](https://huggingface.co/PekingU/rtdetr_r50vd_coco_o365) |
-| **Architecture**   | RT-DETR (Real-Time Detection Transformer) R50VD                                         |
-| **Training Data**  | COCO + Objects365                                                                       |
-| **VRAM Required**  | ~0.65 GB                                                                                |
-| **Port**           | 8090                                                                                    |
-| **Inference Time** | 30-50ms per image on RTX A5500                                                          |
-| **Framework**      | HuggingFace Transformers                                                                |
+| Specification      | Value                                                     |
+| ------------------ | --------------------------------------------------------- |
+| **Source**         | [Ultralytics](https://github.com/ultralytics/ultralytics) |
+| **Architecture**   | YOLO26 (CNN-based, NMS-free)                              |
+| **Training Data**  | COCO                                                      |
+| **VRAM Required**  | ~0.1 GB (TensorRT FP16)                                   |
+| **Port**           | 8090                                                      |
+| **Inference Time** | 5-6ms per image on RTX A5500 (TensorRT FP16)              |
+| **Framework**      | Ultralytics + TensorRT                                    |
+
+**Model Variants:**
+
+| Model   | Parameters | Size    | FPS | Best For                |
+| ------- | ---------- | ------- | --- | ----------------------- |
+| yolo26n | 2.57M      | 5.3 MB  | 223 | Maximum throughput      |
+| yolo26s | 10.01M     | 19.5 MB | 206 | Balanced speed/accuracy |
+| yolo26m | 21.90M     | 42.2 MB | 174 | Best accuracy (default) |
 
 **Security-Relevant Classes (9 total):**
 
@@ -130,12 +138,12 @@ SECURITY_CLASSES = {
 
 **Environment Variables:**
 
-| Variable            | Default                                        | Description              |
-| ------------------- | ---------------------------------------------- | ------------------------ |
-| `RTDETR_MODEL_PATH` | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` | HuggingFace model path   |
-| `RTDETR_CONFIDENCE` | `0.5`                                          | Min confidence threshold |
-| `HOST`              | `0.0.0.0`                                      | Bind address             |
-| `PORT`              | `8090`                                         | Server port              |
+| Variable            | Default                                      | Description              |
+| ------------------- | -------------------------------------------- | ------------------------ |
+| `YOLO26_MODEL_PATH` | `/models/yolo26/exports/yolo26m_fp16.engine` | TensorRT engine path     |
+| `YOLO26_CONFIDENCE` | `0.5`                                        | Min confidence threshold |
+| `HOST`              | `0.0.0.0`                                    | Bind address             |
+| `PORT`              | `8090`                                       | Server port              |
 
 ---
 
@@ -373,19 +381,19 @@ COCO_KEYPOINT_NAMES = [
 | Service    | Models                           | VRAM       |
 | ---------- | -------------------------------- | ---------- |
 | Nemotron   | Nemotron-3-Nano-30B-A3B          | ~14.7 GB   |
-| RT-DETRv2  | RT-DETRv2 R50VD                  | ~0.65 GB   |
+| YOLO26     | YOLO26m (TensorRT FP16)          | ~0.1 GB    |
 | Florence-2 | Florence-2-Large                 | ~1.2 GB    |
 | CLIP       | CLIP ViT-L                       | ~0.8 GB    |
 | Enrichment | FashionCLIP, Vehicle, Pet, Depth | ~2.65 GB   |
-| **Total**  |                                  | **~20 GB** |
+| **Total**  |                                  | **~19 GB** |
 
 ### Development Configuration (Minimal)
 
-| Service   | Models           | VRAM      |
-| --------- | ---------------- | --------- |
-| Nemotron  | Nemotron Mini 4B | ~3 GB     |
-| RT-DETRv2 | RT-DETRv2 R50VD  | ~0.65 GB  |
-| **Total** |                  | **~4 GB** |
+| Service   | Models                  | VRAM      |
+| --------- | ----------------------- | --------- |
+| Nemotron  | Nemotron Mini 4B        | ~3 GB     |
+| YOLO26    | YOLO26m (TensorRT FP16) | ~0.1 GB   |
+| **Total** |                         | **~3 GB** |
 
 ### Hardware Recommendations
 
@@ -446,17 +454,17 @@ For manual downloads or air-gapped environments:
 
 ### Model Paths
 
-| Variable              | Default Path                                   | Model              |
-| --------------------- | ---------------------------------------------- | ------------------ |
-| `NEMOTRON_GGUF_PATH`  | `/export/ai_models/nemotron/...`               | Nemotron LLM       |
-| `RTDETR_MODEL_PATH`   | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` | RT-DETRv2          |
-| `FLORENCE_MODEL_PATH` | `/models/florence-2-large`                     | Florence-2         |
-| `CLIP_MODEL_PATH`     | `/models/clip-vit-l`                           | CLIP ViT-L         |
-| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                         | FashionCLIP        |
-| `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification`       | Vehicle Classifier |
-| `PET_MODEL_PATH`      | `/models/pet-classifier`                       | Pet Classifier     |
-| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-small`              | Depth Anything V2  |
-| `VITPOSE_MODEL_PATH`  | `/models/vitpose-plus-small`                   | ViTPose+           |
+| Variable              | Default Path                                 | Model              |
+| --------------------- | -------------------------------------------- | ------------------ |
+| `NEMOTRON_GGUF_PATH`  | `/export/ai_models/nemotron/...`             | Nemotron LLM       |
+| `YOLO26_MODEL_PATH`   | `/models/yolo26/exports/yolo26m_fp16.engine` | YOLO26             |
+| `FLORENCE_MODEL_PATH` | `/models/florence-2-large`                   | Florence-2         |
+| `CLIP_MODEL_PATH`     | `/models/clip-vit-l`                         | CLIP ViT-L         |
+| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                       | FashionCLIP        |
+| `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification`     | Vehicle Classifier |
+| `PET_MODEL_PATH`      | `/models/pet-classifier`                     | Pet Classifier     |
+| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-small`            | Depth Anything V2  |
+| `VITPOSE_MODEL_PATH`  | `/models/vitpose-plus-small`                 | ViTPose+           |
 
 ### Service Configuration
 
@@ -464,7 +472,7 @@ For manual downloads or air-gapped environments:
 | ---------------- | ----------------------- | --------------------------- |
 | `AI_MODELS_PATH` | `/export/ai_models`     | Base path for all models    |
 | `HF_HOME`        | `/cache/huggingface`    | HuggingFace cache directory |
-| `RTDETR_URL`     | `http://localhost:8090` | RT-DETRv2 service URL       |
+| `YOLO26_URL`     | `http://localhost:8090` | YOLO26 service URL          |
 | `NEMOTRON_URL`   | `http://localhost:8091` | Nemotron LLM service URL    |
 | `FLORENCE_URL`   | `http://localhost:8092` | Florence-2 service URL      |
 | `CLIP_URL`       | `http://localhost:8093` | CLIP service URL            |
