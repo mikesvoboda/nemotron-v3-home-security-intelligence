@@ -52,14 +52,8 @@
       "expected_factors": []
     },
     "florence_caption": {
-      "must_contain": [
-        "dog"
-      ],
-      "must_not_contain": [
-        "person",
-        "threat",
-        "suspicious"
-      ]
+      "must_contain": ["dog"],
+      "must_not_contain": ["person", "threat", "suspicious"]
     }
   },
   "generation": {
@@ -95,13 +89,8 @@
           "is_known_pet": true
         },
         "florence_caption": {
-          "must_contain": [
-            "cat"
-          ],
-          "must_not_contain": [
-            "person",
-            "threat"
-          ]
+          "must_contain": ["cat"],
+          "must_not_contain": ["person", "threat"]
         }
       }
     },
@@ -136,9 +125,7 @@
         }
       ],
       "scene_overrides": {
-        "camera_effects": [
-          "motion_blur"
-        ]
+        "camera_effects": ["motion_blur"]
       }
     },
     {
@@ -174,9 +161,7 @@
         "lighting": "porch_light_ambient"
       },
       "scene_overrides": {
-        "camera_effects": [
-          "ir_night_vision"
-        ]
+        "camera_effects": ["ir_night_vision"]
       },
       "expected_output_overrides": {
         "risk": {
@@ -219,13 +204,8 @@
           "is_known_pet": true
         },
         "florence_caption": {
-          "must_contain": [
-            "cat"
-          ],
-          "must_not_contain": [
-            "person",
-            "threat"
-          ]
+          "must_contain": ["cat"],
+          "must_not_contain": ["person", "threat"]
         }
       }
     }

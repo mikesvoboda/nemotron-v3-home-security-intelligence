@@ -38,9 +38,7 @@
   ],
 
   "expected_outputs": {
-    "detections": [
-      { "class": "person", "min_confidence": 0.75, "count": 1 }
-    ],
+    "detections": [{ "class": "person", "min_confidence": 0.75, "count": 1 }],
     "face": {
       "detected": true,
       "count": 1,
@@ -136,9 +134,7 @@
         }
       ],
       "expected_output_overrides": {
-        "detections": [
-          { "class": "person", "min_confidence": 0.70, "count": 3 }
-        ],
+        "detections": [{ "class": "person", "min_confidence": 0.7, "count": 3 }],
         "face": {
           "detected": true,
           "count": 3,
@@ -164,7 +160,7 @@
       "expected_output_overrides": {
         "detections": [
           { "class": "person", "min_confidence": 0.75, "count": 1 },
-          { "class": "truck", "min_confidence": 0.70, "count": 1 }
+          { "class": "truck", "min_confidence": 0.7, "count": 1 }
         ],
         "vehicle": {
           "type": "truck",

@@ -14,12 +14,7 @@
   "pose": {
     "posture": "crouching",
     "is_suspicious": true,
-    "keypoints_visible": [
-      "left_shoulder",
-      "right_shoulder",
-      "left_hip",
-      "right_hip"
-    ]
+    "keypoints_visible": ["left_shoulder", "right_shoulder", "left_hip", "right_hip"]
   },
   "action": {
     "action": "prowling",
@@ -39,22 +34,10 @@
     "min_score": 60,
     "max_score": 85,
     "level": "high",
-    "expected_factors": [
-      "prowling",
-      "nighttime",
-      "obscured_face",
-      "checking_entry_points"
-    ]
+    "expected_factors": ["prowling", "nighttime", "obscured_face", "checking_entry_points"]
   },
   "florence_caption": {
-    "must_contain": [
-      "person",
-      "window"
-    ],
-    "must_not_contain": [
-      "delivery",
-      "resident",
-      "maintenance"
-    ]
+    "must_contain": ["person", "window"],
+    "must_not_contain": ["delivery", "resident", "maintenance"]
   }
 }

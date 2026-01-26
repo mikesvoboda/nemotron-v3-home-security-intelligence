@@ -6,9 +6,7 @@
   "scene": {
     "location": "front_porch",
     "camera_type": "doorbell",
-    "camera_effects": [
-      "fisheye_distortion"
-    ],
+    "camera_effects": ["fisheye_distortion"],
     "timestamp_overlay": true,
     "resolution": "1080p"
   },
@@ -27,9 +25,7 @@
         "uniform_company": "Amazon",
         "face_visible": true,
         "carrying_items": true,
-        "items": [
-          "package"
-        ]
+        "items": ["package"]
       },
       "action": "delivering_package",
       "position": "at_door",
@@ -51,9 +47,7 @@
       "visible": true
     },
     "ocr": {
-      "expected_text": [
-        "AMAZON"
-      ],
+      "expected_text": ["AMAZON"],
       "min_confidence": 0.6
     },
     "pose": {
@@ -76,15 +70,8 @@
       "expected_factors": []
     },
     "florence_caption": {
-      "must_contain": [
-        "person",
-        "package"
-      ],
-      "must_not_contain": [
-        "suspicious",
-        "threat",
-        "stealing"
-      ]
+      "must_contain": ["person", "package"],
+      "must_not_contain": ["suspicious", "threat", "stealing"]
     }
   },
   "generation": {
@@ -102,23 +89,16 @@
           "appearance": {
             "clothing": "delivery_uniform",
             "uniform_company": "FedEx",
-            "uniform_colors": [
-              "purple",
-              "orange"
-            ],
+            "uniform_colors": ["purple", "orange"],
             "face_visible": true,
             "carrying_items": true,
-            "items": [
-              "package"
-            ]
+            "items": ["package"]
           }
         }
       ],
       "expected_output_overrides": {
         "ocr": {
-          "expected_text": [
-            "FEDEX"
-          ],
+          "expected_text": ["FEDEX"],
           "min_confidence": 0.6
         },
         "clothing": {
@@ -137,22 +117,16 @@
           "appearance": {
             "clothing": "delivery_uniform",
             "uniform_company": "UPS",
-            "uniform_colors": [
-              "brown"
-            ],
+            "uniform_colors": ["brown"],
             "face_visible": true,
             "carrying_items": true,
-            "items": [
-              "package"
-            ]
+            "items": ["package"]
           }
         }
       ],
       "expected_output_overrides": {
         "ocr": {
-          "expected_text": [
-            "UPS"
-          ],
+          "expected_text": ["UPS"],
           "min_confidence": 0.6
         },
         "clothing": {
@@ -171,25 +145,16 @@
           "appearance": {
             "clothing": "delivery_uniform",
             "uniform_company": "USPS",
-            "uniform_colors": [
-              "blue",
-              "gray"
-            ],
+            "uniform_colors": ["blue", "gray"],
             "face_visible": true,
             "carrying_items": true,
-            "items": [
-              "mail",
-              "small_package"
-            ]
+            "items": ["mail", "small_package"]
           }
         }
       ],
       "expected_output_overrides": {
         "ocr": {
-          "expected_text": [
-            "USPS",
-            "MAIL"
-          ],
+          "expected_text": ["USPS", "MAIL"],
           "min_confidence": 0.5
         }
       }
@@ -205,9 +170,7 @@
             "uniform_company": "Amazon",
             "face_visible": true,
             "carrying_items": true,
-            "items": [
-              "large_box"
-            ]
+            "items": ["large_box"]
           },
           "behavior_notes": "Carrying large heavy box, using both hands, may use dolly"
         }
@@ -221,19 +184,14 @@
         "lighting": "low_ambient_dusk"
       },
       "scene_overrides": {
-        "camera_effects": [
-          "fisheye_distortion",
-          "motion_blur"
-        ]
+        "camera_effects": ["fisheye_distortion", "motion_blur"]
       },
       "expected_output_overrides": {
         "risk": {
           "min_score": 5,
           "max_score": 20,
           "level": "low",
-          "expected_factors": [
-            "low_light"
-          ]
+          "expected_factors": ["low_light"]
         }
       }
     },
@@ -252,9 +210,7 @@
           "min_score": 5,
           "max_score": 25,
           "level": "low",
-          "expected_factors": [
-            "extended_presence"
-          ]
+          "expected_factors": ["extended_presence"]
         }
       }
     }

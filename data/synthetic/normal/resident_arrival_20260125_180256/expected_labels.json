@@ -26,14 +26,7 @@
     "expected_factors": []
   },
   "florence_caption": {
-    "must_contain": [
-      "person",
-      "door"
-    ],
-    "must_not_contain": [
-      "suspicious",
-      "threat",
-      "weapon"
-    ]
+    "must_contain": ["person", "door"],
+    "must_not_contain": ["suspicious", "threat", "weapon"]
   }
 }

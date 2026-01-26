@@ -22,13 +22,7 @@
     "expected_factors": []
   },
   "florence_caption": {
-    "must_contain": [
-      "dog"
-    ],
-    "must_not_contain": [
-      "person",
-      "threat",
-      "suspicious"
-    ]
+    "must_contain": ["dog"],
+    "must_not_contain": ["person", "threat", "suspicious"]
   }
 }

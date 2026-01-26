@@ -80,20 +80,11 @@
       "min_score": 55,
       "max_score": 85,
       "level": "medium",
-      "expected_factors": [
-        "loitering",
-        "nighttime",
-        "obscured_face"
-      ]
+      "expected_factors": ["loitering", "nighttime", "obscured_face"]
     },
     "florence_caption": {
-      "must_contain": [
-        "person"
-      ],
-      "must_not_contain": [
-        "delivery",
-        "resident"
-      ]
+      "must_contain": ["person"],
+      "must_not_contain": ["delivery", "resident"]
     },
     "weather": {
       "condition": "rain",
@@ -119,9 +110,7 @@
         "lighting": "natural_daylight"
       },
       "scene_overrides": {
-        "camera_effects": [
-          "fisheye_distortion"
-        ]
+        "camera_effects": ["fisheye_distortion"]
       },
       "subject_overrides": [
         {
@@ -143,10 +132,7 @@
           "min_score": 25,
           "max_score": 50,
           "level": "medium",
-          "expected_factors": [
-            "loitering",
-            "unknown_person"
-          ]
+          "expected_factors": ["loitering", "unknown_person"]
         }
       }
     },
@@ -165,12 +151,7 @@
           "min_score": 55,
           "max_score": 80,
           "level": "high",
-          "expected_factors": [
-            "loitering",
-            "nighttime",
-            "obscured_face",
-            "extended_duration"
-          ]
+          "expected_factors": ["loitering", "nighttime", "obscured_face", "extended_duration"]
         }
       }
     },
@@ -197,10 +178,7 @@
           "min_score": 35,
           "max_score": 60,
           "level": "medium",
-          "expected_factors": [
-            "loitering",
-            "nighttime"
-          ]
+          "expected_factors": ["loitering", "nighttime"]
         }
       }
     },
@@ -224,12 +202,7 @@
           "min_score": 45,
           "max_score": 75,
           "level": "medium",
-          "expected_factors": [
-            "loitering",
-            "nighttime",
-            "obscured_face",
-            "possible_reconnaissance"
-          ]
+          "expected_factors": ["loitering", "nighttime", "obscured_face", "possible_reconnaissance"]
         }
       }
     },
@@ -245,11 +218,7 @@
           "min_score": 35,
           "max_score": 65,
           "level": "medium",
-          "expected_factors": [
-            "loitering",
-            "low_light",
-            "obscured_face"
-          ]
+          "expected_factors": ["loitering", "low_light", "obscured_face"]
         }
       }
     },
@@ -272,12 +241,7 @@
           "min_score": 50,
           "max_score": 80,
           "level": "high",
-          "expected_factors": [
-            "loitering",
-            "nighttime",
-            "obscured_face",
-            "backyard_intrusion"
-          ]
+          "expected_factors": ["loitering", "nighttime", "obscured_face", "backyard_intrusion"]
         }
       }
     }
