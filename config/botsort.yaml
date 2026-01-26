@@ -1,0 +1,114 @@
+# BoT-SORT Configuration for Security Monitoring
+# BoT-SORT combines motion (Kalman filter) and appearance (ReID) information
+# for robust multi-object tracking across occlusions and camera views.
+#
+# Reference: https://github.com/NirAharon/BoT-SORT
+# Ultralytics integration: https://docs.ultralytics.com/modes/track/
+
+tracker_type: botsort
+
+# =============================================================================
+# Re-Identification (ReID) Settings
+# =============================================================================
+# ReID enables appearance-based matching using deep features extracted from
+# detected objects. This is essential for:
+# - Re-identifying people after occlusions
+# - Maintaining identity across camera handoffs
+# - Handling crowded scenes with overlapping detections
+
+with_reid: true
+
+# Appearance threshold for ReID feature matching
+# Lower values = stricter matching (fewer false associations)
+# Higher values = more lenient (may cause ID switches)
+# Range: 0.0 - 1.0, recommended: 0.2 - 0.35 for security footage
+appearance_thresh: 0.25
+
+# =============================================================================
+# Detection Thresholds
+# =============================================================================
+# Two-threshold strategy for robust tracking:
+# - High threshold: confident detections for track initialization
+# - Low threshold: weak detections for track continuation
+
+# Minimum confidence for high-quality detections
+# Detections above this are immediately associated with tracks
+# Range: 0.3 - 0.7, recommended: 0.5 for balanced precision/recall
+track_high_thresh: 0.5
+
+# Minimum confidence for low-quality detections
+# Detections between low and high thresholds are used for
+# associating with existing tracks but not starting new ones
+# Range: 0.05 - 0.2, recommended: 0.1 for security applications
+track_low_thresh: 0.1
+
+# Threshold for initializing new tracks
+# Must be >= track_high_thresh for consistency
+# Higher values reduce false tracks from spurious detections
+new_track_thresh: 0.6
+
+# =============================================================================
+# Track Management
+# =============================================================================
+# Track buffer: number of frames to keep lost tracks alive
+# Higher values help re-identify people who briefly exit frame
+# Lower values reduce memory usage and prevent stale track IDs
+# Range: 15 - 60 frames, recommended: 30 for 30fps security cameras
+track_buffer: 30
+
+# =============================================================================
+# Association Thresholds
+# =============================================================================
+# Matching threshold for IoU-based association
+# Controls how strictly detections must overlap with predicted positions
+# Range: 0.7 - 0.9, recommended: 0.8 for typical camera setups
+match_thresh: 0.8
+
+# Proximity threshold for gating associations
+# Limits association to detections within a spatial neighborhood
+# Helps prevent ID switches between distant objects
+# Range: 0.3 - 0.7, recommended: 0.5
+proximity_thresh: 0.5
+
+# =============================================================================
+# Camera Motion Compensation (CMC)
+# =============================================================================
+# GMC (Global Motion Compensation) method for handling camera motion
+# Options: "sparseOptFlow", "orb", "ecc", "none"
+# - sparseOptFlow: Best quality, moderate speed (recommended for PTZ cameras)
+# - orb: Fast feature-based, good for static cameras with vibration
+# - ecc: Enhanced correlation coefficient, slow but accurate
+# - none: No compensation (for perfectly static cameras)
+gmc_method: sparseOptFlow
+# =============================================================================
+# Kalman Filter Settings
+# =============================================================================
+# These control the motion model's behavior
+
+# Process noise (motion uncertainty)
+# Higher values make the filter more responsive to sudden movements
+# Lower values produce smoother but potentially lagging tracks
+# kalman_filter is handled internally by BoT-SORT
+
+# =============================================================================
+# Performance Tuning for Security Applications
+# =============================================================================
+# Notes for production deployment:
+#
+# 1. For crowded scenes (shopping malls, transit stations):
+#    - Increase track_buffer to 45-60
+#    - Decrease appearance_thresh to 0.2
+#    - Set proximity_thresh to 0.4
+#
+# 2. For sparse scenes (residential, parking lots):
+#    - Decrease track_buffer to 20-25
+#    - Increase appearance_thresh to 0.3
+#    - Set proximity_thresh to 0.6
+#
+# 3. For PTZ cameras with frequent motion:
+#    - Use gmc_method: sparseOptFlow
+#    - Increase match_thresh to 0.85
+#
+# 4. For static cameras:
+#    - Use gmc_method: none (saves computation)
+#    - Default thresholds work well

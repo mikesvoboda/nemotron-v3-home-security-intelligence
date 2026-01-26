@@ -205,6 +205,14 @@ class DetectionResponse(BaseModel):
     video_width: int | None = Field(None, description="Video resolution width")
     video_height: int | None = Field(None, description="Video resolution height")
 
+    # Object tracking fields (for multi-object tracking across frames)
+    track_id: int | None = Field(
+        None, description="Unique track ID for tracking objects across frames"
+    )
+    track_confidence: float | None = Field(
+        None, description="Confidence score for the track assignment (0-1)"
+    )
+
     # AI enrichment data (vehicle classification, pet identification, etc.)
     # Kept as dict for backward compatibility - use validate_enrichment_data() to get typed data
     enrichment_data: dict[str, Any] | None = Field(
@@ -399,6 +407,12 @@ class DetectionSearchResult(BaseModel):
     bbox_width: int | None = Field(None)
     bbox_height: int | None = Field(None)
     enrichment_data: dict[str, Any] | None = Field(None)
+    track_id: int | None = Field(
+        None, description="Unique track ID for tracking objects across frames"
+    )
+    track_confidence: float | None = Field(
+        None, description="Confidence score for the track assignment (0-1)"
+    )
 
 
 class DetectionSearchResponse(BaseModel):

@@ -315,6 +315,14 @@ from .severity import (
     severity_lte,
 )
 from .thumbnail_generator import ThumbnailGenerator
+from .track_service import (
+    DEFAULT_MAX_TRAJECTORY_POINTS,
+    DEFAULT_TRACK_RETENTION_HOURS,
+    TrackService,
+    configure_track_service,
+    get_track_service,
+    reset_track_service,
+)
 from .transcode_cache import (
     CacheEntry,
     CacheStats,
@@ -364,6 +372,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "VEHICLE_CLASSES",
     "DEFAULT_DELETION_DELAY_SECONDS",
     "FILE_DELETION_QUEUE",
+    "DEFAULT_MAX_TRAJECTORY_POINTS",
+    "DEFAULT_TRACK_RETENTION_HOURS",
     # Classes - AI Services
     "FaceDetectorService",
     "OCRService",
@@ -488,6 +498,8 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "SeverityDefinition",
     "SeverityService",
     "ThumbnailGenerator",
+    # Track Service
+    "TrackService",
     # Transcode Cache
     "CacheEntry",
     "CacheStats",
@@ -513,6 +525,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "audit_service",
     "bbox_center",
     "classify_scene_change_type",
+    "configure_track_service",
     "get_audit_service",
     "build_dedup_key",
     "clean_plate_text",
@@ -561,6 +574,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "get_severity_service",
     "get_total_vram_if_loaded",
     "get_transcode_cache",
+    "get_track_service",
     "get_worker_supervisor",
     "get_zones_for_detection",
     "is_image_file",
@@ -605,6 +619,7 @@ __all__ = [  # noqa: RUF022  # Intentionally organized by category
     "reset_audit_service",
     "reset_severity_service",
     "reset_transcode_cache",
+    "reset_track_service",
     "reset_worker_supervisor",
     "search_events",
     "severity_from_string",

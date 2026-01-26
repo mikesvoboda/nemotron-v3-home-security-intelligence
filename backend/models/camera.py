@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from .event import Event
     from .property import Property
     from .scene_change import SceneChange
+    from .track import Track
 
 
 def normalize_camera_id(folder_name: str) -> str:
@@ -137,6 +138,9 @@ class Camera(Base):
         "Area",
         secondary="camera_areas",
         back_populates="cameras",
+    )
+    tracks: Mapped[list[Track]] = relationship(
+        "Track", back_populates="camera", cascade="all, delete-orphan"
     )
 
     @property

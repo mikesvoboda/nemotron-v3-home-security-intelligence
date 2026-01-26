@@ -249,6 +249,13 @@ from .services import (
     ServicesResponse,
     ServiceStatusEvent,
 )
+from .track import (
+    MovementMetrics,
+    TrackHistoryResponse,
+    TrackListResponse,
+    TrackResponse,
+    TrajectoryPoint,
+)
 from .trusted import (
     from_db_record,
     from_db_records,
@@ -478,6 +485,12 @@ __all__ = [  # noqa: RUF022
     "SortParams",
     "TestNotificationRequest",
     "TestNotificationResponse",
+    # Track schemas (object tracking)
+    "MovementMetrics",
+    "TrackHistoryResponse",
+    "TrackListResponse",
+    "TrackResponse",
+    "TrajectoryPoint",
     "TrustCheckResponse",
     "TrustLevelResult",
     "ValidationErrorDetail",
