@@ -201,8 +201,9 @@ services:
       resources:
         reservations:
           devices:
+            # GPU 1 (A400 4GB) - YOLO26 TensorRT uses ~1GB, shares with CLIP and Florence
             - driver: nvidia
-              count: 1
+              device_ids: ['1']
               capabilities: [gpu]
 
   ai-llm:
@@ -241,7 +242,7 @@ services:
               capabilities: [gpu]
 
   # Florence-2 vision-language model for dense captioning and visual understanding
-  # Assigned to GPU 1 (A400 4GB) - shares with CLIP for multi-GPU distribution
+  # Assigned to GPU 1 (A400 4GB) - shares with CLIP (~722MB) and YOLO26 (~1GB)
   ai-florence:
     tmpfs:
       - /tmp
@@ -280,12 +281,13 @@ services:
       resources:
         reservations:
           devices:
-            # GPU 1 (A400 4GB) - Florence uses ~2GB, shares with CLIP (~940MB)
+            # GPU 1 (A400 4GB) - Florence uses ~530MB, shares with CLIP (~722MB) and YOLO26 (~1GB)
             - driver: nvidia
               device_ids: ['1']
               capabilities: [gpu]
 
   # CLIP ViT-L model for entity re-identification embeddings
+  # Assigned to GPU 1 (A400 4GB) - shares with Florence (~530MB) and YOLO26 (~1GB)
   ai-clip:
     tmpfs:
       - /tmp
@@ -324,6 +326,8 @@ services:
       resources:
         reservations:
           devices:
+            # GPU 1 (A400 4GB) - CLIP TensorRT uses ~722MB, shares with Florence (~530MB) and YOLO26 (~1GB)
+            # Total GPU 1 VRAM: ~2.3GB / 4GB (~57% utilization)
             - driver: nvidia
               count: 1
               capabilities: [gpu]
