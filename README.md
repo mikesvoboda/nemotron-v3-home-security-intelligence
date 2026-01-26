@@ -78,9 +78,28 @@ These models are always loaded for real-time analysis:
 
 | Model            | Purpose                       | VRAM   | Port |
 | ---------------- | ----------------------------- | ------ | ---- |
-| RT-DETRv2        | Primary object detection      | ~650MB | 8091 |
+| Object Detector  | Primary object detection      | ~650MB | 8091 |
 | Florence-2-large | Scene understanding, captions | ~1.2GB | 8092 |
 | CLIP ViT-L/14    | Anomaly detection baseline    | ~800MB | 8093 |
+
+### Object Detector Options
+
+The system supports two object detectors. Set `DETECTOR_TYPE` in your `.env` to switch:
+
+| Detector  | Inference (TensorRT) | FPS | vs RT-DETRv2 | Best For                     |
+| --------- | -------------------- | --- | ------------ | ---------------------------- |
+| RT-DETRv2 | 30.5ms               | 33  | baseline     | Accuracy, transformer-based  |
+| YOLO26m   | 5.76ms               | 174 | 5.3x faster  | Speed, real-time multi-cam   |
+| YOLO26s   | 4.86ms               | 206 | 6.3x faster  | Maximum throughput           |
+| YOLO26n   | 3.25ms (ONNX-CUDA)   | 308 | 9.4x faster  | Lightweight, edge deployment |
+
+```bash
+# Default: RT-DETRv2
+DETECTOR_TYPE=rtdetr
+
+# Switch to YOLO26
+DETECTOR_TYPE=yolo26
+```
 
 ### On-Demand Models (~6.8GB budget)
 
@@ -264,11 +283,11 @@ docker compose up -d
 
 ![System Architecture](docs/images/arch-system-overview.png)
 
-| Layer       | Stack                         | Key Files                           |
-| ----------- | ----------------------------- | ----------------------------------- |
-| Frontend    | React + TypeScript + Tailwind | `frontend/src/services/api.ts`      |
-| Backend     | FastAPI + SQLAlchemy + Redis  | `backend/services/`, `backend/api/` |
-| AI Services | llama.cpp + FastAPI           | `ai/rtdetr/`, `ai/nemotron/`        |
+| Layer       | Stack                         | Key Files                                  |
+| ----------- | ----------------------------- | ------------------------------------------ |
+| Frontend    | React + TypeScript + Tailwind | `frontend/src/services/api.ts`             |
+| Backend     | FastAPI + SQLAlchemy + Redis  | `backend/services/`, `backend/api/`        |
+| AI Services | llama.cpp + FastAPI           | `ai/rtdetr/`, `ai/yolo26/`, `ai/nemotron/` |
 
 ![Container Architecture](docs/images/architecture/container-architecture.png)
 
@@ -312,15 +331,16 @@ You can:
 
 Common settings:
 
-| Variable                     | Purpose                     |
-| ---------------------------- | --------------------------- |
-| `FOSCAM_BASE_PATH`           | Camera upload directory     |
-| `RTDETR_URL`, `NEMOTRON_URL` | Core AI endpoints           |
-| `FLORENCE_URL`, `CLIP_URL`   | Enrichment AI endpoints     |
-| `RETENTION_DAYS`             | Event retention (days)      |
-| `BATCH_WINDOW_SECONDS`       | Detection batching window   |
-| `FILE_WATCHER_POLLING`       | Use polling (Docker mounts) |
-| `API_KEY_ENABLED`            | Enable API key auth         |
+| Variable                     | Purpose                              |
+| ---------------------------- | ------------------------------------ |
+| `DETECTOR_TYPE`              | Detector model: `rtdetr` or `yolo26` |
+| `FOSCAM_BASE_PATH`           | Camera upload directory              |
+| `RTDETR_URL`, `NEMOTRON_URL` | Core AI endpoints                    |
+| `FLORENCE_URL`, `CLIP_URL`   | Enrichment AI endpoints              |
+| `RETENTION_DAYS`             | Event retention (days)               |
+| `BATCH_WINDOW_SECONDS`       | Detection batching window            |
+| `FILE_WATCHER_POLLING`       | Use polling (Docker mounts)          |
+| `API_KEY_ENABLED`            | Enable API key auth                  |
 
 </details>
 
