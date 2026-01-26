@@ -846,7 +846,9 @@ def generate_gpu_benchmark_report(
         # TensorRT vs PyTorch comparison
         tensorrt_results = [r for r in successful_results if r.format_name == "tensorrt"]
         pytorch_results = [
-            r for r in successful_results if r.format_name == "pytorch" and r.model_name != "YOLO26"
+            r
+            for r in successful_results
+            if r.format_name == "pytorch" and r.model_name != "YOLO26"
         ]
 
         if tensorrt_results and pytorch_results:

@@ -153,7 +153,7 @@ Pydantic schemas for system performance metrics (System Performance Dashboard).
 | ------------------- | --------------------------------------------------------- |
 | `TimeRange`         | Enum for historical data time ranges (5m, 15m, 60m)       |
 | `GpuMetrics`        | GPU metrics (name, utilization, VRAM, temperature, power) |
-| `AiModelMetrics`    | YOLO26 model metrics (status, VRAM, model, device)        |
+| `AiModelMetrics`    | YOLO26v2 model metrics (status, VRAM, model, device)     |
 | `NemotronMetrics`   | Nemotron LLM metrics (status, slots, context size)        |
 | `InferenceMetrics`  | AI inference latency and throughput metrics               |
 | `DatabaseMetrics`   | PostgreSQL metrics (connections, cache hit, transactions) |
@@ -488,7 +488,7 @@ Pydantic schemas for queue message payload validation with security validation.
 
 **Fields:**
 
-- `detection_queue: int` - Items waiting for YOLO26
+- `detection_queue: int` - Items waiting for YOLO26v2
 - `analysis_queue: int` - Batches waiting for Nemotron
 
 #### `StageLatency`
@@ -508,7 +508,7 @@ Pydantic schemas for queue message payload validation with security validation.
 **Fields:**
 
 - `watch: StageLatency | None` - File watcher stage
-- `detect: StageLatency | None` - YOLO26 stage
+- `detect: StageLatency | None` - YOLO26v2 stage
 - `batch: StageLatency | None` - Batch aggregation
 - `analyze: StageLatency | None` - Nemotron LLM stage
 
@@ -1238,11 +1238,11 @@ Pydantic schemas for the container orchestrator API - managing lifecycle of depl
 
 **Service Categories:**
 
-| Category       | Services                                     | Restart Policy |
-| -------------- | -------------------------------------------- | -------------- |
-| Infrastructure | PostgreSQL, Redis                            | Critical       |
+| Category       | Services                                      | Restart Policy |
+| -------------- | --------------------------------------------- | -------------- |
+| Infrastructure | PostgreSQL, Redis                             | Critical       |
 | AI             | YOLO26, Nemotron, Florence, CLIP, Enrichment | Standard       |
-| Monitoring     | Prometheus, Grafana, Redis Exporter          | Lenient        |
+| Monitoring     | Prometheus, Grafana, Redis Exporter           | Lenient        |
 
 ---
 
