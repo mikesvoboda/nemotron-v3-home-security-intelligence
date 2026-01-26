@@ -224,9 +224,7 @@ class MediaGenerator:
 
                     if response.status_code == 200:
                         logger.info(f"Image generation successful with format {i}")
-                        return await self._save_image_response(
-                            response.json(), output_path
-                        )
+                        return await self._save_image_response(response.json(), output_path)
                     else:
                         logger.debug(
                             f"Format {i} returned status {response.status_code}: "
@@ -239,9 +237,7 @@ class MediaGenerator:
         logger.error("All image generation API formats failed")
         return False
 
-    async def _save_image_response(
-        self, response: dict[str, Any], output_path: Path
-    ) -> bool:
+    async def _save_image_response(self, response: dict[str, Any], output_path: Path) -> bool:
         """
         Extract and save image data from API response.
 
@@ -305,9 +301,7 @@ class MediaGenerator:
                 if isinstance(content, str) and "data:image" in content:
                     import re
 
-                    match = re.search(
-                        r"data:image/[^;]+;base64,([A-Za-z0-9+/=]+)", content
-                    )
+                    match = re.search(r"data:image/[^;]+;base64,([A-Za-z0-9+/=]+)", content)
                     if match:
                         return base64.b64decode(match.group(1))
 
@@ -426,13 +420,9 @@ class MediaGenerator:
                         video_id = self._extract_video_id(response_data)
                         if video_id:
                             logger.info(f"Video job submitted: {video_id}")
-                            return await self._poll_and_download(
-                                video_id, output_path
-                            )
+                            return await self._poll_and_download(video_id, output_path)
 
-                        logger.error(
-                            "Response successful but no video data or job ID found"
-                        )
+                        logger.error("Response successful but no video data or job ID found")
                         logger.debug(f"Response: {response_data}")
 
                     elif response.status_code == 202:
@@ -441,9 +431,7 @@ class MediaGenerator:
                         video_id = self._extract_video_id(response_data)
                         if video_id:
                             logger.info(f"Video job accepted: {video_id}")
-                            return await self._poll_and_download(
-                                video_id, output_path
-                            )
+                            return await self._poll_and_download(video_id, output_path)
                     else:
                         logger.debug(
                             f"Format {i} returned status {response.status_code}: "
@@ -513,9 +501,7 @@ class MediaGenerator:
                 if isinstance(content, str) and "data:video" in content:
                     import re
 
-                    match = re.search(
-                        r"data:video/[^;]+;base64,([A-Za-z0-9+/=]+)", content
-                    )
+                    match = re.search(r"data:video/[^;]+;base64,([A-Za-z0-9+/=]+)", content)
                     if match:
                         return base64.b64decode(match.group(1))
 
@@ -584,8 +570,7 @@ class MediaGenerator:
                 poll_count += 1
                 elapsed = int(time.time() - start_time)
                 logger.info(
-                    f"Poll #{poll_count} for video {video_id} "
-                    f"(elapsed: {elapsed}s / {timeout}s)"
+                    f"Poll #{poll_count} for video {video_id} (elapsed: {elapsed}s / {timeout}s)"
                 )
 
                 try:
@@ -627,8 +612,7 @@ class MediaGenerator:
                 await asyncio.sleep(self.poll_interval)
 
         raise GenerationTimeoutError(
-            f"Video generation timed out after {timeout} seconds "
-            f"({poll_count} polls)"
+            f"Video generation timed out after {timeout} seconds ({poll_count} polls)"
         )
 
     def _extract_status(self, response: dict[str, Any]) -> MediaStatus:

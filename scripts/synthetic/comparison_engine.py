@@ -130,9 +130,7 @@ class ComparisonEngine:
 
         # Compare face detection
         if "face" in expected:
-            field_results.extend(
-                self._compare_face(expected["face"], actual.get("face", {}))
-            )
+            field_results.extend(self._compare_face(expected["face"], actual.get("face", {})))
 
         # Compare OCR results
         if "ocr" in expected:
@@ -144,16 +142,12 @@ class ComparisonEngine:
 
         # Compare action recognition
         if "action" in expected:
-            field_results.extend(
-                self._compare_action(expected["action"], actual.get("action", {}))
-            )
+            field_results.extend(self._compare_action(expected["action"], actual.get("action", {})))
 
         # Compare demographics
         if "demographics" in expected:
             field_results.extend(
-                self._compare_demographics(
-                    expected["demographics"], actual.get("demographics", {})
-                )
+                self._compare_demographics(expected["demographics"], actual.get("demographics", {}))
             )
 
         # Compare clothing
@@ -209,9 +203,7 @@ class ComparisonEngine:
 
         # Compare depth estimation
         if "depth" in expected:
-            field_results.extend(
-                self._compare_depth(expected["depth"], actual.get("depth", {}))
-            )
+            field_results.extend(self._compare_depth(expected["depth"], actual.get("depth", {})))
 
         # Compare re-identification
         if "reid" in expected:
@@ -235,9 +227,7 @@ class ComparisonEngine:
 
         # Compare risk assessment
         if "risk" in expected:
-            field_results.extend(
-                self._compare_risk_assessment(expected["risk"], actual)
-            )
+            field_results.extend(self._compare_risk_assessment(expected["risk"], actual))
 
         # Calculate summary
         total = len(field_results)
@@ -301,9 +291,7 @@ class ComparisonEngine:
     # Core comparison methods
     # =========================================================================
 
-    def _compare_count(
-        self, expected: int, actual: int | None, field_name: str
-    ) -> FieldResult:
+    def _compare_count(self, expected: int, actual: int | None, field_name: str) -> FieldResult:
         """Compare count with +/-1 tolerance.
 
         Args:
@@ -398,9 +386,7 @@ class ComparisonEngine:
             diff=None if passed else {"expected": expected, "actual": actual},
         )
 
-    def _compare_boolean(
-        self, expected: bool, actual: bool | None, field_name: str
-    ) -> FieldResult:
+    def _compare_boolean(self, expected: bool, actual: bool | None, field_name: str) -> FieldResult:
         """Compare boolean values for exact match.
 
         Args:
@@ -664,9 +650,7 @@ class ComparisonEngine:
             else None,
         )
 
-    def _compare_exact(
-        self, expected: Any, actual: Any, field_name: str
-    ) -> FieldResult:
+    def _compare_exact(self, expected: Any, actual: Any, field_name: str) -> FieldResult:
         """Compare values for exact equality.
 
         Args:
@@ -707,7 +691,7 @@ class ComparisonEngine:
         """
         results: list[FieldResult] = []
 
-        for i, exp_det in enumerate(expected):
+        for _, exp_det in enumerate(expected):
             exp_class = exp_det.get("class")
             exp_count = exp_det.get("count")
             exp_min_conf = exp_det.get("min_confidence")
@@ -727,9 +711,7 @@ class ComparisonEngine:
 
             # Compare min confidence for matching detections
             if exp_min_conf is not None and matching_actual:
-                max_confidence = max(
-                    (d.get("confidence", 0) for d in matching_actual), default=0
-                )
+                max_confidence = max((d.get("confidence", 0) for d in matching_actual), default=0)
                 results.append(
                     self._compare_min_confidence(
                         exp_min_conf,
@@ -786,9 +768,7 @@ class ComparisonEngine:
 
         return results
 
-    def _compare_face(
-        self, expected: dict[str, Any], actual: dict[str, Any]
-    ) -> list[FieldResult]:
+    def _compare_face(self, expected: dict[str, Any], actual: dict[str, Any]) -> list[FieldResult]:
         """Compare face detection results.
 
         Args:
@@ -829,9 +809,7 @@ class ComparisonEngine:
 
         return results
 
-    def _compare_ocr(
-        self, expected: dict[str, Any], actual: dict[str, Any]
-    ) -> list[FieldResult]:
+    def _compare_ocr(self, expected: dict[str, Any], actual: dict[str, Any]) -> list[FieldResult]:
         """Compare OCR results.
 
         Args:
@@ -870,9 +848,7 @@ class ComparisonEngine:
 
         return results
 
-    def _compare_pose(
-        self, expected: dict[str, Any], actual: dict[str, Any]
-    ) -> list[FieldResult]:
+    def _compare_pose(self, expected: dict[str, Any], actual: dict[str, Any]) -> list[FieldResult]:
         """Compare pose estimation results.
 
         Validates posture classification, suspicious flag, and visible keypoints.
@@ -906,9 +882,7 @@ class ComparisonEngine:
 
         if "keypoints_visible" in expected:
             actual_keypoints = actual.get("keypoints_visible", [])
-            missing = [
-                kp for kp in expected["keypoints_visible"] if kp not in actual_keypoints
-            ]
+            missing = [kp for kp in expected["keypoints_visible"] if kp not in actual_keypoints]
             passed = len(missing) == 0
             results.append(
                 FieldResult(
@@ -1118,8 +1092,12 @@ class ComparisonEngine:
                     )
                 )
             else:
-                exp_idx = severity_order.index(exp_severity) if exp_severity in severity_order else -1
-                act_idx = severity_order.index(act_severity) if act_severity in severity_order else -1
+                exp_idx = (
+                    severity_order.index(exp_severity) if exp_severity in severity_order else -1
+                )
+                act_idx = (
+                    severity_order.index(act_severity) if act_severity in severity_order else -1
+                )
                 passed = act_idx >= exp_idx
                 results.append(
                     FieldResult(
@@ -1265,9 +1243,7 @@ class ComparisonEngine:
 
         return results
 
-    def _compare_pet(
-        self, expected: dict[str, Any], actual: dict[str, Any]
-    ) -> list[FieldResult]:
+    def _compare_pet(self, expected: dict[str, Any], actual: dict[str, Any]) -> list[FieldResult]:
         """Compare pet detection results.
 
         Args:
@@ -1299,9 +1275,7 @@ class ComparisonEngine:
 
         return results
 
-    def _compare_depth(
-        self, expected: dict[str, Any], actual: dict[str, Any]
-    ) -> list[FieldResult]:
+    def _compare_depth(self, expected: dict[str, Any], actual: dict[str, Any]) -> list[FieldResult]:
         """Compare depth estimation results.
 
         Args:
@@ -1324,9 +1298,7 @@ class ComparisonEngine:
 
         return results
 
-    def _compare_reid(
-        self, expected: dict[str, Any], actual: dict[str, Any]
-    ) -> list[FieldResult]:
+    def _compare_reid(self, expected: dict[str, Any], actual: dict[str, Any]) -> list[FieldResult]:
         """Compare re-identification results.
 
         Args:

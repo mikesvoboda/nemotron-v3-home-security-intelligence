@@ -57,14 +57,8 @@
       "expected_factors": []
     },
     "florence_caption": {
-      "must_contain": [
-        "car",
-        "driveway"
-      ],
-      "must_not_contain": [
-        "suspicious",
-        "threat"
-      ]
+      "must_contain": ["car", "driveway"],
+      "must_not_contain": ["suspicious", "threat"]
     }
   },
   "generation": {
@@ -130,19 +124,14 @@
         "lighting": "headlights_and_streetlight"
       },
       "scene_overrides": {
-        "camera_effects": [
-          "ir_night_vision",
-          "motion_blur"
-        ]
+        "camera_effects": ["ir_night_vision", "motion_blur"]
       },
       "expected_output_overrides": {
         "risk": {
           "min_score": 5,
           "max_score": 20,
           "level": "low",
-          "expected_factors": [
-            "nighttime"
-          ]
+          "expected_factors": ["nighttime"]
         }
       }
     },

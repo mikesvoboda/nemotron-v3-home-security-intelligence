@@ -305,7 +305,9 @@ class StockFootageDownloader:
                 )
 
                 if response.status_code != 200:
-                    logger.error(f"Pexels API error: {response.status_code} - {response.text[:200]}")
+                    logger.error(
+                        f"Pexels API error: {response.status_code} - {response.text[:200]}"
+                    )
                     return []
 
                 data = response.json()
@@ -341,7 +343,9 @@ class StockFootageDownloader:
                     result = StockResult(
                         id=str(video.get("id")),
                         source=StockSource.PEXELS,
-                        title=video.get("url", "").split("/")[-2] if video.get("url") else f"pexels_{video.get('id')}",
+                        title=video.get("url", "").split("/")[-2]
+                        if video.get("url")
+                        else f"pexels_{video.get('id')}",
                         url=video.get("url", ""),
                         download_url=best_file.get("link", ""),
                         thumbnail_url=video.get("image"),
@@ -416,7 +420,9 @@ class StockFootageDownloader:
                 )
 
                 if response.status_code != 200:
-                    logger.error(f"Pixabay API error: {response.status_code} - {response.text[:200]}")
+                    logger.error(
+                        f"Pixabay API error: {response.status_code} - {response.text[:200]}"
+                    )
                     return []
 
                 data = response.json()
@@ -442,7 +448,9 @@ class StockFootageDownloader:
                             result = StockResult(
                                 id=str(video.get("id")),
                                 source=StockSource.PIXABAY,
-                                title=video.get("tags", "").split(",")[0].strip() if video.get("tags") else f"pixabay_{video.get('id')}",
+                                title=video.get("tags", "").split(",")[0].strip()
+                                if video.get("tags")
+                                else f"pixabay_{video.get('id')}",
                                 url=video.get("pageURL", ""),
                                 download_url=vd.get("url", ""),
                                 thumbnail_url=video.get("userImageURL"),
@@ -512,7 +520,9 @@ class StockFootageDownloader:
                 )
 
                 if response.status_code != 200:
-                    logger.error(f"Pexels API error: {response.status_code} - {response.text[:200]}")
+                    logger.error(
+                        f"Pexels API error: {response.status_code} - {response.text[:200]}"
+                    )
                     return []
 
                 data = response.json()
@@ -602,7 +612,9 @@ class StockFootageDownloader:
                 )
 
                 if response.status_code != 200:
-                    logger.error(f"Pixabay API error: {response.status_code} - {response.text[:200]}")
+                    logger.error(
+                        f"Pixabay API error: {response.status_code} - {response.text[:200]}"
+                    )
                     return []
 
                 data = response.json()
@@ -612,7 +624,9 @@ class StockFootageDownloader:
                     result = StockResult(
                         id=str(image.get("id")),
                         source=StockSource.PIXABAY,
-                        title=image.get("tags", "").split(",")[0].strip() if image.get("tags") else f"pixabay_{image.get('id')}",
+                        title=image.get("tags", "").split(",")[0].strip()
+                        if image.get("tags")
+                        else f"pixabay_{image.get('id')}",
                         url=image.get("pageURL", ""),
                         download_url=image.get("largeImageURL", ""),
                         thumbnail_url=image.get("previewURL"),
@@ -819,13 +833,13 @@ def download_stock_sync(
 
 
 __all__ = [
+    "CATEGORY_SEARCH_TERMS",
+    "SCENARIO_SEARCH_TERMS",
+    "APIKeyNotFoundError",
     "StockFootageDownloader",
     "StockFootageError",
-    "APIKeyNotFoundError",
-    "StockSource",
     "StockResult",
-    "SCENARIO_SEARCH_TERMS",
-    "CATEGORY_SEARCH_TERMS",
-    "search_stock_sync",
+    "StockSource",
     "download_stock_sync",
+    "search_stock_sync",
 ]

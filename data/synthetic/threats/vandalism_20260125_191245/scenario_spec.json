@@ -84,10 +84,7 @@
     },
     "threats": {
       "has_threat": true,
-      "types": [
-        "property_damage",
-        "gang_activity"
-      ],
+      "types": ["property_damage", "gang_activity"],
       "max_severity": "critical"
     },
     "risk": {
@@ -102,14 +99,8 @@
       ]
     },
     "florence_caption": {
-      "must_contain": [
-        "person"
-      ],
-      "must_not_contain": [
-        "delivery",
-        "resident",
-        "worker"
-      ]
+      "must_contain": ["person"],
+      "must_not_contain": ["delivery", "resident", "worker"]
     }
   },
   "generation": {
@@ -130,9 +121,7 @@
             "face_visible": false,
             "hood_up": true,
             "carrying_items": true,
-            "items": [
-              "spray_can"
-            ]
+            "items": ["spray_can"]
           },
           "action": "spray_painting",
           "behavior_notes": "Using spray paint can to write graffiti on fence, wall, or garage door"
@@ -159,10 +148,7 @@
             "face_visible": false,
             "hood_up": true,
             "carrying_items": true,
-            "items": [
-              "rock",
-              "object"
-            ]
+            "items": ["rock", "object"]
           },
           "action": "throwing_object",
           "position": "near_window",
@@ -176,22 +162,14 @@
         },
         "threats": {
           "has_threat": true,
-          "types": [
-            "property_damage",
-            "potential_break_in"
-          ],
+          "types": ["property_damage", "potential_break_in"],
           "max_severity": "critical"
         },
         "risk": {
           "min_score": 80,
           "max_score": 95,
           "level": "critical",
-          "expected_factors": [
-            "vandalism",
-            "window_breaking",
-            "potential_break_in",
-            "nighttime"
-          ]
+          "expected_factors": ["vandalism", "window_breaking", "potential_break_in", "nighttime"]
         }
       }
     },
@@ -218,10 +196,7 @@
             "clothing": "dark_clothing",
             "face_visible": false,
             "carrying_items": true,
-            "items": [
-              "key",
-              "tool"
-            ]
+            "items": ["key", "tool"]
           },
           "action": "keying_car",
           "position": "beside_vehicle",
@@ -252,12 +227,7 @@
           "min_score": 75,
           "max_score": 92,
           "level": "high",
-          "expected_factors": [
-            "vandalism",
-            "vehicle_damage",
-            "nighttime",
-            "deliberate_damage"
-          ]
+          "expected_factors": ["vandalism", "vehicle_damage", "nighttime", "deliberate_damage"]
         }
       }
     },
@@ -301,10 +271,7 @@
         ],
         "threats": {
           "has_threat": true,
-          "types": [
-            "property_damage",
-            "gang_activity"
-          ],
+          "types": ["property_damage", "gang_activity"],
           "max_severity": "critical"
         },
         "risk": {
@@ -350,11 +317,7 @@
           "min_score": 60,
           "max_score": 80,
           "level": "high",
-          "expected_factors": [
-            "vandalism",
-            "property_damage",
-            "landscape_destruction"
-          ]
+          "expected_factors": ["vandalism", "property_damage", "landscape_destruction"]
         }
       }
     },
@@ -371,9 +334,7 @@
             "clothing": "dark_clothing",
             "face_visible": false,
             "carrying_items": true,
-            "items": [
-              "baseball_bat"
-            ]
+            "items": ["baseball_bat"]
           },
           "action": "smashing_mailbox",
           "position": "at_mailbox",
@@ -383,10 +344,7 @@
       "expected_output_overrides": {
         "threats": {
           "has_threat": true,
-          "types": [
-            "property_damage",
-            "weapon_like_object"
-          ],
+          "types": ["property_damage", "weapon_like_object"],
           "max_severity": "high"
         },
         "risk": {
@@ -430,11 +388,7 @@
           "min_score": 65,
           "max_score": 85,
           "level": "high",
-          "expected_factors": [
-            "vandalism",
-            "property_damage",
-            "brazen_behavior"
-          ]
+          "expected_factors": ["vandalism", "property_damage", "brazen_behavior"]
         }
       }
     }

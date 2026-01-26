@@ -7,10 +7,7 @@
   "count_generated": 2,
   "count_failed": 1,
   "generated_at": "2026-01-26T00:12:44.746041+00:00",
-  "files": [
-    "media/001.mp4",
-    "media/002.mp4"
-  ],
+  "files": ["media/001.mp4", "media/002.mp4"],
   "applied_modifiers": {
     "variation": "vandalism_graffiti",
     "time": null,

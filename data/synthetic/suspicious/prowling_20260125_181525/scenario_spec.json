@@ -6,9 +6,7 @@
   "scene": {
     "location": "side_of_house",
     "camera_type": "outdoor_camera",
-    "camera_effects": [
-      "motion_blur"
-    ],
+    "camera_effects": ["motion_blur"],
     "timestamp_overlay": true,
     "resolution": "1080p"
   },
@@ -50,12 +48,7 @@
     "pose": {
       "posture": "crouching",
       "is_suspicious": true,
-      "keypoints_visible": [
-        "left_shoulder",
-        "right_shoulder",
-        "left_hip",
-        "right_hip"
-      ]
+      "keypoints_visible": ["left_shoulder", "right_shoulder", "left_hip", "right_hip"]
     },
     "action": {
       "action": "prowling",
@@ -75,23 +68,11 @@
       "min_score": 60,
       "max_score": 85,
       "level": "high",
-      "expected_factors": [
-        "prowling",
-        "nighttime",
-        "obscured_face",
-        "checking_entry_points"
-      ]
+      "expected_factors": ["prowling", "nighttime", "obscured_face", "checking_entry_points"]
     },
     "florence_caption": {
-      "must_contain": [
-        "person",
-        "window"
-      ],
-      "must_not_contain": [
-        "delivery",
-        "resident",
-        "maintenance"
-      ]
+      "must_contain": ["person", "window"],
+      "must_not_contain": ["delivery", "resident", "maintenance"]
     }
   },
   "generation": {
@@ -120,12 +101,7 @@
           "min_score": 65,
           "max_score": 90,
           "level": "high",
-          "expected_factors": [
-            "prowling",
-            "nighttime",
-            "testing_entry",
-            "back_of_house"
-          ]
+          "expected_factors": ["prowling", "nighttime", "testing_entry", "back_of_house"]
         }
       }
     },
@@ -152,12 +128,7 @@
           "min_score": 70,
           "max_score": 90,
           "level": "high",
-          "expected_factors": [
-            "prowling",
-            "nighttime",
-            "using_flashlight",
-            "checking_entry_points"
-          ]
+          "expected_factors": ["prowling", "nighttime", "using_flashlight", "checking_entry_points"]
         }
       }
     },
@@ -179,21 +150,14 @@
       "expected_output_overrides": {
         "threats": {
           "has_threat": true,
-          "types": [
-            "burglary_tool"
-          ],
+          "types": ["burglary_tool"],
           "max_severity": "high"
         },
         "risk": {
           "min_score": 75,
           "max_score": 95,
           "level": "critical",
-          "expected_factors": [
-            "prowling",
-            "nighttime",
-            "tools_visible",
-            "burglary_intent"
-          ]
+          "expected_factors": ["prowling", "nighttime", "tools_visible", "burglary_intent"]
         }
       }
     },
@@ -213,12 +177,7 @@
           "min_score": 70,
           "max_score": 90,
           "level": "high",
-          "expected_factors": [
-            "prowling",
-            "nighttime",
-            "systematic_checking",
-            "extended_duration"
-          ]
+          "expected_factors": ["prowling", "nighttime", "systematic_checking", "extended_duration"]
         }
       }
     },
@@ -242,12 +201,7 @@
           "min_score": 80,
           "max_score": 95,
           "level": "critical",
-          "expected_factors": [
-            "prowling",
-            "nighttime",
-            "face_concealed",
-            "high_threat_indicator"
-          ]
+          "expected_factors": ["prowling", "nighttime", "face_concealed", "high_threat_indicator"]
         }
       }
     },

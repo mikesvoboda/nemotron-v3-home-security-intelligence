@@ -24,13 +24,7 @@
     "expected_factors": []
   },
   "florence_caption": {
-    "must_contain": [
-      "car",
-      "driveway"
-    ],
-    "must_not_contain": [
-      "suspicious",
-      "threat"
-    ]
+    "must_contain": ["car", "driveway"],
+    "must_not_contain": ["suspicious", "threat"]
   }
 }

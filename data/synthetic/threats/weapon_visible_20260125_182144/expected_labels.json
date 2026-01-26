@@ -21,10 +21,7 @@
   },
   "threats": {
     "has_threat": true,
-    "types": [
-      "firearm",
-      "armed_individual"
-    ],
+    "types": ["firearm", "armed_individual"],
     "max_severity": "critical"
   },
   "violence": {
@@ -35,20 +32,10 @@
     "min_score": 95,
     "max_score": 100,
     "level": "critical",
-    "expected_factors": [
-      "weapon_visible",
-      "firearm",
-      "immediate_threat",
-      "approaching_property"
-    ]
+    "expected_factors": ["weapon_visible", "firearm", "immediate_threat", "approaching_property"]
   },
   "florence_caption": {
-    "must_contain": [
-      "person"
-    ],
-    "must_not_contain": [
-      "delivery",
-      "friendly"
-    ]
+    "must_contain": ["person"],
+    "must_not_contain": ["delivery", "friendly"]
   }
 }
