@@ -25,6 +25,200 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/action-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Action Events
+         * @description List action events with optional filtering and pagination.
+         *
+         *     Args:
+         *         camera_id: Filter by camera ID
+         *         track_id: Filter by track ID
+         *         action: Filter by action label (exact match)
+         *         is_suspicious: Filter by suspicious flag
+         *         min_confidence: Filter by minimum confidence score
+         *         start_time: Filter by timestamp >= start_time
+         *         end_time: Filter by timestamp <= end_time
+         *         limit: Maximum number of results to return
+         *         offset: Number of results to skip for pagination
+         *         db: Database session
+         *
+         *     Returns:
+         *         ActionEventListResponse with events and pagination info
+         */
+        get: operations["action-events_list_action_events"];
+        put?: never;
+        /**
+         * Create Action Event
+         * @description Create a new action event manually.
+         *
+         *     This endpoint allows creating action events without running analysis,
+         *     useful for importing results from external systems or testing.
+         *
+         *     Args:
+         *         event_data: Action event data
+         *         db: Database session
+         *
+         *     Returns:
+         *         Created ActionEventResponse
+         */
+        post: operations["action-events_create_action_event"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/action-events/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyze Action
+         * @description Trigger action analysis on a set of video frames.
+         *
+         *     This endpoint loads frames from disk, runs X-CLIP classification,
+         *     and optionally saves the result to the database.
+         *
+         *     The X-CLIP model analyzes frame sequences to detect security-relevant
+         *     actions like walking, running, climbing, loitering, etc.
+         *
+         *     Args:
+         *         request: Analysis request with frame paths and options
+         *         db: Database session
+         *
+         *     Returns:
+         *         ActionAnalyzeResponse with detected action and scores
+         *
+         *     Raises:
+         *         HTTPException: 400 if no valid frames, 503 if model unavailable
+         */
+        post: operations["action-events_analyze_action"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/action-events/camera/{camera_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Camera Action Events
+         * @description Get action events for a specific camera.
+         *
+         *     Convenience endpoint for camera-specific queries.
+         *
+         *     Args:
+         *         camera_id: Camera ID to filter by
+         *         start_time: Filter by timestamp >= start_time
+         *         end_time: Filter by timestamp <= end_time
+         *         limit: Maximum number of results to return
+         *         offset: Number of results to skip for pagination
+         *         db: Database session
+         *
+         *     Returns:
+         *         ActionEventListResponse with events and pagination info
+         */
+        get: operations["action-events_get_camera_action_events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/action-events/suspicious": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Suspicious Actions
+         * @description List suspicious action events only.
+         *
+         *     Returns action events where is_suspicious=True, along with
+         *     counts of suspicious vs total events.
+         *
+         *     Args:
+         *         camera_id: Filter by camera ID
+         *         min_confidence: Filter by minimum confidence score
+         *         start_time: Filter by timestamp >= start_time
+         *         end_time: Filter by timestamp <= end_time
+         *         limit: Maximum number of results to return
+         *         offset: Number of results to skip for pagination
+         *         db: Database session
+         *
+         *     Returns:
+         *         SuspiciousActionsResponse with suspicious events and counts
+         */
+        get: operations["action-events_list_suspicious_actions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/action-events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Action Event
+         * @description Get a specific action event by ID.
+         *
+         *     Args:
+         *         event_id: Action event ID
+         *         db: Database session
+         *
+         *     Returns:
+         *         ActionEventResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found
+         */
+        get: operations["action-events_get_action_event"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Action Event
+         * @description Delete an action event.
+         *
+         *     Args:
+         *         event_id: Action event ID to delete
+         *         db: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found
+         */
+        delete: operations["action-events_delete_action_event"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/cleanup/orphans": {
         parameters: {
             query?: never;
@@ -4483,6 +4677,104 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/face-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Face Events
+         * @description List face detection events with optional filters.
+         *
+         *     Args:
+         *         camera_id: Filter by camera ID (optional)
+         *         start_time: Filter events after this time (optional)
+         *         end_time: Filter events before this time (optional)
+         *         unknown_only: If True, only return unknown faces
+         *         limit: Maximum events to return (default: 100, max: 1000)
+         *         offset: Number of events to skip for pagination
+         *         session: Database session
+         *
+         *     Returns:
+         *         FaceDetectionEventListResponse with events and total count
+         */
+        get: operations["face-recognition_list_face_events"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/face-events/match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Match Face
+         * @description Match a face embedding against known persons.
+         *
+         *     Compares the provided 512-dimensional embedding against all stored
+         *     embeddings and returns the best match if above the threshold.
+         *
+         *     Args:
+         *         data: Match request with embedding and optional threshold
+         *         session: Database session
+         *
+         *     Returns:
+         *         FaceMatchResponse with match results
+         *
+         *     Raises:
+         *         HTTPException: 400 if embedding is invalid
+         */
+        post: operations["face-recognition_match_face"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/face-events/unknown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Unknown Strangers
+         * @description Get unknown stranger alerts.
+         *
+         *     Returns face detection events where no known person was matched.
+         *     Only includes faces with quality score above the threshold.
+         *
+         *     Args:
+         *         start_time: Filter events after this time (optional)
+         *         end_time: Filter events before this time (optional)
+         *         min_quality: Minimum quality score for reliable detections
+         *         limit: Maximum events to return
+         *         session: Database session
+         *
+         *     Returns:
+         *         UnknownStrangerListResponse with unknown face detections
+         */
+        get: operations["face-recognition_get_unknown_strangers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/feedback": {
         parameters: {
             query?: never;
@@ -5287,6 +5579,179 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/known-persons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Known Persons
+         * @description List all known persons.
+         *
+         *     Returns all registered known persons with their embedding counts.
+         *     Optionally filter to only household members.
+         *
+         *     Args:
+         *         household_only: If True, only return household members
+         *         session: Database session
+         *
+         *     Returns:
+         *         KnownPersonListResponse with list of persons and total count
+         */
+        get: operations["face-recognition_list_known_persons"];
+        put?: never;
+        /**
+         * Create Known Person
+         * @description Create a new known person.
+         *
+         *     Args:
+         *         data: Person creation data
+         *         session: Database session
+         *
+         *     Returns:
+         *         Created KnownPersonResponse
+         */
+        post: operations["face-recognition_create_known_person"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/known-persons/{person_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Known Person
+         * @description Get a known person by ID.
+         *
+         *     Args:
+         *         person_id: ID of the person
+         *         session: Database session
+         *
+         *     Returns:
+         *         KnownPersonResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if person not found
+         */
+        get: operations["face-recognition_get_known_person"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Known Person
+         * @description Delete a known person and all associated embeddings.
+         *
+         *     Args:
+         *         person_id: ID of the person to delete
+         *         session: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if person not found
+         */
+        delete: operations["face-recognition_delete_known_person"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Known Person
+         * @description Update a known person.
+         *
+         *     Args:
+         *         person_id: ID of the person to update
+         *         data: Update data (all fields optional)
+         *         session: Database session
+         *
+         *     Returns:
+         *         Updated KnownPersonResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if person not found
+         */
+        patch: operations["face-recognition_update_known_person"];
+        trace?: never;
+    };
+    "/api/known-persons/{person_id}/embeddings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Person Embeddings
+         * @description List all face embeddings for a person.
+         *
+         *     Args:
+         *         person_id: ID of the person
+         *         session: Database session
+         *
+         *     Returns:
+         *         List of FaceEmbeddingResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if person not found
+         */
+        get: operations["face-recognition_list_person_embeddings"];
+        put?: never;
+        /**
+         * Add Face Embedding
+         * @description Add a face embedding for a known person.
+         *
+         *     The embedding should be a 512-dimensional ArcFace embedding vector.
+         *
+         *     Args:
+         *         person_id: ID of the person
+         *         data: Embedding data with 512-dim vector
+         *         session: Database session
+         *
+         *     Returns:
+         *         Created FaceEmbeddingResponse
+         *
+         *     Raises:
+         *         HTTPException: 404 if person not found
+         *         HTTPException: 400 if embedding is invalid
+         */
+        post: operations["face-recognition_add_face_embedding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/known-persons/{person_id}/embeddings/{embedding_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Face Embedding
+         * @description Delete a face embedding.
+         *
+         *     Args:
+         *         person_id: ID of the person (for URL consistency)
+         *         embedding_id: ID of the embedding to delete
+         *         session: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if embedding not found
+         */
+        delete: operations["face-recognition_delete_face_embedding"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/logs": {
         parameters: {
             query?: never;
@@ -5986,6 +6451,261 @@ export interface paths {
          * @description Test a webhook by sending a sample payload. This does not create a delivery record and is useful for validating webhook configuration.
          */
         post: operations["outbound-webhooks_test_webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plate-reads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Plate Reads
+         * @description List plate reads with optional filters.
+         *
+         *     Returns a paginated list of plate recognition results with optional
+         *     filtering by camera, time range, and confidence threshold.
+         *
+         *     Args:
+         *         db: Database session.
+         *         camera_id: Optional filter by camera ID.
+         *         start_time: Optional start time filter (ISO format).
+         *         end_time: Optional end time filter (ISO format).
+         *         min_confidence: Optional minimum OCR confidence filter (0-1).
+         *         page: Page number (1-indexed, default 1).
+         *         page_size: Number of items per page (1-100, default 50).
+         *
+         *     Returns:
+         *         PlateReadListResponse with paginated plate reads.
+         *
+         *     Example:
+         *         GET /api/plate-reads?camera_id=driveway&page=1&page_size=25
+         */
+        get: operations["plate-reads_list_plate_reads"];
+        put?: never;
+        /**
+         * Create Plate Read
+         * @description Create a new plate read record.
+         *
+         *     Used for manual entry or importing plate reads from external ALPR
+         *     systems. For automatic recognition from images, use POST /recognize.
+         *
+         *     Args:
+         *         data: PlateReadCreate schema with plate data.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         PlateReadResponse with the created record.
+         *
+         *     Example:
+         *         POST /api/plate-reads
+         *         {
+         *             "camera_id": "driveway",
+         *             "timestamp": "2026-01-26T14:30:00Z",
+         *             "plate_text": "ABC1234",
+         *             "raw_text": "ABC-1234",
+         *             "detection_confidence": 0.95,
+         *             "ocr_confidence": 0.92,
+         *             "bbox": [100.0, 200.0, 250.0, 240.0],
+         *             "image_quality_score": 0.85,
+         *             "is_enhanced": false,
+         *             "is_blurry": false
+         *         }
+         */
+        post: operations["plate-reads_create_plate_read"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plate-reads/camera/{camera_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Reads By Camera
+         * @description Get plate reads for a specific camera.
+         *
+         *     Returns a paginated list of plate reads from the specified camera
+         *     with optional time range filtering.
+         *
+         *     Args:
+         *         camera_id: ID of the camera to get reads for.
+         *         db: Database session.
+         *         start_time: Optional start time filter (ISO format).
+         *         end_time: Optional end time filter (ISO format).
+         *         page: Page number (1-indexed, default 1).
+         *         page_size: Number of items per page (1-100, default 50).
+         *
+         *     Returns:
+         *         PlateReadListResponse with camera's plate reads.
+         *
+         *     Example:
+         *         GET /api/plate-reads/camera/driveway?page=1&page_size=25
+         */
+        get: operations["plate-reads_get_reads_by_camera"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plate-reads/recognize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recognize Plate
+         * @description Recognize plate text from an uploaded image.
+         *
+         *     Processes the image through PaddleOCR to extract plate text.
+         *     Optionally stores the result in the database.
+         *
+         *     The image should be base64-encoded JPEG or PNG data, optionally
+         *     prefixed with a data URL scheme (e.g., "data:image/jpeg;base64,").
+         *
+         *     Args:
+         *         request: PlateRecognizeRequest with image data.
+         *         db: Database session.
+         *         store: Whether to store the result (default true).
+         *
+         *     Returns:
+         *         PlateRecognizeResponse with recognition results.
+         *
+         *     Raises:
+         *         HTTPException: 400 if image decoding fails.
+         *         HTTPException: 500 if OCR processing fails.
+         *
+         *     Example:
+         *         POST /api/plate-reads/recognize?store=true
+         *         {
+         *             "camera_id": "driveway",
+         *             "image_base64": "data:image/jpeg;base64,/9j/4AAQSkZ...",
+         *             "detection_bbox": [100.0, 200.0, 250.0, 240.0],
+         *             "detection_confidence": 0.95
+         *         }
+         */
+        post: operations["plate-reads_recognize_plate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plate-reads/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search By Plate Text
+         * @description Search plate reads by plate text.
+         *
+         *     Searches for plate reads matching the given text. By default performs
+         *     a partial match (LIKE %text%). Set exact=true for exact matches only.
+         *
+         *     Args:
+         *         db: Database session.
+         *         text: Plate text to search for (required).
+         *         exact: If true, match exactly; if false, partial match (default).
+         *         page: Page number (1-indexed, default 1).
+         *         page_size: Number of items per page (1-100, default 50).
+         *
+         *     Returns:
+         *         PlateReadListResponse with matching plate reads.
+         *
+         *     Example:
+         *         GET /api/plate-reads/search?text=ABC&exact=false
+         *         GET /api/plate-reads/search?text=ABC1234&exact=true
+         */
+        get: operations["plate-reads_search_by_plate_text"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plate-reads/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Statistics
+         * @description Get plate recognition statistics.
+         *
+         *     Returns aggregate statistics for ALPR system health monitoring,
+         *     including total reads, average confidence, and recent activity.
+         *
+         *     Args:
+         *         db: Database session.
+         *
+         *     Returns:
+         *         PlateStatisticsResponse with recognition metrics.
+         *
+         *     Example:
+         *         GET /api/plate-reads/statistics
+         */
+        get: operations["plate-reads_get_statistics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plate-reads/{plate_read_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Plate Read
+         * @description Get a single plate read by ID.
+         *
+         *     Retrieves full details of a specific plate read record.
+         *
+         *     Args:
+         *         plate_read_id: Database ID of the plate read.
+         *         db: Database session.
+         *
+         *     Returns:
+         *         PlateReadResponse with the plate read details.
+         *
+         *     Raises:
+         *         HTTPException: 404 if plate read not found.
+         *
+         *     Example:
+         *         GET /api/plate-reads/123
+         */
+        get: operations["plate-reads_get_plate_read"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -9454,6 +10174,299 @@ export interface components {
              * @description List of household member IDs this schedule applies to
              */
             member_ids: number[];
+        };
+        /**
+         * ActionAnalyzeRequest
+         * @description Schema for action analysis request.
+         *
+         *     Used to trigger action recognition on a set of frames.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "confidence_threshold": 0.5,
+         *       "frame_paths": [
+         *         "/export/foscam/front_door/frame_001.jpg",
+         *         "/export/foscam/front_door/frame_002.jpg",
+         *         "/export/foscam/front_door/frame_003.jpg",
+         *         "/export/foscam/front_door/frame_004.jpg",
+         *         "/export/foscam/front_door/frame_005.jpg",
+         *         "/export/foscam/front_door/frame_006.jpg",
+         *         "/export/foscam/front_door/frame_007.jpg",
+         *         "/export/foscam/front_door/frame_008.jpg"
+         *       ],
+         *       "track_id": 42
+         *     }
+         */
+        ActionAnalyzeRequest: {
+            /**
+             * Camera Id
+             * @description Camera ID for the frames
+             */
+            camera_id: string;
+            /**
+             * Confidence Threshold
+             * @description Minimum confidence threshold for creating an action event
+             * @default 0.5
+             */
+            confidence_threshold: number;
+            /**
+             * Frame Paths
+             * @description List of frame file paths to analyze (1-32 frames)
+             */
+            frame_paths: string[];
+            /**
+             * Save Event
+             * @description Whether to save the action event to the database
+             * @default true
+             */
+            save_event: boolean;
+            /**
+             * Track Id
+             * @description Optional track ID to associate with the action
+             */
+            track_id?: number | null;
+        };
+        /**
+         * ActionAnalyzeResponse
+         * @description Schema for action analysis response.
+         *
+         *     Returns the detected action along with all scores and optional saved event.
+         * @example {
+         *       "action": "walking normally",
+         *       "all_scores": {
+         *         "climbing": 0.02,
+         *         "loitering": 0.04,
+         *         "running": 0.05,
+         *         "walking normally": 0.89
+         *       },
+         *       "confidence": 0.89,
+         *       "event_id": 1,
+         *       "frame_count": 8,
+         *       "is_suspicious": false,
+         *       "saved": true
+         *     }
+         */
+        ActionAnalyzeResponse: {
+            /**
+             * Action
+             * @description Detected action label
+             */
+            action: string;
+            /**
+             * All Scores
+             * @description All action scores
+             */
+            all_scores: {
+                [key: string]: number;
+            };
+            /**
+             * Confidence
+             * @description Action classification confidence
+             */
+            confidence: number;
+            /**
+             * Event Id
+             * @description Saved action event ID (if save_event=True)
+             */
+            event_id?: number | null;
+            /**
+             * Frame Count
+             * @description Number of frames analyzed
+             */
+            frame_count: number;
+            /**
+             * Is Suspicious
+             * @description Whether the action is security-relevant
+             */
+            is_suspicious: boolean;
+            /**
+             * Saved
+             * @description Whether the event was saved to the database
+             */
+            saved: boolean;
+        };
+        /**
+         * ActionEventCreate
+         * @description Schema for creating a new action event.
+         *
+         *     Inherits all fields from ActionEventBase. The timestamp will be
+         *     auto-generated if not provided.
+         * @example {
+         *       "action": "walking normally",
+         *       "all_scores": {
+         *         "climbing": 0.02,
+         *         "loitering": 0.04,
+         *         "running": 0.05,
+         *         "walking normally": 0.89
+         *       },
+         *       "camera_id": "front_door",
+         *       "confidence": 0.89,
+         *       "frame_count": 8,
+         *       "is_suspicious": false,
+         *       "track_id": 42
+         *     }
+         */
+        ActionEventCreate: {
+            /**
+             * Action
+             * @description Detected action label (e.g., 'walking normally', 'climbing')
+             */
+            action: string;
+            /**
+             * All Scores
+             * @description Dictionary mapping all action classes to their confidence scores
+             */
+            all_scores?: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Camera Id
+             * @description Camera ID where the action was detected
+             */
+            camera_id: string;
+            /**
+             * Confidence
+             * @description Action classification confidence (0.0 to 1.0)
+             */
+            confidence: number;
+            /**
+             * Frame Count
+             * @description Number of frames analyzed for this action
+             * @default 8
+             */
+            frame_count: number;
+            /**
+             * Is Suspicious
+             * @description Whether the action is flagged as security-relevant
+             * @default false
+             */
+            is_suspicious: boolean;
+            /**
+             * Timestamp
+             * @description When the action was detected (auto-generated if not provided)
+             */
+            timestamp?: string | null;
+            /**
+             * Track Id
+             * @description Optional track ID for the detected person
+             */
+            track_id?: number | null;
+        };
+        /**
+         * ActionEventListResponse
+         * @description Schema for action event list response with pagination.
+         *
+         *     Uses the standard pagination envelope pattern.
+         * @example {
+         *       "items": [
+         *         {
+         *           "action": "walking normally",
+         *           "camera_id": "front_door",
+         *           "confidence": 0.89,
+         *           "created_at": "2026-01-26T12:00:00Z",
+         *           "frame_count": 8,
+         *           "id": 1,
+         *           "is_suspicious": false,
+         *           "timestamp": "2026-01-26T12:00:00Z",
+         *           "track_id": 42
+         *         }
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       }
+         *     }
+         */
+        ActionEventListResponse: {
+            /**
+             * Items
+             * @description List of action events
+             */
+            items: components["schemas"]["ActionEventResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
+        };
+        /**
+         * ActionEventResponse
+         * @description Schema for action event response.
+         *
+         *     Includes all base fields plus server-generated fields like id and timestamps.
+         * @example {
+         *       "action": "walking normally",
+         *       "all_scores": {
+         *         "climbing": 0.02,
+         *         "loitering": 0.04,
+         *         "running": 0.05,
+         *         "walking normally": 0.89
+         *       },
+         *       "camera_id": "front_door",
+         *       "confidence": 0.89,
+         *       "created_at": "2026-01-26T12:00:00Z",
+         *       "frame_count": 8,
+         *       "id": 1,
+         *       "is_suspicious": false,
+         *       "timestamp": "2026-01-26T12:00:00Z",
+         *       "track_id": 42
+         *     }
+         */
+        ActionEventResponse: {
+            /**
+             * Action
+             * @description Detected action label (e.g., 'walking normally', 'climbing')
+             */
+            action: string;
+            /**
+             * All Scores
+             * @description Dictionary mapping all action classes to their confidence scores
+             */
+            all_scores?: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Camera Id
+             * @description Camera ID where the action was detected
+             */
+            camera_id: string;
+            /**
+             * Confidence
+             * @description Action classification confidence (0.0 to 1.0)
+             */
+            confidence: number;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Record creation timestamp
+             */
+            created_at: string;
+            /**
+             * Frame Count
+             * @description Number of frames analyzed for this action
+             * @default 8
+             */
+            frame_count: number;
+            /**
+             * Id
+             * @description Action event ID
+             */
+            id: number;
+            /**
+             * Is Suspicious
+             * @description Whether the action is flagged as security-relevant
+             * @default false
+             */
+            is_suspicious: boolean;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the action was detected
+             */
+            timestamp: string;
+            /**
+             * Track Id
+             * @description Optional track ID for the detected person
+             */
+            track_id?: number | null;
         };
         /**
          * ActiveDwellerResponse
@@ -17437,6 +18450,709 @@ export interface components {
          */
         ExporterStatusEnum: "up" | "down" | "unknown";
         /**
+         * FaceDetectionEventListResponse
+         * @description Schema for list of face detection events.
+         * @example {
+         *       "items": [
+         *         {
+         *           "age_estimate": 40,
+         *           "bbox": [
+         *             100,
+         *             150,
+         *             200,
+         *             300
+         *           ],
+         *           "camera_id": "front_door",
+         *           "created_at": "2025-01-01T10:00:00Z",
+         *           "gender_estimate": "M",
+         *           "id": 1,
+         *           "is_unknown": true,
+         *           "quality_score": 0.75,
+         *           "timestamp": "2025-01-01T10:00:00Z"
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        FaceDetectionEventListResponse: {
+            /**
+             * Items
+             * @description List of face detection events
+             */
+            items: components["schemas"]["FaceDetectionEventResponse"][];
+            /**
+             * Total
+             * @description Total number of events
+             */
+            total: number;
+        };
+        /**
+         * FaceDetectionEventResponse
+         * @description Schema for face detection event response.
+         * @example {
+         *       "age_estimate": 35,
+         *       "bbox": [
+         *         100,
+         *         150,
+         *         200,
+         *         300
+         *       ],
+         *       "camera_id": "front_door",
+         *       "created_at": "2025-01-01T10:00:00Z",
+         *       "gender_estimate": "M",
+         *       "id": 1,
+         *       "is_unknown": false,
+         *       "match_confidence": 0.92,
+         *       "matched_person_id": 1,
+         *       "matched_person_name": "John Doe",
+         *       "quality_score": 0.85,
+         *       "timestamp": "2025-01-01T10:00:00Z"
+         *     }
+         */
+        FaceDetectionEventResponse: {
+            /**
+             * Age Estimate
+             * @description Estimated age
+             */
+            age_estimate?: number | null;
+            /**
+             * Bbox
+             * @description Bounding box [x1, y1, x2, y2]
+             */
+            bbox: number[];
+            /**
+             * Camera Id
+             * @description ID of the camera that detected the face
+             */
+            camera_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the event was recorded
+             */
+            created_at: string;
+            /**
+             * Gender Estimate
+             * @description Estimated gender (M/F)
+             */
+            gender_estimate?: string | null;
+            /**
+             * Id
+             * @description Unique identifier for the event
+             */
+            id: number;
+            /**
+             * Is Unknown
+             * @description Whether face is unknown
+             */
+            is_unknown: boolean;
+            /**
+             * Match Confidence
+             * @description Match confidence score
+             */
+            match_confidence?: number | null;
+            /**
+             * Matched Person Id
+             * @description ID of matched person
+             */
+            matched_person_id?: number | null;
+            /**
+             * Matched Person Name
+             * @description Name of matched person
+             */
+            matched_person_name?: string | null;
+            /**
+             * Quality Score
+             * @description Face quality score
+             */
+            quality_score: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the face was detected
+             */
+            timestamp: string;
+        };
+        /**
+         * FaceEmbeddingCreate
+         * @description Schema for adding a face embedding.
+         * @example {
+         *       "embedding": [
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1
+         *       ],
+         *       "quality_score": 0.85,
+         *       "source_image_path": "/data/images/john_doe_1.jpg"
+         *     }
+         */
+        FaceEmbeddingCreate: {
+            /**
+             * Embedding
+             * @description 512-dimensional ArcFace embedding vector
+             */
+            embedding: number[];
+            /**
+             * Quality Score
+             * @description Face quality score when embedding was captured
+             * @default 1
+             */
+            quality_score: number;
+            /**
+             * Source Image Path
+             * @description Path to the source image
+             */
+            source_image_path?: string | null;
+        };
+        /**
+         * FaceEmbeddingResponse
+         * @description Schema for face embedding response.
+         * @example {
+         *       "created_at": "2025-01-01T10:00:00Z",
+         *       "id": 1,
+         *       "person_id": 1,
+         *       "quality_score": 0.85,
+         *       "source_image_path": "/data/images/john_doe_1.jpg"
+         *     }
+         */
+        FaceEmbeddingResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the embedding was created
+             */
+            created_at: string;
+            /**
+             * Id
+             * @description Unique identifier for the embedding
+             */
+            id: number;
+            /**
+             * Person Id
+             * @description ID of the associated person
+             */
+            person_id: number;
+            /**
+             * Quality Score
+             * @description Face quality score
+             */
+            quality_score: number;
+            /**
+             * Source Image Path
+             * @description Path to source image
+             */
+            source_image_path?: string | null;
+        };
+        /**
          * FaceEnrichment
          * @description Face detection results.
          * @example {
@@ -17465,6 +19181,584 @@ export interface components {
             detected: boolean;
             /** @description Model that produced this result */
             model_info?: components["schemas"]["EnrichmentModelInfo"] | null;
+        };
+        /**
+         * FaceMatchRequest
+         * @description Schema for face matching request.
+         * @example {
+         *       "embedding": [
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1,
+         *         0.1
+         *       ],
+         *       "threshold": 0.68
+         *     }
+         */
+        FaceMatchRequest: {
+            /**
+             * Embedding
+             * @description 512-dimensional face embedding to match
+             */
+            embedding: number[];
+            /**
+             * Threshold
+             * @description Minimum similarity threshold for a match
+             * @default 0.68
+             */
+            threshold: number;
+        };
+        /**
+         * FaceMatchResponse
+         * @description Schema for face matching response.
+         * @example {
+         *       "is_household_member": true,
+         *       "is_unknown": false,
+         *       "matched": true,
+         *       "person_id": 1,
+         *       "person_name": "John Doe",
+         *       "similarity": 0.92
+         *     }
+         */
+        FaceMatchResponse: {
+            /**
+             * Is Household Member
+             * @description Whether matched person is a household member
+             */
+            is_household_member?: boolean | null;
+            /**
+             * Is Unknown
+             * @description Whether face is unknown
+             */
+            is_unknown: boolean;
+            /**
+             * Matched
+             * @description Whether a match was found
+             */
+            matched: boolean;
+            /**
+             * Person Id
+             * @description ID of matched person
+             */
+            person_id?: number | null;
+            /**
+             * Person Name
+             * @description Name of matched person
+             */
+            person_name?: string | null;
+            /**
+             * Similarity
+             * @description Best similarity score
+             */
+            similarity: number;
         };
         /**
          * FeatureSettings
@@ -20374,6 +22668,142 @@ export interface components {
             job_types: components["schemas"]["JobTypeInfo"][];
         };
         /**
+         * KnownPersonCreate
+         * @description Schema for creating a new known person.
+         * @example {
+         *       "is_household_member": true,
+         *       "name": "John Doe",
+         *       "notes": "Family member - always trusted"
+         *     }
+         */
+        KnownPersonCreate: {
+            /**
+             * Is Household Member
+             * @description Whether person is a trusted household member
+             * @default false
+             */
+            is_household_member: boolean;
+            /**
+             * Name
+             * @description Display name of the person
+             */
+            name: string;
+            /**
+             * Notes
+             * @description Optional notes about the person
+             */
+            notes?: string | null;
+        };
+        /**
+         * KnownPersonListResponse
+         * @description Schema for list of known persons.
+         * @example {
+         *       "items": [
+         *         {
+         *           "created_at": "2025-01-01T10:00:00Z",
+         *           "embedding_count": 3,
+         *           "id": 1,
+         *           "is_household_member": true,
+         *           "name": "John Doe",
+         *           "notes": "Family member",
+         *           "updated_at": "2025-01-01T12:00:00Z"
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        KnownPersonListResponse: {
+            /**
+             * Items
+             * @description List of known persons
+             */
+            items: components["schemas"]["KnownPersonResponse"][];
+            /**
+             * Total
+             * @description Total number of known persons
+             */
+            total: number;
+        };
+        /**
+         * KnownPersonResponse
+         * @description Schema for known person response.
+         * @example {
+         *       "created_at": "2025-01-01T10:00:00Z",
+         *       "embedding_count": 3,
+         *       "id": 1,
+         *       "is_household_member": true,
+         *       "name": "John Doe",
+         *       "notes": "Family member",
+         *       "updated_at": "2025-01-01T12:00:00Z"
+         *     }
+         */
+        KnownPersonResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the person was registered
+             */
+            created_at: string;
+            /**
+             * Embedding Count
+             * @description Number of face embeddings stored for this person
+             * @default 0
+             */
+            embedding_count: number;
+            /**
+             * Id
+             * @description Unique identifier for the person
+             */
+            id: number;
+            /**
+             * Is Household Member
+             * @description Whether person is a household member
+             */
+            is_household_member: boolean;
+            /**
+             * Name
+             * @description Display name of the person
+             */
+            name: string;
+            /**
+             * Notes
+             * @description Notes about the person
+             */
+            notes?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the record was last updated
+             */
+            updated_at: string;
+        };
+        /**
+         * KnownPersonUpdate
+         * @description Schema for updating an existing known person.
+         * @example {
+         *       "is_household_member": true,
+         *       "name": "John Smith",
+         *       "notes": "Updated notes"
+         *     }
+         */
+        KnownPersonUpdate: {
+            /**
+             * Is Household Member
+             * @description Whether person is a trusted household member
+             */
+            is_household_member?: boolean | null;
+            /**
+             * Name
+             * @description Display name of the person
+             */
+            name?: string | null;
+            /**
+             * Notes
+             * @description Optional notes about the person
+             */
+            notes?: string | null;
+        };
+        /**
          * LatencyHistorySnapshot
          * @description Single time-bucket snapshot of pipeline latency metrics.
          */
@@ -23264,6 +25694,388 @@ export interface components {
             detector: components["schemas"]["PipelineWorkerStatus"];
             /** @description File watcher status */
             file_watcher: components["schemas"]["PipelineWorkerStatus"];
+        };
+        /**
+         * PlateReadCreate
+         * @description Schema for creating a new plate read record.
+         *
+         *     Used when manually creating plate reads via the API (e.g., from
+         *     external ALPR systems or manual entry).
+         * @example {
+         *       "bbox": [
+         *         100,
+         *         200,
+         *         250,
+         *         240
+         *       ],
+         *       "camera_id": "driveway",
+         *       "detection_confidence": 0.95,
+         *       "image_quality_score": 0.85,
+         *       "is_blurry": false,
+         *       "is_enhanced": false,
+         *       "ocr_confidence": 0.92,
+         *       "plate_text": "ABC1234",
+         *       "raw_text": "ABC-1234",
+         *       "timestamp": "2026-01-26T14:30:00Z"
+         *     }
+         */
+        PlateReadCreate: {
+            /**
+             * Bbox
+             * @description Bounding box [x1, y1, x2, y2]
+             */
+            bbox: number[];
+            /**
+             * Camera Id
+             * @description Camera ID where plate was detected
+             */
+            camera_id: string;
+            /**
+             * Detection Confidence
+             * @description Plate detection confidence (0-1)
+             */
+            detection_confidence: number;
+            /**
+             * Image Quality Score
+             * @description Image quality assessment (0-1)
+             */
+            image_quality_score: number;
+            /**
+             * Is Blurry
+             * @description Whether motion blur was detected
+             * @default false
+             */
+            is_blurry: boolean;
+            /**
+             * Is Enhanced
+             * @description Whether low-light enhancement was applied
+             * @default false
+             */
+            is_enhanced: boolean;
+            /**
+             * Ocr Confidence
+             * @description Text recognition confidence (0-1)
+             */
+            ocr_confidence: number;
+            /**
+             * Plate Text
+             * @description Recognized plate text (alphanumeric only)
+             */
+            plate_text: string;
+            /**
+             * Raw Text
+             * @description Raw OCR output before filtering
+             */
+            raw_text: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Detection timestamp
+             */
+            timestamp: string;
+        };
+        /**
+         * PlateReadListResponse
+         * @description Paginated list of plate reads.
+         *
+         *     Standard pagination envelope for plate read list endpoints.
+         * @example {
+         *       "page": 1,
+         *       "page_size": 50,
+         *       "plate_reads": [
+         *         {
+         *           "bbox": [
+         *             100,
+         *             200,
+         *             250,
+         *             240
+         *           ],
+         *           "camera_id": "driveway",
+         *           "created_at": "2026-01-26T14:30:05Z",
+         *           "detection_confidence": 0.95,
+         *           "id": 1,
+         *           "image_quality_score": 0.85,
+         *           "is_blurry": false,
+         *           "is_enhanced": false,
+         *           "ocr_confidence": 0.92,
+         *           "plate_text": "ABC1234",
+         *           "raw_text": "ABC-1234",
+         *           "timestamp": "2026-01-26T14:30:00Z"
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        PlateReadListResponse: {
+            /**
+             * Page
+             * @description Current page number (1-indexed)
+             */
+            page: number;
+            /**
+             * Page Size
+             * @description Number of items per page
+             */
+            page_size: number;
+            /**
+             * Plate Reads
+             * @description List of plate reads
+             */
+            plate_reads: components["schemas"]["PlateReadResponse"][];
+            /**
+             * Total
+             * @description Total number of plate reads matching query
+             */
+            total: number;
+        };
+        /**
+         * PlateReadResponse
+         * @description Response schema for a plate read record.
+         *
+         *     Includes the database ID for reference and linking.
+         * @example {
+         *       "bbox": [
+         *         100,
+         *         200,
+         *         250,
+         *         240
+         *       ],
+         *       "camera_id": "driveway",
+         *       "created_at": "2026-01-26T14:30:05Z",
+         *       "detection_confidence": 0.95,
+         *       "id": 1,
+         *       "image_quality_score": 0.85,
+         *       "is_blurry": false,
+         *       "is_enhanced": false,
+         *       "ocr_confidence": 0.92,
+         *       "plate_text": "ABC1234",
+         *       "raw_text": "ABC-1234",
+         *       "timestamp": "2026-01-26T14:30:00Z"
+         *     }
+         */
+        PlateReadResponse: {
+            /**
+             * Bbox
+             * @description Bounding box [x1, y1, x2, y2]
+             */
+            bbox: number[];
+            /**
+             * Camera Id
+             * @description Camera ID where plate was detected
+             */
+            camera_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Record creation timestamp
+             */
+            created_at: string;
+            /**
+             * Detection Confidence
+             * @description Plate detection confidence (0-1)
+             */
+            detection_confidence: number;
+            /**
+             * Id
+             * @description Database record ID
+             */
+            id: number;
+            /**
+             * Image Quality Score
+             * @description Image quality assessment (0-1)
+             */
+            image_quality_score: number;
+            /**
+             * Is Blurry
+             * @description Whether motion blur was detected
+             * @default false
+             */
+            is_blurry: boolean;
+            /**
+             * Is Enhanced
+             * @description Whether low-light enhancement was applied
+             * @default false
+             */
+            is_enhanced: boolean;
+            /**
+             * Ocr Confidence
+             * @description Text recognition confidence (0-1)
+             */
+            ocr_confidence: number;
+            /**
+             * Plate Text
+             * @description Recognized plate text (alphanumeric only)
+             */
+            plate_text: string;
+            /**
+             * Raw Text
+             * @description Raw OCR output before filtering
+             */
+            raw_text: string;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Detection timestamp
+             */
+            timestamp: string;
+        };
+        /**
+         * PlateRecognizeRequest
+         * @description Request schema for plate recognition from image data.
+         *
+         *     Used for the /recognize endpoint to extract plate text from
+         *     uploaded images or base64-encoded image data.
+         * @example {
+         *       "camera_id": "driveway",
+         *       "detection_bbox": [
+         *         100,
+         *         200,
+         *         250,
+         *         240
+         *       ],
+         *       "detection_confidence": 0.95,
+         *       "image_base64": "data:image/jpeg;base64,/9j/4AAQSkZ..."
+         *     }
+         */
+        PlateRecognizeRequest: {
+            /**
+             * Camera Id
+             * @description Camera ID for the source image
+             */
+            camera_id: string;
+            /**
+             * Detection Bbox
+             * @description Optional bounding box for plate region [x1, y1, x2, y2]
+             */
+            detection_bbox?: number[] | null;
+            /**
+             * Detection Confidence
+             * @description Detection confidence from upstream detector
+             * @default 1
+             */
+            detection_confidence: number;
+            /**
+             * Image Base64
+             * @description Base64-encoded image data (JPEG or PNG)
+             */
+            image_base64: string;
+        };
+        /**
+         * PlateRecognizeResponse
+         * @description Response schema for plate recognition request.
+         *
+         *     Returns the recognized plate text and confidence metrics
+         *     without storing to database (for preview/testing).
+         * @example {
+         *       "image_quality_score": 0.85,
+         *       "is_blurry": false,
+         *       "is_enhanced": false,
+         *       "ocr_confidence": 0.92,
+         *       "plate_read_id": 123,
+         *       "plate_text": "ABC1234",
+         *       "raw_text": "ABC-1234",
+         *       "stored": true
+         *     }
+         */
+        PlateRecognizeResponse: {
+            /**
+             * Image Quality Score
+             * @description Image quality score (0-1)
+             */
+            image_quality_score: number;
+            /**
+             * Is Blurry
+             * @description Whether motion blur was detected
+             */
+            is_blurry: boolean;
+            /**
+             * Is Enhanced
+             * @description Whether low-light enhancement was applied
+             */
+            is_enhanced: boolean;
+            /**
+             * Ocr Confidence
+             * @description OCR confidence (0-1)
+             */
+            ocr_confidence: number;
+            /**
+             * Plate Read Id
+             * @description Database ID if stored (null if not stored)
+             */
+            plate_read_id?: number | null;
+            /**
+             * Plate Text
+             * @description Recognized plate text (alphanumeric only)
+             */
+            plate_text: string;
+            /**
+             * Raw Text
+             * @description Raw OCR output before filtering
+             */
+            raw_text: string;
+            /**
+             * Stored
+             * @description Whether the read was stored in database
+             */
+            stored: boolean;
+        };
+        /**
+         * PlateStatisticsResponse
+         * @description Statistics for plate recognition performance and activity.
+         *
+         *     Aggregated metrics for monitoring ALPR system health and usage.
+         * @example {
+         *       "avg_ocr_confidence": 0.89,
+         *       "avg_quality_score": 0.82,
+         *       "blurry_count": 45,
+         *       "enhanced_count": 127,
+         *       "reads_last_24h": 198,
+         *       "reads_last_hour": 23,
+         *       "total_reads": 1523,
+         *       "unique_plates": 342
+         *     }
+         */
+        PlateStatisticsResponse: {
+            /**
+             * Avg Ocr Confidence
+             * @description Average OCR confidence
+             */
+            avg_ocr_confidence: number;
+            /**
+             * Avg Quality Score
+             * @description Average image quality score
+             */
+            avg_quality_score: number;
+            /**
+             * Blurry Count
+             * @description Number of reads with motion blur
+             */
+            blurry_count: number;
+            /**
+             * Enhanced Count
+             * @description Number of reads with low-light enhancement
+             */
+            enhanced_count: number;
+            /**
+             * Reads Last 24H
+             * @description Reads in the last 24 hours
+             */
+            reads_last_24h: number;
+            /**
+             * Reads Last Hour
+             * @description Reads in the last hour
+             */
+            reads_last_hour: number;
+            /**
+             * Total Reads
+             * @description Total number of plate reads
+             */
+            total_reads: number;
+            /**
+             * Unique Plates
+             * @description Count of unique plate texts
+             */
+            unique_plates: number;
         };
         /**
          * PolygonZoneCreate
@@ -27764,6 +30576,56 @@ export interface components {
          */
         SupervisedWorkerStatusEnum: "running" | "stopped" | "crashed" | "restarting" | "failed";
         /**
+         * SuspiciousActionsResponse
+         * @description Schema for suspicious actions summary response.
+         * @example {
+         *       "items": [
+         *         {
+         *           "action": "climbing",
+         *           "all_scores": {
+         *             "climbing": 0.92,
+         *             "walking normally": 0.05
+         *           },
+         *           "camera_id": "back_yard",
+         *           "confidence": 0.92,
+         *           "created_at": "2026-01-26T14:30:00Z",
+         *           "frame_count": 8,
+         *           "id": 5,
+         *           "is_suspicious": true,
+         *           "timestamp": "2026-01-26T14:30:00Z",
+         *           "track_id": 17
+         *         }
+         *       ],
+         *       "pagination": {
+         *         "has_more": false,
+         *         "limit": 50,
+         *         "offset": 0,
+         *         "total": 1
+         *       },
+         *       "suspicious_count": 1,
+         *       "total_count": 25
+         *     }
+         */
+        SuspiciousActionsResponse: {
+            /**
+             * Items
+             * @description List of suspicious action events
+             */
+            items: components["schemas"]["ActionEventResponse"][];
+            /** @description Pagination metadata */
+            pagination: components["schemas"]["PaginationMeta"];
+            /**
+             * Suspicious Count
+             * @description Total count of suspicious actions
+             */
+            suspicious_count: number;
+            /**
+             * Total Count
+             * @description Total count of all action events
+             */
+            total_count: number;
+        };
+        /**
          * SystemSettingListResponse
          * @description Response schema for listing all system settings.
          * @example {
@@ -28506,6 +31368,103 @@ export interface components {
             items: components["schemas"]["EntityTrustResponse"][];
             /** @description Pagination metadata */
             pagination: components["schemas"]["PaginationInfo"];
+        };
+        /**
+         * UnknownStrangerAlert
+         * @description Schema for unknown stranger alert.
+         * @example {
+         *       "age_estimate": 35,
+         *       "bbox": [
+         *         100,
+         *         150,
+         *         200,
+         *         300
+         *       ],
+         *       "camera_id": "front_door",
+         *       "event_id": 1,
+         *       "gender_estimate": "M",
+         *       "quality_score": 0.85,
+         *       "thumbnail_path": "/data/thumbnails/stranger_1.jpg",
+         *       "timestamp": "2025-01-01T10:00:00Z"
+         *     }
+         */
+        UnknownStrangerAlert: {
+            /**
+             * Age Estimate
+             * @description Estimated age
+             */
+            age_estimate?: number | null;
+            /**
+             * Bbox
+             * @description Bounding box coordinates
+             */
+            bbox: number[];
+            /**
+             * Camera Id
+             * @description ID of the camera
+             */
+            camera_id: string;
+            /**
+             * Event Id
+             * @description ID of the face detection event
+             */
+            event_id: number;
+            /**
+             * Gender Estimate
+             * @description Estimated gender
+             */
+            gender_estimate?: string | null;
+            /**
+             * Quality Score
+             * @description Face quality score
+             */
+            quality_score: number;
+            /**
+             * Thumbnail Path
+             * @description Path to face thumbnail
+             */
+            thumbnail_path?: string | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the stranger was detected
+             */
+            timestamp: string;
+        };
+        /**
+         * UnknownStrangerListResponse
+         * @description Schema for list of unknown stranger alerts.
+         * @example {
+         *       "items": [
+         *         {
+         *           "age_estimate": 35,
+         *           "bbox": [
+         *             100,
+         *             150,
+         *             200,
+         *             300
+         *           ],
+         *           "camera_id": "front_door",
+         *           "event_id": 1,
+         *           "gender_estimate": "M",
+         *           "quality_score": 0.85,
+         *           "timestamp": "2025-01-01T10:00:00Z"
+         *         }
+         *       ],
+         *       "total": 1
+         *     }
+         */
+        UnknownStrangerListResponse: {
+            /**
+             * Items
+             * @description List of unknown strangers
+             */
+            items: components["schemas"]["UnknownStrangerAlert"][];
+            /**
+             * Total
+             * @description Total number of unknown strangers
+             */
+            total: number;
         };
         /**
          * UserCalibrationResponse
@@ -30271,6 +33230,330 @@ export interface operations {
                         [key: string]: string;
                     };
                 };
+            };
+        };
+    };
+    "action-events_list_action_events": {
+        parameters: {
+            query?: {
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter by track ID */
+                track_id?: number | null;
+                /** @description Filter by action label */
+                action?: string | null;
+                /** @description Filter by suspicious flag */
+                is_suspicious?: boolean | null;
+                /** @description Filter by minimum confidence */
+                min_confidence?: number | null;
+                /** @description Filter by start time */
+                start_time?: string | null;
+                /** @description Filter by end time */
+                end_time?: string | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionEventListResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "action-events_create_action_event": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActionEventCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionEventResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "action-events_analyze_action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActionAnalyzeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionAnalyzeResponse"];
+                };
+            };
+            /** @description Invalid request (no valid frames) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description X-CLIP model unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "action-events_get_camera_action_events": {
+        parameters: {
+            query?: {
+                /** @description Filter by start time */
+                start_time?: string | null;
+                /** @description Filter by end time */
+                end_time?: string | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Camera ID */
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionEventListResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "action-events_list_suspicious_actions": {
+        parameters: {
+            query?: {
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter by minimum confidence */
+                min_confidence?: number | null;
+                /** @description Filter by start time */
+                start_time?: string | null;
+                /** @description Filter by end time */
+                end_time?: string | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuspiciousActionsResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "action-events_get_action_event": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Action event ID */
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActionEventResponse"];
+                };
+            };
+            /** @description Action event not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "action-events_delete_action_event": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Action event ID */
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Action event not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -36271,6 +39554,119 @@ export interface operations {
             };
         };
     };
+    "face-recognition_list_face_events": {
+        parameters: {
+            query?: {
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter events after this time */
+                start_time?: string | null;
+                /** @description Filter events before this time */
+                end_time?: string | null;
+                /** @description Only return unknown faces */
+                unknown_only?: boolean;
+                /** @description Maximum events to return */
+                limit?: number;
+                /** @description Number of events to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaceDetectionEventListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_match_face": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FaceMatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaceMatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_get_unknown_strangers": {
+        parameters: {
+            query?: {
+                /** @description Filter events after this time */
+                start_time?: string | null;
+                /** @description Filter events before this time */
+                end_time?: string | null;
+                /** @description Minimum quality score */
+                min_quality?: number;
+                /** @description Maximum events to return */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnknownStrangerListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     feedback_create_feedback: {
         parameters: {
             query?: never;
@@ -37504,6 +40900,262 @@ export interface operations {
             };
             /** @description Job not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_list_known_persons": {
+        parameters: {
+            query?: {
+                /** @description Filter to household members only */
+                household_only?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnownPersonListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_create_known_person": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KnownPersonCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnownPersonResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_get_known_person": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                person_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnownPersonResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_delete_known_person": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                person_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_update_known_person": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                person_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KnownPersonUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnownPersonResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_list_person_embeddings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                person_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaceEmbeddingResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_add_face_embedding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                person_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FaceEmbeddingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaceEmbeddingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "face-recognition_delete_face_embedding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                person_id: number;
+                embedding_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -38885,6 +42537,246 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "plate-reads_list_plate_reads": {
+        parameters: {
+            query?: {
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter reads after this time (ISO format) */
+                start_time?: string | null;
+                /** @description Filter reads before this time (ISO format) */
+                end_time?: string | null;
+                /** @description Minimum OCR confidence filter */
+                min_confidence?: number | null;
+                /** @description Page number (1-indexed) */
+                page?: number;
+                /** @description Number of items per page */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlateReadListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "plate-reads_create_plate_read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlateReadCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlateReadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "plate-reads_get_reads_by_camera": {
+        parameters: {
+            query?: {
+                /** @description Filter reads after this time (ISO format) */
+                start_time?: string | null;
+                /** @description Filter reads before this time (ISO format) */
+                end_time?: string | null;
+                /** @description Page number (1-indexed) */
+                page?: number;
+                /** @description Number of items per page */
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlateReadListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "plate-reads_recognize_plate": {
+        parameters: {
+            query?: {
+                /** @description Whether to store the result in database */
+                store?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlateRecognizeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlateRecognizeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "plate-reads_search_by_plate_text": {
+        parameters: {
+            query: {
+                /** @description Plate text to search for */
+                text: string;
+                /** @description If true, match exactly; otherwise partial match */
+                exact?: boolean;
+                /** @description Page number (1-indexed) */
+                page?: number;
+                /** @description Number of items per page */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlateReadListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "plate-reads_get_statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlateStatisticsResponse"];
+                };
+            };
+        };
+    };
+    "plate-reads_get_plate_read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plate_read_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlateReadResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

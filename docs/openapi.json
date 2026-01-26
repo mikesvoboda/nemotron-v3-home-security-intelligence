@@ -367,6 +367,393 @@
         "title": "AccessSchedule",
         "type": "object"
       },
+      "ActionAnalyzeRequest": {
+        "description": "Schema for action analysis request.\n\nUsed to trigger action recognition on a set of frames.",
+        "example": {
+          "camera_id": "front_door",
+          "confidence_threshold": 0.5,
+          "frame_paths": [
+            "/export/foscam/front_door/frame_001.jpg",
+            "/export/foscam/front_door/frame_002.jpg",
+            "/export/foscam/front_door/frame_003.jpg",
+            "/export/foscam/front_door/frame_004.jpg",
+            "/export/foscam/front_door/frame_005.jpg",
+            "/export/foscam/front_door/frame_006.jpg",
+            "/export/foscam/front_door/frame_007.jpg",
+            "/export/foscam/front_door/frame_008.jpg"
+          ],
+          "track_id": 42
+        },
+        "properties": {
+          "camera_id": {
+            "description": "Camera ID for the frames",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "confidence_threshold": {
+            "default": 0.5,
+            "description": "Minimum confidence threshold for creating an action event",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence Threshold",
+            "type": "number"
+          },
+          "frame_paths": {
+            "description": "List of frame file paths to analyze (1-32 frames)",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 32,
+            "minItems": 1,
+            "title": "Frame Paths",
+            "type": "array"
+          },
+          "save_event": {
+            "default": true,
+            "description": "Whether to save the action event to the database",
+            "title": "Save Event",
+            "type": "boolean"
+          },
+          "track_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional track ID to associate with the action",
+            "title": "Track Id"
+          }
+        },
+        "required": [
+          "camera_id",
+          "frame_paths"
+        ],
+        "title": "ActionAnalyzeRequest",
+        "type": "object"
+      },
+      "ActionAnalyzeResponse": {
+        "description": "Schema for action analysis response.\n\nReturns the detected action along with all scores and optional saved event.",
+        "example": {
+          "action": "walking normally",
+          "all_scores": {
+            "climbing": 0.02,
+            "loitering": 0.04,
+            "running": 0.05,
+            "walking normally": 0.89
+          },
+          "confidence": 0.89,
+          "event_id": 1,
+          "frame_count": 8,
+          "is_suspicious": false,
+          "saved": true
+        },
+        "properties": {
+          "action": {
+            "description": "Detected action label",
+            "title": "Action",
+            "type": "string"
+          },
+          "all_scores": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "All action scores",
+            "title": "All Scores",
+            "type": "object"
+          },
+          "confidence": {
+            "description": "Action classification confidence",
+            "title": "Confidence",
+            "type": "number"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Saved action event ID (if save_event=True)",
+            "title": "Event Id"
+          },
+          "frame_count": {
+            "description": "Number of frames analyzed",
+            "title": "Frame Count",
+            "type": "integer"
+          },
+          "is_suspicious": {
+            "description": "Whether the action is security-relevant",
+            "title": "Is Suspicious",
+            "type": "boolean"
+          },
+          "saved": {
+            "description": "Whether the event was saved to the database",
+            "title": "Saved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "action",
+          "confidence",
+          "is_suspicious",
+          "all_scores",
+          "frame_count",
+          "saved"
+        ],
+        "title": "ActionAnalyzeResponse",
+        "type": "object"
+      },
+      "ActionEventCreate": {
+        "description": "Schema for creating a new action event.\n\nInherits all fields from ActionEventBase. The timestamp will be\nauto-generated if not provided.",
+        "example": {
+          "action": "walking normally",
+          "all_scores": {
+            "climbing": 0.02,
+            "loitering": 0.04,
+            "running": 0.05,
+            "walking normally": 0.89
+          },
+          "camera_id": "front_door",
+          "confidence": 0.89,
+          "frame_count": 8,
+          "is_suspicious": false,
+          "track_id": 42
+        },
+        "properties": {
+          "action": {
+            "description": "Detected action label (e.g., 'walking normally', 'climbing')",
+            "title": "Action",
+            "type": "string"
+          },
+          "all_scores": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Dictionary mapping all action classes to their confidence scores",
+            "title": "All Scores"
+          },
+          "camera_id": {
+            "description": "Camera ID where the action was detected",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "confidence": {
+            "description": "Action classification confidence (0.0 to 1.0)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "frame_count": {
+            "default": 8,
+            "description": "Number of frames analyzed for this action",
+            "minimum": 1.0,
+            "title": "Frame Count",
+            "type": "integer"
+          },
+          "is_suspicious": {
+            "default": false,
+            "description": "Whether the action is flagged as security-relevant",
+            "title": "Is Suspicious",
+            "type": "boolean"
+          },
+          "timestamp": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the action was detected (auto-generated if not provided)",
+            "title": "Timestamp"
+          },
+          "track_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional track ID for the detected person",
+            "title": "Track Id"
+          }
+        },
+        "required": [
+          "camera_id",
+          "action",
+          "confidence"
+        ],
+        "title": "ActionEventCreate",
+        "type": "object"
+      },
+      "ActionEventListResponse": {
+        "description": "Schema for action event list response with pagination.\n\nUses the standard pagination envelope pattern.",
+        "example": {
+          "items": [
+            {
+              "action": "walking normally",
+              "camera_id": "front_door",
+              "confidence": 0.89,
+              "created_at": "2026-01-26T12:00:00Z",
+              "frame_count": 8,
+              "id": 1,
+              "is_suspicious": false,
+              "timestamp": "2026-01-26T12:00:00Z",
+              "track_id": 42
+            }
+          ],
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          }
+        },
+        "properties": {
+          "items": {
+            "description": "List of action events",
+            "items": {
+              "$ref": "#/components/schemas/ActionEventResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
+          }
+        },
+        "required": [
+          "items",
+          "pagination"
+        ],
+        "title": "ActionEventListResponse",
+        "type": "object"
+      },
+      "ActionEventResponse": {
+        "description": "Schema for action event response.\n\nIncludes all base fields plus server-generated fields like id and timestamps.",
+        "example": {
+          "action": "walking normally",
+          "all_scores": {
+            "climbing": 0.02,
+            "loitering": 0.04,
+            "running": 0.05,
+            "walking normally": 0.89
+          },
+          "camera_id": "front_door",
+          "confidence": 0.89,
+          "created_at": "2026-01-26T12:00:00Z",
+          "frame_count": 8,
+          "id": 1,
+          "is_suspicious": false,
+          "timestamp": "2026-01-26T12:00:00Z",
+          "track_id": 42
+        },
+        "properties": {
+          "action": {
+            "description": "Detected action label (e.g., 'walking normally', 'climbing')",
+            "title": "Action",
+            "type": "string"
+          },
+          "all_scores": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Dictionary mapping all action classes to their confidence scores",
+            "title": "All Scores"
+          },
+          "camera_id": {
+            "description": "Camera ID where the action was detected",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "confidence": {
+            "description": "Action classification confidence (0.0 to 1.0)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "created_at": {
+            "description": "Record creation timestamp",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "frame_count": {
+            "default": 8,
+            "description": "Number of frames analyzed for this action",
+            "minimum": 1.0,
+            "title": "Frame Count",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Action event ID",
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_suspicious": {
+            "default": false,
+            "description": "Whether the action is flagged as security-relevant",
+            "title": "Is Suspicious",
+            "type": "boolean"
+          },
+          "timestamp": {
+            "description": "When the action was detected",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          },
+          "track_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional track ID for the detected person",
+            "title": "Track Id"
+          }
+        },
+        "required": [
+          "camera_id",
+          "action",
+          "confidence",
+          "id",
+          "timestamp",
+          "created_at"
+        ],
+        "title": "ActionEventResponse",
+        "type": "object"
+      },
       "ActiveDwellerResponse": {
         "description": "Response for an object currently dwelling in a zone.\n\nIncludes real-time dwell time calculation.",
         "example": {
@@ -11856,6 +12243,798 @@
         "title": "ExporterStatusEnum",
         "type": "string"
       },
+      "FaceDetectionEventListResponse": {
+        "description": "Schema for list of face detection events.",
+        "example": {
+          "items": [
+            {
+              "age_estimate": 40,
+              "bbox": [
+                100,
+                150,
+                200,
+                300
+              ],
+              "camera_id": "front_door",
+              "created_at": "2025-01-01T10:00:00Z",
+              "gender_estimate": "M",
+              "id": 1,
+              "is_unknown": true,
+              "quality_score": 0.75,
+              "timestamp": "2025-01-01T10:00:00Z"
+            }
+          ],
+          "total": 1
+        },
+        "properties": {
+          "items": {
+            "description": "List of face detection events",
+            "items": {
+              "$ref": "#/components/schemas/FaceDetectionEventResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of events",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "FaceDetectionEventListResponse",
+        "type": "object"
+      },
+      "FaceDetectionEventResponse": {
+        "description": "Schema for face detection event response.",
+        "example": {
+          "age_estimate": 35,
+          "bbox": [
+            100,
+            150,
+            200,
+            300
+          ],
+          "camera_id": "front_door",
+          "created_at": "2025-01-01T10:00:00Z",
+          "gender_estimate": "M",
+          "id": 1,
+          "is_unknown": false,
+          "match_confidence": 0.92,
+          "matched_person_id": 1,
+          "matched_person_name": "John Doe",
+          "quality_score": 0.85,
+          "timestamp": "2025-01-01T10:00:00Z"
+        },
+        "properties": {
+          "age_estimate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estimated age",
+            "title": "Age Estimate"
+          },
+          "bbox": {
+            "description": "Bounding box [x1, y1, x2, y2]",
+            "items": {
+              "type": "number"
+            },
+            "title": "Bbox",
+            "type": "array"
+          },
+          "camera_id": {
+            "description": "ID of the camera that detected the face",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "When the event was recorded",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "gender_estimate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estimated gender (M/F)",
+            "title": "Gender Estimate"
+          },
+          "id": {
+            "description": "Unique identifier for the event",
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_unknown": {
+            "description": "Whether face is unknown",
+            "title": "Is Unknown",
+            "type": "boolean"
+          },
+          "match_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Match confidence score",
+            "title": "Match Confidence"
+          },
+          "matched_person_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of matched person",
+            "title": "Matched Person Id"
+          },
+          "matched_person_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of matched person",
+            "title": "Matched Person Name"
+          },
+          "quality_score": {
+            "description": "Face quality score",
+            "title": "Quality Score",
+            "type": "number"
+          },
+          "timestamp": {
+            "description": "When the face was detected",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "camera_id",
+          "timestamp",
+          "bbox",
+          "is_unknown",
+          "quality_score",
+          "created_at"
+        ],
+        "title": "FaceDetectionEventResponse",
+        "type": "object"
+      },
+      "FaceEmbeddingCreate": {
+        "description": "Schema for adding a face embedding.",
+        "example": {
+          "embedding": [
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1
+          ],
+          "quality_score": 0.85,
+          "source_image_path": "/data/images/john_doe_1.jpg"
+        },
+        "properties": {
+          "embedding": {
+            "description": "512-dimensional ArcFace embedding vector",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 512,
+            "minItems": 512,
+            "title": "Embedding",
+            "type": "array"
+          },
+          "quality_score": {
+            "default": 1.0,
+            "description": "Face quality score when embedding was captured",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Quality Score",
+            "type": "number"
+          },
+          "source_image_path": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Path to the source image",
+            "title": "Source Image Path"
+          }
+        },
+        "required": [
+          "embedding"
+        ],
+        "title": "FaceEmbeddingCreate",
+        "type": "object"
+      },
+      "FaceEmbeddingResponse": {
+        "description": "Schema for face embedding response.",
+        "example": {
+          "created_at": "2025-01-01T10:00:00Z",
+          "id": 1,
+          "person_id": 1,
+          "quality_score": 0.85,
+          "source_image_path": "/data/images/john_doe_1.jpg"
+        },
+        "properties": {
+          "created_at": {
+            "description": "When the embedding was created",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier for the embedding",
+            "title": "Id",
+            "type": "integer"
+          },
+          "person_id": {
+            "description": "ID of the associated person",
+            "title": "Person Id",
+            "type": "integer"
+          },
+          "quality_score": {
+            "description": "Face quality score",
+            "title": "Quality Score",
+            "type": "number"
+          },
+          "source_image_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Path to source image",
+            "title": "Source Image Path"
+          }
+        },
+        "required": [
+          "id",
+          "person_id",
+          "quality_score",
+          "created_at"
+        ],
+        "title": "FaceEmbeddingResponse",
+        "type": "object"
+      },
       "FaceEnrichment": {
         "description": "Face detection results.",
         "example": {
@@ -11904,6 +13083,622 @@
           }
         },
         "title": "FaceEnrichment",
+        "type": "object"
+      },
+      "FaceMatchRequest": {
+        "description": "Schema for face matching request.",
+        "example": {
+          "embedding": [
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.1
+          ],
+          "threshold": 0.68
+        },
+        "properties": {
+          "embedding": {
+            "description": "512-dimensional face embedding to match",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 512,
+            "minItems": 512,
+            "title": "Embedding",
+            "type": "array"
+          },
+          "threshold": {
+            "default": 0.68,
+            "description": "Minimum similarity threshold for a match",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Threshold",
+            "type": "number"
+          }
+        },
+        "required": [
+          "embedding"
+        ],
+        "title": "FaceMatchRequest",
+        "type": "object"
+      },
+      "FaceMatchResponse": {
+        "description": "Schema for face matching response.",
+        "example": {
+          "is_household_member": true,
+          "is_unknown": false,
+          "matched": true,
+          "person_id": 1,
+          "person_name": "John Doe",
+          "similarity": 0.92
+        },
+        "properties": {
+          "is_household_member": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether matched person is a household member",
+            "title": "Is Household Member"
+          },
+          "is_unknown": {
+            "description": "Whether face is unknown",
+            "title": "Is Unknown",
+            "type": "boolean"
+          },
+          "matched": {
+            "description": "Whether a match was found",
+            "title": "Matched",
+            "type": "boolean"
+          },
+          "person_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ID of matched person",
+            "title": "Person Id"
+          },
+          "person_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of matched person",
+            "title": "Person Name"
+          },
+          "similarity": {
+            "description": "Best similarity score",
+            "title": "Similarity",
+            "type": "number"
+          }
+        },
+        "required": [
+          "matched",
+          "similarity",
+          "is_unknown"
+        ],
+        "title": "FaceMatchResponse",
         "type": "object"
       },
       "FeatureSettings": {
@@ -16189,6 +17984,204 @@
         "title": "JobTypesResponse",
         "type": "object"
       },
+      "KnownPersonCreate": {
+        "description": "Schema for creating a new known person.",
+        "example": {
+          "is_household_member": true,
+          "name": "John Doe",
+          "notes": "Family member - always trusted"
+        },
+        "properties": {
+          "is_household_member": {
+            "default": false,
+            "description": "Whether person is a trusted household member",
+            "title": "Is Household Member",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Display name of the person",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional notes about the person",
+            "title": "Notes"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "KnownPersonCreate",
+        "type": "object"
+      },
+      "KnownPersonListResponse": {
+        "description": "Schema for list of known persons.",
+        "example": {
+          "items": [
+            {
+              "created_at": "2025-01-01T10:00:00Z",
+              "embedding_count": 3,
+              "id": 1,
+              "is_household_member": true,
+              "name": "John Doe",
+              "notes": "Family member",
+              "updated_at": "2025-01-01T12:00:00Z"
+            }
+          ],
+          "total": 1
+        },
+        "properties": {
+          "items": {
+            "description": "List of known persons",
+            "items": {
+              "$ref": "#/components/schemas/KnownPersonResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of known persons",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "KnownPersonListResponse",
+        "type": "object"
+      },
+      "KnownPersonResponse": {
+        "description": "Schema for known person response.",
+        "example": {
+          "created_at": "2025-01-01T10:00:00Z",
+          "embedding_count": 3,
+          "id": 1,
+          "is_household_member": true,
+          "name": "John Doe",
+          "notes": "Family member",
+          "updated_at": "2025-01-01T12:00:00Z"
+        },
+        "properties": {
+          "created_at": {
+            "description": "When the person was registered",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "embedding_count": {
+            "default": 0,
+            "description": "Number of face embeddings stored for this person",
+            "title": "Embedding Count",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Unique identifier for the person",
+            "title": "Id",
+            "type": "integer"
+          },
+          "is_household_member": {
+            "description": "Whether person is a household member",
+            "title": "Is Household Member",
+            "type": "boolean"
+          },
+          "name": {
+            "description": "Display name of the person",
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Notes about the person",
+            "title": "Notes"
+          },
+          "updated_at": {
+            "description": "When the record was last updated",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "is_household_member",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KnownPersonResponse",
+        "type": "object"
+      },
+      "KnownPersonUpdate": {
+        "description": "Schema for updating an existing known person.",
+        "example": {
+          "is_household_member": true,
+          "name": "John Smith",
+          "notes": "Updated notes"
+        },
+        "properties": {
+          "is_household_member": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether person is a trusted household member",
+            "title": "Is Household Member"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display name of the person",
+            "title": "Name"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional notes about the person",
+            "title": "Notes"
+          }
+        },
+        "title": "KnownPersonUpdate",
+        "type": "object"
+      },
       "LatencyHistorySnapshot": {
         "description": "Single time-bucket snapshot of pipeline latency metrics.",
         "properties": {
@@ -20353,6 +22346,500 @@
           "analyzer"
         ],
         "title": "PipelineWorkersStatus",
+        "type": "object"
+      },
+      "PlateReadCreate": {
+        "description": "Schema for creating a new plate read record.\n\nUsed when manually creating plate reads via the API (e.g., from\nexternal ALPR systems or manual entry).",
+        "example": {
+          "bbox": [
+            100.0,
+            200.0,
+            250.0,
+            240.0
+          ],
+          "camera_id": "driveway",
+          "detection_confidence": 0.95,
+          "image_quality_score": 0.85,
+          "is_blurry": false,
+          "is_enhanced": false,
+          "ocr_confidence": 0.92,
+          "plate_text": "ABC1234",
+          "raw_text": "ABC-1234",
+          "timestamp": "2026-01-26T14:30:00Z"
+        },
+        "properties": {
+          "bbox": {
+            "description": "Bounding box [x1, y1, x2, y2]",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bbox",
+            "type": "array"
+          },
+          "camera_id": {
+            "description": "Camera ID where plate was detected",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "detection_confidence": {
+            "description": "Plate detection confidence (0-1)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Detection Confidence",
+            "type": "number"
+          },
+          "image_quality_score": {
+            "description": "Image quality assessment (0-1)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Image Quality Score",
+            "type": "number"
+          },
+          "is_blurry": {
+            "default": false,
+            "description": "Whether motion blur was detected",
+            "title": "Is Blurry",
+            "type": "boolean"
+          },
+          "is_enhanced": {
+            "default": false,
+            "description": "Whether low-light enhancement was applied",
+            "title": "Is Enhanced",
+            "type": "boolean"
+          },
+          "ocr_confidence": {
+            "description": "Text recognition confidence (0-1)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ocr Confidence",
+            "type": "number"
+          },
+          "plate_text": {
+            "description": "Recognized plate text (alphanumeric only)",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Plate Text",
+            "type": "string"
+          },
+          "raw_text": {
+            "description": "Raw OCR output before filtering",
+            "maxLength": 50,
+            "title": "Raw Text",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "Detection timestamp",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "camera_id",
+          "timestamp",
+          "plate_text",
+          "raw_text",
+          "detection_confidence",
+          "ocr_confidence",
+          "bbox",
+          "image_quality_score"
+        ],
+        "title": "PlateReadCreate",
+        "type": "object"
+      },
+      "PlateReadListResponse": {
+        "description": "Paginated list of plate reads.\n\nStandard pagination envelope for plate read list endpoints.",
+        "example": {
+          "page": 1,
+          "page_size": 50,
+          "plate_reads": [
+            {
+              "bbox": [
+                100.0,
+                200.0,
+                250.0,
+                240.0
+              ],
+              "camera_id": "driveway",
+              "created_at": "2026-01-26T14:30:05Z",
+              "detection_confidence": 0.95,
+              "id": 1,
+              "image_quality_score": 0.85,
+              "is_blurry": false,
+              "is_enhanced": false,
+              "ocr_confidence": 0.92,
+              "plate_text": "ABC1234",
+              "raw_text": "ABC-1234",
+              "timestamp": "2026-01-26T14:30:00Z"
+            }
+          ],
+          "total": 1
+        },
+        "properties": {
+          "page": {
+            "description": "Current page number (1-indexed)",
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "description": "Number of items per page",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "plate_reads": {
+            "description": "List of plate reads",
+            "items": {
+              "$ref": "#/components/schemas/PlateReadResponse"
+            },
+            "title": "Plate Reads",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of plate reads matching query",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plate_reads",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PlateReadListResponse",
+        "type": "object"
+      },
+      "PlateReadResponse": {
+        "description": "Response schema for a plate read record.\n\nIncludes the database ID for reference and linking.",
+        "example": {
+          "bbox": [
+            100.0,
+            200.0,
+            250.0,
+            240.0
+          ],
+          "camera_id": "driveway",
+          "created_at": "2026-01-26T14:30:05Z",
+          "detection_confidence": 0.95,
+          "id": 1,
+          "image_quality_score": 0.85,
+          "is_blurry": false,
+          "is_enhanced": false,
+          "ocr_confidence": 0.92,
+          "plate_text": "ABC1234",
+          "raw_text": "ABC-1234",
+          "timestamp": "2026-01-26T14:30:00Z"
+        },
+        "properties": {
+          "bbox": {
+            "description": "Bounding box [x1, y1, x2, y2]",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bbox",
+            "type": "array"
+          },
+          "camera_id": {
+            "description": "Camera ID where plate was detected",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "Record creation timestamp",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "detection_confidence": {
+            "description": "Plate detection confidence (0-1)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Detection Confidence",
+            "type": "number"
+          },
+          "id": {
+            "description": "Database record ID",
+            "title": "Id",
+            "type": "integer"
+          },
+          "image_quality_score": {
+            "description": "Image quality assessment (0-1)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Image Quality Score",
+            "type": "number"
+          },
+          "is_blurry": {
+            "default": false,
+            "description": "Whether motion blur was detected",
+            "title": "Is Blurry",
+            "type": "boolean"
+          },
+          "is_enhanced": {
+            "default": false,
+            "description": "Whether low-light enhancement was applied",
+            "title": "Is Enhanced",
+            "type": "boolean"
+          },
+          "ocr_confidence": {
+            "description": "Text recognition confidence (0-1)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ocr Confidence",
+            "type": "number"
+          },
+          "plate_text": {
+            "description": "Recognized plate text (alphanumeric only)",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Plate Text",
+            "type": "string"
+          },
+          "raw_text": {
+            "description": "Raw OCR output before filtering",
+            "maxLength": 50,
+            "title": "Raw Text",
+            "type": "string"
+          },
+          "timestamp": {
+            "description": "Detection timestamp",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "camera_id",
+          "timestamp",
+          "plate_text",
+          "raw_text",
+          "detection_confidence",
+          "ocr_confidence",
+          "bbox",
+          "image_quality_score",
+          "id",
+          "created_at"
+        ],
+        "title": "PlateReadResponse",
+        "type": "object"
+      },
+      "PlateRecognizeRequest": {
+        "description": "Request schema for plate recognition from image data.\n\nUsed for the /recognize endpoint to extract plate text from\nuploaded images or base64-encoded image data.",
+        "example": {
+          "camera_id": "driveway",
+          "detection_bbox": [
+            100.0,
+            200.0,
+            250.0,
+            240.0
+          ],
+          "detection_confidence": 0.95,
+          "image_base64": "data:image/jpeg;base64,/9j/4AAQSkZ..."
+        },
+        "properties": {
+          "camera_id": {
+            "description": "Camera ID for the source image",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "detection_bbox": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional bounding box for plate region [x1, y1, x2, y2]",
+            "title": "Detection Bbox"
+          },
+          "detection_confidence": {
+            "default": 1.0,
+            "description": "Detection confidence from upstream detector",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Detection Confidence",
+            "type": "number"
+          },
+          "image_base64": {
+            "description": "Base64-encoded image data (JPEG or PNG)",
+            "title": "Image Base64",
+            "type": "string"
+          }
+        },
+        "required": [
+          "camera_id",
+          "image_base64"
+        ],
+        "title": "PlateRecognizeRequest",
+        "type": "object"
+      },
+      "PlateRecognizeResponse": {
+        "description": "Response schema for plate recognition request.\n\nReturns the recognized plate text and confidence metrics\nwithout storing to database (for preview/testing).",
+        "example": {
+          "image_quality_score": 0.85,
+          "is_blurry": false,
+          "is_enhanced": false,
+          "ocr_confidence": 0.92,
+          "plate_read_id": 123,
+          "plate_text": "ABC1234",
+          "raw_text": "ABC-1234",
+          "stored": true
+        },
+        "properties": {
+          "image_quality_score": {
+            "description": "Image quality score (0-1)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Image Quality Score",
+            "type": "number"
+          },
+          "is_blurry": {
+            "description": "Whether motion blur was detected",
+            "title": "Is Blurry",
+            "type": "boolean"
+          },
+          "is_enhanced": {
+            "description": "Whether low-light enhancement was applied",
+            "title": "Is Enhanced",
+            "type": "boolean"
+          },
+          "ocr_confidence": {
+            "description": "OCR confidence (0-1)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ocr Confidence",
+            "type": "number"
+          },
+          "plate_read_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Database ID if stored (null if not stored)",
+            "title": "Plate Read Id"
+          },
+          "plate_text": {
+            "description": "Recognized plate text (alphanumeric only)",
+            "title": "Plate Text",
+            "type": "string"
+          },
+          "raw_text": {
+            "description": "Raw OCR output before filtering",
+            "title": "Raw Text",
+            "type": "string"
+          },
+          "stored": {
+            "description": "Whether the read was stored in database",
+            "title": "Stored",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "plate_text",
+          "raw_text",
+          "ocr_confidence",
+          "image_quality_score",
+          "is_enhanced",
+          "is_blurry",
+          "stored"
+        ],
+        "title": "PlateRecognizeResponse",
+        "type": "object"
+      },
+      "PlateStatisticsResponse": {
+        "description": "Statistics for plate recognition performance and activity.\n\nAggregated metrics for monitoring ALPR system health and usage.",
+        "example": {
+          "avg_ocr_confidence": 0.89,
+          "avg_quality_score": 0.82,
+          "blurry_count": 45,
+          "enhanced_count": 127,
+          "reads_last_24h": 198,
+          "reads_last_hour": 23,
+          "total_reads": 1523,
+          "unique_plates": 342
+        },
+        "properties": {
+          "avg_ocr_confidence": {
+            "description": "Average OCR confidence",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Avg Ocr Confidence",
+            "type": "number"
+          },
+          "avg_quality_score": {
+            "description": "Average image quality score",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Avg Quality Score",
+            "type": "number"
+          },
+          "blurry_count": {
+            "description": "Number of reads with motion blur",
+            "minimum": 0.0,
+            "title": "Blurry Count",
+            "type": "integer"
+          },
+          "enhanced_count": {
+            "description": "Number of reads with low-light enhancement",
+            "minimum": 0.0,
+            "title": "Enhanced Count",
+            "type": "integer"
+          },
+          "reads_last_24h": {
+            "description": "Reads in the last 24 hours",
+            "minimum": 0.0,
+            "title": "Reads Last 24H",
+            "type": "integer"
+          },
+          "reads_last_hour": {
+            "description": "Reads in the last hour",
+            "minimum": 0.0,
+            "title": "Reads Last Hour",
+            "type": "integer"
+          },
+          "total_reads": {
+            "description": "Total number of plate reads",
+            "minimum": 0.0,
+            "title": "Total Reads",
+            "type": "integer"
+          },
+          "unique_plates": {
+            "description": "Count of unique plate texts",
+            "minimum": 0.0,
+            "title": "Unique Plates",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_reads",
+          "unique_plates",
+          "avg_ocr_confidence",
+          "avg_quality_score",
+          "enhanced_count",
+          "blurry_count",
+          "reads_last_hour",
+          "reads_last_24h"
+        ],
+        "title": "PlateStatisticsResponse",
         "type": "object"
       },
       "PolygonZoneCreate": {
@@ -26777,6 +29264,68 @@
         "title": "SupervisedWorkerStatusEnum",
         "type": "string"
       },
+      "SuspiciousActionsResponse": {
+        "description": "Schema for suspicious actions summary response.",
+        "example": {
+          "items": [
+            {
+              "action": "climbing",
+              "all_scores": {
+                "climbing": 0.92,
+                "walking normally": 0.05
+              },
+              "camera_id": "back_yard",
+              "confidence": 0.92,
+              "created_at": "2026-01-26T14:30:00Z",
+              "frame_count": 8,
+              "id": 5,
+              "is_suspicious": true,
+              "timestamp": "2026-01-26T14:30:00Z",
+              "track_id": 17
+            }
+          ],
+          "pagination": {
+            "has_more": false,
+            "limit": 50,
+            "offset": 0,
+            "total": 1
+          },
+          "suspicious_count": 1,
+          "total_count": 25
+        },
+        "properties": {
+          "items": {
+            "description": "List of suspicious action events",
+            "items": {
+              "$ref": "#/components/schemas/ActionEventResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/PaginationMeta",
+            "description": "Pagination metadata"
+          },
+          "suspicious_count": {
+            "description": "Total count of suspicious actions",
+            "title": "Suspicious Count",
+            "type": "integer"
+          },
+          "total_count": {
+            "description": "Total count of all action events",
+            "title": "Total Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "pagination",
+          "suspicious_count",
+          "total_count"
+        ],
+        "title": "SuspiciousActionsResponse",
+        "type": "object"
+      },
       "SystemSettingListResponse": {
         "description": "Response schema for listing all system settings.",
         "example": {
@@ -27684,6 +30233,143 @@
           "pagination"
         ],
         "title": "TrustedEntityListResponse",
+        "type": "object"
+      },
+      "UnknownStrangerAlert": {
+        "description": "Schema for unknown stranger alert.",
+        "example": {
+          "age_estimate": 35,
+          "bbox": [
+            100,
+            150,
+            200,
+            300
+          ],
+          "camera_id": "front_door",
+          "event_id": 1,
+          "gender_estimate": "M",
+          "quality_score": 0.85,
+          "thumbnail_path": "/data/thumbnails/stranger_1.jpg",
+          "timestamp": "2025-01-01T10:00:00Z"
+        },
+        "properties": {
+          "age_estimate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estimated age",
+            "title": "Age Estimate"
+          },
+          "bbox": {
+            "description": "Bounding box coordinates",
+            "items": {
+              "type": "number"
+            },
+            "title": "Bbox",
+            "type": "array"
+          },
+          "camera_id": {
+            "description": "ID of the camera",
+            "title": "Camera Id",
+            "type": "string"
+          },
+          "event_id": {
+            "description": "ID of the face detection event",
+            "title": "Event Id",
+            "type": "integer"
+          },
+          "gender_estimate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Estimated gender",
+            "title": "Gender Estimate"
+          },
+          "quality_score": {
+            "description": "Face quality score",
+            "title": "Quality Score",
+            "type": "number"
+          },
+          "thumbnail_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Path to face thumbnail",
+            "title": "Thumbnail Path"
+          },
+          "timestamp": {
+            "description": "When the stranger was detected",
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "camera_id",
+          "timestamp",
+          "bbox",
+          "quality_score"
+        ],
+        "title": "UnknownStrangerAlert",
+        "type": "object"
+      },
+      "UnknownStrangerListResponse": {
+        "description": "Schema for list of unknown stranger alerts.",
+        "example": {
+          "items": [
+            {
+              "age_estimate": 35,
+              "bbox": [
+                100,
+                150,
+                200,
+                300
+              ],
+              "camera_id": "front_door",
+              "event_id": 1,
+              "gender_estimate": "M",
+              "quality_score": 0.85,
+              "timestamp": "2025-01-01T10:00:00Z"
+            }
+          ],
+          "total": 1
+        },
+        "properties": {
+          "items": {
+            "description": "List of unknown strangers",
+            "items": {
+              "$ref": "#/components/schemas/UnknownStrangerAlert"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "description": "Total number of unknown strangers",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "UnknownStrangerListResponse",
         "type": "object"
       },
       "UserCalibrationResponse": {
@@ -30295,6 +32981,600 @@
           }
         },
         "summary": "Root"
+      }
+    },
+    "/api/action-events": {
+      "get": {
+        "description": "List action events with optional filtering and pagination.\n\nArgs:\n    camera_id: Filter by camera ID\n    track_id: Filter by track ID\n    action: Filter by action label (exact match)\n    is_suspicious: Filter by suspicious flag\n    min_confidence: Filter by minimum confidence score\n    start_time: Filter by timestamp >= start_time\n    end_time: Filter by timestamp <= end_time\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    ActionEventListResponse with events and pagination info",
+        "operationId": "action-events_list_action_events",
+        "parameters": [
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
+            }
+          },
+          {
+            "description": "Filter by track ID",
+            "in": "query",
+            "name": "track_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by track ID",
+              "title": "Track Id"
+            }
+          },
+          {
+            "description": "Filter by action label",
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by action label",
+              "title": "Action"
+            }
+          },
+          {
+            "description": "Filter by suspicious flag",
+            "in": "query",
+            "name": "is_suspicious",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by suspicious flag",
+              "title": "Is Suspicious"
+            }
+          },
+          {
+            "description": "Filter by minimum confidence",
+            "in": "query",
+            "name": "min_confidence",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by minimum confidence",
+              "title": "Min Confidence"
+            }
+          },
+          {
+            "description": "Filter by start time",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by start time",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "Filter by end time",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by end time",
+              "title": "End Time"
+            }
+          },
+          {
+            "description": "Maximum number of results",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of results",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of results to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of results to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionEventListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Action Events",
+        "tags": [
+          "action-events"
+        ]
+      },
+      "post": {
+        "description": "Create a new action event manually.\n\nThis endpoint allows creating action events without running analysis,\nuseful for importing results from external systems or testing.\n\nArgs:\n    event_data: Action event data\n    db: Database session\n\nReturns:\n    Created ActionEventResponse",
+        "operationId": "action-events_create_action_event",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionEventCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionEventResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Create Action Event",
+        "tags": [
+          "action-events"
+        ]
+      }
+    },
+    "/api/action-events/analyze": {
+      "post": {
+        "description": "Trigger action analysis on a set of video frames.\n\nThis endpoint loads frames from disk, runs X-CLIP classification,\nand optionally saves the result to the database.\n\nThe X-CLIP model analyzes frame sequences to detect security-relevant\nactions like walking, running, climbing, loitering, etc.\n\nArgs:\n    request: Analysis request with frame paths and options\n    db: Database session\n\nReturns:\n    ActionAnalyzeResponse with detected action and scores\n\nRaises:\n    HTTPException: 400 if no valid frames, 503 if model unavailable",
+        "operationId": "action-events_analyze_action",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionAnalyzeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionAnalyzeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Invalid request (no valid frames)"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          },
+          "503": {
+            "description": "X-CLIP model unavailable"
+          }
+        },
+        "summary": "Analyze Action",
+        "tags": [
+          "action-events"
+        ]
+      }
+    },
+    "/api/action-events/camera/{camera_id}": {
+      "get": {
+        "description": "Get action events for a specific camera.\n\nConvenience endpoint for camera-specific queries.\n\nArgs:\n    camera_id: Camera ID to filter by\n    start_time: Filter by timestamp >= start_time\n    end_time: Filter by timestamp <= end_time\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    ActionEventListResponse with events and pagination info",
+        "operationId": "action-events_get_camera_action_events",
+        "parameters": [
+          {
+            "description": "Camera ID",
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "description": "Camera ID",
+              "title": "Camera Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter by start time",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by start time",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "Filter by end time",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by end time",
+              "title": "End Time"
+            }
+          },
+          {
+            "description": "Maximum number of results",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of results",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of results to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of results to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionEventListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Camera Action Events",
+        "tags": [
+          "action-events"
+        ]
+      }
+    },
+    "/api/action-events/suspicious": {
+      "get": {
+        "description": "List suspicious action events only.\n\nReturns action events where is_suspicious=True, along with\ncounts of suspicious vs total events.\n\nArgs:\n    camera_id: Filter by camera ID\n    min_confidence: Filter by minimum confidence score\n    start_time: Filter by timestamp >= start_time\n    end_time: Filter by timestamp <= end_time\n    limit: Maximum number of results to return\n    offset: Number of results to skip for pagination\n    db: Database session\n\nReturns:\n    SuspiciousActionsResponse with suspicious events and counts",
+        "operationId": "action-events_list_suspicious_actions",
+        "parameters": [
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
+            }
+          },
+          {
+            "description": "Filter by minimum confidence",
+            "in": "query",
+            "name": "min_confidence",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by minimum confidence",
+              "title": "Min Confidence"
+            }
+          },
+          {
+            "description": "Filter by start time",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by start time",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "Filter by end time",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by end time",
+              "title": "End Time"
+            }
+          },
+          {
+            "description": "Maximum number of results",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Maximum number of results",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of results to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of results to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuspiciousActionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "List Suspicious Actions",
+        "tags": [
+          "action-events"
+        ]
+      }
+    },
+    "/api/action-events/{event_id}": {
+      "delete": {
+        "description": "Delete an action event.\n\nArgs:\n    event_id: Action event ID to delete\n    db: Database session\n\nRaises:\n    HTTPException: 404 if event not found",
+        "operationId": "action-events_delete_action_event",
+        "parameters": [
+          {
+            "description": "Action event ID",
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "description": "Action event ID",
+              "minimum": 1,
+              "title": "Event Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Action event not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Delete Action Event",
+        "tags": [
+          "action-events"
+        ]
+      },
+      "get": {
+        "description": "Get a specific action event by ID.\n\nArgs:\n    event_id: Action event ID\n    db: Database session\n\nReturns:\n    ActionEventResponse\n\nRaises:\n    HTTPException: 404 if event not found",
+        "operationId": "action-events_get_action_event",
+        "parameters": [
+          {
+            "description": "Action event ID",
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "description": "Action event ID",
+              "minimum": 1,
+              "title": "Event Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionEventResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Action event not found"
+          },
+          "422": {
+            "description": "Validation error"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "summary": "Get Action Event",
+        "tags": [
+          "action-events"
+        ]
       }
     },
     "/api/admin/cleanup/orphans": {
@@ -38772,6 +42052,277 @@
         ]
       }
     },
+    "/api/face-events": {
+      "get": {
+        "description": "List face detection events with optional filters.\n\nArgs:\n    camera_id: Filter by camera ID (optional)\n    start_time: Filter events after this time (optional)\n    end_time: Filter events before this time (optional)\n    unknown_only: If True, only return unknown faces\n    limit: Maximum events to return (default: 100, max: 1000)\n    offset: Number of events to skip for pagination\n    session: Database session\n\nReturns:\n    FaceDetectionEventListResponse with events and total count",
+        "operationId": "face-recognition_list_face_events",
+        "parameters": [
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
+            }
+          },
+          {
+            "description": "Filter events after this time",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter events after this time",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "Filter events before this time",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter events before this time",
+              "title": "End Time"
+            }
+          },
+          {
+            "description": "Only return unknown faces",
+            "in": "query",
+            "name": "unknown_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Only return unknown faces",
+              "title": "Unknown Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Maximum events to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "Maximum events to return",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of events to skip",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Number of events to skip",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaceDetectionEventListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Face Events",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
+    "/api/face-events/match": {
+      "post": {
+        "description": "Match a face embedding against known persons.\n\nCompares the provided 512-dimensional embedding against all stored\nembeddings and returns the best match if above the threshold.\n\nArgs:\n    data: Match request with embedding and optional threshold\n    session: Database session\n\nReturns:\n    FaceMatchResponse with match results\n\nRaises:\n    HTTPException: 400 if embedding is invalid",
+        "operationId": "face-recognition_match_face",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FaceMatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaceMatchResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Match Face",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
+    "/api/face-events/unknown": {
+      "get": {
+        "description": "Get unknown stranger alerts.\n\nReturns face detection events where no known person was matched.\nOnly includes faces with quality score above the threshold.\n\nArgs:\n    start_time: Filter events after this time (optional)\n    end_time: Filter events before this time (optional)\n    min_quality: Minimum quality score for reliable detections\n    limit: Maximum events to return\n    session: Database session\n\nReturns:\n    UnknownStrangerListResponse with unknown face detections",
+        "operationId": "face-recognition_get_unknown_strangers",
+        "parameters": [
+          {
+            "description": "Filter events after this time",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter events after this time",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "Filter events before this time",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter events before this time",
+              "title": "End Time"
+            }
+          },
+          {
+            "description": "Minimum quality score",
+            "in": "query",
+            "name": "min_quality",
+            "required": false,
+            "schema": {
+              "default": 0.3,
+              "description": "Minimum quality score",
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "title": "Min Quality",
+              "type": "number"
+            }
+          },
+          {
+            "description": "Maximum events to return",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "Maximum events to return",
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnknownStrangerListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Unknown Strangers",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
     "/api/feedback": {
       "post": {
         "description": "Submit feedback for an event.\n\nAllows users to mark events as false positives, missed detections,\nwrong severity, or correctly classified. Only one feedback per event\nis allowed (enforced by unique constraint).\n\nThis feedback is used to calibrate personalized risk thresholds\nand improve the AI model's accuracy over time.\n\nArgs:\n    feedback_data: Feedback details including event_id and feedback_type\n    db: Database session\n\nReturns:\n    The created feedback record\n\nRaises:\n    HTTPException: 404 if event not found\n    HTTPException: 409 if feedback already exists for this event",
@@ -40682,6 +44233,363 @@
         ]
       }
     },
+    "/api/known-persons": {
+      "get": {
+        "description": "List all known persons.\n\nReturns all registered known persons with their embedding counts.\nOptionally filter to only household members.\n\nArgs:\n    household_only: If True, only return household members\n    session: Database session\n\nReturns:\n    KnownPersonListResponse with list of persons and total count",
+        "operationId": "face-recognition_list_known_persons",
+        "parameters": [
+          {
+            "description": "Filter to household members only",
+            "in": "query",
+            "name": "household_only",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Filter to household members only",
+              "title": "Household Only",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnownPersonListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Known Persons",
+        "tags": [
+          "face-recognition"
+        ]
+      },
+      "post": {
+        "description": "Create a new known person.\n\nArgs:\n    data: Person creation data\n    session: Database session\n\nReturns:\n    Created KnownPersonResponse",
+        "operationId": "face-recognition_create_known_person",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnownPersonCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnownPersonResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Known Person",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
+    "/api/known-persons/{person_id}": {
+      "delete": {
+        "description": "Delete a known person and all associated embeddings.\n\nArgs:\n    person_id: ID of the person to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if person not found",
+        "operationId": "face-recognition_delete_known_person",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "person_id",
+            "required": true,
+            "schema": {
+              "title": "Person Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Known Person",
+        "tags": [
+          "face-recognition"
+        ]
+      },
+      "get": {
+        "description": "Get a known person by ID.\n\nArgs:\n    person_id: ID of the person\n    session: Database session\n\nReturns:\n    KnownPersonResponse\n\nRaises:\n    HTTPException: 404 if person not found",
+        "operationId": "face-recognition_get_known_person",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "person_id",
+            "required": true,
+            "schema": {
+              "title": "Person Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnownPersonResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Known Person",
+        "tags": [
+          "face-recognition"
+        ]
+      },
+      "patch": {
+        "description": "Update a known person.\n\nArgs:\n    person_id: ID of the person to update\n    data: Update data (all fields optional)\n    session: Database session\n\nReturns:\n    Updated KnownPersonResponse\n\nRaises:\n    HTTPException: 404 if person not found",
+        "operationId": "face-recognition_update_known_person",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "person_id",
+            "required": true,
+            "schema": {
+              "title": "Person Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnownPersonUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnownPersonResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Known Person",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
+    "/api/known-persons/{person_id}/embeddings": {
+      "get": {
+        "description": "List all face embeddings for a person.\n\nArgs:\n    person_id: ID of the person\n    session: Database session\n\nReturns:\n    List of FaceEmbeddingResponse\n\nRaises:\n    HTTPException: 404 if person not found",
+        "operationId": "face-recognition_list_person_embeddings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "person_id",
+            "required": true,
+            "schema": {
+              "title": "Person Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FaceEmbeddingResponse"
+                  },
+                  "title": "Response Face-Recognition List Person Embeddings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Person Embeddings",
+        "tags": [
+          "face-recognition"
+        ]
+      },
+      "post": {
+        "description": "Add a face embedding for a known person.\n\nThe embedding should be a 512-dimensional ArcFace embedding vector.\n\nArgs:\n    person_id: ID of the person\n    data: Embedding data with 512-dim vector\n    session: Database session\n\nReturns:\n    Created FaceEmbeddingResponse\n\nRaises:\n    HTTPException: 404 if person not found\n    HTTPException: 400 if embedding is invalid",
+        "operationId": "face-recognition_add_face_embedding",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "person_id",
+            "required": true,
+            "schema": {
+              "title": "Person Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FaceEmbeddingCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FaceEmbeddingResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Face Embedding",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
+    "/api/known-persons/{person_id}/embeddings/{embedding_id}": {
+      "delete": {
+        "description": "Delete a face embedding.\n\nArgs:\n    person_id: ID of the person (for URL consistency)\n    embedding_id: ID of the embedding to delete\n    session: Database session\n\nRaises:\n    HTTPException: 404 if embedding not found",
+        "operationId": "face-recognition_delete_face_embedding",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "person_id",
+            "required": true,
+            "schema": {
+              "title": "Person Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "embedding_id",
+            "required": true,
+            "schema": {
+              "title": "Embedding Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Face Embedding",
+        "tags": [
+          "face-recognition"
+        ]
+      }
+    },
     "/api/logs": {
       "get": {
         "description": "Query logs with optional filtering by level, component, source, and date range.",
@@ -42362,6 +46270,497 @@
         "summary": "Test webhook",
         "tags": [
           "outbound-webhooks"
+        ]
+      }
+    },
+    "/api/plate-reads": {
+      "get": {
+        "description": "List plate reads with optional filters.\n\nReturns a paginated list of plate recognition results with optional\nfiltering by camera, time range, and confidence threshold.\n\nArgs:\n    db: Database session.\n    camera_id: Optional filter by camera ID.\n    start_time: Optional start time filter (ISO format).\n    end_time: Optional end time filter (ISO format).\n    min_confidence: Optional minimum OCR confidence filter (0-1).\n    page: Page number (1-indexed, default 1).\n    page_size: Number of items per page (1-100, default 50).\n\nReturns:\n    PlateReadListResponse with paginated plate reads.\n\nExample:\n    GET /api/plate-reads?camera_id=driveway&page=1&page_size=25",
+        "operationId": "plate-reads_list_plate_reads",
+        "parameters": [
+          {
+            "description": "Filter by camera ID",
+            "in": "query",
+            "name": "camera_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by camera ID",
+              "title": "Camera Id"
+            }
+          },
+          {
+            "description": "Filter reads after this time (ISO format)",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter reads after this time (ISO format)",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "Filter reads before this time (ISO format)",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter reads before this time (ISO format)",
+              "title": "End Time"
+            }
+          },
+          {
+            "description": "Minimum OCR confidence filter",
+            "in": "query",
+            "name": "min_confidence",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1.0,
+                  "minimum": 0.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Minimum OCR confidence filter",
+              "title": "Min Confidence"
+            }
+          },
+          {
+            "description": "Page number (1-indexed)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "Page number (1-indexed)",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Number of items per page",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlateReadListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Plate Reads",
+        "tags": [
+          "plate-reads"
+        ]
+      },
+      "post": {
+        "description": "Create a new plate read record.\n\nUsed for manual entry or importing plate reads from external ALPR\nsystems. For automatic recognition from images, use POST /recognize.\n\nArgs:\n    data: PlateReadCreate schema with plate data.\n    db: Database session.\n\nReturns:\n    PlateReadResponse with the created record.\n\nExample:\n    POST /api/plate-reads\n    {\n        \"camera_id\": \"driveway\",\n        \"timestamp\": \"2026-01-26T14:30:00Z\",\n        \"plate_text\": \"ABC1234\",\n        \"raw_text\": \"ABC-1234\",\n        \"detection_confidence\": 0.95,\n        \"ocr_confidence\": 0.92,\n        \"bbox\": [100.0, 200.0, 250.0, 240.0],\n        \"image_quality_score\": 0.85,\n        \"is_enhanced\": false,\n        \"is_blurry\": false\n    }",
+        "operationId": "plate-reads_create_plate_read",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlateReadCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlateReadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Plate Read",
+        "tags": [
+          "plate-reads"
+        ]
+      }
+    },
+    "/api/plate-reads/camera/{camera_id}": {
+      "get": {
+        "description": "Get plate reads for a specific camera.\n\nReturns a paginated list of plate reads from the specified camera\nwith optional time range filtering.\n\nArgs:\n    camera_id: ID of the camera to get reads for.\n    db: Database session.\n    start_time: Optional start time filter (ISO format).\n    end_time: Optional end time filter (ISO format).\n    page: Page number (1-indexed, default 1).\n    page_size: Number of items per page (1-100, default 50).\n\nReturns:\n    PlateReadListResponse with camera's plate reads.\n\nExample:\n    GET /api/plate-reads/camera/driveway?page=1&page_size=25",
+        "operationId": "plate-reads_get_reads_by_camera",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "camera_id",
+            "required": true,
+            "schema": {
+              "title": "Camera Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter reads after this time (ISO format)",
+            "in": "query",
+            "name": "start_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter reads after this time (ISO format)",
+              "title": "Start Time"
+            }
+          },
+          {
+            "description": "Filter reads before this time (ISO format)",
+            "in": "query",
+            "name": "end_time",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter reads before this time (ISO format)",
+              "title": "End Time"
+            }
+          },
+          {
+            "description": "Page number (1-indexed)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "Page number (1-indexed)",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Number of items per page",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlateReadListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Reads By Camera",
+        "tags": [
+          "plate-reads"
+        ]
+      }
+    },
+    "/api/plate-reads/recognize": {
+      "post": {
+        "description": "Recognize plate text from an uploaded image.\n\nProcesses the image through PaddleOCR to extract plate text.\nOptionally stores the result in the database.\n\nThe image should be base64-encoded JPEG or PNG data, optionally\nprefixed with a data URL scheme (e.g., \"data:image/jpeg;base64,\").\n\nArgs:\n    request: PlateRecognizeRequest with image data.\n    db: Database session.\n    store: Whether to store the result (default true).\n\nReturns:\n    PlateRecognizeResponse with recognition results.\n\nRaises:\n    HTTPException: 400 if image decoding fails.\n    HTTPException: 500 if OCR processing fails.\n\nExample:\n    POST /api/plate-reads/recognize?store=true\n    {\n        \"camera_id\": \"driveway\",\n        \"image_base64\": \"data:image/jpeg;base64,/9j/4AAQSkZ...\",\n        \"detection_bbox\": [100.0, 200.0, 250.0, 240.0],\n        \"detection_confidence\": 0.95\n    }",
+        "operationId": "plate-reads_recognize_plate",
+        "parameters": [
+          {
+            "description": "Whether to store the result in database",
+            "in": "query",
+            "name": "store",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "Whether to store the result in database",
+              "title": "Store",
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlateRecognizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlateRecognizeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recognize Plate",
+        "tags": [
+          "plate-reads"
+        ]
+      }
+    },
+    "/api/plate-reads/search": {
+      "get": {
+        "description": "Search plate reads by plate text.\n\nSearches for plate reads matching the given text. By default performs\na partial match (LIKE %text%). Set exact=true for exact matches only.\n\nArgs:\n    db: Database session.\n    text: Plate text to search for (required).\n    exact: If true, match exactly; if false, partial match (default).\n    page: Page number (1-indexed, default 1).\n    page_size: Number of items per page (1-100, default 50).\n\nReturns:\n    PlateReadListResponse with matching plate reads.\n\nExample:\n    GET /api/plate-reads/search?text=ABC&exact=false\n    GET /api/plate-reads/search?text=ABC1234&exact=true",
+        "operationId": "plate-reads_search_by_plate_text",
+        "parameters": [
+          {
+            "description": "Plate text to search for",
+            "in": "query",
+            "name": "text",
+            "required": true,
+            "schema": {
+              "description": "Plate text to search for",
+              "minLength": 1,
+              "title": "Text",
+              "type": "string"
+            }
+          },
+          {
+            "description": "If true, match exactly; otherwise partial match",
+            "in": "query",
+            "name": "exact",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "If true, match exactly; otherwise partial match",
+              "title": "Exact",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Page number (1-indexed)",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "description": "Page number (1-indexed)",
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of items per page",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Number of items per page",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlateReadListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search By Plate Text",
+        "tags": [
+          "plate-reads"
+        ]
+      }
+    },
+    "/api/plate-reads/statistics": {
+      "get": {
+        "description": "Get plate recognition statistics.\n\nReturns aggregate statistics for ALPR system health monitoring,\nincluding total reads, average confidence, and recent activity.\n\nArgs:\n    db: Database session.\n\nReturns:\n    PlateStatisticsResponse with recognition metrics.\n\nExample:\n    GET /api/plate-reads/statistics",
+        "operationId": "plate-reads_get_statistics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlateStatisticsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Statistics",
+        "tags": [
+          "plate-reads"
+        ]
+      }
+    },
+    "/api/plate-reads/{plate_read_id}": {
+      "get": {
+        "description": "Get a single plate read by ID.\n\nRetrieves full details of a specific plate read record.\n\nArgs:\n    plate_read_id: Database ID of the plate read.\n    db: Database session.\n\nReturns:\n    PlateReadResponse with the plate read details.\n\nRaises:\n    HTTPException: 404 if plate read not found.\n\nExample:\n    GET /api/plate-reads/123",
+        "operationId": "plate-reads_get_plate_read",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plate_read_id",
+            "required": true,
+            "schema": {
+              "title": "Plate Read Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlateReadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Plate Read",
+        "tags": [
+          "plate-reads"
         ]
       }
     },

@@ -1,5 +1,6 @@
 """SQLAlchemy models for home security intelligence system."""
 
+from .action_event import ActionEvent
 from .alert import Alert, AlertRule, AlertSeverity, AlertStatus
 from .analytics_zone import LineZone, PolygonZone
 from .area import Area, camera_areas
@@ -33,6 +34,11 @@ from .event_detection import EventDetection, event_detections
 from .event_feedback import EventFeedback, FeedbackType
 from .experiment_result import ExperimentResult
 from .export_job import ExportJob, ExportJobStatus, ExportType
+from .face_identity import (
+    FaceDetectionEvent,
+    FaceEmbedding,
+    KnownPerson,
+)
 from .gpu_config import (
     GpuAssignmentStrategy,
     GpuConfiguration,
@@ -70,6 +76,7 @@ from .outbound_webhook import (
     WebhookDeliveryStatus,
     WebhookEventType,
 )
+from .plate_read import PlateRead
 from .prometheus_alert import PrometheusAlert, PrometheusAlertStatus
 from .prompt_config import PromptConfig
 from .property import Property
@@ -83,6 +90,7 @@ from .zone_baseline import ZoneActivityBaseline
 from .zone_household_config import ZoneHouseholdConfig
 
 __all__ = [
+    "ActionEvent",
     "ActionResult",
     "ActivityBaseline",
     "Alert",
@@ -120,6 +128,8 @@ __all__ = [
     "ExportJob",
     "ExportJobStatus",
     "ExportType",
+    "FaceDetectionEvent",
+    "FaceEmbedding",
     "FeedbackType",
     "GPUStats",
     "GpuAssignmentStrategy",
@@ -137,6 +147,7 @@ __all__ = [
     "JobStatus",
     "JobTransition",
     "JobTransitionTrigger",
+    "KnownPerson",
     "LineZone",
     "Log",
     "LogLevel",
@@ -145,6 +156,7 @@ __all__ = [
     "NotificationSound",
     "OutboundWebhook",
     "PersonEmbedding",
+    "PlateRead",
     "PolygonZone",
     "PoseResult",
     "PrometheusAlert",

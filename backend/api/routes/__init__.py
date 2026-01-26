@@ -9,6 +9,7 @@ from .backup import router as backup_router
 from .calibration import router as calibration_router
 from .entities import router as entities_router
 from .exports import router as exports_router
+from .face_recognition import router as face_recognition_router
 from .feedback import router as feedback_router
 from .gpu_config import router as gpu_config_router
 from .heatmaps import router as heatmaps_router
@@ -20,6 +21,7 @@ from .jobs import router as jobs_router
 from .logs import router as logs_router
 from .notification_preferences import router as notification_preferences_router
 from .outbound_webhooks import router as outbound_webhooks_router
+from .plate_reads import router as plate_reads_router
 from .rum import router as rum_router
 from .scheduled_reports import router as scheduled_reports_router
 from .services import router as services_router
@@ -42,6 +44,7 @@ __all__ = [
     "calibration_router",
     "entities_router",
     "exports_router",
+    "face_recognition_router",
     "feedback_router",
     "gpu_config_router",
     "heatmaps_router",
@@ -51,6 +54,7 @@ __all__ = [
     "logs_router",
     "notification_preferences_router",
     "outbound_webhooks_router",
+    "plate_reads_router",
     "property_router",
     "rum_router",
     "scheduled_reports_router",
