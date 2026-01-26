@@ -69,13 +69,12 @@ ai/
 │   │   └── action_recognizer.py # X-CLIP video actions
 │   └── tests/             # Additional unit tests
 ├── download_models.sh     # Download AI models
-├── start_detector.sh      # Start RT-DETRv2 (port 8090)
+├── start_detector.sh      # Start YOLO26v2 (port 8090)
 ├── start_llm.sh           # Start Nemotron 4B (port 8091)
 └── start_nemotron.sh      # Start Nemotron 30B with auto-recovery
 ```
 
 ## Service Overview
-
 
 ## Model Zoo Overview
 
@@ -137,7 +136,7 @@ Shell scripts for native execution (useful for debugging):
 ./ai/download_models.sh
 
 # 2. Start individual services
-./ai/start_detector.sh     # RT-DETRv2 on 8090
+./ai/start_detector.sh     # YOLO26v2 on 8090
 ./ai/start_llm.sh          # Nemotron 4B on 8091
 ./ai/start_nemotron.sh     # Nemotron 30B on 8091 (alternative)
 ```
@@ -471,7 +470,7 @@ curl http://localhost:8096/v2/health/ready
 | `TRITON_URL`      | `localhost:8001` | gRPC endpoint        |
 | `TRITON_HTTP_URL` | `localhost:8000` | HTTP endpoint        |
 | `TRITON_PROTOCOL` | `grpc`           | Protocol (grpc/http) |
-| `TRITON_MODEL`    | `rtdetr`         | Default model        |
+| `TRITON_MODEL`    | `yolo26`         | Default model        |
 
 ### Client Usage
 

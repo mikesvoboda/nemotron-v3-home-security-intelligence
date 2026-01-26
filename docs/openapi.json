@@ -14146,7 +14146,7 @@
               "type": "number"
             },
             "description": "YOLO26 latency stats (avg, p95, p99)",
-            "title": "Rtdetr Latency Ms",
+            "title": "Yolo26 Latency Ms",
             "type": "object"
           },
           "throughput": {
@@ -16389,7 +16389,7 @@
           "yolo26": {
             "default": false,
             "description": "YOLO26 object detection",
-            "title": "Rtdetr",
+            "title": "Yolo26",
             "type": "boolean"
           },
           "vehicle": {
