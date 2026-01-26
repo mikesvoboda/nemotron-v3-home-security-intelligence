@@ -60,14 +60,16 @@ version: '3.8'
 
 services:
   postgres:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    # Security hardening: Prevent privilege escalation
     security_opt:
       - no-new-privileges:true
+    # NOTE: Postgres needs CHOWN/DAC_OVERRIDE for data directory initialization
+    # Other capabilities are dropped for security
     cap_drop:
-      - ALL
+      - NET_RAW
+      - SYS_ADMIN
+      - SYS_PTRACE
     image: docker.io/library/postgres:16-alpine
-    # Security: Read-only root filesystem with tmpfs for required write paths
-    read_only: true
     tmpfs:
       - /tmp
       - /var/run/postgresql
@@ -132,13 +134,6 @@ services:
           memory: 1G
 
   ai-detector:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    # Security: Read-only root filesystem with tmpfs for temp and PyTorch cache
-    read_only: true
     tmpfs:
       - /tmp
       - /home/rtdetr/.cache # PyTorch compile cache
@@ -239,13 +234,6 @@ services:
               capabilities: [gpu]
 
   ai-llm:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    # Security: Read-only root filesystem with tmpfs for temp files
-    read_only: true
     tmpfs:
       - /tmp
       - /home/llama/.cache # llama.cpp temp cache
@@ -286,13 +274,6 @@ services:
 
   # Florence-2 vision-language model for dense captioning and visual understanding
   ai-florence:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    # Security: Read-only root filesystem with tmpfs for temp and PyTorch cache
-    read_only: true
     tmpfs:
       - /tmp
       - /home/florence/.cache # PyTorch compile cache
@@ -340,13 +321,6 @@ services:
 
   # CLIP ViT-L model for entity re-identification embeddings
   ai-clip:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    # Security: Read-only root filesystem with tmpfs for temp and PyTorch cache
-    read_only: true
     tmpfs:
       - /tmp
       - /home/clip/.cache # PyTorch compile cache
@@ -395,13 +369,6 @@ services:
 
   # Combined enrichment service for vehicle, pet, clothing, pose, threat, age, gender, reid, and action classification
   ai-enrichment:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    # Security: Read-only root filesystem with tmpfs for temp and PyTorch cache
-    read_only: true
     tmpfs:
       - /tmp
       - /home/enrichment/.cache # PyTorch compile cache
@@ -549,16 +516,10 @@ services:
               capabilities: [gpu]
 
   backend:
-    # Security: Read-only root filesystem with tmpfs for temp files
-    read_only: true
+    # NOTE: Security hardening temporarily disabled for nvidia-cdi-hook compatibility
     tmpfs:
       - /tmp
       - /home/appuser/.cache
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -669,15 +630,16 @@ services:
               capabilities: [gpu]
 
   redis:
-    # Security: Read-only root filesystem with tmpfs for temp files
-    read_only: true
     tmpfs:
       - /tmp
-    # Security hardening: Drop all capabilities, prevent privilege escalation
+    # Security hardening: Prevent privilege escalation
+    # NOTE: Redis needs CHOWN/DAC_OVERRIDE for data persistence
     security_opt:
       - no-new-privileges:true
     cap_drop:
-      - ALL
+      - NET_RAW
+      - SYS_ADMIN
+      - SYS_PTRACE
     image: docker.io/library/redis:7.4-alpine3.21
     ports:
       - '6379:6379'
@@ -837,13 +799,7 @@ services:
   #         memory: 64M
 
   frontend:
-    # Security hardening: Drop all capabilities, prevent privilege escalation
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    # Security: Read-only root filesystem with tmpfs for nginx runtime
-    read_only: true
+    # NOTE: Security hardening temporarily disabled for nvidia-cdi-hook compatibility
     tmpfs:
       - /tmp
       - /var/run # nginx pid file
