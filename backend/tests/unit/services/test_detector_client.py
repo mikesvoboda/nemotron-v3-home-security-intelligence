@@ -2031,3 +2031,139 @@ async def test_detector_client_get_circuit_breaker_status():
     assert "config" in status
     assert status["config"]["failure_threshold"] == 5
     assert status["config"]["recovery_timeout"] == 60.0
+
+
+# =============================================================================
+# NEM-3797: Span Events for Pipeline Stages
+# =============================================================================
+
+
+class TestDetectorClientSpanEvents:
+    """Tests for OpenTelemetry span events in DetectorClient (NEM-3797)."""
+
+    @pytest.fixture
+    def detector_client(self):
+        """Create detector client instance with minimal retries."""
+        return DetectorClient(max_retries=1)
+
+    @pytest.fixture
+    def sample_response(self):
+        """Sample successful detector response."""
+        return {
+            "detections": [
+                {
+                    "class": "person",
+                    "confidence": 0.95,
+                    "bbox": [100, 150, 300, 400],
+                },
+            ],
+            "processing_time_ms": 50.0,
+        }
+
+    @pytest.mark.asyncio
+    async def test_detect_objects_adds_frame_capture_start_event(
+        self, detector_client, mock_session, sample_response
+    ):
+        """Should add span event when frame capture starts (NEM-3797)."""
+        image_path = "/export/foscam/front_door/test.jpg"
+        camera_id = "front_door"
+        mock_image_data = b"fake_image_data"
+
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+            patch("httpx.AsyncClient.post") as mock_post,
+            patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+            patch("backend.services.detector_client.add_span_event") as mock_add_event,
+        ):
+            mock_response = MagicMock(spec=httpx.Response)
+            mock_response.status_code = 200
+            mock_response.json.return_value = sample_response
+            mock_post.return_value = mock_response
+
+            await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+            # Verify frame_capture.start event was called
+            frame_capture_start_calls = [
+                c for c in mock_add_event.call_args_list if c[0][0] == "frame_capture.start"
+            ]
+            assert len(frame_capture_start_calls) >= 1
+            attrs = frame_capture_start_calls[0][0][1]
+            assert attrs["camera.id"] == camera_id
+            assert attrs["file.path"] == image_path
+
+    @pytest.mark.asyncio
+    async def test_detect_objects_adds_frame_capture_complete_event(
+        self, detector_client, mock_session, sample_response
+    ):
+        """Should add span event when frame capture completes (NEM-3797)."""
+        image_path = "/export/foscam/front_door/test.jpg"
+        camera_id = "front_door"
+        mock_image_data = b"fake_image_data"
+
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+            patch("httpx.AsyncClient.post") as mock_post,
+            patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+            patch("backend.services.detector_client.add_span_event") as mock_add_event,
+        ):
+            mock_response = MagicMock(spec=httpx.Response)
+            mock_response.status_code = 200
+            mock_response.json.return_value = sample_response
+            mock_post.return_value = mock_response
+
+            await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+            # Verify frame_capture.complete event was called
+            frame_capture_complete_calls = [
+                c for c in mock_add_event.call_args_list if c[0][0] == "frame_capture.complete"
+            ]
+            assert len(frame_capture_complete_calls) >= 1
+            attrs = frame_capture_complete_calls[0][0][1]
+            assert attrs["camera.id"] == camera_id
+            assert attrs["frame.size_bytes"] == len(mock_image_data)
+
+    @pytest.mark.asyncio
+    async def test_detect_objects_adds_detection_inference_events(
+        self, detector_client, mock_session, sample_response
+    ):
+        """Should add span events for detection inference start and complete (NEM-3797)."""
+        image_path = "/export/foscam/front_door/test.jpg"
+        camera_id = "front_door"
+        mock_image_data = b"fake_image_data"
+
+        with (
+            patch("pathlib.Path.exists", return_value=True),
+            patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+            patch("httpx.AsyncClient.post") as mock_post,
+            patch.object(detector_client, "_validate_image_for_detection_async", return_value=True),
+            patch("backend.services.detector_client.add_span_event") as mock_add_event,
+        ):
+            mock_response = MagicMock(spec=httpx.Response)
+            mock_response.status_code = 200
+            mock_response.json.return_value = sample_response
+            mock_post.return_value = mock_response
+
+            await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+            # Verify detection_inference.start event
+            inference_start_calls = [
+                c for c in mock_add_event.call_args_list if c[0][0] == "detection_inference.start"
+            ]
+            assert len(inference_start_calls) >= 1
+            start_attrs = inference_start_calls[0][0][1]
+            assert start_attrs["camera.id"] == camera_id
+            assert "detector.type" in start_attrs
+
+            # Verify detection_inference.complete event
+            inference_complete_calls = [
+                c
+                for c in mock_add_event.call_args_list
+                if c[0][0] == "detection_inference.complete"
+            ]
+            assert len(inference_complete_calls) >= 1
+            complete_attrs = inference_complete_calls[0][0][1]
+            assert complete_attrs["camera.id"] == camera_id
+            assert complete_attrs["detection.count"] == 1
+            assert "inference.duration_ms" in complete_attrs

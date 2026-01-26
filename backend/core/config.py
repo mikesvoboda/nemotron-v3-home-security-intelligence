@@ -1295,6 +1295,52 @@ class Settings(BaseSettings):
         "Default: 30000ms (30 seconds).",
     )
 
+    # Priority-based sampling settings (NEM-3793)
+    # These settings control intelligent trace sampling to reduce telemetry volume
+    # while preserving important traces (errors, high-risk events, critical endpoints)
+    otel_sampling_error_rate: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Sampling rate for error traces (0.0-1.0). "
+        "Default: 1.0 (always sample errors for debugging).",
+    )
+    otel_sampling_high_risk_rate: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Sampling rate for high-risk security events (0.0-1.0). "
+        "Default: 1.0 (always sample high-risk events with risk_score >= 70).",
+    )
+    otel_sampling_high_priority_rate: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Sampling rate for high-priority endpoints like /api/events, /api/alerts (0.0-1.0). "
+        "Default: 1.0 (always sample critical API endpoints).",
+    )
+    otel_sampling_medium_priority_rate: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Sampling rate for medium-priority endpoints like /api/timeline (0.0-1.0). "
+        "Default: 0.5 (sample 50% of medium-priority requests).",
+    )
+    otel_sampling_background_rate: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        description="Sampling rate for background tasks like /health, /metrics (0.0-1.0). "
+        "Default: 0.1 (sample 10% of background tasks to reduce noise).",
+    )
+    otel_sampling_default_rate: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        description="Default sampling rate for unclassified spans (0.0-1.0). "
+        "Default: 0.1 (sample 10% of unclassified requests).",
+    )
+
     # Logging settings
     log_level: str = Field(
         default="WARNING",

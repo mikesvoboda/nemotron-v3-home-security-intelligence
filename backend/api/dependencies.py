@@ -80,7 +80,7 @@ These patterns simplify the common patterns and enable:
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Callable, Coroutine
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request, status
@@ -90,7 +90,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, undefer
 
-from backend.core.database import get_db
+from backend.core.database import get_db, get_read_db
 from backend.core.exceptions import CacheUnavailableError
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
@@ -1316,3 +1316,133 @@ async def nested_transaction(session: AsyncSession) -> AsyncGenerator[None]:
     """
     async with session.begin_nested():
         yield
+
+
+# =============================================================================
+# Annotated Dependency Type Aliases (NEM-3742)
+# =============================================================================
+# Modern FastAPI dependency injection using Annotated pattern from Python 3.9+
+# and FastAPI 0.95+. These type aliases provide:
+# 1. Reusability across multiple endpoints
+# 2. Cleaner function signatures (no = Depends(...) in parameters)
+# 3. Better IDE support with explicit type hints
+# 4. Centralized dependency configuration
+#
+# See backend/api/AGENTS.md for usage examples.
+# =============================================================================
+
+
+async def get_redis_optional() -> RedisClient | None:
+    """Get Redis client or None if unavailable.
+
+    This is useful for endpoints that can function without Redis but
+    benefit from having it available (e.g., health checks, debug endpoints).
+
+    Returns:
+        RedisClient if available, None otherwise.
+    """
+    try:
+        async for redis in get_redis():
+            return redis
+    except Exception:
+        return None
+    return None
+
+
+# -----------------------------------------------------------------------------
+# Core Database Dependencies
+# -----------------------------------------------------------------------------
+
+#: Database session dependency for write operations.
+#: Provides an AsyncSession from the primary database with automatic
+#: commit/rollback handling.
+DbSession = Annotated[AsyncSession, Depends(get_db)]
+
+#: Database session dependency for read-only operations (NEM-3392).
+#: Uses read replica if configured, otherwise falls back to primary.
+ReadDbSession = Annotated[AsyncSession, Depends(get_read_db)]
+
+# -----------------------------------------------------------------------------
+# Redis/Cache Dependencies
+# -----------------------------------------------------------------------------
+
+#: Redis client dependency for cache and pub/sub operations.
+RedisDep = Annotated[RedisClient, Depends(get_redis)]
+
+#: Optional Redis dependency that returns None if Redis is unavailable.
+RedisOptionalDep = Annotated[RedisClient | None, Depends(get_redis_optional)]
+
+#: Cache service dependency with Redis backend.
+CacheDep = Annotated[CacheService, Depends(get_cache_service_dep)]
+
+#: Cache dependency with graceful degradation (NEM-2538).
+#: Returns NullCache when Redis is unavailable.
+CacheWithFallbackDep = Annotated[
+    RedisClient | NullCache,
+    Depends(lambda: get_cache(allow_degraded=True)),
+]
+
+#: Strict cache dependency that raises when Redis is unavailable.
+StrictCacheDep = Annotated[
+    RedisClient,
+    Depends(lambda: get_cache(allow_degraded=False)),
+]
+
+# -----------------------------------------------------------------------------
+# Service Dependencies
+# -----------------------------------------------------------------------------
+
+#: Container orchestrator dependency for service management.
+OrchestratorDep = Annotated["ContainerOrchestrator", Depends(get_orchestrator)]
+
+#: Baseline service dependency for activity baseline operations.
+BaselineServiceDep = Annotated["BaselineService", Depends(get_baseline_service_dep)]
+
+#: Clip generator dependency for video clip extraction.
+ClipGeneratorDep = Annotated["ClipGenerator", Depends(get_clip_generator_dep)]
+
+#: Alert rule engine dependency for alert evaluation.
+AlertRuleEngineDep = Annotated["AlertRuleEngine", Depends(get_alert_rule_engine_dep)]
+
+#: Thumbnail generator dependency for image thumbnail creation.
+ThumbnailGeneratorDep = Annotated["ThumbnailGenerator", Depends(get_thumbnail_generator_dep)]
+
+#: Video processor dependency for video file operations.
+VideoProcessorDep = Annotated["VideoProcessor", Depends(get_video_processor_dep)]
+
+#: Nemotron analyzer dependency for LLM-based analysis.
+NemotronAnalyzerDep = Annotated["NemotronAnalyzer", Depends(get_nemotron_analyzer_dep)]
+
+#: Job tracker dependency for async job management.
+JobTrackerDep = Annotated["JobTracker", Depends(get_job_tracker_dep)]
+
+#: Export service dependency for data export operations.
+ExportServiceDep = Annotated["ExportService", Depends(get_export_service_dep)]
+
+#: Job service dependency for detailed job information.
+JobServiceDep = Annotated["JobService", Depends(get_job_service_dep)]
+
+#: Job search service dependency for job filtering and aggregation.
+JobSearchServiceDep = Annotated["JobSearchService", Depends(get_job_search_service_dep)]
+
+#: Job history service dependency for job history retrieval.
+JobHistoryServiceDep = Annotated["JobHistoryService", Depends(get_job_history_service_dep)]
+
+#: Health service registry dependency for health monitoring.
+HealthServiceRegistryDep = Annotated[
+    "HealthServiceRegistry",
+    Depends(get_health_service_registry_dep),
+]
+
+#: Health event emitter dependency for WebSocket health events.
+HealthEventEmitterDep = Annotated["HealthEventEmitter", Depends(get_health_event_emitter_dep)]
+
+#: Transcoding service dependency for video transcoding.
+TranscodingServiceDep = Annotated["TranscodingService", Depends(get_transcoding_service_dep)]
+
+# -----------------------------------------------------------------------------
+# Request Dependencies
+# -----------------------------------------------------------------------------
+
+#: FastAPI Request object dependency.
+RequestDep = Annotated[Request, Depends()]

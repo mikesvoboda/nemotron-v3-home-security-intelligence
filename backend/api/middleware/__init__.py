@@ -7,6 +7,16 @@ from .accept_header import (
     select_best_media_type,
 )
 from .auth import AuthMiddleware, authenticate_websocket, validate_websocket_api_key
+from .baggage import (
+    VALID_PRIORITIES,
+    VALID_REQUEST_SOURCES,
+    BaggageMiddleware,
+    get_batch_id_from_baggage,
+    get_camera_id_from_baggage,
+    get_event_priority_from_baggage,
+    get_request_source_from_baggage,
+    set_pipeline_baggage,
+)
 from .body_limit import BodySizeLimitMiddleware
 from .content_type_validator import ContentTypeValidationMiddleware
 from .correlation import get_correlation_headers, merge_headers_with_correlation
@@ -67,8 +77,11 @@ __all__ = [
     "DEPRECATED_CALLS_TOTAL",
     "MAGIC_SIGNATURES",
     "SUPPORTED_MEDIA_TYPES",
+    "VALID_PRIORITIES",
+    "VALID_REQUEST_SOURCES",
     "AcceptHeaderMiddleware",
     "AuthMiddleware",
+    "BaggageMiddleware",
     "BodySizeLimitMiddleware",
     "ContentTypeValidationMiddleware",
     "DeprecatedEndpoint",
@@ -93,9 +106,13 @@ __all__ = [
     "format_http_date",
     "format_request_log",
     "format_unix_timestamp",
+    "get_batch_id_from_baggage",
+    "get_camera_id_from_baggage",
     "get_client_ip",
     "get_correlation_headers",
     "get_correlation_id",
+    "get_event_priority_from_baggage",
+    "get_request_source_from_baggage",
     "load_recording",
     "merge_headers_with_correlation",
     "parse_accept_header",
@@ -106,6 +123,7 @@ __all__ = [
     "redact_request_body",
     "select_best_media_type",
     "set_correlation_id",
+    "set_pipeline_baggage",
     "validate_file_magic",
     "validate_file_magic_sync",
     "validate_upload_file",

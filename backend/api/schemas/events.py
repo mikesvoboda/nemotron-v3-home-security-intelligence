@@ -168,7 +168,9 @@ class EventResponse(BaseModel):
         description="Optimistic locking version (NEM-3625). Include in updates to prevent conflicts.",
     )
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field(  # type: ignore[prop-decorator]
+        description="Risk level (low/medium/high/critical), computed from risk_score using severity thresholds"
+    )
     @cached_property
     def risk_level(self) -> str | None:
         """Compute risk level from risk_score (NEM-3398).

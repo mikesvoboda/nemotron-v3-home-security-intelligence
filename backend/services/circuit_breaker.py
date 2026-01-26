@@ -56,6 +56,18 @@ from prometheus_client import Counter, Gauge
 
 from backend.core.exceptions import CircuitBreakerOpenError as CoreCircuitBreakerOpenError
 from backend.core.logging import get_logger
+from backend.core.otel_metrics import (
+    record_circuit_breaker_failure as otel_record_failure,
+)
+from backend.core.otel_metrics import (
+    record_circuit_breaker_rejected as otel_record_rejected,
+)
+from backend.core.otel_metrics import (
+    record_circuit_breaker_state_change as otel_record_state_change,
+)
+from backend.core.otel_metrics import (
+    record_circuit_breaker_success as otel_record_success,
+)
 from backend.core.telemetry import get_trace_context
 
 logger = get_logger(__name__)
@@ -454,12 +466,16 @@ class CircuitBreaker:
                     self._transition_to_half_open()
                 else:
                     self._rejected_calls += 1
+                    # NEM-3799: Update OpenTelemetry metrics
+                    otel_record_rejected(self._name)
                     raise CircuitBreakerError(self._name, self._state.value)
 
             # In HALF_OPEN, check if we've exceeded max trial calls
             if self._state == CircuitState.HALF_OPEN:
                 if self._half_open_calls >= self._config.half_open_max_calls:
                     self._rejected_calls += 1
+                    # NEM-3799: Update OpenTelemetry metrics
+                    otel_record_rejected(self._name)
                     raise CircuitBreakerError(self._name, self._state.value)
                 self._half_open_calls += 1
 
@@ -480,6 +496,9 @@ class CircuitBreaker:
         async with self._lock:
             # Update Prometheus metrics
             CIRCUIT_BREAKER_CALLS_TOTAL.labels(service=self._name, result="success").inc()
+
+            # NEM-3799: Update OpenTelemetry metrics
+            otel_record_success(self._name)
 
             if self._state == CircuitState.HALF_OPEN:
                 self._success_count += 1
@@ -507,6 +526,9 @@ class CircuitBreaker:
             # Update Prometheus metrics
             CIRCUIT_BREAKER_FAILURES_TOTAL.labels(service=self._name).inc()
             CIRCUIT_BREAKER_CALLS_TOTAL.labels(service=self._name, result="failure").inc()
+
+            # NEM-3799: Update OpenTelemetry metrics
+            otel_record_failure(self._name)
 
             # NEM-3147: Include trace context for distributed tracing correlation
             trace_ctx = get_trace_context()
@@ -552,6 +574,9 @@ class CircuitBreaker:
         # Increment trips counter (circuit has tripped open)
         HSI_CIRCUIT_BREAKER_TRIPS_TOTAL.labels(service=self._name).inc()
 
+        # NEM-3799: Update OpenTelemetry metrics
+        otel_record_state_change(self._name, prev_state.value, "open")
+
         # NEM-3147: Include trace context for distributed tracing correlation
         trace_ctx = get_trace_context()
         logger.warning(
@@ -582,6 +607,9 @@ class CircuitBreaker:
             from_state="open",
             to_state="half_open",
         ).inc()
+
+        # NEM-3799: Update OpenTelemetry metrics
+        otel_record_state_change(self._name, "open", "half_open")
 
         # NEM-3147: Include trace context for distributed tracing correlation
         trace_ctx = get_trace_context()
@@ -615,6 +643,9 @@ class CircuitBreaker:
             to_state="closed",
         ).inc()
 
+        # NEM-3799: Update OpenTelemetry metrics
+        otel_record_state_change(self._name, "half_open", "closed")
+
         # NEM-3147: Include trace context for distributed tracing correlation
         trace_ctx = get_trace_context()
         logger.info(
@@ -647,6 +678,8 @@ class CircuitBreaker:
                 from_state=prev_state.value,
                 to_state="closed",
             ).inc()
+            # NEM-3799: Update OpenTelemetry metrics
+            otel_record_state_change(self._name, prev_state.value, "closed")
 
         logger.info(f"CircuitBreaker '{self._name}' manually reset to CLOSED")
 
