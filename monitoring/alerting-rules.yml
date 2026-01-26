@@ -176,16 +176,22 @@ groups:
           summary: 'GPU clock speed significantly degraded'
           description: 'GPU clock speed is {{ $value }}MHz while under load (>50% utilization). Expected ~1500MHz. Possible thermal or power throttling.'
 
-      # Critical: GPU active throttling (any throttle reason)
+      # Critical: GPU active throttling (excludes idle throttle)
+      # Throttle reason bitmask values:
+      #   1 = GPU Idle (normal power-saving, not a problem)
+      #   2 = Applications Clocks Setting
+      #   4 = SW Power Cap
+      #   8 = HW Slowdown (thermal/power - serious)
+      # Alert only when throttle_reasons > 1 to exclude idle-only throttling
       - alert: AIGPUActiveThrottle
-        expr: hsi_gpu_throttle_reasons > 0
+        expr: hsi_gpu_throttle_reasons > 1
         for: 1m
         labels:
           severity: critical
           component: gpu
         annotations:
           summary: 'GPU is actively throttling'
-          description: 'GPU throttle reasons bitmask is non-zero ({{ $value }}). Check for thermal, power, or other throttling.'
+          description: 'GPU throttle reasons bitmask is {{ $value }} (excludes idle=1). Check for thermal, power, or other throttling. Common values: 4=SW Power Cap, 8=HW Slowdown.'
           runbook_url: 'https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/wiki/runbooks/gpu-throttling'
 
       # Critical: GPU PCIe replay errors (hardware issues)

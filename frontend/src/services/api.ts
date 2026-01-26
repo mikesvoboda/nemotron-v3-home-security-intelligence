@@ -179,10 +179,10 @@ import type {
   DLQRequeueResponse as GeneratedDLQRequeueResponse,
   DLQStatsResponse as GeneratedDLQStatsResponse,
   Event,
-  EventClustersResponse,
   EventEnrichmentsResponse as GeneratedEventEnrichmentsResponse,
   EventListResponse as GeneratedEventListResponse,
   EventStatsResponse as GeneratedEventStatsResponse,
+  EventClustersResponse,
   GPUStats,
   GPUStatsHistoryResponse,
   HealthResponse,
@@ -329,14 +329,6 @@ export type {
 
 // Re-export pipeline and system status types for consumers of this module
 export type { PipelineStatusResponse, QueuesStatusResponse } from '../types/generated';
-
-// Re-export event clustering types for consumers of this module (NEM-3676)
-export type {
-  EventClustersResponse,
-  EventCluster,
-  ClusterEventSummary,
-  ClusterRiskLevels,
-} from '../types/generated';
 
 // Re-export WebSocket event discovery types (NEM-3639)
 export type { EventRegistryResponse, EventTypeInfo } from '../types/generated';
@@ -2203,11 +2195,11 @@ export async function fetchEventStats(
  * Query parameters for the event clusters endpoint (NEM-3676).
  */
 export interface EventClustersQueryParams {
-  /** Start date for clustering (ISO format, required) */
+  /** Start date filter (ISO format, required) */
   start_date: string;
-  /** End date for clustering (ISO format, required) */
+  /** End date filter (ISO format, required) */
   end_date: string;
-  /** Filter by camera ID (optional) */
+  /** Camera ID filter (optional) */
   camera_id?: string;
   /** Time window in minutes for clustering events (1-60, default 5) */
   time_window_minutes?: number;
@@ -2218,11 +2210,10 @@ export interface EventClustersQueryParams {
 /**
  * Fetch event clusters grouped by temporal proximity (NEM-3676).
  *
- * Groups events that occur within a specified time window into clusters.
- * Events from the same camera within `time_window_minutes` are grouped together.
- * Events from different cameras within 2 minutes are also grouped (cross-camera clusters).
+ * Groups events that occur within a specified time window into clusters
+ * for reduced visual noise on the timeline.
  *
- * @param params - Query parameters for clustering
+ * @param params - Query parameters for filtering and clustering
  * @param options - Optional fetch options including AbortSignal for cancellation
  * @returns EventClustersResponse with clusters and unclustered event count
  */
@@ -2232,14 +2223,10 @@ export async function fetchEventClusters(
 ): Promise<EventClustersResponse> {
   const queryParams = new URLSearchParams();
 
-  // Required parameters
   queryParams.append('start_date', params.start_date);
   queryParams.append('end_date', params.end_date);
 
-  // Optional parameters
-  if (params.camera_id) {
-    queryParams.append('camera_id', params.camera_id);
-  }
+  if (params.camera_id) queryParams.append('camera_id', params.camera_id);
   if (params.time_window_minutes !== undefined) {
     queryParams.append('time_window_minutes', String(params.time_window_minutes));
   }
@@ -2253,6 +2240,8 @@ export async function fetchEventClusters(
 
 export interface EventUpdateData {
   reviewed?: boolean;
+  /** Flag or unflag event for follow-up (NEM-3839) */
+  flagged?: boolean;
   notes?: string | null;
   /** ISO timestamp until which alerts for this event are snoozed (NEM-2359) */
   snooze_until?: string | null;
@@ -3167,6 +3156,83 @@ export function getDetectionVideoThumbnailUrl(detectionId: number): string {
  */
 export function getDetectionThumbnailUrl(detectionId: number): string {
   return `${BASE_URL}/api/detections/${detectionId}/thumbnail`;
+}
+
+/**
+ * Download event media (first detection's image or video) (NEM-3839).
+ * Triggers a file download in the browser.
+ *
+ * @param eventId - The event ID to download media for
+ * @returns Promise that resolves when download is triggered
+ * @throws ApiError if the event has no media or download fails
+ */
+export async function downloadEventMedia(eventId: number): Promise<void> {
+  // First, fetch the event to get its detections
+  const event = await fetchEvent(eventId);
+
+  // Get the detection IDs - the event response includes detection_ids
+  const detectionIds = event.detection_ids ?? [];
+
+  if (detectionIds.length === 0) {
+    throw new ApiError(404, 'Event has no associated media to download');
+  }
+
+  // Use the first detection's media
+  const detectionId = detectionIds[0];
+
+  // Determine if it's a video or image by fetching detection info
+  const detectionsResponse = await fetchEventDetections(eventId, { limit: 1 });
+
+  const detection = detectionsResponse.items?.[0];
+  if (!detection) {
+    throw new ApiError(404, 'Event has no detection media available');
+  }
+
+  // Build the URL based on media type
+  const isVideo = detection.media_type === 'video';
+  const mediaUrl = isVideo
+    ? getDetectionVideoUrl(detectionId)
+    : getDetectionFullImageUrl(detectionId);
+
+  // Build headers with optional API key
+  const headers: HeadersInit = {};
+  if (API_KEY) {
+    headers['X-API-Key'] = API_KEY;
+  }
+
+  try {
+    const response = await fetch(mediaUrl, { headers });
+
+    if (!response.ok) {
+      throw new ApiError(response.status, `Failed to download media: ${response.statusText}`);
+    }
+
+    // Get filename from Content-Disposition header or generate one
+    let filename = isVideo ? `event_${eventId}_media.mp4` : `event_${eventId}_media.jpg`;
+    const contentDisposition = response.headers.get('Content-Disposition');
+    if (contentDisposition) {
+      const match = /filename[^;=\n]*=["']?([^"';\n]*)["']?/.exec(contentDisposition);
+      if (match?.[1]) {
+        filename = match[1];
+      }
+    }
+
+    // Get the blob and trigger download
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError(0, error instanceof Error ? error.message : 'Download request failed');
+  }
 }
 
 // ============================================================================
@@ -4915,6 +4981,43 @@ export async function enableService(name: string): Promise<ServiceActionResponse
     `/api/system/services/${encodeURIComponent(name)}/enable`,
     { method: 'POST' }
   );
+}
+
+/**
+ * Category summary showing health counts per category
+ */
+export interface ContainerCategorySummary {
+  total: number;
+  healthy: number;
+  unhealthy: number;
+}
+
+/**
+ * Response from GET /api/system/services
+ *
+ * Contains all managed container services with their status and category summaries.
+ */
+export interface ContainerServicesResponse {
+  services: ServiceInfo[];
+  by_category: Record<string, ContainerCategorySummary>;
+  timestamp: string;
+}
+
+/**
+ * Fetch all container services with their current status.
+ *
+ * Returns a list of all managed containers (AI services, infrastructure, monitoring)
+ * with their health status, resource usage, and restart information.
+ *
+ * @param category - Optional filter by category (infrastructure, ai, monitoring)
+ * @returns ContainerServicesResponse with all services and category summaries
+ * @throws ApiError 503 if orchestrator not available
+ */
+export async function fetchContainerServices(
+  category?: 'infrastructure' | 'ai' | 'monitoring'
+): Promise<ContainerServicesResponse> {
+  const params = category ? `?category=${encodeURIComponent(category)}` : '';
+  return fetchApi<ContainerServicesResponse>(`/api/system/services${params}`);
 }
 
 // ============================================================================

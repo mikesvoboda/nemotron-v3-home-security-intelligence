@@ -148,6 +148,7 @@ export function eventFactory(overrides: Partial<Event> = {}): Event {
     risk_level: 'medium',
     summary: 'Test event summary',
     reviewed: false,
+    flagged: false, // Whether event is flagged for follow-up (NEM-3839)
     detection_count: 1,
     notes: null,
     version: 1, // Optimistic locking version (NEM-3625)

@@ -390,7 +390,19 @@ class WebSocketManager {
         });
 
         connection.subscribers.forEach((subscriber) => {
-          subscriber.onOpen?.();
+          try {
+            subscriber.onOpen?.();
+          } catch (subscriberError) {
+            logger.error('WebSocket subscriber onOpen callback error', {
+              component: 'WebSocketManager',
+              connection_id: connection.connectionId,
+              subscriber_id: subscriber.id,
+              error:
+                subscriberError instanceof Error
+                  ? subscriberError.message
+                  : String(subscriberError),
+            });
+          }
         });
       };
 
@@ -425,7 +437,19 @@ class WebSocketManager {
 
         // Notify subscribers of close (with updated reconnect count)
         connection.subscribers.forEach((subscriber) => {
-          subscriber.onClose?.();
+          try {
+            subscriber.onClose?.();
+          } catch (subscriberError) {
+            logger.error('WebSocket subscriber onClose callback error', {
+              component: 'WebSocketManager',
+              connection_id: connection.connectionId,
+              subscriber_id: subscriber.id,
+              error:
+                subscriberError instanceof Error
+                  ? subscriberError.message
+                  : String(subscriberError),
+            });
+          }
         });
 
         // Schedule reconnection if needed
@@ -451,7 +475,19 @@ class WebSocketManager {
           });
 
           connection.subscribers.forEach((subscriber) => {
-            subscriber.onMaxRetriesExhausted?.();
+            try {
+              subscriber.onMaxRetriesExhausted?.();
+            } catch (subscriberError) {
+              logger.error('WebSocket subscriber onMaxRetriesExhausted callback error', {
+                component: 'WebSocketManager',
+                connection_id: connection.connectionId,
+                subscriber_id: subscriber.id,
+                error:
+                  subscriberError instanceof Error
+                    ? subscriberError.message
+                    : String(subscriberError),
+              });
+            }
           });
         }
       };
@@ -465,7 +501,19 @@ class WebSocketManager {
         });
 
         connection.subscribers.forEach((subscriber) => {
-          subscriber.onError?.(error);
+          try {
+            subscriber.onError?.(error);
+          } catch (subscriberError) {
+            logger.error('WebSocket subscriber onError callback error', {
+              component: 'WebSocketManager',
+              connection_id: connection.connectionId,
+              subscriber_id: subscriber.id,
+              error:
+                subscriberError instanceof Error
+                  ? subscriberError.message
+                  : String(subscriberError),
+            });
+          }
         });
       };
 
@@ -550,7 +598,19 @@ class WebSocketManager {
               }
 
               connection.subscribers.forEach((subscriber) => {
-                subscriber.onHeartbeat?.();
+                try {
+                  subscriber.onHeartbeat?.();
+                } catch (subscriberError) {
+                  logger.error('WebSocket subscriber onHeartbeat callback error', {
+                    component: 'WebSocketManager',
+                    connection_id: connection.connectionId,
+                    subscriber_id: subscriber.id,
+                    error:
+                      subscriberError instanceof Error
+                        ? subscriberError.message
+                        : String(subscriberError),
+                  });
+                }
               });
 
               return;
@@ -602,7 +662,20 @@ class WebSocketManager {
             });
 
             connection.subscribers.forEach((subscriber) => {
-              subscriber.onMessage?.(data);
+              try {
+                subscriber.onMessage?.(data);
+              } catch (subscriberError) {
+                // Prevent one subscriber's error from affecting others
+                logger.error('WebSocket subscriber callback error', {
+                  component: 'WebSocketManager',
+                  connection_id: connection.connectionId,
+                  subscriber_id: subscriber.id,
+                  error:
+                    subscriberError instanceof Error
+                      ? subscriberError.message
+                      : String(subscriberError),
+                });
+              }
             });
           } catch (error) {
             logger.debug('WebSocket message received (non-JSON or decompression error)', {
@@ -612,13 +685,35 @@ class WebSocketManager {
             });
 
             connection.subscribers.forEach((subscriber) => {
-              subscriber.onMessage?.(event.data as unknown);
+              try {
+                subscriber.onMessage?.(event.data as unknown);
+              } catch (subscriberError) {
+                // Prevent one subscriber's error from affecting others
+                logger.error('WebSocket subscriber callback error', {
+                  component: 'WebSocketManager',
+                  connection_id: connection.connectionId,
+                  subscriber_id: subscriber.id,
+                  error:
+                    subscriberError instanceof Error
+                      ? subscriberError.message
+                      : String(subscriberError),
+                });
+              }
             });
           }
         };
 
-        // Execute async processing
-        void processMessage();
+        // Execute async processing with proper error handling
+        // The .catch() ensures any unhandled rejections are logged instead of
+        // becoming unhandled promise rejections (NEM-3xxx WebSocket error fix)
+        processMessage().catch((error: unknown) => {
+          logger.error('WebSocket message processing failed', {
+            component: 'WebSocketManager',
+            connection_id: connection.connectionId,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+          });
+        });
       };
     } catch (error) {
       logger.error('WebSocket connection error', {

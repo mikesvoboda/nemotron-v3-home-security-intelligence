@@ -187,6 +187,7 @@ const mockEvent: Event = {
   risk_level: 'high',
   summary: 'Suspicious activity detected',
   reviewed: false,
+  flagged: false, // NEM-3839
   notes: null,
   detection_count: 5,
   version: 1, // Optimistic locking version (NEM-3625)

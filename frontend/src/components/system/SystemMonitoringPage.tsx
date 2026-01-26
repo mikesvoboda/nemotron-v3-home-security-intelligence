@@ -11,9 +11,13 @@ import {
   Terminal,
   Database,
   Wrench,
+  Server,
 } from 'lucide-react';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 
+import { useRedisDebugInfoQuery } from '../../hooks/useDebugQueries';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
 import { useSystemPageSections } from '../../hooks/useSystemPageSections';
 import {
   fetchTelemetry,
@@ -36,10 +40,13 @@ import {
 } from '../developer-tools';
 import CircuitBreakerPanel from './CircuitBreakerPanel';
 import CollapsibleSection from './CollapsibleSection';
+import DatabasesPanel from './DatabasesPanel';
 import DebugModeToggle from './DebugModeToggle';
 import FileOperationsPanel from './FileOperationsPanel';
 import PipelineFlowVisualization from './PipelineFlowVisualization';
+import ServicesPanel from './ServicesPanel';
 
+import type { DatabaseMetrics, RedisMetrics, DatabaseHistoryData } from './DatabasesPanel';
 import type {
   PipelineStageData,
   BackgroundWorkerStatus,
@@ -61,6 +68,20 @@ export default function SystemMonitoringPage() {
   // Section state management with localStorage persistence
   const { sectionStates, toggleSection } = useSystemPageSections();
 
+  // Debug mode state from localStorage
+  const [debugMode] = useLocalStorage('system-debug-mode', false);
+
+  // Performance metrics from WebSocket (includes database metrics)
+  const { current: performanceData, history: performanceHistory, timeRange } = usePerformanceMetrics();
+
+  // Redis debug info query (only enabled when debugMode is active)
+  const {
+    redisInfo: redisDebugInfo,
+    pubsubInfo,
+    isLoading: redisDebugLoading,
+    error: redisDebugError,
+  } = useRedisDebugInfoQuery({ enabled: debugMode });
+
   // State for Grafana URL
   const [grafanaUrl, setGrafanaUrl] = useState<string>('http://localhost:3002');
 
@@ -81,6 +102,54 @@ export default function SystemMonitoringPage() {
   const prevTelemetryRef = useRef<TelemetryResponse | null>(null);
   const prevTimestampRef = useRef<number | null>(null);
   const [throughputPerMin, setThroughputPerMin] = useState<number>(0);
+
+  // Derive database metrics from performance data
+  const postgresqlMetrics: DatabaseMetrics | null = useMemo(() => {
+    const postgres = performanceData?.databases?.postgresql;
+    if (!postgres) return null;
+    return postgres as DatabaseMetrics;
+  }, [performanceData]);
+
+  const redisMetrics: RedisMetrics | null = useMemo(() => {
+    const redis = performanceData?.databases?.redis;
+    if (!redis) return null;
+    return redis as RedisMetrics;
+  }, [performanceData]);
+
+  // Build history data for database charts from performance history
+  const databaseHistory: DatabaseHistoryData = useMemo(() => {
+    const historyData = performanceHistory[timeRange] || [];
+    return {
+      postgresql: {
+        connections: historyData
+          .filter((d) => d.databases?.postgresql)
+          .map((d) => ({
+            timestamp: d.timestamp,
+            value: (d.databases.postgresql as DatabaseMetrics)?.connections_active ?? 0,
+          })),
+        cache_hit_ratio: historyData
+          .filter((d) => d.databases?.postgresql)
+          .map((d) => ({
+            timestamp: d.timestamp,
+            value: (d.databases.postgresql as DatabaseMetrics)?.cache_hit_ratio ?? 0,
+          })),
+      },
+      redis: {
+        memory: historyData
+          .filter((d) => d.databases?.redis)
+          .map((d) => ({
+            timestamp: d.timestamp,
+            value: (d.databases.redis as RedisMetrics)?.memory_mb ?? 0,
+          })),
+        clients: historyData
+          .filter((d) => d.databases?.redis)
+          .map((d) => ({
+            timestamp: d.timestamp,
+            value: (d.databases.redis as RedisMetrics)?.connected_clients ?? 0,
+          })),
+      },
+    };
+  }, [performanceHistory, timeRange]);
 
   // Fetch Grafana URL from config API
   useEffect(() => {
@@ -425,6 +494,46 @@ export default function SystemMonitoringPage() {
               <FileOperationsPanel
                 pollingInterval={30000}
                 data-testid="file-operations-panel-section"
+              />
+            </CollapsibleSection>
+          </div>
+
+          {/* Services Panel */}
+          <div id="section-services">
+            <CollapsibleSection
+              title="Services"
+              icon={<Server className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates['services']}
+              onToggle={() => toggleSection('services')}
+              data-testid="services-section"
+            >
+              <ServicesPanel
+                pollingInterval={30000}
+                data-testid="services-panel-section"
+              />
+            </CollapsibleSection>
+          </div>
+
+          {/* Databases Panel */}
+          <div id="section-databases">
+            <CollapsibleSection
+              title="Databases"
+              icon={<Database className="h-5 w-5 text-[#76B900]" />}
+              isOpen={sectionStates['databases']}
+              onToggle={() => toggleSection('databases')}
+              data-testid="databases-section"
+            >
+              <DatabasesPanel
+                postgresql={postgresqlMetrics}
+                redis={redisMetrics}
+                timeRange={timeRange}
+                history={databaseHistory}
+                debugMode={debugMode}
+                redisDebugInfo={redisDebugInfo}
+                pubsubInfo={pubsubInfo}
+                redisDebugLoading={redisDebugLoading}
+                redisDebugError={redisDebugError?.message ?? null}
+                data-testid="databases-panel-section"
               />
             </CollapsibleSection>
           </div>

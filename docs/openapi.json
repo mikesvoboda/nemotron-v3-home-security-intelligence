@@ -10190,6 +10190,12 @@
             "title": "Entities",
             "type": "array"
           },
+          "flagged": {
+            "default": false,
+            "description": "Whether event is flagged for follow-up (NEM-3839)",
+            "title": "Flagged",
+            "type": "boolean"
+          },
           "flags": {
             "description": "Risk flags raised during analysis",
             "items": {
@@ -10535,6 +10541,18 @@
           "version": 1
         },
         "properties": {
+          "flagged": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Flag or unflag event for follow-up (NEM-3839)",
+            "title": "Flagged"
+          },
           "notes": {
             "anyOf": [
               {

@@ -74,6 +74,7 @@ describe('AlertsPage', () => {
       risk_level: 'high',
       summary: 'Person detected near entrance',
       reviewed: false,
+      flagged: false, // NEM-3839
       detection_count: 5,
       notes: null,
       version: 1,
@@ -90,6 +91,7 @@ describe('AlertsPage', () => {
       risk_level: 'critical',
       summary: 'Unknown person at door',
       reviewed: false,
+      flagged: false, // NEM-3839
       detection_count: 8,
       notes: null,
       version: 1,
@@ -144,6 +146,7 @@ describe('AlertsPage', () => {
       risk_level: 'high',
       summary: 'Updated event',
       reviewed: true,
+      flagged: false, // NEM-3839
       detection_count: 0,
       notes: null,
       version: 2,
@@ -430,6 +433,7 @@ describe('AlertsPage', () => {
         risk_level: 'high',
         summary: `High risk event ${i + 1}`,
         reviewed: false,
+        flagged: false, // NEM-3839
         detection_count: 1,
         notes: null,
         version: 1,
@@ -444,6 +448,7 @@ describe('AlertsPage', () => {
         risk_level: 'critical',
         summary: `Critical event ${i + 1}`,
         reviewed: false,
+        flagged: false, // NEM-3839
         detection_count: 1,
         notes: null,
         version: 1,
@@ -1215,6 +1220,7 @@ describe('AlertsPage', () => {
           risk_level: 'critical',
           summary: 'Critical alert 1',
           reviewed: false,
+          flagged: false, // NEM-3839
           detection_count: 5,
           notes: null,
           version: 1,
@@ -1228,6 +1234,7 @@ describe('AlertsPage', () => {
           risk_level: 'high',
           summary: 'High alert 1',
           reviewed: false,
+          flagged: false, // NEM-3839
           detection_count: 3,
           notes: null,
           version: 1,
@@ -1241,6 +1248,7 @@ describe('AlertsPage', () => {
           risk_level: 'high',
           summary: 'High alert 2',
           reviewed: false,
+          flagged: false, // NEM-3839
           detection_count: 2,
           notes: null,
           version: 1,

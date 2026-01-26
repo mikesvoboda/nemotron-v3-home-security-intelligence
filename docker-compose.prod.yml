@@ -1101,7 +1101,7 @@ services:
           memory: 512M
 
   # Pyroscope for continuous profiling (NEM-3097)
-  # Custom image with py-spy for Python process profiling
+  # Custom image with busybox/wget for health checks (the official image is scratch-based)
   # Services push profiles via py-spy when PYROSCOPE_ENABLED=true
   # NEM-3514: Upgraded from 1.4.0 to 1.18.0 to fix "unknown profile type: seconds" error.
   # Fix: https://github.com/grafana/pyroscope/pull/4568 (released in v1.9.2+)
@@ -1111,7 +1111,9 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    image: docker.io/grafana/pyroscope:1.18.0
+    build:
+      context: ./monitoring/pyroscope
+      dockerfile: Dockerfile
     container_name: pyroscope
     volumes:
       - ./monitoring/pyroscope/pyroscope-config.yml:/etc/pyroscope/config.yml:ro,z

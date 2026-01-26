@@ -24,6 +24,7 @@ function createMockEvent(overrides: Partial<Event> = {}): Event {
     summary: 'Test event',
     thumbnail_url: 'https://example.com/thumb.jpg',
     reviewed: false,
+    flagged: false, // NEM-3839
     detection_count: 1,
     notes: null,
     version: 1, // Optimistic locking version (NEM-3625)
