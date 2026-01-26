@@ -38,6 +38,7 @@ from backend.api.middleware import (
 )
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import (
+    action_events,
     admin,
     ai_audit,
     alertmanager,
@@ -53,6 +54,7 @@ from backend.api.routes import (
     entities,
     events,
     exports,
+    face_recognition,
     feedback,
     gpu_config,
     health_ai_services,
@@ -66,6 +68,7 @@ from backend.api.routes import (
     notification,
     notification_preferences,
     outbound_webhooks,
+    plate_reads,
     prompt_management,
     queues,
     rum,
@@ -1161,6 +1164,7 @@ if get_settings().idempotency_enabled:
 register_exception_handlers(app)
 
 # Register routers
+app.include_router(action_events.router)
 app.include_router(admin.router)
 app.include_router(ai_audit.router)
 app.include_router(alertmanager.router)
@@ -1177,6 +1181,7 @@ app.include_router(dlq.router)
 app.include_router(entities.router)
 app.include_router(events.router)
 app.include_router(exports.router)
+app.include_router(face_recognition.router)
 app.include_router(feedback.router)
 app.include_router(gpu_config.router)
 app.include_router(health_ai_services.router)
@@ -1192,6 +1197,7 @@ app.include_router(metrics.router)
 app.include_router(notification.router)
 app.include_router(notification_preferences.router)
 app.include_router(outbound_webhooks.router)
+app.include_router(plate_reads.router)
 app.include_router(prompt_management.router)
 app.include_router(queues.router)
 app.include_router(rum.router)

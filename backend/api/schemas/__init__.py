@@ -1,5 +1,14 @@
 """API schemas for request/response validation."""
 
+from .action_event import (
+    ActionAnalyzeRequest,
+    ActionAnalyzeResponse,
+    ActionEventBase,
+    ActionEventCreate,
+    ActionEventListResponse,
+    ActionEventResponse,
+    SuspiciousActionsResponse,
+)
 from .ai_audit import (
     EnrichedSuggestion,
     ExampleImprovement,
@@ -173,6 +182,20 @@ from .export import (
     ExportJobUpdate,
     ExportTypeEnum,
 )
+from .face_recognition import (
+    FaceDetectionEventListResponse,
+    FaceDetectionEventResponse,
+    FaceEmbeddingCreate,
+    FaceEmbeddingResponse,
+    FaceMatchRequest,
+    FaceMatchResponse,
+    KnownPersonCreate,
+    KnownPersonListResponse,
+    KnownPersonResponse,
+    KnownPersonUpdate,
+    UnknownStrangerAlert,
+    UnknownStrangerListResponse,
+)
 from .feedback import (
     ActualThreatLevel,
     EventFeedbackCreate,
@@ -241,6 +264,16 @@ from .openapi_customization import (
 from .pagination import (
     PaginatedResponse,
     create_paginated_response,
+)
+from .plate_read import (
+    BoundingBox,
+    PlateReadBase,
+    PlateReadCreate,
+    PlateReadListResponse,
+    PlateReadResponse,
+    PlateRecognizeRequest,
+    PlateRecognizeResponse,
+    PlateStatisticsResponse,
 )
 from .problem_details import (
     HTTP_STATUS_PHRASES,
@@ -335,6 +368,14 @@ __all__ = [  # noqa: RUF022
     "COMMON_ERROR_RESPONSES",
     "EVENT_REGISTRY",
     "HTTP_STATUS_PHRASES",
+    # Action event schemas (NEM-3714)
+    "ActionAnalyzeRequest",
+    "ActionAnalyzeResponse",
+    "ActionEventBase",
+    "ActionEventCreate",
+    "ActionEventListResponse",
+    "ActionEventResponse",
+    "SuspiciousActionsResponse",
     # AI Services Health schemas (NEM-3143)
     "AIServiceCircuitState",
     "AIServiceHealthDetail",
@@ -474,7 +515,14 @@ __all__ = [  # noqa: RUF022
     "ExportJobStatusEnum",
     "ExportJobUpdate",
     "ExportTypeEnum",
+    # Face recognition schemas (NEM-3716, NEM-3717)
+    "FaceDetectionEventListResponse",
+    "FaceDetectionEventResponse",
+    "FaceEmbeddingCreate",
+    "FaceEmbeddingResponse",
     "FaceEnrichment",
+    "FaceMatchRequest",
+    "FaceMatchResponse",
     "FeedbackStatsResponse",
     "FeedbackType",
     "FieldSelectionParams",
@@ -496,6 +544,10 @@ __all__ = [  # noqa: RUF022
     "HealthReadinessResponse",
     "HourlyPattern",
     "ImageQualityEnrichment",
+    "KnownPersonCreate",
+    "KnownPersonListResponse",
+    "KnownPersonResponse",
+    "KnownPersonUpdate",
     "LLMRawResponse",
     "LLMRiskLevel",
     "LLMRiskResponse",
@@ -515,6 +567,15 @@ __all__ = [  # noqa: RUF022
     "PersonEnrichmentData",
     "PetEnrichment",
     "PetEnrichmentData",
+    # Plate read schemas (ALPR - NEM-3718)
+    "BoundingBox",
+    "PlateReadBase",
+    "PlateReadCreate",
+    "PlateReadListResponse",
+    "PlateReadResponse",
+    "PlateRecognizeRequest",
+    "PlateRecognizeResponse",
+    "PlateStatisticsResponse",
     "PoseEnrichment",
     "ProblemDetail",
     "QueueDepthInfo",
@@ -547,6 +608,8 @@ __all__ = [  # noqa: RUF022
     "TrajectoryPoint",
     "TrustCheckResponse",
     "TrustLevelResult",
+    "UnknownStrangerAlert",
+    "UnknownStrangerListResponse",
     "ValidationErrorDetail",
     "ValidationErrorResponse",
     "VehicleEnrichment",

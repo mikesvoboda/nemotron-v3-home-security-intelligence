@@ -14,6 +14,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .camera import Base
 
 if TYPE_CHECKING:
+    from .action_event import ActionEvent
     from .camera import Camera
 
 
@@ -62,6 +63,9 @@ class Track(Base):
 
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="tracks")
+    action_events: Mapped[list[ActionEvent]] = relationship(
+        "ActionEvent", back_populates="track", cascade="all, delete-orphan"
+    )
 
     # Indexes for efficient querying
     __table_args__ = (

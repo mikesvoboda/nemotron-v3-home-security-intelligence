@@ -10,6 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from .enums import CameraStatus
 
 if TYPE_CHECKING:
+    from .action_event import ActionEvent
     from .analytics_zone import LineZone, PolygonZone
     from .area import Area
     from .baseline import ActivityBaseline, ClassBaseline
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from .detection import Detection
     from .dwell_time import DwellTimeRecord
     from .event import Event
+    from .plate_read import PlateRead
     from .property import Property
     from .scene_change import SceneChange
     from .track import Track
@@ -152,6 +154,12 @@ class Camera(Base):
     )
     dwell_time_records: Mapped[list[DwellTimeRecord]] = relationship(
         "DwellTimeRecord", back_populates="camera", cascade="all, delete-orphan"
+    )
+    action_events: Mapped[list[ActionEvent]] = relationship(
+        "ActionEvent", back_populates="camera", cascade="all, delete-orphan"
+    )
+    plate_reads: Mapped[list[PlateRead]] = relationship(
+        "PlateRead", back_populates="camera", cascade="all, delete-orphan"
     )
 
     @property

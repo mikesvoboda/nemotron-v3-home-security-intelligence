@@ -46,6 +46,7 @@ dependencies = [
     "huggingface-hub>=0.36.0",
     "transformers>=4.57.3",
     "torchreid>=0.2.5",
+    "insightface>=0.7.3",  # Face detection and recognition with ArcFace (NEM-3716)
     "gdown>=5.2.0",
     "piq>=0.8.0",  # BRISQUE image quality - lightweight, only needs torchvision
     "open_clip_torch>=2.29.0",
@@ -139,6 +140,12 @@ nemo = [
 quantization = [
     "bitsandbytes>=0.44.0",
 ]
+# ALPR (Automatic License Plate Recognition) support (NEM-3718)
+# NOTE: PaddleOCR/PaddlePaddle doesn't support Python 3.14 yet.
+# The PlateOCR class in ai/enrichment/models/plate_ocr.py uses lazy imports
+# and will work when PaddlePaddle adds Python 3.14 support.
+# For now, ALPR functionality requires running in a Python 3.13 environment.
+# See: https://github.com/PaddlePaddle/Paddle/issues (Python 3.14 support)
 # Documentation validation tools
 # Usage: `uv sync --extra docs` or `uv sync --group docs`
 docs = [
