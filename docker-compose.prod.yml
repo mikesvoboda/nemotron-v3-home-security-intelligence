@@ -10,25 +10,6 @@
 # GPU Requirements:
 #   - NVIDIA GPU with CUDA support required for AI services
 #   - nvidia-container-toolkit must be installed
-#   - For multi-GPU systems, GPUs are assigned based on compute capability and memory
-#   - Set NVIDIA_VISIBLE_DEVICES or use device ordering for consistent assignment across restarts
-#
-# GPU Device Ordering (Optional - for consistent multi-GPU assignment):
-#   - RT-DETRv2 (8090): GPU 0 (primary detector)
-#   - YOLO26 (8095): GPU 0 (alternative detector, use one or the other)
-#   - Nemotron (8091): GPU 1 (LLM, requires 24GB+ VRAM)
-#   - Enrichment (8094): GPU 0 or GPU 1 (multi-model service)
-#   - Florence (8092): GPU 0 or GPU 1 (vision-language model)
-#   - CLIP (8093): GPU 0 or GPU 1 (embeddings)
-#
-# For consistent device assignment across restarts, set in your environment:
-#   export NVIDIA_VISIBLE_DEVICES=GPU-<uuid-0>,GPU-<uuid-1>
-#   export CUDA_DEVICE_ORDER=PCI_BUS_ID
-#
-# Or modify the environment in the compose file by adding:
-#   environment:
-#     - NVIDIA_VISIBLE_DEVICES=<gpu-devices>
-#     - CUDA_DEVICE_ORDER=PCI_BUS_ID
 #
 # Credential Management (Choose One Approach):
 #
@@ -159,10 +140,6 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
-      # GPU device ordering for consistent assignment across restarts
-      # Uses PCI_BUS_ID ordering for stable device assignment
-      - CUDA_DEVICE_ORDER=PCI_BUS_ID
-      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test:
         [
@@ -205,10 +182,6 @@ services:
       - PYROSCOPE_URL=http://pyroscope:4040
       - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
       - YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
-      # GPU device ordering for consistent assignment across restarts
-      # Uses PCI_BUS_ID ordering for stable device assignment
-      - CUDA_DEVICE_ORDER=PCI_BUS_ID
-      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test:
         [
@@ -250,11 +223,6 @@ services:
       - GPU_LAYERS=${GPU_LAYERS:-35}
       # Reduced context for home security analysis (was 131072, saves ~8GB VRAM)
       - CTX_SIZE=${CTX_SIZE:-32768}
-      # GPU device ordering for consistent assignment across restarts
-      # Uses PCI_BUS_ID ordering for stable device assignment
-      # Nemotron typically uses GPU 1 on multi-GPU systems
-      - CUDA_DEVICE_ORDER=PCI_BUS_ID
-      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
       interval: 10s
@@ -299,10 +267,6 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
-      # GPU device ordering for consistent assignment across restarts
-      # Uses PCI_BUS_ID ordering for stable device assignment
-      - CUDA_DEVICE_ORDER=PCI_BUS_ID
-      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
       interval: 10s
@@ -335,10 +299,10 @@ services:
     ports:
       - '8093:8093'
     volumes:
-      # Writable mount to allow TensorRT engine auto-export on first startup
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l
-      # Persistent HuggingFace cache volume (NEM-3812)
-      - hf_cache:/cache/huggingface:U
+      # Read-only model mount (HuggingFace CLIP weights)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
+      # Writable mount for TensorRT engine cache (persists between restarts)
+      - clip-tensorrt-cache:/cache/tensorrt
     environment:
       - SERVICE_NAME=ai-clip
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
@@ -346,15 +310,7 @@ services:
       - CLIP_MODEL_PATH=/models/clip-vit-l
       # TensorRT acceleration (1.5-2x faster inference, auto-exports engine on first run)
       - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
-      - CLIP_ENGINE_PATH=/models/clip-vit-l/vision_encoder_fp16.engine
-      # HuggingFace cache configuration (NEM-3812)
-      - HF_HOME=/cache/huggingface
-      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
-      - HF_HUB_DISABLE_TELEMETRY=1
-      # GPU device ordering for consistent assignment across restarts
-      # Uses PCI_BUS_ID ordering for stable device assignment
-      - CUDA_DEVICE_ORDER=PCI_BUS_ID
-      - CUDA_VISIBLE_DEVICES=0
+      - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
       interval: 10s
@@ -426,10 +382,6 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
-      # GPU device ordering for consistent assignment across restarts
-      # Uses PCI_BUS_ID ordering for stable device assignment
-      - CUDA_DEVICE_ORDER=PCI_BUS_ID
-      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
       interval: 10s
@@ -441,82 +393,6 @@ services:
       - security-net
     deploy:
       resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
-  # =============================================================================
-  # NVIDIA Triton Inference Server (NEM-3769) - Optional
-  # =============================================================================
-  # Triton provides production-grade model serving with:
-  # - Automatic dynamic batching for improved GPU utilization
-  # - Model versioning and A/B testing
-  # - Multi-model serving on single server
-  # - Native Prometheus metrics
-  #
-  # Enable by setting TRITON_ENABLED=true in .env
-  # When enabled, configure backend to use Triton:
-  #   - TRITON_URL=triton:8001
-  #   - DETECTOR_TYPE=triton
-  #
-  # Model Repository Setup:
-  #   1. Convert models to TensorRT format
-  #   2. Place engines in ai/triton/model_repository/<model>/1/model.plan
-  #   3. Restart Triton service
-  #
-  # See ai/triton/AGENTS.md for detailed setup instructions.
-  triton:
-    image: nvcr.io/nvidia/tritonserver:24.01-py3
-    # Only start if TRITON_ENABLED is true
-    profiles:
-      - triton
-    ports:
-      - '${TRITON_HTTP_PORT:-8096}:8000' # HTTP inference endpoint
-      - '${TRITON_GRPC_PORT:-8097}:8001' # gRPC inference endpoint (preferred)
-      - '${TRITON_METRICS_PORT:-8098}:8002' # Prometheus metrics
-    volumes:
-      # Model repository with TensorRT engines
-      - ./ai/triton/model_repository:/models:ro
-      # HuggingFace cache for model downloads (if using ensemble models)
-      - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface:ro
-    environment:
-      # GPU device ordering for consistent assignment
-      - CUDA_DEVICE_ORDER=PCI_BUS_ID
-      - CUDA_VISIBLE_DEVICES=${TRITON_CUDA_VISIBLE_DEVICES:-0}
-      # HuggingFace cache location
-      - HF_HOME=/cache/huggingface
-      - TRANSFORMERS_CACHE=/cache/huggingface
-    command:
-      - tritonserver
-      - --model-repository=/models
-      # Strict model config disabled - auto-complete model configurations
-      - --strict-model-config=false
-      # Enable explicit model control for selective loading
-      - --model-control-mode=explicit
-      # Load specific models at startup
-      - --load-model=rtdetr
-      - --load-model=yolo26
-      # Enable GPU metrics for monitoring
-      - --metrics-interval-ms=1000
-      # Log verbosity (0=minimal, 1=standard, 2=verbose)
-      - --log-verbose=1
-      # Allow gRPC to accept max 256MB messages (for batch inference)
-      - --grpc-infer-allocation-pool-size=16
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8000/v2/health/ready']
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
-    restart: unless-stopped
-    networks:
-      - security-net
-    deploy:
-      resources:
-        limits:
-          memory: 16G
         reservations:
           devices:
             - driver: nvidia
@@ -561,14 +437,6 @@ services:
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
       - YOLO26_URL=http://ai-yolo26:8095
-      # Triton Inference Server (NEM-3769) - optional, requires profile 'triton'
-      - TRITON_ENABLED=${TRITON_ENABLED:-false}
-      - TRITON_URL=triton:8001
-      - TRITON_HTTP_URL=triton:8000
-      - TRITON_PROTOCOL=${TRITON_PROTOCOL:-grpc}
-      - TRITON_TIMEOUT=${TRITON_TIMEOUT:-60}
-      - TRITON_MODEL=${TRITON_MODEL:-yolo26}
-      # YOLO26 is 5.3x faster than RT-DETRv2 with TensorRT
       - DETECTOR_TYPE=${DETECTOR_TYPE:-yolo26}
       - FRONTEND_URL=http://frontend:${FRONTEND_INTERNAL_PORT:-8080}
       # Always use /cameras (container mount point) regardless of host env var
@@ -1332,6 +1200,8 @@ volumes:
   grafana_data:
     driver: local
   alertmanager_data:
+    driver: local
+  clip-tensorrt-cache:
     driver: local
   loki_data:
     driver: local
