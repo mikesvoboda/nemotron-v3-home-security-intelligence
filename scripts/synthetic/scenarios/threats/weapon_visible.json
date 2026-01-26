@@ -39,9 +39,7 @@
   ],
 
   "expected_outputs": {
-    "detections": [
-      { "class": "person", "min_confidence": 0.75, "count": 1 }
-    ],
+    "detections": [{ "class": "person", "min_confidence": 0.75, "count": 1 }],
     "face": {
       "detected": true,
       "count": 1,
@@ -245,9 +243,7 @@
         }
       ],
       "expected_output_overrides": {
-        "detections": [
-          { "class": "person", "min_confidence": 0.70, "count": 2 }
-        ],
+        "detections": [{ "class": "person", "min_confidence": 0.7, "count": 2 }],
         "threats": {
           "has_threat": true,
           "types": ["firearm", "multiple_armed_individuals"],

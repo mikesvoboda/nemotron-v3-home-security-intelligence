@@ -6,10 +6,7 @@
   "scene": {
     "location": "front_door",
     "camera_type": "doorbell",
-    "camera_effects": [
-      "fisheye_distortion",
-      "motion_blur"
-    ],
+    "camera_effects": ["fisheye_distortion", "motion_blur"],
     "timestamp_overlay": true,
     "resolution": "1080p"
   },
@@ -52,12 +49,7 @@
     "pose": {
       "posture": "aggressive_stance",
       "is_suspicious": true,
-      "keypoints_visible": [
-        "left_shoulder",
-        "right_shoulder",
-        "left_elbow",
-        "right_elbow"
-      ]
+      "keypoints_visible": ["left_shoulder", "right_shoulder", "left_elbow", "right_elbow"]
     },
     "action": {
       "action": "forcing_entry",
@@ -70,10 +62,7 @@
     },
     "threats": {
       "has_threat": true,
-      "types": [
-        "break_in",
-        "burglary_tool"
-      ],
+      "types": ["break_in", "burglary_tool"],
       "max_severity": "critical"
     },
     "violence": {
@@ -93,15 +82,8 @@
       ]
     },
     "florence_caption": {
-      "must_contain": [
-        "person",
-        "door"
-      ],
-      "must_not_contain": [
-        "delivery",
-        "resident",
-        "welcome"
-      ]
+      "must_contain": ["person", "door"],
+      "must_not_contain": ["delivery", "resident", "welcome"]
     }
   },
   "generation": {
@@ -128,14 +110,8 @@
       ],
       "expected_output_overrides": {
         "florence_caption": {
-          "must_contain": [
-            "person",
-            "window"
-          ],
-          "must_not_contain": [
-            "delivery",
-            "maintenance"
-          ]
+          "must_contain": ["person", "window"],
+          "must_not_contain": ["delivery", "maintenance"]
         }
       }
     },
@@ -180,10 +156,7 @@
       "expected_output_overrides": {
         "threats": {
           "has_threat": true,
-          "types": [
-            "break_in",
-            "active_intrusion"
-          ],
+          "types": ["break_in", "active_intrusion"],
           "max_severity": "critical"
         },
         "risk": {
@@ -218,11 +191,7 @@
           "min_score": 80,
           "max_score": 95,
           "level": "critical",
-          "expected_factors": [
-            "attempted_break_in",
-            "fleeing_scene",
-            "nighttime"
-          ]
+          "expected_factors": ["attempted_break_in", "fleeing_scene", "nighttime"]
         }
       }
     },

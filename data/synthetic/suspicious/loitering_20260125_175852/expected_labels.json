@@ -36,20 +36,11 @@
     "min_score": 55,
     "max_score": 85,
     "level": "medium",
-    "expected_factors": [
-      "loitering",
-      "nighttime",
-      "obscured_face"
-    ]
+    "expected_factors": ["loitering", "nighttime", "obscured_face"]
   },
   "florence_caption": {
-    "must_contain": [
-      "person"
-    ],
-    "must_not_contain": [
-      "delivery",
-      "resident"
-    ]
+    "must_contain": ["person"],
+    "must_not_contain": ["delivery", "resident"]
   },
   "weather": {
     "condition": "rain",

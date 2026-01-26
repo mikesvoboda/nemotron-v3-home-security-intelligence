@@ -36,9 +36,7 @@
   ],
 
   "expected_outputs": {
-    "detections": [
-      { "class": "person", "min_confidence": 0.75, "count": 1 }
-    ],
+    "detections": [{ "class": "person", "min_confidence": 0.75, "count": 1 }],
     "face": {
       "detected": false,
       "count": 0,

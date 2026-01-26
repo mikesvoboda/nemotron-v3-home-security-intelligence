@@ -12,9 +12,7 @@
     "visible": true
   },
   "ocr": {
-    "expected_text": [
-      "AMAZON"
-    ],
+    "expected_text": ["AMAZON"],
     "min_confidence": 0.6
   },
   "pose": {
@@ -37,14 +35,7 @@
     "expected_factors": []
   },
   "florence_caption": {
-    "must_contain": [
-      "person",
-      "package"
-    ],
-    "must_not_contain": [
-      "suspicious",
-      "threat",
-      "stealing"
-    ]
+    "must_contain": ["person", "package"],
+    "must_not_contain": ["suspicious", "threat", "stealing"]
   }
 }

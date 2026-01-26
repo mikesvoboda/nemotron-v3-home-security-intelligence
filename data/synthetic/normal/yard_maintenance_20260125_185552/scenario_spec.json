@@ -25,9 +25,7 @@
         "uniform_company": "lawn_service",
         "face_visible": true,
         "carrying_items": true,
-        "items": [
-          "lawn_mower"
-        ]
+        "items": ["lawn_mower"]
       },
       "action": "mowing_lawn",
       "position": "in_yard",
@@ -42,9 +40,7 @@
         "uniform_company": "lawn_service",
         "face_visible": true,
         "carrying_items": true,
-        "items": [
-          "leaf_blower"
-        ]
+        "items": ["leaf_blower"]
       },
       "action": "blowing_leaves",
       "position": "in_yard",
@@ -58,9 +54,7 @@
         "uniform_company": "lawn_service",
         "face_visible": true,
         "carrying_items": true,
-        "items": [
-          "rake"
-        ]
+        "items": ["rake"]
       },
       "action": "raking",
       "position": "in_yard",
@@ -100,15 +94,8 @@
       "expected_factors": []
     },
     "florence_caption": {
-      "must_contain": [
-        "person"
-      ],
-      "must_not_contain": [
-        "suspicious",
-        "threat",
-        "stealing",
-        "breaking"
-      ]
+      "must_contain": ["person"],
+      "must_not_contain": ["suspicious", "threat", "stealing", "breaking"]
     }
   },
   "generation": {
@@ -128,9 +115,7 @@
             "uniform_company": "landscaping_company",
             "face_visible": true,
             "carrying_items": true,
-            "items": [
-              "hedge_trimmer"
-            ]
+            "items": ["hedge_trimmer"]
           },
           "action": "trimming_hedges",
           "behavior_notes": "Trimming bushes and hedges along property line"
@@ -155,9 +140,7 @@
             "uniform_company": "lawn_service",
             "face_visible": true,
             "carrying_items": true,
-            "items": [
-              "leaf_blower"
-            ]
+            "items": ["leaf_blower"]
           },
           "action": "blowing_leaves",
           "position": "in_yard",
@@ -171,9 +154,7 @@
             "uniform_company": "lawn_service",
             "face_visible": true,
             "carrying_items": true,
-            "items": [
-              "rake"
-            ]
+            "items": ["rake"]
           },
           "action": "raking",
           "position": "in_yard",
@@ -228,10 +209,7 @@
           "color": "white"
         },
         "ocr": {
-          "expected_text": [
-            "LAWN",
-            "LANDSCAPING"
-          ],
+          "expected_text": ["LAWN", "LANDSCAPING"],
           "min_confidence": 0.5
         }
       }
@@ -246,10 +224,7 @@
             "clothing": "gardening_attire",
             "face_visible": true,
             "carrying_items": true,
-            "items": [
-              "plants",
-              "trowel"
-            ]
+            "items": ["plants", "trowel"]
           },
           "action": "planting",
           "position": "flower_bed",
@@ -279,9 +254,7 @@
           "min_score": 5,
           "max_score": 20,
           "level": "low",
-          "expected_factors": [
-            "early_hour"
-          ]
+          "expected_factors": ["early_hour"]
         }
       }
     },

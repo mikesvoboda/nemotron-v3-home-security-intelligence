@@ -36,20 +36,10 @@
     "min_score": 60,
     "max_score": 85,
     "level": "high",
-    "expected_factors": [
-      "tailgating",
-      "nighttime",
-      "reduced_visibility"
-    ]
+    "expected_factors": ["tailgating", "nighttime", "reduced_visibility"]
   },
   "florence_caption": {
-    "must_contain": [
-      "person",
-      "people"
-    ],
-    "must_not_contain": [
-      "delivery",
-      "uniform"
-    ]
+    "must_contain": ["person", "people"],
+    "must_not_contain": ["delivery", "uniform"]
   }
 }

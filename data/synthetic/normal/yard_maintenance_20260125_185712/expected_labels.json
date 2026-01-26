@@ -36,25 +36,15 @@
     "expected_factors": []
   },
   "florence_caption": {
-    "must_contain": [
-      "person"
-    ],
-    "must_not_contain": [
-      "suspicious",
-      "threat",
-      "stealing",
-      "breaking"
-    ]
+    "must_contain": ["person"],
+    "must_not_contain": ["suspicious", "threat", "stealing", "breaking"]
   },
   "vehicle": {
     "type": "truck",
     "color": "white"
   },
   "ocr": {
-    "expected_text": [
-      "LAWN",
-      "LANDSCAPING"
-    ],
+    "expected_text": ["LAWN", "LANDSCAPING"],
     "min_confidence": 0.5
   }
 }

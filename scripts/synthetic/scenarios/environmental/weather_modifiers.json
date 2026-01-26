@@ -203,7 +203,7 @@
           "accuracy_note": "Depth estimation unreliable in fog"
         },
         "detection_adjustment": {
-          "confidence_reduction": 0.20,
+          "confidence_reduction": 0.2,
           "note": "Distance objects may not be detected"
         }
       }
@@ -264,7 +264,7 @@
           "max_brisque_score": 75
         },
         "detection_adjustment": {
-          "confidence_reduction": 0.20,
+          "confidence_reduction": 0.2,
           "note": "Hail may cause false positives for motion"
         }
       }

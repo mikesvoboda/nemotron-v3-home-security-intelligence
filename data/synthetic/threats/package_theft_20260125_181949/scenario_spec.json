@@ -6,9 +6,7 @@
   "scene": {
     "location": "front_porch",
     "camera_type": "doorbell",
-    "camera_effects": [
-      "fisheye_distortion"
-    ],
+    "camera_effects": ["fisheye_distortion"],
     "timestamp_overlay": true,
     "resolution": "1080p"
   },
@@ -63,30 +61,18 @@
     },
     "threats": {
       "has_threat": true,
-      "types": [
-        "theft"
-      ],
+      "types": ["theft"],
       "max_severity": "high"
     },
     "risk": {
       "min_score": 70,
       "max_score": 90,
       "level": "high",
-      "expected_factors": [
-        "package_theft",
-        "rapid_approach_departure",
-        "no_interaction"
-      ]
+      "expected_factors": ["package_theft", "rapid_approach_departure", "no_interaction"]
     },
     "florence_caption": {
-      "must_contain": [
-        "person",
-        "package"
-      ],
-      "must_not_contain": [
-        "delivery",
-        "uniform"
-      ]
+      "must_contain": ["person", "package"],
+      "must_not_contain": ["delivery", "uniform"]
     }
   },
   "generation": {
@@ -115,11 +101,7 @@
           "min_score": 75,
           "max_score": 95,
           "level": "high",
-          "expected_factors": [
-            "package_theft",
-            "running",
-            "very_brief_presence"
-          ]
+          "expected_factors": ["package_theft", "running", "very_brief_presence"]
         }
       }
     },
@@ -147,10 +129,7 @@
           "min_score": 65,
           "max_score": 85,
           "level": "high",
-          "expected_factors": [
-            "package_theft",
-            "deceptive_appearance"
-          ]
+          "expected_factors": ["package_theft", "deceptive_appearance"]
         }
       }
     },
@@ -193,11 +172,7 @@
           "min_score": 80,
           "max_score": 95,
           "level": "critical",
-          "expected_factors": [
-            "package_theft",
-            "getaway_vehicle",
-            "coordinated_crime"
-          ]
+          "expected_factors": ["package_theft", "getaway_vehicle", "coordinated_crime"]
         }
       }
     },
@@ -225,11 +200,7 @@
           "min_score": 75,
           "max_score": 95,
           "level": "high",
-          "expected_factors": [
-            "package_theft",
-            "obscured_face",
-            "concealment_attempt"
-          ]
+          "expected_factors": ["package_theft", "obscured_face", "concealment_attempt"]
         }
       }
     },
@@ -256,21 +227,14 @@
         "lighting": "porch_light_only"
       },
       "scene_overrides": {
-        "camera_effects": [
-          "fisheye_distortion",
-          "ir_night_vision"
-        ]
+        "camera_effects": ["fisheye_distortion", "ir_night_vision"]
       },
       "expected_output_overrides": {
         "risk": {
           "min_score": 80,
           "max_score": 95,
           "level": "critical",
-          "expected_factors": [
-            "package_theft",
-            "nighttime",
-            "opportunistic"
-          ]
+          "expected_factors": ["package_theft", "nighttime", "opportunistic"]
         }
       }
     },
@@ -289,11 +253,7 @@
           "min_score": 70,
           "max_score": 90,
           "level": "high",
-          "expected_factors": [
-            "package_theft",
-            "checking_for_witnesses",
-            "deliberate_theft"
-          ]
+          "expected_factors": ["package_theft", "checking_for_witnesses", "deliberate_theft"]
         }
       }
     }

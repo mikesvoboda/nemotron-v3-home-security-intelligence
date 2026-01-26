@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # Base template for security camera prompts
 SECURITY_CAMERA_PROMPT = """
 Security camera footage from a {camera_type} camera mounted at {location}.
@@ -312,9 +311,7 @@ class PromptGenerator:
         Returns:
             Descriptive text for the time of day.
         """
-        time_info = TIME_OF_DAY_DESCRIPTIONS.get(
-            time_of_day, TIME_OF_DAY_DESCRIPTIONS["day"]
-        )
+        time_info = TIME_OF_DAY_DESCRIPTIONS.get(time_of_day, TIME_OF_DAY_DESCRIPTIONS["day"])
         return time_info["description"]
 
     def _get_weather_description(self, weather: str) -> str:
@@ -354,9 +351,7 @@ class PromptGenerator:
 
         return "Camera effects: " + ". ".join(effect_texts) + "."
 
-    def _get_scene_description(
-        self, scene: dict[str, Any], environment: dict[str, Any]
-    ) -> str:
+    def _get_scene_description(self, scene: dict[str, Any], environment: dict[str, Any]) -> str:
         """Generate a scene description from scene and environment data.
 
         Args:
@@ -472,7 +467,9 @@ class PromptGenerator:
             if position_desc:
                 desc += f" {position_desc}"
         elif subject_type == "pet":
-            animal_type = appearance.get("animal_type", "dog") if isinstance(appearance, dict) else "pet"
+            animal_type = (
+                appearance.get("animal_type", "dog") if isinstance(appearance, dict) else "pet"
+            )
             desc = f"Subject {index}: A {appearance_text} {animal_type}"
             if position_desc:
                 desc += f" {position_desc}"
@@ -528,9 +525,7 @@ class PromptGenerator:
             Lighting style description.
         """
         time_of_day = environment.get("time_of_day", "day")
-        time_info = TIME_OF_DAY_DESCRIPTIONS.get(
-            time_of_day, TIME_OF_DAY_DESCRIPTIONS["day"]
-        )
+        time_info = TIME_OF_DAY_DESCRIPTIONS.get(time_of_day, TIME_OF_DAY_DESCRIPTIONS["day"])
         return time_info["lighting_style"]
 
     def _get_timestamp_overlay(self, enabled: bool) -> str:
@@ -622,9 +617,7 @@ class PromptGenerator:
 
         return prompt
 
-    def _get_motion_description(
-        self, subjects: list[dict[str, Any]], duration: int
-    ) -> str:
+    def _get_motion_description(self, subjects: list[dict[str, Any]], duration: int) -> str:
         """Generate motion description for video prompts.
 
         Args:

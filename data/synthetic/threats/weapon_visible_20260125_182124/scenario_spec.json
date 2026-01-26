@@ -57,10 +57,7 @@
     },
     "threats": {
       "has_threat": true,
-      "types": [
-        "firearm",
-        "armed_individual"
-      ],
+      "types": ["firearm", "armed_individual"],
       "max_severity": "critical"
     },
     "violence": {
@@ -71,21 +68,11 @@
       "min_score": 95,
       "max_score": 100,
       "level": "critical",
-      "expected_factors": [
-        "weapon_visible",
-        "firearm",
-        "immediate_threat",
-        "approaching_property"
-      ]
+      "expected_factors": ["weapon_visible", "firearm", "immediate_threat", "approaching_property"]
     },
     "florence_caption": {
-      "must_contain": [
-        "person"
-      ],
-      "must_not_contain": [
-        "delivery",
-        "friendly"
-      ]
+      "must_contain": ["person"],
+      "must_not_contain": ["delivery", "friendly"]
     }
   },
   "generation": {
@@ -111,21 +98,14 @@
       "expected_output_overrides": {
         "threats": {
           "has_threat": true,
-          "types": [
-            "knife",
-            "armed_individual"
-          ],
+          "types": ["knife", "armed_individual"],
           "max_severity": "critical"
         },
         "risk": {
           "min_score": 90,
           "max_score": 100,
           "level": "critical",
-          "expected_factors": [
-            "weapon_visible",
-            "knife",
-            "immediate_threat"
-          ]
+          "expected_factors": ["weapon_visible", "knife", "immediate_threat"]
         }
       }
     },
@@ -146,21 +126,14 @@
       "expected_output_overrides": {
         "threats": {
           "has_threat": true,
-          "types": [
-            "firearm",
-            "concealed_weapon"
-          ],
+          "types": ["firearm", "concealed_weapon"],
           "max_severity": "critical"
         },
         "risk": {
           "min_score": 85,
           "max_score": 100,
           "level": "critical",
-          "expected_factors": [
-            "weapon_visible",
-            "concealed_carry",
-            "potential_threat"
-          ]
+          "expected_factors": ["weapon_visible", "concealed_carry", "potential_threat"]
         }
       }
     },
@@ -192,11 +165,7 @@
           "min_score": 98,
           "max_score": 100,
           "level": "critical",
-          "expected_factors": [
-            "weapon_brandished",
-            "active_threat",
-            "imminent_danger"
-          ]
+          "expected_factors": ["weapon_brandished", "active_threat", "imminent_danger"]
         }
       }
     },
@@ -208,10 +177,7 @@
         "lighting": "streetlight_only"
       },
       "scene_overrides": {
-        "camera_effects": [
-          "ir_night_vision",
-          "motion_blur"
-        ]
+        "camera_effects": ["ir_night_vision", "motion_blur"]
       },
       "expected_output_overrides": {
         "face": {
@@ -223,11 +189,7 @@
           "min_score": 95,
           "max_score": 100,
           "level": "critical",
-          "expected_factors": [
-            "weapon_visible",
-            "nighttime",
-            "obscured_identity"
-          ]
+          "expected_factors": ["weapon_visible", "nighttime", "obscured_identity"]
         }
       }
     },
@@ -248,21 +210,14 @@
       "expected_output_overrides": {
         "threats": {
           "has_threat": true,
-          "types": [
-            "blunt_weapon",
-            "armed_individual"
-          ],
+          "types": ["blunt_weapon", "armed_individual"],
           "max_severity": "high"
         },
         "risk": {
           "min_score": 80,
           "max_score": 95,
           "level": "critical",
-          "expected_factors": [
-            "weapon_visible",
-            "blunt_weapon",
-            "threatening_behavior"
-          ]
+          "expected_factors": ["weapon_visible", "blunt_weapon", "threatening_behavior"]
         }
       }
     },
@@ -297,21 +252,14 @@
         ],
         "threats": {
           "has_threat": true,
-          "types": [
-            "firearm",
-            "multiple_armed_individuals"
-          ],
+          "types": ["firearm", "multiple_armed_individuals"],
           "max_severity": "critical"
         },
         "risk": {
           "min_score": 98,
           "max_score": 100,
           "level": "critical",
-          "expected_factors": [
-            "multiple_weapons",
-            "coordinated_threat",
-            "extreme_danger"
-          ]
+          "expected_factors": ["multiple_weapons", "coordinated_threat", "extreme_danger"]
         }
       }
     },
@@ -321,9 +269,7 @@
       "scene_overrides": {
         "location": "front_porch",
         "camera_type": "doorbell",
-        "camera_effects": [
-          "fisheye_distortion"
-        ]
+        "camera_effects": ["fisheye_distortion"]
       },
       "subject_overrides": [
         {
@@ -337,11 +283,7 @@
           "min_score": 98,
           "max_score": 100,
           "level": "critical",
-          "expected_factors": [
-            "weapon_visible",
-            "at_entry_point",
-            "imminent_threat"
-          ]
+          "expected_factors": ["weapon_visible", "at_entry_point", "imminent_threat"]
         }
       }
     }

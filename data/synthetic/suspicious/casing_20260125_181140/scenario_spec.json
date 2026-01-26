@@ -53,29 +53,17 @@
       "is_suspicious": true
     },
     "depth": {
-      "subject_distance_m": [
-        15.0,
-        40.0
-      ]
+      "subject_distance_m": [15.0, 40.0]
     },
     "risk": {
       "min_score": 35,
       "max_score": 60,
       "level": "medium",
-      "expected_factors": [
-        "prolonged_observation",
-        "unknown_person",
-        "watching_property"
-      ]
+      "expected_factors": ["prolonged_observation", "unknown_person", "watching_property"]
     },
     "florence_caption": {
-      "must_contain": [
-        "person"
-      ],
-      "must_not_contain": [
-        "delivery",
-        "neighbor"
-      ]
+      "must_contain": ["person"],
+      "must_not_contain": ["delivery", "neighbor"]
     }
   },
   "generation": {
@@ -136,11 +124,7 @@
           "min_score": 45,
           "max_score": 70,
           "level": "medium",
-          "expected_factors": [
-            "vehicle_surveillance",
-            "prolonged_parking",
-            "watching_property"
-          ]
+          "expected_factors": ["vehicle_surveillance", "prolonged_parking", "watching_property"]
         }
       }
     },
@@ -164,11 +148,7 @@
           "min_score": 50,
           "max_score": 75,
           "level": "high",
-          "expected_factors": [
-            "photographing_property",
-            "reconnaissance",
-            "unknown_person"
-          ]
+          "expected_factors": ["photographing_property", "reconnaissance", "unknown_person"]
         }
       }
     },
@@ -190,11 +170,7 @@
           "min_score": 55,
           "max_score": 80,
           "level": "high",
-          "expected_factors": [
-            "repeat_visit",
-            "pattern_of_surveillance",
-            "unknown_person"
-          ]
+          "expected_factors": ["repeat_visit", "pattern_of_surveillance", "unknown_person"]
         }
       }
     },
@@ -206,9 +182,7 @@
         "lighting": "streetlight_only"
       },
       "scene_overrides": {
-        "camera_effects": [
-          "ir_night_vision"
-        ]
+        "camera_effects": ["ir_night_vision"]
       },
       "expected_output_overrides": {
         "face": {
@@ -220,11 +194,7 @@
           "min_score": 55,
           "max_score": 80,
           "level": "high",
-          "expected_factors": [
-            "nighttime",
-            "prolonged_observation",
-            "unknown_person"
-          ]
+          "expected_factors": ["nighttime", "prolonged_observation", "unknown_person"]
         }
       }
     },
@@ -248,11 +218,7 @@
           "min_score": 30,
           "max_score": 55,
           "level": "medium",
-          "expected_factors": [
-            "slow_movement",
-            "observing_property",
-            "unknown_person"
-          ]
+          "expected_factors": ["slow_movement", "observing_property", "unknown_person"]
         }
       }
     },
@@ -284,11 +250,7 @@
           "min_score": 50,
           "max_score": 75,
           "level": "high",
-          "expected_factors": [
-            "multiple_subjects",
-            "coordinated_observation",
-            "unknown_persons"
-          ]
+          "expected_factors": ["multiple_subjects", "coordinated_observation", "unknown_persons"]
         }
       }
     },
@@ -322,11 +284,7 @@
           "min_score": 40,
           "max_score": 65,
           "level": "medium",
-          "expected_factors": [
-            "suspicious_vehicle",
-            "unmarked_van",
-            "surveillance_position"
-          ]
+          "expected_factors": ["suspicious_vehicle", "unmarked_van", "surveillance_position"]
         }
       }
     }
