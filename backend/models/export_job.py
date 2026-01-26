@@ -37,7 +37,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.time_utils import utc_now
@@ -156,6 +156,28 @@ class ExportJob(Base):
     sensitivity_acknowledged: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Compliance fields (NEM-3669)
+    # Configurable retention period for this export
+    retention_days: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        doc="Days to retain export (overrides system default)",
+    )
+
+    # Legal hold prevents automatic deletion
+    legal_hold: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        doc="Prevent automatic deletion when set to True",
+    )
+
+    # Compliance metadata for audit trail
+    compliance_metadata: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        doc="Audit trail info (requestor, reason, authorization)",
+    )
+
     # Indexes for common queries
     __table_args__ = (
         Index("idx_export_jobs_status", "status"),
@@ -164,6 +186,8 @@ class ExportJob(Base):
         Index("idx_export_jobs_status_created_at", "status", "created_at"),
         # Index for expired files cleanup (NEM-3572)
         Index("idx_export_jobs_expires_at", "expires_at"),
+        # Index for legal hold queries (NEM-3669)
+        Index("idx_export_jobs_legal_hold", "legal_hold"),
         # CHECK constraints for business rules
         CheckConstraint(
             "progress_percent >= 0 AND progress_percent <= 100",
@@ -184,6 +208,11 @@ class ExportJob(Base):
         CheckConstraint(
             "download_count >= 0",
             name="ck_export_jobs_download_count_non_negative",
+        ),
+        # Retention days must be positive if specified (NEM-3669)
+        CheckConstraint(
+            "retention_days IS NULL OR retention_days > 0",
+            name="ck_export_jobs_retention_days_positive",
         ),
     )
 

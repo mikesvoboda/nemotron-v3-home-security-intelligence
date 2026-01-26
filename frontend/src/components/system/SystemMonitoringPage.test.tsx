@@ -138,11 +138,10 @@ const mockConfigResponse: api.SystemConfig = {
   batch_window_seconds: 90,
   debug: true,
   detection_confidence_threshold: 0.5,
-        fast_path_confidence_threshold: 0.9,
+  fast_path_confidence_threshold: 0.9,
   grafana_url: 'http://localhost:3002',
   log_retention_days: 7,
   retention_days: 30,
-        log_retention_days: 7,
   version: '0.1.0',
 };
 

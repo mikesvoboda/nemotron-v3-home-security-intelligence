@@ -73,6 +73,12 @@ class ExportJobCreate(BaseModel):
                 "end_date": "2025-01-12T23:59:59Z",
                 "reviewed": None,
                 "columns": ["event_id", "camera_name", "risk_score", "summary"],
+                "retention_days": 30,
+                "legal_hold": False,
+                "compliance_metadata": {
+                    "requestor": "admin@example.com",
+                    "reason": "Monthly audit report",
+                },
             }
         }
     )
@@ -112,6 +118,21 @@ class ExportJobCreate(BaseModel):
             "risk_level, summary, detection_count, reviewed, object_types, reasoning. "
             "If null, all columns are included."
         ),
+    )
+
+    # Compliance fields (NEM-3669)
+    retention_days: int | None = Field(
+        None,
+        gt=0,
+        description="Days to retain export file (overrides system default)",
+    )
+    legal_hold: bool = Field(
+        False,
+        description="Prevent automatic deletion of this export",
+    )
+    compliance_metadata: dict | None = Field(
+        None,
+        description="Audit trail info (requestor, reason, authorization)",
     )
 
 
@@ -266,6 +287,20 @@ class ExportJobResponse(BaseModel):
     error_message: str | None = Field(
         None,
         description="Error message (populated when failed)",
+    )
+
+    # Compliance fields (NEM-3669)
+    retention_days: int | None = Field(
+        None,
+        description="Days to retain export file",
+    )
+    legal_hold: bool = Field(
+        False,
+        description="Whether automatic deletion is prevented",
+    )
+    compliance_metadata: dict | None = Field(
+        None,
+        description="Audit trail info (requestor, reason, authorization)",
     )
 
 

@@ -42,6 +42,73 @@ vi.mock('../../hooks/useStorageStatsQuery', () => ({
   }),
 }));
 
+// Mock the useSettingsApi hook for rate limiting and queue settings (NEM-3670)
+vi.mock('../../hooks/useSettingsApi', () => {
+  const mockSettings = {
+    detection: { confidence_threshold: 0.5, fast_path_threshold: 0.8 },
+    batch: { window_seconds: 90, idle_timeout_seconds: 30 },
+    severity: { low_max: 29, medium_max: 59, high_max: 84 },
+    features: {
+      vision_extraction_enabled: true,
+      reid_enabled: true,
+      scene_change_enabled: true,
+      clip_generation_enabled: true,
+      image_quality_enabled: true,
+      background_eval_enabled: false,
+    },
+    rate_limiting: { enabled: true, requests_per_minute: 60, burst_size: 15 },
+    queue: { max_size: 10000, backpressure_threshold: 0.8 },
+    retention: { days: 30, log_days: 7 },
+  };
+
+  return {
+    useSettingsQuery: () => ({
+      settings: mockSettings,
+      isLoading: false,
+      isFetching: false,
+      error: null,
+      isError: false,
+      isSuccess: true,
+      refetch: () => Promise.resolve(),
+    }),
+    useUpdateSettings: () => ({
+      mutate: () => {},
+      mutateAsync: () => Promise.resolve(mockSettings),
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+      data: undefined,
+      reset: () => {},
+    }),
+    fetchSettings: () => Promise.resolve(mockSettings),
+    updateSettings: () => Promise.resolve(mockSettings),
+    settingsQueryKeys: {
+      all: ['settings'],
+      current: () => ['settings', 'current'],
+    },
+    default: () => ({
+      settings: mockSettings,
+      isLoading: false,
+      isFetching: false,
+      error: null,
+      isError: false,
+      isSuccess: true,
+      refetch: () => Promise.resolve(),
+      updateMutation: {
+        mutate: () => {},
+        mutateAsync: () => Promise.resolve(mockSettings),
+        isPending: false,
+        isSuccess: false,
+        isError: false,
+        error: null,
+        data: undefined,
+        reset: () => {},
+      },
+    }),
+  };
+});
+
 vi.mock('../../hooks', async () => {
   const actual = await vi.importActual('../../hooks');
   return {
@@ -283,7 +350,8 @@ describe('ProcessingSettings', () => {
 
     expect(batchWindowInput).toHaveValue('120');
 
-    const resetButton = screen.getByText('Reset');
+    // Find the Reset button using data-testid
+    const resetButton = screen.getByTestId('processing-settings-reset');
     fireEvent.click(resetButton);
 
     expect(batchWindowInput).toHaveValue('90');
@@ -395,7 +463,8 @@ describe('ProcessingSettings', () => {
     });
 
     expect(screen.getByText('Saving...').closest('button')).toBeDisabled();
-    expect(screen.getByText('Reset').closest('button')).toBeDisabled();
+    // Find the Reset button using data-testid
+    expect(screen.getByTestId('processing-settings-reset')).toBeDisabled();
   });
 
   it('Clear Old Data button triggers cleanup API', async () => {
@@ -431,9 +500,17 @@ describe('ProcessingSettings', () => {
       expect(screen.getByText('Cleanup Complete')).toBeInTheDocument();
     });
 
-    // Check that results are displayed
-    expect(screen.getByText('Events deleted:')).toBeInTheDocument();
-    expect(screen.getByText('10')).toBeInTheDocument();
+    // Check that results are displayed - find the cleanup results section
+    const eventsDeletedLabel = screen.getByText('Events deleted:');
+    expect(eventsDeletedLabel).toBeInTheDocument();
+    // Get the parent container and find the value next to the label
+    const cleanupResults = eventsDeletedLabel.closest('.grid');
+    expect(cleanupResults).toBeInTheDocument();
+    // The value '10' should be in the cleanup results grid
+    const allTens = screen.getAllByText('10');
+    // Find the one that's inside the cleanup results
+    const tenInCleanup = allTens.find((el) => cleanupResults?.contains(el));
+    expect(tenInCleanup).toBeTruthy();
   });
 
   it('Clear Old Data button shows loading state', async () => {
@@ -822,6 +899,40 @@ describe('ProcessingSettings', () => {
       fireEvent.input(logRetentionInput, { target: { value: '14' } });
 
       expect(screen.getByText('14 days')).toBeInTheDocument();
+    });
+  });
+
+  describe('RateLimitingSettings integration (NEM-3670)', () => {
+    it('renders RateLimitingSettings component within ProcessingSettings', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+      renderWithProviders(<ProcessingSettings />);
+
+      // Wait for settings to load
+      await waitFor(() => {
+        expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
+      });
+
+      // RateLimitingSettings component should be visible
+      // The mock returns enabled: true, requests_per_minute: 60, burst_size: 15
+      expect(screen.getByText('Rate Limiting')).toBeInTheDocument();
+    });
+  });
+
+  describe('QueueSettings integration (NEM-3670)', () => {
+    it('renders QueueSettings component within ProcessingSettings', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+      renderWithProviders(<ProcessingSettings />);
+
+      // Wait for settings to load
+      await waitFor(() => {
+        expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
+      });
+
+      // QueueSettings component should be visible
+      // The mock returns max_size: 10000, backpressure_threshold: 0.8
+      expect(screen.getByText('Queue Settings')).toBeInTheDocument();
     });
   });
 
