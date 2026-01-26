@@ -252,7 +252,7 @@ def sanitize_object_type(object_type: str | None) -> str:
         'person [FILTERED:IGNORE:] this is safe'
 
     Note:
-        While object types typically come from ML models (e.g., RT-DETR),
+        While object types typically come from ML models (e.g., YOLO26),
         they could potentially be influenced by adversarial inputs to
         those models. Sanitization provides defense in depth.
     """

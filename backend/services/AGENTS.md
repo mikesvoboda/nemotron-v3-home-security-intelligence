@@ -58,7 +58,7 @@ File Upload -> Detection -> Batching -> Enrichment -> Analysis -> Event Creation
 | ------------------------ | -------------------------------------------- | -------------------------- |
 | `file_watcher.py`        | Monitor camera directories for media uploads | Yes                        |
 | `dedupe.py`              | Prevent duplicate file processing            | Yes                        |
-| `detector_client.py`     | Send images to RT-DETRv2 for detection       | Yes                        |
+| `detector_client.py`     | Send images to YOLO26v2 for detection       | Yes                        |
 | `batch_aggregator.py`    | Group detections into time-based batches     | Yes                        |
 | `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp        | Yes                        |
 | `nemotron_streaming.py`  | Streaming LLM response extensions            | No (import directly)       |
@@ -344,7 +344,7 @@ Upload path: /export/foscam/Front Door/image.jpg
 
 ### detector_client.py
 
-**Purpose:** HTTP client for RT-DETRv2 object detection service.
+**Purpose:** HTTP client for YOLO26v2 object detection service.
 
 **Key Features:**
 
@@ -534,7 +534,7 @@ batch:{batch_id}:last_activity    -> Unix timestamp
 **VRAM Budget:**
 
 - Nemotron LLM: 21,700 MB (always loaded)
-- RT-DETRv2: 650 MB (always loaded)
+- YOLO26v2: 650 MB (always loaded)
 - Available for Model Zoo: ~1,650 MB
 - Models load sequentially, never concurrently
 
@@ -821,7 +821,7 @@ The enrichment service (`ai-enrichment:8094`) generates OSNet embeddings via the
 - Aggregate statistics and model leaderboard
 
 **Tracked Models:**
-rtdetr, florence, clip, violence, clothing, vehicle, pet, weather, image_quality, zones, baseline, cross_camera
+yolo26, florence, clip, violence, clothing, vehicle, pet, weather, image_quality, zones, baseline, cross_camera
 
 **Quality Dimensions:**
 
@@ -849,7 +849,7 @@ rtdetr, florence, clip, violence, clothing, vehicle, pet, weather, image_quality
 
 1. pynvml (direct NVML bindings - fastest)
 2. nvidia-smi subprocess (works when nvidia-smi in PATH)
-3. AI container health endpoints (RT-DETRv2 reports VRAM)
+3. AI container health endpoints (YOLO26v2 reports VRAM)
 4. Mock data (for development without GPU)
 
 **Public API:**
@@ -893,7 +893,7 @@ rtdetr, florence, clip, violence, clothing, vehicle, pet, weather, image_quality
 **Features:**
 
 - Periodic health checks for all enabled services (default: every 30 seconds)
-- HTTP health endpoint checks for AI services (RT-DETRv2, Nemotron, Florence, CLIP)
+- HTTP health endpoint checks for AI services (YOLO26v2, Nemotron, Florence, CLIP)
 - Command-based health checks for infrastructure (PostgreSQL, Redis)
 - Container running status as fallback health check
 - Grace period support for recently started containers
@@ -934,7 +934,7 @@ registry = ServiceRegistry()
 service = ManagedService(
     name="ai-detector",
     container_id="abc123",
-    image="ghcr.io/.../rtdetr:latest",
+    image="ghcr.io/.../yolo26:latest",
     port=8090,
     health_endpoint="/health",
     category=ServiceCategory.AI,
@@ -1138,7 +1138,7 @@ metrics = breaker.get_metrics()
 **ManagedService Dataclass:**
 
 - `name` - Service identifier (e.g., "postgres", "ai-detector")
-- `display_name` - Human-readable name (e.g., "PostgreSQL", "RT-DETRv2")
+- `display_name` - Human-readable name (e.g., "PostgreSQL", "YOLO26v2")
 - `container_id` - Docker container ID or None
 - `image` - Container image (e.g., "postgres:16-alpine")
 - `port` - Primary service port
@@ -1247,13 +1247,13 @@ await registry.clear_state(name)
 | Source     | Method                         | Metrics                               |
 | ---------- | ------------------------------ | ------------------------------------- |
 | GPU        | pynvml or HTTP fallback        | Utilization, VRAM, temperature, power |
-| RT-DETRv2  | HTTP `/health` endpoint        | Status, VRAM, model name, device      |
+| YOLO26v2  | HTTP `/health` endpoint        | Status, VRAM, model name, device      |
 | Nemotron   | HTTP `/slots` endpoint         | Status, active/total slots, context   |
 | PostgreSQL | SQL queries (pg_stat_activity) | Connections, cache hit ratio, txns    |
 | Redis      | redis-py INFO command          | Clients, memory, hit ratio, blocked   |
 | Host       | psutil                         | CPU%, RAM GB, disk GB                 |
 | Containers | HTTP health endpoints          | Status, health for each container     |
-| Inference  | PipelineLatencyTracker         | RT-DETR/Nemotron/pipeline latencies   |
+| Inference  | PipelineLatencyTracker         | YOLO26/Nemotron/pipeline latencies   |
 
 **Alert Thresholds:**
 
@@ -1294,7 +1294,7 @@ await collector.close()
 | Category       | Services                                           | Restart Policy        |
 | -------------- | -------------------------------------------------- | --------------------- |
 | Infrastructure | PostgreSQL (:5432), Redis (:6379)                  | Critical - aggressive |
-| AI             | RT-DETRv2, Nemotron, Florence-2, CLIP, Enrichment  | Standard backoff      |
+| AI             | YOLO26v2, Nemotron, Florence-2, CLIP, Enrichment  | Standard backoff      |
 | Monitoring     | Prometheus, Grafana, Redis Exporter, JSON Exporter | Lenient               |
 
 **Key Classes:**
@@ -1673,7 +1673,7 @@ result = await manager.run_maintenance()  # Full maintenance (create + cleanup)
 
 **Key Features:**
 
-- Track service health states (Redis, RT-DETRv2, Nemotron)
+- Track service health states (Redis, YOLO26v2, Nemotron)
 - Fallback to disk-based queues when Redis is down
 - In-memory queue fallback when Redis unavailable
 - Automatic recovery detection
@@ -1731,7 +1731,7 @@ manager.register_service(
 )
 
 # Check service health
-if manager.is_service_healthy("rtdetr"):
+if manager.is_service_healthy("yolo26"):
     # Proceed with AI analysis
     pass
 
@@ -1869,7 +1869,7 @@ if not cb.is_open("ai_service"):
 | ---------- | --------------------------- | -------- |
 | database   | PostgreSQL connection/query | Yes      |
 | redis      | Redis connection/memory     | Yes      |
-| ai_service | Nemotron + RT-DETRv2 health | No       |
+| ai_service | Nemotron + YOLO26v2 health | No       |
 | gpu        | CUDA availability/memory    | No       |
 | storage    | Disk space for /export      | No       |
 
@@ -2300,7 +2300,7 @@ processor = result["processor"]
 
 **Key Features:**
 
-- Per-service fallback strategies for RT-DETRv2, Nemotron, Florence-2, and CLIP
+- Per-service fallback strategies for YOLO26v2, Nemotron, Florence-2, and CLIP
 - Cached risk score retrieval for fallback values
 - Default value generation based on object types
 - Health-based routing and degradation level tracking
@@ -2311,12 +2311,12 @@ processor = result["processor"]
 
 - `NORMAL` - All services healthy
 - `DEGRADED` - Non-critical services (Florence, CLIP) down
-- `MINIMAL` - Critical services (RT-DETRv2, Nemotron) partially available
+- `MINIMAL` - Critical services (YOLO26v2, Nemotron) partially available
 - `OFFLINE` - All AI services down
 
 **Key Classes:**
 
-- `AIService` - Enum of AI service identifiers (rtdetr, nemotron, florence, clip)
+- `AIService` - Enum of AI service identifiers (yolo26, nemotron, florence, clip)
 - `DegradationLevel` - System degradation levels
 - `ServiceState` - State information for a single AI service
 - `FallbackRiskAnalysis` - Fallback risk analysis result when Nemotron unavailable
@@ -2353,7 +2353,7 @@ features = service.get_available_features()
 
 # Convenience checks
 if service.should_skip_detection():
-    pass  # RT-DETRv2 unavailable
+    pass  # YOLO26v2 unavailable
 if service.should_use_default_risk():
     pass  # Nemotron unavailable
 
@@ -2464,9 +2464,9 @@ from backend.api.schemas.services import ServiceCategory, ContainerServiceStatus
 # Create a managed service
 service = ManagedService(
     name="ai-detector",
-    display_name="RT-DETRv2",
+    display_name="YOLO26v2",
     container_id="abc123",
-    image="ghcr.io/.../rtdetr:latest",
+    image="ghcr.io/.../yolo26:latest",
     port=8090,
     health_endpoint="/health",
     category=ServiceCategory.AI,
@@ -2649,9 +2649,9 @@ from backend.services.service_managers import (
 
 # Create config
 config = ServiceConfig(
-    name="rtdetr",
+    name="yolo26",
     health_url="http://localhost:8090/health",
-    restart_cmd="scripts/restart_rtdetr.sh",  # Must be in allowlist
+    restart_cmd="scripts/restart_yolo26.sh",  # Must be in allowlist
     health_timeout=5.0,
     max_retries=3,
     backoff_base=5.0,
@@ -2670,7 +2670,7 @@ if not healthy:
     success = await docker_manager.restart(config)
 
 # Validate commands
-is_valid = validate_restart_command("scripts/restart_rtdetr.sh")
+is_valid = validate_restart_command("scripts/restart_yolo26.sh")
 is_valid = validate_container_name("ai-detector-1")
 ```
 
@@ -2784,7 +2784,7 @@ tracker.track_llm_usage(
 
 # Track detection model usage
 tracker.track_detection_usage(
-    model="rtdetr",
+    model="yolo26",
     duration_seconds=0.15,
     images_processed=1,
 )
@@ -2973,7 +2973,7 @@ PartitionManager (Periodic Maintenance)
 
 ServiceHealthMonitor (Periodic Health Checks)
    | Every check_interval seconds (default: 15s)
-   | Checks: HTTP health endpoints for RT-DETRv2, Nemotron, Florence, CLIP
+   | Checks: HTTP health endpoints for YOLO26v2, Nemotron, Florence, CLIP
    | Checks: Redis via redis-cli ping
    | Restarts: Failed services with exponential backoff
    | Broadcasts: Service status changes via WebSocket
@@ -3175,7 +3175,7 @@ assert clamped == (10, 10, 100, 100)
 
 ### External Services
 
-- **RT-DETRv2 HTTP server** (port 8090) - Object detection
+- **YOLO26v2 HTTP server** (port 8090) - Object detection
 - **ai-florence HTTP server** (port 8092) - Florence-2 vision-language
 - **ai-clip HTTP server** (port 8093) - CLIP embeddings
 - **llama.cpp server** (port 8080) - Nemotron LLM inference
@@ -3205,5 +3205,5 @@ assert clamped == (10, 10, 100, 100)
 - `/backend/api/schemas/AGENTS.md` - Pydantic schema documentation
 - `/backend/core/AGENTS.md` - Core infrastructure documentation
 - `/ai/AGENTS.md` - AI pipeline overview
-- `/ai/rtdetr/AGENTS.md` - RT-DETRv2 detection server
+- `/ai/yolo26/AGENTS.md` - YOLO26v2 detection server
 - `/ai/nemotron/AGENTS.md` - Nemotron LLM configuration

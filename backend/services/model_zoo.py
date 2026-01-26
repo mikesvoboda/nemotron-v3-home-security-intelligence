@@ -32,7 +32,7 @@ Models:
 
 VRAM Budget:
     - Nemotron LLM: 21,700 MB (always loaded)
-    - RT-DETRv2: 650 MB (always loaded)
+    - YOLO26v2: 650 MB (always loaded)
     - Available for Model Zoo: ~1,650 MB
     - Models load sequentially, never concurrently
 """
@@ -97,7 +97,7 @@ VEHICLE_CLASSES = frozenset(
 PERSON_CLASS = "person"
 
 # Animal classes that should trigger pet classification
-# These are common animal classes from COCO/RT-DETRv2 that might be pets
+# These are common animal classes from COCO/YOLO26v2 that might be pets
 ANIMAL_CLASSES = frozenset(
     {
         "cat",
@@ -455,7 +455,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # - Suspicious attire (dark hoodie, face mask, gloves, all black)
         # - Service uniforms (Amazon, FedEx, UPS, high-vis vest)
         # - General clothing categories (casual, business, athletic)
-        # Runs on person crop bounding boxes from RT-DETRv2
+        # Runs on person crop bounding boxes from YOLO26v2
         "fashion-clip": ModelConfig(
             name="fashion-clip",
             path=f"{base_path}/fashion-clip",
@@ -481,7 +481,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             available=False,
         ),
         # ResNet-50 Vehicle Segment Classification for detailed vehicle type ID
-        # Classifies vehicles into 11 categories beyond RT-DETRv2's generic types:
+        # Classifies vehicles into 11 categories beyond YOLO26v2's generic types:
         # car, pickup_truck, single_unit_truck, articulated_truck, bus,
         # motorcycle, bicycle, work_van, non_motorized_vehicle, pedestrian, background
         # Helps distinguish delivery vehicles (work_van) from personal vehicles
@@ -663,7 +663,7 @@ class ModelManager:
     The ModelManager provides async context managers for loading models,
     ensuring proper cleanup and VRAM release when done. Models are loaded
     lazily and unloaded immediately after use to maximize available VRAM
-    for the primary models (Nemotron and RT-DETRv2).
+    for the primary models (Nemotron and YOLO26v2).
 
     Thread-safe via asyncio.Lock for concurrent access.
 

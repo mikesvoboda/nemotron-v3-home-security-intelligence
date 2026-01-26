@@ -139,7 +139,7 @@ async def classify_pet(
 
     Args:
         model_dict: Dictionary with 'model' and 'processor' keys from load_pet_classifier_model
-        image: PIL Image (typically a cropped animal detection from RT-DETRv2)
+        image: PIL Image (typically a cropped animal detection from YOLO26v2)
 
     Returns:
         PetClassificationResult with animal type and confidence

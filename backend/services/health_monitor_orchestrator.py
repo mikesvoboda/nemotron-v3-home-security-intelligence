@@ -5,7 +5,7 @@ the container orchestrator. It periodically checks the health of all enabled
 services and triggers restarts when needed.
 
 Key Features:
-- HTTP health endpoint checks for AI services (RT-DETRv2, Nemotron, Florence, etc.)
+- HTTP health endpoint checks for AI services (YOLO26v2, Nemotron, Florence, etc.)
 - Command-based health checks for infrastructure (PostgreSQL, Redis)
 - Container running status as fallback health check
 - Grace period support for recently started containers

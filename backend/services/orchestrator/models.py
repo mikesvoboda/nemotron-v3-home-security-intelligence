@@ -83,7 +83,7 @@ class ManagedService:
 
     Attributes:
         name: Service identifier (e.g., "postgres", "ai-detector", "grafana")
-        display_name: Human-readable name (e.g., "PostgreSQL", "RT-DETRv2")
+        display_name: Human-readable name (e.g., "PostgreSQL", "YOLO26v2")
         container_id: Docker container ID or None if not yet discovered
         image: Container image (e.g., "postgres:16-alpine")
         port: Primary service port

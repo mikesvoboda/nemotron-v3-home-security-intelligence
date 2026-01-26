@@ -1,7 +1,7 @@
 """Shared semaphore for AI inference concurrency control (NEM-1463).
 
 This module provides a shared asyncio.Semaphore that limits concurrent AI
-inference operations across all services (RT-DETR detection, Nemotron analysis).
+inference operations across all services (YOLO26 detection, Nemotron analysis).
 This prevents GPU/AI service overload under high traffic conditions.
 
 Usage:

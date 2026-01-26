@@ -1003,14 +1003,14 @@ class SystemBroadcaster:
         return False
 
     async def _check_ai_health(self) -> dict[str, bool]:
-        """Check AI services (RT-DETRv2 and Nemotron) health.
+        """Check AI services (YOLO26v2 and Nemotron) health.
 
         Performs concurrent health checks on both AI services to minimize
         latency in the broadcast loop. Uses a short timeout to avoid blocking.
 
         Returns:
             Dictionary with:
-            - rtdetr: True if RT-DETRv2 is healthy
+            - yolo26: True if YOLO26v2 is healthy
             - nemotron: True if Nemotron is healthy
             - any_healthy: True if at least one AI service is healthy
             - all_healthy: True if all AI services are healthy

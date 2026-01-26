@@ -1,6 +1,6 @@
 """Service health monitor for automatic recovery of dependent services.
 
-This service monitors the health of dependent services (Redis, RT-DETRv2, Nemotron)
+This service monitors the health of dependent services (Redis, YOLO26v2, Nemotron)
 and automatically attempts recovery with exponential backoff when failures are detected.
 
 Features:

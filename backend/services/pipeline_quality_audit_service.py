@@ -30,7 +30,7 @@ logger = get_logger(__name__)
 
 # Model names for contribution tracking
 MODEL_NAMES = [
-    "rtdetr",
+    "yolo26",
     "florence",
     "clip",
     "violence",
@@ -151,7 +151,7 @@ class PipelineQualityAuditService:
             event_id=event_id,
             audited_at=datetime.now(UTC),
             # Model contributions
-            has_rtdetr=True,  # Always true if we have detections
+            has_yolo26=True,  # Always true if we have detections
             has_florence=self._has_florence(enrichment_result),
             has_clip=self._has_clip(enrichment_result),
             has_violence=self._has_violence(enrichment_result),
@@ -242,7 +242,7 @@ class PipelineQualityAuditService:
         total = 12  # Total possible enrichments
         count = sum(
             [
-                True,  # rtdetr always
+                True,  # yolo26 always
                 self._has_florence(result),
                 self._has_clip(result),
                 self._has_violence(result),

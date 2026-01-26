@@ -12,7 +12,7 @@ Key Components:
 
 Pre-configured Service Categories:
 - INFRASTRUCTURE_CONFIGS: PostgreSQL, Redis (critical, aggressive restart)
-- AI_CONFIGS: RT-DETRv2, Nemotron, Florence, CLIP, Enrichment (standard backoff)
+- AI_CONFIGS: YOLO26v2, Nemotron, Florence, CLIP, Enrichment (standard backoff)
 - MONITORING_CONFIGS: Prometheus, Grafana, Alertmanager, Redis Exporter, JSON Exporter,
                       Blackbox Exporter (lenient, per CATEGORY_DEFAULTS)
 
@@ -58,7 +58,7 @@ def build_service_configs(
     # Default ports (used when settings is None)
     postgres_port = settings.postgres_port if settings else 5432
     redis_port = settings.redis_port if settings else 6379
-    rtdetr_port = settings.rtdetr_port if settings else 8090
+    yolo26_port = settings.yolo26_port if settings else 8090
     nemotron_port = settings.nemotron_port if settings else 8091
     florence_port = settings.florence_port if settings else 8092
     clip_port = settings.clip_port if settings else 8093
@@ -97,9 +97,9 @@ def build_service_configs(
 
     ai_configs: dict[str, ServiceConfig] = {
         "ai-detector": ServiceConfig(
-            display_name="RT-DETRv2",
+            display_name="YOLO26v2",
             category=ServiceCategory.AI,
-            port=rtdetr_port,
+            port=yolo26_port,
             health_endpoint="/health",
             startup_grace_period=60,
         ),
@@ -266,7 +266,7 @@ INFRASTRUCTURE_CONFIGS: dict[str, ServiceConfig] = {
 
 AI_CONFIGS: dict[str, ServiceConfig] = {
     "ai-detector": ServiceConfig(
-        display_name="RT-DETRv2",
+        display_name="YOLO26v2",
         category=ServiceCategory.AI,
         port=8090,
         health_endpoint="/health",
