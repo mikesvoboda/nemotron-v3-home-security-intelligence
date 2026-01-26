@@ -1,11 +1,11 @@
 # AI Model Optimization Guide
 
 This document describes the torch.compile() and batch inference optimizations
-implemented for NEM-3370 and NEM-3372.
+implemented for NEM-3370, NEM-3372, and NEM-3773.
 
 ## New Utility Modules
 
-### compile_utils.py (NEM-3370)
+### compile_utils.py (NEM-3370, NEM-3773)
 
 Provides utilities for applying torch.compile() to AI models for improved
 inference performance on PyTorch 2.0+.
@@ -18,11 +18,16 @@ inference performance on PyTorch 2.0+.
 - `compile_for_inference(model)` - Optimize for low-latency inference
 - `compile_for_throughput(model)` - Optimize for batch throughput
 - `warmup_compiled_model(model, sample_input)` - Warmup compiled models
+- `setup_compile_cache(cache_dir)` - Configure compilation cache for faster startup (NEM-3773)
+- `benchmark_compile_modes(model, sample_input)` - Benchmark different compilation modes (NEM-3773)
 
 **Usage:**
 
 ```python
-from compile_utils import compile_model, CompileConfig
+from compile_utils import compile_model, CompileConfig, setup_compile_cache, benchmark_compile_modes
+
+# Setup cache for faster subsequent loads
+setup_compile_cache("/path/to/cache")  # or set TORCH_COMPILE_CACHE_DIR env var
 
 # Option 1: Use defaults
 model = compile_model(model)
@@ -34,6 +39,11 @@ config = CompileConfig(
     backend="inductor",
 )
 model = compile_model(model, config=config, model_name="MyModel")
+
+# Benchmark different modes to find optimal configuration
+results = benchmark_compile_modes(model, sample_input, num_iterations=100)
+print(f"Eager: {results['eager']['mean_ms']:.2f}ms")
+print(f"Reduce-overhead: {results['reduce-overhead']['mean_ms']:.2f}ms")
 ```
 
 **Environment Variables:**
@@ -41,6 +51,7 @@ model = compile_model(model, config=config, model_name="MyModel")
 - `TORCH_COMPILE_ENABLED` - Enable/disable compilation (default: "true")
 - `TORCH_COMPILE_MODE` - Compilation mode (default: "reduce-overhead")
 - `TORCH_COMPILE_BACKEND` - Backend to use (default: "inductor")
+- `TORCH_COMPILE_CACHE_DIR` - Cache directory for compiled artifacts (NEM-3773)
 
 ### batch_utils.py (NEM-3372)
 
@@ -201,15 +212,31 @@ print(f'Processed {result.total_items} items in {result.batch_count} batches')
 - `ai/tests/test_batch_utils.py` (new) - Batch utils tests
 - `ai/tests/AGENTS.md` (new) - Test documentation
 
+## Model Integration Status (NEM-3773)
+
+### Completed Integrations
+
+- `ai/rtdetr/model.py` - torch.compile integration with:
+
+  - `enable_torch_compile` parameter (default: from env)
+  - `torch_compile_mode` parameter (default: from env)
+  - Health endpoint reports torch_compile status
+  - Safe fallback on compilation failure
+
+- `ai/yolo26/model.py` - torch.compile integration with:
+  - `enable_torch_compile` parameter (default: from env)
+  - `torch_compile_mode` parameter (default: from env)
+  - Note: Skipped for TensorRT engines (already optimized)
+  - Health endpoint reports torch_compile status
+
+### Pending Integrations
+
+- `ai/clip/model.py` - Add enable_compile, batch_size params
+- `ai/florence/model.py` - Add enable_compile, batch_size params
+- `ai/enrichment/model.py` - Add enable_compile to classifiers
+
 ## Next Steps
 
-1. Update model files to use these utilities:
-
-   - `ai/rtdetr/model.py` - Add enable_compile, batch_size params
-   - `ai/clip/model.py` - Add enable_compile, batch_size params
-   - `ai/florence/model.py` - Add enable_compile, batch_size params
-   - `ai/enrichment/model.py` - Add enable_compile to classifiers
-
+1. Update remaining model files to use these utilities
 2. Update model integration tests to verify batch inference
-
-3. Benchmark performance improvements
+3. Benchmark performance improvements with real models

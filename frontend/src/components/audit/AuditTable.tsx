@@ -1,6 +1,7 @@
 import { clsx } from 'clsx';
 import { CheckCircle, ChevronLeft, ChevronRight, Globe, XCircle } from 'lucide-react';
 
+import { useDeferredList } from '../../hooks/useDeferredList';
 import SafeErrorMessage from '../common/SafeErrorMessage';
 
 export interface AuditEntry {
@@ -207,6 +208,13 @@ export default function AuditTable({
   activeActionFilter,
   className = '',
 }: AuditTableProps) {
+  // Use deferred list for performance optimization with large audit log lists (NEM-3750)
+  // This prevents UI blocking when rendering/updating large numbers of audit entries
+  const { deferredItems: deferredLogs, isStale } = useDeferredList({
+    items: logs,
+    deferThreshold: 50, // Start deferring at 50+ audit entries
+  });
+
   // Calculate pagination info
   const currentPage = Math.floor(offset / limit) + 1;
   const totalPages = Math.ceil(totalCount / limit);
@@ -333,8 +341,8 @@ export default function AuditTable({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
-              {logs.map((log, index) => (
+            <tbody className={clsx('divide-y divide-gray-800', isStale && 'opacity-70 transition-opacity')}>
+              {deferredLogs.map((log, index) => (
                 <tr
                   key={log.id}
                   onClick={() => handleRowClick(log)}

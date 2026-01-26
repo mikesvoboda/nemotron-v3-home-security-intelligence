@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Eye, Moon } from 'lucide-react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 
+import { useDeferredList } from '../../hooks/useDeferredList';
 import { getRiskLevel, type RiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
 
@@ -157,6 +158,13 @@ const EventListView = memo(function EventListView({
   const headerCheckboxRef = useRef<HTMLInputElement>(null);
   const [openSnoozeMenuId, setOpenSnoozeMenuId] = useState<number | null>(null);
 
+  // Use deferred list for performance optimization with large event lists (NEM-3750)
+  // This prevents UI blocking when rendering/updating large numbers of events
+  const { deferredItems: deferredEvents, isStale } = useDeferredList({
+    items: events,
+    deferThreshold: 50, // Start deferring at 50+ events
+  });
+
   // Handle snooze action
   const handleSnooze = useCallback(
     (eventId: number, seconds: number) => {
@@ -282,8 +290,8 @@ const EventListView = memo(function EventListView({
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-gray-800">
-            {events.map((event) => {
+          <tbody className={`divide-y divide-gray-800 ${isStale ? 'opacity-70 transition-opacity' : ''}`}>
+            {deferredEvents.map((event) => {
               const isSelected = selectedIds.has(event.id);
               const riskLevel = (event.risk_level || getRiskLevel(event.risk_score)) as RiskLevel;
               const eventIsSnoozed = isSnoozed(event.snooze_until);

@@ -611,3 +611,362 @@ class PartitionManager:
         )
 
         return result
+
+    # =========================================================================
+    # Table Conversion Methods (NEM-3759)
+    # =========================================================================
+
+    def generate_partition_conversion_sql(self, config: PartitionConfig) -> list[str]:
+        """Generate SQL statements to convert a non-partitioned table to partitioned.
+
+        This generates the SQL needed to:
+        1. Rename the existing table
+        2. Create a new partitioned table with the same structure
+        3. Create the initial partition
+        4. Move data from the old table to the new partitioned structure
+
+        Args:
+            config: Partition configuration for the table
+
+        Returns:
+            List of SQL statements to execute in order
+
+        Note:
+            These statements should be run manually or in a migration script.
+            The actual data migration may take significant time for large tables.
+        """
+        table_name = self._sanitize_table_name(config.table_name)
+        partition_col = self._sanitize_table_name(config.partition_column)
+
+        statements = [
+            "-- Step 1: Rename existing table",
+            f"ALTER TABLE {table_name} RENAME TO {table_name}_old;",
+            "",
+            "-- Step 2: Create new partitioned table with same structure",
+            f"CREATE TABLE {table_name} (LIKE {table_name}_old INCLUDING ALL) "
+            f"PARTITION BY RANGE ({partition_col});",
+            "",
+            "-- Step 3: Create initial partitions (run partition manager after)",
+            "-- The PartitionManager.ensure_partitions() will create needed partitions",
+            "",
+            "-- Step 4: Migrate data (run in batches for large tables)",
+            f"INSERT INTO {table_name} SELECT * FROM {table_name}_old;",  # noqa: S608
+            "",
+            "-- Step 5: Drop old table after verification",
+            f"-- DROP TABLE {table_name}_old;  -- Uncomment after verification",
+        ]
+
+        return statements
+
+    def generate_partition_indexes(
+        self,
+        config: PartitionConfig,
+        partition_name: str,
+        include_brin: bool = False,
+    ) -> list[str]:
+        """Generate index creation SQL for a partition.
+
+        Creates indexes optimized for time-series queries including:
+        - B-tree index on the partition column for range queries
+        - Optional BRIN index for very large partitions
+
+        Args:
+            config: Partition configuration
+            partition_name: Name of the partition to index
+            include_brin: If True, include BRIN index for large partitions
+
+        Returns:
+            List of CREATE INDEX statements
+        """
+        safe_partition = self._sanitize_table_name(partition_name)
+        partition_col = self._sanitize_table_name(config.partition_column)
+
+        indexes = []
+
+        # B-tree index on partition column (for equality and range queries)
+        btree_idx_name = f"idx_{safe_partition}_{partition_col}"
+        indexes.append(
+            f"CREATE INDEX IF NOT EXISTS {btree_idx_name} "
+            f"ON {safe_partition} USING btree ({partition_col});"
+        )
+
+        if include_brin:
+            # BRIN index is efficient for naturally ordered data like timestamps
+            brin_idx_name = f"idx_{safe_partition}_{partition_col}_brin"
+            indexes.append(
+                f"CREATE INDEX IF NOT EXISTS {brin_idx_name} "
+                f"ON {safe_partition} USING brin ({partition_col});"
+            )
+
+        return indexes
+
+    # =========================================================================
+    # Partition Pruning Methods
+    # =========================================================================
+
+    def get_partition_pruning_hint(
+        self,
+        table_name: str,
+        partition_column: str,
+        start_date: datetime | None,
+        end_date: datetime | None,
+    ) -> dict[str, Any]:
+        """Get information about which partitions will be scanned for a date range.
+
+        This helps understand query performance by showing which partitions
+        PostgreSQL will scan based on the date filter.
+
+        Args:
+            table_name: Name of the partitioned table
+            partition_column: Name of the partition column
+            start_date: Start of date range filter (None for no lower bound)
+            end_date: End of date range filter (None for no upper bound)
+
+        Returns:
+            Dictionary containing partition pruning information
+        """
+        if start_date is None and end_date is None:
+            return {
+                "table": table_name,
+                "column": partition_column,
+                "all_partitions": True,
+                "partitions": [],
+                "message": "No date filter - all partitions will be scanned",
+            }
+
+        partitions = []
+        table_safe = self._sanitize_table_name(table_name)
+
+        # Determine date range
+        if start_date is None:
+            start_date = datetime(2020, 1, 1, tzinfo=UTC)  # Reasonable default
+        if end_date is None:
+            end_date = datetime.now(UTC) + timedelta(days=365)
+
+        # Generate partition names for the date range
+        current = start_date
+        while current <= end_date:
+            partition_name = f"{table_safe}_y{current.year}m{current.month:02d}"
+            if partition_name not in partitions:
+                partitions.append(partition_name)
+
+            # Move to next month
+            if current.month == 12:
+                current = datetime(current.year + 1, 1, 1, tzinfo=UTC)
+            else:
+                current = datetime(current.year, current.month + 1, 1, tzinfo=UTC)
+
+        return {
+            "table": table_name,
+            "column": partition_column,
+            "all_partitions": False,
+            "partitions": partitions,
+            "partition_count": len(partitions),
+            "message": f"Query will scan {len(partitions)} partition(s)",
+        }
+
+    # =========================================================================
+    # Time-Series Optimization Methods
+    # =========================================================================
+
+    def recommend_partition_interval(
+        self,
+        estimated_rows_per_month: int,
+        query_pattern: str = "recent",
+    ) -> str:
+        """Recommend optimal partition interval based on data characteristics.
+
+        Args:
+            estimated_rows_per_month: Expected rows per month
+            query_pattern: Query access pattern ('recent', 'historical', or 'random')
+
+        Returns:
+            Recommended partition interval ('weekly' or 'monthly')
+        """
+        # High volume tables benefit from weekly partitions
+        if estimated_rows_per_month > 1_000_000:
+            if query_pattern == "recent":
+                return "weekly"  # Weekly allows faster pruning for recent queries
+            return "monthly"  # Monthly is simpler for historical queries
+
+        # Low to medium volume tables work well with monthly partitions
+        return "monthly"
+
+    def recommend_retention_period(
+        self,
+        table_name: str,
+        compliance_requirements: bool = False,
+    ) -> int:
+        """Recommend retention period based on table type and requirements.
+
+        Args:
+            table_name: Name of the table
+            compliance_requirements: If True, use longer retention for compliance
+
+        Returns:
+            Recommended retention period in months
+        """
+        # Tables that typically need longer retention for compliance
+        compliance_tables = {"audit_logs", "events", "alerts"}
+
+        if compliance_requirements and table_name.lower() in compliance_tables:
+            return 24  # 2 years for compliance
+
+        if compliance_requirements:
+            return 12  # 1 year minimum for compliance
+
+        # Standard retention recommendations
+        short_retention_tables = {"gpu_stats", "metrics", "logs"}
+        if table_name.lower() in short_retention_tables:
+            return 3  # 3 months for high-volume temporary data
+
+        return 6  # 6 months default
+
+    # =========================================================================
+    # Partition Health Check Methods
+    # =========================================================================
+
+    def check_partition_balance(self, partitions: list[PartitionInfo]) -> dict[str, Any]:
+        """Check if partitions are reasonably balanced in size.
+
+        Unbalanced partitions can indicate data skew or issues with
+        the partitioning strategy.
+
+        Args:
+            partitions: List of partition info objects
+
+        Returns:
+            Dictionary with balance analysis
+        """
+        if not partitions:
+            return {
+                "balanced": True,
+                "variance": 0.0,
+                "message": "No partitions to analyze",
+            }
+
+        row_counts = [p.row_count for p in partitions if p.row_count > 0]
+
+        if not row_counts:
+            return {
+                "balanced": True,
+                "variance": 0.0,
+                "message": "No row count data available",
+            }
+
+        avg_rows = sum(row_counts) / len(row_counts)
+        max_rows = max(row_counts)
+        min_rows = min(row_counts)
+
+        # Calculate variance as a ratio of max to average
+        variance_ratio = max_rows / avg_rows if avg_rows > 0 else 0
+
+        # Consider unbalanced if any partition is more than 3x the average
+        balanced = variance_ratio <= 3.0
+
+        largest_idx = row_counts.index(max_rows)
+        largest_partition = partitions[largest_idx].name if partitions else None
+
+        return {
+            "balanced": balanced,
+            "variance": variance_ratio,
+            "average_rows": int(avg_rows),
+            "max_rows": max_rows,
+            "min_rows": min_rows,
+            "largest_partition": largest_partition,
+            "message": "Partitions are balanced" if balanced else "Partition imbalance detected",
+        }
+
+    def identify_partition_gaps(
+        self,
+        config: PartitionConfig,
+        existing_partitions: list[PartitionInfo],
+    ) -> list[str]:
+        """Identify missing partitions in the sequence.
+
+        Gaps in partition coverage can cause insert failures or data loss.
+
+        Args:
+            config: Partition configuration
+            existing_partitions: List of existing partition info
+
+        Returns:
+            List of missing partition names
+        """
+        if not existing_partitions:
+            return []
+
+        # Get the date range covered by existing partitions
+        start_dates = [p.start_date for p in existing_partitions]
+        end_dates = [p.end_date for p in existing_partitions]
+
+        min_date = min(start_dates)
+        max_date = max(end_dates)
+
+        # Generate expected partition names for the range
+        expected_partitions = set()
+        current = min_date
+
+        while current < max_date:
+            name = self._generate_partition_name(config, current)
+            expected_partitions.add(name)
+
+            # Move to next month
+            if current.month == 12:
+                current = datetime(current.year + 1, 1, 1, tzinfo=UTC)
+            else:
+                current = datetime(current.year, current.month + 1, 1, tzinfo=UTC)
+
+        # Find partitions that exist
+        existing_names = {p.name for p in existing_partitions}
+
+        # Return missing partitions
+        missing = expected_partitions - existing_names
+        return sorted(missing)
+
+    # =========================================================================
+    # Partition Metadata Methods
+    # =========================================================================
+
+    def get_partition_metadata(self, partition: PartitionInfo) -> dict[str, Any]:
+        """Get detailed metadata for a partition.
+
+        Args:
+            partition: Partition info object
+
+        Returns:
+            Dictionary with partition metadata
+        """
+        days_covered = (partition.end_date - partition.start_date).days
+
+        return {
+            "name": partition.name,
+            "table_name": partition.table_name,
+            "start_date": partition.start_date.isoformat(),
+            "end_date": partition.end_date.isoformat(),
+            "row_count": partition.row_count,
+            "days_covered": days_covered,
+            "size_estimate_mb": self.estimate_partition_size(
+                partition.row_count,
+                avg_row_size_bytes=500,  # Default estimate
+            ),
+        }
+
+    def estimate_partition_size(
+        self,
+        row_count: int,
+        avg_row_size_bytes: int = 500,
+    ) -> float:
+        """Estimate partition size in megabytes.
+
+        Args:
+            row_count: Number of rows in partition
+            avg_row_size_bytes: Average size per row in bytes
+
+        Returns:
+            Estimated size in megabytes
+        """
+        total_bytes = row_count * avg_row_size_bytes
+        # Add ~20% overhead for indexes and page overhead
+        total_with_overhead = total_bytes * 1.2
+        return total_with_overhead / (1024 * 1024)

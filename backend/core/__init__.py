@@ -1,6 +1,22 @@
 """Core infrastructure components."""
 
 from backend.core.config import Settings, get_settings
+
+# Nested settings with env_nested_delimiter (NEM-3778)
+from backend.core.config_nested import (
+    AIServiceSettings,
+    DatabaseSettings,
+    DetectorSettings,
+    LLMSettings,
+    NestedSettings,
+    NotificationSettings,
+    RedisPoolSettings,
+    RedisSettings,
+    RedisSSLSettings,
+    SMTPSettings,
+    WebhookSettings,
+    get_nested_settings,
+)
 from backend.core.config_validation import (
     ConfigValidationResult,
     ValidationItem,
@@ -148,6 +164,8 @@ __all__ = [
     "SENSITIVE_FIELD_NAMES",
     # Protocols
     "AIServiceProtocol",
+    # Nested Settings classes (NEM-3778)
+    "AIServiceSettings",
     "AIServiceWithLifecycle",
     # Classes
     "Base",
@@ -159,18 +177,27 @@ __all__ = [
     "CircularDependencyError",
     "ConfigValidationResult",
     "Container",
+    "DatabaseSettings",
+    "DetectorSettings",
     "FreeThreadingStatus",
     "HealthCheckableProtocol",
     "InputT",
+    "LLMSettings",
     "LifecycleProtocol",
     "MetricsProviderProtocol",
     "ModelLoaderProtocol",
+    "NestedSettings",
+    "NotificationSettings",
     "OutputT",
     "ProfilingManager",
     "QueryExplainLogger",
     "QueueAddResult",
     "QueueProcessorProtocol",
     "RedisClient",
+    "RedisPoolSettings",
+    "RedisSSLSettings",
+    "RedisSettings",
+    "SMTPSettings",
     "ServiceAlreadyRegisteredError",
     "ServiceNotFoundError",
     "Settings",
@@ -180,6 +207,7 @@ __all__ = [
     "TLSError",
     "TLSMode",
     "ValidationItem",
+    "WebhookSettings",
     "check_free_threading_support",
     # Functions
     "close_db",
@@ -202,6 +230,7 @@ __all__ = [
     "get_metrics_response",
     "get_mime_type",
     "get_mime_type_with_default",
+    "get_nested_settings",
     "get_pool_status",
     "get_profiling_manager",
     "get_redis",

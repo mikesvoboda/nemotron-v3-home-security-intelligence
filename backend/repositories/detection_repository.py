@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import desc, func, select
+from sqlalchemy.orm import joinedload, selectinload
 
 from backend.models import Detection
 from backend.repositories.base import Repository
@@ -166,3 +167,108 @@ class DetectionRepository(Repository[Detection]):
         )
         result = await self.session.execute(stmt)
         return {row[0]: row[1] for row in result.all()}
+
+    # =========================================================================
+    # Eager Loading Methods (NEM-3758)
+    # =========================================================================
+
+    async def get_detections_with_camera(
+        self,
+        camera_id: str | None = None,
+        limit: int = 100,
+    ) -> Sequence[Detection]:
+        """Get detections with camera relationship eagerly loaded.
+
+        Uses joinedload to fetch camera data in a single query, preventing
+        N+1 queries when accessing detection.camera.
+
+        Args:
+            camera_id: Optional camera ID to filter by
+            limit: Maximum number of detections to return
+
+        Returns:
+            Sequence of Detection objects with camera pre-loaded
+
+        Loading Strategy:
+            - camera: joinedload (many-to-one, single JOIN)
+        """
+        stmt = (
+            select(Detection)
+            .options(joinedload(Detection.camera))
+            .order_by(desc(Detection.detected_at))
+            .limit(limit)
+        )
+
+        if camera_id:
+            stmt = stmt.where(Detection.camera_id == camera_id)
+
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_detection_with_entities(
+        self,
+        detection_id: int,
+    ) -> Detection | None:
+        """Get a single detection with related data eagerly loaded.
+
+        Uses selectinload for event_records collection to avoid cartesian product
+        issues that would occur with joinedload on a collection.
+
+        Args:
+            detection_id: ID of the detection to fetch
+
+        Returns:
+            Detection with event_records pre-loaded, or None if not found
+
+        Loading Strategy:
+            - event_records: selectinload (one-to-many, separate IN query)
+            - camera: joinedload (many-to-one, single JOIN)
+        """
+        stmt = (
+            select(Detection)
+            .options(
+                joinedload(Detection.camera),
+                selectinload(Detection.event_records),
+            )
+            .where(Detection.id == detection_id)
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_detections_by_date_range(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+        include_camera: bool = False,
+        limit: int = 1000,
+    ) -> Sequence[Detection]:
+        """List detections in a date range with optional eager loading.
+
+        Args:
+            start_date: Start of date range (inclusive)
+            end_date: End of date range (inclusive)
+            include_camera: If True, eagerly load camera relationship
+            limit: Maximum detections to return
+
+        Returns:
+            Sequence of Detection objects
+
+        Loading Strategy:
+            - camera: joinedload (if include_camera=True)
+        """
+        stmt = (
+            select(Detection)
+            .where(
+                Detection.detected_at >= start_date,
+                Detection.detected_at <= end_date,
+            )
+            .order_by(desc(Detection.detected_at))
+            .limit(limit)
+        )
+
+        if include_camera:
+            stmt = stmt.options(joinedload(Detection.camera))
+
+        result = await self.session.execute(stmt)
+        return result.scalars().all()

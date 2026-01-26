@@ -1,0 +1,143 @@
+# RT-DETR Object Detection Model Configuration for Triton Inference Server
+#
+# This configuration defines the RT-DETR model for object detection in home security
+# monitoring. The model detects security-relevant objects: person, car, truck, dog,
+# cat, bird, bicycle, motorcycle, bus.
+#
+# TensorRT Plan Format: Uses pre-converted TensorRT engine for optimal inference
+# Dynamic Batching: Enables automatic request batching for throughput optimization
+#
+# Usage:
+#   1. Export RT-DETR to ONNX: python ai/rtdetr/export_onnx.py
+#   2. Convert ONNX to TensorRT plan: trtexec --onnx=rtdetr.onnx --saveEngine=model.plan --fp16
+#   3. Place model.plan in ai/triton/model_repository/rtdetr/1/
+#   4. Start Triton server with this model repository
+
+name: "rtdetr"
+platform: "tensorrt_plan"
+
+# Maximum batch size for dynamic batching
+# Higher values increase throughput but also increase latency for individual requests
+max_batch_size: 8
+
+# Input tensor specification
+# RT-DETR expects NCHW format RGB images
+input [
+  {
+    name: "images"
+    data_type: TYPE_FP32
+    format: FORMAT_NCHW
+    dims: [ 3, 640, 640 ]
+  }
+]
+
+# Output tensor specifications
+# RT-DETR outputs bounding boxes, scores, and labels
+output [
+  {
+    name: "labels"
+    data_type: TYPE_INT64
+    dims: [ 300 ]  # Max 300 detections per image
+  },
+  {
+    name: "boxes"
+    data_type: TYPE_FP32
+    dims: [ 300, 4 ]  # [x1, y1, x2, y2] format
+  },
+  {
+    name: "scores"
+    data_type: TYPE_FP32
+    dims: [ 300 ]  # Confidence scores
+  }
+]
+
+# Dynamic batching configuration for automatic request coalescing
+# This significantly improves GPU utilization under load
+dynamic_batching {
+  # Preferred batch sizes for scheduling
+  # Triton will wait briefly to accumulate requests to these batch sizes
+  preferred_batch_size: [ 2, 4, 8 ]
+
+  # Maximum time to wait for more requests to batch (in microseconds)
+  # 100ms is a good trade-off between latency and throughput for object detection
+  max_queue_delay_microseconds: 100000
+
+  # Preserve input ordering - detections returned in request order
+  preserve_ordering: true
+
+  # Default priority level for requests (optional, enables priority scheduling)
+  default_priority_level: 1
+
+  # Priority levels configuration (1=high, 2=medium, 3=low)
+  priority_levels: 3
+}
+
+# Instance group configuration
+# Specifies GPU allocation and model instances
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+    gpus: [ 0 ]  # Primary GPU
+  }
+]
+
+# Version policy - always use the latest model version
+version_policy: { latest: { num_versions: 1 }}
+
+# Model parameters
+parameters: {
+  key: "confidence_threshold"
+  value: { string_value: "0.5" }
+}
+
+# Optimization settings for TensorRT
+optimization {
+  # Enable CUDA graph optimization for reduced kernel launch overhead
+  # Provides 10-30% latency improvement for small batch sizes
+  cuda {
+    graphs: true
+    busy_wait_events: true
+  }
+
+  # Input cache optimization
+  input_pinned_memory { enable: true }
+
+  # Output cache optimization
+  output_pinned_memory { enable: true }
+}
+
+# Model warmup configuration
+# Pre-runs inference to load model weights into GPU memory
+model_warmup [
+  {
+    name: "warmup_rtdetr"
+    batch_size: 1
+    inputs: {
+      key: "images"
+      value: {
+        data_type: TYPE_FP32
+        dims: [ 3, 640, 640 ]
+        zero_data: true
+      }
+    }
+  }
+]
+
+# Response cache configuration (optional, disabled by default)
+# Uncomment to enable caching of inference results
+# response_cache {
+#   enable: true
+# }
+
+# Metrics configuration
+# Enables per-model metrics for monitoring
+metrics [
+  {
+    name: "rtdetr_inference_count"
+    labels {
+      key: "model"
+      value: "rtdetr"
+    }
+  }
+]

@@ -24,4 +24,11 @@ GPU Optimization Utilities (NEM-3771, NEM-3772, NEM-3813, NEM-3814):
     from ai.gpu_memory_pool import GPUMemoryPool, get_global_pool
     from ai.static_kv_cache import StaticCacheManager, create_static_cache
     from ai.cpu_offloading import load_model_with_offloading, OffloadingConfig
+
+CUDA Streams (NEM-3770):
+    The cuda_streams module provides CUDA stream management for overlapping
+    preprocessing, inference, and postprocessing operations. This can provide
+    20-40% throughput improvement for batch processing workloads.
+
+    from ai.cuda_streams import CUDAStreamPool, StreamedInferencePipeline
 """

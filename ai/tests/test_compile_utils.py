@@ -1,11 +1,13 @@
-"""Tests for torch.compile() utilities (NEM-3370).
+"""Tests for torch.compile() utilities (NEM-3370, NEM-3773).
 
 These tests verify the compile_utils module for model optimization.
+NEM-3773 added setup_compile_cache and benchmark_compile_modes.
 """
 
 from __future__ import annotations
 
 import os
+import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -227,3 +229,136 @@ class TestWarmupCompiledModel:
 
         # Should not raise any errors
         warmup_compiled_model(model, sample_input, num_warmup=1)
+
+
+class TestSetupCompileCache:
+    """Tests for setup_compile_cache function (NEM-3773)."""
+
+    def test_creates_cache_directory(self) -> None:
+        """Test that setup_compile_cache creates the cache directory."""
+        from pathlib import Path
+
+        from compile_utils import setup_compile_cache
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = str(Path(tmpdir) / "test_cache")
+            result = setup_compile_cache(cache_dir)
+
+            assert result == cache_dir
+            assert Path(cache_dir).is_dir()
+
+    def test_sets_environment_variables(self) -> None:
+        """Test that setup_compile_cache sets the correct env vars."""
+        from pathlib import Path
+
+        from compile_utils import setup_compile_cache
+
+        # Save original values
+        orig_inductor = os.environ.get("TORCHINDUCTOR_CACHE_DIR")
+        orig_debug = os.environ.get("TORCH_COMPILE_DEBUG_DIR")
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                cache_dir = str(Path(tmpdir) / "test_cache")
+                setup_compile_cache(cache_dir)
+
+                assert os.environ.get("TORCHINDUCTOR_CACHE_DIR") == cache_dir
+                assert os.environ.get("TORCH_COMPILE_DEBUG_DIR") == str(Path(cache_dir) / "debug")
+        finally:
+            # Restore original values
+            if orig_inductor is not None:
+                os.environ["TORCHINDUCTOR_CACHE_DIR"] = orig_inductor
+            elif "TORCHINDUCTOR_CACHE_DIR" in os.environ:
+                del os.environ["TORCHINDUCTOR_CACHE_DIR"]
+
+            if orig_debug is not None:
+                os.environ["TORCH_COMPILE_DEBUG_DIR"] = orig_debug
+            elif "TORCH_COMPILE_DEBUG_DIR" in os.environ:
+                del os.environ["TORCH_COMPILE_DEBUG_DIR"]
+
+    def test_reads_from_env_var(self) -> None:
+        """Test that setup_compile_cache reads from TORCH_COMPILE_CACHE_DIR."""
+        from pathlib import Path
+
+        from compile_utils import setup_compile_cache
+
+        # Save original value
+        orig = os.environ.get("TORCH_COMPILE_CACHE_DIR")
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                expected_dir = str(Path(tmpdir) / "env_cache")
+                os.environ["TORCH_COMPILE_CACHE_DIR"] = expected_dir
+
+                result = setup_compile_cache()
+
+                assert result == expected_dir
+                assert Path(expected_dir).is_dir()
+        finally:
+            # Restore original value
+            if orig is not None:
+                os.environ["TORCH_COMPILE_CACHE_DIR"] = orig
+            elif "TORCH_COMPILE_CACHE_DIR" in os.environ:
+                del os.environ["TORCH_COMPILE_CACHE_DIR"]
+
+
+class TestBenchmarkCompileModes:
+    """Tests for benchmark_compile_modes function (NEM-3773)."""
+
+    def test_returns_dict_structure(self) -> None:
+        """Test that benchmark returns correct dict structure."""
+        from compile_utils import benchmark_compile_modes, is_compile_available
+
+        if not is_compile_available():
+            pytest.skip("torch.compile() not available")
+
+        model = torch.nn.Linear(10, 5)
+        sample_input = torch.randn(1, 10)
+
+        results = benchmark_compile_modes(model, sample_input, num_iterations=5, num_warmup=2)
+
+        # Should have results for all modes
+        assert "eager" in results
+
+        # Each result should have required keys
+        for _mode_name, stats in results.items():
+            assert "mean_ms" in stats
+            assert "std_ms" in stats
+            assert "min_ms" in stats
+            assert "max_ms" in stats
+            assert "p50_ms" in stats
+            assert "p95_ms" in stats
+
+            # Values should be positive
+            assert stats["mean_ms"] >= 0
+            assert stats["min_ms"] >= 0
+            assert stats["max_ms"] >= stats["min_ms"]
+
+    @pytest.mark.skipif(
+        not torch.__version__.startswith("2"),
+        reason="torch.compile() requires PyTorch 2.0+",
+    )
+    def test_benchmark_with_compilation(self) -> None:
+        """Test benchmark with actual compilation modes."""
+        from compile_utils import benchmark_compile_modes
+
+        model = torch.nn.Linear(10, 5)
+        sample_input = torch.randn(1, 10)
+
+        results = benchmark_compile_modes(model, sample_input, num_iterations=5, num_warmup=2)
+
+        # Should have multiple modes
+        assert len(results) > 1
+        assert "eager" in results
+
+    def test_returns_empty_when_unavailable(self) -> None:
+        """Test that benchmark returns empty dict when compile unavailable."""
+        from compile_utils import benchmark_compile_modes
+
+        model = torch.nn.Linear(10, 5)
+        sample_input = torch.randn(1, 10)
+
+        with patch("compile_utils.is_compile_available", return_value=False):
+            results = benchmark_compile_modes(model, sample_input, num_iterations=5, num_warmup=2)
+
+        assert results == {}

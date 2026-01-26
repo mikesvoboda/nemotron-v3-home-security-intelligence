@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, override
 from uuid import UUID
 
 from sqlalchemy import desc, func, select
+from sqlalchemy.orm import selectinload
 
 from backend.models import Entity
 from backend.models.enums import EntityType
@@ -754,3 +755,64 @@ class EntityRepository(Repository[Entity]):
         total = count_result.scalar_one()
 
         return entities, total
+
+    # =========================================================================
+    # Eager Loading Methods (NEM-3758)
+    # =========================================================================
+
+    async def get_entity_with_detections(self, entity_id: UUID) -> Entity | None:
+        """Get a single entity with primary_detection eagerly loaded.
+
+        Uses selectinload for the primary_detection relationship to avoid N+1
+        queries when accessing entity.primary_detection.
+
+        Args:
+            entity_id: UUID of the entity to fetch
+
+        Returns:
+            Entity with primary_detection pre-loaded, or None if not found
+
+        Loading Strategy:
+            - primary_detection: selectinload (many-to-one, for consistency)
+        """
+        stmt = (
+            select(Entity)
+            .options(selectinload(Entity.primary_detection))
+            .where(Entity.id == entity_id)
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_entities_with_primary_detection(
+        self,
+        entity_type: str | None = None,
+        limit: int = 100,
+    ) -> Sequence[Entity]:
+        """Get entities with primary_detection relationship eagerly loaded.
+
+        Uses selectinload to fetch primary detection data efficiently,
+        preventing N+1 queries when iterating over entities.
+
+        Args:
+            entity_type: Optional filter by entity type
+            limit: Maximum number of entities to return
+
+        Returns:
+            Sequence of Entity objects with primary_detection pre-loaded
+
+        Loading Strategy:
+            - primary_detection: selectinload (many-to-one via selectin for consistency)
+        """
+        stmt = (
+            select(Entity)
+            .options(selectinload(Entity.primary_detection))
+            .order_by(desc(Entity.last_seen_at))
+            .limit(limit)
+        )
+
+        if entity_type:
+            stmt = stmt.where(Entity.entity_type == entity_type)
+
+        result = await self.session.execute(stmt)
+        return result.scalars().all()

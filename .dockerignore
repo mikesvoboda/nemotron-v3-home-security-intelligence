@@ -1,1 +1,88 @@
+# Build context optimization for faster Docker builds
+# This file reduces build context size by excluding unnecessary files
+
+# Runtime data (logs, caches, temp files)
 backend/data/logs/
+backend/data/thumbnails/
+.pids/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Development and testing artifacts
+backend/tests/
+frontend/src/**/*.test.ts
+frontend/src/**/*.test.tsx
+frontend/tests/
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+*.cover
+.hypothesis/
+
+# Node.js dependencies and build artifacts
+node_modules/
+frontend/dist/
+frontend/node_modules/
+pnpm-lock.yaml
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python virtual environments and build artifacts
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+*.egg
+*.pyc
+__pycache__/
+*.so
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+.gitea/
+.github/
+
+# Environment and sensitive files
+.env
+.env.*
+.secrets.baseline
+.gitleaks.toml
+
+# CI/CD and documentation
+.github/
+.circleci/
+.gitlab-ci.yml
+docs/
+CHANGELOG.md
+README.md
+LICENSE
+
+# Mutation testing and analysis
+mutants/
+.beads/
+
+# Custom test artifacts
+custom/clips/
+tests/
+
+# Security scanning
+.trivyignore
+.bandit.yml
+.bandit.baseline
