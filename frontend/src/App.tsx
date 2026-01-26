@@ -9,6 +9,7 @@ import {
   ChunkLoadErrorBoundary,
   ErrorBoundary,
   NavigationTracker,
+  OfflineStatusIndicator,
   PageTransition,
   ProductTour,
   RateLimitIndicator,
@@ -191,6 +192,8 @@ export default function App() {
           <RetryingIndicator />
           {/* PWA install prompt - shows after engagement criteria met */}
           <InstallPrompt />
+          {/* PWA offline status indicator - shows when offline (NEM-3675) */}
+          <OfflineStatusIndicator position="bottom-left" variant="banner" reloadOnRetry />
         </AnnouncementProvider>
         {/* React Query DevTools - only shown in development */}
         <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
