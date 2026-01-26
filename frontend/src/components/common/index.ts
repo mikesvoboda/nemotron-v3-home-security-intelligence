@@ -207,3 +207,17 @@ export type {
   ConflictResourceType,
   ConflictAction,
 } from './ConflictResolutionModal';
+
+// PWA offline indicators (NEM-3675)
+export { default as OfflineIndicator } from './OfflineIndicator';
+export type {
+  OfflineIndicatorProps,
+  OfflineIndicatorPosition,
+  OfflineIndicatorVariant,
+} from './OfflineIndicator';
+
+export { default as OfflineStatusIndicator } from './OfflineStatusIndicator';
+export type { OfflineStatusIndicatorProps } from './OfflineStatusIndicator';
+
+export { default as OfflineFallback } from './OfflineFallback';
+export type { OfflineFallbackProps } from './OfflineFallback';

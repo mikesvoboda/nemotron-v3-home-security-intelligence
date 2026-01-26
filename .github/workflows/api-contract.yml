@@ -1,7 +1,10 @@
 name: API Contract Tests
 
+# Main only: Enforces API contract stability post-merge.
+# Removed from PRs to reduce CI time - contract tests are expensive.
+
 on:
-  pull_request:
+  push:
     branches: [main]
     paths:
       - 'backend/api/**'

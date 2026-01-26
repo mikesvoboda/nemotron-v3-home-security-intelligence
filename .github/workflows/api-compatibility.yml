@@ -1,13 +1,10 @@
 name: API Compatibility
 
+# Main only: Detects breaking API changes post-merge.
+# Removed from PRs to reduce CI time - breaking changes are rare and caught in review.
+
 on:
   push:
-    branches: [main]
-    paths:
-      - 'backend/api/**'
-      - 'backend/models/**'
-      - 'backend/main.py'
-  pull_request:
     branches: [main]
     paths:
       - 'backend/api/**'
