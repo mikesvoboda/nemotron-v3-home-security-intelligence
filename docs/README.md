@@ -22,6 +22,7 @@
 | Environment Variables | [Reference](reference/)                                                     |
 | Troubleshooting       | [Troubleshooting](reference/troubleshooting/)                               |
 | API Documentation     | [Developer API](developer/api/) or [Swagger UI](http://localhost:8000/docs) |
+| Component Library     | [Component Library](components/)                                            |
 | Post-MVP Roadmap      | [ROADMAP.md](ROADMAP.md)                                                    |
 
 ---
@@ -39,6 +40,7 @@ docs/
 ├── operator/           # Deployment, monitoring, admin
 ├── user/               # End-user dashboard guides
 ├── reference/          # Env vars, glossary, troubleshooting
+├── components/         # React component library documentation
 │
 ├── architecture/       # System design documents
 ├── user-guide/         # Detailed user documentation
