@@ -38,10 +38,33 @@ pattern of querying for an entity by ID and raising a 404 if not found:
 | `get_event_or_404`     | Get event by ID or raise HTTPException(404)     |
 | `get_detection_or_404` | Get detection by ID or raise HTTPException(404) |
 
-Usage pattern:
+Usage pattern (modern Annotated style - NEM-3742):
 
 ```python
-from backend.api.dependencies import get_camera_or_404
+from backend.api.dependencies import DbSession, get_camera_or_404
+
+@router.get("/{camera_id}")
+async def get_camera(camera_id: str, db: DbSession) -> Camera:
+    return await get_camera_or_404(camera_id, db)
+```
+
+**Annotated Dependency Type Aliases (NEM-3742):**
+
+| Type Alias           | Description                                    |
+| -------------------- | ---------------------------------------------- |
+| `DbSession`          | Database session for write operations          |
+| `ReadDbSession`      | Read-only session (uses replica if configured) |
+| `RedisDep`           | Redis client dependency                        |
+| `CacheDep`           | CacheService dependency                        |
+| `BaselineServiceDep` | BaselineService dependency                     |
+| `JobTrackerDep`      | JobTracker dependency                          |
+| `ClipGeneratorDep`   | ClipGenerator dependency                       |
+
+Legacy pattern (still supported):
+
+```python
+from fastapi import Depends
+from backend.core.database import get_db
 
 @router.get("/{camera_id}")
 async def get_camera(camera_id: str, db: AsyncSession = Depends(get_db)) -> Camera:

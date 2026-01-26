@@ -347,6 +347,18 @@ class TestSetupTelemetrySuccess:
         mock_settings.otel_trace_sample_rate = 1.0
         mock_settings.app_version = "1.0.0"
         mock_settings.debug = False
+        # Add new sampling settings for priority-based sampler (NEM-3793)
+        mock_settings.otel_sampling_error_rate = 1.0
+        mock_settings.otel_sampling_high_risk_rate = 1.0
+        mock_settings.otel_sampling_high_priority_rate = 1.0
+        mock_settings.otel_sampling_medium_priority_rate = 0.5
+        mock_settings.otel_sampling_background_rate = 0.1
+        mock_settings.otel_sampling_default_rate = 0.1
+        # Add batch processor settings
+        mock_settings.otel_batch_max_queue_size = 8192
+        mock_settings.otel_batch_max_export_batch_size = 1024
+        mock_settings.otel_batch_schedule_delay_ms = 2000
+        mock_settings.otel_batch_export_timeout_ms = 30000
 
         # Mock all the imports inside setup_telemetry
         with (
@@ -367,6 +379,8 @@ class TestSetupTelemetrySuccess:
                 "opentelemetry.instrumentation.sqlalchemy.SQLAlchemyInstrumentor"
             ) as mock_sqlalchemy,
             patch("opentelemetry.instrumentation.redis.RedisInstrumentor") as mock_redis,
+            # Mock the priority-based sampler module (NEM-3793)
+            patch("backend.core.sampling.create_otel_sampler") as mock_create_sampler,
         ):
             # Setup mocks
             mock_service_resource = MagicMock()
@@ -375,6 +389,8 @@ class TestSetupTelemetrySuccess:
             mock_get_aggregated.return_value = mock_detected_resource
             mock_provider = MagicMock()
             mock_tracer_provider.return_value = mock_provider
+            mock_priority_sampler = MagicMock()
+            mock_create_sampler.return_value = mock_priority_sampler
 
             result = setup_telemetry(mock_app, mock_settings)
 
@@ -392,8 +408,8 @@ class TestSetupTelemetrySuccess:
                 }
             )
 
-            # Verify sampler was created
-            mock_sampler.assert_called_once_with(1.0)
+            # Verify priority-based sampler was created (NEM-3793)
+            mock_create_sampler.assert_called_once_with(mock_settings)
 
             # Verify TracerProvider was created
             mock_tracer_provider.assert_called_once()
@@ -1003,6 +1019,7 @@ class TestRecordExceptionWithoutSetStatus:
 
 # =============================================================================
 # NEM-3380: ParentBased Composite Sampler Tests
+# NEM-3793: Updated to test priority-based sampling
 # =============================================================================
 
 
@@ -1010,7 +1027,7 @@ class TestParentBasedSampler:
     """Tests for ParentBased composite sampler configuration."""
 
     def test_setup_telemetry_configures_parent_based_sampler(self) -> None:
-        """Should configure ParentBased sampler with correct parameters."""
+        """Should configure ParentBased sampler with priority-based sampling (NEM-3793)."""
         import backend.core.telemetry as telemetry_module
 
         # Reset module state
@@ -1026,6 +1043,18 @@ class TestParentBasedSampler:
         mock_settings.otel_trace_sample_rate = 0.1  # 10% sampling
         mock_settings.app_version = "1.0.0"
         mock_settings.debug = False
+        # Add new sampling settings for priority-based sampler (NEM-3793)
+        mock_settings.otel_sampling_error_rate = 1.0
+        mock_settings.otel_sampling_high_risk_rate = 1.0
+        mock_settings.otel_sampling_high_priority_rate = 1.0
+        mock_settings.otel_sampling_medium_priority_rate = 0.5
+        mock_settings.otel_sampling_background_rate = 0.1
+        mock_settings.otel_sampling_default_rate = 0.1
+        # Add batch processor settings
+        mock_settings.otel_batch_max_queue_size = 8192
+        mock_settings.otel_batch_max_export_batch_size = 1024
+        mock_settings.otel_batch_schedule_delay_ms = 2000
+        mock_settings.otel_batch_export_timeout_ms = 30000
 
         with (
             patch("opentelemetry.sdk.resources.Resource") as mock_resource,
@@ -1051,6 +1080,8 @@ class TestParentBasedSampler:
                 "opentelemetry.trace.propagation.tracecontext.TraceContextTextMapPropagator"
             ) as mock_trace_prop,
             patch("opentelemetry.baggage.propagation.W3CBaggagePropagator") as mock_baggage_prop,
+            # Mock the priority-based sampler module (NEM-3793)
+            patch("backend.core.sampling.create_otel_sampler") as mock_create_sampler,
         ):
             # Setup mocks
             mock_resource.create.return_value = MagicMock()
@@ -1058,23 +1089,16 @@ class TestParentBasedSampler:
             mock_parent_based.return_value = MagicMock()
             mock_provider = MagicMock()
             mock_tracer_provider.return_value = mock_provider
+            mock_priority_sampler = MagicMock()
+            mock_create_sampler.return_value = mock_priority_sampler
 
             result = setup_telemetry(mock_app, mock_settings)
 
             # Verify successful initialization
             assert result is True
 
-            # Verify TraceIdRatioBased sampler was created with correct rate
-            mock_ratio_sampler.assert_called_once_with(0.1)
-
-            # Verify ParentBased sampler was created with correct parameters
-            mock_parent_based.assert_called_once_with(
-                root=mock_ratio_sampler.return_value,
-                local_parent_sampled=mock_always_on,
-                local_parent_not_sampled=mock_always_off,
-                remote_parent_sampled=mock_always_on,
-                remote_parent_not_sampled=mock_always_off,
-            )
+            # Verify priority-based sampler was created (NEM-3793)
+            mock_create_sampler.assert_called_once_with(mock_settings)
 
             # Cleanup
             telemetry_module._is_initialized = False
@@ -1343,6 +1367,18 @@ class TestCompositePropagatorConfiguration:
         mock_settings.otel_trace_sample_rate = 1.0
         mock_settings.app_version = "1.0.0"
         mock_settings.debug = False
+        # Add new sampling settings for priority-based sampler (NEM-3793)
+        mock_settings.otel_sampling_error_rate = 1.0
+        mock_settings.otel_sampling_high_risk_rate = 1.0
+        mock_settings.otel_sampling_high_priority_rate = 1.0
+        mock_settings.otel_sampling_medium_priority_rate = 0.5
+        mock_settings.otel_sampling_background_rate = 0.1
+        mock_settings.otel_sampling_default_rate = 0.1
+        # Add batch processor settings
+        mock_settings.otel_batch_max_queue_size = 8192
+        mock_settings.otel_batch_max_export_batch_size = 1024
+        mock_settings.otel_batch_schedule_delay_ms = 2000
+        mock_settings.otel_batch_export_timeout_ms = 30000
 
         with (
             patch("opentelemetry.sdk.resources.Resource") as mock_resource,
@@ -1368,6 +1404,8 @@ class TestCompositePropagatorConfiguration:
                 "opentelemetry.trace.propagation.tracecontext.TraceContextTextMapPropagator"
             ) as mock_trace_prop,
             patch("opentelemetry.baggage.propagation.W3CBaggagePropagator") as mock_baggage_prop,
+            # Mock the priority-based sampler module (NEM-3793)
+            patch("backend.core.sampling.create_otel_sampler") as mock_create_sampler,
         ):
             # Setup mocks
             mock_resource.create.return_value = MagicMock()
@@ -1375,6 +1413,8 @@ class TestCompositePropagatorConfiguration:
             mock_tracer_provider.return_value = mock_provider
             mock_composite_instance = MagicMock()
             mock_composite.return_value = mock_composite_instance
+            mock_priority_sampler = MagicMock()
+            mock_create_sampler.return_value = mock_priority_sampler
 
             result = setup_telemetry(mock_app, mock_settings)
 

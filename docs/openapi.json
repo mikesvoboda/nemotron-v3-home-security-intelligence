@@ -10287,7 +10287,7 @@
                 "type": "null"
               }
             ],
-            "description": "Compute risk level from risk_score (NEM-3398).\n\nThis computed field derives risk_level from risk_score using\nthe backend severity taxonomy thresholds:\n- LOW: 0-29\n- MEDIUM: 30-59\n- HIGH: 60-84\n- CRITICAL: 85-100\n\nReturns:\n    Risk level string or None if risk_score is None",
+            "description": "Risk level (low/medium/high/critical), computed from risk_score using severity thresholds",
             "readOnly": true,
             "title": "Risk Level"
           },
@@ -13334,6 +13334,7 @@
           "power_watts": 31,
           "temperature": 38,
           "utilization": 38.0,
+          "vram_percent": 94.58,
           "vram_total_gb": 24.0,
           "vram_used_gb": 22.7
         },
@@ -13362,6 +13363,12 @@
             "title": "Utilization",
             "type": "number"
           },
+          "vram_percent": {
+            "description": "VRAM usage percentage (0-100), computed from vram_used_gb/vram_total_gb",
+            "readOnly": true,
+            "title": "Vram Percent",
+            "type": "number"
+          },
           "vram_total_gb": {
             "description": "Total VRAM in GB",
             "exclusiveMinimum": 0.0,
@@ -13381,7 +13388,8 @@
           "vram_used_gb",
           "vram_total_gb",
           "temperature",
-          "power_watts"
+          "power_watts",
+          "vram_percent"
         ],
         "title": "GpuMetrics",
         "type": "object"
@@ -13563,8 +13571,10 @@
         "description": "Host system metrics from psutil.",
         "example": {
           "cpu_percent": 12,
+          "disk_percent": 31.2,
           "disk_total_gb": 500,
           "disk_used_gb": 156,
+          "ram_percent": 25.63,
           "ram_total_gb": 32,
           "ram_used_gb": 8.2
         },
@@ -13574,6 +13584,12 @@
             "maximum": 100.0,
             "minimum": 0.0,
             "title": "Cpu Percent",
+            "type": "number"
+          },
+          "disk_percent": {
+            "description": "Disk usage percentage (0-100), computed from disk_used_gb/disk_total_gb",
+            "readOnly": true,
+            "title": "Disk Percent",
             "type": "number"
           },
           "disk_total_gb": {
@@ -13586,6 +13602,12 @@
             "description": "Disk used in GB",
             "minimum": 0.0,
             "title": "Disk Used Gb",
+            "type": "number"
+          },
+          "ram_percent": {
+            "description": "RAM usage percentage (0-100), computed from ram_used_gb/ram_total_gb",
+            "readOnly": true,
+            "title": "Ram Percent",
             "type": "number"
           },
           "ram_total_gb": {
@@ -13606,7 +13628,9 @@
           "ram_used_gb",
           "ram_total_gb",
           "disk_used_gb",
-          "disk_total_gb"
+          "disk_total_gb",
+          "ram_percent",
+          "disk_percent"
         ],
         "title": "HostMetrics",
         "type": "object"
@@ -23534,7 +23558,7 @@
                 "type": "null"
               }
             ],
-            "description": "Compute risk level from risk_score (NEM-3398).\n\nThis computed field derives risk_level from risk_score using\nthe backend severity taxonomy thresholds:\n- LOW: 0-29\n- MEDIUM: 30-59\n- HIGH: 60-84\n- CRITICAL: 85-100\n\nReturns:\n    Risk level string or None if risk_score is None",
+            "description": "Risk level (low/medium/high/critical), computed from risk_score using severity thresholds",
             "readOnly": true,
             "title": "Risk Level"
           },
@@ -30984,7 +31008,7 @@
     },
     "/api/cameras/{camera_id}/zones": {
       "get": {
-        "description": "List all zones for a camera with optional filtering.\n\nArgs:\n    camera_id: ID of the camera\n    enabled: Optional filter for enabled/disabled zones\n    db: Database session\n\nReturns:\n    ZoneListResponse containing list of zones and total count",
+        "description": "List all zones for a camera with optional filtering.\n\nArgs:\n    camera_id: ID of the camera\n    db: Database session\n    enabled: Optional filter for enabled/disabled zones\n\nReturns:\n    ZoneListResponse containing list of zones and total count",
         "operationId": "zones_list_zones",
         "parameters": [
           {

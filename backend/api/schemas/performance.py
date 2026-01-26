@@ -6,8 +6,9 @@ broadcast real-time metrics from GPU, AI models, databases, and host system.
 
 from datetime import UTC, datetime
 from enum import Enum
+from functools import cached_property
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class TimeRange(str, Enum):
@@ -28,9 +29,20 @@ class GpuMetrics(BaseModel):
     temperature: int = Field(..., ge=0, description="GPU temperature in Celsius")
     power_watts: int = Field(..., ge=0, description="GPU power usage in Watts")
 
-    @property
+    @computed_field(  # type: ignore[prop-decorator]
+        description="VRAM usage percentage (0-100), computed from vram_used_gb/vram_total_gb"
+    )
+    @cached_property
     def vram_percent(self) -> float:
-        """Calculate VRAM usage percentage."""
+        """Calculate VRAM usage percentage.
+
+        This computed field derives the VRAM usage percentage from
+        vram_used_gb and vram_total_gb. Using @computed_field ensures
+        this value is included in JSON serialization and OpenAPI schema.
+
+        Returns:
+            VRAM usage as a percentage (0-100)
+        """
         return (self.vram_used_gb / self.vram_total_gb) * 100
 
     model_config = ConfigDict(
@@ -40,6 +52,7 @@ class GpuMetrics(BaseModel):
                 "utilization": 38.0,
                 "vram_used_gb": 22.7,
                 "vram_total_gb": 24.0,
+                "vram_percent": 94.58,
                 "temperature": 38,
                 "power_watts": 31,
             }
@@ -172,14 +185,36 @@ class HostMetrics(BaseModel):
     disk_used_gb: float = Field(..., ge=0, description="Disk used in GB")
     disk_total_gb: float = Field(..., gt=0, description="Total disk in GB")
 
-    @property
+    @computed_field(  # type: ignore[prop-decorator]
+        description="RAM usage percentage (0-100), computed from ram_used_gb/ram_total_gb"
+    )
+    @cached_property
     def ram_percent(self) -> float:
-        """Calculate RAM usage percentage."""
+        """Calculate RAM usage percentage.
+
+        This computed field derives the RAM usage percentage from
+        ram_used_gb and ram_total_gb. Using @computed_field ensures
+        this value is included in JSON serialization and OpenAPI schema.
+
+        Returns:
+            RAM usage as a percentage (0-100)
+        """
         return (self.ram_used_gb / self.ram_total_gb) * 100
 
-    @property
+    @computed_field(  # type: ignore[prop-decorator]
+        description="Disk usage percentage (0-100), computed from disk_used_gb/disk_total_gb"
+    )
+    @cached_property
     def disk_percent(self) -> float:
-        """Calculate disk usage percentage."""
+        """Calculate disk usage percentage.
+
+        This computed field derives the disk usage percentage from
+        disk_used_gb and disk_total_gb. Using @computed_field ensures
+        this value is included in JSON serialization and OpenAPI schema.
+
+        Returns:
+            Disk usage as a percentage (0-100)
+        """
         return (self.disk_used_gb / self.disk_total_gb) * 100
 
     model_config = ConfigDict(
@@ -188,8 +223,10 @@ class HostMetrics(BaseModel):
                 "cpu_percent": 12,
                 "ram_used_gb": 8.2,
                 "ram_total_gb": 32,
+                "ram_percent": 25.63,
                 "disk_used_gb": 156,
                 "disk_total_gb": 500,
+                "disk_percent": 31.2,
             }
         }
     )

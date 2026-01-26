@@ -85,7 +85,7 @@ from backend.core.metrics import (
     record_pipeline_error,
 )
 from backend.core.mime_types import get_mime_type_with_default
-from backend.core.telemetry import get_trace_id, trace_span
+from backend.core.telemetry import add_span_event, get_trace_id, trace_span
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.services.baseline import get_baseline_service
@@ -1009,6 +1009,16 @@ class DetectorClient:
         trace_id = get_trace_id()
         start_time = time.time()
 
+        # NEM-3797: Add span event for frame capture start
+        add_span_event(
+            "frame_capture.start",
+            {
+                "camera.id": camera_id,
+                "file.path": image_path,
+                "detector.type": self._detector_type,
+            },
+        )
+
         # Validate image file exists
         image_file = Path(image_path)
         if not image_file.exists():
@@ -1051,6 +1061,15 @@ class DetectorClient:
             # Read image file asynchronously to avoid blocking the event loop
             image_data = await asyncio.to_thread(image_file.read_bytes)
 
+            # NEM-3797: Add span event for frame capture complete
+            add_span_event(
+                "frame_capture.complete",
+                {
+                    "camera.id": camera_id,
+                    "frame.size_bytes": len(image_data),
+                },
+            )
+
             # Buffer frame for X-CLIP temporal action recognition (NEM-3334)
             # This enables the enrichment pipeline to access recent frames for
             # action classification (e.g., loitering, approaching_door, running_away)
@@ -1073,6 +1092,16 @@ class DetectorClient:
             # This limits concurrent AI operations to prevent GPU/service overload
             inference_semaphore = get_inference_semaphore()
             async with inference_semaphore:
+                # NEM-3797: Add span event for detection inference start
+                add_span_event(
+                    "detection_inference.start",
+                    {
+                        "camera.id": camera_id,
+                        "detector.type": self._detector_type,
+                        "detector.url": self._detector_url,
+                    },
+                )
+
                 # Send to detector with retry logic (NEM-1343) and circuit breaker (NEM-1724)
                 # The circuit breaker tracks failures and opens after threshold is reached
                 result = await self._circuit_breaker.call(
@@ -1086,6 +1115,18 @@ class DetectorClient:
             # Record AI request duration with detector type label
             ai_duration = time.time() - ai_start_time
             observe_ai_request_duration(self._detector_type, ai_duration)
+
+            # NEM-3797: Add span event for detection inference complete
+            detection_count = len(result.get("detections", []))
+            add_span_event(
+                "detection_inference.complete",
+                {
+                    "camera.id": camera_id,
+                    "detector.type": self._detector_type,
+                    "detection.count": detection_count,
+                    "inference.duration_ms": int(ai_duration * 1000),
+                },
+            )
 
             if "detections" not in result:
                 logger.warning(

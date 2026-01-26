@@ -52,6 +52,7 @@ Usage:
 NEM-1503: Added trace_span context manager, trace_function decorator, and trace ID utilities.
 NEM-3380: Added ParentBased composite sampler for smarter trace sampling.
 NEM-3382: Added Baggage for cross-service context propagation.
+NEM-3793: Added priority-based sampling to preserve important traces while reducing volume.
 """
 
 from __future__ import annotations
@@ -231,21 +232,51 @@ def setup_telemetry(app: FastAPI, settings: Settings) -> bool:
         detected_resource = get_aggregated_resources(resource_detectors)
         resource = service_resource.merge(detected_resource)
 
-        # Configure ParentBased composite sampler (NEM-3380)
-        # This provides smarter sampling decisions based on parent span:
-        # - Root spans: Sample based on configured rate (default 10% in production)
+        # Configure priority-based sampler (NEM-3793)
+        # This provides intelligent sampling decisions based on trace priority:
+        # - Error traces: Always sample (100%) for debugging
+        # - High-risk events: Always sample (100%) for security monitoring
+        # - High-priority endpoints (/api/events, /api/alerts): Always sample
+        # - Medium-priority endpoints: Configurable rate (default 50%)
+        # - Background tasks (/health, /metrics): Lower sample rate (default 10%)
+        # - Default: Configurable base rate (default 10%)
+        #
+        # Parent-based behavior is preserved:
         # - Local parent sampled: Always sample to maintain complete traces
         # - Local parent not sampled: Always drop to maintain decision consistency
         # - Remote parent sampled: Always sample to honor upstream decision
         # - Remote parent not sampled: Always drop to honor upstream decision
-        root_sampler = TraceIdRatioBased(settings.otel_trace_sample_rate)
-        sampler = ParentBased(
-            root=root_sampler,
-            local_parent_sampled=ALWAYS_ON,
-            local_parent_not_sampled=ALWAYS_OFF,
-            remote_parent_sampled=ALWAYS_ON,
-            remote_parent_not_sampled=ALWAYS_OFF,
-        )
+        #
+        # Configuration via environment variables (see backend/core/sampling.py):
+        # - OTEL_SAMPLING_ERROR_RATE, OTEL_SAMPLING_HIGH_RISK_RATE, etc.
+        try:
+            from backend.core.sampling import create_otel_sampler
+
+            sampler = create_otel_sampler(settings)
+            if sampler is None:
+                # Fallback to simple TraceIdRatioBased if sampling module fails
+                root_sampler = TraceIdRatioBased(settings.otel_trace_sample_rate)
+                sampler = ParentBased(
+                    root=root_sampler,
+                    local_parent_sampled=ALWAYS_ON,
+                    local_parent_not_sampled=ALWAYS_OFF,
+                    remote_parent_sampled=ALWAYS_ON,
+                    remote_parent_not_sampled=ALWAYS_OFF,
+                )
+                logger.debug("Using fallback TraceIdRatioBased sampler")
+            else:
+                logger.debug("Priority-based sampler configured successfully")
+        except ImportError:
+            # Fallback if sampling module is not available
+            root_sampler = TraceIdRatioBased(settings.otel_trace_sample_rate)
+            sampler = ParentBased(
+                root=root_sampler,
+                local_parent_sampled=ALWAYS_ON,
+                local_parent_not_sampled=ALWAYS_OFF,
+                remote_parent_sampled=ALWAYS_ON,
+                remote_parent_not_sampled=ALWAYS_OFF,
+            )
+            logger.debug("Using fallback TraceIdRatioBased sampler (sampling module not available)")
 
         # Create tracer provider
         provider = TracerProvider(resource=resource, sampler=sampler)

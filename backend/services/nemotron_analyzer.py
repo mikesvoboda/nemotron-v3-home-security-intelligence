@@ -66,7 +66,12 @@ from backend.core.metrics import (
     record_prompt_template_used,
 )
 from backend.core.redis import RedisClient
-from backend.core.telemetry import add_span_attributes, get_tracer, record_exception
+from backend.core.telemetry import (
+    add_span_attributes,
+    add_span_event,
+    get_tracer,
+    record_exception,
+)
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
@@ -1508,6 +1513,16 @@ class NemotronAnalyzer:
 
         analysis_start = time.time()
 
+        # NEM-3797: Add span event for batch analysis start
+        add_span_event(
+            "batch_analysis.start",
+            {
+                "batch.id": batch_id,
+                "camera.id": camera_id,
+                "detection.count": len(detection_ids),
+            },
+        )
+
         # Use log_context to include batch_id in all subsequent logs during analysis
         # This ensures every log message within analyze_batch includes batch tracing
         with log_context(
@@ -1673,6 +1688,21 @@ class NemotronAnalyzer:
 
         # Call LLM for risk analysis (can take 60-120+ seconds)
         llm_start = time.time()
+
+        # NEM-3797: Add span event for Nemotron analysis start
+        add_span_event(
+            "nemotron_analysis.start",
+            {
+                "batch.id": batch_id,
+                "camera.id": camera_id,
+                "camera.name": camera_name,
+                "detection.count": len(int_detection_ids),
+                "has_enriched_context": enriched_context is not None,
+                "has_enrichment_result": enrichment_result is not None,
+                "has_household_context": bool(household_context),
+            },
+        )
+
         try:
             risk_data = await self._call_llm(
                 camera_name=camera_name,
@@ -1689,6 +1719,18 @@ class NemotronAnalyzer:
             llm_duration_seconds = time.time() - llm_start
             # Record Nemotron AI request duration
             observe_ai_request_duration("nemotron", llm_duration_seconds)
+
+            # NEM-3797: Add span event for Nemotron analysis complete
+            add_span_event(
+                "nemotron_analysis.complete",
+                {
+                    "batch.id": batch_id,
+                    "risk.score": risk_data.get("risk_score", 0),
+                    "risk.level": risk_data.get("risk_level", "unknown"),
+                    "analysis.duration_ms": llm_duration_ms,
+                },
+            )
+
             logger.debug(
                 f"LLM analysis completed for batch {batch_id}",
                 extra={
@@ -1828,6 +1870,17 @@ class NemotronAnalyzer:
         # Session 2 is now closed - connection returned to pool
         # =========================================================================
 
+        # NEM-3797: Add span event for database write completion
+        add_span_event(
+            "database_write.complete",
+            {
+                "batch.id": batch_id,
+                "event.id": event.id,
+                "detection.count": len(int_detection_ids),
+                "enrichment_data.count": len(enrichment_data_map),
+            },
+        )
+
         total_duration_ms = int((time.time() - analysis_start) * 1000)
         total_duration_seconds = time.time() - analysis_start
 
@@ -1871,6 +1924,20 @@ class NemotronAnalyzer:
 
         # Trigger outbound webhooks for EVENT_CREATED (NEM-3624)
         await self._trigger_event_created_webhook(event)
+
+        # NEM-3797: Add span event for batch analysis complete (full pipeline)
+        add_span_event(
+            "batch_analysis.complete",
+            {
+                "batch.id": batch_id,
+                "event.id": event.id,
+                "camera.id": camera_id,
+                "risk.score": event.risk_score or 0,
+                "risk.level": event.risk_level or "unknown",
+                "detection.count": len(int_detection_ids),
+                "total.duration_ms": total_duration_ms,
+            },
+        )
 
         return event
 

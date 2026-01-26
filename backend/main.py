@@ -23,6 +23,7 @@ from fastapi.routing import APIRoute
 from backend.api.exception_handlers import register_exception_handlers
 from backend.api.middleware import (
     AuthMiddleware,
+    BaggageMiddleware,
     BodySizeLimitMiddleware,
     ContentTypeValidationMiddleware,
     DeprecationConfig,
@@ -1062,6 +1063,11 @@ app.add_middleware(ContentTypeValidationMiddleware)
 
 # Add request ID middleware for log correlation
 app.add_middleware(RequestIDMiddleware)
+
+# Add OpenTelemetry Baggage middleware for cross-service context propagation (NEM-3796)
+# Extracts incoming baggage from W3C Baggage headers and sets application-specific context
+# (camera.id, event.priority, request.source) for propagation through the detection pipeline
+app.add_middleware(BaggageMiddleware)
 
 # Add request timing middleware for API latency tracking (NEM-1469)
 # Added early so it measures the full request lifecycle including other middleware

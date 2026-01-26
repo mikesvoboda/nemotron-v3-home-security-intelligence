@@ -64,6 +64,7 @@ from backend.core.metrics import (
     record_pipeline_error,
 )
 from backend.core.mime_types import VIDEO_MIME_TYPES
+from backend.core.telemetry import add_span_event
 from backend.services.depth_anything_loader import (
     DepthAnalysisResult,
     analyze_depth,
@@ -2371,6 +2372,18 @@ class EnrichmentPipeline:
         start_time = time.monotonic()
         result = EnrichmentResult()
 
+        # NEM-3797: Add span event for enrichment pipeline start
+        add_span_event(
+            "enrichment_pipeline.start",
+            {
+                "detection.count": len(detections),
+                "camera.id": camera_id or "unknown",
+                "license_plate.enabled": self.license_plate_enabled,
+                "face_detection.enabled": self.face_detection_enabled,
+                "vision_extraction.enabled": self.vision_extraction_enabled,
+            },
+        )
+
         if not detections:
             return result
 
@@ -2775,6 +2788,30 @@ class EnrichmentPipeline:
                 self._handle_enrichment_error("household_matching", e, result)
 
         result.processing_time_ms = (time.monotonic() - start_time) * 1000
+
+        # NEM-3797: Add span event for enrichment pipeline complete
+        add_span_event(
+            "enrichment_pipeline.complete",
+            {
+                "license_plate.count": len(result.license_plates),
+                "face.count": len(result.faces),
+                "vision_extraction.enabled": result.vision_extraction is not None,
+                "reid.has_matches": result.has_reid_matches,
+                "scene_change.detected": result.has_scene_change,
+                "clothing_classification.count": len(result.clothing_classifications),
+                "vehicle_classification.count": len(result.vehicle_classifications),
+                "pet_classification.count": len(result.pet_classifications),
+                "depth_analysis.enabled": result.depth_analysis is not None,
+                "pose_result.count": len(result.pose_results),
+                "action_recognition.enabled": result.action_results is not None,
+                "image_quality.assessed": result.image_quality is not None,
+                "household_person_match.count": len(result.person_household_matches),
+                "household_vehicle_match.count": len(result.vehicle_household_matches),
+                "error.count": len(result.errors),
+                "processing.duration_ms": int(result.processing_time_ms),
+            },
+        )
+
         logger.info(
             f"Enrichment complete: {len(result.license_plates)} plates, "
             f"{len(result.faces)} faces, "

@@ -1103,12 +1103,20 @@ Prompt configuration management for AI models with versioning, testing, and impo
 
 ### Async Database Access
 
-All routes use async SQLAlchemy sessions:
+All routes use async SQLAlchemy sessions with Annotated dependency injection (NEM-3742):
 
 ```python
-db: AsyncSession = Depends(get_db)
-result = await db.execute(select(Model).where(...))
-item = result.scalar_one_or_none()
+from backend.api.dependencies import DbSession
+
+# Modern pattern (preferred)
+async def list_items(db: DbSession):
+    result = await db.execute(select(Model).where(...))
+    item = result.scalar_one_or_none()
+
+# Legacy pattern (still supported)
+async def list_items(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Model).where(...))
+    item = result.scalar_one_or_none()
 ```
 
 ### Error Handling
@@ -1133,10 +1141,29 @@ async def endpoint(...) -> ResponseType:
 
 ### Dependency Injection
 
-Routes use FastAPI dependencies for:
+Routes use FastAPI Annotated dependencies (NEM-3742):
 
-- `db: AsyncSession = Depends(get_db)` - Database session
-- `redis: RedisClient = Depends(get_redis)` - Redis client
+```python
+from backend.api.dependencies import DbSession, RedisDep, CacheDep
+
+@router.get("/items")
+async def list_items(db: DbSession, redis: RedisDep):
+    ...
+```
+
+**Available Type Aliases:**
+
+| Type                 | Description                                                               |
+| -------------------- | ------------------------------------------------------------------------- |
+| `DbSession`          | Write database session (`Annotated[AsyncSession, Depends(get_db)]`)       |
+| `ReadDbSession`      | Read-only session (`Annotated[AsyncSession, Depends(get_read_db)]`)       |
+| `RedisDep`           | Redis client (`Annotated[RedisClient, Depends(get_redis)]`)               |
+| `CacheDep`           | Cache service (`Annotated[CacheService, Depends(get_cache_service_dep)]`) |
+| `BaselineServiceDep` | Baseline service                                                          |
+| `JobTrackerDep`      | Job tracker                                                               |
+
+**Configuration:**
+
 - `get_settings()` - Configuration settings
 
 ## Helper Functions

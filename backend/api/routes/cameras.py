@@ -10,12 +10,12 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from backend.api.dependencies import (
-    get_baseline_service_dep,
-    get_cache_service_dep,
+    BaselineServiceDep,
+    CacheDep,
+    DbSession,
     get_camera_or_404,
 )
 from backend.api.middleware import RateLimiter, RateLimitTier
@@ -50,23 +50,17 @@ from backend.api.utils.field_filter import (
 )
 from backend.core.config import get_settings
 from backend.core.constants import CacheInvalidationReason
-from backend.core.database import get_db
 from backend.core.logging import get_logger, sanitize_log_value
 from backend.core.websocket.event_types import WebSocketEventType
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera, normalize_camera_id
 from backend.models.scene_change import SceneChange
 from backend.services.audit import AuditService
-from backend.services.baseline import BaselineService
 from backend.services.cache_service import (
     SHORT_TTL,
     CacheKeys,
-    CacheService,
 )
 from backend.services.websocket_emitter import get_websocket_emitter
-
-# Type alias for dependency injection
-BaselineServiceDep = BaselineService
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/cameras", tags=["cameras"])
@@ -110,14 +104,14 @@ _SNAPSHOT_THUMBNAIL_SIZE = (640, 480)
 
 @router.get("", response_model=CameraListResponse)
 async def list_cameras(
+    db: DbSession,
+    cache: CacheDep,
     status_filter: str | None = Query(None, alias="status", description="Filter by camera status"),
     fields: str | None = Query(
         None,
         description="Comma-separated list of fields to include in response (sparse fieldsets). "
         "Valid fields: id, name, folder_path, status, created_at, last_seen_at",
     ),
-    db: AsyncSession = Depends(get_db),
-    cache: CacheService = Depends(get_cache_service_dep),
 ) -> CameraListResponse:
     """List all cameras with optional status filter.
 
@@ -246,7 +240,7 @@ async def list_cameras(
     },
 )
 async def list_deleted_cameras(
-    db: AsyncSession = Depends(get_db),
+    db: DbSession,
 ) -> DeletedCamerasListResponse:
     """List all soft-deleted cameras for trash view.
 
@@ -313,8 +307,8 @@ async def list_deleted_cameras(
 )
 async def restore_camera(
     camera_id: str,
-    db: AsyncSession = Depends(get_db),
-    cache: CacheService = Depends(get_cache_service_dep),
+    db: DbSession,
+    cache: CacheDep,
 ) -> CameraResponse:
     """Restore a soft-deleted camera.
 
@@ -370,7 +364,7 @@ async def restore_camera(
 @router.get("/{camera_id}", response_model=CameraResponse, response_model_exclude_unset=True)
 async def get_camera(
     camera_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: DbSession,
 ) -> CameraResponse:
     """Get a specific camera by ID.
 
@@ -402,8 +396,8 @@ async def get_camera(
 async def create_camera(
     camera_data: CameraCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
-    cache: CacheService = Depends(get_cache_service_dep),
+    db: DbSession,
+    cache: CacheDep,
 ) -> CameraResponse:
     """Create a new camera.
 
@@ -508,8 +502,8 @@ async def update_camera(
     camera_id: str,
     camera_data: CameraUpdate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
-    cache: CacheService = Depends(get_cache_service_dep),
+    db: DbSession,
+    cache: CacheDep,
 ) -> CameraResponse:
     """Update an existing camera.
 
@@ -596,8 +590,8 @@ async def update_camera(
 async def delete_camera(
     camera_id: str,
     request: Request,
-    db: AsyncSession = Depends(get_db),
-    cache: CacheService = Depends(get_cache_service_dep),
+    db: DbSession,
+    cache: CacheDep,
 ) -> None:
     """Delete a camera.
 
@@ -867,7 +861,7 @@ async def _extract_frame_from_video(
 )
 async def get_camera_snapshot(
     camera_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: DbSession,
     _rate_limit: None = Depends(snapshot_rate_limiter),
 ) -> FileResponse:
     """Return the latest image for a camera (best-effort snapshot).
@@ -977,7 +971,7 @@ async def get_camera_snapshot(
     },
 )
 async def validate_camera_paths(
-    db: AsyncSession = Depends(get_db),
+    db: DbSession,
 ) -> CameraPathValidationResponse:
     """Validate all camera folder paths against the configured base path.
 
@@ -1059,8 +1053,8 @@ async def validate_camera_paths(
 @router.get("/{camera_id}/baseline", response_model=BaselineSummaryResponse)
 async def get_camera_baseline(
     camera_id: str,
-    db: AsyncSession = Depends(get_db),
-    baseline_service: BaselineServiceDep = Depends(get_baseline_service_dep),
+    db: DbSession,
+    baseline_service: BaselineServiceDep,
 ) -> BaselineSummaryResponse:
     """Get baseline activity data for a camera.
 
@@ -1111,9 +1105,9 @@ async def get_camera_baseline(
 @router.get("/{camera_id}/baseline/anomalies", response_model=AnomalyListResponse)
 async def get_camera_baseline_anomalies(
     camera_id: str,
+    db: DbSession,
+    baseline_service: BaselineServiceDep,
     days: int = Query(default=7, ge=1, le=90, description="Number of days to look back"),
-    db: AsyncSession = Depends(get_db),
-    baseline_service: BaselineServiceDep = Depends(get_baseline_service_dep),
 ) -> AnomalyListResponse:
     """Get recent anomaly events for a camera.
 
@@ -1149,8 +1143,8 @@ async def get_camera_baseline_anomalies(
 @router.get("/{camera_id}/baseline/activity", response_model=ActivityBaselineResponse)
 async def get_camera_activity_baseline(
     camera_id: str,
-    db: AsyncSession = Depends(get_db),
-    baseline_service: BaselineServiceDep = Depends(get_baseline_service_dep),
+    db: DbSession,
+    baseline_service: BaselineServiceDep,
 ) -> ActivityBaselineResponse:
     """Get raw activity baseline data for a camera.
 
@@ -1223,8 +1217,8 @@ async def get_camera_activity_baseline(
 @router.get("/{camera_id}/baseline/classes", response_model=ClassBaselineResponse)
 async def get_camera_class_baseline(
     camera_id: str,
-    db: AsyncSession = Depends(get_db),
-    baseline_service: BaselineServiceDep = Depends(get_baseline_service_dep),
+    db: DbSession,
+    baseline_service: BaselineServiceDep,
 ) -> ClassBaselineResponse:
     """Get class frequency baseline data for a camera.
 
@@ -1285,12 +1279,12 @@ async def get_camera_class_baseline(
 @router.get("/{camera_id}/scene-changes", response_model=SceneChangeListResponse)
 async def get_camera_scene_changes(
     camera_id: str,
+    db: DbSession,
     acknowledged: bool | None = Query(default=None, description="Filter by acknowledgement status"),
     limit: int = Query(default=50, ge=1, le=100, description="Maximum number of results"),
     cursor: datetime | None = Query(
         default=None, description="Cursor for pagination (detected_at timestamp)"
     ),
-    db: AsyncSession = Depends(get_db),
 ) -> SceneChangeListResponse:
     """Get scene changes for a camera with cursor-based pagination.
 
@@ -1387,7 +1381,7 @@ async def acknowledge_scene_change(
     camera_id: str,
     scene_change_id: int,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: DbSession,
 ) -> SceneChangeAcknowledgeResponse:
     """Acknowledge a scene change alert.
 
