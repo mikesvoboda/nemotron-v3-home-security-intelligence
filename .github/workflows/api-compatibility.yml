@@ -217,7 +217,7 @@ jobs:
       - name: Check for breaking-change-approved label
         id: check-label
         if: github.event_name == 'pull_request' && steps.oasdiff.outputs.HAS_BREAKING == 'true'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
         with:
           script: |
             const labels = context.payload.pull_request.labels.map(l => l.name);
@@ -232,7 +232,7 @@ jobs:
 
       - name: Comment on PR with breaking changes
         if: github.event_name == 'pull_request' && steps.oasdiff.outputs.HAS_BREAKING == 'true'
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v7
         with:
           script: |
             const fs = require('fs');
