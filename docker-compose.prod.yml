@@ -299,10 +299,10 @@ services:
     ports:
       - '8093:8093'
     volumes:
-      # Writable mount to allow TensorRT engine auto-export on first startup
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l
-      # Persistent HuggingFace cache volume (NEM-3812)
-      - hf_cache:/cache/huggingface:U
+      # Read-only model mount (HuggingFace CLIP weights)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
+      # Writable mount for TensorRT engine cache (persists between restarts)
+      - clip-tensorrt-cache:/cache/tensorrt
     environment:
       - SERVICE_NAME=ai-clip
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
@@ -310,11 +310,7 @@ services:
       - CLIP_MODEL_PATH=/models/clip-vit-l
       # TensorRT acceleration (1.5-2x faster inference, auto-exports engine on first run)
       - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
-      - CLIP_ENGINE_PATH=/models/clip-vit-l/vision_encoder_fp16.engine
-      # HuggingFace cache configuration (NEM-3812)
-      - HF_HOME=/cache/huggingface
-      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
-      - HF_HUB_DISABLE_TELEMETRY=1
+      - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
       interval: 10s
@@ -1204,6 +1200,8 @@ volumes:
   grafana_data:
     driver: local
   alertmanager_data:
+    driver: local
+  clip-tensorrt-cache:
     driver: local
   loki_data:
     driver: local

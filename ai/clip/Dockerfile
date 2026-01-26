@@ -1,8 +1,8 @@
 # CLIP Embedding Server
-# Uses HuggingFace Transformers for model loading and inference
-# Port: 8093 | Expected VRAM: ~800MB
+# Uses HuggingFace Transformers for model loading with optional TensorRT inference
+# Port: 8093 | Expected VRAM: ~800MB (PyTorch) / ~600MB (TensorRT)
 
-FROM docker.io/pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime
+FROM nvcr.io/nvidia/tensorrt:24.09-py3
 
 LABEL maintainer="home-security-intelligence"
 LABEL description="CLIP ViT-L embedding server for entity re-identification"
@@ -50,6 +50,7 @@ RUN groupadd -g 1000 clip && \
 # Copy application files
 COPY ai/clip/model.py .
 COPY ai/clip/tensorrt_inference.py .
+COPY ai/clip/export_onnx.py .
 
 # Environment variables
 ENV HOST=0.0.0.0
@@ -81,8 +82,8 @@ EXPOSE 8093
 USER clip
 
 # Health check using Python/httpx on /health endpoint
-# Start period of 60s allows time for model loading (CLIP ViT-L is smaller than Florence)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+# Start period of 300s allows time for model loading and TensorRT auto-export on first run
+HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=3 \
     CMD python -c "import httpx; r = httpx.get('http://localhost:8093/health'); r.raise_for_status()"
 
 # Use entrypoint for optional profiling
