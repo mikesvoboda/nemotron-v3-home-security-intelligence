@@ -115,7 +115,7 @@ class AlertmanagerWebhookPayload(BaseModel):
     alerts: list[WebhookAlert] = Field(..., description="List of alerts in this group")
 
 
-class WebhookResponse(BaseModel):
+class WebhookProcessingResponse(BaseModel):
     """Schema for webhook processing response."""
 
     model_config = ConfigDict(
