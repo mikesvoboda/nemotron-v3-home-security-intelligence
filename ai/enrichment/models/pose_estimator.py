@@ -5,19 +5,28 @@ identifying suspicious postures using the YOLOv8n-pose model from Ultralytics.
 
 Supports true batch inference for vision models (NEM-3377).
 
-Note: YOLOv8/Ultralytics models are optimized via TensorRT/ONNX export
-rather than torch.compile(). For maximum performance, export the model
-to TensorRT format.
+TensorRT Support (NEM-3838):
+- Set POSE_USE_TENSORRT=true to enable TensorRT acceleration (2-3x speedup)
+- TensorRT engine is auto-exported on first run if not found
+- Engine files are GPU-architecture specific (.engine files)
+- Falls back to PyTorch if TensorRT is unavailable
 
 Features:
-- Detects 17 COCO keypoints (nose, eyes, ears, shoulders, elbows, wrists, hips, knees, ankles)
+- Detects 17 COCO keypoints (nose, eyes, ears, shoulders, elbows, wrists, hips,
+  knees, ankles)
 - Classifies body posture (standing, crouching, running, reaching_up, etc.)
-- Flags suspicious poses that may indicate concerning behavior (crouching, crawling, hiding)
+- Flags suspicious poses that may indicate concerning behavior (crouching, crawling,
+  hiding)
 
 Model Details:
 - Model: ultralytics/yolov8n-pose
-- VRAM: ~300MB
+- VRAM: ~300MB (PyTorch), ~200MB (TensorRT FP16)
 - Output: 17 keypoints per person (COCO format)
+
+Environment Variables:
+- POSE_USE_TENSORRT: Enable TensorRT acceleration (default: false)
+- POSE_TENSORRT_ENGINE_PATH: Custom path for TensorRT engine file (optional)
+- POSE_TENSORRT_FP16: Use FP16 precision for TensorRT (default: true)
 
 Reference: https://docs.ultralytics.com/tasks/pose/
 """
@@ -25,6 +34,7 @@ Reference: https://docs.ultralytics.com/tasks/pose/
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -77,6 +87,63 @@ SUSPICIOUS_POSES: frozenset[str] = frozenset(
         "reaching_up",
     }
 )
+
+
+def _get_tensorrt_enabled() -> bool:
+    """Check if TensorRT is enabled via environment variable.
+
+    Returns:
+        True if POSE_USE_TENSORRT is set to 'true', '1', or 'yes' (case-insensitive).
+    """
+    value = os.environ.get("POSE_USE_TENSORRT", "false").lower()
+    return value in ("true", "1", "yes")
+
+
+def _get_tensorrt_fp16_enabled() -> bool:
+    """Check if TensorRT FP16 precision is enabled.
+
+    Returns:
+        True if POSE_TENSORRT_FP16 is set to 'true', '1', or 'yes' (default: true).
+    """
+    value = os.environ.get("POSE_TENSORRT_FP16", "true").lower()
+    return value in ("true", "1", "yes")
+
+
+def _get_tensorrt_engine_path(model_path: str) -> str:
+    """Get the TensorRT engine path for a given model path.
+
+    The engine file is placed alongside the .pt file with .engine extension.
+    For example: /models/yolov8n-pose.pt -> /models/yolov8n-pose.engine
+
+    Args:
+        model_path: Path to the PyTorch model file (.pt)
+
+    Returns:
+        Path to the corresponding TensorRT engine file (.engine)
+    """
+    custom_path = os.environ.get("POSE_TENSORRT_ENGINE_PATH")
+    if custom_path:
+        return custom_path
+
+    model_path_obj = Path(model_path)
+    return str(model_path_obj.with_suffix(".engine"))
+
+
+def _is_tensorrt_available() -> bool:
+    """Check if TensorRT is available in the environment.
+
+    Returns:
+        True if TensorRT can be imported and CUDA is available.
+    """
+    if not torch.cuda.is_available():
+        return False
+
+    try:
+        import tensorrt  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
 
 
 @dataclass
@@ -146,21 +213,28 @@ class PoseEstimator:
 
     Supports:
     - True batch inference with optimal batching (NEM-3377)
+    - TensorRT acceleration for 2-3x speedup (NEM-3838)
 
-    Note: YOLOv8/Ultralytics models are optimized via TensorRT/ONNX export
-    rather than torch.compile(). For maximum performance, export the model
-    to TensorRT format.
+    TensorRT Support:
+    - Set POSE_USE_TENSORRT=true to enable TensorRT acceleration
+    - TensorRT engine is auto-exported on first run if not found
+    - Falls back to PyTorch if TensorRT export fails or is unavailable
 
     Attributes:
         model_path: Path to the YOLOv8 pose model (.pt file or model name)
         device: Device to run inference on (e.g., "cuda:0", "cpu")
         model: The loaded YOLO model instance
+        use_tensorrt: Whether TensorRT is being used for inference
 
     Example:
         >>> estimator = PoseEstimator("/models/yolov8n-pose.pt")
         >>> estimator.load_model()
         >>> result = estimator.estimate_pose(image)
         >>> print(f"Pose: {result.pose_class}, Suspicious: {result.is_suspicious}")
+
+        # With TensorRT (set POSE_USE_TENSORRT=true):
+        >>> estimator = PoseEstimator("/models/yolov8n-pose.pt", use_tensorrt=True)
+        >>> estimator.load_model()  # Auto-exports to TensorRT if needed
     """
 
     def __init__(
@@ -168,6 +242,7 @@ class PoseEstimator:
         model_path: str,
         device: str = "cuda:0",
         max_batch_size: int = 8,
+        use_tensorrt: bool | None = None,
     ) -> None:
         """Initialize pose estimator.
 
@@ -175,6 +250,8 @@ class PoseEstimator:
             model_path: Path to YOLOv8 pose model file or model name
             device: Device to run inference on
             max_batch_size: Maximum batch size for batch inference (NEM-3377).
+            use_tensorrt: Whether to use TensorRT acceleration. If None,
+                         determined by POSE_USE_TENSORRT environment variable.
 
         Raises:
             ValueError: If model_path contains path traversal sequences
@@ -183,13 +260,81 @@ class PoseEstimator:
         self.device = device
         self.model: Any = None
 
+        # TensorRT configuration (NEM-3838)
+        if use_tensorrt is None:
+            use_tensorrt = _get_tensorrt_enabled()
+        self._use_tensorrt_requested = use_tensorrt
+        self.use_tensorrt = False  # Will be set to True if TensorRT loads successfully
+
         # Batch processing configuration (NEM-3377)
         self.batch_processor = BatchProcessor(BatchConfig(max_batch_size=max_batch_size))
 
         logger.info(f"Initializing PoseEstimator from {self.model_path}")
+        if use_tensorrt:
+            logger.info("TensorRT acceleration requested")
+
+    def _export_to_tensorrt(self) -> str | None:
+        """Export the PyTorch model to TensorRT engine format.
+
+        Uses Ultralytics native export functionality which handles all the
+        complexity of ONNX conversion and TensorRT optimization.
+
+        Returns:
+            Path to the exported engine file, or None if export fails.
+        """
+        try:
+            from ultralytics import YOLO
+        except ImportError:
+            logger.warning("ultralytics package not available for TensorRT export")
+            return None
+
+        engine_path = _get_tensorrt_engine_path(self.model_path)
+
+        # Check if engine already exists
+        if os.path.exists(engine_path):
+            logger.info(f"TensorRT engine already exists: {engine_path}")
+            return engine_path
+
+        logger.info(f"Exporting YOLOv8n-pose to TensorRT engine: {engine_path}")
+        logger.info("This may take several minutes on first run...")
+
+        try:
+            # Load the PyTorch model
+            pt_model = YOLO(self.model_path)
+
+            # Export to TensorRT using Ultralytics native export
+            # This creates an .engine file in the same directory
+            use_fp16 = _get_tensorrt_fp16_enabled()
+            export_result = pt_model.export(
+                format="engine",
+                half=use_fp16,
+                device=self.device.replace("cuda:", "") if "cuda" in self.device else "0",
+            )
+
+            # Ultralytics returns the path to the exported model
+            if export_result and os.path.exists(str(export_result)):
+                logger.info(f"TensorRT engine exported successfully: {export_result}")
+                return str(export_result)
+
+            # Check if the engine was created at the expected path
+            if os.path.exists(engine_path):
+                logger.info(f"TensorRT engine created at: {engine_path}")
+                return engine_path
+
+            logger.warning("TensorRT export completed but engine file not found")
+            return None
+
+        except Exception as e:
+            logger.warning(f"TensorRT export failed: {e}")
+            logger.info("Falling back to PyTorch inference")
+            return None
 
     def load_model(self) -> PoseEstimator:
         """Load the YOLOv8n-pose model into memory.
+
+        If TensorRT is requested and available, attempts to load/export
+        a TensorRT engine for accelerated inference. Falls back to PyTorch
+        if TensorRT is unavailable or fails.
 
         Returns:
             Self for method chaining
@@ -207,9 +352,43 @@ class PoseEstimator:
                 "Install with: pip install ultralytics"
             ) from e
 
-        logger.info(f"Loading YOLOv8n-pose model from {self.model_path}...")
+        # Check if TensorRT should be used
+        if self._use_tensorrt_requested:
+            if not _is_tensorrt_available():
+                logger.warning(
+                    "TensorRT requested but not available (missing tensorrt package or CUDA). "
+                    "Falling back to PyTorch."
+                )
+            elif "cpu" in self.device.lower():
+                logger.warning("TensorRT requested but device is CPU. Falling back to PyTorch.")
+            else:
+                # Try to load or export TensorRT engine
+                engine_path = _get_tensorrt_engine_path(self.model_path)
 
-        # Load model
+                if os.path.exists(engine_path):
+                    logger.info(f"Loading TensorRT engine from {engine_path}...")
+                    try:
+                        self.model = YOLO(engine_path)
+                        self.use_tensorrt = True
+                        logger.info(f"PoseEstimator loaded with TensorRT on {self.device}")
+                        return self
+                    except Exception as e:
+                        logger.warning(f"Failed to load TensorRT engine: {e}")
+                        logger.info("Attempting to re-export...")
+
+                # Export to TensorRT
+                exported_path = self._export_to_tensorrt()
+                if exported_path:
+                    try:
+                        self.model = YOLO(exported_path)
+                        self.use_tensorrt = True
+                        logger.info(f"PoseEstimator loaded with TensorRT on {self.device}")
+                        return self
+                    except Exception as e:
+                        logger.warning(f"Failed to load exported TensorRT engine: {e}")
+
+        # Fall back to PyTorch
+        logger.info(f"Loading YOLOv8n-pose model from {self.model_path}...")
         self.model = YOLO(self.model_path)
 
         # Move to device
@@ -232,7 +411,23 @@ class PoseEstimator:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
-            logger.info("PoseEstimator unloaded")
+            logger.info(f"PoseEstimator unloaded (was using TensorRT: {self.use_tensorrt})")
+            self.use_tensorrt = False
+
+    def get_backend_info(self) -> dict[str, Any]:
+        """Get information about the current inference backend.
+
+        Returns:
+            Dictionary with backend details including whether TensorRT is active.
+        """
+        return {
+            "backend": "tensorrt" if self.use_tensorrt else "pytorch",
+            "device": self.device,
+            "model_path": self.model_path,
+            "tensorrt_requested": self._use_tensorrt_requested,
+            "tensorrt_active": self.use_tensorrt,
+            "model_loaded": self.model is not None,
+        }
 
     def estimate_pose(
         self,
@@ -554,12 +749,15 @@ class PoseEstimator:
 def load_pose_estimator(
     model_path: str | None = None,
     device: str = "cuda:0",
+    use_tensorrt: bool | None = None,
 ) -> PoseEstimator:
     """Factory function to create and load a PoseEstimator.
 
     Args:
         model_path: Path to YOLOv8 pose model. Defaults to "yolov8n-pose.pt"
         device: Device to run inference on
+        use_tensorrt: Whether to use TensorRT acceleration. If None,
+                     determined by POSE_USE_TENSORRT environment variable.
 
     Returns:
         Loaded PoseEstimator instance
@@ -567,6 +765,6 @@ def load_pose_estimator(
     if model_path is None:
         model_path = "yolov8n-pose.pt"
 
-    estimator = PoseEstimator(model_path, device)
+    estimator = PoseEstimator(model_path, device, use_tensorrt=use_tensorrt)
     estimator.load_model()
     return estimator

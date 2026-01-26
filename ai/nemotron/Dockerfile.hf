@@ -1,0 +1,89 @@
+# Nemotron LLM Service Dockerfile (HuggingFace Transformers with BitsAndBytes)
+# Alternative to the llama.cpp-based Dockerfile
+#
+# This Dockerfile builds a HuggingFace Transformers-based server with:
+# - BitsAndBytes 4-bit quantization support (NEM-3810)
+# - Prepared for FlashAttention-2 integration (NEM-3811)
+# - OpenAI-compatible API endpoints
+#
+# Usage:
+#   docker build -f Dockerfile.hf -t nemotron-hf:latest .
+#   docker run --gpus all -p 8091:8091 -v /path/to/models:/models nemotron-hf:latest
+#
+# Environment Variables:
+#   NEMOTRON_MODEL_PATH: HuggingFace model path (default: /models/nemotron-3-nano-30b)
+#   NEMOTRON_QUANTIZATION: Quantization mode (default: 4bit)
+#   PORT: Server port (default: 8091)
+
+# =============================================================================
+# Base image with CUDA support
+# =============================================================================
+FROM docker.io/nvidia/cuda:12.1.1-runtime-ubuntu22.04
+
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-venv \
+    python3-pip \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Python 3.11 as default
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1
+
+# Create non-root user for security
+RUN groupadd -g 1000 nemotron && \
+    useradd -u 1000 -g nemotron -s /bin/bash -m nemotron
+
+# Create model and app directories
+RUN mkdir -p /models /app && chown -R nemotron:nemotron /models /app
+
+WORKDIR /app
+
+# Copy requirements first for layer caching
+COPY requirements_hf.txt .
+
+# Install Python dependencies
+# Note: We install torch with CUDA 12.1 support
+# hadolint ignore=DL3013
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu121 && \
+    pip3 install --no-cache-dir -r requirements_hf.txt
+
+# Copy application code
+COPY model_hf.py .
+
+# Copy shared utilities from parent directory
+# Note: Build context should be the ai/ directory for this to work
+COPY quantization_config.py /app/
+COPY torch_optimizations.py /app/
+
+# Environment variables for configuration
+ENV NEMOTRON_MODEL_PATH=/models/nemotron-3-nano-30b
+ENV NEMOTRON_QUANTIZATION=4bit
+ENV NEMOTRON_4BIT_QUANT_TYPE=nf4
+ENV NEMOTRON_4BIT_DOUBLE_QUANT=true
+ENV NEMOTRON_COMPUTE_DTYPE=float16
+ENV NEMOTRON_MAX_NEW_TOKENS=1536
+ENV NEMOTRON_USE_COMPILE=true
+ENV PORT=8091
+ENV HOST=0.0.0.0
+
+# Expose the service port
+EXPOSE 8091
+
+# Switch to non-root user
+USER nemotron
+
+# Health check with 180s start period for large model loading with quantization
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Run the server
+CMD ["python3", "model_hf.py"]

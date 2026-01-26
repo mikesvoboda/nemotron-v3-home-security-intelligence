@@ -49,6 +49,7 @@ RUN groupadd -g 1000 clip && \
 
 # Copy application files
 COPY ai/clip/model.py .
+COPY ai/clip/tensorrt_inference.py .
 
 # Environment variables
 ENV HOST=0.0.0.0
@@ -56,8 +57,14 @@ ENV PORT=8093
 ENV CLIP_MODEL_PATH=/models/clip-vit-l
 ENV HF_HOME=/cache/huggingface
 
-# Create cache directory for HuggingFace models
-RUN mkdir -p /cache/huggingface && chown -R clip:clip /cache/huggingface
+# TensorRT environment variables (disabled by default)
+# Set CLIP_USE_TENSORRT=true and CLIP_ENGINE_PATH to enable TensorRT
+ENV CLIP_USE_TENSORRT=false
+# CLIP_ENGINE_PATH is set via docker-compose when TensorRT is enabled
+
+# Create cache directories for HuggingFace models and TensorRT engines
+RUN mkdir -p /cache/huggingface /cache/tensorrt && \
+    chown -R clip:clip /cache/huggingface /cache/tensorrt
 
 # Set ownership of app directory
 RUN chown -R clip:clip /app

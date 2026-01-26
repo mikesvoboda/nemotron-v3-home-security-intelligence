@@ -4,6 +4,7 @@ This module provides shared utilities for optimizing PyTorch model performance:
 1. torch.compile() integration for Transformers models (NEM-3375)
 2. True batch inference helpers (NEM-3377)
 3. Accelerate device_map utilities (NEM-3378)
+4. TensorRT integration via ai.common (NEM-3838)
 
 Usage:
     from torch_optimizations import (
@@ -11,6 +12,7 @@ Usage:
         get_optimal_device_map,
         BatchProcessor,
         get_compile_mode,
+        get_best_optimization_backend,
     )
 
     # Compile a model for faster inference
@@ -23,6 +25,17 @@ Usage:
     processor = BatchProcessor(max_batch_size=8)
     for batch in processor.create_batches(images):
         results = model(batch)
+
+    # Check best available optimization backend
+    backend = get_best_optimization_backend()
+    # Returns: "tensorrt", "torch_compile", or "none"
+
+TensorRT Optimization:
+    For TensorRT-accelerated inference, use the ai.common package:
+
+    from ai.common import TensorRTInferenceBase, TensorRTConverter
+
+    See ai/common/AGENTS.md for full documentation.
 """
 
 from __future__ import annotations
@@ -448,3 +461,120 @@ def get_torch_dtype_for_device(device: str = "cuda:0") -> torch.dtype:
             return torch.bfloat16
         return torch.float16
     return torch.float32
+
+
+def is_tensorrt_available() -> bool:
+    """Check if TensorRT optimization is available.
+
+    This function checks for TensorRT availability via the ai.common package.
+
+    Returns:
+        True if TensorRT is installed and available, False otherwise.
+    """
+    try:
+        from ai.common import is_tensorrt_available as _is_trt_available
+
+        return _is_trt_available()
+    except ImportError:
+        logger.debug("ai.common not available, TensorRT support unavailable")
+        return False
+
+
+def get_best_optimization_backend() -> str:
+    """Determine the best available optimization backend.
+
+    Checks availability of optimization backends in order of preference:
+    1. TensorRT (fastest, requires NVIDIA TensorRT)
+    2. torch.compile (good speedup, requires PyTorch 2.0+)
+    3. None (no optimization available)
+
+    Returns:
+        String indicating best available backend:
+        - "tensorrt": TensorRT available (use ai.common.TensorRTInferenceBase)
+        - "torch_compile": torch.compile available (use compile_model())
+        - "none": No optimization available
+
+    Example:
+        >>> backend = get_best_optimization_backend()
+        >>> if backend == "tensorrt":
+        ...     from ai.common import TensorRTInferenceBase
+        ...     # Use TensorRT base class
+        >>> elif backend == "torch_compile":
+        ...     model = compile_model(model)
+        >>> else:
+        ...     # Use unoptimized model
+    """
+    # Check TensorRT first (fastest option)
+    if is_tensorrt_available():
+        logger.debug("TensorRT available - recommended for production inference")
+        return "tensorrt"
+
+    # Check torch.compile (good alternative)
+    if is_compile_supported():
+        logger.debug("torch.compile available - good for flexible inference")
+        return "torch_compile"
+
+    # No optimization available
+    logger.debug("No optimization backend available")
+    return "none"
+
+
+def get_optimization_recommendation(
+    model_type: str = "detection",
+    production: bool = True,
+) -> dict[str, Any]:
+    """Get optimization recommendations for a specific use case.
+
+    Args:
+        model_type: Type of model ("detection", "classification", "embedding")
+        production: Whether this is for production deployment (vs development)
+
+    Returns:
+        Dictionary with optimization recommendations:
+        - backend: Recommended backend ("tensorrt" or "torch_compile")
+        - precision: Recommended precision ("fp32", "fp16", or "int8")
+        - batch_size: Recommended batch size
+        - dynamic_shapes: Whether to enable dynamic shape support
+        - notes: Additional recommendations
+
+    Example:
+        >>> rec = get_optimization_recommendation("detection", production=True)
+        >>> print(rec["backend"], rec["precision"])
+        'tensorrt' 'fp16'
+    """
+    backend = get_best_optimization_backend()
+
+    # Model-type specific recommendations
+    recommendations: dict[str, Any] = {
+        "backend": backend,
+        "precision": "fp16",  # Good default for most models
+        "dynamic_shapes": True,
+        "notes": [],
+    }
+
+    # Adjust batch size based on model type
+    batch_size_map = {
+        "detection": 4,  # Detection models need more VRAM per image
+        "classification": 16,  # Classification can handle larger batches
+        "embedding": 32,  # Embeddings are lightweight
+    }
+    recommendations["batch_size"] = batch_size_map.get(model_type, 8)
+
+    # Production vs development adjustments
+    if production:
+        recommendations["notes"].append("Use TensorRT for production when available")
+        if backend == "tensorrt":
+            recommendations["notes"].append("Consider INT8 for maximum throughput")
+    else:
+        recommendations["notes"].append("torch.compile is easier to debug in development")
+        recommendations["dynamic_shapes"] = True  # More flexible for testing
+
+    # Backend-specific notes
+    if backend == "tensorrt":
+        recommendations["notes"].append(
+            "Build engine with representative input shapes for best performance"
+        )
+    elif backend == "torch_compile":
+        recommendations["notes"].append("Run warmup iterations before benchmarking")
+
+    return recommendations

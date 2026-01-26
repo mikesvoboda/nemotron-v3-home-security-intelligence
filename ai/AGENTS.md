@@ -18,6 +18,12 @@ All services run as FastAPI HTTP servers with GPU passthrough via Docker/Podman.
 ai/
 ├── AGENTS.md              # This file
 ├── __init__.py            # Package init
+├── common/                # Shared TensorRT optimization infrastructure (NEM-3838)
+│   ├── AGENTS.md          # TensorRT infrastructure documentation
+│   ├── __init__.py        # Package exports
+│   ├── tensorrt_utils.py  # ONNX-to-TensorRT conversion, engine management
+│   ├── tensorrt_inference.py  # Base classes for TensorRT-accelerated models
+│   └── tests/             # Unit tests
 ├── rtdetr/                # RT-DETRv2 object detection server
 │   ├── AGENTS.md          # RT-DETRv2 documentation
 │   ├── Dockerfile         # Container build (PyTorch + CUDA)
