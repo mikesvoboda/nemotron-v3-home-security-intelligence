@@ -110,6 +110,72 @@ async with httpx.AsyncClient() as client:
 
 - `X-Correlation-ID` - Correlation ID from current request context
 - `X-Request-ID` - Request ID from current request (fallback for some services)
+- `traceparent` - W3C Trace Context parent header (OpenTelemetry)
+- `tracestate` - W3C Trace Context state header (OpenTelemetry)
+- `baggage` - W3C Baggage header for cross-service context (NEM-3796)
+
+### `baggage.py`
+
+OpenTelemetry Baggage middleware for cross-service context propagation (NEM-3796).
+
+**Purpose:**
+
+Extracts incoming baggage from W3C Baggage headers and sets application-specific context for propagation across service boundaries in the detection pipeline.
+
+**Classes:**
+
+| Class               | Purpose                                          |
+| ------------------- | ------------------------------------------------ |
+| `BaggageMiddleware` | Middleware for OpenTelemetry Baggage propagation |
+
+**Functions:**
+
+| Function                            | Purpose                                         |
+| ----------------------------------- | ----------------------------------------------- |
+| `set_pipeline_baggage()`            | Set pipeline-specific baggage entries           |
+| `get_camera_id_from_baggage()`      | Get camera.id from current baggage context      |
+| `get_event_priority_from_baggage()` | Get event.priority from current baggage context |
+| `get_request_source_from_baggage()` | Get request.source from current baggage context |
+| `get_batch_id_from_baggage()`       | Get batch.id from current baggage context       |
+
+**Baggage Keys:**
+
+| Key              | Description                                    | Valid Values                 |
+| ---------------- | ---------------------------------------------- | ---------------------------- |
+| `camera.id`      | Source camera for detection pipeline           | Camera identifier string     |
+| `event.priority` | Priority level for downstream processing       | low, normal, high, critical  |
+| `request.source` | Origin of request                              | ui, api, scheduled, internal |
+| `batch.id`       | Optional batch identifier for batch processing | Batch identifier string      |
+
+**Usage:**
+
+```python
+# Setting baggage at pipeline entry
+from backend.api.middleware.baggage import set_pipeline_baggage
+
+set_pipeline_baggage(
+    camera_id="front_door",
+    event_priority="high",
+    request_source="api"
+)
+
+# Reading baggage in downstream services
+from backend.api.middleware.baggage import (
+    get_camera_id_from_baggage,
+    get_event_priority_from_baggage,
+)
+
+camera_id = get_camera_id_from_baggage()
+if get_event_priority_from_baggage() == "high":
+    # Fast-track processing
+    pass
+```
+
+**Automatic Behavior:**
+
+- Extracts `request.source` from `X-Request-Source` header (defaults to "api")
+- Extracts `camera.id` from URL path patterns like `/cameras/{camera_id}/...`
+- Preserves incoming baggage from upstream services
 
 ### `request_timing.py`
 

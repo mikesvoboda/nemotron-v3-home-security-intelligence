@@ -2,11 +2,10 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Query, status
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.dependencies import get_camera_or_404, get_zone_or_404
+from backend.api.dependencies import DbSession, get_camera_or_404, get_zone_or_404
 from backend.api.schemas.pagination import PaginationMeta
 from backend.api.schemas.zone import (
     ZoneCreate,
@@ -14,7 +13,6 @@ from backend.api.schemas.zone import (
     ZoneResponse,
     ZoneUpdate,
 )
-from backend.core.database import get_db
 from backend.models.camera_zone import CameraZone
 
 router = APIRouter(prefix="/api/cameras", tags=["zones"])
@@ -23,15 +21,15 @@ router = APIRouter(prefix="/api/cameras", tags=["zones"])
 @router.get("/{camera_id}/zones", response_model=ZoneListResponse)
 async def list_zones(
     camera_id: str,
+    db: DbSession,
     enabled: bool | None = Query(None, description="Filter by enabled status"),
-    db: AsyncSession = Depends(get_db),
 ) -> ZoneListResponse:
     """List all zones for a camera with optional filtering.
 
     Args:
         camera_id: ID of the camera
-        enabled: Optional filter for enabled/disabled zones
         db: Database session
+        enabled: Optional filter for enabled/disabled zones
 
     Returns:
         ZoneListResponse containing list of zones and total count
@@ -71,7 +69,7 @@ async def list_zones(
 async def create_zone(
     camera_id: str,
     zone_data: ZoneCreate,
-    db: AsyncSession = Depends(get_db),
+    db: DbSession,
 ) -> CameraZone:
     """Create a new zone for a camera.
 
@@ -110,7 +108,7 @@ async def create_zone(
 async def get_zone(
     camera_id: str,
     zone_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: DbSession,
 ) -> CameraZone:
     """Get a specific zone by ID.
 
@@ -136,7 +134,7 @@ async def update_zone(
     camera_id: str,
     zone_id: str,
     zone_data: ZoneUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: DbSession,
 ) -> CameraZone:
     """Update an existing zone.
 
@@ -175,7 +173,7 @@ async def update_zone(
 async def delete_zone(
     camera_id: str,
     zone_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: DbSession,
 ) -> None:
     """Delete a zone.
 

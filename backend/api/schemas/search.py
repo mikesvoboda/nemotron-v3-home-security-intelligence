@@ -41,7 +41,9 @@ class SearchResult(BaseModel):
     risk_score: int | None = Field(None, description="Risk score (0-100)")
     summary: str | None = Field(None, description="LLM-generated event summary")
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field(  # type: ignore[prop-decorator]
+        description="Risk level (low/medium/high/critical), computed from risk_score using severity thresholds"
+    )
     @cached_property
     def risk_level(self) -> str | None:
         """Compute risk level from risk_score (NEM-3398).

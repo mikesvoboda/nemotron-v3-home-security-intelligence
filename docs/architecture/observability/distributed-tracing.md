@@ -295,6 +295,62 @@ tracestate: vendor1=value1,vendor2=value2
 
 Format: `version-trace_id-span_id-flags`
 
+### W3C Baggage for Cross-Service Context (NEM-3796)
+
+The system uses W3C Baggage to propagate application-specific context across service boundaries (`backend/api/middleware/baggage.py`):
+
+```
+baggage: camera.id=front_door,event.priority=high,request.source=api
+```
+
+Baggage is automatically propagated alongside trace context via the composite propagator.
+
+#### Baggage Keys
+
+| Key              | Description                              | Valid Values                 |
+| ---------------- | ---------------------------------------- | ---------------------------- |
+| `camera.id`      | Source camera for detection pipeline     | Camera identifier string     |
+| `event.priority` | Priority level for downstream processing | low, normal, high, critical  |
+| `request.source` | Origin of request                        | ui, api, scheduled, internal |
+| `batch.id`       | Batch identifier for batch processing    | Batch identifier string      |
+
+#### Setting Baggage
+
+```python
+from backend.api.middleware.baggage import set_pipeline_baggage
+
+# At the start of the detection pipeline
+set_pipeline_baggage(
+    camera_id="front_door",
+    event_priority="high",
+    request_source="api"
+)
+```
+
+#### Reading Baggage
+
+```python
+from backend.api.middleware.baggage import (
+    get_camera_id_from_baggage,
+    get_event_priority_from_baggage,
+    get_request_source_from_baggage,
+)
+
+# In downstream services
+camera_id = get_camera_id_from_baggage()
+if get_event_priority_from_baggage() == "high":
+    # Fast-track processing
+    pass
+```
+
+#### Automatic Baggage Extraction
+
+The `BaggageMiddleware` automatically:
+
+- Extracts `request.source` from `X-Request-Source` header (defaults to "api")
+- Extracts `camera.id` from URL path patterns like `/cameras/{camera_id}/...`
+- Preserves incoming baggage from upstream services
+
 ### Propagation Across Services
 
 Context is automatically propagated to AI services via HTTP headers:

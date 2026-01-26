@@ -1649,8 +1649,8 @@ export interface paths {
          *
          *     Args:
          *         camera_id: ID of the camera
-         *         enabled: Optional filter for enabled/disabled zones
          *         db: Database session
+         *         enabled: Optional filter for enabled/disabled zones
          *
          *     Returns:
          *         ZoneListResponse containing list of zones and total count
@@ -15593,17 +15593,7 @@ export interface components {
             risk_factors?: components["schemas"]["RiskFactor"][] | null;
             /**
              * Risk Level
-             * @description Compute risk level from risk_score (NEM-3398).
-             *
-             *     This computed field derives risk_level from risk_score using
-             *     the backend severity taxonomy thresholds:
-             *     - LOW: 0-29
-             *     - MEDIUM: 30-59
-             *     - HIGH: 60-84
-             *     - CRITICAL: 85-100
-             *
-             *     Returns:
-             *         Risk level string or None if risk_score is None
+             * @description Risk level (low/medium/high/critical), computed from risk_score using severity thresholds
              */
             readonly risk_level: string | null;
             /**
@@ -17525,6 +17515,7 @@ export interface components {
          *       "power_watts": 31,
          *       "temperature": 38,
          *       "utilization": 38,
+         *       "vram_percent": 94.58,
          *       "vram_total_gb": 24,
          *       "vram_used_gb": 22.7
          *     }
@@ -17550,6 +17541,11 @@ export interface components {
              * @description GPU utilization percentage (0-100)
              */
             utilization: number;
+            /**
+             * Vram Percent
+             * @description VRAM usage percentage (0-100), computed from vram_used_gb/vram_total_gb
+             */
+            readonly vram_percent: number;
             /**
              * Vram Total Gb
              * @description Total VRAM in GB
@@ -17696,8 +17692,10 @@ export interface components {
          * @description Host system metrics from psutil.
          * @example {
          *       "cpu_percent": 12,
+         *       "disk_percent": 31.2,
          *       "disk_total_gb": 500,
          *       "disk_used_gb": 156,
+         *       "ram_percent": 25.63,
          *       "ram_total_gb": 32,
          *       "ram_used_gb": 8.2
          *     }
@@ -17709,6 +17707,11 @@ export interface components {
              */
             cpu_percent: number;
             /**
+             * Disk Percent
+             * @description Disk usage percentage (0-100), computed from disk_used_gb/disk_total_gb
+             */
+            readonly disk_percent: number;
+            /**
              * Disk Total Gb
              * @description Total disk in GB
              */
@@ -17718,6 +17721,11 @@ export interface components {
              * @description Disk used in GB
              */
             disk_used_gb: number;
+            /**
+             * Ram Percent
+             * @description RAM usage percentage (0-100), computed from ram_used_gb/ram_total_gb
+             */
+            readonly ram_percent: number;
             /**
              * Ram Total Gb
              * @description Total RAM in GB
@@ -24637,17 +24645,7 @@ export interface components {
             reviewed: boolean;
             /**
              * Risk Level
-             * @description Compute risk level from risk_score (NEM-3398).
-             *
-             *     This computed field derives risk_level from risk_score using
-             *     the backend severity taxonomy thresholds:
-             *     - LOW: 0-29
-             *     - MEDIUM: 30-59
-             *     - HIGH: 60-84
-             *     - CRITICAL: 85-100
-             *
-             *     Returns:
-             *         Risk level string or None if risk_score is None
+             * @description Risk level (low/medium/high/critical), computed from risk_score using severity thresholds
              */
             readonly risk_level: string | null;
             /**
