@@ -1,0 +1,54 @@
+{
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.75,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "count": 0,
+    "visible": false
+  },
+  "pose": {
+    "posture": "standing",
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "loitering",
+    "is_suspicious": true
+  },
+  "clothing": {
+    "type": "hoodie",
+    "color": "dark",
+    "is_suspicious": true
+  },
+  "demographics": {
+    "age_range": "18-40"
+  },
+  "threats": {
+    "has_threat": false,
+    "types": [],
+    "max_severity": "none"
+  },
+  "risk": {
+    "min_score": 40,
+    "max_score": 70,
+    "level": "medium",
+    "expected_factors": [
+      "loitering",
+      "nighttime",
+      "obscured_face"
+    ]
+  },
+  "florence_caption": {
+    "must_contain": [
+      "person"
+    ],
+    "must_not_contain": [
+      "delivery",
+      "resident"
+    ]
+  }
+}

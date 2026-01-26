@@ -1,0 +1,50 @@
+{
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.8,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "count": 1,
+    "visible": true
+  },
+  "ocr": {
+    "expected_text": [
+      "AMAZON"
+    ],
+    "min_confidence": 0.6
+  },
+  "pose": {
+    "posture": "standing_or_bending",
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "delivering",
+    "is_suspicious": false
+  },
+  "clothing": {
+    "type": "uniform",
+    "color": "blue",
+    "is_suspicious": false
+  },
+  "risk": {
+    "min_score": 0,
+    "max_score": 15,
+    "level": "low",
+    "expected_factors": []
+  },
+  "florence_caption": {
+    "must_contain": [
+      "person",
+      "package"
+    ],
+    "must_not_contain": [
+      "suspicious",
+      "threat",
+      "stealing"
+    ]
+  }
+}

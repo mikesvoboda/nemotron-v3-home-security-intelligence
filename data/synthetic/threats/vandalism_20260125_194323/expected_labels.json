@@ -1,0 +1,55 @@
+{
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.75,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "count": 0,
+    "visible": false
+  },
+  "pose": {
+    "posture": "standing_reaching",
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "vandalism",
+    "is_suspicious": true
+  },
+  "clothing": {
+    "type": "hoodie",
+    "color": "dark",
+    "is_suspicious": true
+  },
+  "threats": {
+    "has_threat": true,
+    "types": [
+      "property_damage"
+    ],
+    "max_severity": "high"
+  },
+  "risk": {
+    "min_score": 70,
+    "max_score": 90,
+    "level": "high",
+    "expected_factors": [
+      "vandalism",
+      "property_damage",
+      "nighttime",
+      "obscured_face"
+    ]
+  },
+  "florence_caption": {
+    "must_contain": [
+      "person"
+    ],
+    "must_not_contain": [
+      "delivery",
+      "resident",
+      "worker"
+    ]
+  }
+}

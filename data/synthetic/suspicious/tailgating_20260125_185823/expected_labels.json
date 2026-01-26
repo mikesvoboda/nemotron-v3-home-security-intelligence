@@ -1,0 +1,55 @@
+{
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.75,
+      "count": 2
+    }
+  ],
+  "face": {
+    "detected": true,
+    "count": 1,
+    "visible": true
+  },
+  "pose": {
+    "posture": "walking",
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "tailgating",
+    "is_suspicious": true
+  },
+  "clothing": {
+    "type": "casual",
+    "color": "various",
+    "is_suspicious": false
+  },
+  "demographics": {
+    "age_range": "18-50"
+  },
+  "threats": {
+    "has_threat": false,
+    "types": [],
+    "max_severity": "none"
+  },
+  "risk": {
+    "min_score": 60,
+    "max_score": 85,
+    "level": "high",
+    "expected_factors": [
+      "tailgating",
+      "obscured_face",
+      "concealment_attempt"
+    ]
+  },
+  "florence_caption": {
+    "must_contain": [
+      "person",
+      "people"
+    ],
+    "must_not_contain": [
+      "delivery",
+      "uniform"
+    ]
+  }
+}

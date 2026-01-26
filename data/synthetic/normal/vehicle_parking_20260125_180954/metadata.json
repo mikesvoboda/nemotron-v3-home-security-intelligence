@@ -1,0 +1,18 @@
+{
+  "run_id": "20260125_180954",
+  "scenario": "vehicle_parking",
+  "category": "normal",
+  "format": "video",
+  "count_requested": 1,
+  "count_generated": 1,
+  "count_failed": 0,
+  "generated_at": "2026-01-25T23:11:39.885476+00:00",
+  "files": [
+    "media/001.mp4"
+  ],
+  "applied_modifiers": {
+    "variation": null,
+    "time": null,
+    "weather": null
+  }
+}

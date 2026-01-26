@@ -1,0 +1,49 @@
+{
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.75,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "count": 1,
+    "visible": true
+  },
+  "pose": {
+    "posture": "bending_grabbing",
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "theft",
+    "is_suspicious": true
+  },
+  "threats": {
+    "has_threat": true,
+    "types": [
+      "theft"
+    ],
+    "max_severity": "high"
+  },
+  "risk": {
+    "min_score": 70,
+    "max_score": 90,
+    "level": "high",
+    "expected_factors": [
+      "package_theft",
+      "rapid_approach_departure",
+      "no_interaction"
+    ]
+  },
+  "florence_caption": {
+    "must_contain": [
+      "person",
+      "package"
+    ],
+    "must_not_contain": [
+      "delivery",
+      "uniform"
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "count": 1,
+    "visible": true
+  },
+  "pose": {
+    "posture": "standing",
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "observing",
+    "is_suspicious": true
+  },
+  "depth": {
+    "subject_distance_m": [
+      15.0,
+      40.0
+    ]
+  },
+  "risk": {
+    "min_score": 35,
+    "max_score": 60,
+    "level": "medium",
+    "expected_factors": [
+      "prolonged_observation",
+      "unknown_person",
+      "watching_property"
+    ]
+  },
+  "florence_caption": {
+    "must_contain": [
+      "person"
+    ],
+    "must_not_contain": [
+      "delivery",
+      "neighbor"
+    ]
+  }
+}

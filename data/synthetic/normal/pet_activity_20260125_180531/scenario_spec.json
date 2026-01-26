@@ -1,0 +1,233 @@
+{
+  "id": "pet_activity",
+  "category": "normal",
+  "name": "Pet Activity",
+  "description": "Household pet (dog or cat) visible in the yard or at the door. Normal activity that should be classified as non-threatening.",
+  "scene": {
+    "location": "front_yard",
+    "camera_type": "outdoor_camera",
+    "camera_effects": [],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "lighting": "natural_daylight",
+    "weather": "clear",
+    "season": "summer"
+  },
+  "subjects": [
+    {
+      "type": "animal",
+      "animal_type": "dog",
+      "breed": "labrador",
+      "size": "large",
+      "color": "golden",
+      "action": "playing",
+      "position": "yard_center",
+      "behavior_notes": "Happy dog playing in the yard, wagging tail, relaxed demeanor"
+    }
+  ],
+  "expected_outputs": {
+    "detections": [
+      {
+        "class": "dog",
+        "min_confidence": 0.7,
+        "count": 1
+      }
+    ],
+    "pet": {
+      "type": "dog",
+      "is_known_pet": true
+    },
+    "threats": {
+      "has_threat": false,
+      "types": [],
+      "max_severity": "none"
+    },
+    "risk": {
+      "min_score": 0,
+      "max_score": 5,
+      "level": "low",
+      "expected_factors": []
+    },
+    "florence_caption": {
+      "must_contain": [
+        "dog"
+      ],
+      "must_not_contain": [
+        "person",
+        "threat",
+        "suspicious"
+      ]
+    }
+  },
+  "generation": {
+    "format": "image",
+    "count": 1,
+    "seed": null
+  },
+  "variations": [
+    {
+      "id": "pet_activity_cat",
+      "name": "Cat in Yard",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "animal_type": "cat",
+          "breed": "domestic_shorthair",
+          "size": "small",
+          "color": "orange_tabby",
+          "action": "walking",
+          "behavior_notes": "Cat walking through the yard, alert posture"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "cat",
+            "min_confidence": 0.7,
+            "count": 1
+          }
+        ],
+        "pet": {
+          "type": "cat",
+          "is_known_pet": true
+        },
+        "florence_caption": {
+          "must_contain": [
+            "cat"
+          ],
+          "must_not_contain": [
+            "person",
+            "threat"
+          ]
+        }
+      }
+    },
+    {
+      "id": "pet_activity_small_dog",
+      "name": "Small Dog at Door",
+      "scene_overrides": {
+        "location": "front_porch",
+        "camera_type": "doorbell"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "animal_type": "dog",
+          "breed": "chihuahua",
+          "size": "small",
+          "color": "tan",
+          "action": "waiting_at_door",
+          "position": "at_door",
+          "behavior_notes": "Small dog waiting at the front door to be let in"
+        }
+      ]
+    },
+    {
+      "id": "pet_activity_dog_running",
+      "name": "Dog Running in Yard",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "running",
+          "behavior_notes": "Dog running energetically across the yard, playing fetch"
+        }
+      ],
+      "scene_overrides": {
+        "camera_effects": [
+          "motion_blur"
+        ]
+      }
+    },
+    {
+      "id": "pet_activity_multiple_pets",
+      "name": "Multiple Pets Playing",
+      "subjects_append": [
+        {
+          "type": "animal",
+          "animal_type": "dog",
+          "breed": "beagle",
+          "size": "medium",
+          "color": "tricolor",
+          "action": "playing",
+          "position": "yard_left",
+          "behavior_notes": "Second dog playing with the first"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "dog",
+            "min_confidence": 0.7,
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "pet_activity_night",
+      "name": "Pet at Night",
+      "environment_overrides": {
+        "time_of_day": "night",
+        "lighting": "porch_light_ambient"
+      },
+      "scene_overrides": {
+        "camera_effects": [
+          "ir_night_vision"
+        ]
+      },
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 0,
+          "max_score": 10,
+          "level": "low",
+          "expected_factors": []
+        }
+      }
+    },
+    {
+      "id": "pet_activity_cat_on_porch",
+      "name": "Cat on Porch",
+      "scene_overrides": {
+        "location": "front_porch",
+        "camera_type": "doorbell"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "animal_type": "cat",
+          "breed": "siamese",
+          "size": "medium",
+          "color": "cream_and_brown",
+          "action": "sitting",
+          "position": "porch_railing",
+          "behavior_notes": "Cat sitting calmly on the porch railing"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "cat",
+            "min_confidence": 0.7,
+            "count": 1
+          }
+        ],
+        "pet": {
+          "type": "cat",
+          "is_known_pet": true
+        },
+        "florence_caption": {
+          "must_contain": [
+            "cat"
+          ],
+          "must_not_contain": [
+            "person",
+            "threat"
+          ]
+        }
+      }
+    }
+  ]
+}

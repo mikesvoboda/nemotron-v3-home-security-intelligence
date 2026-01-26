@@ -1,0 +1,258 @@
+{
+  "id": "break_in_attempt",
+  "category": "threats",
+  "name": "Break-In Attempt",
+  "description": "An active attempt to force entry into the property through a door or window. This is a critical threat scenario requiring immediate response.",
+
+  "scene": {
+    "location": "front_door",
+    "camera_type": "doorbell",
+    "camera_effects": ["fisheye_distortion", "motion_blur"],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+
+  "environment": {
+    "time_of_day": "night",
+    "lighting": "minimal_ambient",
+    "weather": "clear",
+    "season": "winter"
+  },
+
+  "subjects": [
+    {
+      "type": "person",
+      "role": "intruder",
+      "appearance": {
+        "clothing": "dark_clothing",
+        "face_visible": false,
+        "mask_or_face_covering": true,
+        "gloves": true,
+        "holding_item": "pry_bar"
+      },
+      "action": "forcing_entry",
+      "position": "at_door",
+      "duration_sec": 20,
+      "behavior_notes": "Attempting to pry open the front door with a tool, aggressive movements, looking around for witnesses"
+    }
+  ],
+
+  "expected_outputs": {
+    "detections": [
+      { "class": "person", "min_confidence": 0.70, "count": 1 }
+    ],
+    "face": {
+      "detected": false,
+      "count": 0,
+      "visible": false
+    },
+    "pose": {
+      "posture": "aggressive_stance",
+      "is_suspicious": true,
+      "keypoints_visible": ["left_shoulder", "right_shoulder", "left_elbow", "right_elbow"]
+    },
+    "action": {
+      "action": "forcing_entry",
+      "is_suspicious": true
+    },
+    "clothing": {
+      "type": "jacket_hoodie",
+      "color": "dark",
+      "is_suspicious": true
+    },
+    "threats": {
+      "has_threat": true,
+      "types": ["break_in", "burglary_tool"],
+      "max_severity": "critical"
+    },
+    "violence": {
+      "detected": false,
+      "confidence_threshold": 0.5
+    },
+    "risk": {
+      "min_score": 85,
+      "max_score": 100,
+      "level": "critical",
+      "expected_factors": ["forced_entry_attempt", "nighttime", "face_concealed", "tools_visible", "aggressive_behavior"]
+    },
+    "florence_caption": {
+      "must_contain": ["person", "door"],
+      "must_not_contain": ["delivery", "resident", "welcome"]
+    }
+  },
+
+  "generation": {
+    "format": "video",
+    "count": 3,
+    "duration_sec": 8,
+    "seed": null
+  },
+
+  "variations": [
+    {
+      "id": "break_in_window",
+      "name": "Window Break-In Attempt",
+      "scene_overrides": {
+        "location": "side_window",
+        "camera_type": "outdoor_camera"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "breaking_window",
+          "position": "at_window",
+          "behavior_notes": "Attempting to break or force open a window, may be using tool or rock"
+        }
+      ],
+      "expected_output_overrides": {
+        "florence_caption": {
+          "must_contain": ["person", "window"],
+          "must_not_contain": ["delivery", "maintenance"]
+        }
+      }
+    },
+    {
+      "id": "break_in_back_door",
+      "name": "Back Door Break-In",
+      "scene_overrides": {
+        "location": "back_door",
+        "camera_type": "outdoor_camera"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "position": "at_back_door",
+          "behavior_notes": "Attempting to force entry through back door, more aggressive due to less visibility"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 90,
+          "max_score": 100,
+          "level": "critical",
+          "expected_factors": ["forced_entry_attempt", "nighttime", "back_of_house", "face_concealed"]
+        }
+      }
+    },
+    {
+      "id": "break_in_successful",
+      "name": "Successful Entry",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "entering",
+          "behavior_notes": "Person has successfully forced entry and is entering the property"
+        }
+      ],
+      "expected_output_overrides": {
+        "threats": {
+          "has_threat": true,
+          "types": ["break_in", "active_intrusion"],
+          "max_severity": "critical"
+        },
+        "risk": {
+          "min_score": 95,
+          "max_score": 100,
+          "level": "critical",
+          "expected_factors": ["successful_entry", "active_intrusion", "nighttime", "face_concealed"]
+        }
+      }
+    },
+    {
+      "id": "break_in_interrupted",
+      "name": "Interrupted Break-In",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "fleeing",
+          "behavior_notes": "Intruder abandoning attempt and running away, possibly triggered by alarm or lights"
+        }
+      ],
+      "expected_output_overrides": {
+        "action": {
+          "action": "fleeing",
+          "is_suspicious": true
+        },
+        "risk": {
+          "min_score": 80,
+          "max_score": 95,
+          "level": "critical",
+          "expected_factors": ["attempted_break_in", "fleeing_scene", "nighttime"]
+        }
+      }
+    },
+    {
+      "id": "break_in_kicking_door",
+      "name": "Kicking Door",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "dark_clothing",
+            "face_visible": false,
+            "mask_or_face_covering": true,
+            "gloves": false,
+            "holding_item": null
+          },
+          "action": "kicking_door",
+          "behavior_notes": "Attempting to kick in the front door, forceful repeated kicks"
+        }
+      ],
+      "expected_output_overrides": {
+        "pose": {
+          "posture": "kicking",
+          "is_suspicious": true
+        },
+        "violence": {
+          "detected": true,
+          "confidence_threshold": 0.6
+        }
+      }
+    },
+    {
+      "id": "break_in_garage",
+      "name": "Garage Break-In",
+      "scene_overrides": {
+        "location": "garage",
+        "camera_type": "garage_camera"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "forcing_garage",
+          "position": "at_garage_door",
+          "behavior_notes": "Attempting to force open garage door or side door to garage"
+        }
+      ]
+    },
+    {
+      "id": "break_in_multiple_intruders",
+      "name": "Multiple Intruders",
+      "subjects_append": [
+        {
+          "type": "person",
+          "role": "intruder",
+          "appearance": {
+            "clothing": "dark_clothing",
+            "face_visible": false,
+            "mask_or_face_covering": true
+          },
+          "action": "lookout",
+          "position": "near_door",
+          "behavior_notes": "Second intruder acting as lookout while first attempts entry"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          { "class": "person", "min_confidence": 0.70, "count": 2 }
+        ],
+        "risk": {
+          "min_score": 90,
+          "max_score": 100,
+          "level": "critical",
+          "expected_factors": ["forced_entry_attempt", "multiple_intruders", "coordinated_attack", "nighttime"]
+        }
+      }
+    }
+  ]
+}

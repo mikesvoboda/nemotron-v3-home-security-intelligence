@@ -1,0 +1,172 @@
+{
+  "id": "resident_arrival",
+  "category": "normal",
+  "name": "Resident Arrival",
+  "description": "A resident approaching and entering their home. This is normal, expected activity that should not trigger any alerts.",
+
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "doorbell",
+    "camera_effects": ["fisheye_distortion"],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+
+  "environment": {
+    "time_of_day": "day",
+    "lighting": "natural_daylight",
+    "weather": "clear",
+    "season": "spring"
+  },
+
+  "subjects": [
+    {
+      "type": "person",
+      "role": "resident",
+      "appearance": {
+        "clothing": "casual",
+        "face_visible": true,
+        "carrying_items": false
+      },
+      "action": "walking_to_door",
+      "position": "approaching_entrance",
+      "behavior_notes": "Walking with purpose, relaxed body language, familiar with the property"
+    }
+  ],
+
+  "expected_outputs": {
+    "detections": [
+      { "class": "person", "min_confidence": 0.80, "count": 1 }
+    ],
+    "face": {
+      "detected": true,
+      "count": 1,
+      "visible": true
+    },
+    "pose": {
+      "posture": "walking",
+      "is_suspicious": false
+    },
+    "action": {
+      "action": "walking",
+      "is_suspicious": false
+    },
+    "risk": {
+      "min_score": 0,
+      "max_score": 20,
+      "level": "low",
+      "expected_factors": []
+    },
+    "florence_caption": {
+      "must_contain": ["person", "door"],
+      "must_not_contain": ["suspicious", "threat", "weapon"]
+    }
+  },
+
+  "generation": {
+    "format": "image",
+    "count": 1,
+    "seed": null
+  },
+
+  "variations": [
+    {
+      "id": "resident_arrival_night",
+      "name": "Resident Arrival at Night",
+      "environment_overrides": {
+        "time_of_day": "night",
+        "lighting": "porch_light"
+      },
+      "scene_overrides": {
+        "camera_effects": ["fisheye_distortion", "ir_night_vision"]
+      },
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 5,
+          "max_score": 25,
+          "level": "low",
+          "expected_factors": ["nighttime"]
+        }
+      }
+    },
+    {
+      "id": "resident_arrival_with_vehicle",
+      "name": "Resident Arrival with Vehicle",
+      "subjects_append": [
+        {
+          "type": "vehicle",
+          "vehicle_type": "sedan",
+          "color": "silver",
+          "position": "driveway",
+          "action": "parked"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          { "class": "person", "min_confidence": 0.80, "count": 1 },
+          { "class": "car", "min_confidence": 0.75, "count": 1 }
+        ],
+        "vehicle": {
+          "type": "sedan",
+          "color": "silver"
+        }
+      }
+    },
+    {
+      "id": "resident_arrival_carrying_groceries",
+      "name": "Resident Arrival Carrying Groceries",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "casual",
+            "face_visible": true,
+            "carrying_items": true,
+            "items": ["grocery_bags"]
+          },
+          "behavior_notes": "Walking to door while carrying multiple shopping bags"
+        }
+      ]
+    },
+    {
+      "id": "resident_arrival_morning",
+      "name": "Resident Arrival Early Morning",
+      "environment_overrides": {
+        "time_of_day": "dawn",
+        "lighting": "low_ambient_dawn"
+      },
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 0,
+          "max_score": 15,
+          "level": "low",
+          "expected_factors": []
+        }
+      }
+    },
+    {
+      "id": "resident_arrival_rain",
+      "name": "Resident Arrival in Rain",
+      "environment_overrides": {
+        "weather": "rain"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "raincoat_or_umbrella",
+            "face_visible": true,
+            "carrying_items": true,
+            "items": ["umbrella"]
+          }
+        }
+      ],
+      "expected_output_overrides": {
+        "weather": {
+          "condition": "rain",
+          "affects_visibility": true
+        }
+      }
+    }
+  ]
+}

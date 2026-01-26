@@ -1,0 +1,20 @@
+{
+  "run_id": "20260125_185823",
+  "scenario": "tailgating",
+  "category": "suspicious",
+  "format": "video",
+  "count_requested": 3,
+  "count_generated": 3,
+  "count_failed": 0,
+  "generated_at": "2026-01-26T00:03:15.288654+00:00",
+  "files": [
+    "media/001.mp4",
+    "media/002.mp4",
+    "media/003.mp4"
+  ],
+  "applied_modifiers": {
+    "variation": "tailgating_hooded",
+    "time": null,
+    "weather": null
+  }
+}
