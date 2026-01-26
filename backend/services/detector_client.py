@@ -638,7 +638,7 @@ class DetectorClient:
                 span,
                 model_name=self._detector_type,
                 model_version=self._model_version,
-                model_provider="huggingface" if self._detector_type == "rtdetr" else "ultralytics",
+                model_provider="huggingface" if self._detector_type == "yolo26" else "ultralytics",
                 device="cuda:0",  # Default GPU device
                 batch_size=1,  # Single image per request
             )
@@ -990,7 +990,7 @@ class DetectorClient:
         """Send image to detector service and store detections.
 
         Reads the image file, sends it to the configured detector service
-        (RT-DETRv2 or YOLO26 based on DETECTOR_TYPE setting) with retry logic,
+        (YOLO26v2 or YOLO26 based on DETECTOR_TYPE setting) with retry logic,
         parses the response, filters by confidence threshold, and stores detections
         in the database.
 
