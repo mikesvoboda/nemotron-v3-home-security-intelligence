@@ -122,8 +122,7 @@ services:
   # CLIP ViT-L for entity re-identification
   ai-clip:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-clip:${IMAGE_TAG:-latest}
-    # Security: Read-only root filesystem
-    read_only: true
+    # NOTE: read_only disabled for GPU containers - nvidia-cdi-hook requires capabilities
     tmpfs:
       - /tmp
       - /home/clip/.cache
@@ -132,9 +131,13 @@ services:
     ports:
       - '8093:8093'
     volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
+      # Writable mount to allow TensorRT engine auto-export if enabled
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l
     environment:
       - CLIP_MODEL_PATH=/models/clip-vit-l
+      # TensorRT disabled by default in staging (enable for faster inference)
+      - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-false}
+      - CLIP_ENGINE_PATH=/models/clip-vit-l/vision_encoder_fp16.engine
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
       interval: 10s
