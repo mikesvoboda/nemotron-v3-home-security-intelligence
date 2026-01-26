@@ -82,6 +82,7 @@ from backend.api.routes import (
 from backend.api.routes.system import register_workers
 from backend.core import close_db, get_container, get_settings, init_db, wire_services
 from backend.core.config_validation import log_config_summary, validate_config
+from backend.core.database import warm_connection_pool
 from backend.core.docker_client import DockerClient
 from backend.core.free_threading import get_threading_mode, verify_free_threading
 from backend.core.logging import enable_deferred_db_logging, redact_url, setup_logging
@@ -542,6 +543,23 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     await init_db()
     lifespan_logger.info(f"Database initialized: {redact_url(settings.database_url)}")
+
+    # Warm connection pool to reduce cold-start latency (NEM-3757)
+    # Pre-establishes database connections so first requests don't wait for TCP/TLS handshakes
+    if settings.database_pool_warming_enabled:
+        warming_result = await warm_connection_pool()
+        if warming_result["success"]:
+            lifespan_logger.info(
+                f"Connection pool warmed: {warming_result['connections_warmed']} connections "
+                f"in {warming_result['duration_ms']}ms"
+            )
+        elif warming_result["connections_warmed"] > 0:
+            lifespan_logger.warning(
+                f"Connection pool partially warmed: {warming_result['connections_warmed']}/"
+                f"{warming_result['target_connections']} connections ({warming_result['error']})"
+            )
+        else:
+            lifespan_logger.warning(f"Connection pool warming failed: {warming_result['error']}")
 
     # Re-enable database logging now that tables exist (NEM-2442)
     # This handles the case where logging was deferred because the logs table

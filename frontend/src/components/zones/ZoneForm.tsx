@@ -1,11 +1,30 @@
+/**
+ * ZoneForm - Form component for creating and editing zones.
+ *
+ * Uses react-hook-form with Zod validation for type-safe form handling.
+ * Validation rules are derived from backend Pydantic schemas.
+ *
+ * @see frontend/src/schemas/zone.ts - Zod validation schemas
+ * @see backend/api/schemas/zone.py - Backend Pydantic schemas
+ * @see NEM-3821 Migrate ZoneForm to useForm with Zod
+ */
+
+import { zodResolver } from '@hookform/resolvers/zod';
 import { clsx } from 'clsx';
 import { AlertCircle, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 
-import { validateZoneColor, validateZoneName, VALIDATION_LIMITS } from '../../utils/validation';
+import {
+  zoneFormSchema,
+  ZONE_NAME_CONSTRAINTS,
+  type ZoneFormInput,
+  type ZoneTypeValue,
+} from '../../schemas/zone';
 
 import type { ZoneShape, ZoneType } from '../../types/generated';
 
+// Re-export for backward compatibility
 export interface ZoneFormData {
   name: string;
   zone_type: ZoneType;
@@ -33,7 +52,7 @@ export interface ZoneFormProps {
 }
 
 /** Zone type options with labels */
-const ZONE_TYPES: { value: ZoneType; label: string; description: string }[] = [
+const ZONE_TYPES: { value: ZoneTypeValue; label: string; description: string }[] = [
   { value: 'entry_point', label: 'Entry Point', description: 'Doors, gates, or other entry areas' },
   { value: 'driveway', label: 'Driveway', description: 'Vehicle access areas' },
   { value: 'sidewalk', label: 'Sidewalk', description: 'Public walkway areas' },
@@ -54,7 +73,7 @@ const COLOR_OPTIONS = [
 ];
 
 /** Default form values */
-const DEFAULT_FORM_DATA: ZoneFormData = {
+const DEFAULT_FORM_DATA: ZoneFormInput = {
   name: '',
   zone_type: 'other',
   shape: 'rectangle',
@@ -72,6 +91,7 @@ const DEFAULT_FORM_DATA: ZoneFormData = {
  * - Color picker with predefined colors
  * - Enabled toggle
  * - Priority slider
+ * - Uses react-hook-form with Zod validation
  */
 export default function ZoneForm({
   initialData,
@@ -82,50 +102,47 @@ export default function ZoneForm({
   apiError,
   onClearApiError,
 }: ZoneFormProps) {
-  const [formData, setFormData] = useState<ZoneFormData>({
-    ...DEFAULT_FORM_DATA,
-    ...initialData,
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<ZoneFormInput>({
+    resolver: zodResolver(zoneFormSchema),
+    defaultValues: {
+      ...DEFAULT_FORM_DATA,
+      ...initialData,
+    },
+    mode: 'onBlur',
   });
-  const [errors, setErrors] = useState<{ name?: string; color?: string }>({});
 
-  // Update form when initial data changes
+  // Watch values for UI display (only need selectedZoneType and priority)
+  const selectedZoneType = watch('zone_type');
+  const priority = watch('priority');
+
+  // Update form when initial data changes (for edit mode)
   useEffect(() => {
     if (initialData) {
-      setFormData({ ...DEFAULT_FORM_DATA, ...initialData });
-    }
-  }, [initialData]);
-
-  const validateForm = (): boolean => {
-    const newErrors: { name?: string; color?: string } = {};
-
-    // Validate name using centralized validation (aligned with backend)
-    const nameResult = validateZoneName(formData.name);
-    if (!nameResult.isValid) {
-      newErrors.name = nameResult.error;
-    }
-
-    // Validate color format (aligned with backend hex color pattern)
-    const colorResult = validateZoneColor(formData.color);
-    if (!colorResult.isValid) {
-      newErrors.color = colorResult.error;
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateForm()) {
-      onSubmit({
-        ...formData,
-        name: formData.name.trim(),
+      reset({
+        ...DEFAULT_FORM_DATA,
+        ...initialData,
       });
+    }
+  }, [initialData, reset]);
+
+  const onFormSubmit = (data: ZoneFormInput) => {
+    // Parse through Zod to get transformed output
+    const result = zoneFormSchema.safeParse(data);
+    if (result.success) {
+      // Convert ZoneFormOutput to ZoneFormData for backward compatibility
+      onSubmit(result.data as ZoneFormData);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={(e) => void handleSubmit(onFormSubmit)(e)} className="space-y-4">
       {/* API Error Display */}
       {apiError && (
         <div
@@ -155,9 +172,8 @@ export default function ZoneForm({
         <input
           type="text"
           id="zone-name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          maxLength={VALIDATION_LIMITS.zone.name.maxLength}
+          {...register('name')}
+          maxLength={ZONE_NAME_CONSTRAINTS.maxLength}
           className={clsx(
             'mt-1 block w-full rounded-lg border bg-card px-3 py-2 text-text-primary focus:outline-none focus:ring-2',
             errors.name
@@ -167,7 +183,7 @@ export default function ZoneForm({
           placeholder="e.g., Front Door, Driveway"
           disabled={isSubmitting}
         />
-        {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
+        {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>}
       </div>
 
       {/* Zone Type Select */}
@@ -177,8 +193,7 @@ export default function ZoneForm({
         </label>
         <select
           id="zone-type"
-          value={formData.zone_type}
-          onChange={(e) => setFormData({ ...formData, zone_type: e.target.value as ZoneType })}
+          {...register('zone_type')}
           className="mt-1 block w-full rounded-lg border border-gray-700 bg-card px-3 py-2 text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
           disabled={isSubmitting}
         >
@@ -189,47 +204,59 @@ export default function ZoneForm({
           ))}
         </select>
         <p className="mt-1 text-xs text-text-secondary">
-          {ZONE_TYPES.find((t) => t.value === formData.zone_type)?.description}
+          {ZONE_TYPES.find((t) => t.value === selectedZoneType)?.description}
         </p>
       </div>
 
       {/* Color Picker */}
       <fieldset>
         <legend className="block text-sm font-medium text-text-primary">Zone Color</legend>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {COLOR_OPTIONS.map((color) => (
-            <button
-              key={color.value}
-              type="button"
-              onClick={() => setFormData({ ...formData, color: color.value })}
-              className={clsx(
-                'h-8 w-8 rounded-full border-2 transition-all',
-                formData.color === color.value
-                  ? 'border-white ring-2 ring-primary ring-offset-2 ring-offset-background'
-                  : 'border-transparent hover:border-gray-400'
-              )}
-              style={{ backgroundColor: color.value }}
-              title={color.label}
-              disabled={isSubmitting}
-            />
-          ))}
-        </div>
+        <Controller
+          name="color"
+          control={control}
+          render={({ field }) => (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {COLOR_OPTIONS.map((color) => (
+                <button
+                  key={color.value}
+                  type="button"
+                  onClick={() => field.onChange(color.value)}
+                  className={clsx(
+                    'h-8 w-8 rounded-full border-2 transition-all',
+                    field.value === color.value
+                      ? 'border-white ring-2 ring-primary ring-offset-2 ring-offset-background'
+                      : 'border-transparent hover:border-gray-400'
+                  )}
+                  style={{ backgroundColor: color.value }}
+                  title={color.label}
+                  disabled={isSubmitting}
+                />
+              ))}
+            </div>
+          )}
+        />
       </fieldset>
 
       {/* Priority Slider */}
       <div>
         <label htmlFor="zone-priority" className="block text-sm font-medium text-text-primary">
-          Priority: {formData.priority}
+          Priority: {priority}
         </label>
-        <input
-          type="range"
-          id="zone-priority"
-          min={0}
-          max={100}
-          value={formData.priority}
-          onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value, 10) })}
-          className="mt-2 w-full accent-primary"
-          disabled={isSubmitting}
+        <Controller
+          name="priority"
+          control={control}
+          render={({ field }) => (
+            <input
+              type="range"
+              id="zone-priority"
+              min={0}
+              max={100}
+              value={field.value}
+              onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+              className="mt-2 w-full accent-primary"
+              disabled={isSubmitting}
+            />
+          )}
         />
         <p className="mt-1 text-xs text-text-secondary">
           Higher priority zones take precedence when overlapping
@@ -246,26 +273,32 @@ export default function ZoneForm({
             Active zones are used for detection analysis
           </p>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={formData.enabled}
-          aria-labelledby="enabled-label"
-          aria-describedby="enabled-description"
-          onClick={() => setFormData({ ...formData, enabled: !formData.enabled })}
-          className={clsx(
-            'relative h-6 w-11 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
-            formData.enabled ? 'bg-primary' : 'bg-gray-600'
+        <Controller
+          name="enabled"
+          control={control}
+          render={({ field }) => (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={field.value}
+              aria-labelledby="enabled-label"
+              aria-describedby="enabled-description"
+              onClick={() => field.onChange(!field.value)}
+              className={clsx(
+                'relative h-6 w-11 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
+                field.value ? 'bg-primary' : 'bg-gray-600'
+              )}
+              disabled={isSubmitting}
+            >
+              <span
+                className={clsx(
+                  'absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform',
+                  field.value && 'translate-x-5'
+                )}
+              />
+            </button>
           )}
-          disabled={isSubmitting}
-        >
-          <span
-            className={clsx(
-              'absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform',
-              formData.enabled && 'translate-x-5'
-            )}
-          />
-        </button>
+        />
       </div>
 
       {/* Action Buttons */}

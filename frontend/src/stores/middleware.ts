@@ -1,24 +1,26 @@
 /**
- * Zustand Middleware Utilities (NEM-3402, NEM-3403, NEM-3426)
+ * Zustand Middleware Utilities (NEM-3402, NEM-3403, NEM-3426, NEM-3788)
  *
  * Provides advanced Zustand middleware patterns for:
- * - Immer middleware for complex nested state updates
+ * - Immer middleware for complex nested state updates (NEM-3788)
  * - subscribeWithSelector for fine-grained subscriptions
  * - Transient update patterns for high-frequency WebSocket events
+ * - DevTools integration for debugging
+ * - Zustand 5 patterns with useShallow
  *
  * @module stores/middleware
  */
 
-import { produce, type Draft } from 'immer';
+import { castDraft, current, isDraft, original, produce, type Draft } from 'immer';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
 import { devtools, subscribeWithSelector } from 'zustand/middleware';
-import { shallow } from 'zustand/shallow';
+import { shallow, useShallow } from 'zustand/shallow';
 
 // ============================================================================
 // Re-exports for convenience
 // ============================================================================
 
-export { devtools, produce, shallow, subscribeWithSelector };
+export { castDraft, current, devtools, isDraft, original, produce, shallow, subscribeWithSelector, useShallow };
 export type { Draft };
 
 // ============================================================================
@@ -452,5 +454,287 @@ export function createDebouncedUpdater<T>(
       }
       timeoutId = null;
     }, waitMs);
+  };
+}
+
+// ============================================================================
+// Advanced Immer Utilities (NEM-3788)
+// ============================================================================
+
+/**
+ * Configuration options for Immer stores with DevTools.
+ */
+export interface ImmerStoreOptions {
+  /** Name for DevTools (displayed in Redux DevTools extension) */
+  name?: string;
+  /** Enable DevTools (default: true in development) */
+  devtools?: boolean;
+  /** Enable subscribeWithSelector middleware */
+  withSelector?: boolean;
+}
+
+/**
+ * Creates a Zustand store with Immer middleware and DevTools integration.
+ *
+ * Enhanced version that combines:
+ * - Immer for immutable state updates with mutable syntax
+ * - DevTools for debugging (Redux DevTools compatible)
+ * - Optional subscribeWithSelector for fine-grained subscriptions
+ *
+ * @example
+ * ```typescript
+ * interface State {
+ *   users: { id: string; name: string }[];
+ *   addUser: (user: { id: string; name: string }) => void;
+ *   updateUser: (id: string, name: string) => void;
+ * }
+ *
+ * const useUserStore = createImmerDevtoolsStore<State>(
+ *   (set) => ({
+ *     users: [],
+ *     addUser: (user) => set((draft) => {
+ *       draft.users.push(user);
+ *     }),
+ *     updateUser: (id, name) => set((draft) => {
+ *       const user = draft.users.find(u => u.id === id);
+ *       if (user) user.name = name;
+ *     }),
+ *   }),
+ *   { name: 'user-store' }
+ * );
+ * ```
+ *
+ * @param createState - State creator function with Immer-enhanced set
+ * @param options - Store configuration options
+ * @returns Zustand store with Immer and DevTools middleware
+ */
+export function createImmerDevtoolsStore<T extends object>(
+  createState: ImmerStateCreator<T>,
+  options: ImmerStoreOptions = {}
+): UseBoundStore<StoreApi<T>> {
+  const {
+    name = 'immer-store',
+    devtools: enableDevtools = typeof import.meta !== 'undefined' &&
+      import.meta.env?.DEV === true,
+    withSelector = false,
+  } = options;
+
+  // Type for the internal Zustand set function
+  type ZustandSetFn = {
+    (partial: T | Partial<T> | ((state: T) => T | Partial<T>), replace?: false): void;
+    (state: T | ((state: T) => T), replace: true): void;
+  };
+
+  // Base creator with Immer - use explicit any for middleware compatibility
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const immerCreator = (set: ZustandSetFn, get: () => T, store: any): T => {
+    const immerSet: ImmerSetState<T> = (partial, replace) => {
+      if (typeof partial === 'function') {
+        const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
+        if (replace) {
+          set(nextState, true);
+        } else {
+          set(nextState);
+        }
+      } else {
+        if (replace) {
+          set(partial as T, true);
+        } else {
+          set(partial);
+        }
+      }
+    };
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    return createState(immerSet, get, store);
+  };
+
+  if (withSelector && enableDevtools) {
+    return create<T>()(
+      devtools(
+        subscribeWithSelector(immerCreator),
+        { name, enabled: enableDevtools }
+      )
+    );
+  } else if (withSelector) {
+    return create<T>()(subscribeWithSelector(immerCreator));
+  } else if (enableDevtools) {
+    return create<T>()(devtools(immerCreator, { name, enabled: enableDevtools }));
+  } else {
+    return create<T>()(immerCreator);
+  }
+}
+
+/**
+ * Type-safe Immer update helper for use with Zustand stores.
+ *
+ * Provides a cleaner API for applying Immer updates to store state.
+ *
+ * @example
+ * ```typescript
+ * const store = useStore.getState();
+ * const newState = applyImmerUpdate(store, (draft) => {
+ *   draft.count += 1;
+ * });
+ * ```
+ *
+ * @param state - Current state
+ * @param updater - Immer draft updater function
+ * @returns New state with updates applied immutably
+ */
+export function applyImmerUpdate<T>(
+  state: T,
+  updater: (draft: Draft<T>) => void
+): T {
+  return produce(state, updater);
+}
+
+/**
+ * Creates a type-safe action creator with Immer.
+ *
+ * Useful for creating reusable action functions that can be
+ * used across multiple components or stores.
+ *
+ * @example
+ * ```typescript
+ * interface TodoState {
+ *   todos: { id: string; text: string; done: boolean }[];
+ * }
+ *
+ * const toggleTodo = createImmerAction<TodoState, [id: string]>(
+ *   (draft, id) => {
+ *     const todo = draft.todos.find(t => t.id === id);
+ *     if (todo) todo.done = !todo.done;
+ *   }
+ * );
+ *
+ * // Usage in store
+ * const useStore = createImmerStore<TodoState>((set) => ({
+ *   todos: [],
+ *   toggleTodo: (id) => set((draft) => toggleTodo(draft, id)),
+ * }));
+ * ```
+ *
+ * @param action - Action function that mutates the draft
+ * @returns Action function that can be called with draft and args
+ */
+export function createImmerAction<T, Args extends unknown[]>(
+  action: (draft: Draft<T>, ...args: Args) => void
+): (draft: Draft<T>, ...args: Args) => void {
+  return action;
+}
+
+/**
+ * Safely reads the current (frozen) state from within an Immer draft.
+ *
+ * Useful when you need to read the current state while inside a draft
+ * mutation to make decisions based on the original values.
+ *
+ * @example
+ * ```typescript
+ * set((draft) => {
+ *   const currentCount = safeReadCurrent(draft.counter);
+ *   if (currentCount < 10) {
+ *     draft.counter = currentCount + 1;
+ *   }
+ * });
+ * ```
+ *
+ * @param draft - Immer draft or regular value
+ * @returns Current (frozen) state if draft, original value otherwise
+ */
+export function safeReadCurrent<T>(draft: T): T {
+  return isDraft(draft) ? current(draft) : draft;
+}
+
+/**
+ * Safely reads the original (pre-mutation) state from within an Immer draft.
+ *
+ * Useful when you need to compare with the original state while
+ * making mutations.
+ *
+ * @example
+ * ```typescript
+ * set((draft) => {
+ *   const originalItems = safeReadOriginal(draft.items);
+ *   if (originalItems && originalItems.length > 0) {
+ *     // Compare with original state
+ *     const wasEmpty = originalItems.length === 0;
+ *   }
+ * });
+ * ```
+ *
+ * @param draft - Immer draft
+ * @returns Original (pre-mutation) state, or undefined if not a draft
+ */
+export function safeReadOriginal<T>(draft: T): T | undefined {
+  return isDraft(draft) ? original(draft) : undefined;
+}
+
+/**
+ * Creates a computed selector that derives state using Immer's current().
+ *
+ * The selector is automatically memoized and only recomputes when
+ * the input state actually changes.
+ *
+ * @example
+ * ```typescript
+ * const selectCompletedTodos = createComputedSelector(
+ *   (state: TodoState) => state.todos.filter(t => t.done)
+ * );
+ *
+ * // Usage
+ * const completedTodos = useStore(selectCompletedTodos);
+ * ```
+ *
+ * @param selector - Selector function
+ * @returns Memoized selector function
+ */
+export function createComputedSelector<T, R>(
+  selector: (state: T) => R
+): (state: T) => R {
+  let lastState: T | undefined;
+  let lastResult: R | undefined;
+
+  return (state: T): R => {
+    // Use shallow equality for basic memoization
+    if (lastState !== undefined && shallow(state, lastState)) {
+      return lastResult as R;
+    }
+
+    lastState = state;
+    lastResult = selector(state);
+    return lastResult;
+  };
+}
+
+/**
+ * Combines multiple Immer updates into a single transaction.
+ *
+ * Useful when you need to apply multiple related updates atomically
+ * without triggering multiple re-renders.
+ *
+ * @example
+ * ```typescript
+ * const updates = combineImmerUpdates<State>(
+ *   (draft) => { draft.loading = true; },
+ *   (draft) => { draft.error = null; },
+ *   (draft) => { draft.data = fetchedData; },
+ *   (draft) => { draft.loading = false; }
+ * );
+ *
+ * // Apply all updates atomically
+ * set(updates);
+ * ```
+ *
+ * @param updaters - Array of Immer updater functions
+ * @returns Combined updater function
+ */
+export function combineImmerUpdates<T>(
+  ...updaters: Array<(draft: Draft<T>) => void>
+): (draft: Draft<T>) => void {
+  return (draft: Draft<T>) => {
+    for (const updater of updaters) {
+      updater(draft);
+    }
   };
 }

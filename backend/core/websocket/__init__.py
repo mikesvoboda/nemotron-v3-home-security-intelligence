@@ -63,6 +63,14 @@ from backend.core.websocket.compression import (
     reset_compression_stats,
     should_compress,
 )
+from backend.core.websocket.connection_health import (
+    ConnectionHealth,
+    ConnectionHealthStatus,
+    ConnectionHealthTracker,
+    ConnectionMetrics,
+    get_health_tracker,
+    reset_health_tracker_state,
+)
 from backend.core.websocket.event_types import (
     EVENT_TYPE_METADATA,
     WebSocketEvent,
@@ -94,6 +102,10 @@ __all__ = [
     "EVENT_TYPE_METADATA",
     "MSGPACK_MAGIC_BYTE",
     "CompressionStats",
+    "ConnectionHealth",
+    "ConnectionHealthStatus",
+    "ConnectionHealthTracker",
+    "ConnectionMetrics",
     "SequenceTracker",
     "SerializationFormat",
     "SubscriptionManager",
@@ -114,6 +126,7 @@ __all__ = [
     "get_event_channel",
     "get_event_description",
     "get_event_types_by_channel",
+    "get_health_tracker",
     "get_required_payload_fields",
     "get_sequence_tracker",
     "get_subscription_manager",
@@ -122,6 +135,7 @@ __all__ = [
     "prepare_message",
     "prepare_message_with_format",
     "reset_compression_stats",
+    "reset_health_tracker_state",
     "reset_sequence_tracker_state",
     "reset_subscription_manager_state",
     "should_compress",

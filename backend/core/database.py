@@ -32,6 +32,7 @@ __all__ = [
     "init_db",
     "reset_slow_query_logging_state",
     "setup_slow_query_logging",
+    "warm_connection_pool",
     "with_session",
 ]
 
@@ -1194,6 +1195,135 @@ async def get_pool_status() -> dict[str, Any]:
             "total_connections": 0,
             "pooling_disabled": True,
         }
+
+
+# =============================================================================
+# Connection Pool Warming (NEM-3757)
+# =============================================================================
+
+
+async def warm_connection_pool(
+    target_connections: int | None = None,
+    timeout_seconds: int | None = None,
+) -> dict[str, Any]:
+    """Pre-establish database connections to reduce cold-start latency.
+
+    This function warms the connection pool by concurrently acquiring and
+    releasing connections. This ensures that when the first requests arrive,
+    database connections are already established and ready for use.
+
+    Pool warming reduces the "cold start" latency that occurs when:
+    1. First requests must wait for TCP connections to be established
+    2. TLS handshakes add additional latency (if enabled)
+    3. PostgreSQL authentication adds connection overhead
+
+    By pre-establishing connections at startup, the first requests can
+    immediately use pooled connections without waiting for connection setup.
+
+    Args:
+        target_connections: Number of connections to pre-establish.
+            If None, uses database_pool_warming_size from settings.
+            Should be <= pool_size to avoid overflow connections.
+        timeout_seconds: Maximum time to wait for pool warming.
+            If None, uses database_pool_warming_timeout from settings.
+
+    Returns:
+        dict with warming results:
+        - success: True if warming completed successfully
+        - connections_warmed: Number of connections successfully established
+        - duration_ms: Time taken to warm the pool
+        - error: Error message if warming failed (None if successful)
+
+    Example:
+        >>> result = await warm_connection_pool()
+        >>> print(f"Warmed {result['connections_warmed']} connections in {result['duration_ms']}ms")
+    """
+    if _engine is None:
+        return {
+            "success": False,
+            "connections_warmed": 0,
+            "duration_ms": 0,
+            "error": "Database not initialized. Call init_db() first.",
+        }
+
+    settings = get_settings()
+    target = (
+        target_connections
+        if target_connections is not None
+        else settings.database_pool_warming_size
+    )
+    timeout = (
+        timeout_seconds if timeout_seconds is not None else settings.database_pool_warming_timeout
+    )
+
+    # Clamp target to pool_size to avoid creating overflow connections
+    target = min(target, settings.database_pool_size)
+
+    start_time = time.perf_counter()
+    connections_warmed = 0
+    error_message: str | None = None
+
+    async def warm_single_connection() -> bool:
+        """Acquire and immediately release a single connection.
+
+        Returns:
+            True if connection was successfully warmed, False otherwise.
+        """
+        try:
+            # Use the raw connection API to establish a connection
+            # This is more efficient than creating a full session
+            async with _engine.connect() as conn:
+                # Execute a lightweight query to ensure the connection is fully established
+                # This also validates the connection is healthy
+                await conn.execute(text("SELECT 1"))  # nosemgrep
+            return True
+        except Exception as e:
+            _logger.warning(f"Pool warming connection failed: {e}")
+            return False
+
+    try:
+        # Create tasks for concurrent connection warming
+        # Using asyncio.gather with return_exceptions to handle individual failures
+        tasks = [warm_single_connection() for _ in range(target)]
+
+        # Execute with timeout
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True),
+                timeout=timeout,
+            )
+            # Count successful connections
+            connections_warmed = sum(1 for r in results if r is True)
+        except TimeoutError:
+            error_message = f"Pool warming timed out after {timeout}s"
+            _logger.warning(error_message)
+
+    except Exception as e:
+        error_message = f"Pool warming failed: {e}"
+        _logger.error(error_message)
+
+    duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+
+    result = {
+        "success": connections_warmed > 0 and error_message is None,
+        "connections_warmed": connections_warmed,
+        "target_connections": target,
+        "duration_ms": duration_ms,
+        "error": error_message,
+    }
+
+    if connections_warmed > 0:
+        _logger.info(
+            f"Connection pool warmed: {connections_warmed}/{target} connections in {duration_ms}ms",
+            extra=result,
+        )
+    elif error_message:
+        _logger.warning(
+            f"Connection pool warming incomplete: {error_message}",
+            extra=result,
+        )
+
+    return result
 
 
 # =============================================================================

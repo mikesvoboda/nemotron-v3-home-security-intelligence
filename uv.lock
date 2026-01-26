@@ -1068,6 +1068,7 @@ dev = [
     { name = "pytest-xdist" },
     { name = "ruff" },
     { name = "snakeviz" },
+    { name = "syrupy" },
     { name = "testcontainers" },
     { name = "vulture" },
     { name = "wily" },
@@ -1122,6 +1123,7 @@ dev = [
     { name = "rich" },
     { name = "ruff" },
     { name = "snakeviz" },
+    { name = "syrupy" },
     { name = "testcontainers" },
     { name = "tree-sitter" },
     { name = "tree-sitter-python" },
@@ -1174,6 +1176,7 @@ test = [
     { name = "pytest-testmon" },
     { name = "pytest-timeout" },
     { name = "pytest-xdist" },
+    { name = "syrupy" },
     { name = "testcontainers" },
 ]
 
@@ -1251,6 +1254,7 @@ requires-dist = [
     { name = "scikit-image", specifier = ">=0.26.0" },
     { name = "snakeviz", marker = "extra == 'dev'", specifier = ">=2.2.0" },
     { name = "sqlalchemy", specifier = ">=2.0.36" },
+    { name = "syrupy", marker = "extra == 'dev'", specifier = ">=4.8.0" },
     { name = "testcontainers", marker = "extra == 'dev'", specifier = ">=4.0.0" },
     { name = "tiktoken", specifier = ">=0.8.0" },
     { name = "torchreid", specifier = ">=0.2.5" },
@@ -1301,6 +1305,7 @@ dev = [
     { name = "rich", specifier = ">=13.0.0" },
     { name = "ruff", specifier = ">=0.8.0" },
     { name = "snakeviz", specifier = ">=2.2.0" },
+    { name = "syrupy", specifier = ">=4.8.0" },
     { name = "testcontainers", specifier = ">=4.0.0" },
     { name = "tree-sitter", specifier = ">=0.23.0" },
     { name = "tree-sitter-python", specifier = ">=0.23.0" },
@@ -1349,6 +1354,7 @@ test = [
     { name = "pytest-testmon", specifier = ">=2.1.0" },
     { name = "pytest-timeout", specifier = ">=2.3.0" },
     { name = "pytest-xdist", specifier = ">=3.5.0" },
+    { name = "syrupy", specifier = ">=4.8.0" },
     { name = "testcontainers", specifier = ">=4.0.0" },
 ]
 
@@ -3614,6 +3620,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/83/d3/803453b36afefb7c2bb238361cd4ae6125a569b4db67cd9e79846ba2d68c/sympy-1.14.0.tar.gz", hash = "sha256:d3d3fe8df1e5a0b42f0e7bdf50541697dbe7d23746e894990c030e2b05e72517" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a2/09/77d55d46fd61b4a135c444fc97158ef34a095e5681d0a6c10b75bf356191/sympy-1.14.0-py3-none-any.whl", hash = "sha256:e091cc3e99d2141a0ba2847328f5479b05d94a6635cb96148ccb3f34671bd8f5" },
+]
+
+[[package]]
+name = "syrupy"
+version = "5.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2e/b0/24bca682d6a6337854be37f242d116cceeda9942571d5804c44bc1bdd427/syrupy-5.1.0.tar.gz", hash = "sha256:df543c7aa50d3cf1246e83d58fe490afe5f7dab7b41e74ecc0d8d23ae19bd4b8", size = 50495, upload-time = "2026-01-25T14:53:06.2Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/70/cf880c3b95a6034ef673e74b369941b42315c01f1554a5637a4f8b911009/syrupy-5.1.0-py3-none-any.whl", hash = "sha256:95162d2b05e61ed3e13f117b88dfab7c58bd6f90e66ebbf918e8a77114ad51c5", size = 51658, upload-time = "2026-01-25T14:53:05.105Z" },
 ]
 
 [[package]]

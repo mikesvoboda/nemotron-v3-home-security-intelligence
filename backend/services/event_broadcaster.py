@@ -1766,8 +1766,42 @@ class EventBroadcaster:
                     # Broadcast degraded state to connected clients
                     await self._broadcast_degraded_state()
 
+    async def _send_to_single_client(
+        self,
+        ws: WebSocket,
+        prepared_message: str | bytes,
+        was_compressed: bool,
+    ) -> WebSocket | None:
+        """Send a prepared message to a single WebSocket client.
+
+        This helper method is used by _send_to_all_clients for concurrent
+        broadcasting via asyncio.gather (NEM-3739).
+
+        Args:
+            ws: The WebSocket client to send to.
+            prepared_message: The prepared message (string or bytes if compressed).
+            was_compressed: Whether the message was compressed.
+
+        Returns:
+            The WebSocket if send failed (for cleanup), None if successful.
+        """
+        try:
+            if was_compressed and isinstance(prepared_message, bytes):
+                # Send as binary for compressed messages
+                await ws.send_bytes(prepared_message)
+            elif isinstance(prepared_message, str):
+                # Send as text for uncompressed messages
+                await ws.send_text(prepared_message)
+            return None  # Success
+        except Exception as e:
+            logger.warning(f"Failed to send to WebSocket client: {e}")
+            return ws  # Return for cleanup
+
     async def _send_to_all_clients(self, event_data: Any) -> None:
-        """Send event data to all connected WebSocket clients.
+        """Send event data to all connected WebSocket clients concurrently.
+
+        Implements concurrent broadcasting using asyncio.gather (NEM-3739) for
+        improved performance with many connected clients.
 
         Implements per-client serialization format (NEM-3737):
         - MSGPACK: MessagePack binary (30-50% smaller than JSON)
@@ -1799,36 +1833,28 @@ class EventBroadcaster:
         # Cache prepared messages by format to avoid redundant serialization
         prepared_cache: dict[SerializationFormat, tuple[bytes | str, SerializationFormat]] = {}
 
-        # Send to all clients, removing disconnected ones
-        disconnected = []
-        for ws in self._connections:
+        # Create a snapshot of connections to avoid modification during iteration
+        connections_snapshot = list(self._connections)
+
+        # Pre-populate cache for all unique client formats
+        unique_formats = {
+            self._client_formats.get(ws, SerializationFormat.JSON) for ws in connections_snapshot
+        }
+        for client_format in unique_formats:
+            if client_format not in prepared_cache:
+                if message_dict is not None:
+                    prepared_cache[client_format] = prepare_message_with_format(
+                        message_dict, format=client_format, track_stats=True
+                    )
+                else:
+                    # Non-JSON message, send as plain text
+                    prepared_cache[client_format] = (message_str, SerializationFormat.JSON)
+
+        async def send_to_client(ws: WebSocket) -> WebSocket | None:
+            """Send message to a single client with format negotiation."""
             try:
-                # Get client's preferred format (default to JSON for backwards compatibility)
                 client_format = self._client_formats.get(ws, SerializationFormat.JSON)
-
-                # Use cached prepared message or prepare new one
-                if client_format not in prepared_cache:
-                    if message_dict is not None:
-                        prepared_cache[client_format] = prepare_message_with_format(
-                            message_dict, format=client_format, track_stats=True
-                        )
-                    else:
-                        # Non-JSON message, send as plain text
-                        prepared_cache[client_format] = (message_str, SerializationFormat.JSON)
-
                 prepared_message, format_used = prepared_cache[client_format]
-
-                # Log first message per format
-                if len([c for c in prepared_cache if c == client_format]) == 1:
-                    if format_used in (SerializationFormat.MSGPACK, SerializationFormat.ZLIB):
-                        logger.debug(
-                            "Sending serialized WebSocket message",
-                            extra={
-                                "original_size": len(message_str),
-                                "serialized_size": len(prepared_message),
-                                "format": format_used.value,
-                            },
-                        )
 
                 # Send based on format
                 if isinstance(prepared_message, bytes):
@@ -1837,9 +1863,30 @@ class EventBroadcaster:
                 else:
                     # Text message (plain JSON)
                     await ws.send_text(prepared_message)
+                return None
             except Exception as e:
                 logger.warning(f"Failed to send to WebSocket client: {e}")
-                disconnected.append(ws)
+                return ws
+
+        # Send to all clients concurrently using asyncio.gather (NEM-3739)
+        # return_exceptions=True ensures one failed send doesn't cancel others
+        results = await asyncio.gather(
+            *[send_to_client(ws) for ws in connections_snapshot],
+            return_exceptions=True,
+        )
+
+        # Collect disconnected clients (non-None results indicate failures)
+        disconnected: list[WebSocket] = []
+        for result in results:
+            if result is None:
+                # Success - no cleanup needed
+                continue
+            elif isinstance(result, BaseException):
+                # Unexpected exception from gather - log but don't crash
+                logger.error(f"Unexpected error during concurrent broadcast: {result}")
+            else:
+                # Send failed, WebSocket returned for cleanup
+                disconnected.append(result)  # type: ignore[arg-type]
 
         # Clean up disconnected clients
         for ws in disconnected:

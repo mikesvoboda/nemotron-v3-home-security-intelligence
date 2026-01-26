@@ -5,6 +5,7 @@
  * All schemas are designed to provide client-side validation that matches
  * server-side validation rules exactly.
  *
+<<<<<<< HEAD
  * ## Modules
  *
  * - **primitives**: Reusable schema primitives (IDs, scores, timestamps, etc.)
@@ -251,3 +252,21 @@ export type {
   ValidationErrorResponse,
   ApiError,
 } from './api';
+
+// =============================================================================
+// Alert Schemas (NEM-3825)
+// =============================================================================
+
+export * from './alert';
+
+// =============================================================================
+// Zone Form Schemas (NEM-3825)
+// =============================================================================
+
+export * from './zone';
+
+// =============================================================================
+// Async Validation Utilities (NEM-3825)
+// =============================================================================
+
+export * from './asyncValidation';

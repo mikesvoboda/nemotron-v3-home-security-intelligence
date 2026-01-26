@@ -99,6 +99,7 @@ dev = [
     "hypothesis>=6.100.0",  # Property-based testing
     "factory-boy>=3.3.0",  # Test fixture factories
     "freezegun>=1.5.0",  # Time mocking for tests
+    "syrupy>=4.8.0",  # Snapshot testing for API response schemas (NEM-3748)
     # CI/CD - Performance
     "pytest-benchmark>=4.0.0",
     "pytest-memray>=1.5.0",
@@ -187,6 +188,7 @@ test = [
     "hypothesis>=6.100.0",  # Property-based testing
     "factory-boy>=3.3.0",  # Test fixture factories
     "freezegun>=1.5.0",  # Time mocking for tests
+    "syrupy>=4.8.0",  # Snapshot testing for API response schemas (NEM-3748)
     # Video processing (needed for video service tests)
     "ffmpeg-python>=0.2.0",
     # XML parsing (secure - needed for test fixtures)
