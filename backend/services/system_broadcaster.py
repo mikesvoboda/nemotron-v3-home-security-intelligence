@@ -1016,13 +1016,13 @@ class SystemBroadcaster:
             - all_healthy: True if all AI services are healthy
         """
         settings = get_settings()
-        rtdetr_healthy = False
+        yolo26_healthy = False
         nemotron_healthy = False
 
-        async def check_rtdetr() -> bool:
+        async def check_yolo26() -> bool:
             try:
                 async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
-                    response = await client.get(f"{settings.rtdetr_url}/health")
+                    response = await client.get(f"{settings.yolo26_url}/health")
                     return bool(response.status_code == 200)
             except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError, OSError):
                 # Network errors, timeouts, HTTP errors, and OS-level socket errors
@@ -1043,8 +1043,8 @@ class SystemBroadcaster:
         # 2. Each check function handles its own exceptions and returns bool
         # 3. TaskGroup would cancel the other check if one fails, which is undesirable
         try:
-            rtdetr_healthy, nemotron_healthy = await asyncio.gather(
-                check_rtdetr(),
+            yolo26_healthy, nemotron_healthy = await asyncio.gather(
+                check_yolo26(),
                 check_nemotron(),
             )
         except (asyncio.CancelledError, RuntimeError) as e:
@@ -1053,10 +1053,10 @@ class SystemBroadcaster:
             logger.warning(f"Error during AI health check: {e}", exc_info=True)
 
         return {
-            "rtdetr": rtdetr_healthy,
+            "yolo26": yolo26_healthy,
             "nemotron": nemotron_healthy,
-            "any_healthy": rtdetr_healthy or nemotron_healthy,
-            "all_healthy": rtdetr_healthy and nemotron_healthy,
+            "any_healthy": yolo26_healthy or nemotron_healthy,
+            "all_healthy": yolo26_healthy and nemotron_healthy,
         }
 
     async def _get_health_status(self) -> str:

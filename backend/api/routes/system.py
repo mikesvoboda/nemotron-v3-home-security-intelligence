@@ -4732,10 +4732,10 @@ async def get_model_zoo_latency_history(
 # AI Service definitions with display names and criticality
 AI_SERVICES_CONFIG = [
     {
-        "name": "rtdetr",
-        "display_name": "RT-DETRv2 Object Detection",
-        "url_attr": "rtdetr_url",
-        "circuit_breaker_name": "rtdetr",
+        "name": "yolo26",
+        "display_name": "YOLO26 Object Detection",
+        "url_attr": "yolo26_url",
+        "circuit_breaker_name": "yolo26",
         "critical": True,
     },
     {

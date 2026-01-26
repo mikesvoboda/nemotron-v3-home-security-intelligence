@@ -727,10 +727,10 @@ class GPUMonitor:
             "bar1_used": 256,  # Typical BAR1 usage
         }
 
-    def _parse_rtdetr_response(
+    def _parse_yolo26_response(
         self, data: dict[str, Any]
     ) -> tuple[float, str | None, float | None, int | None, float | None]:
-        """Parse RT-DETRv2 health response for GPU stats.
+        """Parse YOLO26 health response for GPU stats.
 
         Returns:
             Tuple of (vram_used_mb, gpu_device_name or None, gpu_utilization or None,
@@ -798,11 +798,11 @@ class GPUMonitor:
 
         try:
             async with httpx.AsyncClient(timeout=self._http_timeout) as client:
-                # Query RT-DETRv2 health endpoint
+                # Query YOLO26 health endpoint
                 try:
-                    resp = await client.get(f"{settings.rtdetr_url}/health")
+                    resp = await client.get(f"{settings.yolo26_url}/health")
                     if resp.status_code == 200:
-                        vram_mb, device, util, temp, power = self._parse_rtdetr_response(
+                        vram_mb, device, util, temp, power = self._parse_yolo26_response(
                             resp.json()
                         )
                         total_vram_used_mb += vram_mb

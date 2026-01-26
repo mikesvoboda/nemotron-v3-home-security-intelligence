@@ -83,7 +83,7 @@ class PerformanceCollector:
     async def collect_all(self) -> PerformanceUpdate:
         """Collect all performance metrics."""
         gpu = await self.collect_gpu_metrics()
-        rtdetr = await self.collect_rtdetr_metrics()
+        yolo26 = await self.collect_yolo26_metrics()
         nemotron = await self.collect_nemotron_metrics()
         host = await self.collect_host_metrics()
         postgresql = await self.collect_postgresql_metrics()
@@ -93,8 +93,8 @@ class PerformanceCollector:
 
         # Build AI models dict
         ai_models: dict[str, AiModelMetrics | NemotronMetrics] = {}
-        if rtdetr:
-            ai_models["rtdetr"] = rtdetr
+        if yolo26:
+            ai_models["yolo26"] = yolo26
         if nemotron:
             ai_models["nemotron"] = nemotron
 
@@ -174,8 +174,8 @@ class PerformanceCollector:
         """
         try:
             client = await self._get_http_client()
-            # Try RT-DETRv2 health endpoint
-            resp = await client.get(f"{self._settings.rtdetr_url}/health")
+            # Try YOLO26 health endpoint
+            resp = await client.get(f"{self._settings.yolo26_url}/health")
             if resp.status_code == 200:
                 data = resp.json()
                 return {
@@ -190,22 +190,22 @@ class PerformanceCollector:
             logger.warning(f"GPU fallback failed: {e}")
         return None
 
-    async def collect_rtdetr_metrics(self) -> AiModelMetrics | None:
-        """Collect RT-DETRv2 model metrics."""
+    async def collect_yolo26_metrics(self) -> AiModelMetrics | None:
+        """Collect YOLO26 model metrics."""
         try:
             client = await self._get_http_client()
-            resp = await client.get(f"{self._settings.rtdetr_url}/health")
+            resp = await client.get(f"{self._settings.yolo26_url}/health")
             if resp.status_code == 200:
                 data = resp.json()
                 return AiModelMetrics(
                     status="healthy" if data.get("status") == "healthy" else "unhealthy",
                     vram_gb=data.get("vram_used_gb", 0),
-                    model=data.get("model_name", "rtdetr"),
+                    model=data.get("model_name", "yolo26"),
                     device=data.get("device", "unknown"),
                 )
         except Exception as e:
-            logger.warning(f"RT-DETRv2 metrics failed: {e}")
-        return AiModelMetrics(status="unreachable", vram_gb=0, model="rtdetr", device="unknown")
+            logger.warning(f"YOLO26 metrics failed: {e}")
+        return AiModelMetrics(status="unreachable", vram_gb=0, model="yolo26", device="unknown")
 
     async def collect_nemotron_metrics(self) -> NemotronMetrics | None:
         """Collect Nemotron LLM metrics."""
@@ -464,9 +464,9 @@ class PerformanceCollector:
         redis_health = await self._check_redis_health()
         results.append(redis_health)
 
-        # AI Detector (RT-DETRv2): Use configurable rtdetr_url
+        # AI Detector (YOLO26): Use configurable yolo26_url
         detector_health = await self._check_service_health(
-            client, "ai-detector", f"{self._settings.rtdetr_url}/health"
+            client, "ai-detector", f"{self._settings.yolo26_url}/health"
         )
         results.append(detector_health)
 
