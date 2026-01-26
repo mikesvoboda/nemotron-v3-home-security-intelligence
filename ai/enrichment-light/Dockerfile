@@ -65,9 +65,13 @@ ENV HF_HUB_DISABLE_TELEMETRY=1
 # TensorRT acceleration for YOLO models
 ENV POSE_USE_TENSORRT=${POSE_USE_TENSORRT:-true}
 ENV THREAT_USE_TENSORRT=${THREAT_USE_TENSORRT:-true}
+# TensorRT engine cache directory (writable for non-root user)
+ENV TENSORRT_ENGINE_CACHE=/cache/tensorrt
+ENV POSE_TENSORRT_ENGINE_PATH=/cache/tensorrt/yolov8n-pose.engine
+ENV THREAT_TENSORRT_ENGINE_PATH=/cache/tensorrt/threat-detector.engine
 
-# Create cache directory for HuggingFace models
-RUN mkdir -p /cache/huggingface && chown -R enrichment:enrichment /cache/huggingface
+# Create cache directories for HuggingFace and TensorRT engines
+RUN mkdir -p /cache/huggingface /cache/tensorrt && chown -R enrichment:enrichment /cache
 
 # Set ownership of app directory
 RUN chown -R enrichment:enrichment /app
