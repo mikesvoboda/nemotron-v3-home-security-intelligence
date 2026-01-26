@@ -86,7 +86,6 @@ services:
       # SECURITY: Uses same POSTGRES_PASSWORD as postgres service (must be set)
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
-      - RTDETR_URL=http://${AI_HOST:-host.docker.internal}:8090
       - NEMOTRON_URL=http://${AI_HOST:-host.docker.internal}:8091
       - FLORENCE_URL=http://${AI_HOST:-host.docker.internal}:8092
       - CLIP_URL=http://${AI_HOST:-host.docker.internal}:8093

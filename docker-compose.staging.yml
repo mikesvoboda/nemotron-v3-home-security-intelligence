@@ -52,47 +52,6 @@ services:
           cpus: '2'
           memory: 1G
 
-  # RT-DETR object detection service
-  # Uses hosted endpoint if AI_MODELS_PATH not set
-  ai-detector:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-detector:${IMAGE_TAG:-latest}
-    # Security: Read-only root filesystem
-    read_only: true
-    tmpfs:
-      - /tmp
-      - /home/rtdetr/.cache
-    profiles:
-      - with-ai # Run with: docker compose --profile with-ai -f docker-compose.staging.yml up -d
-    ports:
-      - '8090:8090'
-    volumes:
-      - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface:U
-    environment:
-      - RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}
-      - RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8090/health'); exit(0 if r.status_code == 200 else 1)",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - staging-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
-
   # Nemotron LLM for risk analysis
   ai-llm:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-llm:${IMAGE_TAG:-latest}
@@ -292,7 +251,6 @@ services:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - RTDETR_URL=http://ai-detector:8090
       - NEMOTRON_URL=http://ai-llm:8091
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093

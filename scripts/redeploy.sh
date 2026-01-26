@@ -29,7 +29,7 @@
 #
 # Services (9 total):
 #   Core:     postgres, redis, backend, frontend
-#   AI:       ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment
+#   AI:       ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment
 #
 # Prerequisites:
 #   - Podman or Docker installed
@@ -257,7 +257,7 @@ EOF
 
 stop_ai_containers_podman() {
     # Stop and remove AI containers if they exist (called during cleanup)
-    local -a ai_containers=("ai-detector" "ai-llm" "ai-florence" "ai-clip" "ai-enrichment")
+    local -a ai_containers=("ai-yolo26" "ai-llm" "ai-florence" "ai-clip" "ai-enrichment")
 
     for container in "${ai_containers[@]}"; do
         if $CONTAINER_CMD container exists "$container" 2>/dev/null; then
@@ -275,7 +275,7 @@ build_ai_images_podman() {
     # Format: "image-name:dockerfile-path"
     # All builds use project root as context (required by Dockerfiles that COPY from ai/*)
     local -a ai_services=(
-        "ai-detector:ai/rtdetr/Dockerfile"
+        "ai-yolo26:ai/yolo26/Dockerfile"
         "ai-llm:ai/nemotron/Dockerfile"
         "ai-florence:ai/florence/Dockerfile"
         "ai-clip:ai/clip/Dockerfile"
@@ -317,19 +317,19 @@ start_ai_containers_podman() {
     # --security-opt=label=disable: Disable SELinux for GPU device access
     local gpu_flags="--device nvidia.com/gpu=all --security-opt=label=disable"
 
-    # ai-detector (RT-DETRv2)
-    print_step "Starting ai-detector..."
+    # ai-yolo26 (YOLO26 TensorRT)
+    print_step "Starting ai-yolo26..."
     run_cmd $CONTAINER_CMD run -d \
-        --name ai-detector \
+        --name ai-yolo26 \
         --network "$network_name" \
         $gpu_flags \
-        -p 8090:8090 \
-        -v "${HF_CACHE:-$HOME/.cache/huggingface}:/cache/huggingface:z" \
-        -e "RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}" \
-        -e "RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}" \
+        -p 8095:8095 \
+        -v "${AI_MODELS_PATH:-/export/ai_models}/model-zoo/yolo26:/models/yolo26:ro,z" \
+        -e "YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}" \
+        -e "YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine" \
         --restart unless-stopped \
-        ai-detector
-    print_success "ai-detector started"
+        ai-yolo26
+    print_success "ai-yolo26 started"
 
     # ai-llm (Nemotron)
     print_step "Starting ai-llm..."
@@ -429,7 +429,7 @@ restart_backend_with_internal_urls() {
         -e "DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:-security_dev_password}@postgres:5432/${POSTGRES_DB:-security}" \
         -e "REDIS_URL=redis://redis:6379" \
         -e "REDIS_PASSWORD=${REDIS_PASSWORD:-}" \
-        -e "RTDETR_URL=http://ai-detector:8090" \
+        -e "YOLO26_URL=http://ai-yolo26:8095" \
         -e "NEMOTRON_URL=http://ai-llm:8091" \
         -e "FLORENCE_URL=http://ai-florence:8092" \
         -e "CLIP_URL=http://ai-clip:8093" \
@@ -1095,7 +1095,7 @@ verify_deployment() {
     # Add AI services for hybrid and local modes
     if [ "$DEPLOY_MODE" != "ghcr" ]; then
         services+=(
-            "RT-DETRv2:http://localhost:8090/health"
+            "YOLO26:http://localhost:8095/health"
             "Nemotron:http://localhost:8091/health"
             "Florence:http://localhost:8092/health"
             "CLIP:http://localhost:8093/health"
@@ -1439,10 +1439,10 @@ main() {
     echo "  - Backend:  http://localhost:8000"
     echo "  - Frontend: http://localhost:${FRONTEND_PORT}"
     if [ "$DEPLOY_MODE" != "ghcr" ]; then
-        echo "  - RT-DETRv2: http://localhost:8090"
-        echo "  - Nemotron:  http://localhost:8091"
-        echo "  - Florence:  http://localhost:8092"
-        echo "  - CLIP:      http://localhost:8093"
+        echo "  - YOLO26:     http://localhost:8095"
+        echo "  - Nemotron:   http://localhost:8091"
+        echo "  - Florence:   http://localhost:8092"
+        echo "  - CLIP:       http://localhost:8093"
         echo "  - Enrichment: http://localhost:8094"
     fi
     echo ""
