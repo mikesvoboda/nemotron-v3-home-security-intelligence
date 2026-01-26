@@ -210,7 +210,7 @@ See `core/AGENTS.md` for detailed documentation. The core layer contains 28 modu
 - Queue depth gauges (detection, analysis)
 - Stage duration histograms (detect, batch, analyze)
 - Event/detection counters
-- AI request duration tracking (rtdetr, nemotron)
+- AI request duration tracking (yolo26, nemotron)
 - Error counters by type
 - `PipelineLatencyTracker` - In-memory latency tracking with percentile calculations
 

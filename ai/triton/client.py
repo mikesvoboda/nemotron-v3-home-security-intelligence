@@ -4,7 +4,7 @@ This module provides a high-level client for interacting with NVIDIA Triton
 Inference Server, supporting both gRPC and HTTP protocols.
 
 The client supports:
-- Object detection with RT-DETR and YOLO26 models
+- Object detection with YOLO26 and YOLO26 models
 - Automatic batching for improved throughput
 - Health checks and model status queries
 - Graceful error handling with retry logic
@@ -14,7 +14,7 @@ Environment Variables:
     TRITON_URL: Triton server gRPC URL (default: localhost:8001)
     TRITON_HTTP_URL: Triton server HTTP URL (default: localhost:8000)
     TRITON_TIMEOUT: Request timeout in seconds (default: 60)
-    TRITON_MODEL: Default model name (default: rtdetr)
+    TRITON_MODEL: Default model name (default: yolo26)
     TRITON_ENABLED: Enable Triton inference (default: false)
     TRITON_MAX_RETRIES: Maximum retry attempts (default: 3)
 
@@ -114,7 +114,7 @@ class TritonConfig:
     http_url: str = "localhost:8000"
     protocol: TritonProtocol = TritonProtocol.GRPC
     timeout: float = 60.0
-    default_model: str = "rtdetr"
+    default_model: str = "yolo26"
     max_retries: int = 3
     retry_delay: float = 1.0
     verbose: bool = False
@@ -133,7 +133,7 @@ class TritonConfig:
             TRITON_HTTP_URL: HTTP URL (default: localhost:8000)
             TRITON_PROTOCOL: Protocol (grpc or http, default: grpc)
             TRITON_TIMEOUT: Timeout in seconds (default: 60)
-            TRITON_MODEL: Default model (default: rtdetr)
+            TRITON_MODEL: Default model (default: yolo26)
             TRITON_MAX_RETRIES: Max retries (default: 3)
             TRITON_VERBOSE: Verbose logging (default: false)
             TRITON_CONFIDENCE_THRESHOLD: Detection threshold (default: 0.5)
@@ -150,7 +150,7 @@ class TritonConfig:
             http_url=os.environ.get("TRITON_HTTP_URL", "localhost:8000"),
             protocol=protocol,
             timeout=float(os.environ.get("TRITON_TIMEOUT", "60")),
-            default_model=os.environ.get("TRITON_MODEL", "rtdetr"),
+            default_model=os.environ.get("TRITON_MODEL", "yolo26"),
             max_retries=int(os.environ.get("TRITON_MAX_RETRIES", "3")),
             verbose=os.environ.get("TRITON_VERBOSE", "false").lower() == "true",
             confidence_threshold=float(os.environ.get("TRITON_CONFIDENCE_THRESHOLD", "0.5")),
@@ -515,8 +515,8 @@ class TritonClient:
         # Postprocess based on model type
         if model == "yolo26":
             detections = self._postprocess_yolo(raw_output, original_size, threshold)
-        else:  # rtdetr
-            detections = self._postprocess_rtdetr(raw_output, original_size, threshold)
+        else:  # yolo26
+            detections = self._postprocess_yolo26(raw_output, original_size, threshold)
 
         return DetectionResult(
             detections=detections,
@@ -660,13 +660,13 @@ class TritonClient:
                     "scores": result.as_numpy("scores"),
                 }
 
-    def _postprocess_rtdetr(
+    def _postprocess_yolo26(
         self,
         outputs: dict[str, NDArray[Any]],
         original_size: tuple[int, int],
         threshold: float,
     ) -> list[Detection]:
-        """Postprocess RT-DETR model outputs.
+        """Postprocess YOLO26 model outputs.
 
         Args:
             outputs: Raw model outputs
@@ -688,7 +688,7 @@ class TritonClient:
                 continue
 
             # Get class name
-            class_name = self._get_class_name_rtdetr(int(label))
+            class_name = self._get_class_name_yolo26(int(label))
             if class_name not in self.SECURITY_CLASSES:
                 continue
 
@@ -779,10 +779,10 @@ class TritonClient:
 
         return detections
 
-    def _get_class_name_rtdetr(self, label_id: int) -> str:
-        """Get class name from RT-DETR label ID.
+    def _get_class_name_yolo26(self, label_id: int) -> str:
+        """Get class name from YOLO26 label ID.
 
-        RT-DETR uses COCO class IDs. This mapping is the same as YOLO.
+        YOLO26 uses COCO class IDs. This mapping is the same as YOLO.
 
         Args:
             label_id: Model output label ID

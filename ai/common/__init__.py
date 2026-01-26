@@ -31,7 +31,7 @@ Environment Variables:
 
 For model-specific implementations, see:
 - ai/enrichment/models/ - Model Zoo implementations
-- ai/rtdetr/ - Object detection (RT-DETR/YOLO)
+- ai/yolo26/ - Object detection (YOLO26/YOLO)
 - ai/clip/ - Image embeddings
 """
 

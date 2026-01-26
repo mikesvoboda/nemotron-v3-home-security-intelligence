@@ -78,7 +78,7 @@ Keep the directory structure in version control but not the actual clips.
 
 ## Related Files
 
-- `/ai/rtdetr/` - RT-DETRv2 detection model
+- `/ai/yolo26/` - YOLO26v2 detection model
 - `/scripts/test_ai_pipeline_e2e.py` - E2E testing script
 - `/scripts/benchmark_model_zoo.py` - Model benchmarking
 - `/backend/services/detector_service.py` - Detection service

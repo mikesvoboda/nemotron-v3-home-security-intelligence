@@ -1489,7 +1489,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("now()"),
         ),
-        sa.Column("has_rtdetr", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+        sa.Column("has_yolo26", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column("has_florence", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column("has_clip", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column("has_violence", sa.Boolean(), nullable=False, server_default=sa.text("false")),
