@@ -1,8 +1,10 @@
-import { Check, ChevronDown, Clock, Eye, Loader2, X } from 'lucide-react';
-import { memo, useState } from 'react';
+import { Check, Clock, Eye, Loader2, X } from 'lucide-react';
+import { memo } from 'react';
 
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
+import SnoozeBadge from '../common/SnoozeBadge';
+import SnoozeButton from '../common/SnoozeButton';
 
 /**
  * Alert action parameters including version_id for optimistic locking
@@ -53,8 +55,18 @@ export interface AlertCardProps {
    */
   onDismiss?: (params: AlertActionParams) => void;
   onSnooze?: (alertId: string, seconds: number) => void;
+  /**
+   * Callback when unsnooze is clicked.
+   * @see NEM-3871
+   */
+  onUnsnooze?: (alertId: string) => void;
   onViewEvent?: (eventId: number) => void;
   onSelectChange?: (alertId: string, selected: boolean) => void;
+  /**
+   * ISO timestamp until which the alert is snoozed.
+   * @see NEM-3871
+   */
+  snooze_until?: string | null;
 }
 
 /**
@@ -76,10 +88,11 @@ const AlertCard = memo(function AlertCard({
   onAcknowledge,
   onDismiss,
   onSnooze,
+  onUnsnooze,
   onViewEvent,
   onSelectChange,
+  snooze_until,
 }: AlertCardProps) {
-  const [showSnoozeMenu, setShowSnoozeMenu] = useState(false);
 
   /**
    * Handle acknowledge action with version_id for optimistic locking
@@ -172,11 +185,24 @@ const AlertCard = memo(function AlertCard({
     }
   };
 
+  /**
+   * Handle snooze via SnoozeButton component
+   * @see NEM-3871
+   */
   const handleSnooze = (seconds: number) => {
     if (onSnooze) {
       onSnooze(id, seconds);
     }
-    setShowSnoozeMenu(false);
+  };
+
+  /**
+   * Handle unsnooze via SnoozeButton component
+   * @see NEM-3871
+   */
+  const handleUnsnooze = () => {
+    if (onUnsnooze) {
+      onUnsnooze(id);
+    }
   };
 
   const riskLevel = getRiskLevel(risk_score);
@@ -207,7 +233,7 @@ const AlertCard = memo(function AlertCard({
         {/* Header with status badge */}
         <div className="mb-2 flex items-start justify-between">
           <div className="flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-lg font-semibold text-white">{camera_name}</h3>
               {status === 'pending' && (
                 <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-400">
@@ -219,6 +245,8 @@ const AlertCard = memo(function AlertCard({
                   Acknowledged
                 </span>
               )}
+              {/* NEM-3871: Display SnoozeBadge when event is snoozed */}
+              <SnoozeBadge snoozeUntil={snooze_until} size="sm" />
             </div>
             <div className="mt-1 flex items-center gap-2 text-sm text-gray-400">
               <Clock className="h-3.5 w-3.5" />
@@ -276,58 +304,15 @@ const AlertCard = memo(function AlertCard({
             </button>
           )}
 
-          {/* Snooze dropdown */}
-          {onSnooze && (
-            <div className="relative">
-              <button
-                onClick={() => setShowSnoozeMenu(!showSnoozeMenu)}
-                className="flex items-center gap-1.5 rounded-md bg-gray-700/50 px-3 py-1.5 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-700"
-                aria-label="More options"
-                aria-expanded={showSnoozeMenu}
-                aria-haspopup="true"
-              >
-                <ChevronDown className="h-4 w-4" />
-              </button>
-
-              {showSnoozeMenu && (
-                <>
-                  {/* Backdrop */}
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowSnoozeMenu(false)}
-                    aria-hidden="true"
-                  />
-
-                  {/* Dropdown menu */}
-                  <div className="absolute right-0 z-20 mt-1 w-40 rounded-md border border-gray-700 bg-[#1A1A1A] py-1 shadow-lg">
-                    <button
-                      onClick={() => handleSnooze(900)}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800"
-                    >
-                      Snooze 15 min
-                    </button>
-                    <button
-                      onClick={() => handleSnooze(1800)}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800"
-                    >
-                      Snooze 30 min
-                    </button>
-                    <button
-                      onClick={() => handleSnooze(3600)}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800"
-                    >
-                      Snooze 1 hour
-                    </button>
-                    <button
-                      onClick={() => handleSnooze(14400)}
-                      className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800"
-                    >
-                      Snooze 4 hours
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
+          {/* NEM-3871: Use shared SnoozeButton component */}
+          {onSnooze && onUnsnooze && (
+            <SnoozeButton
+              snoozeUntil={snooze_until}
+              onSnooze={handleSnooze}
+              onUnsnooze={handleUnsnooze}
+              isLoading={isLoading}
+              size="sm"
+            />
           )}
         </div>
       </div>
