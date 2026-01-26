@@ -1,0 +1,597 @@
+# Staging Docker Compose Configuration
+#
+# This configuration mirrors production with the following differences:
+# - Uses pre-built images from GitHub Container Registry (tagged, not latest)
+# - Smaller resource limits suitable for staging infrastructure
+# - Includes monitoring stack for deployment validation
+# - Uses staging-specific environment variables
+# - Enables distributed tracing for debugging
+#
+# Usage:
+#   docker compose -f docker-compose.staging.yml up -d
+#   docker compose -f docker-compose.staging.yml logs -f
+#   docker compose -f docker-compose.staging.yml down
+#
+# Configuration:
+#   IMAGE_TAG - Container image tag (e.g., v1.2.3, sha-abc123def)
+#   ENVIRONMENT - Environment designation (should be 'staging')
+#
+# Prerequisites:
+#   - Docker/Podman with container registry access
+#   - GPU support (if running AI services locally)
+#   - Sufficient disk space for monitoring data (20GB+ recommended)
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-security}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      - POSTGRES_DB=${POSTGRES_DB:-security}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-security} -d ${POSTGRES_DB:-security}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+
+  # Nemotron LLM for risk analysis
+  ai-llm:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-llm:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/llama/.cache
+    profiles:
+      - with-ai
+    ports:
+      - '8091:8091'
+    volumes:
+      - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
+    environment:
+      - GPU_LAYERS=${GPU_LAYERS:-25}
+      - CTX_SIZE=${CTX_SIZE:-131072}
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Florence-2 vision-language model for dense captioning
+  ai-florence:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-florence:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/florence/.cache
+    profiles:
+      - with-ai
+    ports:
+      - '8092:8092'
+    volumes:
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
+    environment:
+      - MODEL_PATH=/models/florence-2-large
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # CLIP ViT-L for entity re-identification
+  ai-clip:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-clip:${IMAGE_TAG:-latest}
+    # NOTE: read_only disabled for GPU containers - nvidia-cdi-hook requires capabilities
+    tmpfs:
+      - /tmp
+      - /home/clip/.cache
+    profiles:
+      - with-ai
+    ports:
+      - '8093:8093'
+    volumes:
+      # Read-only model mount (HuggingFace CLIP weights)
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
+      # Writable mount for TensorRT engine cache (if enabled)
+      - clip-tensorrt-cache-staging:/cache/tensorrt
+    environment:
+      - CLIP_MODEL_PATH=/models/clip-vit-l
+      # TensorRT disabled by default in staging (enable for faster inference)
+      - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-false}
+      - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Combined enrichment service for vehicle, pet, and clothing classification
+  ai-enrichment:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-enrichment:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/enrichment/.cache
+    profiles:
+      - with-ai
+    ports:
+      - '8094:8094'
+    volumes:
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
+    environment:
+      - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
+      - PET_MODEL_PATH=/models/pet-classifier
+      - CLOTHING_MODEL_PATH=/models/fashion-clip
+      - DEPTH_MODEL_PATH=/models/depth-anything-v2-small
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  redis:
+    image: redis:7.4-alpine3.21
+    tmpfs:
+      - /tmp
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_staging_data:/data
+    command: >-
+      sh -c '
+      if [ -n "$$REDIS_PASSWORD" ]; then
+        echo "Starting Redis with password authentication"
+        redis-server --appendonly yes --appendfsync everysec --requirepass "$$REDIS_PASSWORD"
+      else
+        echo "Starting Redis without authentication (staging)"
+        redis-server --appendonly yes --appendfsync everysec
+      fi
+      '
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    healthcheck:
+      test: >-
+        sh -c '
+        if [ -n "$$REDIS_PASSWORD" ]; then
+          redis-cli -a "$$REDIS_PASSWORD" ping 2>/dev/null | grep -q PONG
+        else
+          redis-cli ping | grep -q PONG
+        fi
+        '
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  backend:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/backend:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/appuser/.cache
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./backend/data:/app/data:U
+      - ${FOSCAM_BASE_PATH:-/export/foscam}:/cameras:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
+    environment:
+      # Free-threaded Python: Disable GIL for true parallelism (Python 3.14t)
+      - PYTHON_GIL=0
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
+      - REDIS_URL=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - NEMOTRON_URL=http://ai-llm:8091
+      - FLORENCE_URL=http://ai-florence:8092
+      - CLIP_URL=http://ai-clip:8093
+      - ENRICHMENT_URL=http://ai-enrichment:8094
+      - FRONTEND_URL=http://frontend:5173
+      # Always use /cameras (container mount point) regardless of host env var
+      - FOSCAM_BASE_PATH=/cameras
+      - DEBUG=${DEBUG:-false}
+      - ENVIRONMENT=staging
+      - FAST_PATH_CONFIDENCE_THRESHOLD=${FAST_PATH_CONFIDENCE_THRESHOLD:-0.90}
+      # OpenTelemetry distributed tracing (enabled for staging debugging)
+      - OTEL_ENABLED=${OTEL_ENABLED:-true}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-nemotron-backend-staging}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4317}
+      - OTEL_TRACE_SAMPLE_RATE=${OTEL_TRACE_SAMPLE_RATE:-1.0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import httpx; r = httpx.get('http://localhost:8000/api/system/health/ready'); exit(0 if r.status_code == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  frontend:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
+      - /var/cache/nginx
+    ports:
+      - '${FRONTEND_PORT:-5173}:5173'
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      # Use /health endpoint which returns 200 directly (avoids 301 redirect issues)
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:5173/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  # =============================================================================
+  # Monitoring Stack (Always enabled in staging for deployment validation)
+  # =============================================================================
+
+  # Elasticsearch for Jaeger trace storage (NEM-3053)
+  # Single-node deployment with 30-day retention via ILM
+  elasticsearch:
+    image: docker.io/elasticsearch:8.12.0
+    environment:
+      # Single-node discovery (no cluster)
+      - discovery.type=single-node
+      # Disable security for internal network (no external exposure)
+      - xpack.security.enabled=false
+      # Memory settings - ES needs locked memory for performance
+      - bootstrap.memory_lock=true
+      - 'ES_JAVA_OPTS=-Xms${ES_HEAP_SIZE:-1g} -Xmx${ES_HEAP_SIZE:-1g}'
+      # Reduce disk watermarks for single-node
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=85%
+      - cluster.routing.allocation.disk.watermark.high=90%
+      - cluster.routing.allocation.disk.watermark.flood_stage=95%
+    volumes:
+      - elasticsearch_staging_data:/usr/share/elasticsearch/data
+      - ./monitoring/elasticsearch:/usr/share/elasticsearch/config/ilm:ro,z
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'curl -s http://localhost:9200/_cluster/health | grep -q ''"status":"green"\|"status":"yellow"''',
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: ${ES_MEMORY_LIMIT:-2G}
+
+  # Jaeger all-in-one for distributed tracing (NEM-1629, NEM-3053)
+  # Provides trace collection, storage, and visualization for cross-service request correlation
+  # Uses Elasticsearch backend for persistent storage with 30-day retention
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    ports:
+      - '16686:16686' # Jaeger UI
+      - '4317:4317' # OTLP gRPC receiver
+      - '4318:4318' # OTLP HTTP receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      # Elasticsearch storage backend (NEM-3053)
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+      # Index configuration
+      - ES_INDEX_PREFIX=jaeger
+      - ES_TAGS_AS_FIELDS_ALL=true
+      # Performance tuning
+      - ES_NUM_SHARDS=1
+      - ES_NUM_REPLICAS=0
+      - ES_BULK_SIZE=5000000
+      - ES_BULK_WORKERS=1
+      - ES_BULK_FLUSH_INTERVAL=200ms
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:16686']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus_rules.yml:/etc/prometheus/prometheus_rules.yml:ro
+      - ./monitoring/prometheus-rules.yml:/etc/prometheus/prometheus-rules.yml:ro
+      - ./monitoring/alerting-rules.yml:/etc/prometheus/alerting-rules.yml:ro
+      - prometheus_staging_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-7d}'
+      - '--web.enable-lifecycle'
+    healthcheck:
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9090/-/healthy']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+
+  grafana:
+    image: grafana/grafana:10.2.3
+    ports:
+      - '3002:3000'
+    volumes:
+      - grafana_staging_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=${GF_AUTH_ANONYMOUS_ENABLED:-false}
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_AUTH_DISABLE_LOGIN_FORM=false
+      - GF_SECURITY_ADMIN_USER=${GF_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_ADMIN_PASSWORD:?GF_ADMIN_PASSWORD must be set}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3002
+      # Pin JSON API plugin to v1.3.0 for Grafana 10.x compatibility (v1.3.15+ requires Grafana 11.6.0+)
+      # Note: grafana-pyroscope-datasource is a core plugin in Grafana 10.x and should not be installed
+      - GF_INSTALL_PLUGINS=marcusolsson-json-datasource 1.3.0
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/api/health']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0
+    ports:
+      - '9121:9121'
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9121/metrics']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 64M
+
+  json-exporter:
+    image: prometheuscommunity/json-exporter:v0.6.0
+    ports:
+      - '7979:7979'
+    volumes:
+      - ./monitoring/json-exporter-config.yml:/etc/json-exporter/config.yml:ro
+    command:
+      - '--config.file=/etc/json-exporter/config.yml'
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 64M
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    ports:
+      - '9093:9093'
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_staging_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.listen-address=:9093'
+      - '--cluster.listen-address='
+    healthcheck:
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9093/-/healthy']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.24.0
+    ports:
+      - '9115:9115'
+    volumes:
+      - ./monitoring/blackbox-exporter.yml:/etc/blackbox_exporter/config.yml:ro
+    command:
+      - '--config.file=/etc/blackbox_exporter/config.yml'
+      - '--log.level=info'
+    healthcheck:
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:9115/metrics']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 64M
+
+volumes:
+  postgres_staging_data:
+    driver: local
+  redis_staging_data:
+    driver: local
+  elasticsearch_staging_data:
+    driver: local
+  prometheus_staging_data:
+    driver: local
+  grafana_staging_data:
+    driver: local
+  alertmanager_staging_data:
+    driver: local
+  clip-tensorrt-cache-staging:
+    driver: local
+
+networks:
+  staging-net:
+    driver: bridge
