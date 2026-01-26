@@ -526,7 +526,7 @@ CHECK (expected_severity IS NULL OR expected_severity IN ('low', 'medium', 'high
 | `id`                        | `Integer`      | NO       | Primary key                       |
 | `event_id`                  | `Integer` (FK) | NO       | Reference to events.id (unique)   |
 | `audited_at`                | `DateTime(tz)` | NO       | Audit timestamp                   |
-| `has_yolo26`                | `Boolean`      | NO       | Has YOLO26 results             |
+| `has_yolo26`                | `Boolean`      | NO       | Has YOLO26 results                |
 | `has_florence`              | `Boolean`      | NO       | Has Florence-2 results            |
 | `has_clip`                  | `Boolean`      | NO       | Has CLIP results                  |
 | `has_violence`              | `Boolean`      | NO       | Has violence detection            |

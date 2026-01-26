@@ -129,7 +129,7 @@ tail -f /tmp/nemotron-llm.log
 
 | Service   | VRAM     | CPU        | Latency | Port |
 | --------- | -------- | ---------- | ------- | ---- |
-| YOLO26 | ~4GB     | 10-20%     | 30-50ms | 8090 |
+| YOLO26    | ~4GB     | 10-20%     | 30-50ms | 8090 |
 | Nemotron  | ~3GB     | 5-10%      | 2-5s    | 8091 |
 | **Total** | **~7GB** | **15-30%** | -       | -    |
 

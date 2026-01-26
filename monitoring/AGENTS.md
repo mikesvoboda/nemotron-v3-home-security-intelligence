@@ -80,10 +80,10 @@ Backend API --> JSON Exporter --> Prometheus --> Grafana
 
    | Alert                   | Severity | Description                          |
    | ----------------------- | -------- | ------------------------------------ |
-   | AIDetectorUnavailable   | critical | YOLO26 detector service down for 2m |
+   | AIDetectorUnavailable   | critical | YOLO26 detector service down for 2m  |
    | AIBackendDown           | critical | Backend API unreachable for 1m       |
    | AINemotronTimeout       | warning  | Nemotron P95 inference > 120s for 5m |
-   | AIDetectorSlow          | warning  | YOLO26 P95 detection > 5s for 5m    |
+   | AIDetectorSlow          | warning  | YOLO26 P95 detection > 5s for 5m     |
    | AIHighErrorRate         | warning  | Pipeline error rate > 10% over 5m    |
    | AIPipelineErrorSpike    | warning  | > 50 errors in 5m window             |
    | AIGPUOverheating        | critical | GPU temperature > 85C for 2m         |
