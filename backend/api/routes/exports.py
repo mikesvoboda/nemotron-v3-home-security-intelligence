@@ -85,6 +85,7 @@ def _model_to_response(job: ExportJob) -> ExportJobResponse:
         created_at=job.created_at,
         started_at=job.started_at,
         completed_at=job.completed_at,
+        filter_params=job.filter_params,
         result=result,
         error_message=job.error_message,
     )
@@ -123,6 +124,7 @@ async def run_export_job_with_db(
     start_date: str | None,
     end_date: str | None,
     reviewed: bool | None,
+    columns: list[str] | None,
     export_service: ExportService,
     job_tracker: JobTracker,
     db: AsyncSession,
@@ -171,6 +173,7 @@ async def run_export_job_with_db(
             start_date=start_date,
             end_date=end_date,
             reviewed=reviewed,
+            columns=columns,
         )
 
         # Update database with result
@@ -258,6 +261,7 @@ async def start_export(
             "start_date": request.start_date.isoformat() if request.start_date else None,
             "end_date": request.end_date.isoformat() if request.end_date else None,
             "reviewed": request.reviewed,
+            "columns": request.columns,
         }
     )
 
@@ -290,6 +294,7 @@ async def start_export(
         start_date=start_date_str,
         end_date=end_date_str,
         reviewed=request.reviewed,
+        columns=request.columns,
         export_service=export_service,
         job_tracker=job_tracker,
         db=db,

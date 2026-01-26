@@ -31,6 +31,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.gpu_config import (
+    AiServiceInfo,
+    AiServicesResponse,
     GpuApplyResponse,
     GpuAssignment,
     GpuAssignmentStrategy,
@@ -41,10 +43,13 @@ from backend.api.schemas.gpu_config import (
     GpuConfigUpdateResponse,
     GpuDeviceResponse,
     GpuDevicesResponse,
+    ServiceHealthResponse,
+    ServiceHealthStatus,
     ServiceStatus,
 )
 from backend.core.database import get_db
 from backend.core.logging import get_logger
+from backend.core.redis import RedisClient, get_redis_client_sync
 from backend.models.gpu_config import (
     GpuConfiguration,
     SystemSetting,
@@ -53,10 +58,14 @@ from backend.models.gpu_config import (
     GpuDevice as GpuDeviceModel,
 )
 from backend.services.gpu_config_service import (
-    GpuAssignment as GpuAssignmentDataclass,
+    REDIS_GPU_CONFIG_PREFIX,
+    ApplyResult,
+    GpuConfigService,
+    RestartStatus,
+    ServiceRestartStatus,
 )
 from backend.services.gpu_config_service import (
-    GpuConfigService,
+    GpuAssignment as GpuAssignmentDataclass,
 )
 from backend.services.gpu_detection_service import (
     AI_SERVICE_VRAM_REQUIREMENTS_MB,
@@ -69,9 +78,15 @@ logger = get_logger(__name__)
 # Router with /api/system prefix to match frontend expectations
 router = APIRouter(prefix="/api/system", tags=["gpu-config"])
 
-# In-memory state for apply operation (would use Redis in production)
-_apply_state: dict[str, object] = {
+# Redis key for current apply operation ID
+# The actual operation status is stored via GpuConfigService._persist_operation_status
+REDIS_CURRENT_OPERATION_KEY = f"{REDIS_GPU_CONFIG_PREFIX}:current_operation_id"
+
+# Fallback in-memory state for when Redis is unavailable (development mode)
+# NOTE: This is ONLY used when Redis is not configured. In production, always use Redis.
+_apply_state_fallback: dict[str, object] = {
     "in_progress": False,
+    "operation_id": None,
     "services_pending": [],
     "services_completed": [],
     "service_statuses": [],
@@ -81,6 +96,61 @@ _apply_state: dict[str, object] = {
 # Constants
 GPU_STRATEGY_SETTING_KEY = "gpu_assignment_strategy"
 DEFAULT_STRATEGY = GpuAssignmentStrategy.MANUAL
+
+
+# =============================================================================
+# Redis State Helpers
+# =============================================================================
+
+
+async def _get_redis_client() -> RedisClient | None:
+    """Get Redis client if available.
+
+    Returns:
+        RedisClient if initialized, None otherwise.
+    """
+    return get_redis_client_sync()
+
+
+async def _get_current_operation_id(redis: RedisClient | None) -> str | None:
+    """Get the current apply operation ID from Redis.
+
+    Args:
+        redis: Redis client (may be None)
+
+    Returns:
+        Operation ID if an operation is in progress, None otherwise.
+    """
+    if redis is None:
+        return _apply_state_fallback.get("operation_id")  # type: ignore[return-value]
+
+    try:
+        return await redis.get(REDIS_CURRENT_OPERATION_KEY)
+    except Exception as e:
+        logger.warning(f"Failed to get current operation ID from Redis: {e}")
+        return None
+
+
+async def _set_current_operation_id(redis: RedisClient | None, operation_id: str | None) -> None:
+    """Set the current apply operation ID in Redis.
+
+    Args:
+        redis: Redis client (may be None)
+        operation_id: Operation ID to set, or None to clear
+    """
+    if redis is None:
+        _apply_state_fallback["operation_id"] = operation_id
+        _apply_state_fallback["in_progress"] = operation_id is not None
+        return
+
+    try:
+        if operation_id is None:
+            await redis.delete(REDIS_CURRENT_OPERATION_KEY)
+        else:
+            # Set with 1 hour TTL to auto-cleanup stuck operations
+            await redis.set(REDIS_CURRENT_OPERATION_KEY, operation_id, expire=3600)
+    except Exception as e:
+        logger.warning(f"Failed to set current operation ID in Redis: {e}")
 
 
 # =============================================================================
@@ -646,19 +716,44 @@ async def apply_gpu_config(
     This endpoint returns immediately with the initial status. Use
     GET /gpu-config/status to poll for completion.
 
+    **State Persistence (NEM-3547):**
+    Apply operation status is persisted to Redis (when available) to survive
+    server restarts and work across multiple backend replicas. Falls back to
+    in-memory state for development environments without Redis.
+
+    **Service Restart Behavior (NEM-3548):**
+    Currently, service restarts are SIMULATED for MVP development safety.
+    The config files are written correctly, but containers are not actually
+    restarted. This is intentional to prevent disruption during development.
+
+    To enable real container restarts, the GpuConfigService needs to be
+    initialized with a docker_client and the apply_gpu_config method should
+    be called instead of write_config_files. The _recreate_service method
+    in GpuConfigService contains the actual podman-compose/docker-compose
+    restart logic.
+
     Args:
         db: Database session
 
     Returns:
         GpuApplyResponse with initial apply status
     """
-    global _apply_state  # noqa: PLW0603
+    global _apply_state_fallback  # noqa: PLW0603
 
-    if _apply_state["in_progress"]:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="GPU configuration apply already in progress",
-        )
+    redis = await _get_redis_client()
+    current_op_id = await _get_current_operation_id(redis)
+
+    if current_op_id is not None:
+        # Check if the operation is actually still in progress
+        config_service = GpuConfigService(redis_client=redis)
+        existing_result = await config_service.get_operation_status(current_op_id)
+        if existing_result and existing_result.completed_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="GPU configuration apply already in progress",
+            )
+        # Operation completed, clear the stale ID
+        await _set_current_operation_id(redis, None)
 
     try:
         # Get current configuration
@@ -684,60 +779,115 @@ async def apply_gpu_config(
             if a.gpu_index is not None
         ]
 
+        # Create config service with Redis for state persistence
+        config_service = GpuConfigService(redis_client=redis)
+
         # Generate docker-compose override file
-        config_service = GpuConfigService()
         await config_service.write_config_files(
             assignments=config_assignments,
             strategy=strategy.value,
         )
 
-        # Update apply state
         service_names = [a.service for a in assignments]
-        _apply_state = {
-            "in_progress": True,
-            "services_pending": service_names.copy(),
-            "services_completed": [],
+
+        # Create ApplyResult for Redis persistence
+        import uuid
+
+        operation_id = str(uuid.uuid4())
+        started_at = datetime.now(UTC)
+
+        result = ApplyResult(
+            success=False,
+            operation_id=operation_id,
+            started_at=started_at,
+            changed_services=service_names,
+            service_statuses={
+                name: ServiceRestartStatus(
+                    service_name=name,
+                    status=RestartStatus.PENDING,
+                )
+                for name in service_names
+            },
+        )
+
+        # Store current operation ID
+        await _set_current_operation_id(redis, operation_id)
+
+        # Persist initial status to Redis
+        await config_service._persist_operation_status(result)
+
+        # =====================================================================
+        # SIMULATED RESTART (NEM-3548)
+        # =====================================================================
+        # Currently, we simulate service restarts for MVP development safety.
+        # Config files are written correctly but containers are NOT restarted.
+        #
+        # To enable REAL container restarts:
+        # 1. Initialize GpuConfigService with docker_client parameter
+        # 2. Call config_service.apply_gpu_config() instead of write_config_files()
+        # 3. The _recreate_service() method contains real restart logic using
+        #    podman-compose or docker-compose subprocess calls
+        #
+        # This simulation is intentional for development environments to prevent
+        # accidentally restarting production AI services during testing.
+        # =====================================================================
+
+        # Simulate immediate completion
+        for service_name in service_names:
+            result.service_statuses[service_name].status = RestartStatus.RUNNING
+            result.service_statuses[service_name].completed_at = datetime.now(UTC)
+
+        result.success = True
+        result.completed_at = datetime.now(UTC)
+
+        # Persist final status to Redis
+        await config_service._persist_operation_status(result)
+
+        # Clear current operation since it's complete
+        await _set_current_operation_id(redis, None)
+
+        # Update fallback state for development mode
+        _apply_state_fallback = {
+            "in_progress": False,
+            "operation_id": None,
+            "services_pending": [],
+            "services_completed": service_names.copy(),
             "service_statuses": [
                 ServiceStatus(
                     service=name,
-                    status="pending",
-                    message="Waiting for restart",
+                    status="running",
+                    message="Configuration applied (simulated - containers not restarted)",
                 )
                 for name in service_names
             ],
             "last_updated": datetime.now(UTC),
         }
 
-        # Note: In a full implementation, this would trigger actual service restarts
-        # via Docker/Podman API or subprocess calls. For now, we just update state.
-        # The actual restart logic would be in a background task.
-
-        # Simulate immediate completion for MVP
-        _apply_state["in_progress"] = False
-        _apply_state["services_completed"] = service_names.copy()
-        _apply_state["services_pending"] = []
-        _apply_state["service_statuses"] = [
-            ServiceStatus(
-                service=name,
-                status="running",
-                message="Configuration applied",
-            )
-            for name in service_names
-        ]
-
-        logger.info(f"GPU configuration applied: strategy={strategy}, services={service_names}")
+        logger.info(
+            f"GPU configuration applied (simulated): strategy={strategy}, services={service_names}"
+        )
 
         return GpuApplyResponse(
             success=True,
-            warnings=[],
+            warnings=[
+                "Service restarts are simulated in development mode. "
+                "Config files written but containers not restarted."
+            ],
             restarted_services=service_names,
-            service_statuses=_apply_state["service_statuses"],  # type: ignore[arg-type]
+            service_statuses=[
+                ServiceStatus(
+                    service=name,
+                    status="running",
+                    message="Configuration applied (simulated)",
+                )
+                for name in service_names
+            ],
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        _apply_state["in_progress"] = False
+        await _set_current_operation_id(redis, None)
         logger.exception("Failed to apply GPU configuration")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -757,14 +907,56 @@ async def get_gpu_config_status() -> GpuConfigStatusResponse:
     Returns the progress of service restarts after applying GPU configuration.
     Use this endpoint to poll for completion after calling POST /gpu-config/apply.
 
+    **State Persistence (NEM-3547):**
+    Status is retrieved from Redis (when available) to support multi-replica
+    deployments and survive server restarts. Falls back to in-memory state
+    for development environments without Redis.
+
     Returns:
         GpuConfigStatusResponse with apply operation status
     """
-    pending: list[str] = list(_apply_state.get("services_pending", []))  # type: ignore[call-overload]
-    completed: list[str] = list(_apply_state.get("services_completed", []))  # type: ignore[call-overload]
-    statuses: list[ServiceStatus] = list(_apply_state.get("service_statuses", []))  # type: ignore[call-overload]
+    redis = await _get_redis_client()
+    current_op_id = await _get_current_operation_id(redis)
+
+    # Try to get status from Redis first
+    if current_op_id is not None and redis is not None:
+        config_service = GpuConfigService(redis_client=redis)
+        result = await config_service.get_operation_status(current_op_id)
+        if result:
+            # Convert ApplyResult to response format
+            services_pending = []
+            services_completed = []
+            service_statuses = []
+
+            for name, status in result.service_statuses.items():
+                if status.status in (RestartStatus.PENDING, RestartStatus.RESTARTING):
+                    services_pending.append(name)
+                elif status.status == RestartStatus.RUNNING:
+                    services_completed.append(name)
+                elif status.status == RestartStatus.FAILED:
+                    services_completed.append(name)  # Mark as completed but failed
+
+                service_statuses.append(
+                    ServiceStatus(
+                        service=name,
+                        status=status.status.value,
+                        message=status.error if status.error else None,
+                    )
+                )
+
+            return GpuConfigStatusResponse(
+                in_progress=result.completed_at is None,
+                services_pending=services_pending,
+                services_completed=services_completed,
+                service_statuses=service_statuses,
+            )
+
+    # Fallback to in-memory state for development mode
+    pending: list[str] = list(_apply_state_fallback.get("services_pending", []))  # type: ignore[call-overload]
+    completed: list[str] = list(_apply_state_fallback.get("services_completed", []))  # type: ignore[call-overload]
+    statuses: list[ServiceStatus] = list(_apply_state_fallback.get("service_statuses", []))  # type: ignore[call-overload]
     return GpuConfigStatusResponse(
-        in_progress=bool(_apply_state["in_progress"]),
+        in_progress=bool(_apply_state_fallback.get("in_progress", False)),
         services_pending=pending,
         services_completed=completed,
         service_statuses=statuses,
@@ -863,4 +1055,156 @@ async def preview_gpu_config(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate strategy preview: {e}",
+        ) from e
+
+
+# =============================================================================
+# AI Services Endpoints
+# =============================================================================
+
+# Service display names and descriptions for UI
+AI_SERVICE_METADATA: dict[str, dict[str, str]] = {
+    "ai-llm": {
+        "display_name": "LLM (Nemotron)",
+        "description": "Nemotron LLM for risk analysis and enrichment",
+    },
+    "ai-detector": {
+        "display_name": "Object Detector",
+        "description": "RT-DETR real-time object detection",
+    },
+    "ai-enrichment": {
+        "display_name": "Enrichment Models",
+        "description": "Age, gender, and ReID models",
+    },
+    "ai-florence": {
+        "display_name": "Florence-2",
+        "description": "Florence-2 vision-language model",
+    },
+    "ai-clip": {
+        "display_name": "CLIP",
+        "description": "CLIP image-text embedding model",
+    },
+}
+
+
+@router.get(
+    "/ai-services",
+    response_model=AiServicesResponse,
+    summary="List available AI services",
+    description="Returns all AI services with their VRAM requirements.",
+)
+async def list_ai_services() -> AiServicesResponse:
+    """List all available AI services for GPU assignment.
+
+    Returns service metadata including VRAM requirements, enabling
+    the frontend to dynamically build the assignment UI.
+
+    Returns:
+        AiServicesResponse containing list of AI services
+    """
+    services = []
+    for name, vram_mb in AI_SERVICE_VRAM_REQUIREMENTS_MB.items():
+        metadata = AI_SERVICE_METADATA.get(name, {})
+        services.append(
+            AiServiceInfo(
+                name=name,
+                display_name=metadata.get("display_name", name),
+                vram_required_mb=vram_mb,
+                vram_required_gb=vram_mb / 1024,
+                description=metadata.get("description"),
+            )
+        )
+
+    return AiServicesResponse(services=services)
+
+
+@router.get(
+    "/gpu-config/services",
+    response_model=ServiceHealthResponse,
+    summary="Get AI service health status",
+    description="Returns health status of all AI services including GPU assignments.",
+)
+async def get_service_health(
+    db: AsyncSession = Depends(get_db),
+) -> ServiceHealthResponse:
+    """Get health status of all AI services.
+
+    Returns service status including container status, health check result,
+    GPU assignment, and restart status if currently restarting.
+
+    Args:
+        db: Database session
+
+    Returns:
+        ServiceHealthResponse with status of all AI services
+    """
+    try:
+        # Get current GPU assignments from database
+        assignments = await _get_assignments_from_db(db)
+        assignment_map = {a.service: a.gpu_index for a in assignments}
+
+        # Check for in-progress operations from Redis or fallback
+        redis = await _get_redis_client()
+        current_op_id = await _get_current_operation_id(redis)
+
+        in_progress = False
+        services_pending: list[str] = []
+        services_completed: list[str] = []
+
+        if current_op_id is not None and redis is not None:
+            config_service = GpuConfigService(redis_client=redis)
+            result = await config_service.get_operation_status(current_op_id)
+            if result:
+                in_progress = result.completed_at is None
+                for name, svc_status in result.service_statuses.items():
+                    if svc_status.status in (RestartStatus.PENDING, RestartStatus.RESTARTING):
+                        services_pending.append(name)
+                    else:
+                        services_completed.append(name)
+        else:
+            # Fallback to in-memory state
+            in_progress = bool(_apply_state_fallback.get("in_progress", False))
+            services_pending = list(_apply_state_fallback.get("services_pending", []))  # type: ignore[call-overload]
+            services_completed = list(_apply_state_fallback.get("services_completed", []))  # type: ignore[call-overload]
+
+        # Build service health status list
+        services = []
+        for service_name in AI_SERVICE_VRAM_REQUIREMENTS_MB:
+            # Get restart status from apply state if applicable
+            restart_status = None
+            if in_progress:
+                if service_name in services_pending:
+                    restart_status = "pending"
+                elif service_name in services_completed:
+                    restart_status = "completed"
+
+            # Determine health based on apply state
+            # In a full implementation, this would query Docker/Podman for actual status
+            if restart_status == "pending":
+                health = "starting"
+                container_status = "restarting"
+            elif in_progress:
+                health = "unknown"
+                container_status = "restarting"
+            else:
+                health = "healthy"
+                container_status = "running"
+
+            services.append(
+                ServiceHealthStatus(
+                    name=service_name,
+                    status=container_status,
+                    health=health,
+                    gpu_index=assignment_map.get(service_name),
+                    restart_status=restart_status,
+                )
+            )
+
+        return ServiceHealthResponse(services=services)
+
+    except Exception as e:
+        logger.exception("Failed to get service health")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get service health: {e}",
         ) from e

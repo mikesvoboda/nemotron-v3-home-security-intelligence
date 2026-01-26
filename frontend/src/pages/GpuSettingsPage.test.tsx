@@ -23,6 +23,7 @@ import type {
   GpuStatusResponse,
   GpuConfigUpdateResponse,
   GpuApplyResult,
+  ServiceHealthResponse,
 } from '../services/gpuConfigApi';
 
 // Mock the GPU config API module
@@ -33,6 +34,7 @@ vi.mock('../services/gpuConfigApi', async (importOriginal) => {
     getGpus: vi.fn(),
     getGpuConfig: vi.fn(),
     getGpuStatus: vi.fn(),
+    getServiceHealth: vi.fn(),
     updateGpuConfig: vi.fn(),
     applyGpuConfig: vi.fn(),
     detectGpus: vi.fn(),
@@ -70,26 +72,17 @@ const mockGpuConfig: GpuConfig = {
     { service: 'ai-detector', gpu_index: 0, vram_budget_override: null },
     { service: 'ai-enrichment', gpu_index: 1, vram_budget_override: null },
   ],
-  strategies: ['manual', 'vram_based', 'latency_optimized', 'isolation_first', 'balanced'],
+  updated_at: '2026-01-23T10:30:00Z',
 };
 
 const mockGpuStatus: GpuStatusResponse = {
-  services: [
-    { name: 'ai-llm', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
-    {
-      name: 'ai-detector',
-      status: 'running',
-      health: 'healthy',
-      gpu_index: 0,
-      restart_status: null,
-    },
-    {
-      name: 'ai-enrichment',
-      status: 'running',
-      health: 'healthy',
-      gpu_index: 1,
-      restart_status: null,
-    },
+  in_progress: false,
+  services_pending: [],
+  services_completed: ['ai-llm', 'ai-detector', 'ai-enrichment'],
+  service_statuses: [
+    { service: 'ai-llm', status: 'running', message: null },
+    { service: 'ai-detector', status: 'running', message: null },
+    { service: 'ai-enrichment', status: 'running', message: null },
   ],
 };
 
@@ -100,13 +93,31 @@ const mockUpdateResponse: GpuConfigUpdateResponse = {
 
 const mockApplyResult: GpuApplyResult = {
   success: true,
-  restarted: ['ai-llm', 'ai-detector', 'ai-enrichment'],
-  failed: [],
   warnings: [],
+  restarted_services: ['ai-llm', 'ai-detector', 'ai-enrichment'],
+  service_statuses: [
+    { service: 'ai-llm', status: 'running', message: null },
+    { service: 'ai-detector', status: 'running', message: null },
+    { service: 'ai-enrichment', status: 'running', message: null },
+  ],
 };
 
 const emptyGpuList: GpuListResponse = {
   gpus: [],
+};
+
+const mockServiceHealth: ServiceHealthResponse = {
+  services: [
+    { name: 'ai-llm', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
+    { name: 'ai-detector', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
+    {
+      name: 'ai-enrichment',
+      status: 'running',
+      health: 'healthy',
+      gpu_index: 1,
+      restart_status: null,
+    },
+  ],
 };
 
 // ============================================================================
@@ -127,6 +138,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -153,6 +165,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -166,6 +179,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -178,6 +192,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -192,6 +207,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(emptyGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -204,6 +220,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(emptyGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -215,17 +232,23 @@ describe('GpuSettingsPage', () => {
 
   describe('error handling', () => {
     it('should show error when fetching GPUs fails', async () => {
+      // Reject all retry attempts
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockRejectedValue(
         new Error('Failed to fetch GPUs')
       );
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
-      await waitFor(() => {
-        expect(screen.getByText(/Failed to load GPU configuration/i)).toBeInTheDocument();
-      });
+      // Wait longer to account for retry delay
+      await waitFor(
+        () => {
+          expect(screen.getByText(/Failed to load GPU configuration/i)).toBeInTheDocument();
+        },
+        { timeout: 5000 }
+      );
     });
   });
 
@@ -234,6 +257,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -248,6 +272,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -265,6 +290,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -281,6 +307,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -295,6 +322,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       const { user } = renderWithProviders(<GpuSettingsPage />);
 
@@ -317,6 +345,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -327,17 +356,25 @@ describe('GpuSettingsPage', () => {
       });
     });
 
-    it('should show service health status', async () => {
+    it('should show service status badges as unknown when not polling', async () => {
+      // Service health is only fetched during apply/polling, so initially shows "Unknown"
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
+      // Wait for the page to load and show assignment table first
       await waitFor(() => {
-        expect(screen.getByTestId('status-badge-ai-llm')).toHaveTextContent('Healthy');
-        expect(screen.getByTestId('status-badge-ai-detector')).toHaveTextContent('Healthy');
-        expect(screen.getByTestId('status-badge-ai-enrichment')).toHaveTextContent('Healthy');
+        expect(screen.getByTestId('gpu-assignment-table')).toBeInTheDocument();
+      });
+
+      // Then check status badges
+      await waitFor(() => {
+        expect(screen.getByTestId('status-badge-ai-llm')).toHaveTextContent('Unknown');
+        expect(screen.getByTestId('status-badge-ai-detector')).toHaveTextContent('Unknown');
+        expect(screen.getByTestId('status-badge-ai-enrichment')).toHaveTextContent('Unknown');
       });
     });
 
@@ -345,6 +382,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -360,6 +398,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -373,6 +412,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -385,6 +425,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       const { user } = renderWithProviders(<GpuSettingsPage />);
 
@@ -403,6 +444,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
       (gpuConfigApi.updateGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(
         mockUpdateResponse
       );
@@ -427,6 +469,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -439,6 +482,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -455,6 +499,7 @@ describe('GpuSettingsPage', () => {
         strategy: 'balanced',
       });
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -469,6 +514,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 
@@ -481,6 +527,7 @@ describe('GpuSettingsPage', () => {
       (gpuConfigApi.getGpus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuList);
       (gpuConfigApi.getGpuConfig as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuConfig);
       (gpuConfigApi.getGpuStatus as ReturnType<typeof vi.fn>).mockResolvedValue(mockGpuStatus);
+      (gpuConfigApi.getServiceHealth as ReturnType<typeof vi.fn>).mockResolvedValue(mockServiceHealth);
 
       renderWithProviders(<GpuSettingsPage />);
 

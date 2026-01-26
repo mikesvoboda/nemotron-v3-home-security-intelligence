@@ -8,19 +8,22 @@ import {
   Clock,
   Loader2,
   Mail,
+  Monitor,
   Moon,
   Plus,
   Send,
   Settings,
-  Save,
+  Smartphone,
   Trash2,
   Volume2,
+  VolumeX,
   Webhook,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { useCamerasQuery } from '../../hooks/useCamerasQuery';
+import { useIntegratedNotifications } from '../../hooks/useIntegratedNotifications';
 import {
   useNotificationPreferences,
   useCameraNotificationSettings,
@@ -31,9 +34,7 @@ import {
 import {
   fetchNotificationConfig,
   testNotification,
-  updateNotificationConfig,
   type NotificationConfig,
-  type NotificationConfigUpdate,
 } from '../../services/api';
 
 export interface NotificationSettingsProps {
@@ -146,28 +147,6 @@ export default function NotificationSettings({ className }: NotificationSettings
     message: string;
   } | null>(null);
 
-  // Channel configuration form state (NEM-3632)
-  const [channelConfig, setChannelConfig] = useState<{
-    smtp_enabled: boolean;
-    smtp_host: string;
-    smtp_port: string;
-    smtp_from_address: string;
-    webhook_enabled: boolean;
-    default_webhook_url: string;
-  }>({
-    smtp_enabled: false,
-    smtp_host: '',
-    smtp_port: '587',
-    smtp_from_address: '',
-    webhook_enabled: false,
-    default_webhook_url: '',
-  });
-  const [savingConfig, setSavingConfig] = useState(false);
-  const [configSaveResult, setConfigSaveResult] = useState<{
-    success: boolean;
-    message: string;
-  } | null>(null);
-
   // Notification preferences hooks
   const {
     preferences,
@@ -202,15 +181,6 @@ export default function NotificationSettings({ className }: NotificationSettings
         setError(null);
         const data = await fetchNotificationConfig();
         setConfig(data);
-        // Initialize channel config form with loaded values
-        setChannelConfig({
-          smtp_enabled: data.email_configured,
-          smtp_host: data.smtp_host || '',
-          smtp_port: data.smtp_port?.toString() || '587',
-          smtp_from_address: data.smtp_from_address || '',
-          webhook_enabled: data.webhook_configured,
-          default_webhook_url: data.default_webhook_url || '',
-        });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load notification configuration');
       } finally {
@@ -368,53 +338,109 @@ export default function NotificationSettings({ className }: NotificationSettings
     [cameraSettings]
   );
 
-  // Save channel configuration (NEM-3632)
-  const handleSaveChannelConfig = useCallback(async () => {
+  const isAnyLoading = loading || preferencesLoading;
+
+  // Integrated notifications for desktop/push/audio controls
+  const {
+    desktopPermission,
+    desktopSupported,
+    desktopHasPermission,
+    requestDesktopPermission,
+    pushPermission,
+    pushSupported,
+    pushHasPermission,
+    requestPushPermission,
+    audioVolume,
+    setAudioVolume,
+    audioReady,
+    resumeAudio,
+  } = useIntegratedNotifications();
+
+  // Test desktop notification
+  const [testingDesktop, setTestingDesktop] = useState(false);
+  const handleTestDesktop = useCallback(async () => {
+    if (!desktopHasPermission) {
+      await requestDesktopPermission();
+      return;
+    }
+
     try {
-      setSavingConfig(true);
-      setConfigSaveResult(null);
+      setTestingDesktop(true);
+      setTestResult(null);
 
-      const update: NotificationConfigUpdate = {
-        smtp_enabled: channelConfig.smtp_enabled,
-        smtp_host: channelConfig.smtp_host || null,
-        smtp_port: channelConfig.smtp_port ? parseInt(channelConfig.smtp_port, 10) : null,
-        smtp_from_address: channelConfig.smtp_from_address || null,
-        webhook_enabled: channelConfig.webhook_enabled,
-        default_webhook_url: channelConfig.default_webhook_url || null,
-      };
+      // Show test notification
+      if (typeof Notification !== 'undefined') {
+        new Notification('Test Notification', {
+          body: 'This is a test desktop notification from the security system.',
+          icon: '/icons/icon-192.png',
+        });
+      }
 
-      const result = await updateNotificationConfig(update);
-      setConfigSaveResult({
+      setTestResult({
+        channel: 'desktop',
         success: true,
-        message: result.message || 'Configuration updated successfully',
+        message: 'Test desktop notification sent successfully!',
       });
-
-      // Refresh config to sync with server state
-      const newConfig = await fetchNotificationConfig();
-      setConfig(newConfig);
-
-      setTimeout(() => setConfigSaveResult(null), 5000);
+      setTimeout(() => setTestResult(null), 5000);
     } catch (err) {
-      setConfigSaveResult({
+      setTestResult({
+        channel: 'desktop',
         success: false,
-        message: err instanceof Error ? err.message : 'Failed to save configuration',
+        message: err instanceof Error ? err.message : 'Failed to send test desktop notification',
       });
     } finally {
-      setSavingConfig(false);
+      setTestingDesktop(false);
     }
-  }, [channelConfig]);
+  }, [desktopHasPermission, requestDesktopPermission]);
 
-  // Toggle email channel
-  const handleToggleEmailChannel = useCallback(() => {
-    setChannelConfig((prev) => ({ ...prev, smtp_enabled: !prev.smtp_enabled }));
-  }, []);
+  // Test audio notification
+  const [testingAudio, setTestingAudio] = useState(false);
+  const handleTestAudio = useCallback(async () => {
+    try {
+      setTestingAudio(true);
+      setTestResult(null);
 
-  // Toggle webhook channel
-  const handleToggleWebhookChannel = useCallback(() => {
-    setChannelConfig((prev) => ({ ...prev, webhook_enabled: !prev.webhook_enabled }));
-  }, []);
+      if (!audioReady) {
+        await resumeAudio();
+      }
 
-  const isAnyLoading = loading || preferencesLoading;
+      // Play a test sound using the Web Audio API
+      if (typeof AudioContext !== 'undefined') {
+        const audioContext = new AudioContext();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.value = 440; // A4 note
+        gainNode.gain.value = audioVolume * 0.5; // Use current volume
+
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.3);
+
+        // Clean up after sound plays
+        setTimeout(() => {
+          void audioContext.close();
+        }, 500);
+      }
+
+      setTestResult({
+        channel: 'audio',
+        success: true,
+        message: 'Test audio notification played successfully!',
+      });
+      setTimeout(() => setTestResult(null), 5000);
+    } catch (err) {
+      setTestResult({
+        channel: 'audio',
+        success: false,
+        message: err instanceof Error ? err.message : 'Failed to play test audio',
+      });
+    } finally {
+      setTestingAudio(false);
+    }
+  }, [audioReady, resumeAudio, audioVolume]);
 
   return (
     <Card className={`border-gray-800 bg-[#1A1A1A] shadow-lg ${className || ''}`}>
@@ -543,6 +569,184 @@ export default function NotificationSettings({ className }: NotificationSettings
                 })}
               </div>
             </div>
+          </div>
+
+          {/* Desktop & Push Notification Settings */}
+          <div className="rounded-lg border border-gray-800 bg-[#121212] p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Monitor className="h-5 w-5 text-cyan-400" />
+              <Text className="font-medium text-gray-300">Desktop & Push Notifications</Text>
+            </div>
+
+            <Text className="mb-4 text-xs text-gray-500">
+              Configure browser notifications for security alerts
+            </Text>
+
+            {/* Desktop Notification Permission */}
+            <div className="mb-4 flex items-center justify-between border-b border-gray-800 pb-4">
+              <div className="flex items-center gap-2">
+                <Monitor className="h-4 w-4 text-gray-400" />
+                <div>
+                  <Text className="font-medium text-gray-300">Desktop Notifications</Text>
+                  <Text className="text-xs text-gray-500">
+                    {desktopSupported
+                      ? desktopHasPermission
+                        ? 'Permission granted - notifications enabled'
+                        : desktopPermission === 'denied'
+                          ? 'Permission denied - enable in browser settings'
+                          : 'Permission required for desktop alerts'
+                      : 'Not supported in this browser'}
+                  </Text>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  color={
+                    desktopHasPermission ? 'green' : desktopPermission === 'denied' ? 'red' : 'gray'
+                  }
+                  size="sm"
+                >
+                  {desktopHasPermission ? 'Enabled' : desktopPermission === 'denied' ? 'Denied' : 'Not Set'}
+                </Badge>
+                {desktopSupported && !desktopHasPermission && desktopPermission !== 'denied' && (
+                  <Button
+                    size="xs"
+                    onClick={() => void requestDesktopPermission()}
+                    className="bg-cyan-600 text-white hover:bg-cyan-700"
+                  >
+                    Enable
+                  </Button>
+                )}
+                {desktopHasPermission && (
+                  <Button
+                    size="xs"
+                    onClick={() => void handleTestDesktop()}
+                    disabled={testingDesktop}
+                    className="bg-gray-700 text-white hover:bg-gray-600"
+                  >
+                    {testingDesktop ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Test'}
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Push Notification Permission */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4 text-gray-400" />
+                <div>
+                  <Text className="font-medium text-gray-300">Push Notifications</Text>
+                  <Text className="text-xs text-gray-500">
+                    {pushSupported
+                      ? pushHasPermission
+                        ? 'Permission granted - push enabled'
+                        : pushPermission === 'denied'
+                          ? 'Permission denied - enable in browser settings'
+                          : 'Permission required for push alerts'
+                      : 'Not supported in this browser'}
+                  </Text>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  color={
+                    pushHasPermission ? 'green' : pushPermission === 'denied' ? 'red' : 'gray'
+                  }
+                  size="sm"
+                >
+                  {pushHasPermission ? 'Enabled' : pushPermission === 'denied' ? 'Denied' : 'Not Set'}
+                </Badge>
+                {pushSupported && !pushHasPermission && pushPermission !== 'denied' && (
+                  <Button
+                    size="xs"
+                    onClick={() => void requestPushPermission()}
+                    className="bg-cyan-600 text-white hover:bg-cyan-700"
+                  >
+                    Enable
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Audio Notification Settings */}
+          <div className="rounded-lg border border-gray-800 bg-[#121212] p-4">
+            <div className="mb-4 flex items-center gap-2">
+              {preferences?.sound === 'none' ? (
+                <VolumeX className="h-5 w-5 text-gray-500" />
+              ) : (
+                <Volume2 className="h-5 w-5 text-amber-400" />
+              )}
+              <Text className="font-medium text-gray-300">Audio Notification Settings</Text>
+            </div>
+
+            <Text className="mb-4 text-xs text-gray-500">
+              Configure audio alerts for security events
+            </Text>
+
+            {/* Volume Control */}
+            <div className="mb-4 flex items-center justify-between border-b border-gray-800 pb-4">
+              <div className="flex items-center gap-2">
+                <Volume2 className="h-4 w-4 text-gray-400" />
+                <div>
+                  <Text className="font-medium text-gray-300">Volume Level</Text>
+                  <Text className="text-xs text-gray-500">
+                    Adjust audio notification volume
+                  </Text>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={audioVolume}
+                  onChange={(e) => setAudioVolume(parseFloat(e.target.value))}
+                  disabled={preferences?.sound === 'none'}
+                  className="h-2 w-24 cursor-pointer appearance-none rounded-lg bg-gray-700 accent-amber-500 disabled:opacity-50"
+                />
+                <Badge color={preferences?.sound === 'none' ? 'gray' : 'amber'} size="sm">
+                  {Math.round(audioVolume * 100)}%
+                </Badge>
+              </div>
+            </div>
+
+            {/* Test Audio */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-gray-400" />
+                <div>
+                  <Text className="font-medium text-gray-300">Test Audio</Text>
+                  <Text className="text-xs text-gray-500">
+                    Play a test sound at current volume
+                  </Text>
+                </div>
+              </div>
+              <Button
+                size="xs"
+                onClick={() => void handleTestAudio()}
+                disabled={testingAudio || preferences?.sound === 'none'}
+                className="bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                {testingAudio ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <>
+                    <Volume2 className="mr-1 h-3 w-3" />
+                    Play Test
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {preferences?.sound === 'none' && (
+              <div className="mt-4 rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+                <Text className="text-xs text-gray-400">
+                  Audio notifications are disabled. Change the sound setting above to enable audio alerts.
+                </Text>
+              </div>
+            )}
           </div>
 
           {/* Per-Camera Notification Settings */}
@@ -800,26 +1004,6 @@ export default function NotificationSettings({ className }: NotificationSettings
             </Badge>
           </div>
 
-          {/* Configuration Save Result */}
-          {configSaveResult && (
-            <div
-              className={`flex items-center gap-2 rounded-lg border p-4 ${
-                configSaveResult.success
-                  ? 'border-green-500/30 bg-green-500/10'
-                  : 'border-red-500/30 bg-red-500/10'
-              }`}
-            >
-              {configSaveResult.success ? (
-                <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-500" />
-              ) : (
-                <X className="h-5 w-5 flex-shrink-0 text-red-400" />
-              )}
-              <Text className={configSaveResult.success ? 'text-green-500' : 'text-red-400'}>
-                {configSaveResult.message}
-              </Text>
-            </div>
-          )}
-
           {/* Email (SMTP) Configuration */}
           <div className="rounded-lg border border-gray-800 bg-[#121212] p-4">
             <div className="mb-4 flex items-center justify-between">
@@ -827,109 +1011,75 @@ export default function NotificationSettings({ className }: NotificationSettings
                 <Mail className="h-5 w-5 text-blue-400" />
                 <Text className="font-medium text-gray-300">Email (SMTP)</Text>
               </div>
-              <div className="flex items-center gap-3">
-                <Badge color={channelConfig.smtp_enabled ? 'green' : 'gray'} size="sm">
-                  {channelConfig.smtp_enabled ? 'Enabled' : 'Disabled'}
-                </Badge>
-                <button
-                  onClick={handleToggleEmailChannel}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
-                    channelConfig.smtp_enabled ? 'bg-blue-500' : 'bg-gray-600'
-                  }`}
-                  role="switch"
-                  aria-checked={channelConfig.smtp_enabled}
-                  aria-label="Toggle email channel"
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      channelConfig.smtp_enabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
+              <Badge color={config.email_configured ? 'green' : 'gray'} size="sm">
+                {config.email_configured ? 'Configured' : 'Not Configured'}
+              </Badge>
             </div>
 
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="smtp-host" className="mb-1 block text-sm text-gray-400">
-                    SMTP Host
-                  </label>
-                  <input
-                    id="smtp-host"
-                    type="text"
-                    value={channelConfig.smtp_host}
-                    onChange={(e) =>
-                      setChannelConfig((prev) => ({ ...prev, smtp_host: e.target.value }))
-                    }
-                    placeholder="smtp.example.com"
-                    className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="smtp-port" className="mb-1 block text-sm text-gray-400">
-                    SMTP Port
-                  </label>
-                  <input
-                    id="smtp-port"
-                    type="number"
-                    value={channelConfig.smtp_port}
-                    onChange={(e) =>
-                      setChannelConfig((prev) => ({ ...prev, smtp_port: e.target.value }))
-                    }
-                    placeholder="587"
-                    className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="smtp-from" className="mb-1 block text-sm text-gray-400">
-                  From Address
-                </label>
-                <input
-                  id="smtp-from"
-                  type="email"
-                  value={channelConfig.smtp_from_address}
-                  onChange={(e) =>
-                    setChannelConfig((prev) => ({ ...prev, smtp_from_address: e.target.value }))
-                  }
-                  placeholder="alerts@example.com"
-                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
-
-              {config.default_email_recipients.length > 0 && (
-                <div>
-                  <Text className="mb-2 text-gray-500">Default Recipients</Text>
-                  <div className="flex flex-wrap gap-2">
-                    {config.default_email_recipients.map((email, index) => (
-                      <Badge key={index} color="blue" size="sm">
-                        {email}
-                      </Badge>
-                    ))}
+            {config.email_configured ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <Text className="text-gray-500">SMTP Host</Text>
+                    <Text className="text-white">{config.smtp_host || '-'}</Text>
+                  </div>
+                  <div>
+                    <Text className="text-gray-500">Port</Text>
+                    <Text className="text-white">{config.smtp_port || '-'}</Text>
+                  </div>
+                  <div>
+                    <Text className="text-gray-500">From Address</Text>
+                    <Text className="text-white">{config.smtp_from_address || '-'}</Text>
+                  </div>
+                  <div>
+                    <Text className="text-gray-500">TLS</Text>
+                    <Text className="text-white">
+                      {config.smtp_use_tls ? 'Enabled' : 'Disabled'}
+                    </Text>
                   </div>
                 </div>
-              )}
 
-              <Button
-                onClick={() => void handleTestEmail()}
-                disabled={testingEmail || !config.notification_enabled || !channelConfig.smtp_enabled}
-                className="mt-3 bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                size="sm"
-              >
-                {testingEmail ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Send Test Email
-                  </>
+                {config.default_email_recipients.length > 0 && (
+                  <div>
+                    <Text className="mb-2 text-gray-500">Default Recipients</Text>
+                    <div className="flex flex-wrap gap-2">
+                      {config.default_email_recipients.map((email, index) => (
+                        <Badge key={index} color="blue" size="sm">
+                          {email}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
                 )}
-              </Button>
-            </div>
+
+                <Button
+                  onClick={() => void handleTestEmail()}
+                  disabled={testingEmail || !config.notification_enabled}
+                  className="mt-3 bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  size="sm"
+                >
+                  {testingEmail ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Send Test Email
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="py-4 text-center">
+                <Text className="text-gray-500">Email notifications are not configured.</Text>
+                <Text className="mt-1 text-xs text-gray-600">
+                  Set SMTP_HOST, SMTP_FROM_ADDRESS, and optionally SMTP_USER/SMTP_PASSWORD
+                  environment variables to enable email notifications.
+                </Text>
+              </div>
+            )}
           </div>
 
           {/* Webhook Configuration */}
@@ -939,85 +1089,53 @@ export default function NotificationSettings({ className }: NotificationSettings
                 <Webhook className="h-5 w-5 text-purple-400" />
                 <Text className="font-medium text-gray-300">Webhook</Text>
               </div>
-              <div className="flex items-center gap-3">
-                <Badge color={channelConfig.webhook_enabled ? 'green' : 'gray'} size="sm">
-                  {channelConfig.webhook_enabled ? 'Enabled' : 'Disabled'}
-                </Badge>
-                <button
-                  onClick={handleToggleWebhookChannel}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-900 ${
-                    channelConfig.webhook_enabled ? 'bg-purple-500' : 'bg-gray-600'
-                  }`}
-                  role="switch"
-                  aria-checked={channelConfig.webhook_enabled}
-                  aria-label="Toggle webhook channel"
+              <Badge color={config.webhook_configured ? 'green' : 'gray'} size="sm">
+                {config.webhook_configured ? 'Configured' : 'Not Configured'}
+              </Badge>
+            </div>
+
+            {config.webhook_configured ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="col-span-2">
+                    <Text className="text-gray-500">Webhook URL</Text>
+                    <Text className="break-all text-white">
+                      {config.default_webhook_url || '-'}
+                    </Text>
+                  </div>
+                  <div>
+                    <Text className="text-gray-500">Timeout</Text>
+                    <Text className="text-white">{config.webhook_timeout_seconds || 30}s</Text>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => void handleTestWebhook()}
+                  disabled={testingWebhook || !config.notification_enabled}
+                  className="mt-3 bg-purple-600 text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  size="sm"
                 >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      channelConfig.webhook_enabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                  {testingWebhook ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="mr-2 h-4 w-4" />
+                      Send Test Webhook
+                    </>
+                  )}
+                </Button>
               </div>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="webhook-url" className="mb-1 block text-sm text-gray-400">
-                  Webhook URL
-                </label>
-                <input
-                  id="webhook-url"
-                  type="url"
-                  value={channelConfig.default_webhook_url}
-                  onChange={(e) =>
-                    setChannelConfig((prev) => ({ ...prev, default_webhook_url: e.target.value }))
-                  }
-                  placeholder="https://hooks.example.com/notify"
-                  className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
-                />
+            ) : (
+              <div className="py-4 text-center">
+                <Text className="text-gray-500">Webhook notifications are not configured.</Text>
+                <Text className="mt-1 text-xs text-gray-600">
+                  Set DEFAULT_WEBHOOK_URL environment variable to enable webhook notifications.
+                </Text>
               </div>
-
-              <Button
-                onClick={() => void handleTestWebhook()}
-                disabled={testingWebhook || !config.notification_enabled || !channelConfig.webhook_enabled}
-                className="mt-3 bg-purple-600 text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
-                size="sm"
-              >
-                {testingWebhook ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Send Test Webhook
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {/* Save Configuration Button */}
-          <div className="flex justify-end">
-            <Button
-              onClick={() => void handleSaveChannelConfig()}
-              disabled={savingConfig}
-              className="bg-[#76B900] text-white hover:bg-[#5a8c00] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {savingConfig ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Configuration
-                </>
-              )}
-            </Button>
+            )}
           </div>
 
           {/* Available Channels Summary */}

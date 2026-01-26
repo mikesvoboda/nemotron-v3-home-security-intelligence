@@ -24,34 +24,30 @@ import type { GpuApplyResult, ServiceStatus } from '../../hooks/useGpuConfig';
 
 const mockApplyResultSuccess: GpuApplyResult = {
   success: true,
-  restarted: ['ai-llm', 'ai-detector', 'ai-enrichment'],
-  failed: [],
   warnings: [],
+  restarted_services: ['ai-llm', 'ai-detector', 'ai-enrichment'],
+  service_statuses: [
+    { service: 'ai-llm', status: 'running', message: null },
+    { service: 'ai-detector', status: 'running', message: null },
+    { service: 'ai-enrichment', status: 'running', message: null },
+  ],
 };
 
 const mockApplyResultWithFailures: GpuApplyResult = {
   success: false,
-  restarted: ['ai-llm'],
-  failed: ['ai-detector', 'ai-enrichment'],
   warnings: ['Some services failed to restart'],
+  restarted_services: ['ai-llm'],
+  service_statuses: [
+    { service: 'ai-llm', status: 'running', message: null },
+    { service: 'ai-detector', status: 'error', message: 'Failed to restart' },
+    { service: 'ai-enrichment', status: 'error', message: 'Failed to restart' },
+  ],
 };
 
 const mockServiceStatuses: ServiceStatus[] = [
-  { name: 'ai-llm', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
-  {
-    name: 'ai-detector',
-    status: 'restarting',
-    health: 'unknown',
-    gpu_index: 0,
-    restart_status: 'Restarting',
-  },
-  {
-    name: 'ai-enrichment',
-    status: 'running',
-    health: 'healthy',
-    gpu_index: 1,
-    restart_status: null,
-  },
+  { service: 'ai-llm', status: 'running', message: null },
+  { service: 'ai-detector', status: 'starting', message: 'Restarting' },
+  { service: 'ai-enrichment', status: 'running', message: null },
 ];
 
 // ============================================================================
@@ -251,13 +247,13 @@ describe('GpuApplyButton', () => {
       expect(screen.getByText('ai-enrichment')).toBeInTheDocument();
     });
 
-    it('should show healthy count', () => {
+    it('should show running count', () => {
       renderWithProviders(
         <GpuApplyButton {...defaultProps} isApplying serviceStatuses={mockServiceStatuses} />
       );
 
-      // 2 out of 3 healthy
-      expect(screen.getByText('2 / 3 healthy')).toBeInTheDocument();
+      // 2 out of 3 running (ai-llm and ai-enrichment are running, ai-detector is starting)
+      expect(screen.getByText('2 / 3 running')).toBeInTheDocument();
     });
   });
 

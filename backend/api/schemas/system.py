@@ -413,6 +413,12 @@ class ConfigResponse(BaseModel):
         ge=1,
         le=365,
     )
+    log_retention_days: int = Field(
+        ...,
+        description="Number of days to retain logs",
+        ge=1,
+        le=365,
+    )
     batch_window_seconds: int = Field(
         ...,
         description="Time window for batch processing detections",
@@ -434,6 +440,12 @@ class ConfigResponse(BaseModel):
         le=1.0,
         deprecated=True,
     )
+    fast_path_confidence_threshold: float = Field(
+        ...,
+        description="Confidence threshold for fast-path high-priority analysis (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+    )
     grafana_url: str = Field(
         ...,
         description="Grafana dashboard URL for frontend link",
@@ -449,9 +461,11 @@ class ConfigResponse(BaseModel):
                 "app_name": "Home Security Intelligence",
                 "version": "0.1.0",
                 "retention_days": 30,
+                "log_retention_days": 7,
                 "batch_window_seconds": 90,
                 "batch_idle_timeout_seconds": 30,
                 "detection_confidence_threshold": 0.5,
+                "fast_path_confidence_threshold": 0.9,
                 "grafana_url": "/grafana",
                 "debug": False,
             }
@@ -468,6 +482,12 @@ class ConfigUpdateRequest(BaseModel):
     retention_days: int | None = Field(
         None,
         description="Number of days to retain events and detections",
+        ge=1,
+        le=365,
+    )
+    log_retention_days: int | None = Field(
+        None,
+        description="Number of days to retain logs",
         ge=1,
         le=365,
     )
@@ -491,6 +511,12 @@ class ConfigUpdateRequest(BaseModel):
         ge=0.0,
         le=1.0,
         deprecated=True,
+    )
+    fast_path_confidence_threshold: float | None = Field(
+        None,
+        description="Confidence threshold for fast-path high-priority analysis (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
     )
 
 

@@ -68,7 +68,7 @@ const mockGpuAssignment2: GpuAssignment = {
 const mockGpuConfig: GpuConfig = {
   strategy: 'isolation_first',
   assignments: [mockGpuAssignment, mockGpuAssignment2],
-  strategies: ['auto', 'isolation_first', 'vram_balanced', 'manual'],
+  updated_at: '2026-01-23T10:30:00Z',
 };
 
 const mockGpuConfigUpdateResponse: GpuConfigUpdateResponse = {
@@ -83,44 +83,47 @@ const mockGpuConfigUpdateResponseWithWarnings: GpuConfigUpdateResponse = {
 
 const mockGpuApplyResult: GpuApplyResult = {
   success: true,
-  restarted: ['ai-llm', 'ai-detector'],
-  failed: [],
   warnings: [],
+  restarted_services: ['ai-llm', 'ai-detector'],
+  service_statuses: [
+    { service: 'ai-llm', status: 'running', message: null },
+    { service: 'ai-detector', status: 'running', message: null },
+  ],
 };
 
 const mockGpuApplyResultWithFailures: GpuApplyResult = {
   success: false,
-  restarted: ['ai-llm'],
-  failed: ['ai-detector'],
   warnings: ['Container restart timed out for ai-detector'],
+  restarted_services: ['ai-llm'],
+  service_statuses: [
+    { service: 'ai-llm', status: 'running', message: null },
+    { service: 'ai-detector', status: 'error', message: 'Container restart timed out' },
+  ],
 };
 
 const mockServiceStatus: ServiceStatus = {
-  name: 'ai-llm',
+  service: 'ai-llm',
   status: 'running',
-  health: 'healthy',
-  gpu_index: 0,
-  restart_status: null,
+  message: null,
 };
 
 const mockServiceStatus2: ServiceStatus = {
-  name: 'ai-detector',
+  service: 'ai-detector',
   status: 'running',
-  health: 'healthy',
-  gpu_index: 1,
-  restart_status: null,
+  message: null,
 };
 
 const mockServiceStatusRestarting: ServiceStatus = {
-  name: 'ai-llm',
-  status: 'restarting',
-  health: 'unknown',
-  gpu_index: 0,
-  restart_status: 'pending',
+  service: 'ai-llm',
+  status: 'starting',
+  message: 'Waiting for restart',
 };
 
 const mockGpuStatusResponse: GpuStatusResponse = {
-  services: [mockServiceStatus, mockServiceStatus2],
+  in_progress: false,
+  services_pending: [],
+  services_completed: ['ai-llm', 'ai-detector'],
+  service_statuses: [mockServiceStatus, mockServiceStatus2],
 };
 
 const mockStrategyPreviewResponse: StrategyPreviewResponse = {
@@ -292,7 +295,7 @@ describe('getGpuConfig', () => {
 
     expect(result.strategy).toBe('isolation_first');
     expect(result.assignments).toHaveLength(2);
-    expect(result.strategies).toContain('manual');
+    expect(result.updated_at).toBe('2026-01-23T10:30:00Z');
   });
 
   it('returns assignment details correctly', async () => {
@@ -468,9 +471,9 @@ describe('applyGpuConfig', () => {
       headers: { 'Content-Type': 'application/json' },
     });
     expect(result.success).toBe(true);
-    expect(result.restarted).toContain('ai-llm');
-    expect(result.restarted).toContain('ai-detector');
-    expect(result.failed).toHaveLength(0);
+    expect(result.restarted_services).toContain('ai-llm');
+    expect(result.restarted_services).toContain('ai-detector');
+    expect(result.service_statuses).toHaveLength(2);
   });
 
   it('returns partial success with failed restarts', async () => {
@@ -479,24 +482,25 @@ describe('applyGpuConfig', () => {
     const result = await applyGpuConfig();
 
     expect(result.success).toBe(false);
-    expect(result.restarted).toContain('ai-llm');
-    expect(result.failed).toContain('ai-detector');
+    expect(result.restarted_services).toContain('ai-llm');
+    const failedService = result.service_statuses.find((s) => s.status === 'error');
+    expect(failedService?.service).toBe('ai-detector');
     expect(result.warnings).toContain('Container restart timed out for ai-detector');
   });
 
   it('handles no services to restart', async () => {
     const noRestartResult: GpuApplyResult = {
       success: true,
-      restarted: [],
-      failed: [],
       warnings: ['No services required restart'],
+      restarted_services: [],
+      service_statuses: [],
     };
     vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(noRestartResult));
 
     const result = await applyGpuConfig();
 
     expect(result.success).toBe(true);
-    expect(result.restarted).toHaveLength(0);
+    expect(result.restarted_services).toHaveLength(0);
   });
 
   it('throws GpuConfigApiError on 500 server error', async () => {
@@ -544,7 +548,7 @@ describe('getGpuStatus', () => {
     expect(fetch).toHaveBeenCalledWith('/api/system/gpu-config/status', {
       headers: { 'Content-Type': 'application/json' },
     });
-    expect(result.services).toHaveLength(2);
+    expect(result.service_statuses).toHaveLength(2);
   });
 
   it('returns service status details correctly', async () => {
@@ -552,40 +556,44 @@ describe('getGpuStatus', () => {
 
     const result = await getGpuStatus();
 
-    const llmService = result.services.find((s) => s.name === 'ai-llm');
+    const llmService = result.service_statuses.find((s) => s.service === 'ai-llm');
     expect(llmService?.status).toBe('running');
-    expect(llmService?.health).toBe('healthy');
-    expect(llmService?.gpu_index).toBe(0);
-    expect(llmService?.restart_status).toBeNull();
+    expect(llmService?.message).toBeNull();
   });
 
-  it('returns restarting service status', async () => {
-    const restartingResponse: GpuStatusResponse = {
-      services: [mockServiceStatusRestarting],
+  it('returns starting service status', async () => {
+    const startingResponse: GpuStatusResponse = {
+      in_progress: true,
+      services_pending: ['ai-llm'],
+      services_completed: [],
+      service_statuses: [mockServiceStatusRestarting],
     };
-    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(restartingResponse));
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(startingResponse));
 
     const result = await getGpuStatus();
 
-    expect(result.services[0].status).toBe('restarting');
-    expect(result.services[0].health).toBe('unknown');
-    expect(result.services[0].restart_status).toBe('pending');
+    expect(result.service_statuses[0].status).toBe('starting');
+    expect(result.in_progress).toBe(true);
+    expect(result.services_pending).toContain('ai-llm');
   });
 
-  it('handles service with null gpu_index', async () => {
-    const noGpuService: ServiceStatus = {
-      name: 'ai-enrichment',
+  it('handles service with status message', async () => {
+    const serviceWithMessage: ServiceStatus = {
+      service: 'ai-enrichment',
       status: 'stopped',
-      health: 'unknown',
-      gpu_index: null,
-      restart_status: null,
+      message: 'Container exited with code 1',
     };
-    const response: GpuStatusResponse = { services: [noGpuService] };
+    const response: GpuStatusResponse = {
+      in_progress: false,
+      services_pending: [],
+      services_completed: ['ai-enrichment'],
+      service_statuses: [serviceWithMessage],
+    };
     vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(response));
 
     const result = await getGpuStatus();
 
-    expect(result.services[0].gpu_index).toBeNull();
+    expect(result.service_statuses[0].message).toBe('Container exited with code 1');
   });
 
   it('throws GpuConfigApiError on 500 server error', async () => {

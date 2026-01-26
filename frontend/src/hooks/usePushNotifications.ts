@@ -18,6 +18,19 @@ export interface SecurityAlertOptions {
   eventId?: string;
 }
 
+export interface UsePushNotificationsOptions {
+  /**
+   * Whether push notifications are enabled
+   * @default true
+   */
+  enabled?: boolean;
+  /**
+   * Risk levels that should trigger push notifications
+   * If provided, only alerts with matching risk levels will show
+   */
+  riskFilters?: string[];
+}
+
 export interface UsePushNotificationsReturn {
   /** Current notification permission state */
   permission: NotificationPermission;
@@ -29,6 +42,10 @@ export interface UsePushNotificationsReturn {
   hasInteracted: boolean;
   /** Whether we have an active push subscription */
   isSubscribed: boolean;
+  /** Whether push notifications are enabled via preferences */
+  isEnabled: boolean;
+  /** Enable or disable push notifications */
+  setEnabled: (enabled: boolean) => void;
   /** Request notification permission from user */
   requestPermission: () => Promise<NotificationPermission>;
   /** Show a notification (requires permission) */
@@ -90,7 +107,11 @@ function getRiskPrefix(riskLevel: string): string {
  * }, [newEvent, hasPermission, showSecurityAlert]);
  * ```
  */
-export function usePushNotifications(): UsePushNotificationsReturn {
+export function usePushNotifications(
+  options: UsePushNotificationsOptions = {}
+): UsePushNotificationsReturn {
+  const { enabled: initialEnabled = true, riskFilters } = options;
+
   const [permission, setPermission] = useState<NotificationPermission>(() => {
     if (typeof Notification !== 'undefined') {
       return Notification.permission;
@@ -99,6 +120,12 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   });
 
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(initialEnabled);
+
+  // Update enabled state when option changes
+  useEffect(() => {
+    setIsEnabled(initialEnabled);
+  }, [initialEnabled]);
 
   // Check if notifications are supported
   const isSupported = typeof Notification !== 'undefined';
@@ -153,7 +180,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
    */
   const showNotification = useCallback(
     async (title: string, options?: NotificationOptions): Promise<void> => {
-      if (!isSupported || permission !== 'granted') {
+      if (!isSupported || permission !== 'granted' || !isEnabled) {
         return;
       }
 
@@ -175,15 +202,20 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         // Notification failed - silently ignore
       }
     },
-    [isSupported, permission]
+    [isSupported, permission, isEnabled]
   );
 
   /**
    * Show a security alert notification
    */
   const showSecurityAlert = useCallback(
-    async (options: SecurityAlertOptions): Promise<void> => {
-      const { camera, riskLevel, summary, eventId } = options;
+    async (alertOpts: SecurityAlertOptions): Promise<void> => {
+      const { camera, riskLevel, summary, eventId } = alertOpts;
+
+      // Check if this risk level is in the filters (if filters are specified)
+      if (riskFilters && riskFilters.length > 0 && !riskFilters.includes(riskLevel)) {
+        return;
+      }
 
       const title = `${getRiskPrefix(riskLevel)} ${camera}`;
       const notificationOptions: NotificationOptions = {
@@ -202,8 +234,15 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
       await showNotification(title, notificationOptions);
     },
-    [showNotification]
+    [showNotification, riskFilters]
   );
+
+  /**
+   * Enable or disable push notifications
+   */
+  const setEnabled = useCallback((newEnabled: boolean): void => {
+    setIsEnabled(newEnabled);
+  }, []);
 
   return {
     permission,
@@ -211,6 +250,8 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     hasPermission,
     hasInteracted,
     isSubscribed,
+    isEnabled,
+    setEnabled,
     requestPermission,
     showNotification,
     showSecurityAlert,

@@ -202,6 +202,53 @@ EXTENDED_EXPORT_COLUMNS: list[tuple[str, str]] = [
     ("reasoning", "Reasoning"),
 ]
 
+# Map of field names to display names for column lookup
+COLUMN_NAME_MAP: dict[str, str] = dict(EXTENDED_EXPORT_COLUMNS)
+
+
+def get_selected_columns(column_names: list[str] | None) -> list[tuple[str, str]]:
+    """Get column definitions for the selected columns.
+
+    Args:
+        column_names: List of field names to include, or None for all columns.
+
+    Returns:
+        List of (field_name, display_name) tuples for selected columns.
+    """
+    if column_names is None:
+        return EXTENDED_EXPORT_COLUMNS
+
+    # Filter to only valid columns, maintaining requested order
+    selected = []
+    for name in column_names:
+        if name in COLUMN_NAME_MAP:
+            selected.append((name, COLUMN_NAME_MAP[name]))
+
+    # If no valid columns selected, return all columns
+    return selected if selected else EXTENDED_EXPORT_COLUMNS
+
+
+def filter_row_to_dict(row: EventExportRow, column_names: list[str] | None) -> dict[str, Any]:
+    """Convert an EventExportRow to a dictionary with selected columns only.
+
+    Args:
+        row: The export row to convert.
+        column_names: List of field names to include, or None for all columns.
+
+    Returns:
+        Dictionary with selected column values.
+    """
+    columns = get_selected_columns(column_names)
+    result: dict[str, Any] = {}
+    for field, _ in columns:
+        value = getattr(row, field, None)
+        # Format datetime values
+        if isinstance(value, datetime):
+            result[field] = value.isoformat()
+        else:
+            result[field] = value
+    return result
+
 
 def format_export_value(row: EventExportRow, field: str) -> str:
     """Format a field value from an EventExportRow for export.
@@ -681,6 +728,7 @@ class ExportService:
         start_date: str | None = None,
         end_date: str | None = None,
         reviewed: bool | None = None,
+        columns: list[str] | None = None,
     ) -> dict[str, Any]:
         """Export events with progress tracking for background jobs.
 
@@ -788,56 +836,32 @@ class ExportService:
 
         # Generate export file
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        selected_columns = get_selected_columns(columns)
 
         if export_format == "csv":
-            content = events_to_csv(export_rows, EXTENDED_EXPORT_COLUMNS)
+            content = events_to_csv(export_rows, selected_columns)
             filename = f"events_export_{timestamp}.csv"
             filepath = EXPORT_DIR / filename
             filepath.write_text(content, encoding="utf-8")
         elif export_format == "json":
-            content_dict = [
-                {
-                    "event_id": row.event_id,
-                    "camera_name": row.camera_name,
-                    "started_at": row.started_at.isoformat() if row.started_at else None,
-                    "ended_at": row.ended_at.isoformat() if row.ended_at else None,
-                    "risk_score": row.risk_score,
-                    "risk_level": row.risk_level,
-                    "summary": row.summary,
-                    "detection_count": row.detection_count,
-                    "reviewed": row.reviewed,
-                    "object_types": row.object_types,
-                    "reasoning": row.reasoning,
-                }
-                for row in export_rows
-            ]
+            content_dict = [filter_row_to_dict(row, columns) for row in export_rows]
             filename = f"events_export_{timestamp}.json"
             filepath = EXPORT_DIR / filename
             filepath.write_text(json.dumps(content_dict, indent=2), encoding="utf-8")
         elif export_format == "zip":
             # Create JSON content and zip it
-            content_dict = [
-                {
-                    "event_id": row.event_id,
-                    "camera_name": row.camera_name,
-                    "started_at": row.started_at.isoformat() if row.started_at else None,
-                    "ended_at": row.ended_at.isoformat() if row.ended_at else None,
-                    "risk_score": row.risk_score,
-                    "risk_level": row.risk_level,
-                    "summary": row.summary,
-                    "detection_count": row.detection_count,
-                    "reviewed": row.reviewed,
-                    "object_types": row.object_types,
-                    "reasoning": row.reasoning,
-                }
-                for row in export_rows
-            ]
+            content_dict = [filter_row_to_dict(row, columns) for row in export_rows]
             filename = f"events_export_{timestamp}.zip"
             filepath = EXPORT_DIR / filename
             json_filename = f"events_export_{timestamp}.json"
 
             with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zf:
                 zf.writestr(json_filename, json.dumps(content_dict, indent=2))
+        elif export_format == "excel":
+            content_bytes = events_to_excel(export_rows, selected_columns)
+            filename = f"events_export_{timestamp}.xlsx"
+            filepath = EXPORT_DIR / filename
+            filepath.write_bytes(content_bytes)
         else:
             raise ValueError(f"Unsupported export format: {export_format}")
 

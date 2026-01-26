@@ -32,11 +32,12 @@ import { useCallback, useState } from 'react';
 import Button from '../components/common/Button';
 import EmptyState from '../components/common/EmptyState';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import ExportColumnSelector from '../components/exports/ExportColumnSelector';
 import { useExportJobsQuery, useStartExportJob, useCancelExportJob } from '../hooks/useExportJobs';
 import { downloadExportFile } from '../services/api';
-import { formatFileSize } from '../types/export';
+import { formatFileSize, formatFilterParams, calculateDuration, formatDuration } from '../types/export';
 
-import type { ExportJob, ExportType, ExportFormat, ExportJobCreateParams } from '../types/export';
+import type { ExportJob, ExportType, ExportFormat, ExportJobCreateParams, ExportColumnName } from '../types/export';
 
 // ============================================================================
 // Types
@@ -47,6 +48,7 @@ interface ExportFormState {
   exportFormat: ExportFormat;
   startDate: string;
   endDate: string;
+  columns: ExportColumnName[] | null;
 }
 
 // ============================================================================
@@ -139,6 +141,7 @@ function ExportForm({ onStartExport, isLoading }: ExportFormProps) {
     exportFormat: 'csv',
     startDate: '',
     endDate: '',
+    columns: null, // null = all columns
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,6 +151,7 @@ function ExportForm({ onStartExport, isLoading }: ExportFormProps) {
       export_format: formState.exportFormat,
       start_date: formState.startDate || null,
       end_date: formState.endDate || null,
+      columns: formState.columns,
     });
   };
 
@@ -228,6 +232,17 @@ function ExportForm({ onStartExport, isLoading }: ExportFormProps) {
         </div>
       </div>
 
+      {/* Column Selection */}
+      {formState.exportType === 'events' && (
+        <div className="mt-4 rounded-lg border border-gray-700 bg-gray-800/30 p-4">
+          <ExportColumnSelector
+            selectedColumns={formState.columns}
+            onChange={(columns) => setFormState((prev) => ({ ...prev, columns }))}
+            disabled={isLoading}
+          />
+        </div>
+      )}
+
       <Button
         type="submit"
         variant="primary"
@@ -255,6 +270,8 @@ interface ExportJobCardProps {
 function ExportJobCard({ job, onCancel, onDownload, isCancelling }: ExportJobCardProps) {
   const canCancel = job.status === 'pending' || job.status === 'running';
   const canDownload = job.status === 'completed' && job.result?.output_path;
+  const filters = formatFilterParams(job.filter_params);
+  const duration = calculateDuration(job.started_at, job.completed_at);
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString();
@@ -270,7 +287,7 @@ function ExportJobCard({ job, onCancel, onDownload, isCancelling }: ExportJobCar
           <FormatIcon format={job.export_format} />
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm text-white">{job.id}</span>
+              <span className="font-mono text-sm text-white">{job.id.slice(0, 8)}...</span>
               <StatusBadge status={job.status} />
             </div>
             <div className="mt-1 text-sm text-gray-400">
@@ -313,15 +330,40 @@ function ExportJobCard({ job, onCancel, onDownload, isCancelling }: ExportJobCar
             <span className="font-medium text-white">{job.progress.progress_percent}%</span>
           </div>
           <ProgressBar percent={job.progress.progress_percent} />
+          {job.progress.total_items && (
+            <div className="mt-1 text-xs text-gray-500">
+              {job.progress.processed_items.toLocaleString()} / {job.progress.total_items.toLocaleString()} items
+            </div>
+          )}
         </div>
       )}
 
       {/* Result for completed jobs */}
       {job.status === 'completed' && job.result && (
-        <div className="mt-3 flex items-center gap-4 text-sm text-gray-400">
-          <span>{job.result.event_count} records</span>
-          <span>{formatFileSize(job.result.output_size_bytes)}</span>
-          {job.completed_at && <span>Completed: {formatDate(job.completed_at)}</span>}
+        <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400">
+            <span>{job.result.event_count.toLocaleString()} records</span>
+            <span>{formatFileSize(job.result.output_size_bytes)}</span>
+            {duration !== null && <span>Duration: {formatDuration(duration)}</span>}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+            {job.started_at && <span>Started: {formatDate(job.started_at)}</span>}
+            {job.completed_at && <span>Completed: {formatDate(job.completed_at)}</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Filter metadata */}
+      {filters.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {filters.map((filter, index) => (
+            <span
+              key={index}
+              className="inline-flex items-center rounded-full border border-gray-600 bg-gray-700/50 px-2 py-0.5 text-xs text-gray-300"
+            >
+              {filter}
+            </span>
+          ))}
         </div>
       )}
 

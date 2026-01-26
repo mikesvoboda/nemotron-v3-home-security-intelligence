@@ -27,13 +27,20 @@ import {
   useGpus,
   useGpuConfig,
   useGpuStatus,
+  useServiceHealth,
   useUpdateGpuConfig,
   useApplyGpuConfig,
   useDetectGpus,
   usePreviewStrategy,
 } from '../hooks/useGpuConfig';
 
-import type { GpuAssignment, GpuApplyResult } from '../hooks/useGpuConfig';
+import type { GpuAssignment, GpuApplyResult, ServiceHealthStatus } from '../hooks/useGpuConfig';
+
+/**
+ * Available GPU assignment strategies.
+ * These are defined by the backend GpuAssignmentStrategy enum.
+ */
+const AVAILABLE_STRATEGIES = ['manual', 'vram_based', 'latency_optimized', 'isolation_first', 'balanced'];
 
 /**
  * GpuSettingsPage component for managing GPU configuration
@@ -54,11 +61,14 @@ export default function GpuSettingsPage() {
 
   // Enable status polling only when applying configuration
   const [isPollingStatus, setIsPollingStatus] = useState(false);
+  const { data: statusData, refetch: refetchStatus } = useGpuStatus(isPollingStatus);
+
+  // Service health with comprehensive status (health, gpu_index, restart_status)
   const {
-    data: statusData,
-    isLoading: isLoadingStatus,
-    refetch: refetchStatus,
-  } = useGpuStatus(isPollingStatus);
+    services: serviceHealthStatuses,
+    isLoading: isLoadingHealth,
+    refetch: refetchHealth,
+  } = useServiceHealth(isPollingStatus);
 
   const { updateConfig, isLoading: isUpdating, error: updateError } = useUpdateGpuConfig();
   const { applyConfig, isLoading: isApplying, error: applyError } = useApplyGpuConfig();
@@ -88,16 +98,24 @@ export default function GpuSettingsPage() {
     }
   }, [config]);
 
-  // Stop polling when all services are healthy
+  // Stop polling when apply operation is complete (no longer in progress)
+  // and all services are healthy
   useEffect(() => {
-    if (isPollingStatus && statusData) {
-      const allHealthy = statusData.services.every((s) => s.health === 'healthy');
-      const noneRestarting = statusData.services.every((s) => !s.restart_status);
-      if (allHealthy && noneRestarting) {
+    if (isPollingStatus && statusData && serviceHealthStatuses.length > 0) {
+      // Stop polling when the apply operation is no longer in progress
+      // AND all services are healthy with no pending restarts
+      const allHealthy = serviceHealthStatuses.every(
+        (s: ServiceHealthStatus) => s.health === 'healthy'
+      );
+      const noneRestarting = serviceHealthStatuses.every(
+        (s: ServiceHealthStatus) => !s.restart_status
+      );
+
+      if (!statusData.in_progress && allHealthy && noneRestarting) {
         setIsPollingStatus(false);
       }
     }
-  }, [isPollingStatus, statusData]);
+  }, [isPollingStatus, statusData, serviceHealthStatuses]);
 
   // ============================================================================
   // Derived State
@@ -195,7 +213,8 @@ export default function GpuSettingsPage() {
     void refetchGpus();
     void refetchConfig();
     void refetchStatus();
-  }, [refetchGpus, refetchConfig, refetchStatus]);
+    void refetchHealth();
+  }, [refetchGpus, refetchConfig, refetchStatus, refetchHealth]);
 
   // ============================================================================
   // Loading State
@@ -320,7 +339,7 @@ export default function GpuSettingsPage() {
           <div className="lg:col-span-2">
             <GpuStrategySelector
               selectedStrategy={localStrategy}
-              availableStrategies={config?.strategies ?? []}
+              availableStrategies={AVAILABLE_STRATEGIES}
               onStrategyChange={handleStrategyChange}
               onPreview={handlePreview}
               isPreviewLoading={isPreviewLoading}
@@ -335,11 +354,11 @@ export default function GpuSettingsPage() {
             <GpuAssignmentTable
               assignments={localAssignments}
               gpus={gpus}
-              serviceStatuses={statusData?.services ?? []}
+              serviceStatuses={serviceHealthStatuses}
               strategy={localStrategy}
               onAssignmentChange={handleAssignmentChange}
               onVramOverrideChange={handleVramOverrideChange}
-              isLoading={isLoadingConfig || isLoadingStatus}
+              isLoading={isLoadingConfig || isLoadingHealth}
               hasPendingChanges={hasChanges}
             />
           </div>
@@ -353,7 +372,7 @@ export default function GpuSettingsPage() {
             onApply={handleApply}
             isSaving={isUpdating}
             isApplying={isApplying}
-            serviceStatuses={statusData?.services ?? []}
+            serviceStatuses={statusData?.service_statuses ?? []}
             lastApplyResult={lastApplyResult}
             error={updateError?.message ?? applyError?.message ?? null}
             disabled={isUpdating || isApplying}

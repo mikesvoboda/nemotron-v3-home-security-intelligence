@@ -13,7 +13,7 @@ import { clsx } from 'clsx';
 import { Cpu, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useState, useCallback } from 'react';
 
-import type { GpuDevice, GpuAssignment, ServiceStatus } from '../../hooks/useGpuConfig';
+import type { GpuDevice, GpuAssignment, ServiceHealthStatus } from '../../hooks/useGpuConfig';
 
 /**
  * Service VRAM requirements (in GB) - default values
@@ -33,8 +33,8 @@ export interface GpuAssignmentTableProps {
   assignments: GpuAssignment[];
   /** Available GPU devices */
   gpus: GpuDevice[];
-  /** Service status information */
-  serviceStatuses: ServiceStatus[];
+  /** Service health status information */
+  serviceStatuses: ServiceHealthStatus[];
   /** Current assignment strategy */
   strategy: string;
   /** Callback when an assignment is changed */
@@ -393,7 +393,11 @@ export default function GpuAssignmentTable({
                           {getStatusLabel(status.health, status.restart_status)}
                         </Badge>
                       ) : (
-                        <Badge color="gray" size="sm">
+                        <Badge
+                          color="gray"
+                          size="sm"
+                          data-testid={`status-badge-${assignment.service}`}
+                        >
                           Unknown
                         </Badge>
                       )}

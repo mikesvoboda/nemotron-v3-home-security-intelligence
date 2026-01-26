@@ -92,6 +92,11 @@ export interface UseDesktopNotificationsOptions {
    * @default false
    */
   suppressWhenFocused?: boolean;
+  /**
+   * Risk levels that should trigger notifications
+   * If provided, only alerts with matching risk levels will show
+   */
+  riskFilters?: string[];
 }
 
 export interface UseDesktopNotificationsReturn {
@@ -199,6 +204,7 @@ export function useDesktopNotifications(
     enabled: initialEnabled = true,
     defaultAutoCloseMs = 5000,
     suppressWhenFocused = false,
+    riskFilters,
   } = options;
 
   const [permission, setPermission] = useState<NotificationPermission>(() => {
@@ -366,6 +372,11 @@ export function useDesktopNotifications(
     (alertOptions: SecurityAlertNotificationOptions): Notification | null => {
       const { camera, riskLevel, summary, eventId, onClick } = alertOptions;
 
+      // Check if this risk level is in the filters (if filters are specified)
+      if (riskFilters && riskFilters.length > 0 && !riskFilters.includes(riskLevel)) {
+        return null;
+      }
+
       const title = `${getRiskPrefix(riskLevel)} ${camera}`;
       const icon = getRiskIcon(riskLevel);
 
@@ -384,7 +395,7 @@ export function useDesktopNotifications(
         onClick,
       });
     },
-    [showNotification]
+    [showNotification, riskFilters]
   );
 
   /**
