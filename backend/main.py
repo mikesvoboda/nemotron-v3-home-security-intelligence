@@ -264,7 +264,7 @@ def init_circuit_breakers() -> list[str]:
     circuit breakers appear in the monitoring UI even before they are first used.
 
     Pre-registered circuit breakers:
-    - rtdetr: RT-DETRv2 object detection service
+    - yolo26: YOLO26 object detection service
     - nemotron: Nemotron LLM risk analysis service
     - postgresql: Database connection pool
     - redis: Redis cache and queue service
@@ -292,8 +292,8 @@ def init_circuit_breakers() -> list[str]:
     breaker_names = []
 
     # AI services
-    get_circuit_breaker("rtdetr", ai_service_config)
-    breaker_names.append("rtdetr")
+    get_circuit_breaker("yolo26", ai_service_config)
+    breaker_names.append("yolo26")
 
     get_circuit_breaker("nemotron", ai_service_config)
     breaker_names.append("nemotron")
@@ -743,7 +743,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         lifespan_logger.info("Summary job scheduler started (5-minute interval)")
 
     # Initialize service health monitor for auto-recovery of AI services
-    # Note: This monitors RT-DETRv2 and Nemotron services for health and can trigger restarts
+    # Note: This monitors YOLO26 and Nemotron services for health and can trigger restarts
     # Redis is excluded since the application handles Redis failures gracefully already
     # Restart capability can be disabled via AI_RESTART_ENABLED=false for containerized deployments
     # where the restart scripts are not available inside the backend container
@@ -751,14 +751,14 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     if redis_client is not None:
         # Set restart_cmd based on ai_restart_enabled setting
         # When disabled (e.g., in containers), health monitoring still works but no restart attempts
-        rtdetr_restart_cmd = "ai/start_detector.sh" if settings.ai_restart_enabled else None
+        yolo26_restart_cmd = "ai/start_detector.sh" if settings.ai_restart_enabled else None
         nemotron_restart_cmd = "ai/start_llm.sh" if settings.ai_restart_enabled else None
 
         service_configs = [
             ServiceConfig(
-                name="rtdetr",
-                health_url=f"{settings.rtdetr_url}/health",
-                restart_cmd=rtdetr_restart_cmd,
+                name="yolo26",
+                health_url=f"{settings.yolo26_url}/health",
+                restart_cmd=yolo26_restart_cmd,
                 health_timeout=5.0,
                 max_retries=3,
                 backoff_base=5.0,
@@ -786,7 +786,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             "enabled" if settings.ai_restart_enabled else "disabled (AI_RESTART_ENABLED=false)"
         )
         lifespan_logger.info(
-            f"Service health monitor initialized (RT-DETRv2, Nemotron) - restart: {restart_status}"
+            f"Service health monitor initialized (YOLO26, Nemotron) - restart: {restart_status}"
         )
 
     # Initialize container orchestrator (if enabled)

@@ -1,18 +1,13 @@
-"""Detector client service for object detection (RT-DETRv2 and YOLO26).
+"""Detector client service for object detection (YOLO26).
 
-This service provides an HTTP client interface to object detection servers,
-supporting multiple detector backends (RT-DETRv2 and YOLO26) configurable via
-the DETECTOR_TYPE setting. The client sends images for object detection and
-stores results in the database.
+This service provides an HTTP client interface to the YOLO26 TensorRT object
+detection server. The client sends images for object detection and stores
+results in the database.
 
-Multi-Detector Support:
-    The detector type is selected via the DETECTOR_TYPE setting:
-    - "rtdetr" (default): Uses RT-DETRv2 detection server
-    - "yolo26": Uses YOLO26 TensorRT detection server
-
-    Each detector has its own URL, API key, and timeout configuration:
-    - RT-DETRv2: RTDETR_URL, RTDETR_API_KEY, RTDETR_READ_TIMEOUT
-    - YOLO26: YOLO26_URL, YOLO26_API_KEY, YOLO26_READ_TIMEOUT
+Configuration:
+    - YOLO26_URL: URL of the YOLO26 detection server
+    - YOLO26_API_KEY: Optional API key for authentication
+    - YOLO26_READ_TIMEOUT: Request timeout for detection requests
 
 Detection Flow:
     1. Read image file from filesystem
@@ -165,18 +160,15 @@ def _get_preprocess_worker_count() -> int:
 
 
 class DetectorClient:
-    """Client for interacting with object detection services (RT-DETRv2 or YOLO26).
+    """Client for interacting with the YOLO26 object detection service.
 
-    This client handles communication with external detector services,
-    supporting multiple backends based on the DETECTOR_TYPE configuration.
+    This client handles communication with the YOLO26 TensorRT detection server.
     It handles health checks, image submission, and response parsing.
 
-    Multi-Detector Support:
-        The detector type is selected via the DETECTOR_TYPE setting:
-        - "rtdetr" (default): Uses RT-DETRv2 detection server
-        - "yolo26": Uses YOLO26 TensorRT detection server
-
-        Each detector has independent URL, API key, and timeout configuration.
+    Configuration:
+        - YOLO26_URL: URL of the detection server
+        - YOLO26_API_KEY: Optional API key for authentication
+        - YOLO26_READ_TIMEOUT: Request timeout for detection requests
 
     Features:
         - Retry logic with exponential backoff for transient failures (NEM-1343)
@@ -184,7 +176,7 @@ class DetectorClient:
         - API key authentication via X-API-Key header when configured
         - Concurrency limiting via semaphore to prevent GPU overload (NEM-1500)
         - Parallel preprocessing with ThreadPoolExecutor (free-threading optimized)
-        - Circuit breaker per detector type to prevent retry storms
+        - Circuit breaker to prevent retry storms
 
     Free-Threading Support (Python 3.13t/3.14t):
         When running on free-threaded Python (GIL disabled), this client
@@ -192,7 +184,7 @@ class DetectorClient:
         to leverage true thread parallelism for AI inference operations.
 
     Security: Supports API key authentication via X-API-Key header when
-    configured in settings (RTDETR_API_KEY or YOLO26_API_KEY environment variables).
+    configured in settings (YOLO26_API_KEY environment variable).
     """
 
     # Class-level semaphore for limiting concurrent AI requests (NEM-1500)
@@ -252,7 +244,7 @@ class DetectorClient:
 
             cls._preprocess_executor = ThreadPoolExecutor(
                 max_workers=workers,
-                thread_name_prefix="rtdetr-preprocess",
+                thread_name_prefix="yolo26-preprocess",
             )
             cls._preprocess_workers = workers
             logger.debug(
@@ -282,20 +274,11 @@ class DetectorClient:
         self._frame_buffer = frame_buffer
         settings = get_settings()
 
-        # Select detector type and corresponding settings
-        self._detector_type = settings.detector_type
-
-        # NEM-3794: Model version for semantic telemetry attributes
-        if self._detector_type == "yolo26":
-            self._detector_url = settings.yolo26_url
-            self._api_key = settings.yolo26_api_key
-            read_timeout = settings.yolo26_read_timeout
-            self._model_version = "yolo26-n"  # YOLO26 nano variant
-        else:  # rtdetr (default)
-            self._detector_url = settings.rtdetr_url
-            self._api_key = settings.rtdetr_api_key
-            read_timeout = settings.rtdetr_read_timeout
-            self._model_version = "rtdetr-v2-l"  # RT-DETRv2 large variant
+        # YOLO26 is the only supported detector
+        self._detector_type = "yolo26"
+        self._detector_url = settings.yolo26_url
+        self._api_key = settings.yolo26_api_key
+        read_timeout = settings.yolo26_read_timeout
 
         self._confidence_threshold = settings.detection_confidence_threshold
         # Use httpx.Timeout for proper timeout configuration from Settings
@@ -379,7 +362,7 @@ class DetectorClient:
         """Return the configured detector type.
 
         Returns:
-            The detector type string: "rtdetr" or "yolo26"
+            The detector type string: "yolo26"
         """
         return self._detector_type
 
@@ -539,10 +522,10 @@ class DetectorClient:
             # Any valid response (even empty detections) means the model is ready
             return True
         except DetectorUnavailableError as e:
-            logger.warning(f"RT-DETR readiness probe failed (unavailable): {e}")
+            logger.warning(f"YOLO26 readiness probe failed (unavailable): {e}")
             return False
         except Exception as e:
-            logger.warning(f"RT-DETR readiness probe failed: {e}")
+            logger.warning(f"YOLO26 readiness probe failed: {e}")
             return False
 
     async def warmup(self) -> bool:
@@ -552,8 +535,8 @@ class DetectorClient:
         This reduces first-request latency for production traffic.
 
         Records metrics:
-        - hsi_model_warmup_duration_seconds{model="rtdetr"}
-        - hsi_model_cold_start_total{model="rtdetr"} (if model was cold)
+        - hsi_model_warmup_duration_seconds{model="yolo26"}
+        - hsi_model_cold_start_total{model="yolo26"} (if model was cold)
 
         Returns:
             True if warmup succeeded, False otherwise
@@ -565,35 +548,35 @@ class DetectorClient:
         )
 
         if not self._warmup_enabled:
-            logger.debug("RT-DETR warmup disabled by configuration")
+            logger.debug("YOLO26 warmup disabled by configuration")
             return True
 
         was_cold = self.is_cold()
         self._is_warming = True
-        set_model_warmth_state("rtdetr", "warming")
+        set_model_warmth_state("yolo26", "warming")
 
         try:
-            logger.info("Starting RT-DETR model warmup...")
+            logger.info("Starting YOLO26 model warmup...")
             start_time = time.monotonic()
 
             result = await self.model_readiness_probe()
 
             duration = time.monotonic() - start_time
-            observe_model_warmup_duration("rtdetr", duration)
+            observe_model_warmup_duration("yolo26", duration)
 
             if result:
                 self._track_inference()
                 if was_cold:
-                    record_model_cold_start("rtdetr")
-                set_model_warmth_state("rtdetr", "warm")
+                    record_model_cold_start("yolo26")
+                set_model_warmth_state("yolo26", "warm")
                 logger.info(
-                    f"RT-DETR warmup completed in {duration:.2f}s",
+                    f"YOLO26 warmup completed in {duration:.2f}s",
                     extra={"duration": duration, "was_cold": was_cold},
                 )
                 return True
             else:
-                set_model_warmth_state("rtdetr", "cold")
-                logger.warning("RT-DETR warmup failed - model not ready")
+                set_model_warmth_state("yolo26", "cold")
+                logger.warning("YOLO26 warmup failed - model not ready")
                 return False
         finally:
             self._is_warming = False
@@ -605,7 +588,7 @@ class DetectorClient:
         camera_id: str,
         image_path: str,
     ) -> dict[str, Any]:
-        """Send detection request to RT-DETR service with retry logic and concurrency limiting.
+        """Send detection request to YOLO26 service with retry logic and concurrency limiting.
 
         Implements exponential backoff for transient failures (NEM-1343):
         - Connection errors

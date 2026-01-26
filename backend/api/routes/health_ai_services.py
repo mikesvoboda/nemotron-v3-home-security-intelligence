@@ -43,10 +43,10 @@ AI_SERVICE_HEALTH_TIMEOUT = 5.0
 # Critical services affect overall_status = "critical" when down
 AI_SERVICES_CONFIG: list[dict[str, Any]] = [
     {
-        "name": "rtdetr",
-        "display_name": "RT-DETRv2 Object Detection",
-        "url_attr": "rtdetr_url",
-        "circuit_breaker_name": "rtdetr",
+        "name": "yolo26",
+        "display_name": "YOLO26 Object Detection",
+        "url_attr": "yolo26_url",
+        "circuit_breaker_name": "yolo26",
         "critical": True,
     },
     {
@@ -364,12 +364,12 @@ error rates, latency metrics, and queue depths.
 
 The response includes:
 - **overall_status**: healthy/degraded/critical based on service availability
-- **services**: Individual health status for each AI service (rtdetr, nemotron, florence, clip, enrichment)
+- **services**: Individual health status for each AI service (yolo26, nemotron, florence, clip, enrichment)
 - **queues**: Current depth of detection and analysis queues with DLQ counts
 
 HTTP Status Codes:
 - **200**: All services operational or system is degraded but functional
-- **503**: Critical services (rtdetr, nemotron) are unhealthy
+- **503**: Critical services (yolo26, nemotron) are unhealthy
 """,
 )
 async def get_ai_services_health(

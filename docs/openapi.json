@@ -36177,7 +36177,7 @@
     },
     "/api/health/ai-services": {
       "get": {
-        "description": "Get a unified view of all AI service health including circuit breaker states,\nerror rates, latency metrics, and queue depths.\n\nThe response includes:\n- **overall_status**: healthy/degraded/critical based on service availability\n- **services**: Individual health status for each AI service (rtdetr, nemotron, florence, clip, enrichment)\n- **queues**: Current depth of detection and analysis queues with DLQ counts\n\nHTTP Status Codes:\n- **200**: All services operational or system is degraded but functional\n- **503**: Critical services (rtdetr, nemotron) are unhealthy",
+        "description": "Get a unified view of all AI service health including circuit breaker states,\nerror rates, latency metrics, and queue depths.\n\nThe response includes:\n- **overall_status**: healthy/degraded/critical based on service availability\n- **services**: Individual health status for each AI service (yolo26, nemotron, florence, clip, enrichment)\n- **queues**: Current depth of detection and analysis queues with DLQ counts\n\nHTTP Status Codes:\n- **200**: All services operational or system is degraded but functional\n- **503**: Critical services (yolo26, nemotron) are unhealthy",
         "operationId": "health_get_ai_services_health",
         "responses": {
           "200": {
