@@ -1526,8 +1526,13 @@ async def test_update_event_marks_as_reviewed() -> None:
 
     update_data = EventUpdate(reviewed=True)
     mock_request = MagicMock()
+    mock_background_tasks = MagicMock()
     await events_routes.update_event(
-        event_id=1, update_data=update_data, request=mock_request, db=db
+        event_id=1,
+        update_data=update_data,
+        request=mock_request,
+        background_tasks=mock_background_tasks,
+        db=db,
     )
 
     assert mock_event.reviewed is True
@@ -1550,8 +1555,13 @@ async def test_update_event_marks_as_not_reviewed() -> None:
 
     update_data = EventUpdate(reviewed=False)
     mock_request = MagicMock()
+    mock_background_tasks = MagicMock()
     await events_routes.update_event(
-        event_id=1, update_data=update_data, request=mock_request, db=db
+        event_id=1,
+        update_data=update_data,
+        request=mock_request,
+        background_tasks=mock_background_tasks,
+        db=db,
     )
 
     assert mock_event.reviewed is False
@@ -1572,8 +1582,13 @@ async def test_update_event_updates_notes() -> None:
 
     update_data = EventUpdate(notes="New notes")
     mock_request = MagicMock()
+    mock_background_tasks = MagicMock()
     await events_routes.update_event(
-        event_id=1, update_data=update_data, request=mock_request, db=db
+        event_id=1,
+        update_data=update_data,
+        request=mock_request,
+        background_tasks=mock_background_tasks,
+        db=db,
     )
 
     assert mock_event.notes == "New notes"
@@ -1594,8 +1609,13 @@ async def test_update_event_clears_notes() -> None:
 
     update_data = EventUpdate(notes=None)
     mock_request = MagicMock()
+    mock_background_tasks = MagicMock()
     await events_routes.update_event(
-        event_id=1, update_data=update_data, request=mock_request, db=db
+        event_id=1,
+        update_data=update_data,
+        request=mock_request,
+        background_tasks=mock_background_tasks,
+        db=db,
     )
 
     assert mock_event.notes is None
@@ -1616,8 +1636,13 @@ async def test_update_event_updates_both_reviewed_and_notes() -> None:
 
     update_data = EventUpdate(reviewed=True, notes="Verified - delivery person")
     mock_request = MagicMock()
+    mock_background_tasks = MagicMock()
     await events_routes.update_event(
-        event_id=1, update_data=update_data, request=mock_request, db=db
+        event_id=1,
+        update_data=update_data,
+        request=mock_request,
+        background_tasks=mock_background_tasks,
+        db=db,
     )
 
     assert mock_event.reviewed is True
@@ -1635,10 +1660,15 @@ async def test_update_event_returns_404_when_not_found() -> None:
 
     update_data = EventUpdate(reviewed=True)
     mock_request = MagicMock()
+    mock_background_tasks = MagicMock()
 
     with pytest.raises(Exception) as exc_info:
         await events_routes.update_event(
-            event_id=999, update_data=update_data, request=mock_request, db=db
+            event_id=999,
+            update_data=update_data,
+            request=mock_request,
+            background_tasks=mock_background_tasks,
+            db=db,
         )
 
     assert exc_info.value.status_code == 404
@@ -1669,8 +1699,13 @@ async def test_update_event_returns_correct_response() -> None:
 
     update_data = EventUpdate(reviewed=True)
     mock_request = MagicMock()
+    mock_background_tasks = MagicMock()
     response = await events_routes.update_event(
-        event_id=1, update_data=update_data, request=mock_request, db=db
+        event_id=1,
+        update_data=update_data,
+        request=mock_request,
+        background_tasks=mock_background_tasks,
+        db=db,
     )
 
     assert response.id == 1
@@ -1706,8 +1741,13 @@ async def test_update_event_preserves_reasoning_field() -> None:
 
     update_data = EventUpdate(reviewed=True)
     mock_request = MagicMock()
+    mock_background_tasks = MagicMock()
     response = await events_routes.update_event(
-        event_id=1, update_data=update_data, request=mock_request, db=db
+        event_id=1,
+        update_data=update_data,
+        request=mock_request,
+        background_tasks=mock_background_tasks,
+        db=db,
     )
 
     assert response.reasoning == "Original reasoning for risk score"
@@ -1729,8 +1769,13 @@ async def test_update_event_with_no_changes() -> None:
     # Empty update - no fields set
     update_data = EventUpdate()
     mock_request = MagicMock()
+    mock_background_tasks = MagicMock()
     response = await events_routes.update_event(
-        event_id=1, update_data=update_data, request=mock_request, db=db
+        event_id=1,
+        update_data=update_data,
+        request=mock_request,
+        background_tasks=mock_background_tasks,
+        db=db,
     )
 
     # Should still return a valid response

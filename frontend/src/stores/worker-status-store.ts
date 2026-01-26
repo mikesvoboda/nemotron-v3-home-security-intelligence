@@ -14,6 +14,8 @@
  * - WORKER_RECOVERED: Worker recovered from error (healthy/green)
  */
 
+import { useShallow } from 'zustand/react/shallow';
+
 import { createImmerSelectorStore, type Draft, type ImmerSetState } from './middleware';
 
 import type {
@@ -336,7 +338,8 @@ export const useWorkerStatusStore = createImmerSelectorStore<WorkerStatusState>(
         draft.totalCount = 0;
       });
     },
-  })
+  }),
+  { name: 'worker-status-store' }
 );
 
 // ============================================================================
@@ -382,3 +385,83 @@ export const selectWorkerByName = (
 export const selectWorkersByType = (state: WorkerStatusState, type: WorkerType): WorkerStatus[] => {
   return Object.values(state.workers).filter((w) => w.type === type);
 };
+
+// ============================================================================
+// Shallow Hooks for Selective Subscriptions (NEM-3790)
+// ============================================================================
+
+/**
+ * Hook to select all worker status state with shallow equality.
+ * Prevents re-renders when unrelated state changes.
+ *
+ * @example
+ * ```tsx
+ * const { workers, pipelineHealth, hasError, hasWarning, runningCount, totalCount } = useWorkerStatusState();
+ * ```
+ */
+export function useWorkerStatusState() {
+  return useWorkerStatusStore(
+    useShallow((state) => ({
+      workers: state.workers,
+      pipelineHealth: state.pipelineHealth,
+      hasError: state.hasError,
+      hasWarning: state.hasWarning,
+      runningCount: state.runningCount,
+      totalCount: state.totalCount,
+    }))
+  );
+}
+
+/**
+ * Hook to select pipeline health status only.
+ *
+ * @example
+ * ```tsx
+ * const pipelineHealth = usePipelineHealth();
+ * ```
+ */
+export function usePipelineHealth() {
+  return useWorkerStatusStore((state) => state.pipelineHealth);
+}
+
+/**
+ * Hook to select worker count statistics with shallow equality.
+ *
+ * @example
+ * ```tsx
+ * const { runningCount, totalCount, hasError, hasWarning } = useWorkerCounts();
+ * ```
+ */
+export function useWorkerCounts() {
+  return useWorkerStatusStore(
+    useShallow((state) => ({
+      runningCount: state.runningCount,
+      totalCount: state.totalCount,
+      hasError: state.hasError,
+      hasWarning: state.hasWarning,
+    }))
+  );
+}
+
+/**
+ * Hook to select worker status actions only.
+ * Actions are stable references and don't cause re-renders.
+ *
+ * @example
+ * ```tsx
+ * const { handleWorkerStarted, handleWorkerError, clear } = useWorkerStatusActions();
+ * ```
+ */
+export function useWorkerStatusActions() {
+  return useWorkerStatusStore(
+    useShallow((state) => ({
+      handleWorkerStarted: state.handleWorkerStarted,
+      handleWorkerStopped: state.handleWorkerStopped,
+      handleWorkerError: state.handleWorkerError,
+      handleWorkerHealthCheckFailed: state.handleWorkerHealthCheckFailed,
+      handleWorkerRestarting: state.handleWorkerRestarting,
+      handleWorkerRecovered: state.handleWorkerRecovered,
+      clear: state.clear,
+    }))
+  );
+}

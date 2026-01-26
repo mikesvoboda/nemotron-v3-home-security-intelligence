@@ -13,6 +13,8 @@
  * where minimizing re-renders is critical for UI performance.
  */
 
+import { useShallow } from 'zustand/react/shallow';
+
 import {
   createImmerSelectorStore,
   createTransientSlice,
@@ -219,7 +221,8 @@ export const useRealtimeMetricsStore = createImmerSelectorStore<RealtimeMetricsS
         state.inference = createTransientSlice(INITIAL_INFERENCE_METRICS);
       });
     },
-  })
+  }),
+  { name: 'realtime-metrics-store' }
 );
 
 // ============================================================================
@@ -455,3 +458,69 @@ export const selectPipelineHealthStatus = (
 
   return 'healthy';
 };
+
+// ============================================================================
+// Shallow Hooks for Selective Subscriptions (NEM-3790)
+// ============================================================================
+
+/**
+ * Hook to select GPU metrics data with shallow equality.
+ *
+ * @example
+ * ```tsx
+ * const { utilization, temperature, memoryUtilization } = useGPUMetrics();
+ * ```
+ */
+export function useGPUMetrics() {
+  return useRealtimeMetricsStore(
+    useShallow((state) => state.gpu.data)
+  );
+}
+
+/**
+ * Hook to select pipeline metrics data with shallow equality.
+ *
+ * @example
+ * ```tsx
+ * const { throughput, errorRate, detectionQueueDepth } = usePipelineMetrics();
+ * ```
+ */
+export function usePipelineMetrics() {
+  return useRealtimeMetricsStore(
+    useShallow((state) => state.pipeline.data)
+  );
+}
+
+/**
+ * Hook to select inference metrics data with shallow equality.
+ *
+ * @example
+ * ```tsx
+ * const { rtdetrLatency, nemotronLatency } = useInferenceMetrics();
+ * ```
+ */
+export function useInferenceMetrics() {
+  return useRealtimeMetricsStore(
+    useShallow((state) => state.inference.data)
+  );
+}
+
+/**
+ * Hook to select realtime metrics actions only.
+ * Actions are stable references and don't cause re-renders.
+ *
+ * @example
+ * ```tsx
+ * const { updateGPU, updatePipeline, clear } = useRealtimeMetricsActions();
+ * ```
+ */
+export function useRealtimeMetricsActions() {
+  return useRealtimeMetricsStore(
+    useShallow((state) => ({
+      updateGPU: state.updateGPU,
+      updatePipeline: state.updatePipeline,
+      updateInference: state.updateInference,
+      clear: state.clear,
+    }))
+  );
+}

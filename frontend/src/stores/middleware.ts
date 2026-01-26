@@ -11,14 +11,14 @@
 
 import { produce, type Draft } from 'immer';
 import { create, type StoreApi, type UseBoundStore } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
+import { devtools, subscribeWithSelector } from 'zustand/middleware';
 import { shallow } from 'zustand/shallow';
 
 // ============================================================================
 // Re-exports for convenience
 // ============================================================================
 
-export { produce, shallow, subscribeWithSelector };
+export { devtools, produce, shallow, subscribeWithSelector };
 export type { Draft };
 
 // ============================================================================
@@ -38,6 +38,16 @@ export type ImmerSetState<T> = (
  * State creator type for stores using Immer middleware.
  */
 export type ImmerStateCreator<T> = (set: ImmerSetState<T>, get: () => T, store: StoreApi<T>) => T;
+
+/**
+ * Options for devtools middleware configuration.
+ */
+export interface DevtoolsOptions {
+  /** Store name displayed in Redux DevTools */
+  name: string;
+  /** Whether devtools are enabled (default: only in development) */
+  enabled?: boolean;
+}
 
 /**
  * Transient state slice - state that updates frequently but should not trigger re-renders.
@@ -77,21 +87,53 @@ export interface TransientBatchOptions {
  *   setDeepValue: (value: number) => void;
  * }
  *
- * const useStore = createImmerStore<State>((set) => ({
- *   nested: { deep: { value: 0 } },
- *   setDeepValue: (value) => set((state) => {
- *     // Mutate directly - Immer handles immutability
- *     state.nested.deep.value = value;
+ * const useStore = createImmerStore<State>(
+ *   (set) => ({
+ *     nested: { deep: { value: 0 } },
+ *     setDeepValue: (value) => set((state) => {
+ *       // Mutate directly - Immer handles immutability
+ *       state.nested.deep.value = value;
+ *     }),
  *   }),
- * }));
+ *   { name: 'my-store' } // Optional devtools config
+ * );
  * ```
  *
  * @param createState - State creator function with Immer-enhanced set
- * @returns Zustand store with Immer middleware
+ * @param devtoolsOptions - Optional devtools configuration (NEM-3785)
+ * @returns Zustand store with Immer and DevTools middleware
  */
 export function createImmerStore<T extends object>(
-  createState: ImmerStateCreator<T>
+  createState: ImmerStateCreator<T>,
+  devtoolsOptions?: DevtoolsOptions
 ): UseBoundStore<StoreApi<T>> {
+  // If devtools options provided, wrap with devtools middleware
+  if (devtoolsOptions) {
+    return create<T>()(
+      devtools(
+        (set, get, store) => {
+          const immerSet: ImmerSetState<T> = (partial, replace) => {
+            // Type for Zustand's internal set function with optional replace parameter
+            type SetFn = (state: T | Partial<T>, replace?: boolean) => void;
+            if (typeof partial === 'function') {
+              const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
+              // Cast to bypass Zustand's strict typing on replace parameter
+              (set as unknown as SetFn)(nextState, replace);
+            } else {
+              (set as unknown as SetFn)(partial, replace);
+            }
+          };
+          return createState(immerSet, get, store);
+        },
+        {
+          name: devtoolsOptions.name,
+          enabled: devtoolsOptions.enabled ?? import.meta.env.DEV,
+        }
+      )
+    );
+  }
+
+  // Without devtools, use direct middleware
   return create<T>()((set, get, store) => {
     const immerSet: ImmerSetState<T> = (partial, replace) => {
       // Type for Zustand's internal set function with optional replace parameter
@@ -109,45 +151,68 @@ export function createImmerStore<T extends object>(
 }
 
 /**
- * Creates a Zustand store with both Immer and subscribeWithSelector middleware.
+ * Creates a Zustand store with Immer, subscribeWithSelector, and DevTools middleware.
  *
- * Combines immutable updates with fine-grained subscriptions for optimal performance.
+ * Combines immutable updates with fine-grained subscriptions and debugging
+ * for optimal performance and developer experience.
  * Use when you have deeply nested state AND high-frequency updates.
  *
  * @example
  * ```typescript
- * const useStore = createImmerSelectorStore<State>((set) => ({
- *   metrics: { cpu: 0, gpu: 0, memory: 0 },
- *   updateMetric: (key, value) => set((state) => {
- *     state.metrics[key] = value;
+ * const useStore = createImmerSelectorStore<State>(
+ *   (set) => ({
+ *     metrics: { cpu: 0, gpu: 0, memory: 0 },
+ *     updateMetric: (key, value) => set((state) => {
+ *       state.metrics[key] = value;
+ *     }),
  *   }),
- * }));
+ *   { name: 'metrics-store' } // Optional devtools config
+ * );
  *
  * // Component subscribes only to CPU metric
  * const cpu = useStore((state) => state.metrics.cpu);
  * ```
  *
  * @param createState - State creator function with Immer-enhanced set
- * @returns Zustand store with Immer and subscribeWithSelector middleware
+ * @param devtoolsOptions - Optional devtools configuration (NEM-3785)
+ * @returns Zustand store with Immer, subscribeWithSelector, and DevTools middleware
  */
 export function createImmerSelectorStore<T extends object>(
-  createState: ImmerStateCreator<T>
+  createState: ImmerStateCreator<T>,
+  devtoolsOptions?: DevtoolsOptions
 ): UseBoundStore<StoreApi<T>> {
-  return create<T>()(
-    subscribeWithSelector((set, get, store) => {
-      const immerSet: ImmerSetState<T> = (partial, replace) => {
-        // Type for Zustand's internal set function with optional replace parameter
-        type SetFn = (state: T | Partial<T>, replace?: boolean) => void;
-        if (typeof partial === 'function') {
-          const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
-          // Cast to bypass Zustand's strict typing on replace parameter
-          (set as unknown as SetFn)(nextState, replace);
-        } else {
-          (set as unknown as SetFn)(partial, replace);
+  // Helper function to create the immer state creator
+  const createImmerState = (set: unknown, get: () => T, store: StoreApi<T>) => {
+    const immerSet: ImmerSetState<T> = (partial, replace) => {
+      // Type for Zustand's internal set function with optional replace parameter
+      type SetFn = (state: T | Partial<T>, replace?: boolean) => void;
+      if (typeof partial === 'function') {
+        const nextState: T = produce<T>(get(), partial as (draft: Draft<T>) => void);
+        // Cast to bypass Zustand's strict typing on replace parameter
+        (set as SetFn)(nextState, replace);
+      } else {
+        (set as SetFn)(partial, replace);
+      }
+    };
+    return createState(immerSet, get, store);
+  };
+
+  // If devtools options provided, wrap with devtools middleware
+  if (devtoolsOptions) {
+    return create<T>()(
+      devtools(
+        subscribeWithSelector((set, get, store) => createImmerState(set, get, store)),
+        {
+          name: devtoolsOptions.name,
+          enabled: devtoolsOptions.enabled ?? import.meta.env.DEV,
         }
-      };
-      return createState(immerSet, get, store);
-    })
+      )
+    );
+  }
+
+  // Without devtools config, use subscribeWithSelector only
+  return create<T>()(
+    subscribeWithSelector((set, get, store) => createImmerState(set, get, store))
   );
 }
 

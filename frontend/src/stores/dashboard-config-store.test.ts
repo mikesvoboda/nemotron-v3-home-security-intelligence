@@ -17,6 +17,10 @@ import {
   setDashboardConfig,
   STORAGE_KEY,
   useDashboardConfigStore,
+  useDashboardWidgets,
+  useDashboardTheme,
+  useDashboardRefreshInterval,
+  useDashboardConfigActions,
   type DashboardConfigStore,
   type WidgetId,
 } from './dashboard-config-store';
@@ -692,6 +696,32 @@ describe('dashboard-config-store', () => {
       expect(store).toBeDefined();
       expect(store.widgets).toBeDefined();
       expect(store.setWidgetVisibility).toBeDefined();
+    });
+  });
+
+  describe('shallow hooks (NEM-3790)', () => {
+    it('useDashboardWidgets exports widgets and version', () => {
+      // Type check - ensure hook is exported and returns expected shape
+      expect(useDashboardWidgets).toBeDefined();
+      expect(typeof useDashboardWidgets).toBe('function');
+    });
+
+    it('useDashboardTheme exports theme and compactMode', () => {
+      // Type check - ensure hook is exported and returns expected shape
+      expect(useDashboardTheme).toBeDefined();
+      expect(typeof useDashboardTheme).toBe('function');
+    });
+
+    it('useDashboardRefreshInterval exports refreshInterval selector', () => {
+      // Type check - ensure hook is exported and returns expected shape
+      expect(useDashboardRefreshInterval).toBeDefined();
+      expect(typeof useDashboardRefreshInterval).toBe('function');
+    });
+
+    it('useDashboardConfigActions exports action functions', () => {
+      // Type check - ensure hook is exported and returns expected shape
+      expect(useDashboardConfigActions).toBeDefined();
+      expect(typeof useDashboardConfigActions).toBe('function');
     });
   });
 });

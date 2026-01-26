@@ -18,6 +18,7 @@ from typing import Any
 
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.routing import APIRoute
 
 from backend.api.exception_handlers import register_exception_handlers
@@ -1119,6 +1120,15 @@ app.add_middleware(SecurityHeadersMiddleware, hsts_preload=get_settings().hsts_p
 # Add body size limit middleware to prevent DoS attacks (NEM-1614)
 # Default: 10MB limit for request bodies
 app.add_middleware(BodySizeLimitMiddleware, max_body_size=10 * 1024 * 1024)
+
+# Add GZip compression middleware for response compression (NEM-3741)
+# Compresses responses larger than 1KB with compression level 5
+# Provides 70-90% bandwidth reduction for large JSON responses
+app.add_middleware(
+    GZipMiddleware,
+    minimum_size=1000,  # Only compress responses > 1KB
+    compresslevel=5,  # Balance between CPU and compression ratio
+)
 
 # Add idempotency middleware for mutation endpoints (NEM-1999)
 # Caches responses by Idempotency-Key header to prevent duplicate operations

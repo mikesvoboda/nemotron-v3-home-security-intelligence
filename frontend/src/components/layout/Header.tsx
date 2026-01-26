@@ -7,7 +7,11 @@ import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { useHealthStatusQuery } from '../../hooks/useHealthStatusQuery';
 import { useSceneChangeAlerts } from '../../hooks/useSceneChangeAlerts';
 import { useSidebarContext } from '../../hooks/useSidebarContext';
-import { useStorageStatusStore, CRITICAL_USAGE_THRESHOLD } from '../../stores/storage-status-store';
+import {
+  useStorageWarningStatus,
+  useStorageStatus,
+  CRITICAL_USAGE_THRESHOLD,
+} from '../../stores/storage-status-store';
 import { ThemeToggle, WebSocketStatus } from '../common';
 import IconButton from '../common/IconButton';
 import SceneChangeAlert from '../common/SceneChangeAlert';
@@ -166,7 +170,9 @@ export default function Header() {
   } = useHealthStatusQuery({
     refetchInterval: 30000, // Poll every 30 seconds
   });
-  const { isCritical: isStorageCritical, status: storageStatus } = useStorageStatusStore();
+  // Use shallow hooks for optimized re-renders (NEM-3790)
+  const { isCritical: isStorageCritical } = useStorageWarningStatus();
+  const storageStatus = useStorageStatus();
   const {
     alerts: sceneChangeAlerts,
     unacknowledgedCount: sceneChangeUnacknowledgedCount,

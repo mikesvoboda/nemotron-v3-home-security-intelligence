@@ -86,6 +86,11 @@ from backend.core.metrics import (
 )
 from backend.core.mime_types import get_mime_type_with_default
 from backend.core.telemetry import add_span_event, get_trace_id, trace_span
+from backend.core.telemetry_ai_conventions import (
+    AIModelAttributes,
+    set_detection_attributes,
+    set_inference_result_attributes,
+)
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.services.baseline import get_baseline_service
@@ -280,14 +285,17 @@ class DetectorClient:
         # Select detector type and corresponding settings
         self._detector_type = settings.detector_type
 
+        # NEM-3794: Model version for semantic telemetry attributes
         if self._detector_type == "yolo26":
             self._detector_url = settings.yolo26_url
             self._api_key = settings.yolo26_api_key
             read_timeout = settings.yolo26_read_timeout
+            self._model_version = "yolo26-n"  # YOLO26 nano variant
         else:  # rtdetr (default)
             self._detector_url = settings.rtdetr_url
             self._api_key = settings.rtdetr_api_key
             read_timeout = settings.rtdetr_read_timeout
+            self._model_version = "rtdetr-v2-l"  # RT-DETRv2 large variant
 
         self._confidence_threshold = settings.detection_confidence_threshold
         # Use httpx.Timeout for proper timeout configuration from Settings
@@ -634,14 +642,23 @@ class DetectorClient:
         explicit_timeout = self._read_timeout + settings.ai_connect_timeout
 
         # Create span for AI service call with attributes for observability
+        # NEM-3794: Use semantic AI conventions for standardized telemetry
         with trace_span(
             f"{self._detector_type}_detection_request",
-            ai_service=self._detector_type,
-            detector_type=self._detector_type,
             camera_id=camera_id,
             image_path=image_path,
             image_size_bytes=len(image_data),
         ) as span:
+            # Set AI model semantic attributes (NEM-3794)
+            AIModelAttributes.set_on_span(
+                span,
+                model_name=self._detector_type,
+                model_version=self._model_version,
+                model_provider="huggingface" if self._detector_type == "rtdetr" else "ultralytics",
+                device="cuda:0",  # Default GPU device
+                batch_size=1,  # Single image per request
+            )
+
             for attempt in range(self._max_retries):
                 span.set_attribute("retry_attempt", attempt)
                 try:
@@ -649,6 +666,7 @@ class DetectorClient:
                     # Use persistent HTTP client (NEM-1721)
                     # Explicit asyncio.timeout() as defense-in-depth (NEM-1465)
                     async with semaphore:
+                        start_time = time.monotonic()
                         async with asyncio.timeout(explicit_timeout):
                             files = {"file": (image_name, image_data, "image/jpeg")}
                             response = await self._http_client.post(
@@ -658,9 +676,18 @@ class DetectorClient:
                             )
                             response.raise_for_status()
                             result: dict[str, Any] = response.json()
-                            # Add detection count to span for observability
-                            detection_count = len(result.get("detections", []))
-                            span.set_attribute("ai.detection_count", detection_count)
+                            inference_time_ms = (time.monotonic() - start_time) * 1000
+
+                            # NEM-3794: Set detection result semantic attributes
+                            detections = result.get("detections", [])
+                            set_detection_attributes(
+                                span,
+                                detections=detections,
+                                inference_time_ms=inference_time_ms,
+                            )
+                            set_inference_result_attributes(
+                                span, duration_ms=inference_time_ms, status="success"
+                            )
                             return result
 
                 except httpx.ConnectError as e:

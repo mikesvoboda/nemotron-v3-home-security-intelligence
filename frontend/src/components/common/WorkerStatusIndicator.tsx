@@ -25,7 +25,7 @@ import { clsx } from 'clsx';
 import { Activity, AlertTriangle, CheckCircle, XCircle, RefreshCw, Server } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { useWorkerStatusStore } from '../../stores/worker-status-store';
+import { useWorkerStatusState } from '../../stores/worker-status-store';
 import { STATUS_BG_CLASSES, STATUS_TEXT_CLASSES } from '../../theme/colors';
 
 import type { PipelineHealthStatus, WorkerStatus } from '../../stores/worker-status-store';
@@ -220,9 +220,9 @@ export default function WorkerStatusIndicator({
   const dropdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Get state from store
+  // Get state from store (using shallow hook for optimized re-renders - NEM-3790)
   const { workers, pipelineHealth, hasError, hasWarning, runningCount, totalCount } =
-    useWorkerStatusStore();
+    useWorkerStatusState();
 
   const workerList = Object.values(workers);
   const config = getHealthConfig(pipelineHealth);

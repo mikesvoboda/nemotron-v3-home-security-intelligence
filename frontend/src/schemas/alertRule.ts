@@ -138,13 +138,13 @@ export const dayOfWeekSchema = z.enum(VALID_DAYS, {
  */
 export const alertRuleNameSchema = z
   .string()
-  .min(ALERT_RULE_NAME_CONSTRAINTS.minLength, { message: 'Name is required' })
+  .min(ALERT_RULE_NAME_CONSTRAINTS.minLength, { error: 'Name is required' })
   .max(ALERT_RULE_NAME_CONSTRAINTS.maxLength, {
-    message: `Name must be at most ${ALERT_RULE_NAME_CONSTRAINTS.maxLength} characters`,
+    error: `Name must be at most ${ALERT_RULE_NAME_CONSTRAINTS.maxLength} characters`,
   })
   .transform((val) => val.trim())
   .refine((val) => val.length >= ALERT_RULE_NAME_CONSTRAINTS.minLength, {
-    message: 'Name is required',
+    error: 'Name is required',
   });
 
 /**
@@ -153,12 +153,12 @@ export const alertRuleNameSchema = z
  */
 export const riskThresholdSchema = z
   .number()
-  .int({ message: 'Risk threshold must be a whole number' })
+  .int({ error: 'Risk threshold must be a whole number' })
   .min(RISK_THRESHOLD_CONSTRAINTS.min, {
-    message: `Risk threshold must be at least ${RISK_THRESHOLD_CONSTRAINTS.min}`,
+    error: `Risk threshold must be at least ${RISK_THRESHOLD_CONSTRAINTS.min}`,
   })
   .max(RISK_THRESHOLD_CONSTRAINTS.max, {
-    message: `Risk threshold must be at most ${RISK_THRESHOLD_CONSTRAINTS.max}`,
+    error: `Risk threshold must be at most ${RISK_THRESHOLD_CONSTRAINTS.max}`,
   })
   .nullable()
   .optional();
@@ -170,10 +170,10 @@ export const riskThresholdSchema = z
 export const minConfidenceSchema = z
   .number()
   .min(MIN_CONFIDENCE_CONSTRAINTS.min, {
-    message: `Confidence must be at least ${MIN_CONFIDENCE_CONSTRAINTS.min}`,
+    error: `Confidence must be at least ${MIN_CONFIDENCE_CONSTRAINTS.min}`,
   })
   .max(MIN_CONFIDENCE_CONSTRAINTS.max, {
-    message: `Confidence must be at most ${MIN_CONFIDENCE_CONSTRAINTS.max}`,
+    error: `Confidence must be at most ${MIN_CONFIDENCE_CONSTRAINTS.max}`,
   })
   .nullable()
   .optional();
@@ -184,15 +184,15 @@ export const minConfidenceSchema = z
  */
 export const cooldownSecondsSchema = z
   .number()
-  .int({ message: 'Cooldown must be a whole number' })
-  .min(COOLDOWN_SECONDS_CONSTRAINTS.min, { message: 'Cooldown cannot be negative' });
+  .int({ error: 'Cooldown must be a whole number' })
+  .min(COOLDOWN_SECONDS_CONSTRAINTS.min, { error: 'Cooldown cannot be negative' });
 
 /**
  * Dedup key template schema - matches backend AlertRuleCreate.dedup_key_template field.
  * Backend constraint: max_length=255
  */
 export const dedupKeyTemplateSchema = z.string().max(DEDUP_KEY_TEMPLATE_CONSTRAINTS.maxLength, {
-  message: `Dedup key template must be at most ${DEDUP_KEY_TEMPLATE_CONSTRAINTS.maxLength} characters`,
+  error: `Dedup key template must be at most ${DEDUP_KEY_TEMPLATE_CONSTRAINTS.maxLength} characters`,
 });
 
 /**

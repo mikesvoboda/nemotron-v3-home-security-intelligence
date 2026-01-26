@@ -55,7 +55,12 @@ COPY ai/torch_optimizations.py .
 ENV HOST=0.0.0.0
 ENV PORT=8092
 ENV FLORENCE_MODEL_PATH=/models/florence-2-large
+# HuggingFace cache configuration (NEM-3812)
+# HF_HOME is the root directory, others are derived for backward compatibility
 ENV HF_HOME=/cache/huggingface
+ENV HF_HUB_CACHE=/cache/huggingface/hub
+ENV TRANSFORMERS_CACHE=/cache/huggingface
+ENV HF_HUB_DISABLE_TELEMETRY=1
 
 # Create cache directory for HuggingFace models
 RUN mkdir -p /cache/huggingface && chown -R florence:florence /cache/huggingface
