@@ -309,32 +309,44 @@ describe('EventDetailModal', () => {
       });
     });
 
-    it('renders AI reasoning when provided', async () => {
+    it('renders AI reasoning in collapsible breakdown when provided', async () => {
+      const user = userEvent.setup();
       renderWithQueryClient(<EventDetailModal {...mockProps} />);
+
+      // Wait for modal to open and find the Risk Factors Breakdown toggle
       await waitFor(() => {
-        expect(screen.getByText('AI Reasoning')).toBeInTheDocument();
+        expect(screen.getByTestId('risk-factors-breakdown')).toBeInTheDocument();
+      });
+
+      // Expand the breakdown to see reasoning
+      await user.click(screen.getByTestId('risk-factors-toggle'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('reasoning-section')).toBeInTheDocument();
         expect(
           screen.getByText(/The detected person is approaching the entrance during evening hours/)
         ).toBeInTheDocument();
       });
     });
 
-    it('does not render AI reasoning section when reasoning is undefined', async () => {
+    it('does not render risk factors breakdown when reasoning is undefined and no other risk data', async () => {
       const eventNoReasoning = { ...mockEvent, reasoning: undefined };
       renderWithQueryClient(<EventDetailModal {...mockProps} event={eventNoReasoning} />);
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
-      expect(screen.queryByText('AI Reasoning')).not.toBeInTheDocument();
+      // No risk factors breakdown when no reasoning and no entities/flags
+      expect(screen.queryByTestId('risk-factors-breakdown')).not.toBeInTheDocument();
     });
 
-    it('does not render AI reasoning section when reasoning is empty', async () => {
+    it('does not render risk factors breakdown when reasoning is empty and no other risk data', async () => {
       const eventEmptyReasoning = { ...mockEvent, reasoning: '' };
       renderWithQueryClient(<EventDetailModal {...mockProps} event={eventEmptyReasoning} />);
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
-      expect(screen.queryByText('AI Reasoning')).not.toBeInTheDocument();
+      // No risk factors breakdown when no reasoning and no entities/flags
+      expect(screen.queryByTestId('risk-factors-breakdown')).not.toBeInTheDocument();
     });
   });
 
@@ -953,11 +965,19 @@ describe('EventDetailModal', () => {
       });
     });
 
-    it('handles very long reasoning text', async () => {
+    it('handles very long reasoning text in collapsible breakdown', async () => {
+      const user = userEvent.setup();
       const longReasoning =
         'This is a very long reasoning text that provides extensive analysis and explanation of the security event including multiple factors, contextual elements, historical patterns, and detailed justification for the assigned risk score with numerous details.';
       const eventLongReasoning = { ...mockEvent, reasoning: longReasoning };
       renderWithQueryClient(<EventDetailModal {...mockProps} event={eventLongReasoning} />);
+
+      // Wait for modal and expand the breakdown
+      await waitFor(() => {
+        expect(screen.getByTestId('risk-factors-breakdown')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('risk-factors-toggle'));
+
       await waitFor(() => {
         expect(screen.getByText(longReasoning)).toBeInTheDocument();
       });
@@ -1623,7 +1643,8 @@ describe('EventDetailModal', () => {
         const badges = screen.getAllByText(/High.*65/);
         expect(badges.length).toBeGreaterThan(0);
         expect(screen.getByText('AI Summary')).toBeInTheDocument();
-        expect(screen.getByText('AI Reasoning')).toBeInTheDocument();
+        // AI Reasoning is now in collapsible Risk Factors Breakdown (NEM-3671)
+        expect(screen.getByTestId('risk-factors-breakdown')).toBeInTheDocument();
         expect(screen.getByText('Detected Objects (2)')).toBeInTheDocument();
         expect(screen.getByText('Event Details')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Close modal' })).toBeInTheDocument();
