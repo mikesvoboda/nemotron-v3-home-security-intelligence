@@ -174,10 +174,7 @@ export default function App() {
                           <Route path="/zones" element={<ZonesPage />} />
                           <Route path="/settings/gpu" element={<GpuSettingsPage />} />
                           <Route path="/webhooks" element={<WebhooksPage />} />
-<<<<<<< HEAD
                           <Route path="/scheduled-reports" element={<ScheduledReportsPage />} />
-=======
->>>>>>> 81b4a3e2c (feat: implement backup/restore and webhook management systems (NEM-3566, NEM-3624))
                         </Routes>
                       </PageTransition>
                     </Suspense>
