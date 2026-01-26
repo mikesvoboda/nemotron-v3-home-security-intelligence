@@ -358,6 +358,81 @@ jobs:
           fi
           echo "All unit test shards passed"
 
+  # AI Services Unit Tests (YOLO26, Florence, Enrichment, etc.)
+  # Tests for AI inference servers without GPU (using mocks)
+  ai-services-tests:
+    name: AI Services Unit Tests - Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.14']
+    needs: [detect-changes, build-backend-deps]
+    if: |
+      always() &&
+      (needs.detect-changes.outputs.should-run-all == 'true' ||
+       needs.detect-changes.outputs.backend == 'true') &&
+      needs.build-backend-deps.result != 'failure'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@e4db8464a088ece1b920f60402e813ea4de65b8f # v4
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run AI services tests with retry
+        # Tests for AI inference servers (YOLO26, Florence, Enrichment, etc.)
+        # Tests run without GPU (using mocks) to avoid GPU resource requirements in CI
+        # -n auto enables xdist parallelization
+        # Retry loop: 3 attempts with 10s wait between retries for transient failures
+        run: |
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt of 3"
+            if uv run pytest ai/*/test_model.py ai/*/tests/ ai/tests/ \
+              -n auto --dist=worksteal \
+              --timeout=10 \
+              --cov=ai \
+              --cov-fail-under=0 \
+              --cov-report=xml:coverage-ai-services.xml \
+              --cov-report=term-missing \
+              --junit-xml=test-results-ai-services.xml \
+              --durations=20 \
+              -v; then
+              exit 0
+            fi
+            if [ $attempt -lt 3 ]; then
+              echo "Test failed, retrying in 10s..."
+              sleep 10
+            fi
+          done
+          exit 1
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: test-results-ai-services-py${{ matrix.python-version }}
+          path: test-results-ai-services.xml
+          retention-days: 7
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: coverage-ai-services-py${{ matrix.python-version }}
+          path: coverage-ai-services.xml
+          retention-days: 7
+
   # Integration tests split into 4 domain-based parallel jobs for faster execution
   # Each job runs tests for a specific domain with within-shard parallelization
   integration-tests-api:
@@ -820,6 +895,7 @@ jobs:
     needs:
       [
         detect-changes,
+        ai-services-tests,
         integration-tests-api,
         integration-tests-websocket,
         integration-tests-services,
@@ -858,6 +934,7 @@ jobs:
       [
         detect-changes,
         lint,
+        ai-services-tests,
         integration-tests-api,
         integration-tests-websocket,
         integration-tests-services,
