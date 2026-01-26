@@ -68,9 +68,9 @@ class TestInitCircuitBreakers:
         all_status = registry.get_all_status()
 
         # AI services should have failure_threshold=5
-        yolo26_config = all_status["yolo26"]["config"]
+        rtdetr_config = all_status["yolo26"]["config"]
         nemotron_config = all_status["nemotron"]["config"]
-        assert yolo26_config["failure_threshold"] == 5
+        assert rtdetr_config["failure_threshold"] == 5
         assert nemotron_config["failure_threshold"] == 5
 
     def test_infrastructure_service_config_has_higher_threshold(self) -> None:
