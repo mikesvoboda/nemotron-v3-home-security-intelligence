@@ -5,7 +5,7 @@ circuit breaker state transitions, failures, and recovery patterns. These metric
 complement the existing Prometheus metrics with OpenTelemetry's semantic conventions.
 
 NEM-3798: Added histogram metrics for AI model inference latency tracking:
-- ai.detection.latency: YOLO26 object detection inference latency
+- ai.detection.latency: RT-DETR object detection inference latency
 - ai.nemotron.latency: Nemotron LLM inference latency
 - ai.florence.latency: Florence vision-language model inference latency
 - ai.pipeline.latency: Total pipeline processing latency
@@ -41,21 +41,21 @@ Usage:
 
     # Record a state change
     record_circuit_breaker_state_change(
-        breaker_name="yolo26",
+        breaker_name="rtdetr",
         from_state="closed",
         to_state="open",
     )
 
     # Record a failure
-    record_circuit_breaker_failure(breaker_name="yolo26")
+    record_circuit_breaker_failure(breaker_name="rtdetr")
 
     # Record a success
-    record_circuit_breaker_success(breaker_name="yolo26")
+    record_circuit_breaker_success(breaker_name="rtdetr")
 
     # Record AI model latencies (NEM-3798)
     record_detection_latency(
         latency_ms=45.2,
-        model_version="yolo26-l",
+        model_version="rtdetr-l",
         batch_size=1,
         gpu_id="0",
     )
@@ -118,7 +118,7 @@ _breaker_current_states: dict[str, int] = {}
 # AI Model Latency Bucket Definitions (NEM-3798)
 # =============================================================================
 
-# YOLO26 detection buckets (milliseconds): Fast inference model (~20-100ms typical)
+# RT-DETR detection buckets (milliseconds): Fast inference model (~20-100ms typical)
 # P50 ~30ms, P95 ~80ms, P99 ~150ms based on benchmarks
 DETECTION_LATENCY_BUCKETS = (
     1.0,  # 1ms - minimum
@@ -359,7 +359,7 @@ def setup_otel_metrics() -> bool:
         # Create AI model latency histogram instruments (NEM-3798)
         _detection_latency_histogram = _meter.create_histogram(
             name="ai.detection.latency",
-            description="YOLO26 object detection inference latency",
+            description="RT-DETR object detection inference latency",
             unit="ms",
         )
 
@@ -474,7 +474,7 @@ def record_circuit_breaker_state(
     """Record the current state of a circuit breaker.
 
     Args:
-        breaker_name: Name of the circuit breaker (e.g., "yolo26", "nemotron")
+        breaker_name: Name of the circuit breaker (e.g., "rtdetr", "nemotron")
         state: Current state value (0=closed, 1=open, 2=half_open)
     """
     if not _ensure_initialized():
@@ -699,15 +699,15 @@ def reset_otel_metrics_for_testing() -> None:
 def record_detection_latency(
     latency_ms: float,
     *,
-    model_version: str = "yolo26-l",
+    model_version: str = "rtdetr-l",
     batch_size: int = 1,
     gpu_id: str = "0",
 ) -> None:
-    """Record YOLO26 object detection inference latency.
+    """Record RT-DETR object detection inference latency.
 
     Args:
         latency_ms: Inference latency in milliseconds
-        model_version: Model version string (e.g., "yolo26-l", "yolo26-x", "yolo26")
+        model_version: Model version string (e.g., "rtdetr-l", "rtdetr-x", "yolo26")
         batch_size: Number of images in the batch
         gpu_id: GPU identifier (e.g., "0", "1", "cuda:0")
 
@@ -715,7 +715,7 @@ def record_detection_latency(
         >>> from backend.core.otel_metrics import record_detection_latency
         >>> record_detection_latency(
         ...     latency_ms=45.2,
-        ...     model_version="yolo26-l",
+        ...     model_version="rtdetr-l",
         ...     batch_size=1,
         ...     gpu_id="0",
         ... )

@@ -3,7 +3,7 @@
 NEM-1629: This module provides OpenTelemetry instrumentation for distributed tracing
 across the home security intelligence system. It enables:
 
-1. Automatic trace propagation across services (backend, YOLO26, Nemotron, etc.)
+1. Automatic trace propagation across services (backend, RT-DETRv2, Nemotron, etc.)
 2. Correlation of logs with trace IDs for debugging
 3. Performance monitoring via span timings
 4. Integration with Jaeger, Tempo, or other OTLP-compatible backends
@@ -1295,7 +1295,7 @@ def trace_function(
     Example:
         >>> from backend.core.telemetry import trace_function
         >>>
-        >>> @trace_function("yolo26_detection")
+        >>> @trace_function("rtdetr_detection")
         ... async def detect_objects(image_path: str) -> list[Detection]:
         ...     return await client.detect(image_path)
         >>>
@@ -1356,11 +1356,11 @@ def ai_service_span(
     Creates a span with OpenTelemetry semantic conventions for HTTP client calls,
     including proper span kind and attributes for distributed tracing correlation.
 
-    This is optimized for AI service calls (YOLO26, Nemotron, Florence, CLIP, etc.)
+    This is optimized for AI service calls (RT-DETR, Nemotron, Florence, CLIP, etc.)
     and includes attributes that help correlate circuit breaker events with traces.
 
     Args:
-        service_name: Name of the AI service (e.g., "yolo26", "nemotron", "florence")
+        service_name: Name of the AI service (e.g., "rtdetr", "nemotron", "florence")
         operation: Operation being performed (e.g., "detect", "analyze", "embed")
         endpoint_url: Optional URL of the service endpoint
         **attributes: Additional attributes to set on the span

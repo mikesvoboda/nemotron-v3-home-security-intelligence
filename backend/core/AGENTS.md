@@ -290,7 +290,7 @@ async with breaker:
 - Integrated with Prometheus metrics for monitoring
 - Logs state transitions (CLOSED → OPEN → HALF_OPEN)
 - Thread-safe with asyncio Lock
-- Used by AI service clients (YOLO26, Nemotron, Florence-2)
+- Used by AI service clients (RT-DETR, Nemotron, Florence-2)
 
 ## `error_context.py` - Structured Error Context
 
@@ -318,7 +318,7 @@ ctx = (
     .from_exception(exc)
     .with_operation("detect_objects")
     .with_request(request_id, path, method)
-    .with_service("yolo26", status_code=503)
+    .with_service("rtdetr", status_code=503)
     .build()
 )
 ```
@@ -373,7 +373,7 @@ Defines custom exceptions used throughout the backend with HTTP status code mapp
 
 - `ExternalServiceError` (503) - Base for external service failures
 - `AIServiceError` (503) - AI service unavailable
-- `YOLO26Error` (503) - YOLO26 service error
+- `RTDETRError` (503) - RT-DETR service error
 - `NemotronError` (503) - Nemotron service error
 - `FlorenceError` (503) - Florence-2 service error
 
@@ -404,7 +404,7 @@ Defines custom exceptions used throughout the backend with HTTP status code mapp
 from backend.core.exceptions import AIServiceError, NotFoundError
 
 # Raise with context
-raise AIServiceError("YOLO26 unavailable", service="yolo26")
+raise AIServiceError("RT-DETR unavailable", service="rtdetr")
 
 # Get HTTP status
 from backend.core.exceptions import get_exception_status_code
@@ -621,7 +621,7 @@ Provides FastAPI-compatible dependency functions that inject services from the D
 | `get_context_enricher_dependency`       | ContextEnricher         | Detection context enrichment      |
 | `get_enrichment_pipeline_dependency`    | EnrichmentPipeline      | Full enrichment pipeline          |
 | `get_nemotron_analyzer_dependency`      | NemotronAnalyzer        | LLM risk analysis                 |
-| `get_detector_dependency`               | DetectorClient          | YOLO26 object detection          |
+| `get_detector_dependency`               | DetectorClient          | RT-DETR object detection          |
 | `get_face_detector_service_dependency`  | FaceDetectorService     | Face detection in person regions  |
 | `get_plate_detector_service_dependency` | PlateDetectorService    | License plate detection           |
 | `get_ocr_service_dependency`            | OCRService              | Plate text recognition            |
@@ -852,7 +852,7 @@ with trace_span("detect_objects", camera_id="front_door") as span:
 ```python
 from backend.core.telemetry import trace_function
 
-@trace_function("yolo26_detection")
+@trace_function("rtdetr_detection")
 async def detect_objects(image_path: str) -> list[Detection]:
     return await client.detect(image_path)
 
@@ -982,14 +982,14 @@ Manages all application configuration using Pydantic Settings with environment v
 
 **AI Service Endpoints:**
 
-- `yolo26_url: str` - YOLO26 detection service URL (default: `http://localhost:8090`)
+- `rtdetr_url: str` - RT-DETRv2 detection service URL (default: `http://localhost:8090`)
 - `nemotron_url: str` - Nemotron reasoning service URL (default: `http://localhost:8091`)
 
 **AI Service Timeout Settings:**
 
 - `ai_connect_timeout: float` - Connection timeout (default: 10.0s, range: 1-60)
 - `ai_health_timeout: float` - Health check timeout (default: 5.0s, range: 1-30)
-- `yolo26_read_timeout: float` - YOLO26 response timeout (default: 60.0s, range: 10-300)
+- `rtdetr_read_timeout: float` - RT-DETR response timeout (default: 60.0s, range: 10-300)
 - `nemotron_read_timeout: float` - Nemotron response timeout (default: 120.0s, range: 30-600)
 
 **Detection Settings:**
@@ -1628,7 +1628,7 @@ set_queue_depth("detection", 10)
 observe_stage_duration("detect", 0.5)
 record_event_created()
 record_detection_processed(count=5)
-observe_ai_request_duration("yolo26", 0.25)
+observe_ai_request_duration("rtdetr", 0.25)
 record_pipeline_error("connection_error")
 get_metrics_response()  # Returns Prometheus exposition format
 ```

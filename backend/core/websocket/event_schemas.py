@@ -372,7 +372,7 @@ class SystemStatusPayload(BasePayload):
 class ServiceStatusChangedPayload(BasePayload):
     """Payload for service.status_changed events."""
 
-    service: str = Field(..., description="Service name (redis, yolo26, nemotron)")
+    service: str = Field(..., description="Service name (redis, rtdetr, nemotron)")
     status: ServiceStatus = Field(..., description="Current service status")
     previous_status: ServiceStatus | None = Field(None, description="Previous status")
     message: str | None = Field(None, description="Status message")
