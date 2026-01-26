@@ -12,7 +12,7 @@ from fastapi import APIRouter, BackgroundTasks, status
 from backend.api.schemas.webhooks import (
     AlertmanagerStatus,
     AlertmanagerWebhookPayload,
-    WebhookResponse,
+    WebhookProcessingResponse,
 )
 from backend.core.logging import get_logger
 from backend.services.event_broadcaster import EventBroadcaster
@@ -64,7 +64,7 @@ async def _broadcast_infrastructure_alerts(payload: AlertmanagerWebhookPayload) 
 
 @router.post(
     "/alerts",
-    response_model=WebhookResponse,
+    response_model=WebhookProcessingResponse,
     status_code=status.HTTP_200_OK,
     responses={
         200: {"description": "Webhook received and processed"},
@@ -75,7 +75,7 @@ async def _broadcast_infrastructure_alerts(payload: AlertmanagerWebhookPayload) 
 async def receive_alertmanager_webhook(
     payload: AlertmanagerWebhookPayload,
     background_tasks: BackgroundTasks,
-) -> WebhookResponse:
+) -> WebhookProcessingResponse:
     """Receive webhook notifications from Alertmanager.
 
     This endpoint receives alerts from Prometheus Alertmanager and:
@@ -91,7 +91,7 @@ async def receive_alertmanager_webhook(
         background_tasks: FastAPI background tasks for async processing
 
     Returns:
-        WebhookResponse with processing status
+        WebhookProcessingResponse with processing status
     """
     alert_count = len(payload.alerts)
 
@@ -122,7 +122,7 @@ async def receive_alertmanager_webhook(
     # Note: BackgroundTasks can run coroutines
     background_tasks.add_task(_broadcast_infrastructure_alerts, payload)
 
-    return WebhookResponse(
+    return WebhookProcessingResponse(
         status="ok",
         received=alert_count,
         processed=alert_count,

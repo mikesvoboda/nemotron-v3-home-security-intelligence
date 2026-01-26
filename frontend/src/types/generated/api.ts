@@ -8021,7 +8021,7 @@ export interface paths {
          *         background_tasks: FastAPI background tasks for async processing
          *
          *     Returns:
-         *         WebhookResponse with processing status
+         *         WebhookProcessingResponse with processing status
          */
         post: operations["webhooks_receive_alertmanager_webhook"];
         delete?: never;
@@ -26945,6 +26945,93 @@ export interface components {
             webhooks?: components["schemas"]["WebhookResponse"][];
         };
         /**
+         * WebhookProcessingResponse
+         * @description Schema for webhook processing response.
+         * @example {
+         *       "auth": {
+         *         "type": "none"
+         *       },
+         *       "custom_headers": {},
+         *       "enabled": true,
+         *       "event_types": [
+         *         "alert_fired",
+         *         "alert_dismissed"
+         *       ],
+         *       "integration_type": "slack",
+         *       "name": "Slack Alerts",
+         *       "url": "https://hooks.slack.com/services/xxx/yyy/zzz"
+         *     }
+         */
+        WebhookProcessingResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            created_at: string;
+            /** Custom Headers */
+            custom_headers?: {
+                [key: string]: string;
+            };
+            /**
+             * Enabled
+             * @description Whether active
+             */
+            enabled: boolean;
+            /**
+             * Event Types
+             * @description Subscribed events
+             */
+            event_types: components["schemas"]["WebhookEventType"][];
+            /**
+             * Id
+             * @description Unique webhook identifier
+             */
+            id: string;
+            /** @description Integration type */
+            integration_type: components["schemas"]["IntegrationType"];
+            /**
+             * Last Delivery At
+             * @description Last delivery timestamp
+             */
+            last_delivery_at?: string | null;
+            last_delivery_status?: components["schemas"]["WebhookDeliveryStatus"] | null;
+            /** Max Retries */
+            max_retries: number;
+            /**
+             * Name
+             * @description Webhook name
+             */
+            name: string;
+            /** Payload Template */
+            payload_template?: string | null;
+            /** Retry Delay Seconds */
+            retry_delay_seconds: number;
+            /**
+             * Successful Deliveries
+             * @description Successful deliveries
+             * @default 0
+             */
+            successful_deliveries: number;
+            /**
+             * Total Deliveries
+             * @description Total delivery attempts
+             * @default 0
+             */
+            total_deliveries: number;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description Last update timestamp
+             */
+            updated_at: string;
+            /**
+             * Url
+             * @description Webhook endpoint URL
+             */
+            url: string;
+        };
+        /**
          * WebhookResponse
          * @description Full webhook configuration response.
          *
@@ -38813,7 +38900,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["backend__api__schemas__webhooks__WebhookResponse"];
+                    "application/json": components["schemas"]["WebhookProcessingResponse"];
                 };
             };
             /** @description Invalid payload format */
