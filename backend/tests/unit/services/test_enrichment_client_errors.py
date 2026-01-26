@@ -35,12 +35,16 @@ def mock_settings():
     """Create mock settings for testing."""
     settings = MagicMock()
     settings.enrichment_url = "http://localhost:8094"
+    settings.enrichment_light_url = "http://localhost:8096"
     settings.ai_connect_timeout = 10.0
     settings.ai_health_timeout = 5.0
+    settings.enrichment_read_timeout = 60.0
     settings.enrichment_cb_failure_threshold = 3
     settings.enrichment_cb_recovery_timeout = 30.0
     settings.enrichment_cb_half_open_max_calls = 2
     settings.enrichment_max_retries = 3
+    # Config-driven model routing - all models default to heavy service for tests
+    settings.get_enrichment_url_for_model = MagicMock(return_value="http://localhost:8094")
     return settings
 
 
