@@ -6,7 +6,7 @@ semantic conventions patterns, these attributes provide standardized observabili
 for AI model inference across all pipeline components.
 
 Semantic Conventions:
-    - ai.model.name: Name of the AI model (e.g., "yolo26-v2", "nemotron-mini")
+    - ai.model.name: Name of the AI model (e.g., "rtdetr-v2", "nemotron-mini")
     - ai.model.version: Model version string
     - ai.model.provider: Model provider (e.g., "huggingface", "nvidia")
     - ai.inference.batch_size: Number of items in inference batch
@@ -35,7 +35,7 @@ Usage:
         # Set model attributes
         AIModelAttributes.set_on_span(
             span,
-            model_name="yolo26-v2",
+            model_name="rtdetr-v2",
             model_version="1.0.0",
             device="cuda:0",
         )
@@ -125,7 +125,7 @@ class AIModelAttributes:
 
         Args:
             span: The span to set attributes on
-            model_name: Name of the model (e.g., "yolo26-v2", "nemotron-mini")
+            model_name: Name of the model (e.g., "rtdetr-v2", "nemotron-mini")
             model_version: Version of the model
             model_provider: Provider of the model (e.g., "huggingface", "nvidia")
             device: Device used for inference (e.g., "cuda:0", "cpu")

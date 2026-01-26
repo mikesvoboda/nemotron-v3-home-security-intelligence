@@ -115,7 +115,7 @@ class OrchestratorSettings(BaseSettings):
     """Container orchestrator configuration for Docker/Podman container management.
 
     This settings model configures the container orchestrator service that provides
-    health monitoring and self-healing capabilities for AI containers (YOLO26,
+    health monitoring and self-healing capabilities for AI containers (RT-DETRv2,
     Nemotron, Florence-2, etc.).
 
     Environment variables use the ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED).
@@ -206,11 +206,11 @@ class OrchestratorSettings(BaseSettings):
     )
 
     # AI services
-    yolo26_port: int = Field(
+    rtdetr_port: int = Field(
         8090,
         ge=1,
         le=65535,
-        description="YOLO26 (ai-detector) container service port for health checks.",
+        description="RT-DETRv2 (ai-detector) container service port for health checks.",
     )
     nemotron_port: int = Field(
         8091,
@@ -2107,7 +2107,7 @@ class Settings(BaseSettings):
     # Service health monitor settings
     ai_restart_enabled: bool = Field(
         default=True,
-        description="Enable automatic restart of AI services (YOLO26, Nemotron) on health check failure. "
+        description="Enable automatic restart of AI services (RT-DETRv2, Nemotron) on health check failure. "
         "Set to False in containerized deployments where restart scripts are not available. "
         "Health monitoring and status broadcasts still occur when disabled.",
     )
