@@ -20,9 +20,7 @@ pydantic>=2.4.0
 nvidia-ml-py>=12.560.30
 prometheus-client>=0.21.0
 
-# ONNX Export and TensorRT Support (optional)
-# Install onnx and onnxruntime-gpu for ONNX export validation
-# Install tensorrt for TensorRT inference
-# onnx>=1.14.0
-# onnxruntime-gpu>=1.16.0
-# tensorrt>=8.6.0
+# ONNX Export Support (TensorRT is included in base image)
+onnx>=1.14.0
+onnxruntime-gpu>=1.16.0
+onnxscript>=0.1.0

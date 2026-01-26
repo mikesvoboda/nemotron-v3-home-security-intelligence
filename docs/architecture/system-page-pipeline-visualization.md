@@ -50,7 +50,7 @@ These components help operators:
 ```
 +------------------+     +------------------+     +------------------+     +------------------+
 |     Files        |---->|     Detect       |---->|     Batch        |---->|     Analyze      |
-| (File Watcher)   |     | (RT-DETRv2)      |     | (Aggregator)     |     | (Nemotron LLM)   |
+| (File Watcher)   |     | (YOLO26)      |     | (Aggregator)     |     | (Nemotron LLM)   |
 +------------------+     +------------------+     +------------------+     +------------------+
      Throughput:             Queue Depth:          Pending Items:          Queue Depth:
      XX/min                  N items               N items                 N items
@@ -108,7 +108,7 @@ Each pipeline stage uses a distinct icon from the Lucide icon library:
 | Stage   | Icon      | Description                 |
 | ------- | --------- | --------------------------- |
 | Files   | `Folder`  | File system monitoring      |
-| Detect  | `Search`  | RT-DETRv2 object detection  |
+| Detect  | `Search`  | YOLO26 object detection     |
 | Batch   | `Package` | Detection batch aggregation |
 | Analyze | `Brain`   | Nemotron LLM risk analysis  |
 
@@ -126,7 +126,7 @@ Each pipeline stage uses a distinct icon from the Lucide icon library:
 
 **Data Source:** File watcher service statistics
 
-### 2. Detect Stage (RT-DETRv2)
+### 2. Detect Stage (YOLO26)
 
 **Purpose:** Shows the object detection queue and processing performance.
 

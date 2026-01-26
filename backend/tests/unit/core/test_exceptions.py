@@ -111,7 +111,7 @@ class TestExternalServiceErrors:
     def test_detector_unavailable_error(self) -> None:
         exc = DetectorUnavailableError()
         assert exc.error_code == "DETECTOR_UNAVAILABLE"
-        assert exc.service_name == "rtdetr"
+        assert exc.service_name == "yolo26"
 
     def test_database_error(self) -> None:
         exc = DatabaseError()
@@ -119,7 +119,7 @@ class TestExternalServiceErrors:
         assert exc.error_code == "DATABASE_ERROR"
 
     def test_circuit_breaker_open_error(self) -> None:
-        exc = CircuitBreakerOpenError(service_name="rtdetr", recovery_timeout=30.0)
+        exc = CircuitBreakerOpenError(service_name="yolo26", recovery_timeout=30.0)
         assert exc.status_code == 503
         assert exc.error_code == "CIRCUIT_BREAKER_OPEN"
         assert exc.details["recovery_timeout_seconds"] == 30.0
@@ -139,7 +139,7 @@ class TestAIServiceErrors:
     def test_detector_unavailable_error(self) -> None:
         exc = DetectorUnavailableError()
         assert exc.error_code == "DETECTOR_UNAVAILABLE"
-        assert exc.service_name == "rtdetr"
+        assert exc.service_name == "yolo26"
         assert isinstance(exc, AIServiceError)
 
     def test_detector_unavailable_error_with_original(self) -> None:
@@ -222,8 +222,8 @@ class TestConfigurationError:
         assert isinstance(exc, SecurityIntelligenceError)
 
     def test_configuration_error_custom_message(self) -> None:
-        exc = ConfigurationError("Missing required setting: RTDETR_URL")
-        assert exc.message == "Missing required setting: RTDETR_URL"
+        exc = ConfigurationError("Missing required setting: YOLO26_URL")
+        assert exc.message == "Missing required setting: YOLO26_URL"
 
 
 class TestResourceExhaustedError:
@@ -313,10 +313,10 @@ class TestExceptionHierarchy:
 
     def test_to_dict_serialization(self) -> None:
         """Exceptions can be serialized to dict for API responses."""
-        exc = DetectorUnavailableError("RT-DETR timeout")
+        exc = DetectorUnavailableError("YOLO26 timeout")
         result = exc.to_dict()
         assert result["code"] == "DETECTOR_UNAVAILABLE"
-        assert result["message"] == "RT-DETR timeout"
+        assert result["message"] == "YOLO26 timeout"
 
     def test_to_dict_with_details(self) -> None:
         """Exception details are included in serialization."""
@@ -617,14 +617,14 @@ class TestServiceRequestContext:
     def test_basic_initialization(self) -> None:
         """ServiceRequestContext stores basic operational data."""
         context = ServiceRequestContext(
-            service_name="rtdetr",
+            service_name="yolo26",
             endpoint="/detect",
             method="POST",
             duration_ms=150.5,
             attempt_number=1,
             max_attempts=3,
         )
-        assert context.service_name == "rtdetr"
+        assert context.service_name == "yolo26"
         assert context.endpoint == "/detect"
         assert context.method == "POST"
         assert context.duration_ms == 150.5
@@ -672,7 +672,7 @@ class TestServiceUnavailableErrorContext:
     def test_detector_unavailable_with_context(self) -> None:
         """DetectorUnavailableError includes request context."""
         context = ServiceRequestContext(
-            service_name="rtdetr",
+            service_name="yolo26",
             endpoint="/detect",
             method="POST",
             duration_ms=60500.0,
@@ -682,13 +682,13 @@ class TestServiceUnavailableErrorContext:
         )
         original = TimeoutError("Request timed out")
         exc = DetectorUnavailableError(
-            "RT-DETR detection failed after 3 attempts",
+            "YOLO26 detection failed after 3 attempts",
             original_error=original,
             context=context,
         )
         assert exc.context is context
         assert exc.original_error is original
-        assert exc.service_name == "rtdetr"
+        assert exc.service_name == "yolo26"
 
     def test_analyzer_unavailable_with_context(self) -> None:
         """AnalyzerUnavailableError includes request context."""
@@ -729,7 +729,7 @@ class TestServiceUnavailableErrorContext:
     def test_to_log_dict_with_context(self) -> None:
         """to_log_dict() includes all context for structured logging."""
         context = ServiceRequestContext(
-            service_name="rtdetr",
+            service_name="yolo26",
             endpoint="/detect",
             method="POST",
             duration_ms=45000.0,
@@ -748,11 +748,11 @@ class TestServiceUnavailableErrorContext:
         # Check exception info
         assert log_dict["error_code"] == "DETECTOR_UNAVAILABLE"
         assert log_dict["message"] == "Detection failed after retries"
-        assert log_dict["service_name"] == "rtdetr"
+        assert log_dict["service_name"] == "yolo26"
         assert log_dict["status_code"] == 503
 
         # Check context info
-        assert log_dict["context"]["service_name"] == "rtdetr"
+        assert log_dict["context"]["service_name"] == "yolo26"
         assert log_dict["context"]["endpoint"] == "/detect"
         assert log_dict["context"]["method"] == "POST"
         assert log_dict["context"]["duration_ms"] == 45000.0
@@ -772,7 +772,7 @@ class TestServiceUnavailableErrorContext:
 
         assert log_dict["error_code"] == "DETECTOR_UNAVAILABLE"
         assert log_dict["message"] == "Service down"
-        assert log_dict["service_name"] == "rtdetr"
+        assert log_dict["service_name"] == "yolo26"
         assert log_dict["context"] is None
         assert log_dict["original_error"] is None
 

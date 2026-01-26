@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-This system is an AI-powered home security monitoring dashboard that processes camera feeds in real-time to detect and analyze security-relevant events. The architecture combines RT-DETRv2 for object detection with Nemotron for intelligent risk assessment, creating a sophisticated pipeline that transforms raw camera images into actionable security insights with LLM-determined risk scores.
+This system is an AI-powered home security monitoring dashboard that processes camera feeds in real-time to detect and analyze security-relevant events. The architecture combines YOLO26 for object detection with Nemotron for intelligent risk assessment, creating a sophisticated pipeline that transforms raw camera images into actionable security insights with LLM-determined risk scores.
 
 The system follows an event-driven architecture with batch processing semantics. Camera images flow through a detection pipeline, are grouped into 90-second time windows, and analyzed by an LLM to produce risk-scored security events. Real-time updates are pushed to a React frontend via WebSockets, enabling immediate user awareness of security situations.
 
@@ -15,7 +15,7 @@ Built for single-user local deployment, the system is fully containerized with G
 | Hub                                                    | Description                                  | Key Components                                 |
 | ------------------------------------------------------ | -------------------------------------------- | ---------------------------------------------- |
 | [System Overview](./system-overview/README.md)         | High-level architecture and design decisions | Architecture diagrams, design rationale        |
-| [Detection Pipeline](./detection-pipeline/README.md)   | Image processing and object detection        | RT-DETRv2, file watcher, detection flow        |
+| [Detection Pipeline](./detection-pipeline/README.md)   | Image processing and object detection        | YOLO26, file watcher, detection flow           |
 | [AI Orchestration](./ai-orchestration/README.md)       | LLM integration and risk assessment          | Nemotron, batch processing, prompt engineering |
 | [Real-time System](./realtime-system/README.md)        | WebSocket and live updates                   | Event broadcasting, connection management      |
 | [Data Model](./data-model/README.md)                   | Database schema and relationships            | SQLAlchemy models, migrations                  |

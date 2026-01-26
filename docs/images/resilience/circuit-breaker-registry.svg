@@ -57,7 +57,7 @@
     <text x="100" y="25" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#9CA3AF">Individual Circuit Breakers</text>
 
     <rect x="30" y="40" width="140" height="50" rx="8" fill="url(#greenGradient)" filter="url(#shadow)"/>
-    <text x="100" y="60" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="white">rtdetr</text>
+    <text x="100" y="60" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="white">yolo26</text>
     <text x="100" y="78" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="9" fill="#D1FAE5">breaker</text>
   </g>
 
@@ -92,7 +92,7 @@
     <text x="100" y="22" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="#9CA3AF">Protected Services</text>
 
     <rect x="25" y="32" width="150" height="30" rx="6" fill="url(#blueGradient)" filter="url(#shadow)"/>
-    <text x="100" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">RT-DETRv2 :8090</text>
+    <text x="100" y="52" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="white">YOLO26 :8090</text>
   </g>
 
   <g transform="translate(275, 355)">

@@ -24,7 +24,7 @@ Model details:
 - Output: Vehicle type with confidence score
 
 Usage in security context:
-- Provides specific vehicle type beyond RT-DETRv2's generic "car/truck/bus"
+- Provides specific vehicle type beyond YOLO26v2's generic "car/truck/bus"
 - Distinguishes pickup trucks from sedans, work vans from cars
 - Helps identify delivery vehicles (work_van) vs personal vehicles
 - Articulated trucks may indicate commercial/industrial activity
@@ -61,9 +61,9 @@ VEHICLE_SEGMENT_CLASSES: list[str] = [
     "work_van",
 ]
 
-# Map from RT-DETRv2 classes to expected vehicle segment classes
+# Map from YOLO26v2 classes to expected vehicle segment classes
 # Used to validate that we're running on appropriate detections
-RTDETR_VEHICLE_CLASSES: frozenset[str] = frozenset(
+YOLO26_VEHICLE_CLASSES: frozenset[str] = frozenset(
     {
         "car",
         "truck",

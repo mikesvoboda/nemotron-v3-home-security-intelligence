@@ -17,7 +17,7 @@ Home Security Intelligence uses GPU acceleration for AI inference. The core, alw
 
 | Service             | Purpose             | VRAM Usage     | Inference Time |
 | ------------------- | ------------------- | -------------- | -------------- |
-| RT-DETRv2           | Object detection    | ~4GB           | 30-50ms        |
+| YOLO26              | Object detection    | ~4GB           | 30-50ms        |
 | Nemotron-3-Nano-30B | Risk analysis (LLM) | ~14.7GB (prod) | 2-5s           |
 | Nemotron Mini 4B    | Risk analysis (LLM) | ~3GB (dev)     | 2-5s           |
 | **Total (prod)**    |                     | **~19GB**      |                |
@@ -288,7 +288,7 @@ The project's production compose file already includes GPU configuration:
 services:
   ai-detector:
     build:
-      context: ./ai/rtdetr
+      context: ./ai/yolo26
       dockerfile: Dockerfile
     deploy:
       resources:
@@ -327,7 +327,7 @@ For Podman with CDI, modify the compose file:
 services:
   ai-detector:
     build:
-      context: ./ai/rtdetr
+      context: ./ai/yolo26
       dockerfile: Dockerfile
     devices:
       - nvidia.com/gpu=all
@@ -363,7 +363,7 @@ PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
 | Service             | Base VRAM | Peak VRAM | Notes                      |
 | ------------------- | --------- | --------- | -------------------------- |
-| RT-DETRv2           | ~3.5GB    | ~4.5GB    | Spikes during batch detect |
+| YOLO26              | ~3.5GB    | ~4.5GB    | Spikes during batch detect |
 | Nemotron-3-Nano-30B | ~14GB     | ~15GB     | Production, 128K context   |
 | Nemotron Mini 4B    | ~2.8GB    | ~3.2GB    | Development only           |
 | CUDA Context        | ~300MB    | ~500MB    | Per-process overhead       |
@@ -495,7 +495,7 @@ services:
 **Option 3: Native services:**
 
 ```bash
-# Terminal 1: RT-DETRv2 on GPU 0
+# Terminal 1: YOLO26 on GPU 0
 CUDA_VISIBLE_DEVICES=0 ./ai/start_detector.sh
 
 # Terminal 2: Nemotron on GPU 1
@@ -506,7 +506,7 @@ CUDA_VISIBLE_DEVICES=1 ./ai/start_llm.sh
 
 For high-throughput deployments:
 
-- Run multiple RT-DETRv2 instances across GPUs
+- Run multiple YOLO26 instances across GPUs
 - Use a load balancer (nginx, HAProxy) to distribute requests
 - Monitor per-GPU utilization to balance load
 
@@ -658,7 +658,7 @@ nvcc --version
 **Diagnosis:**
 
 ```bash
-# Check RT-DETRv2 device
+# Check YOLO26 device
 curl http://localhost:8090/health | jq .device
 # Should return "cuda:0", not "cpu"
 
@@ -704,7 +704,7 @@ docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
 podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
 
 # AI services healthy?
-curl http://localhost:8090/health | jq .  # RT-DETRv2
+curl http://localhost:8090/health | jq .  # YOLO26
 curl http://localhost:8091/health         # Nemotron
 
 # VRAM usage?
@@ -745,7 +745,7 @@ Before starting services, ensure:
 
 - [GPU Troubleshooting](../reference/troubleshooting/gpu-issues.md) - Detailed GPU problem solving
 - [AI Performance](ai-performance.md) - Optimize inference performance
-- [Detection Service](../developer/detection-service.md) - How RT-DETRv2 uses the GPU
+- [Detection Service](../developer/detection-service.md) - How YOLO26 uses the GPU
 
 ---
 

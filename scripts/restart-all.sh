@@ -10,7 +10,7 @@
 #
 # Services:
 #   Core:       postgres, redis, backend, frontend
-#   AI:         ai-detector, ai-llm, ai-florence, ai-clip, ai-enrichment
+#   AI:         ai-yolo26, ai-llm, ai-florence, ai-clip, ai-enrichment
 #   Monitoring: prometheus, grafana, redis-exporter, json-exporter
 #
 
@@ -35,7 +35,7 @@ print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Service groups
 CORE_SERVICES="postgres redis backend frontend"
-AI_SERVICES="ai-detector ai-llm ai-florence ai-clip ai-enrichment"
+AI_SERVICES="ai-yolo26 ai-llm ai-florence ai-clip ai-enrichment"
 MONITORING_SERVICES="prometheus grafana redis-exporter json-exporter"
 ALL_SERVICES="$CORE_SERVICES $AI_SERVICES $MONITORING_SERVICES"
 
@@ -136,7 +136,7 @@ health_check() {
 
     local services=(
         "Backend:http://localhost:8000/api/system/health/ready"
-        "RT-DETRv2:http://localhost:8090/health"
+        "YOLO26:http://localhost:8095/health"
         "Nemotron:http://localhost:8091/health"
         "Florence:http://localhost:8092/health"
         "CLIP:http://localhost:8093/health"

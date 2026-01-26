@@ -72,13 +72,13 @@ class TestServiceInfo:
         """Test creating ServiceInfo with required fields only."""
         service = ServiceInfo(
             name="ai-detector",
-            display_name="RT-DETRv2",
+            display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
             port=8090,
         )
         assert service.name == "ai-detector"
-        assert service.display_name == "RT-DETRv2"
+        assert service.display_name == "YOLO26"
         assert service.category == ServiceCategory.AI
         assert service.status == ContainerServiceStatus.RUNNING
         assert service.port == 8090
@@ -166,7 +166,7 @@ class TestServiceInfo:
         now = datetime.now(UTC)
         service = ServiceInfo(
             name="ai-detector",
-            display_name="RT-DETRv2",
+            display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
             port=8090,
@@ -174,7 +174,7 @@ class TestServiceInfo:
         )
         data = service.model_dump()
         assert data["name"] == "ai-detector"
-        assert data["display_name"] == "RT-DETRv2"
+        assert data["display_name"] == "YOLO26"
         assert data["category"] == "ai"
         assert data["status"] == "running"
         assert data["port"] == 8090
@@ -184,7 +184,7 @@ class TestServiceInfo:
         """Test ServiceInfo serializes to JSON correctly."""
         service = ServiceInfo(
             name="ai-detector",
-            display_name="RT-DETRv2",
+            display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
             port=8090,
@@ -241,7 +241,7 @@ class TestServicesResponse:
             ),
             ServiceInfo(
                 name="ai-detector",
-                display_name="RT-DETRv2",
+                display_name="YOLO26",
                 category=ServiceCategory.AI,
                 status=ContainerServiceStatus.RUNNING,
                 port=8090,
@@ -294,7 +294,7 @@ class TestServiceActionResponse:
         """Test successful restart action response."""
         service = ServiceInfo(
             name="ai-detector",
-            display_name="RT-DETRv2",
+            display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.STARTING,
             port=8090,
@@ -348,7 +348,7 @@ class TestServiceStatusEvent:
         """Test ServiceStatusEvent has correct default type."""
         service = ServiceInfo(
             name="ai-detector",
-            display_name="RT-DETRv2",
+            display_name="YOLO26",
             category=ServiceCategory.AI,
             status=ContainerServiceStatus.RUNNING,
             port=8090,
@@ -475,7 +475,7 @@ class TestCategoryUseCase:
             ),
             ServiceInfo(
                 name="ai-detector",
-                display_name="RT-DETRv2",
+                display_name="YOLO26",
                 category=ServiceCategory.AI,
                 status=ContainerServiceStatus.RUNNING,
                 port=8090,

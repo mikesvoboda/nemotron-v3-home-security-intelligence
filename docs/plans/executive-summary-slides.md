@@ -64,7 +64,7 @@
 | **Nemotron-3-Nano** | First real-world consumer application of NVIDIA's flagship edge LLM |
 | **RTX GPUs**        | Proves consumer GPUs are AI-capable - not just for gaming           |
 | **CUDA / TensorRT** | Full NVIDIA-optimized inference stack                               |
-| **RT-DETRv2**       | Real-time object detection at 30-50ms                               |
+| **YOLO26**          | Real-time object detection at 30-50ms                               |
 
 ### The Narrative NVIDIA Can Own
 

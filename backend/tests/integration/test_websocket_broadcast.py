@@ -136,7 +136,7 @@ def sync_client_for_broadcast(integration_env):
     # Mock AI health check to avoid HTTP calls to non-existent AI services in tests
     mock_ai_health = AsyncMock(
         return_value={
-            "rtdetr": False,
+            "yolo26": False,
             "nemotron": False,
             "any_healthy": False,
             "all_healthy": False,

@@ -1,6 +1,6 @@
 ---
 title: AI Pipeline Architecture
-description: Detection, batching, and analysis flow with RT-DETRv2 and NVIDIA Nemotron LLM integration
+description: Detection, batching, and analysis flow with YOLO26 and NVIDIA Nemotron LLM integration
 last_updated: 2026-01-04
 source_refs:
   - backend/services/file_watcher.py:FileWatcher:34
@@ -23,7 +23,7 @@ source_refs:
   - backend/services/pipeline_workers.py:BatchTimeoutWorker
   - backend/services/pipeline_workers.py:PipelineWorkerManager
   - backend/services/prompts.py
-  - ai/rtdetr/model.py
+  - ai/yolo26/model.py
   - ai/nemotron/config.json
 ---
 
@@ -35,11 +35,11 @@ _AI-generated diagram illustrating the end-to-end AI pipeline architecture with 
 
 ![AI Pipeline Hero](../images/ai-pipeline-hero.png)
 
-_AI-generated visualization of the AI detection pipeline from camera input through RT-DETRv2 and Nemotron to security events._
+_AI-generated visualization of the AI detection pipeline from camera input through YOLO26 and Nemotron to security events._
 
 ![AI Pipeline Flow](../images/architecture/ai-pipeline-flow.png)
 
-_End-to-end AI pipeline showing FileWatcher, queues, RT-DETRv2, batch aggregation, Nemotron analysis, and event creation._
+_End-to-end AI pipeline showing FileWatcher, queues, YOLO26, batch aggregation, Nemotron analysis, and event creation._
 
 This document provides comprehensive technical documentation for the AI-powered detection and analysis pipeline in the Home Security Intelligence system. It is intended for maintainers who need to debug, extend, or optimize the AI processing flow.
 
@@ -47,7 +47,7 @@ This document provides comprehensive technical documentation for the AI-powered 
 
 1. [Pipeline Overview](#pipeline-overview)
 2. [File Watcher](#file-watcher)
-3. [RT-DETRv2 Integration](#rt-detrv2-integration)
+3. [YOLO26 Integration](#yolo26v2-integration)
 4. [Batching Logic](#batching-logic)
 5. [Nemotron Analysis](#nemotron-analysis)
 6. [Risk Score Calculation](#risk-score-calculation)
@@ -64,7 +64,7 @@ The AI pipeline transforms raw camera images into risk-scored security events th
 
 ### High-Level Flow
 
-![AI pipeline flow diagram showing the complete processing sequence from camera FTP upload through FileWatcher debouncing, detection queue processing, RT-DETRv2 object detection with 30-50ms inference, batch aggregation with normal path (90-second windows) and fast path (immediate for high-confidence persons), Nemotron LLM risk analysis generating risk scores and reasoning, and final WebSocket broadcast to dashboard clients](../images/flow-ai-pipeline.png)
+![AI pipeline flow diagram showing the complete processing sequence from camera FTP upload through FileWatcher debouncing, detection queue processing, YOLO26 object detection with 30-50ms inference, batch aggregation with normal path (90-second windows) and fast path (immediate for high-confidence persons), Nemotron LLM risk analysis generating risk scores and reasoning, and final WebSocket broadcast to dashboard clients](../images/flow-ai-pipeline.png)
 
 The pipeline processes images through two paths:
 
@@ -75,7 +75,7 @@ The pipeline processes images through two paths:
 
 ![AI Pipeline Sequence Diagram](../images/ai-pipeline/pipeline-sequence.svg)
 
-_End-to-end sequence showing FTP upload, FileWatcher processing, RT-DETRv2 detection, batch aggregation with fast-path logic, Nemotron LLM analysis, and WebSocket broadcast to dashboard._
+_End-to-end sequence showing FTP upload, FileWatcher processing, YOLO26 detection, batch aggregation with fast-path logic, Nemotron LLM analysis, and WebSocket broadcast to dashboard._
 
 ### Diagram: Pipeline Sequence
 
@@ -86,7 +86,7 @@ sequenceDiagram
     participant FW as FileWatcher
     participant DQ as detection_queue
     participant DW as DetectionQueueWorker
-    participant RT as RT-DETRv2 (8090)
+    participant RT as YOLO26 (8090)
     participant DB as PostgreSQL
     participant BA as BatchAggregator
     participant AQ as analysis_queue
@@ -146,7 +146,7 @@ sequenceDiagram
 | File upload detection       | ~10ms            | Native filesystem notifications (inotify/FSEvents) |
 | Debounce delay              | 500ms            | Configurable, prevents duplicate processing        |
 | Image validation            | ~5-10ms          | PIL verify()                                       |
-| RT-DETRv2 inference         | 30-50ms          | GPU accelerated, RTX A5500                         |
+| YOLO26 inference            | 30-50ms          | GPU accelerated, RTX A5500                         |
 | Database write (detections) | ~5-10ms          | PostgreSQL async                                   |
 | Batch aggregation           | ~1ms             | Redis operations                                   |
 | **Batch window**            | **30-90s**       | Collects related detections                        |
@@ -231,18 +231,18 @@ This prevents duplicate processing from:
 
 ---
 
-## RT-DETRv2 Integration
+## YOLO26 Integration
 
-RT-DETRv2 (Real-Time Detection Transformer v2) performs object detection on camera images, identifying security-relevant objects with bounding boxes and confidence scores.
+YOLO26 (Real-Time Detection Transformer v2) performs object detection on camera images, identifying security-relevant objects with bounding boxes and confidence scores.
 
 ### Source Files
 
-- `/ai/rtdetr/model.py` - FastAPI inference server
+- `/ai/yolo26/model.py` - FastAPI inference server
 - `/backend/services/detector_client.py` - HTTP client
 
 ### What It Does
 
-RT-DETRv2 is a state-of-the-art transformer-based object detector that combines DETR's end-to-end detection approach with real-time inference speeds:
+YOLO26 is a state-of-the-art transformer-based object detector that combines DETR's end-to-end detection approach with real-time inference speeds:
 
 1. Receives camera images via HTTP POST
 2. Preprocesses images (RGB conversion, normalization)
@@ -305,7 +305,7 @@ file: <image binary>
 
 | Parameter                        | Default | Description                    |
 | -------------------------------- | ------- | ------------------------------ |
-| `RTDETR_CONFIDENCE`              | 0.5     | Server-side minimum confidence |
+| `YOLO26_CONFIDENCE`              | 0.5     | Server-side minimum confidence |
 | `DETECTION_CONFIDENCE_THRESHOLD` | 0.5     | Backend filtering threshold    |
 
 Detections below the threshold are discarded. Higher thresholds reduce false positives but may miss legitimate detections.
@@ -366,7 +366,7 @@ curl http://localhost:8090/health
   "model_loaded": true,
   "device": "cuda:0",
   "cuda_available": true,
-  "model_name": "/export/ai_models/rt-detrv2/rtdetr_v2_r101vd",
+  "model_name": "/export/ai_models/yolo26v2/yolo26_v2_r101vd",
   "vram_used_gb": 4.2
 }
 ```
@@ -712,7 +712,7 @@ flowchart TD
     A[Detection Request] --> B{File exists?}
 
     B -->|No| C[Log error, return []]
-    B -->|Yes| D{RT-DETRv2 reachable?}
+    B -->|Yes| D{YOLO26 reachable?}
     D -->|No| E[Log connection error, return []]
     D -->|Yes| F{Request timeout?}
     F -->|Yes| G[Log timeout, return []]
@@ -728,18 +728,18 @@ flowchart TD
 
 ### Error Scenarios and Responses
 
-| Error                   | Stage              | Response                   | Recovery                |
-| ----------------------- | ------------------ | -------------------------- | ----------------------- |
-| File not found          | DetectorClient     | Return `[]`, log error     | Skip this image         |
-| RT-DETRv2 unreachable   | DetectorClient     | Return `[]`, log error     | Retry next image        |
-| RT-DETRv2 timeout (30s) | DetectorClient     | Return `[]`, log error     | Skip this image         |
-| HTTP error (non-200)    | DetectorClient     | Return `[]`, log error     | Skip this image         |
-| Invalid JSON response   | DetectorClient     | Return `[]`, log error     | Skip this image         |
-| Redis unavailable       | FileWatcher/Dedupe | Fail open (process anyway) | Service recovers        |
-| Batch not found         | NemotronAnalyzer   | Raise `ValueError`         | Log warning, skip batch |
-| Nemotron unreachable    | NemotronAnalyzer   | Use fallback risk data     | Event still created     |
-| Nemotron timeout (60s)  | NemotronAnalyzer   | Use fallback risk data     | Event still created     |
-| Invalid LLM JSON        | NemotronAnalyzer   | Use fallback risk data     | Event still created     |
+| Error                  | Stage              | Response                   | Recovery                |
+| ---------------------- | ------------------ | -------------------------- | ----------------------- |
+| File not found         | DetectorClient     | Return `[]`, log error     | Skip this image         |
+| YOLO26 unreachable     | DetectorClient     | Return `[]`, log error     | Retry next image        |
+| YOLO26 timeout (30s)   | DetectorClient     | Return `[]`, log error     | Skip this image         |
+| HTTP error (non-200)   | DetectorClient     | Return `[]`, log error     | Skip this image         |
+| Invalid JSON response  | DetectorClient     | Return `[]`, log error     | Skip this image         |
+| Redis unavailable      | FileWatcher/Dedupe | Fail open (process anyway) | Service recovers        |
+| Batch not found        | NemotronAnalyzer   | Raise `ValueError`         | Log warning, skip batch |
+| Nemotron unreachable   | NemotronAnalyzer   | Use fallback risk data     | Event still created     |
+| Nemotron timeout (60s) | NemotronAnalyzer   | Use fallback risk data     | Event still created     |
+| Invalid LLM JSON       | NemotronAnalyzer   | Use fallback risk data     | Event still created     |
 
 ### Fallback Risk Data
 
@@ -863,7 +863,7 @@ flowchart TB
 | Variable                         | Default                 | Description                            |
 | -------------------------------- | ----------------------- | -------------------------------------- |
 | `FOSCAM_BASE_PATH`               | `/export/foscam`        | Camera FTP upload directory            |
-| `RTDETR_URL`                     | `http://localhost:8090` | RT-DETRv2 service URL                  |
+| `YOLO26_URL`                     | `http://localhost:8090` | YOLO26 service URL                     |
 | `NEMOTRON_URL`                   | `http://localhost:8091` | Nemotron LLM service URL               |
 | `FLORENCE_URL`                   | `http://localhost:8092` | Florence-2 vision-language service URL |
 | `CLIP_URL`                       | `http://localhost:8093` | CLIP embedding service URL             |
@@ -887,7 +887,7 @@ flowchart TB
 
 | Service         | Port | Protocol | Description        |
 | --------------- | ---- | -------- | ------------------ |
-| RT-DETRv2       | 8090 | HTTP     | Object detection   |
+| YOLO26          | 8090 | HTTP     | Object detection   |
 | NVIDIA Nemotron | 8091 | HTTP     | LLM risk analysis  |
 | Florence        | 8092 | HTTP     | Vision-language    |
 | CLIP            | 8093 | HTTP     | Embeddings / re-ID |
@@ -904,7 +904,7 @@ and `ai/AGENTS.md`.
 
 ![AI Service Interaction Diagram](../images/ai-pipeline/ai-service-interaction.svg)
 
-_Host machine architecture showing GPU-accelerated AI services (RT-DETRv2, Nemotron), Docker containers (Backend, Frontend, Redis), and data flow from cameras through the processing pipeline._
+_Host machine architecture showing GPU-accelerated AI services (YOLO26, Nemotron), Docker containers (Backend, Frontend, Redis), and data flow from cameras through the processing pipeline._
 
 \*Production uses NVIDIA Nemotron-3-Nano-30B-A3B (~14.7GB); development uses Nemotron Mini 4B (~3GB).
 
@@ -914,7 +914,7 @@ _Host machine architecture showing GPU-accelerated AI services (RT-DETRv2, Nemot
 flowchart TB
     subgraph "Host Machine"
         subgraph "GPU (RTX A5500 24GB)"
-            RT[RT-DETRv2 Server<br/>Port 8090<br/>~4GB VRAM]
+            RT[YOLO26 Server<br/>Port 8090<br/>~4GB VRAM]
             NEM[NVIDIA Nemotron llama.cpp<br/>Port 8091<br/>~14.7GB VRAM*]
         end
 
@@ -957,7 +957,7 @@ Technical documentation diagram showing an AI-powered security camera processing
 1. Security camera icon (simple, line-art style)
 2. Arrow to a folder/filesystem icon labeled "FTP"
 3. Arrow to a CPU/server icon labeled "File Watcher"
-4. Arrow to a GPU chip icon with "RT-DETRv2" label showing green glow
+4. Arrow to a GPU chip icon with "YOLO26" label showing green glow
 5. Arrow to stacked rectangles representing "Batch Queue"
 6. Arrow to a brain/neural network icon with "NVIDIA Nemotron" label showing green glow
 7. Arrow to a database cylinder icon
@@ -989,7 +989,7 @@ Use blue (#3B82F6) for frames, orange (#FFB800) for the collection funnel, and r
 Dimensions: 800x600 pixels
 ```
 
-### 3. RT-DETRv2 Detection Visualization
+### 3. YOLO26 Detection Visualization
 
 **Prompt:**
 
@@ -1004,7 +1004,7 @@ Overlays:
 - Green bounding box (#76B900) around a dog shape with label "dog 0.72"
 
 Corner annotation panel showing:
-- "RT-DETRv2 Output"
+- "YOLO26 Output"
 - "Inference: 42ms"
 - "Resolution: 1920x1080"
 

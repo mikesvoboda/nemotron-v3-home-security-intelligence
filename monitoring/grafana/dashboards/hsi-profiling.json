@@ -183,7 +183,7 @@
         "type": "grafana-pyroscope-datasource",
         "uid": "pyroscope"
       },
-      "description": "Flame graph visualization for RT-DETR service showing CPU/memory hotspots",
+      "description": "Flame graph visualization for YOLO26 service showing CPU/memory hotspots",
       "gridPos": {
         "h": 12,
         "w": 12,
@@ -205,14 +205,14 @@
             "uid": "pyroscope"
           },
           "groupBy": [],
-          "labelSelector": "{service_name=\"RT-DETR\"}",
+          "labelSelector": "{service_name=\"YOLO26\"}",
           "profileTypeId": "$profile_type",
           "queryType": "profile",
           "refId": "A",
           "spanSelector": []
         }
       ],
-      "title": "RT-DETR Flame Graph ($profile_type)",
+      "title": "YOLO26 Flame Graph ($profile_type)",
       "type": "flamegraph"
     },
     {
@@ -316,8 +316,8 @@
           },
           {
             "selected": false,
-            "text": "RT-DETR",
-            "value": "RT-DETR"
+            "text": "YOLO26",
+            "value": "YOLO26"
           },
           {
             "selected": false,
@@ -330,7 +330,7 @@
             "value": "Florence"
           }
         ],
-        "query": "Backend,RT-DETR,Nemotron,Florence",
+        "query": "Backend,YOLO26,Nemotron,Florence",
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"

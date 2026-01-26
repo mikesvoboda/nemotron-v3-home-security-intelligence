@@ -156,7 +156,7 @@
 
 1. Use a more conventional queue visualization (like concept-queue-backpressure.png uses)
 2. Add labels for BLPOP operation, retry handler, and DLQ routing
-3. Show the connection to RT-DETRv2 detector service
+3. Show the connection to YOLO26 detector service
 4. Include worker state indicators (RUNNING, STOPPING, ERROR)
 
 ---

@@ -211,7 +211,7 @@ class DetectionQueueWorker:
 
     This worker:
     1. Pops items from detection_queue (Redis BLPOP with timeout)
-    2. Runs RT-DETRv2 detection via DetectorClient
+    2. Runs YOLO26v2 detection via DetectorClient
     3. Adds detections to batch via BatchAggregator
     4. Handles errors gracefully and continues processing
 
@@ -234,7 +234,7 @@ class DetectionQueueWorker:
 
         Args:
             redis_client: Redis client for queue operations
-            detector_client: Client for RT-DETRv2. If None, will be created.
+            detector_client: Client for YOLO26v2. If None, will be created.
             batch_aggregator: Aggregator for batching detections. If None, will be created.
             video_processor: Processor for video frame extraction. If None, will be created.
             retry_handler: Handler for retry logic and DLQ. If None, will be created.

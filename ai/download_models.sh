@@ -8,7 +8,7 @@
 #
 # Models downloaded (~42GB total):
 #   - Nemotron-3-Nano-30B (Q4_K_M) - ~18GB - Risk reasoning LLM
-#   - RT-DETRv2 - Auto-downloaded by HuggingFace on first run
+#   - YOLO26v2 - Auto-downloaded by HuggingFace on first run
 #   - Florence-2-Large - ~3GB - Vision-language captions
 #   - CLIP-ViT-L - ~1.7GB - Entity re-identification
 #   - Model Zoo (~19GB):
@@ -426,12 +426,12 @@ fi
 
 echo ""
 echo "=========================================="
-echo "2/6 - RT-DETRv2 (Object Detection)"
+echo "2/6 - YOLO26v2 (Object Detection)"
 echo "=========================================="
 echo ""
-echo "[INFO] RT-DETRv2 models are auto-downloaded by HuggingFace Transformers"
+echo "[INFO] YOLO26v2 models are auto-downloaded by HuggingFace Transformers"
 echo "       on first container start. No manual download needed."
-echo "       Model: PekingU/rtdetr_r50vd_coco_o365 (~165MB)"
+echo "       Model: PekingU/yolo26_r50vd_coco_o365 (~165MB)"
 echo "       Integrity verified via HuggingFace's content-addressable storage"
 
 echo ""

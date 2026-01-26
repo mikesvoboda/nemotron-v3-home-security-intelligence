@@ -1,7 +1,7 @@
 """Integration tests for multimodal pipeline evaluation.
 
 This module tests the multimodal evaluation pipeline that compares
-local RT-DETRv2 + Nemotron detections against NVIDIA vision ground truth.
+local YOLO26 + Nemotron detections against NVIDIA vision ground truth.
 
 Tests are organized into:
 - TestDetectionAlignment: Tests for detection IoU and object matching
@@ -62,7 +62,7 @@ def pipeline_comparator() -> PipelineComparator:
 
 @pytest.fixture
 def sample_local_detections() -> list[dict[str, Any]]:
-    """Sample detections from local RT-DETRv2 pipeline."""
+    """Sample detections from local YOLO26 pipeline."""
     return [
         {
             "type": "person",
@@ -138,7 +138,7 @@ class TestDetectionAlignment:
         sample_local_detections: list[dict[str, Any]],
         sample_nvidia_detections: list[dict[str, Any]],
     ) -> None:
-        """Local RT-DETRv2 should achieve >= 70% IoU with NVIDIA."""
+        """Local YOLO26 should achieve >= 70% IoU with NVIDIA."""
         iou = pipeline_comparator.calculate_detection_iou(
             sample_local_detections,
             sample_nvidia_detections,

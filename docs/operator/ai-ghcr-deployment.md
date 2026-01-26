@@ -17,7 +17,7 @@ This guide covers deploying the AI services stack from source. Currently, the CI
 | ----------------- | ---------------------------------------------------------------------------- | ----------------------------------- |
 | **backend**       | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest`  | Published on every merge to main    |
 | **frontend**      | `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest` | Published on every merge to main    |
-| **ai-detector**   | Build locally                                                                | RT-DETRv2 object detection          |
+| **ai-detector**   | Build locally                                                                | YOLO26 object detection             |
 | **ai-llm**        | Build locally                                                                | Nemotron LLM (llama.cpp)            |
 | **ai-florence**   | Build locally                                                                | Florence-2 vision-language          |
 | **ai-clip**       | Build locally                                                                | CLIP embeddings                     |
@@ -56,12 +56,12 @@ curl http://localhost:8000/api/system/health/ready
 ### Deploy Core AI Only (No Optional Services)
 
 ```bash
-# Build and start only RT-DETRv2 and Nemotron
+# Build and start only YOLO26 and Nemotron
 podman-compose -f docker-compose.prod.yml build ai-detector ai-llm
 podman-compose -f docker-compose.prod.yml up -d ai-detector ai-llm
 
 # Verify
-curl http://localhost:8090/health  # RT-DETRv2
+curl http://localhost:8090/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 ```
 
@@ -69,9 +69,9 @@ curl http://localhost:8091/health  # Nemotron
 
 ## AI Service Container Reference
 
-### ai-detector (RT-DETRv2)
+### ai-detector (YOLO26)
 
-Object detection service using RT-DETRv2 transformer model.
+Object detection service using YOLO26 transformer model.
 
 | Property         | Value                                           |
 | ---------------- | ----------------------------------------------- |
@@ -91,8 +91,8 @@ podman-compose -f docker-compose.prod.yml build ai-detector
 
 | Variable            | Default                          | Description                              |
 | ------------------- | -------------------------------- | ---------------------------------------- |
-| `RTDETR_CONFIDENCE` | `0.5`                            | Detection confidence threshold (0.0-1.0) |
-| `RTDETR_MODEL_PATH` | `PekingU/rtdetr_r50vd_coco_o365` | HuggingFace model ID                     |
+| `YOLO26_CONFIDENCE` | `0.5`                            | Detection confidence threshold (0.0-1.0) |
+| `YOLO26_MODEL_PATH` | `PekingU/yolo26_r50vd_coco_o365` | HuggingFace model ID                     |
 
 **Volume Mounts:**
 
@@ -394,7 +394,7 @@ Configure `.env` to point to the GPU host:
 
 ```bash
 GPU_HOST=10.0.0.50  # Your GPU host IP
-RTDETR_URL=http://${GPU_HOST}:8090
+YOLO26_URL=http://${GPU_HOST}:8090
 NEMOTRON_URL=http://${GPU_HOST}:8091
 FLORENCE_URL=http://${GPU_HOST}:8092
 CLIP_URL=http://${GPU_HOST}:8093
@@ -458,7 +458,7 @@ podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:
 curl http://localhost:8000/api/system/health/ready  # Backend
 
 # AI services individually
-curl http://localhost:8090/health  # RT-DETRv2
+curl http://localhost:8090/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 curl http://localhost:8092/health  # Florence-2
 curl http://localhost:8093/health  # CLIP

@@ -1,6 +1,6 @@
 # Service Health Monitor
 
-The `ServiceHealthMonitor` performs periodic health checks on dependent services (Redis, RT-DETRv2, Nemotron) and automatically attempts recovery with exponential backoff when failures are detected.
+The `ServiceHealthMonitor` performs periodic health checks on dependent services (Redis, YOLO26, Nemotron) and automatically attempts recovery with exponential backoff when failures are detected.
 
 **Source File:** `backend/services/health_monitor.py`
 
@@ -21,7 +21,7 @@ The health monitor is configured per-service via `ServiceConfig`:
 
 | Parameter         | Type    | Description                                     |
 | ----------------- | ------- | ----------------------------------------------- | -------------------------------------------------- |
-| `name`            | `str`   | Service name (e.g., "redis", "rtdetr")          |
+| `name`            | `str`   | Service name (e.g., "redis", "yolo26")          |
 | `health_endpoint` | `str`   | URL for health check                            |
 | `restart_cmd`     | `str    | None`                                           | Command to restart service (None disables restart) |
 | `max_retries`     | `int`   | Maximum restart attempts before giving up       |
@@ -439,9 +439,9 @@ service_configs = [
         backoff_base=5.0,
     ),
     ServiceConfig(
-        name="rtdetr",
+        name="yolo26",
         health_endpoint="http://localhost:8001/health",
-        restart_cmd="docker restart rtdetr",
+        restart_cmd="docker restart yolo26",
         max_retries=3,
         backoff_base=10.0,
     ),

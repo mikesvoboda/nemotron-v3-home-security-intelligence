@@ -62,11 +62,11 @@ Contrastive Language-Image Pre-training model used for generating image embeddin
 
 ### Confidence Score
 
-A value from 0.0 to 1.0 indicating how certain the RT-DETRv2 model is about a detection. Higher values mean more certainty. Controlled by `DETECTION_CONFIDENCE_THRESHOLD`.
+A value from 0.0 to 1.0 indicating how certain the YOLO26 model is about a detection. Higher values mean more certainty. Controlled by `DETECTION_CONFIDENCE_THRESHOLD`.
 
 ### COCO Classes
 
-The 80 object categories that RT-DETRv2 can detect, based on the Common Objects in Context (COCO) dataset. Includes person, car, dog, cat, bicycle, and many others.
+The 80 object categories that YOLO26 can detect, based on the Common Objects in Context (COCO) dataset. Includes person, car, dog, cat, bicycle, and many others.
 
 ---
 
@@ -82,11 +82,11 @@ A system operating state when some services are unavailable. The system continue
 
 ### Detection
 
-A single object instance identified by RT-DETRv2 in an image. Contains object type, confidence score, bounding box coordinates, and timestamp. Multiple detections may be grouped into one [Event](#event).
+A single object instance identified by YOLO26 in an image. Contains object type, confidence score, bounding box coordinates, and timestamp. Multiple detections may be grouped into one [Event](#event).
 
 ### Detection Worker
 
-Background worker process that sends images to RT-DETRv2 for object detection. Part of the [Pipeline](#pipeline).
+Background worker process that sends images to YOLO26 for object detection. Part of the [Pipeline](#pipeline).
 
 ### Domain Sharding
 
@@ -170,7 +170,7 @@ The time period after which an inactive batch is closed and sent for analysis, e
 
 ### Inference
 
-The process of running an AI model on input data to produce predictions. For this system: RT-DETRv2 inference detects objects; Nemotron inference analyzes risk.
+The process of running an AI model on input data to produce predictions. For this system: YOLO26 inference detects objects; Nemotron inference analyzes risk.
 
 ---
 
@@ -221,7 +221,7 @@ A nonprofit foundation focused on improving software security. OWASP publishes s
 The end-to-end processing flow for security images:
 
 1. **File Watcher** detects new image
-2. **Detection Worker** sends to RT-DETRv2
+2. **Detection Worker** sends to YOLO26
 3. **Batch Aggregator** groups detections
 4. **Analysis Worker** sends to Nemotron
 5. **Event** created with risk assessment
@@ -295,7 +295,7 @@ See [Risk Levels Reference](config/risk-levels.md).
 
 A numeric value from 0-100 assigned by Nemotron indicating the threat level of an event. Higher scores indicate greater concern. The score is used to determine [Risk Level](#risk-level).
 
-### RT-DETRv2
+### YOLO26
 
 A state-of-the-art real-time object detection model. Uses a transformer architecture for accurate detection with low latency. This system uses the L (Large) variant.
 

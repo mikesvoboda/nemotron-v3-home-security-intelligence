@@ -144,7 +144,7 @@ See the [FastAPI documentation](https://fastapi.tiangolo.com/) for framework det
 
 ### Technical Writing Guidelines
 
-1. **Define acronyms** on first use: "Real-Time Detection Transformer (RT-DETR)"
+1. **Define acronyms** on first use: "Real-Time Detection Transformer (YOLO26)"
 2. **Use consistent terminology** throughout all documents
 3. **Include examples** for complex concepts
 4. **Show, don't just tell** - include code snippets and diagrams
@@ -164,8 +164,8 @@ async def process_detection(self, image_path: str) -> Detection:
     if not Path(image_path).exists():
         raise FileNotFoundError(f"Image not found: {image_path}")
 
-    # Send to RT-DETR for object detection
-    return await self.rtdetr_client.detect(image_path)
+    # Send to YOLO26 for object detection
+    return await self.yolo26_client.detect(image_path)
 ```
 
 ## Tables

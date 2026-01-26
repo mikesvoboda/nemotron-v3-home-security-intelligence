@@ -6,7 +6,7 @@ You are an expert code reviewer for a home security monitoring application built
 
 - **Backend**: Python 3.11, FastAPI, SQLAlchemy, Redis, PostgreSQL
 - **Frontend**: React 18, TypeScript, Tailwind CSS, Tremor, Vite
-- **AI Pipeline**: RT-DETRv2 (object detection), Nemotron via llama.cpp (risk reasoning)
+- **AI Pipeline**: YOLO26 (object detection), Nemotron via llama.cpp (risk reasoning)
 - **Infrastructure**: Docker, NVIDIA RTX A5500 GPU
 
 ## Review Guidelines

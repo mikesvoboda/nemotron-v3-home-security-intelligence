@@ -1,6 +1,6 @@
 """AI service fallback strategies for graceful degradation.
 
-This module provides fallback behavior when AI services (RT-DETRv2, Nemotron,
+This module provides fallback behavior when AI services (YOLO26v2, Nemotron,
 Florence-2, CLIP) become unavailable. It integrates with circuit breakers
 and the degradation manager to provide seamless degradation.
 
@@ -52,7 +52,7 @@ logger = get_logger(__name__)
 class AIService(StrEnum):
     """AI service identifiers."""
 
-    RTDETR = "rtdetr"
+    YOLO26 = "yolo26"
     NEMOTRON = "nemotron"
     FLORENCE = "florence"
     CLIP = "clip"
@@ -185,7 +185,7 @@ class RiskScoreCache:
 
 # Default circuit breaker configurations per service
 DEFAULT_CB_CONFIGS: dict[AIService, CircuitBreakerConfig] = {
-    AIService.RTDETR: CircuitBreakerConfig(
+    AIService.YOLO26: CircuitBreakerConfig(
         failure_threshold=3,
         recovery_timeout=60.0,
         half_open_max_calls=2,
@@ -212,7 +212,7 @@ DEFAULT_CB_CONFIGS: dict[AIService, CircuitBreakerConfig] = {
 }
 
 # Critical services that affect degradation level more severely
-CRITICAL_SERVICES = {AIService.RTDETR, AIService.NEMOTRON}
+CRITICAL_SERVICES = {AIService.YOLO26, AIService.NEMOTRON}
 
 
 class AIFallbackService:
@@ -243,7 +243,7 @@ class AIFallbackService:
         """Initialize the AI fallback service.
 
         Args:
-            detector_client: RT-DETRv2 client (optional, for health checks)
+            detector_client: YOLO26v2 client (optional, for health checks)
             nemotron_analyzer: Nemotron analyzer (optional, for health checks)
             florence_client: Florence-2 client (optional, for health checks)
             clip_client: CLIP client (optional, for health checks)
@@ -425,7 +425,7 @@ class AIFallbackService:
         Returns:
             True if service is healthy
         """
-        if service == AIService.RTDETR and self._detector_client:
+        if service == AIService.YOLO26 and self._detector_client:
             return await self._detector_client.health_check()
         elif service == AIService.NEMOTRON and self._nemotron_analyzer:
             return await self._nemotron_analyzer.health_check()
@@ -509,8 +509,8 @@ class AIFallbackService:
         """
         features = []
 
-        # Detection features (requires RT-DETRv2)
-        if self.is_service_available(AIService.RTDETR):
+        # Detection features (requires YOLO26v2)
+        if self.is_service_available(AIService.YOLO26):
             features.extend(["object_detection", "detection_alerts"])
 
         # Risk analysis features (requires Nemotron)
@@ -647,12 +647,12 @@ class AIFallbackService:
         return [0.0] * 768
 
     def should_skip_detection(self) -> bool:
-        """Check if detection should be skipped due to RT-DETRv2 unavailability.
+        """Check if detection should be skipped due to YOLO26v2 unavailability.
 
         Returns:
             True if detection should be skipped
         """
-        return not self.is_service_available(AIService.RTDETR)
+        return not self.is_service_available(AIService.YOLO26)
 
     def should_use_default_risk(self) -> bool:
         """Check if default risk score should be used.

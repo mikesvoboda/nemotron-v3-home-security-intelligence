@@ -82,24 +82,15 @@ These models are always loaded for real-time analysis:
 | Florence-2-large | Scene understanding, captions | ~1.2GB | 8092 |
 | CLIP ViT-L/14    | Anomaly detection baseline    | ~800MB | 8093 |
 
-### Object Detector Options
+### Object Detector
 
-The system supports two object detectors. Set `DETECTOR_TYPE` in your `.env` to switch:
+The system uses YOLO26 for object detection, providing excellent speed for real-time multi-camera monitoring:
 
-| Detector  | Inference (TensorRT) | FPS | vs RT-DETRv2 | Best For                     |
-| --------- | -------------------- | --- | ------------ | ---------------------------- |
-| RT-DETRv2 | 30.5ms               | 33  | baseline     | Accuracy, transformer-based  |
-| YOLO26m   | 5.76ms               | 174 | 5.3x faster  | Speed, real-time multi-cam   |
-| YOLO26s   | 4.86ms               | 206 | 6.3x faster  | Maximum throughput           |
-| YOLO26n   | 3.25ms (ONNX-CUDA)   | 308 | 9.4x faster  | Lightweight, edge deployment |
-
-```bash
-# Default: RT-DETRv2
-DETECTOR_TYPE=rtdetr
-
-# Switch to YOLO26
-DETECTOR_TYPE=yolo26
-```
+| Model   | Inference (TensorRT) | FPS | Best For                     |
+| ------- | -------------------- | --- | ---------------------------- |
+| YOLO26m | 5.76ms               | 174 | Default, best accuracy       |
+| YOLO26s | 4.86ms               | 206 | Maximum throughput           |
+| YOLO26n | 3.25ms (ONNX-CUDA)   | 308 | Lightweight, edge deployment |
 
 ### On-Demand Models (~6.8GB budget)
 
@@ -200,12 +191,12 @@ curl -X POST http://localhost:8094/models/preload?model_name=threat_detector
 
 ### GPU Compatibility
 
-| VRAM     | What You Can Run                    | Example GPUs                        |
-| -------- | ----------------------------------- | ----------------------------------- |
-| **24GB** | Full stack, all models loaded       | RTX 3090, 4090, A5000, A5500, A6000 |
-| **16GB** | Nemotron (reduced layers) + RT-DETR | RTX 4080, A4000, Tesla T4           |
-| **12GB** | Nemotron (CPU offload) + RT-DETR    | RTX 3080, 4070 Ti                   |
-| **8GB**  | RT-DETR only, no LLM                | RTX 3070, 4060 Ti                   |
+| VRAM     | What You Can Run                   | Example GPUs                        |
+| -------- | ---------------------------------- | ----------------------------------- |
+| **24GB** | Full stack, all models loaded      | RTX 3090, 4090, A5000, A5500, A6000 |
+| **16GB** | Nemotron (reduced layers) + YOLO26 | RTX 4080, A4000, Tesla T4           |
+| **12GB** | Nemotron (CPU offload) + YOLO26    | RTX 3080, 4070 Ti                   |
+| **8GB**  | YOLO26 only, no LLM                | RTX 3070, 4060 Ti                   |
 
 ### Runtime Resource Usage
 
@@ -283,11 +274,11 @@ docker compose up -d
 
 ![System Architecture](docs/images/arch-system-overview.png)
 
-| Layer       | Stack                         | Key Files                                  |
-| ----------- | ----------------------------- | ------------------------------------------ |
-| Frontend    | React + TypeScript + Tailwind | `frontend/src/services/api.ts`             |
-| Backend     | FastAPI + SQLAlchemy + Redis  | `backend/services/`, `backend/api/`        |
-| AI Services | llama.cpp + FastAPI           | `ai/rtdetr/`, `ai/yolo26/`, `ai/nemotron/` |
+| Layer       | Stack                         | Key Files                           |
+| ----------- | ----------------------------- | ----------------------------------- |
+| Frontend    | React + TypeScript + Tailwind | `frontend/src/services/api.ts`      |
+| Backend     | FastAPI + SQLAlchemy + Redis  | `backend/services/`, `backend/api/` |
+| AI Services | llama.cpp + FastAPI           | `ai/yolo26/`, `ai/nemotron/`        |
 
 ![Container Architecture](docs/images/architecture/container-architecture.png)
 
@@ -300,7 +291,7 @@ docker compose up -d
 | [Architecture Hub](docs/architecture/README.md)                      | Complete system architecture documentation |
 | [Security](docs/architecture/security/README.md)                     | Input validation, data protection, OWASP   |
 | [Dataflows](docs/architecture/dataflows/README.md)                   | End-to-end data traces, pipeline timing    |
-| [Detection Pipeline](docs/architecture/detection-pipeline/README.md) | RT-DETRv2 integration, image processing    |
+| [Detection Pipeline](docs/architecture/detection-pipeline/README.md) | YOLO26 integration, image processing       |
 | [AI Orchestration](docs/architecture/ai-orchestration/README.md)     | Nemotron LLM, batch processing             |
 
 ---
@@ -331,16 +322,15 @@ You can:
 
 Common settings:
 
-| Variable                     | Purpose                              |
-| ---------------------------- | ------------------------------------ |
-| `DETECTOR_TYPE`              | Detector model: `rtdetr` or `yolo26` |
-| `FOSCAM_BASE_PATH`           | Camera upload directory              |
-| `RTDETR_URL`, `NEMOTRON_URL` | Core AI endpoints                    |
-| `FLORENCE_URL`, `CLIP_URL`   | Enrichment AI endpoints              |
-| `RETENTION_DAYS`             | Event retention (days)               |
-| `BATCH_WINDOW_SECONDS`       | Detection batching window            |
-| `FILE_WATCHER_POLLING`       | Use polling (Docker mounts)          |
-| `API_KEY_ENABLED`            | Enable API key auth                  |
+| Variable                     | Purpose                     |
+| ---------------------------- | --------------------------- |
+| `FOSCAM_BASE_PATH`           | Camera upload directory     |
+| `YOLO26_URL`, `NEMOTRON_URL` | Core AI endpoints           |
+| `FLORENCE_URL`, `CLIP_URL`   | Enrichment AI endpoints     |
+| `RETENTION_DAYS`             | Event retention (days)      |
+| `BATCH_WINDOW_SECONDS`       | Detection batching window   |
+| `FILE_WATCHER_POLLING`       | Use polling (Docker mounts) |
+| `API_KEY_ENABLED`            | Enable API key auth         |
 
 </details>
 
@@ -377,7 +367,7 @@ Licensed under **Apache License 2.0**. See [LICENSE](LICENSE).
 
 ## Acknowledgments
 
-[RT-DETRv2](https://github.com/lyuwenyu/RT-DETR) ·
+[Ultralytics YOLO](https://github.com/ultralytics/ultralytics) ·
 [Nemotron](https://huggingface.co/nvidia) ·
 [llama.cpp](https://github.com/ggerganov/llama.cpp) ·
 [FastAPI](https://fastapi.tiangolo.com/) ·

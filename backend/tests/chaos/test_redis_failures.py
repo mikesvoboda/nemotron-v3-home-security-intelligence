@@ -171,15 +171,15 @@ class TestDegradationModes:
                 name="redis", health_check=AsyncMock(return_value=True), critical=True
             )
             manager.register_service(
-                name="rtdetr", health_check=AsyncMock(return_value=True), critical=False
+                name="yolo26", health_check=AsyncMock(return_value=True), critical=False
             )
 
             # Start in NORMAL mode
             assert manager.mode == DegradationMode.NORMAL
 
             # Simulate non-critical service failure (should go to DEGRADED)
-            await manager.update_service_health("rtdetr", is_healthy=False)
-            await manager.update_service_health("rtdetr", is_healthy=False)  # 2nd failure
+            await manager.update_service_health("yolo26", is_healthy=False)
+            await manager.update_service_health("yolo26", is_healthy=False)  # 2nd failure
 
             assert manager.mode == DegradationMode.DEGRADED
 

@@ -22,7 +22,7 @@ flowchart TB
     subgraph Services["Monitored Services"]
         DB[(PostgreSQL)]
         REDIS[(Redis)]
-        AI[AI Services<br/>RT-DETRv2 + Nemotron]
+        AI[AI Services<br/>YOLO26 + Nemotron]
     end
 
     subgraph Workers["Pipeline Workers"]
@@ -129,7 +129,7 @@ GET /api/system/health
     "ai": {
       "status": "healthy",
       "message": "AI services operational",
-      "details": { "rtdetr": "healthy", "nemotron": "healthy" }
+      "details": { "yolo26": "healthy", "nemotron": "healthy" }
     }
   },
   "timestamp": "2025-12-23T10:30:00Z"
@@ -229,14 +229,14 @@ GET /api/system/health/full
     "redis": { "status": "healthy", "latency_ms": 1.1 }
   },
   "ai_services": {
-    "rtdetr": { "status": "healthy", "loaded": true },
+    "yolo26": { "status": "healthy", "loaded": true },
     "nemotron": { "status": "healthy", "loaded": true },
     "florence": { "status": "healthy", "loaded": false },
     "clip": { "status": "healthy", "loaded": false },
     "enrichment": { "status": "healthy" }
   },
   "circuit_breakers": {
-    "rtdetr": { "state": "closed", "failures": 0 },
+    "yolo26": { "state": "closed", "failures": 0 },
     "nemotron": { "state": "closed", "failures": 0 }
   },
   "workers": {
@@ -573,7 +573,7 @@ GET /api/system/performance
     "power_watts": 150.0
   },
   "ai_models": {
-    "rtdetr": { "status": "loaded", "vram_mb": 2048 },
+    "yolo26": { "status": "loaded", "vram_mb": 2048 },
     "nemotron": { "status": "loaded", "vram_mb": 8192 }
   },
   "inference": {
@@ -672,7 +672,7 @@ GET /api/system/pipeline-latency?window_minutes=60
 
 | Stage              | Description                                 |
 | ------------------ | ------------------------------------------- |
-| `watch_to_detect`  | File watcher to RT-DETR processing start    |
+| `watch_to_detect`  | File watcher to YOLO26 processing start     |
 | `detect_to_batch`  | Detection completion to batch aggregation   |
 | `batch_to_analyze` | Batch completion to Nemotron analysis start |
 | `total_pipeline`   | Total end-to-end processing time            |
@@ -889,7 +889,7 @@ The following diagram shows how detections flow through the alert system, from i
 flowchart TB
     subgraph Detection["Detection Stage"]
         CAM[Camera Image]
-        RTDETR[RT-DETRv2<br/>Object Detection]
+        YOLO26[YOLO26<br/>Object Detection]
     end
 
     subgraph RiskAssessment["Risk Assessment"]
@@ -911,8 +911,8 @@ flowchart TB
         PUSH[Push Channel]
     end
 
-    CAM --> RTDETR
-    RTDETR -->|Detections| NEM
+    CAM --> YOLO26
+    YOLO26 -->|Detections| NEM
     NEM --> SCORE
 
     SCORE -->|"85+"| RULES
@@ -933,7 +933,7 @@ flowchart TB
     COOL -->|No| DROP4[Cooldown Active]
 
     style CAM fill:#64748B,color:#fff
-    style RTDETR fill:#A855F7,color:#fff
+    style YOLO26 fill:#A855F7,color:#fff
     style NEM fill:#A855F7,color:#fff
     style RULES fill:#3B82F6,color:#fff
     style EMAIL fill:#4ADE80,color:#000
@@ -1128,7 +1128,7 @@ GET /api/logs?level=ERROR&component=detection_worker&limit=100
       "timestamp": "2025-12-23T10:30:00Z",
       "level": "ERROR",
       "component": "detection_worker",
-      "message": "Connection refused to RT-DETR service",
+      "message": "Connection refused to YOLO26 service",
       "camera_id": "front_door",
       "request_id": "abc123",
       "duration_ms": null,
@@ -1751,7 +1751,7 @@ GET /api/system/circuit-breakers
 {
   "circuit_breakers": [
     {
-      "name": "rtdetr",
+      "name": "yolo26",
       "state": "closed",
       "failure_count": 0,
       "success_count": 150,
@@ -1778,7 +1778,7 @@ Manually reset a circuit breaker to CLOSED state:
 **Requires API key authentication (when enabled).**
 
 ```bash
-POST /api/system/circuit-breakers/rtdetr/reset
+POST /api/system/circuit-breakers/yolo26/reset
 X-API-Key: your-api-key
 ```
 
@@ -1786,10 +1786,10 @@ X-API-Key: your-api-key
 
 ```json
 {
-  "name": "rtdetr",
+  "name": "yolo26",
   "previous_state": "open",
   "new_state": "closed",
-  "message": "Circuit breaker rtdetr reset to closed state",
+  "message": "Circuit breaker yolo26 reset to closed state",
   "timestamp": "2025-12-23T10:30:00Z"
 }
 ```
@@ -1901,7 +1901,7 @@ GET /api/system/websocket/events
 
 ## Circuit Breaker Pattern
 
-The system uses circuit breakers to protect external services from cascading failures. This is critical for maintaining system stability when AI services (RT-DETRv2, Nemotron) or Redis experience issues.
+The system uses circuit breakers to protect external services from cascading failures. This is critical for maintaining system stability when AI services (YOLO26, Nemotron) or Redis experience issues.
 
 ### Circuit Breaker States
 

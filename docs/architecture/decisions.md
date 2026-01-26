@@ -11,7 +11,7 @@ This document captures the key architectural decisions made during the developme
 3. [ADR-003: Detection Batching Strategy](#adr-003-detection-batching-strategy)
 4. [ADR-004: Fully Containerized Deployment with GPU Passthrough](#adr-004-fully-containerized-deployment-with-gpu-passthrough)
 5. [ADR-005: No Authentication](#adr-005-no-authentication)
-6. [ADR-006: RT-DETRv2 for Object Detection](#adr-006-rt-detrv2-for-object-detection)
+6. [ADR-006: YOLO26 for Object Detection](#adr-006-yolo26v2-for-object-detection)
 7. [ADR-007: Nemotron for Risk Analysis](#adr-007-nemotron-for-risk-analysis)
 8. [ADR-008: FastAPI + React Stack](#adr-008-fastapi--react-stack)
 9. [ADR-009: WebSocket for Real-time Updates](#adr-009-websocket-for-real-time-updates)
@@ -86,7 +86,7 @@ Use **PostgreSQL** with `asyncpg` async driver.
 
 The AI processing pipeline requires:
 
-1. A queue for passing image paths from File Watcher to RT-DETRv2 detector
+1. A queue for passing image paths from File Watcher to YOLO26 detector
 2. A queue for passing detection batches to Nemotron analyzer
 3. Pub/Sub for real-time event broadcasting to WebSocket clients
 4. Temporary storage for batch aggregation state
@@ -219,7 +219,7 @@ The system requires:
 - Frontend application (React)
 - PostgreSQL database
 - Redis for queues/pub/sub
-- RT-DETRv2 object detection (~4GB VRAM)
+- YOLO26 object detection (~4GB VRAM)
 - Nemotron-3-Nano-30B risk analysis (~14.7GB VRAM, Q4_K_M quantization)
 
 NVIDIA Container Toolkit (CDI) has matured significantly, enabling reliable GPU passthrough in containers. This allows all services to be deployed uniformly using Docker Compose.
@@ -276,7 +276,7 @@ flowchart TB
         BE[Backend :8000]
         RD[Redis :6379]
         PG[PostgreSQL :5432]
-        DET[RT-DETRv2 :8090]
+        DET[YOLO26 :8090]
         LLM[Nemotron :8091]
     end
 
@@ -345,7 +345,7 @@ WARNING: This system is designed for local/trusted network use.
 
 ---
 
-## ADR-006: RT-DETRv2 for Object Detection
+## ADR-006: YOLO26 for Object Detection
 
 **Status:** Accepted
 **Date:** 2024-12-21
@@ -356,16 +356,16 @@ We need fast, accurate object detection to identify security-relevant objects (p
 
 ### Decision
 
-Use **RT-DETRv2** (Real-Time Detection Transformer v2) loaded via HuggingFace Transformers.
+Use **YOLO26** (Real-Time Detection Transformer v2) loaded via HuggingFace Transformers.
 
 ### Alternatives Considered
 
-| Model         | Accuracy (mAP) | Speed    | VRAM | Pros                               | Cons                              |
-| ------------- | -------------- | -------- | ---- | ---------------------------------- | --------------------------------- |
-| **YOLOv8**    | ~53%           | 5-10ms   | ~2GB | Fast, lightweight, well-documented | Older architecture, less accurate |
-| **RT-DETR**   | ~54%           | 15-30ms  | ~3GB | Transformer-based, good accuracy   | First generation                  |
-| **RT-DETRv2** | ~56%           | 30-50ms  | ~4GB | Best accuracy, end-to-end          | Slightly slower, more VRAM        |
-| **DINO**      | ~63%           | 80-100ms | ~8GB | Highest accuracy                   | Too slow for real-time            |
+| Model      | Accuracy (mAP) | Speed    | VRAM | Pros                               | Cons                              |
+| ---------- | -------------- | -------- | ---- | ---------------------------------- | --------------------------------- |
+| **YOLOv8** | ~53%           | 5-10ms   | ~2GB | Fast, lightweight, well-documented | Older architecture, less accurate |
+| **YOLO26** | ~54%           | 15-30ms  | ~3GB | Transformer-based, good accuracy   | First generation                  |
+| **YOLO26** | ~56%           | 30-50ms  | ~4GB | Best accuracy, end-to-end          | Slightly slower, more VRAM        |
+| **DINO**   | ~63%           | 80-100ms | ~8GB | Highest accuracy                   | Too slow for real-time            |
 
 ### Consequences
 
@@ -669,7 +669,7 @@ import { AreaChart } from '@tremor/react';
 
 The EventBroadcaster and SystemBroadcaster services maintain persistent connections to Redis pub/sub channels and WebSocket clients. When Redis experiences failures or network issues, broadcasters can enter a failure cascade where repeated connection attempts exhaust resources and delay recovery.
 
-The existing service-level circuit breaker (`backend/services/circuit_breaker.py`) is designed for external service calls (RT-DETRv2, Nemotron), not for the specific patterns of WebSocket connection management and pub/sub subscription recovery.
+The existing service-level circuit breaker (`backend/services/circuit_breaker.py`) is designed for external service calls (YOLO26, Nemotron), not for the specific patterns of WebSocket connection management and pub/sub subscription recovery.
 
 ### Decision
 
@@ -771,7 +771,7 @@ flowchart TB
     end
 
     subgraph "AI Model Decisions"
-        DET["ADR-006: RT-DETRv2<br/>Best real-time accuracy"]
+        DET["ADR-006: YOLO26<br/>Best real-time accuracy"]
         LLM["ADR-007: Nemotron<br/>Local privacy"]
     end
 
@@ -855,7 +855,7 @@ Third Layer "Data":
 - Redis logo + "Redis" - "Queues + Pub/Sub"
 
 Bottom Layer "AI":
-- PyTorch logo + "RT-DETRv2" - "30-50ms detection"
+- PyTorch logo + "YOLO26" - "30-50ms detection"
 - NVIDIA logo + "Nemotron 30B" - "Local LLM privacy"
 - GPU icon + "RTX A5500" - "24GB VRAM"
 
@@ -881,7 +881,7 @@ Layout: Unified container diagram showing all services in Docker/Podman.
 - Backend container (:8000) - "FastAPI API"
 - Redis container (:6379) - "Queues + Pub/Sub"
 - PostgreSQL container (:5432) - "Database"
-- RT-DETRv2 container (:8090) - "Object detection ~4GB VRAM"
+- YOLO26 container (:8090) - "Object detection ~4GB VRAM"
 - Nemotron container (:8091) - "Risk analysis ~14.7GB VRAM"
 - Label: "Uniform deployment, all services containerized"
 

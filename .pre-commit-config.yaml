@@ -34,6 +34,7 @@ repos:
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
+        exclude: \.ambr$ # Syrupy snapshot files require trailing whitespace
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json

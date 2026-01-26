@@ -9,12 +9,13 @@ Expected VRAM: ~800MB (PyTorch) / ~600MB (TensorRT)
 TensorRT Support:
     Set CLIP_USE_TENSORRT=true and CLIP_ENGINE_PATH=/path/to/engine.engine
     to use TensorRT acceleration (1.5-2x faster inference).
-    Falls back to PyTorch automatically if TensorRT is unavailable.
+    TensorRT engine is auto-exported on first run if not found.
+    Falls back to PyTorch automatically if TensorRT export fails or is unavailable.
 
 Environment Variables:
     CLIP_MODEL_PATH: HuggingFace model path (default: /models/clip-vit-l)
-    CLIP_USE_TENSORRT: Enable TensorRT backend (true/false, default: false)
-    CLIP_ENGINE_PATH: Path to TensorRT engine (required if TensorRT enabled)
+    CLIP_USE_TENSORRT: Enable TensorRT backend (true/false, default: true)
+    CLIP_ENGINE_PATH: Path to TensorRT engine (auto-generated if not exists)
     HOST: Bind address (default: 0.0.0.0)
     PORT: Server port (default: 8093)
 """
@@ -454,20 +455,84 @@ class CLIPEmbeddingModel:
         # Fall back to PyTorch
         self._load_pytorch()
 
+    def _auto_export_tensorrt(self) -> str | None:
+        """Auto-export TensorRT engine if it doesn't exist.
+
+        Exports the CLIP vision encoder to ONNX and converts to TensorRT.
+        This is a one-time operation on first startup.
+
+        Returns:
+            Path to the TensorRT engine if successful, None otherwise.
+        """
+        try:
+            from export_onnx import CLIPVisionONNXExporter, convert_to_tensorrt
+
+            logger.info("TensorRT engine not found, attempting auto-export...")
+            logger.info(f"  Model path: {self.model_path}")
+            logger.info(f"  Target engine: {self.tensorrt_engine_path}")
+
+            # Determine output directory from engine path
+            from pathlib import Path
+
+            engine_path = Path(self.tensorrt_engine_path)  # type: ignore[arg-type]
+            output_dir = engine_path.parent
+            onnx_path = output_dir / "vision_encoder.onnx"
+
+            # Step 1: Export to ONNX if needed
+            if not onnx_path.exists():
+                logger.info("Step 1/2: Exporting CLIP vision encoder to ONNX...")
+                exporter = CLIPVisionONNXExporter(model_path=self.model_path)
+                exporter.load_model()
+                exporter.export(
+                    output_path=str(onnx_path),
+                    dynamic_batch=True,
+                    max_batch_size=8,
+                )
+                logger.info(f"ONNX export complete: {onnx_path}")
+            else:
+                logger.info(f"Step 1/2: ONNX model already exists: {onnx_path}")
+
+            # Step 2: Convert to TensorRT
+            logger.info("Step 2/2: Converting ONNX to TensorRT FP16...")
+            result_path = convert_to_tensorrt(
+                onnx_path=str(onnx_path),
+                output_path=str(engine_path),
+                precision="fp16",
+                max_batch_size=8,
+                workspace_gb=2,
+            )
+
+            logger.info(f"TensorRT engine exported successfully: {result_path}")
+            return result_path
+
+        except ImportError as e:
+            logger.warning(f"TensorRT export dependencies not available: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"TensorRT auto-export failed: {e}")
+            logger.info("Falling back to PyTorch inference")
+            return None
+
     def _try_load_tensorrt(self) -> bool:
         """Attempt to load TensorRT backend.
+
+        If TensorRT engine doesn't exist, attempts to auto-export it.
+        Falls back to PyTorch if export fails or TensorRT is unavailable.
 
         Returns:
             True if TensorRT loaded successfully, False otherwise.
         """
         try:
-            # Check if engine file exists
+            # Check if engine file exists, auto-export if not
             if not os.path.exists(self.tensorrt_engine_path):  # type: ignore[arg-type]
-                logger.warning(
-                    f"TensorRT engine not found: {self.tensorrt_engine_path}, "
-                    "falling back to PyTorch"
-                )
-                return False
+                logger.info(f"TensorRT engine not found: {self.tensorrt_engine_path}")
+                # Attempt auto-export
+                exported_path = self._auto_export_tensorrt()
+                if exported_path is None:
+                    logger.warning("TensorRT auto-export failed, falling back to PyTorch")
+                    return False
+                # Update engine path if export returned a different path
+                self.tensorrt_engine_path = exported_path
 
             # Import TensorRT backend
             from tensorrt_inference import CLIPTensorRTInference
@@ -561,6 +626,38 @@ class CLIPEmbeddingModel:
 
         logger.info("Warmup complete")
 
+    @staticmethod
+    def _extract_features_tensor(features: Any) -> torch.Tensor:
+        """Extract tensor from model output (handles transformers 5.0+ API changes).
+
+        In transformers 5.0+, get_image_features() and get_text_features() return
+        BaseModelOutputWithPooling objects instead of raw tensors. This helper
+        handles both the old (tensor) and new (object) return types.
+
+        Args:
+            features: Output from get_image_features() or get_text_features(),
+                     can be a tensor (transformers <5.0) or BaseModelOutputWithPooling
+                     (transformers >=5.0).
+
+        Returns:
+            The features as a torch.Tensor.
+
+        Raises:
+            TypeError: If features type is not recognized.
+        """
+        # Direct tensor return type (older transformers versions)
+        if isinstance(features, torch.Tensor):
+            return features
+
+        # Object return type with pooler_output attribute (transformers 5.0+)
+        if hasattr(features, "pooler_output") and features.pooler_output is not None:
+            return features.pooler_output
+        elif hasattr(features, "last_hidden_state"):
+            # Fallback to CLS token from last_hidden_state
+            return features.last_hidden_state[:, 0, :]
+        else:
+            raise TypeError(f"Unexpected features type: {type(features)}. Cannot extract tensor.")
+
     def extract_embedding(self, image: Image.Image) -> tuple[list[float], float]:
         """Generate a 768-dimensional embedding from an image.
 
@@ -596,12 +693,13 @@ class CLIPEmbeddingModel:
 
         # Generate embedding
         with torch.inference_mode():
-            image_features = self.model.get_image_features(**inputs)
+            raw_features = self.model.get_image_features(**inputs)
+            image_features = self._extract_features_tensor(raw_features)
 
             # Normalize embedding with epsilon to prevent division by zero (NEM-1100)
             epsilon = 1e-8
             image_features = image_features / (
-                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
             )
 
         # Convert to list
@@ -788,11 +886,12 @@ class CLIPEmbeddingModel:
 
         # Get image features
         with torch.inference_mode():
-            image_features = self.model.get_image_features(**image_inputs)
+            raw_image_features = self.model.get_image_features(**image_inputs)
+            image_features = self._extract_features_tensor(raw_image_features)
             # Normalize image features with epsilon for numerical stability
             epsilon = 1e-8
             image_features = image_features / (
-                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
             )
 
         # Collect text embeddings for all template-label combinations
@@ -807,10 +906,11 @@ class CLIPEmbeddingModel:
             text_inputs = {k: v.to(self.device, model_dtype) for k, v in text_inputs.items()}
 
             with torch.inference_mode():
-                text_features = self.model.get_text_features(**text_inputs)
+                raw_text_features = self.model.get_text_features(**text_inputs)
+                text_features = self._extract_features_tensor(raw_text_features)
                 # Normalize text features with epsilon
                 text_features = text_features / (
-                    text_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                    torch.norm(text_features, p=2, dim=-1, keepdim=True) + epsilon
                 )
 
             all_template_embeddings.append(text_features)
@@ -822,7 +922,7 @@ class CLIPEmbeddingModel:
 
         # Re-normalize the averaged embeddings
         ensemble_embeddings = ensemble_embeddings / (
-            ensemble_embeddings.norm(p=2, dim=-1, keepdim=True) + epsilon
+            torch.norm(ensemble_embeddings, p=2, dim=-1, keepdim=True) + epsilon
         )
 
         # Compute similarities: (1, num_labels)
@@ -884,16 +984,18 @@ class CLIPEmbeddingModel:
 
         # Generate embeddings
         with torch.inference_mode():
-            image_features = self.model.get_image_features(**image_inputs)
-            text_features = self.model.get_text_features(**text_inputs)
+            raw_image_features = self.model.get_image_features(**image_inputs)
+            raw_text_features = self.model.get_text_features(**text_inputs)
+            image_features = self._extract_features_tensor(raw_image_features)
+            text_features = self._extract_features_tensor(raw_text_features)
 
             # Normalize embeddings with epsilon to prevent division by zero (NEM-1100)
             epsilon = 1e-8
             image_features = image_features / (
-                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
             )
             text_features = text_features / (
-                text_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(text_features, p=2, dim=-1, keepdim=True) + epsilon
             )
 
             # Compute cosine similarity
@@ -938,16 +1040,18 @@ class CLIPEmbeddingModel:
 
         # Generate embeddings
         with torch.inference_mode():
-            image_features = self.model.get_image_features(**image_inputs)
-            text_features = self.model.get_text_features(**text_inputs)
+            raw_image_features = self.model.get_image_features(**image_inputs)
+            raw_text_features = self.model.get_text_features(**text_inputs)
+            image_features = self._extract_features_tensor(raw_image_features)
+            text_features = self._extract_features_tensor(raw_text_features)
 
             # Normalize embeddings with epsilon to prevent division by zero (NEM-1100)
             epsilon = 1e-8
             image_features = image_features / (
-                image_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(image_features, p=2, dim=-1, keepdim=True) + epsilon
             )
             text_features = text_features / (
-                text_features.norm(p=2, dim=-1, keepdim=True) + epsilon
+                torch.norm(text_features, p=2, dim=-1, keepdim=True) + epsilon
             )
 
             # Compute cosine similarities (1, num_texts)

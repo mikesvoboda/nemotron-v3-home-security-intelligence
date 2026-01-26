@@ -160,7 +160,7 @@ Standards-compliant format for HTTP APIs.
 | `CACHE_ERROR`                    | Cache operation failed         |
 | `QUEUE_ERROR`                    | Queue operation failed         |
 | `DETECTOR_UNAVAILABLE`           | Detection service unavailable  |
-| `RTDETR_UNAVAILABLE`             | RT-DETR service unavailable    |
+| `YOLO26_UNAVAILABLE`             | YOLO26 service unavailable     |
 | `NEMOTRON_UNAVAILABLE`           | Nemotron LLM unavailable       |
 | `FLORENCE_UNAVAILABLE`           | Florence model unavailable     |
 | `ENRICHMENT_SERVICE_UNAVAILABLE` | Enrichment service unavailable |
@@ -321,7 +321,7 @@ For service unavailability errors.
   "error": {
     "code": "AI_SERVICE_UNAVAILABLE",
     "message": "Object detection service temporarily unavailable",
-    "service": "rtdetr",
+    "service": "yolo26",
     "retry_after": 30,
     "request_id": "550e8400-e29b-41d4-a716-446655440000"
   }

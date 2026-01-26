@@ -95,7 +95,7 @@ Track external AI service latency (`backend/core/metrics.py:276-295`):
 | --------------------------------- | --------- | ------------------------------------------------------ |
 | `hsi_ai_request_duration_seconds` | `service` | 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0, 120.0 |
 
-Service values: `rtdetr`, `nemotron`, `florence`, `clip`, `enrichment`
+Service values: `yolo26`, `nemotron`, `florence`, `clip`, `enrichment`
 
 PromQL Examples:
 
@@ -103,18 +103,18 @@ PromQL Examples:
 # P99 Nemotron request latency
 histogram_quantile(0.99, sum(rate(hsi_ai_request_duration_seconds_bucket{service="nemotron"}[5m])) by (le))
 
-# Average RT-DETR inference time
-rate(hsi_ai_request_duration_seconds_sum{service="rtdetr"}[5m]) / rate(hsi_ai_request_duration_seconds_count{service="rtdetr"}[5m])
+# Average YOLO26 inference time
+rate(hsi_ai_request_duration_seconds_sum{service="yolo26"}[5m]) / rate(hsi_ai_request_duration_seconds_count{service="yolo26"}[5m])
 ```
 
 ### Event and Detection Counters
 
 Track throughput (`backend/core/metrics.py:259-269`):
 
-| Metric                           | Type    | Description                |
-| -------------------------------- | ------- | -------------------------- |
-| `hsi_events_created_total`       | Counter | Security events created    |
-| `hsi_detections_processed_total` | Counter | Detections through RT-DETR |
+| Metric                           | Type    | Description               |
+| -------------------------------- | ------- | ------------------------- |
+| `hsi_events_created_total`       | Counter | Security events created   |
+| `hsi_detections_processed_total` | Counter | Detections through YOLO26 |
 
 PromQL Examples:
 

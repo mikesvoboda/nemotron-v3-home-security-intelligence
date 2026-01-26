@@ -20,7 +20,7 @@
 ```bash
 # Check if service is listening
 ss -tlnp | grep 8000   # Backend
-ss -tlnp | grep 8090   # RT-DETRv2
+ss -tlnp | grep 8090   # YOLO26
 ss -tlnp | grep 8091   # Nemotron
 ss -tlnp | grep 8092   # Florence-2 (optional)
 ss -tlnp | grep 8093   # CLIP (optional)
@@ -362,7 +362,7 @@ time curl http://localhost:8091/health
 ```bash
 AI_CONNECT_TIMEOUT=30.0
 AI_HEALTH_TIMEOUT=10.0
-RTDETR_READ_TIMEOUT=120.0
+YOLO26_READ_TIMEOUT=120.0
 NEMOTRON_READ_TIMEOUT=300.0
 ```
 

@@ -1,3 +1,0 @@
-# Placeholder for RT-DETR TensorRT model
-# Place model.plan file here after converting from ONNX
-# See ai/triton/AGENTS.md for conversion instructions

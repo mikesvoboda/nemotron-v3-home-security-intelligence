@@ -6,7 +6,7 @@ This hub documents the complete flow from camera image upload to analyzed securi
 
 ```
 Camera FTP --> FileWatcher --> detection_queue --> DetectionQueueWorker -->
-RT-DETRv2 --> BatchAggregator --> analysis_queue --> AnalysisQueueWorker -->
+YOLO26 --> BatchAggregator --> analysis_queue --> AnalysisQueueWorker -->
 Enrichment --> Nemotron --> Event --> EventBroadcaster --> WebSocket
 ```
 
@@ -44,9 +44,9 @@ The `DetectionQueueWorker` continuously polls `detection_queue` using Redis BLPO
 
 **Source:** `backend/services/pipeline_workers.py` (lines 208-689)
 
-### Stage 3: Object Detection (RT-DETRv2)
+### Stage 3: Object Detection (YOLO26)
 
-The `DetectorClient` sends images to the RT-DETRv2 service:
+The `DetectorClient` sends images to the YOLO26 service:
 
 - **Concurrency control:** Semaphore limits concurrent GPU requests (line 1006-1007)
 - **Circuit breaker:** Prevents retry storms when detector is down (lines 300-309)
@@ -106,7 +106,7 @@ Both queues use Redis LIST data structures with LPUSH/BRPOP pattern for FIFO ord
 detection_queue (Redis LIST)
     |
     v
-DetectionQueueWorker --> RT-DETRv2 --> BatchAggregator
+DetectionQueueWorker --> YOLO26 --> BatchAggregator
                                             |
                                             v
                                       analysis_queue (Redis LIST)

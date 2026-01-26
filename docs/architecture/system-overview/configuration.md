@@ -105,13 +105,13 @@ print(settings.database_url)
 
 ### AI Service Endpoints
 
-| Variable         | Default                 | Description                 |
-| ---------------- | ----------------------- | --------------------------- |
-| `RTDETR_URL`     | `http://localhost:8090` | RT-DETRv2 detection service |
-| `NEMOTRON_URL`   | `http://localhost:8091` | Nemotron LLM service        |
-| `FLORENCE_URL`   | `http://localhost:8092` | Florence-2 vision service   |
-| `CLIP_URL`       | `http://localhost:8093` | CLIP embedding service      |
-| `ENRICHMENT_URL` | `http://localhost:8094` | Enrichment API service      |
+| Variable         | Default                 | Description               |
+| ---------------- | ----------------------- | ------------------------- |
+| `YOLO26_URL`     | `http://localhost:8090` | YOLO26 detection service  |
+| `NEMOTRON_URL`   | `http://localhost:8091` | Nemotron LLM service      |
+| `FLORENCE_URL`   | `http://localhost:8092` | Florence-2 vision service |
+| `CLIP_URL`       | `http://localhost:8093` | CLIP embedding service    |
+| `ENRICHMENT_URL` | `http://localhost:8094` | Enrichment API service    |
 
 **Source:** `backend/core/config.py:651-869`
 
@@ -121,7 +121,7 @@ print(settings.database_url)
 | ------------------------- | ------- | ---------------------------- |
 | `AI_CONNECT_TIMEOUT`      | 10.0    | Connection timeout (seconds) |
 | `AI_HEALTH_TIMEOUT`       | 5.0     | Health check timeout         |
-| `RTDETR_READ_TIMEOUT`     | 60.0    | Detection response timeout   |
+| `YOLO26_READ_TIMEOUT`     | 60.0    | Detection response timeout   |
 | `NEMOTRON_READ_TIMEOUT`   | 120.0   | LLM response timeout         |
 | `FLORENCE_READ_TIMEOUT`   | 30.0    | Florence-2 timeout           |
 | `CLIP_READ_TIMEOUT`       | 15.0    | CLIP embedding timeout       |
@@ -249,7 +249,7 @@ AI service URLs are validated using `AnyHttpUrl`.
 **Source:** `backend/core/config.py:820-853`
 
 ```python
-@field_validator("rtdetr_url", "nemotron_url", mode="before")
+@field_validator("yolo26_url", "nemotron_url", mode="before")
 @classmethod
 def validate_ai_service_urls(cls, v: Any) -> str:
     """Validate AI service URLs using Pydantic's AnyHttpUrl validator."""
@@ -304,7 +304,7 @@ REDIS_URL=redis://localhost:6379/0
 REDIS_PASSWORD=
 
 # AI Services (Docker)
-RTDETR_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-detector:8090
 NEMOTRON_URL=http://ai-llm:8091
 FLORENCE_URL=http://ai-florence:8092
 CLIP_URL=http://ai-clip:8093
@@ -347,7 +347,7 @@ class MyService:
 from backend.core.config import Settings
 
 def configure_client(settings: Settings) -> None:
-    url = settings.rtdetr_url
+    url = settings.yolo26_url
 ```
 
 ## Configuration Best Practices

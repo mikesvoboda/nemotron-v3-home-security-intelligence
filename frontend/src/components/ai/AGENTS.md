@@ -7,7 +7,7 @@ which provide detailed monitoring of AI model performance, pipeline health, and 
 
 The AI pages consolidate AI-related metrics into dedicated views:
 
-- Model status for RT-DETRv2 (object detection) and Nemotron (LLM risk analysis)
+- Model status for YOLO26 (object detection) and Nemotron (LLM risk analysis)
 - Latency statistics with percentile breakdowns
 - Pipeline queue depths and throughput
 - Error tracking and DLQ status
@@ -34,7 +34,7 @@ The AI pages consolidate AI-related metrics into dedicated views:
 | `ModelContributionChart.test.tsx`| Test suite for ModelContributionChart              |
 | `ModelLeaderboard.tsx`           | Sortable table ranking AI models                   |
 | `ModelLeaderboard.test.tsx`      | Test suite for ModelLeaderboard                    |
-| `ModelStatusCards.tsx`           | RT-DETRv2 and Nemotron status cards                |
+| `ModelStatusCards.tsx`           | YOLO26 and Nemotron status cards                |
 | `ModelStatusCards.test.tsx`      | Test suite for ModelStatusCards                    |
 | `ModelZooSection.tsx`            | Model Zoo status cards with latency chart          |
 | `ModelZooSection.test.tsx`       | Test suite for ModelZooSection                     |
@@ -121,7 +121,7 @@ Bar chart showing AI model contribution rates.
 **Features:**
 
 - Horizontal bar chart of model contribution percentages
-- Human-readable model labels (RT-DETR, Florence, CLIP, etc.)
+- Human-readable model labels (YOLO26, Florence, CLIP, etc.)
 - Sorted by contribution rate (highest first)
 - Empty state when no data available
 
@@ -138,7 +138,7 @@ Sortable table ranking AI models by contribution.
 
 ### ModelStatusCards.tsx
 
-Displays RT-DETRv2 and Nemotron model status cards side-by-side.
+Displays YOLO26 and Nemotron model status cards side-by-side.
 
 **Shows:**
 
@@ -165,7 +165,7 @@ Detailed latency metrics with progress bars and percentile breakdowns.
 
 **Sections:**
 
-- AI Service Latency (RT-DETRv2 detection, Nemotron analysis)
+- AI Service Latency (YOLO26 detection, Nemotron analysis)
 - Pipeline Stage Latency (watch_to_detect, detect_to_batch, batch_to_analyze)
 - Total pipeline end-to-end latency
 

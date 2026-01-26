@@ -66,7 +66,7 @@ async def async_client(test_app: FastAPI) -> AsyncClient:
 
 
 def create_mock_settings(
-    rtdetr_url: str = "http://ai-detector:8090",
+    yolo26_url: str = "http://ai-detector:8090",
     nemotron_url: str = "http://llm-analyzer:8080",
     florence_url: str = "http://florence-service:8091",
     clip_url: str = "http://clip-service:8092",
@@ -75,7 +75,7 @@ def create_mock_settings(
     """Create mock settings with AI service URLs.
 
     Args:
-        rtdetr_url: URL for RT-DETR service (empty string for unconfigured)
+        yolo26_url: URL for YOLO26 service (empty string for unconfigured)
         nemotron_url: URL for Nemotron service
         florence_url: URL for Florence service
         clip_url: URL for CLIP service
@@ -86,7 +86,7 @@ def create_mock_settings(
     """
     mock = MagicMock()
     # Handle empty strings as None for "unconfigured" behavior
-    mock.rtdetr_url = rtdetr_url if rtdetr_url else None
+    mock.yolo26_url = yolo26_url if yolo26_url else None
     mock.nemotron_url = nemotron_url if nemotron_url else None
     mock.florence_url = florence_url if florence_url else None
     mock.clip_url = clip_url if clip_url else None
@@ -109,7 +109,7 @@ class TestCircuitBreakerState:
             mock_breaker.state.value = "closed"
             mock_registry.return_value.get.return_value = mock_breaker
 
-            state = _get_circuit_breaker_state("rtdetr")
+            state = _get_circuit_breaker_state("yolo26")
             assert state == AIServiceCircuitState.CLOSED
 
     def test_get_circuit_breaker_state_open(self) -> None:
@@ -119,7 +119,7 @@ class TestCircuitBreakerState:
             mock_breaker.state.value = "open"
             mock_registry.return_value.get.return_value = mock_breaker
 
-            state = _get_circuit_breaker_state("rtdetr")
+            state = _get_circuit_breaker_state("yolo26")
             assert state == AIServiceCircuitState.OPEN
 
     def test_get_circuit_breaker_state_half_open(self) -> None:
@@ -129,7 +129,7 @@ class TestCircuitBreakerState:
             mock_breaker.state.value = "half_open"
             mock_registry.return_value.get.return_value = mock_breaker
 
-            state = _get_circuit_breaker_state("rtdetr")
+            state = _get_circuit_breaker_state("yolo26")
             assert state == AIServiceCircuitState.HALF_OPEN
 
     def test_get_circuit_breaker_state_not_registered(self) -> None:
@@ -155,7 +155,7 @@ class TestCircuitBreakerMetrics:
             }
             mock_registry.return_value.get.return_value = mock_breaker
 
-            metrics = _get_circuit_breaker_metrics("rtdetr")
+            metrics = _get_circuit_breaker_metrics("yolo26")
             assert metrics["failure_count"] == 2
             assert metrics["total_calls"] == 100
             assert metrics["rejected_calls"] == 5
@@ -216,8 +216,8 @@ class TestAIServiceHealthCheck:
     @pytest.mark.asyncio
     async def test_service_url_not_configured(self) -> None:
         """Test health check when service URL is not configured."""
-        config = AI_SERVICES_CONFIG[0]  # rtdetr
-        settings = create_mock_settings(rtdetr_url="")
+        config = AI_SERVICES_CONFIG[0]  # yolo26
+        settings = create_mock_settings(yolo26_url="")
 
         with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
             mock_registry.return_value.get.return_value = None
@@ -231,7 +231,7 @@ class TestAIServiceHealthCheck:
     @pytest.mark.asyncio
     async def test_circuit_breaker_open(self) -> None:
         """Test health check when circuit breaker is open."""
-        config = AI_SERVICES_CONFIG[0]  # rtdetr
+        config = AI_SERVICES_CONFIG[0]  # yolo26
         settings = create_mock_settings()
 
         with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
@@ -253,7 +253,7 @@ class TestAIServiceHealthCheck:
     @pytest.mark.asyncio
     async def test_healthy_service(self) -> None:
         """Test health check for healthy service."""
-        config = AI_SERVICES_CONFIG[0]  # rtdetr
+        config = AI_SERVICES_CONFIG[0]  # yolo26
         settings = create_mock_settings()
 
         with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
@@ -281,7 +281,7 @@ class TestAIServiceHealthCheck:
     @pytest.mark.asyncio
     async def test_unhealthy_service_http_error(self) -> None:
         """Test health check when service returns HTTP error."""
-        config = AI_SERVICES_CONFIG[0]  # rtdetr
+        config = AI_SERVICES_CONFIG[0]  # yolo26
         settings = create_mock_settings()
 
         with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
@@ -307,7 +307,7 @@ class TestAIServiceHealthCheck:
     @pytest.mark.asyncio
     async def test_connection_refused(self) -> None:
         """Test health check when connection is refused."""
-        config = AI_SERVICES_CONFIG[0]  # rtdetr
+        config = AI_SERVICES_CONFIG[0]  # yolo26
         settings = create_mock_settings()
 
         with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
@@ -331,7 +331,7 @@ class TestAIServiceHealthCheck:
     @pytest.mark.asyncio
     async def test_timeout(self) -> None:
         """Test health check when request times out."""
-        config = AI_SERVICES_CONFIG[0]  # rtdetr
+        config = AI_SERVICES_CONFIG[0]  # yolo26
         settings = create_mock_settings()
 
         with patch("backend.services.circuit_breaker._get_registry") as mock_registry:
@@ -408,7 +408,7 @@ class TestOverallStatusCalculation:
     def test_all_healthy(self) -> None:
         """Test overall status is healthy when all services are healthy."""
         services = {
-            "rtdetr": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
+            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "nemotron": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
@@ -420,7 +420,7 @@ class TestOverallStatusCalculation:
     def test_critical_service_unhealthy(self) -> None:
         """Test overall status is critical when critical service is unhealthy."""
         services = {
-            "rtdetr": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
+            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
             "nemotron": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
@@ -432,7 +432,7 @@ class TestOverallStatusCalculation:
     def test_critical_service_unknown(self) -> None:
         """Test overall status is critical when critical service is unknown."""
         services = {
-            "rtdetr": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
+            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "nemotron": AIServiceHealthDetail(status=AIServiceStatus.UNKNOWN),
             "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
@@ -444,7 +444,7 @@ class TestOverallStatusCalculation:
     def test_non_critical_service_unhealthy(self) -> None:
         """Test overall status is degraded when non-critical service is unhealthy."""
         services = {
-            "rtdetr": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
+            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "nemotron": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "florence": AIServiceHealthDetail(status=AIServiceStatus.UNHEALTHY),
             "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
@@ -456,7 +456,7 @@ class TestOverallStatusCalculation:
     def test_non_critical_service_degraded(self) -> None:
         """Test overall status is degraded when non-critical service is degraded."""
         services = {
-            "rtdetr": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
+            "yolo26": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "nemotron": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "florence": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
             "clip": AIServiceHealthDetail(status=AIServiceStatus.HEALTHY),
@@ -567,7 +567,7 @@ class TestAIServicesHealthEndpoint:
                     assert response.status_code == 200
                     data = response.json()
                     services = data["services"]
-                    assert "rtdetr" in services
+                    assert "yolo26" in services
                     assert "nemotron" in services
                     assert "florence" in services
                     assert "clip" in services
@@ -577,7 +577,7 @@ class TestAIServicesHealthEndpoint:
     async def test_endpoint_includes_queue_info(self, async_client: AsyncClient) -> None:
         """Test endpoint includes queue depth information."""
         mock_settings = create_mock_settings(
-            rtdetr_url="",
+            yolo26_url="",
             nemotron_url="",
             florence_url="",
             clip_url="",

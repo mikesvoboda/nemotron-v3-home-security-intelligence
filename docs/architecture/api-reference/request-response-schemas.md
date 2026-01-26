@@ -541,7 +541,7 @@ All fields are optional for partial updates.
   "open": 1,
   "half_open": 0,
   "breakers": {
-    "rtdetr": "closed",
+    "yolo26": "closed",
     "nemotron": "closed",
     "florence": "open"
   }

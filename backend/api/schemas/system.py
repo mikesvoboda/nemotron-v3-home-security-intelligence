@@ -607,7 +607,7 @@ class ReadinessResponse(BaseModel):
     ai_warmth_status: dict[str, str] | None = Field(
         default=None,
         description="Warmth status of AI models (NEM-1670). Keys are model names "
-        "(e.g., 'rtdetr', 'nemotron'), values are states: 'cold', 'warming', 'warm'",
+        "(e.g., 'yolo26', 'nemotron'), values are states: 'cold', 'warming', 'warm'",
     )
     supervisor_healthy: bool = Field(
         default=True,
@@ -658,7 +658,7 @@ class QueueDepths(BaseModel):
 
     detection_queue: int = Field(
         ...,
-        description="Number of items in detection queue waiting for RT-DETRv2 processing",
+        description="Number of items in detection queue waiting for YOLO26 processing",
         ge=0,
     )
     analysis_queue: int = Field(
@@ -736,7 +736,7 @@ class PipelineLatencies(BaseModel):
 
     Pipeline stages:
     - watch: File watcher detecting new images (file event -> queue)
-    - detect: RT-DETRv2 object detection (image -> detections)
+    - detect: YOLO26 object detection (image -> detections)
     - batch: Batch aggregation window (detections -> batch)
     - analyze: Nemotron LLM risk analysis (batch -> event)
     """
@@ -747,7 +747,7 @@ class PipelineLatencies(BaseModel):
     )
     detect: StageLatency | None = Field(
         None,
-        description="Object detection stage latency (RT-DETRv2 inference)",
+        description="Object detection stage latency (YOLO26 inference)",
     )
     batch: StageLatency | None = Field(
         None,
@@ -878,7 +878,7 @@ class PipelineStageLatency(BaseModel):
     """Latency statistics for a single pipeline transition stage.
 
     Tracks time between pipeline stages:
-    - watch_to_detect: File detection to RT-DETR processing
+    - watch_to_detect: File detection to YOLO26 processing
     - detect_to_batch: Detection to batch aggregation
     - batch_to_analyze: Batch to Nemotron analysis
     - total_pipeline: End-to-end latency
@@ -939,7 +939,7 @@ class PipelineLatencyResponse(BaseModel):
     """Response schema for pipeline latency endpoint.
 
     Provides latency metrics for each stage transition in the AI pipeline:
-    - watch_to_detect: Time from file watcher detecting image to RT-DETR processing start
+    - watch_to_detect: Time from file watcher detecting image to YOLO26 processing start
     - detect_to_batch: Time from detection completion to batch aggregation
     - batch_to_analyze: Time from batch completion to Nemotron analysis start
     - total_pipeline: Total end-to-end processing time
@@ -947,7 +947,7 @@ class PipelineLatencyResponse(BaseModel):
 
     watch_to_detect: PipelineStageLatency | None = Field(
         None,
-        description="Latency from file detection to RT-DETR processing",
+        description="Latency from file detection to YOLO26 processing",
     )
     detect_to_batch: PipelineStageLatency | None = Field(
         None,
@@ -1628,8 +1628,8 @@ class CircuitBreakersResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "circuit_breakers": {
-                    "rtdetr": {
-                        "name": "rtdetr",
+                    "yolo26": {
+                        "name": "yolo26",
                         "state": "closed",
                         "failure_count": 0,
                         "success_count": 0,
@@ -2035,7 +2035,7 @@ class DegradationStatusResponse(BaseModel):
                 "fallback_queues": {},
                 "services": [
                     {
-                        "name": "rtdetr",
+                        "name": "yolo26",
                         "status": "healthy",
                         "last_check": 1735500000.0,
                         "consecutive_failures": 0,
@@ -2193,7 +2193,7 @@ class ModelRegistryResponse(BaseModel):
 
     vram_budget_mb: int = Field(
         ...,
-        description="Total VRAM budget available for Model Zoo models (excludes Nemotron and RT-DETRv2)",
+        description="Total VRAM budget available for Model Zoo models (excludes Nemotron and YOLO26)",
         ge=0,
     )
     vram_used_mb: int = Field(

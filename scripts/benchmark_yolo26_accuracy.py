@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Benchmark YOLO26 vs RT-DETRv2 accuracy on security-relevant classes.
+"""Benchmark YOLO26 vs YOLO26 accuracy on security-relevant classes.
 
-Compares YOLO26 variants (nano, small, medium) against RT-DETRv2 for
+Compares YOLO26 variants (nano, small, medium) against YOLO26 for
 home security object detection tasks.
 
 Security classes benchmarked:
@@ -22,7 +22,7 @@ Usage:
 
 Environment Variables:
     YOLO26_MODEL_PATH: Override YOLO26 models directory (default: /export/ai_models/model-zoo/yolo26)
-    RTDETR_MODEL_PATH: Override RT-DETRv2 model path (default: /export/ai_models/rt-detrv2/rtdetr_v2_r101vd)
+    YOLO26_MODEL_PATH: Override YOLO26 model path (default: /export/ai_models/yolo26v2/yolo26_v2_r101vd)
 """
 
 from __future__ import annotations
@@ -152,9 +152,9 @@ COCO_CLASSES = {
 
 # Default paths
 DEFAULT_YOLO26_PATH = Path("/export/ai_models/model-zoo/yolo26")
-DEFAULT_RTDETR_PATH = Path("/export/ai_models/rt-detrv2/rtdetr_v2_r101vd")
+DEFAULT_YOLO26_PATH = Path("/export/ai_models/yolo26v2/yolo26_v2_r101vd")
 DEFAULT_FIXTURE_PATH = Path(__file__).parent.parent / "backend/tests/fixtures/images/pipeline_test"
-DEFAULT_OUTPUT_PATH = Path(__file__).parent.parent / "docs/benchmarks/yolo26-vs-rtdetr.md"
+DEFAULT_OUTPUT_PATH = Path(__file__).parent.parent / "docs/benchmarks/yolo26-vs-yolo26.md"
 
 
 # =============================================================================
@@ -279,39 +279,17 @@ def load_yolo26_model(model_path: Path, device: str | None = None) -> Any:
         raise RuntimeError(f"Failed to load YOLO26 model from {model_path}: {e}") from e
 
 
-def load_rtdetr_model(model_path: Path, device: str | None = None) -> tuple[Any, Any]:
-    """Load RT-DETRv2 model using HuggingFace Transformers."""
-    if device is None:
-        device = get_default_device()
-
-    try:
-        from transformers import AutoImageProcessor, AutoModelForObjectDetection
-
-        processor = AutoImageProcessor.from_pretrained(str(model_path))
-        model = AutoModelForObjectDetection.from_pretrained(str(model_path))
-        model = model.to(device)
-        model.eval()
-        return model, processor
-    except Exception as e:
-        raise RuntimeError(f"Failed to load RT-DETRv2 model from {model_path}: {e}") from e
-
-
 # =============================================================================
 # Inference Functions
 # =============================================================================
 
 
-def warmup_model(model: Any, processor: Any | None, device: str, num_warmup: int = 3) -> None:
+def warmup_model(model: Any, device: str, num_warmup: int = 3) -> None:
     """Warmup a model with dummy inference to stabilize timings."""
     dummy_image = Image.new("RGB", (640, 480), color=(128, 128, 128))
 
     for _ in range(num_warmup):
-        if processor is not None:
-            # RT-DETRv2
-            run_rtdetr_inference(model, processor, dummy_image, 0.5, device)
-        else:
-            # YOLO
-            run_yolo26_inference(model, dummy_image, 0.5)
+        run_yolo26_inference(model, dummy_image, 0.5)
 
 
 def run_yolo26_inference(
@@ -356,75 +334,6 @@ def run_yolo26_inference(
                         bbox=(x1, y1, x2, y2),
                     )
                 )
-
-    return detections, inference_time_ms
-
-
-def run_rtdetr_inference(
-    model: Any,
-    processor: Any,
-    image: Image.Image,
-    confidence: float = 0.5,
-    device: str | None = None,
-) -> tuple[list[Detection], float]:
-    """Run RT-DETRv2 inference on a single image.
-
-    Args:
-        model: Loaded RT-DETRv2 model
-        processor: Image processor
-        image: PIL Image
-        confidence: Confidence threshold
-        device: Device to run on
-
-    Returns:
-        Tuple of (detections, inference_time_ms)
-    """
-    if device is None:
-        device = get_default_device()
-
-    start = time.perf_counter()
-
-    # Ensure RGB
-    if image.mode != "RGB":
-        image = image.convert("RGB")
-
-    original_size = image.size  # (width, height)
-
-    # Preprocess
-    inputs = processor(images=image, return_tensors="pt")
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-
-    # Inference
-    with torch.inference_mode():
-        outputs = model(**inputs)
-
-    # Post-process
-    target_sizes = torch.tensor([[original_size[1], original_size[0]]]).to(device)
-    results = processor.post_process_object_detection(
-        outputs,
-        target_sizes=target_sizes,
-        threshold=confidence,
-    )[0]
-
-    inference_time_ms = (time.perf_counter() - start) * 1000
-
-    detections = []
-    for score, label, box in zip(
-        results["scores"], results["labels"], results["boxes"], strict=False
-    ):
-        class_name = model.config.id2label[label.item()]
-
-        # Only include security-relevant classes
-        if class_name.lower() in [c.lower() for c in SECURITY_CLASSES.values()]:
-            x1, y1, x2, y2 = box.tolist()
-            detections.append(
-                Detection(
-                    class_id=SECURITY_CLASS_NAME_TO_ID.get(class_name.lower(), label.item()),
-                    class_name=class_name.lower(),
-                    confidence=float(score),
-                    bbox=(x1, y1, x2, y2),
-                )
-            )
 
     return detections, inference_time_ms
 
@@ -595,8 +504,8 @@ def run_local_fixture_benchmark(
 
                 # Run inference based on model type
                 if processor is not None:
-                    # RT-DETRv2
-                    detections, inference_time = run_rtdetr_inference(
+                    # YOLO26
+                    detections, inference_time = run_yolo26_inference(
                         model, processor, image, confidence
                     )
                 else:
@@ -687,7 +596,7 @@ def generate_markdown_report(
 ) -> str:
     """Generate markdown benchmark report."""
     lines = [
-        "# YOLO26 vs RT-DETRv2 Accuracy Benchmark",
+        "# YOLO26 vs YOLO26 Accuracy Benchmark",
         "",
         "> **Note:** This file is auto-generated by `scripts/benchmark_yolo26_accuracy.py`.",
         "> To refresh results: `uv run python scripts/benchmark_yolo26_accuracy.py`",
@@ -843,26 +752,26 @@ def generate_markdown_report(
 
         # Add specific findings based on results
         yolo26m_metrics = local_metrics.get("YOLO26M", {})
-        rtdetr_metrics = local_metrics.get("RT-DETRv2", {})
+        yolo26_metrics = local_metrics.get("YOLO26", {})
         yolo26n_metrics = local_metrics.get("YOLO26N", {})
         yolo26s_metrics = local_metrics.get("YOLO26S", {})
 
-        if yolo26m_metrics and rtdetr_metrics:
+        if yolo26m_metrics and yolo26_metrics:
             yolo26m_recall = yolo26m_metrics.get("recall", 0)
-            rtdetr_recall = rtdetr_metrics.get("recall", 0)
+            yolo26_recall = yolo26_metrics.get("recall", 0)
             yolo26m_speed = yolo26m_metrics.get("avg_inference_ms", 0)
-            rtdetr_speed = rtdetr_metrics.get("avg_inference_ms", 0)
+            yolo26_speed = yolo26_metrics.get("avg_inference_ms", 0)
 
             speed_improvement = (
-                ((rtdetr_speed - yolo26m_speed) / rtdetr_speed) * 100 if rtdetr_speed > 0 else 0
+                ((yolo26_speed - yolo26m_speed) / yolo26_speed) * 100 if yolo26_speed > 0 else 0
             )
-            recall_diff = (rtdetr_recall - yolo26m_recall) * 100
+            recall_diff = (yolo26_recall - yolo26m_recall) * 100
 
             lines.extend(
                 [
-                    f"- **YOLO26M vs RT-DETRv2:** YOLO26M is {speed_improvement:.0f}% faster with only {recall_diff:.1f}% lower recall",
-                    "- **Small object detection:** RT-DETRv2 excels at detecting smaller/distant objects",
-                    "- **Pet detection:** YOLO26N and YOLO26S struggle with cats (0% recall), YOLO26M and RT-DETRv2 detect reliably",
+                    f"- **YOLO26M vs YOLO26:** YOLO26M is {speed_improvement:.0f}% faster with only {recall_diff:.1f}% lower recall",
+                    "- **Small object detection:** YOLO26 excels at detecting smaller/distant objects",
+                    "- **Pet detection:** YOLO26N and YOLO26S struggle with cats (0% recall), YOLO26M and YOLO26 detect reliably",
                     "- **Vehicle classification:** All models occasionally confuse compact cars with trucks",
                     "",
                 ]
@@ -898,9 +807,9 @@ def generate_markdown_report(
 
         lines.extend(
             [
-                "| Maximum accuracy | RT-DETRv2 | Best detection quality, especially for small objects |",
+                "| Maximum accuracy | YOLO26 | Best detection quality, especially for small objects |",
                 "| Resource-constrained | YOLO26N | ~150MB VRAM, suitable for edge devices |",
-                "| Pet detection priority | YOLO26M or RT-DETRv2 | Reliable cat/dog detection |",
+                "| Pet detection priority | YOLO26M or YOLO26 | Reliable cat/dog detection |",
                 "",
             ]
         )
@@ -915,7 +824,7 @@ def generate_markdown_report(
             "| YOLO26n | 2.57M | 5.3 MB | ~150 MB | YOLO26 Nano |",
             "| YOLO26s | 10.01M | 19.5 MB | ~350 MB | YOLO26 Small |",
             "| YOLO26m | 21.90M | 42.2 MB | ~650 MB | YOLO26 Medium |",
-            "| RT-DETRv2 | ~32M | ~130 MB | ~650 MB | Transformer-based |",
+            "| YOLO26 | ~32M | ~130 MB | ~650 MB | Transformer-based |",
             "",
             "## Notes",
             "",
@@ -936,7 +845,7 @@ def generate_markdown_report(
             "uv run python scripts/benchmark_yolo26_accuracy.py --local-only",
             "",
             "# Specific models only",
-            "uv run python scripts/benchmark_yolo26_accuracy.py --models yolo26n,yolo26s,rtdetr",
+            "uv run python scripts/benchmark_yolo26_accuracy.py --models yolo26n,yolo26s,yolo26",
             "```",
             "",
         ]
@@ -951,9 +860,9 @@ def generate_markdown_report(
 
 
 def main() -> None:
-    """Run the YOLO26 vs RT-DETRv2 accuracy benchmark."""
+    """Run the YOLO26 vs YOLO26 accuracy benchmark."""
     parser = argparse.ArgumentParser(
-        description="Benchmark YOLO26 vs RT-DETRv2 accuracy on security classes",
+        description="Benchmark YOLO26 vs YOLO26 accuracy on security classes",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -970,7 +879,7 @@ def main() -> None:
     parser.add_argument(
         "--models",
         type=str,
-        default="yolo26n,yolo26s,yolo26m,rtdetr",
+        default="yolo26n,yolo26s,yolo26m,yolo26",
         help="Comma-separated list of models to benchmark (default: all)",
     )
     parser.add_argument(
@@ -992,10 +901,10 @@ def main() -> None:
         help="Path to YOLO26 models directory",
     )
     parser.add_argument(
-        "--rtdetr-path",
+        "--yolo26-path",
         type=Path,
-        default=DEFAULT_RTDETR_PATH,
-        help="Path to RT-DETRv2 model",
+        default=DEFAULT_YOLO26_PATH,
+        help="Path to YOLO26 model",
     )
     parser.add_argument(
         "--fixture-path",
@@ -1018,7 +927,7 @@ def main() -> None:
     model_names = [m.strip().lower() for m in args.models.split(",")]
 
     print("=" * 60)
-    print("YOLO26 vs RT-DETRv2 Accuracy Benchmark")
+    print("YOLO26 vs YOLO26 Accuracy Benchmark")
     print("=" * 60)
     print(f"Models to benchmark: {model_names}")
     print(f"Confidence threshold: {args.confidence}")
@@ -1035,11 +944,11 @@ def main() -> None:
             clear_gpu_memory()
             time.sleep(0.5)
 
-            if model_name == "rtdetr":
-                print(f"Loading RT-DETRv2 from {args.rtdetr_path}...")
-                model, processor = load_rtdetr_model(args.rtdetr_path, device)
-                models["RT-DETRv2"] = (model, processor)
-                print(f"  Loaded RT-DETRv2 (VRAM: {get_gpu_memory_mb():.0f} MB)")
+            if model_name == "yolo26":
+                print(f"Loading YOLO26 from {args.yolo26_path}...")
+                model, processor = load_yolo26_model(args.yolo26_path, device)
+                models["YOLO26"] = (model, processor)
+                print(f"  Loaded YOLO26 (VRAM: {get_gpu_memory_mb():.0f} MB)")
 
             elif model_name.startswith("yolo26"):
                 variant = model_name.replace("yolo26", "")
@@ -1085,7 +994,7 @@ def main() -> None:
                     )
                     coco_metrics[model_name] = metrics
                 else:
-                    # RT-DETRv2 doesn't have built-in COCO eval, skip for now
+                    # YOLO26 doesn't have built-in COCO eval, skip for now
                     print(f"Skipping COCO eval for {model_name} (use local fixtures instead)")
 
         else:

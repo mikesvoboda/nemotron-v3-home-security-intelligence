@@ -376,13 +376,13 @@ class TestSystemBroadcasterTaskGroupPatterns:
     @pytest.mark.asyncio
     async def test_health_check_parallel_pattern(self):
         """Test pattern for parallel health checks that collect partial results."""
-        rtdetr_healthy = False
+        yolo26_healthy = False
         nemotron_healthy = False
 
-        async def check_rtdetr():
-            nonlocal rtdetr_healthy
+        async def check_yolo26():
+            nonlocal yolo26_healthy
             await asyncio.sleep(0.01)
-            rtdetr_healthy = True
+            yolo26_healthy = True
 
         async def check_nemotron():
             nonlocal nemotron_healthy
@@ -390,10 +390,10 @@ class TestSystemBroadcasterTaskGroupPatterns:
             nemotron_healthy = True
 
         async with asyncio.TaskGroup() as tg:
-            tg.create_task(check_rtdetr())
+            tg.create_task(check_yolo26())
             tg.create_task(check_nemotron())
 
-        assert rtdetr_healthy is True
+        assert yolo26_healthy is True
         assert nemotron_healthy is True
 
     @pytest.mark.asyncio
@@ -404,12 +404,12 @@ class TestSystemBroadcasterTaskGroupPatterns:
         service fails. This requires using gather with return_exceptions=True
         OR handling the ExceptionGroup and continuing.
         """
-        rtdetr_healthy = False
+        yolo26_healthy = False
 
-        async def check_rtdetr():
-            nonlocal rtdetr_healthy
+        async def check_yolo26():
+            nonlocal yolo26_healthy
             await asyncio.sleep(0.01)
-            rtdetr_healthy = True
+            yolo26_healthy = True
             return True
 
         async def check_nemotron_failing():
@@ -419,13 +419,13 @@ class TestSystemBroadcasterTaskGroupPatterns:
         # For health checks, gather with return_exceptions is still appropriate
         # because we want partial results even when some checks fail
         results = await asyncio.gather(
-            check_rtdetr(),
+            check_yolo26(),
             check_nemotron_failing(),
             return_exceptions=True,
         )
 
-        # rtdetr check succeeded
-        assert rtdetr_healthy is True
+        # yolo26 check succeeded
+        assert yolo26_healthy is True
         assert results[0] is True
         # nemotron check failed
         assert isinstance(results[1], ConnectionError)
@@ -433,11 +433,11 @@ class TestSystemBroadcasterTaskGroupPatterns:
     @pytest.mark.asyncio
     async def test_health_check_with_taskgroup_and_exception_handling(self):
         """Test health check using TaskGroup with exception handling for partial results."""
-        results = {"rtdetr": False, "nemotron": False}
+        results = {"yolo26": False, "nemotron": False}
 
-        async def check_rtdetr():
+        async def check_yolo26():
             await asyncio.sleep(0.01)
-            results["rtdetr"] = True
+            results["yolo26"] = True
 
         async def check_nemotron():
             await asyncio.sleep(0.01)
@@ -446,13 +446,13 @@ class TestSystemBroadcasterTaskGroupPatterns:
 
         try:
             async with asyncio.TaskGroup() as tg:
-                tg.create_task(check_rtdetr())
+                tg.create_task(check_yolo26())
                 tg.create_task(check_nemotron())
         except* ConnectionError:
             # Handle the connection error but results already updated
             pass
 
-        # Note: With TaskGroup, rtdetr may or may not have completed before
+        # Note: With TaskGroup, yolo26 may or may not have completed before
         # the exception was raised. This is why gather with return_exceptions
         # is often better for health checks where partial results are desired.
 

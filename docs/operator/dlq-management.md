@@ -17,7 +17,7 @@ Jobs move to the DLQ when they fail repeatedly. Common causes include:
 
 | Failure Type            | Description                           | Queue Affected  |
 | ----------------------- | ------------------------------------- | --------------- |
-| AI Service Unavailable  | RT-DETR or Nemotron container is down | Both queues     |
+| AI Service Unavailable  | YOLO26 or Nemotron container is down  | Both queues     |
 | Service Timeout         | AI processing took too long           | Both queues     |
 | GPU Memory Exhausted    | VRAM full, model cannot process       | Both queues     |
 | File Not Found          | Image deleted before processing       | Detection queue |
@@ -32,7 +32,7 @@ _Dead Letter Queue flow showing message lifecycle, retry mechanism, and manual r
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  File Watcher   │────▶│ detection_queue │────▶│    RT-DETR      │
+│  File Watcher   │────▶│ detection_queue │────▶│    YOLO26      │
 └─────────────────┘     └─────────────────┘     │   Detector      │
                                 │               └─────────────────┘
                                 │ (after 3 failed retries)
@@ -263,7 +263,7 @@ When the circuit is open, check logs for `CRITICAL DATA LOSS` entries.
 
    ```bash
    curl http://localhost:8000/api/system/health
-   curl http://localhost:8090/health  # RT-DETR
+   curl http://localhost:8090/health  # YOLO26
    curl http://localhost:8091/health  # Nemotron
    ```
 

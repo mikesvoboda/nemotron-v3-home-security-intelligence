@@ -204,7 +204,7 @@ class TestNemotronAnalyzerWarmup:
 
 
 class TestDetectorClientWarmup:
-    """Tests for DetectorClient (RT-DETR) model warmup and cold start detection."""
+    """Tests for DetectorClient (YOLO26) model warmup and cold start detection."""
 
     @pytest.fixture
     def mock_settings(self):
@@ -212,17 +212,17 @@ class TestDetectorClientWarmup:
         from backend.core.config import Settings
 
         mock = MagicMock(spec=Settings)
-        mock.rtdetr_url = "http://localhost:8090"
-        mock.rtdetr_api_key = None
+        mock.yolo26_url = "http://localhost:8090"
+        mock.yolo26_api_key = None
         mock.ai_connect_timeout = 10.0
-        mock.rtdetr_read_timeout = 60.0
+        mock.yolo26_read_timeout = 60.0
         mock.ai_health_timeout = 5.0
         mock.detector_max_retries = 1
         mock.detection_confidence_threshold = 0.5
         mock.ai_max_concurrent_inferences = 4
-        # Detector type selection (default to rtdetr)
-        mock.detector_type = "rtdetr"
-        # YOLO26 settings (needed even when using rtdetr to avoid attribute errors)
+        # Detector type selection (default to yolo26)
+        mock.detector_type = "yolo26"
+        # YOLO26 settings (needed even when using yolo26 to avoid attribute errors)
         mock.yolo26_url = "http://localhost:8095"
         mock.yolo26_api_key = None
         mock.yolo26_read_timeout = 30.0
@@ -352,7 +352,7 @@ class TestWarmupMetrics:
 
         # Should not raise
         observe_model_warmup_duration("nemotron", 2.5)
-        observe_model_warmup_duration("rtdetr", 1.2)
+        observe_model_warmup_duration("yolo26", 1.2)
 
     def test_record_cold_start(self):
         """Test recording cold start in counter."""
@@ -360,7 +360,7 @@ class TestWarmupMetrics:
 
         # Should not raise
         record_model_cold_start("nemotron")
-        record_model_cold_start("rtdetr")
+        record_model_cold_start("yolo26")
 
 
 # ==============================================================================
@@ -384,7 +384,7 @@ class TestHealthMonitorOrchestratorWarmingState:
                 name="ai-detector",
                 display_name="AI Detector",
                 container_id="abc123",
-                image="rtdetr:latest",
+                image="yolo26:latest",
                 port=8090,
                 category=ServiceCategory.AI,
                 health_endpoint="/health",
@@ -412,7 +412,7 @@ class TestHealthMonitorOrchestratorWarmingState:
             name="ai-detector",
             display_name="AI Detector",
             container_id="abc123",
-            image="rtdetr:latest",
+            image="yolo26:latest",
             port=8090,
             category=ServiceCategory.AI,
         )
@@ -456,14 +456,14 @@ class TestSystemAPIWarmingState:
             status="healthy",
             message="AI services operational",
             details={
-                "rtdetr": "healthy",
+                "yolo26": "healthy",
                 "nemotron": "healthy",
-                "rtdetr_warmth": "warm",
+                "yolo26_warmth": "warm",
                 "nemotron_warmth": "cold",
             },
         )
 
-        assert ai_status.details["rtdetr_warmth"] == "warm"
+        assert ai_status.details["yolo26_warmth"] == "warm"
         assert ai_status.details["nemotron_warmth"] == "cold"
 
     @pytest.mark.asyncio
@@ -480,10 +480,10 @@ class TestSystemAPIWarmingState:
             workers=[],
             timestamp=datetime.now(UTC),
             ai_warmth_status={
-                "rtdetr": "warming",
+                "yolo26": "warming",
                 "nemotron": "warm",
             },
         )
 
         assert response.ready is True
-        assert response.ai_warmth_status["rtdetr"] == "warming"
+        assert response.ai_warmth_status["yolo26"] == "warming"

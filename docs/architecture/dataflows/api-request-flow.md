@@ -344,7 +344,7 @@ When a dependency circuit breaker is open:
 ```json
 {
   "detail": "Service temporarily unavailable",
-  "service": "rtdetr",
+  "service": "yolo26",
   "circuit_state": "open",
   "retry_after": 60
 }

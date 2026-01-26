@@ -316,7 +316,7 @@ class TestHistogramMetricEmission:
         from backend.core.metrics import observe_ai_request_duration
 
         # Record AI service request durations
-        observe_ai_request_duration("rtdetr", 0.3)  # RT-DETR detection
+        observe_ai_request_duration("yolo26", 0.3)  # YOLO26 detection
         observe_ai_request_duration("nemotron", 5.0)  # Nemotron analysis
 
         # Verify via metrics endpoint
@@ -326,7 +326,7 @@ class TestHistogramMetricEmission:
 
         # Histogram should have service labels
         assert "hsi_ai_request_duration_seconds_bucket" in content
-        assert 'service="rtdetr"' in content
+        assert 'service="yolo26"' in content
         assert 'service="nemotron"' in content
 
     @pytest.mark.asyncio
@@ -643,7 +643,7 @@ class TestModelWarmupMetricEmission:
         from backend.core.metrics import observe_model_warmup_duration
 
         # Record warmup durations
-        observe_model_warmup_duration("rtdetr", 2.5)
+        observe_model_warmup_duration("yolo26", 2.5)
         observe_model_warmup_duration("nemotron", 10.0)
 
         # Verify via metrics endpoint
@@ -653,7 +653,7 @@ class TestModelWarmupMetricEmission:
 
         # Warmup histogram should be present
         assert "hsi_model_warmup_duration_seconds_bucket" in content
-        assert 'model="rtdetr"' in content
+        assert 'model="yolo26"' in content
         assert 'model="nemotron"' in content
 
     @pytest.mark.asyncio
@@ -662,7 +662,7 @@ class TestModelWarmupMetricEmission:
         from backend.core.metrics import record_model_cold_start
 
         # Record cold starts
-        record_model_cold_start("rtdetr")
+        record_model_cold_start("yolo26")
         record_model_cold_start("nemotron")
 
         # Verify via metrics endpoint
@@ -672,7 +672,7 @@ class TestModelWarmupMetricEmission:
 
         # Cold start counter should be present
         assert "hsi_model_cold_start_total" in content
-        assert 'model="rtdetr"' in content
+        assert 'model="yolo26"' in content
         assert 'model="nemotron"' in content
 
     @pytest.mark.asyncio
@@ -681,7 +681,7 @@ class TestModelWarmupMetricEmission:
         from backend.core.metrics import set_model_warmth_state
 
         # Set warmth states
-        set_model_warmth_state("rtdetr", "warm")
+        set_model_warmth_state("yolo26", "warm")
         set_model_warmth_state("nemotron", "cold")
 
         # Verify via metrics endpoint
@@ -708,7 +708,7 @@ class TestMetricsServiceEmission:
         metrics.record_detection_processed(count=3)
         metrics.record_detection_by_class("person")
         metrics.observe_stage_duration("detect", 0.2)
-        metrics.observe_ai_request_duration("rtdetr", 0.5)
+        metrics.observe_ai_request_duration("yolo26", 0.5)
         metrics.record_pipeline_error("validation_error")
         metrics.observe_risk_score(65)
         metrics.record_event_by_risk_level("medium")
@@ -863,7 +863,7 @@ class TestBudgetAndCostMetrics:
 
         # Record GPU time
         GPU_SECONDS_TOTAL.labels(model="nemotron").inc(10.0)
-        GPU_SECONDS_TOTAL.labels(model="rtdetr").inc(2.5)
+        GPU_SECONDS_TOTAL.labels(model="yolo26").inc(2.5)
 
         # Verify via metrics endpoint
         response = await client.get("/api/metrics")
@@ -873,7 +873,7 @@ class TestBudgetAndCostMetrics:
         # GPU seconds counter should be present
         assert "hsi_gpu_seconds_total" in content
         assert 'model="nemotron"' in content
-        assert 'model="rtdetr"' in content
+        assert 'model="yolo26"' in content
 
     @pytest.mark.asyncio
     async def test_cost_tracking_gauges_update(self, client, mock_redis):

@@ -21,7 +21,7 @@
 ## System Diagram
 
 ```
-Cameras -> FTP -> FileWatcher -> detection_queue -> RT-DETRv2 -> Detections
+Cameras -> FTP -> FileWatcher -> detection_queue -> YOLO26 -> Detections
                                                           |
 Dashboard <- WebSocket <- Events <- Nemotron <- analysis_queue <- BatchAggregator
 ```
@@ -37,7 +37,7 @@ Dashboard <- WebSocket <- Events <- Nemotron <- analysis_queue <- BatchAggregato
 | Backend     | FastAPI + Python   | REST API and WebSocket server        |
 | Database    | PostgreSQL         | Persistent storage                   |
 | Cache/Queue | Redis              | Pub/sub and job queues               |
-| Detection   | RT-DETRv2          | Object detection (30-50ms inference) |
+| Detection   | YOLO26             | Object detection (30-50ms inference) |
 | Analysis    | Nemotron           | Risk reasoning via llama.cpp         |
 
 ---
@@ -49,7 +49,7 @@ Dashboard <- WebSocket <- Events <- Nemotron <- analysis_queue <- BatchAggregato
 | Service          | Location                                | Responsibility                |
 | ---------------- | --------------------------------------- | ----------------------------- |
 | FileWatcher      | `backend/services/file_watcher.py`      | Monitor camera directories    |
-| DetectorClient   | `backend/services/detector_client.py`   | RT-DETRv2 HTTP client         |
+| DetectorClient   | `backend/services/detector_client.py`   | YOLO26 HTTP client            |
 | BatchAggregator  | `backend/services/batch_aggregator.py`  | Group detections into batches |
 | NemotronAnalyzer | `backend/services/nemotron_analyzer.py` | LLM risk analysis             |
 | EventBroadcaster | `backend/services/event_broadcaster.py` | WebSocket distribution        |
@@ -68,7 +68,7 @@ Dashboard <- WebSocket <- Events <- Nemotron <- analysis_queue <- BatchAggregato
 
 For detailed implementation specifics, see:
 
-- [Detection Service](../detection-service.md) - RT-DETRv2 integration
+- [Detection Service](../detection-service.md) - YOLO26 integration
 - [Batching Logic](../batching-logic.md) - Time-windowed aggregation
 - [Risk Analysis](../risk-analysis.md) - Nemotron prompts
 - [Resilience Patterns](../resilience-patterns.md) - Circuit breakers

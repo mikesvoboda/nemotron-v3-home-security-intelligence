@@ -106,7 +106,7 @@ class JobFailure:
     "file_path": "/export/foscam/front_door/image_001.jpg",
     "timestamp": "2024-01-15T10:30:00.000000"
   },
-  "error": "Connection refused: RT-DETRv2 service unavailable",
+  "error": "Connection refused: YOLO26 service unavailable",
   "attempt_count": 3,
   "first_failed_at": "2024-01-15T10:30:01.000000",
   "last_failed_at": "2024-01-15T10:30:15.000000",
@@ -370,7 +370,7 @@ for job in jobs:
 ### Pattern 2: Batch Requeue After Fix
 
 ```bash
-# After fixing RT-DETRv2 service:
+# After fixing YOLO26 service:
 curl -X POST http://localhost:8000/api/dlq/requeue-all/dlq:detection_queue \
   -H "X-API-Key: your-api-key"
 ```

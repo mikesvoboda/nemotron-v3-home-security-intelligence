@@ -1,6 +1,6 @@
 # AI Service Troubleshooting
 
-> Solving AI service and pipeline problems (RT-DETRv2, Nemotron, and optional Florence/CLIP/Enrichment).
+> Solving AI service and pipeline problems (YOLO26, Nemotron, and optional Florence/CLIP/Enrichment).
 
 **Time to read:** ~6 min
 **Prerequisites:** [GPU Issues](gpu-issues.md) for hardware problems
@@ -11,7 +11,7 @@
 
 ### Symptoms
 
-- Health check: `"rtdetr": "connection refused"`
+- Health check: `"yolo26": "connection refused"`
 - Health check: `"nemotron": "connection refused"`
 - No detections being created
 
@@ -22,11 +22,11 @@
 ./scripts/start-ai.sh status
 
 # Check if processes are running
-pgrep -f "model.py"      # RT-DETRv2
+pgrep -f "model.py"      # YOLO26
 pgrep -f "llama-server"  # Nemotron
 
 # Check logs
-tail -f /tmp/rtdetr-detector.log
+tail -f /tmp/yolo26-detector.log
 tail -f /tmp/nemotron-llm.log
 ```
 
@@ -49,7 +49,7 @@ curl http://localhost:8094/health  # Enrichment (optional)
 **2. Check for startup errors:**
 
 ```bash
-cat /tmp/rtdetr-detector.log
+cat /tmp/yolo26-detector.log
 cat /tmp/nemotron-llm.log
 ```
 
@@ -83,7 +83,7 @@ ls -la ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
 curl http://localhost:8000/api/system/health | jq .services
 
 # Check individual AI services
-curl http://localhost:8090/health  # RT-DETRv2
+curl http://localhost:8090/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 curl http://localhost:8092/health  # Florence-2 (optional)
 curl http://localhost:8093/health  # CLIP (optional)
@@ -94,14 +94,14 @@ curl http://localhost:8094/health  # Enrichment (optional)
 
 **Understand degraded behavior:**
 
-| RT-DETRv2 | Nemotron | Result                                                |
-| --------- | -------- | ----------------------------------------------------- |
-| Up        | Up       | Full functionality                                    |
-| Up        | Down     | Detections work, no risk analysis                     |
-| Down      | Up       | No new detections, existing events can be re-analyzed |
-| Down      | Down     | System unhealthy                                      |
+| YOLO26 | Nemotron | Result                                                |
+| ------ | -------- | ----------------------------------------------------- |
+| Up     | Up       | Full functionality                                    |
+| Up     | Down     | Detections work, no risk analysis                     |
+| Down   | Up       | No new detections, existing events can be re-analyzed |
+| Down   | Down     | System unhealthy                                      |
 
-> Optional enrichment services (Florence/CLIP/Enrichment) typically degrade **enrichment quality** rather than fully stopping event creation. The core “detections → batches → LLM → events” path can still function if RT-DETRv2 and Nemotron are healthy.
+> Optional enrichment services (Florence/CLIP/Enrichment) typically degrade **enrichment quality** rather than fully stopping event creation. The core “detections → batches → LLM → events” path can still function if YOLO26 and Nemotron are healthy.
 
 ---
 
@@ -215,7 +215,7 @@ Optional services compete for GPU memory. Check utilization:
 nvidia-smi
 
 # Expected VRAM usage per service:
-# - RT-DETRv2: ~4GB
+# - YOLO26: ~4GB
 # - Nemotron: ~3GB (Q4_K_M), ~14GB (30B)
 # - Florence-2: ~2-4GB
 # - CLIP: ~1-2GB
@@ -246,7 +246,7 @@ REID_TIMEOUT_SECONDS=10.0
 **7. Restart failed services**
 
 ```bash
-# Just RT-DETRv2
+# Just YOLO26
 ./ai/start_detector.sh
 
 # Just Nemotron
@@ -448,7 +448,7 @@ See [GPU Issues - Thermal Throttling](gpu-issues.md#thermal-throttling)
 **4. Optimize settings:**
 
 ```bash
-# RT-DETRv2: ensure batching for multiple images
+# YOLO26: ensure batching for multiple images
 # Nemotron: adjust context size
 --ctx-size 2048  # Smaller than default 4096
 ```
@@ -478,7 +478,7 @@ See [GPU Issues - Thermal Throttling](gpu-issues.md#thermal-throttling)
 ls -la ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
 # Should be ~2.5GB
 
-# RT-DETRv2 (auto-downloads to HuggingFace cache)
+# YOLO26 (auto-downloads to HuggingFace cache)
 ls -la ~/.cache/huggingface/
 ```
 
@@ -487,7 +487,7 @@ ls -la ~/.cache/huggingface/
 ```bash
 # For custom paths
 NEMOTRON_MODEL_PATH=/path/to/model.gguf
-RTDETR_MODEL_PATH=/path/to/rtdetr
+YOLO26_MODEL_PATH=/path/to/yolo26
 ```
 
 ---
@@ -516,7 +516,7 @@ Circuit breakers auto-reset after timeout (default: 30s).
 **2. Manual reset:**
 
 ```bash
-curl -X POST http://localhost:8000/api/system/circuit-breakers/rtdetr/reset
+curl -X POST http://localhost:8000/api/system/circuit-breakers/yolo26/reset
 curl -X POST http://localhost:8000/api/system/circuit-breakers/nemotron/reset
 ```
 

@@ -61,7 +61,7 @@ class GpuMetrics(BaseModel):
 
 
 class AiModelMetrics(BaseModel):
-    """Metrics for RT-DETRv2 model."""
+    """Metrics for YOLO26v2 model."""
 
     status: str = Field(..., description="Health status: healthy, unhealthy, unreachable")
     vram_gb: float = Field(..., ge=0, description="VRAM used by the model in GB")
@@ -73,7 +73,7 @@ class AiModelMetrics(BaseModel):
             "example": {
                 "status": "healthy",
                 "vram_gb": 0.17,
-                "model": "rtdetr_r50vd_coco_o365",
+                "model": "yolo26_r50vd_coco_o365",
                 "device": "cuda:0",
             }
         }
@@ -103,8 +103,8 @@ class NemotronMetrics(BaseModel):
 class InferenceMetrics(BaseModel):
     """AI inference latency and throughput metrics."""
 
-    rtdetr_latency_ms: dict[str, float] = Field(
-        ..., description="RT-DETRv2 latency stats (avg, p95, p99)"
+    yolo26_latency_ms: dict[str, float] = Field(
+        ..., description="YOLO26v2 latency stats (avg, p95, p99)"
     )
     nemotron_latency_ms: dict[str, float] = Field(
         ..., description="Nemotron latency stats (avg, p95, p99)"
@@ -120,7 +120,7 @@ class InferenceMetrics(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "rtdetr_latency_ms": {"avg": 45, "p95": 82, "p99": 120},
+                "yolo26_latency_ms": {"avg": 45, "p95": 82, "p99": 120},
                 "nemotron_latency_ms": {"avg": 2100, "p95": 4800, "p99": 8200},
                 "pipeline_latency_ms": {"avg": 3200, "p95": 6100},
                 "throughput": {"images_per_min": 12.4, "events_per_min": 2.1},
@@ -316,10 +316,10 @@ class PerformanceUpdate(BaseModel):
                     "power_watts": 31,
                 },
                 "ai_models": {
-                    "rtdetr": {
+                    "yolo26": {
                         "status": "healthy",
                         "vram_gb": 0.17,
-                        "model": "rtdetr",
+                        "model": "yolo26",
                         "device": "cuda:0",
                     }
                 },

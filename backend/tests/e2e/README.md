@@ -12,7 +12,7 @@ File Upload → Detection → Batching → Analysis → Event Creation → WebSo
 ```
 
 1. **File Detection**: Image file appears in camera folder
-2. **RT-DETRv2 Detection**: Object detection service processes image
+2. **YOLO26 Detection**: Object detection service processes image
 3. **Batch Aggregation**: Detections are grouped into time-based batches
 4. **Nemotron Analysis**: LLM analyzes batch and generates risk assessment
 5. **Event Creation**: Event record is created in database
@@ -28,7 +28,7 @@ Comprehensive E2E pipeline tests covering:
 - **Multiple detections in batch**: Batch aggregation with multiple detections
 - **Batch timeout logic**: Window and idle timeout behavior
 - **Low confidence filtering**: Confidence threshold filtering
-- **Detector failure handling**: Graceful degradation when RT-DETRv2 fails
+- **Detector failure handling**: Graceful degradation when YOLO26 fails
 - **Nemotron failure handling**: Fallback behavior when LLM fails
 - **Event relationships**: Database relationships between cameras, detections, and events
 - **Cleanup**: Proper cleanup of Redis batch data after processing
@@ -95,7 +95,7 @@ pytest -m e2e -v
 
 #### `mock_detector_response` (test_pipeline_integration.py)
 
-- Mock RT-DETRv2 detection response
+- Mock YOLO26 detection response
 - Contains person and car detections with bounding boxes
 
 #### `mock_nemotron_response` (test_pipeline_integration.py)
@@ -109,7 +109,7 @@ The E2E tests use **targeted mocking** to isolate external dependencies while te
 
 #### Mocked Components
 
-- **RT-DETRv2 HTTP service**: `httpx.AsyncClient` for detector requests
+- **YOLO26 HTTP service**: `httpx.AsyncClient` for detector requests
 - **Nemotron LLM HTTP service**: `httpx.AsyncClient` for LLM requests
 - **Redis**: In-memory mock for queue and cache operations
 
@@ -284,7 +284,7 @@ These E2E tests fulfill **Phase 8, Task .3** of the project roadmap:
 
 - ✅ Created comprehensive E2E pipeline integration tests
 - ✅ Tests cover full flow from detection to event creation
-- ✅ Mocks external services (RT-DETRv2, Nemotron)
+- ✅ Mocks external services (YOLO26, Nemotron)
 - ✅ Verifies batch aggregation logic
 - ✅ Validates error handling and fallbacks
 - ✅ Tests WebSocket broadcasting

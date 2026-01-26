@@ -305,7 +305,7 @@ Circuit breaker errors include service name and recovery timeout (`backend/api/e
     "code": "CIRCUIT_BREAKER_OPEN",
     "message": "Service temporarily unavailable",
     "details": {
-      "service": "rtdetr",
+      "service": "yolo26",
       "recovery_timeout_seconds": 30
     }
   }
@@ -383,7 +383,7 @@ async def analyze_image(image_path: str):
     except AIServiceError as e:
         raise ServiceUnavailableError(
             message="Object detection service temporarily unavailable",
-            details={"service": "rtdetr", "retry_after": 30},
+            details={"service": "yolo26", "retry_after": 30},
         )
     return result
 ```

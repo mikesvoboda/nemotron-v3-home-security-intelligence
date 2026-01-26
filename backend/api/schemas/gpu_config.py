@@ -406,7 +406,7 @@ class AiServicesResponse(BaseModel):
                         "display_name": "Object Detector",
                         "vram_required_mb": 2048,
                         "vram_required_gb": 2.0,
-                        "description": "RT-DETR real-time object detection",
+                        "description": "YOLO26 real-time object detection",
                     },
                 ]
             }

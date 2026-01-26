@@ -255,7 +255,7 @@ class TestWebSocketMessageSerialization:
 
         # Create a sample service status message
         status_data = WebSocketServiceStatusData(
-            service="rtdetr",
+            service="yolo26",
             status="healthy",
             message="Service is running normally",
         )
@@ -276,7 +276,7 @@ class TestWebSocketMessageSerialization:
         assert "timestamp" in serialized
 
         data = serialized["data"]
-        assert data["service"] == "rtdetr"
+        assert data["service"] == "yolo26"
         assert data["status"] == "healthy"
 
     def test_error_response_serialization_contract(self):

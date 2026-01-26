@@ -18,7 +18,7 @@ Test Organization:
     - Async operations tests: Database storage, WebSocket broadcasting
     - Lifecycle tests: Start/stop, idempotency, poll loop error handling
     - Database retrieval tests: get_stats_from_db with and without errors
-    - RT-DETR response parsing tests: VRAM metrics from AI containers
+    - YOLO26 response parsing tests: VRAM metrics from AI containers
     - Inference FPS calculation tests: Detection-based FPS calculation
     - HTTP timeout tests: Configurable timeouts for AI container queries
     - Error logging tests: Context-rich error logging (NEM-1123)
@@ -975,16 +975,16 @@ def test_get_stats_real_generic_exception(mock_pynvml):
 
 
 # =============================================================================
-# RT-DETR Response Parsing Tests
+# YOLO26 Response Parsing Tests
 # =============================================================================
 
 
-def test_parse_rtdetr_response_full_data(mock_pynvml):
-    """Verify RT-DETRv2 health endpoint response parsing with full GPU metrics.
+def test_parse_yolo26_response_full_data(mock_pynvml):
+    """Verify YOLO26 health endpoint response parsing with full GPU metrics.
 
-    Given: RT-DETRv2 /health response with vram_used_gb, device, gpu_utilization,
+    Given: YOLO26 /health response with vram_used_gb, device, gpu_utilization,
            temperature, and power_watts
-    When: _parse_rtdetr_response() is called with this data
+    When: _parse_yolo26_response() is called with this data
     Then: Returns tuple (vram_mb, device, gpu_util, temp, power) with converted values
     """
     monitor = GPUMonitor()
@@ -996,7 +996,7 @@ def test_parse_rtdetr_response_full_data(mock_pynvml):
         "temperature": 65,
         "power_watts": 150.0,
     }
-    vram_mb, device, gpu_util, temp, power = monitor._parse_rtdetr_response(data)
+    vram_mb, device, gpu_util, temp, power = monitor._parse_yolo26_response(data)
 
     assert vram_mb == 4.5 * 1024  # 4608 MB
     assert device == "cuda:0"
@@ -1005,12 +1005,12 @@ def test_parse_rtdetr_response_full_data(mock_pynvml):
     assert power == 150.0
 
 
-def test_parse_rtdetr_response_no_vram(mock_pynvml):
-    """Test parsing RT-DETRv2 response without VRAM data."""
+def test_parse_yolo26_response_no_vram(mock_pynvml):
+    """Test parsing YOLO26 response without VRAM data."""
     monitor = GPUMonitor()
 
     data = {"device": "cuda:0", "gpu_utilization": 50.0}
-    vram_mb, device, gpu_util, temp, power = monitor._parse_rtdetr_response(data)
+    vram_mb, device, gpu_util, temp, power = monitor._parse_yolo26_response(data)
 
     assert vram_mb == 0.0
     assert device == "cuda:0"
@@ -1019,12 +1019,12 @@ def test_parse_rtdetr_response_no_vram(mock_pynvml):
     assert power is None
 
 
-def test_parse_rtdetr_response_no_device(mock_pynvml):
-    """Test parsing RT-DETRv2 response without device data."""
+def test_parse_yolo26_response_no_device(mock_pynvml):
+    """Test parsing YOLO26 response without device data."""
     monitor = GPUMonitor()
 
     data = {"vram_used_gb": 2.0, "temperature": 55, "power_watts": 100.0}
-    vram_mb, device, gpu_util, temp, power = monitor._parse_rtdetr_response(data)
+    vram_mb, device, gpu_util, temp, power = monitor._parse_yolo26_response(data)
 
     assert vram_mb == 2.0 * 1024
     assert device is None
@@ -1033,12 +1033,12 @@ def test_parse_rtdetr_response_no_device(mock_pynvml):
     assert power == 100.0
 
 
-def test_parse_rtdetr_response_empty(mock_pynvml):
-    """Test parsing RT-DETRv2 response with empty data."""
+def test_parse_yolo26_response_empty(mock_pynvml):
+    """Test parsing YOLO26 response with empty data."""
     monitor = GPUMonitor()
 
     data = {}
-    vram_mb, device, gpu_util, temp, power = monitor._parse_rtdetr_response(data)
+    vram_mb, device, gpu_util, temp, power = monitor._parse_yolo26_response(data)
 
     assert vram_mb == 0.0
     assert device is None
@@ -1047,13 +1047,13 @@ def test_parse_rtdetr_response_empty(mock_pynvml):
     assert power is None
 
 
-def test_parse_rtdetr_response_legacy_format(mock_pynvml):
-    """Test parsing RT-DETRv2 response in legacy format (no GPU metrics)."""
+def test_parse_yolo26_response_legacy_format(mock_pynvml):
+    """Test parsing YOLO26 response in legacy format (no GPU metrics)."""
     monitor = GPUMonitor()
 
     # Simulate old response format that only had vram_used_gb and device
     data = {"vram_used_gb": 3.0, "device": "cuda:0"}
-    vram_mb, device, gpu_util, temp, power = monitor._parse_rtdetr_response(data)
+    vram_mb, device, gpu_util, temp, power = monitor._parse_yolo26_response(data)
 
     assert vram_mb == 3.0 * 1024
     assert device == "cuda:0"
@@ -1120,26 +1120,26 @@ def test_parse_vram_metric_line_invalid_value(mock_pynvml):
 
 
 @pytest.mark.asyncio
-async def test_get_gpu_stats_from_ai_containers_rtdetr_only(mock_pynvml):
-    """Test getting GPU stats from AI containers (RT-DETRv2 only).
+async def test_get_gpu_stats_from_ai_containers_yolo26_only(mock_pynvml):
+    """Test getting GPU stats from AI containers (YOLO26 only).
 
     Note: Nemotron (llama.cpp server) does not expose GPU metrics,
-    so GPU stats are obtained exclusively from RT-DETRv2.
+    so GPU stats are obtained exclusively from YOLO26.
     """
     monitor = GPUMonitor()
 
-    rtdetr_response = {"vram_used_gb": 3.5, "device": "cuda:0"}
+    yolo26_response = {"vram_used_gb": 3.5, "device": "cuda:0"}
 
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        # RT-DETRv2 succeeds
-        mock_rtdetr_resp = MagicMock()
-        mock_rtdetr_resp.status_code = 200
-        mock_rtdetr_resp.json.return_value = rtdetr_response
+        # YOLO26 succeeds
+        mock_yolo26_resp = MagicMock()
+        mock_yolo26_resp.status_code = 200
+        mock_yolo26_resp.json.return_value = yolo26_response
 
-        mock_client.get.return_value = mock_rtdetr_resp
+        mock_client.get.return_value = mock_yolo26_resp
 
         stats = await monitor._get_gpu_stats_from_ai_containers()
 
@@ -1158,11 +1158,11 @@ async def test_get_gpu_stats_from_ai_containers_with_gpu_metrics(mock_pynvml):
     """Test getting GPU stats from AI containers with full GPU metrics.
 
     Tests that gpu_utilization, temperature, and power_watts are correctly
-    passed through from the RT-DETRv2 health endpoint.
+    passed through from the YOLO26 health endpoint.
     """
     monitor = GPUMonitor()
 
-    rtdetr_response = {
+    yolo26_response = {
         "vram_used_gb": 4.0,
         "device": "cuda:0",
         "gpu_utilization": 75.0,
@@ -1174,11 +1174,11 @@ async def test_get_gpu_stats_from_ai_containers_with_gpu_metrics(mock_pynvml):
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        mock_rtdetr_resp = MagicMock()
-        mock_rtdetr_resp.status_code = 200
-        mock_rtdetr_resp.json.return_value = rtdetr_response
+        mock_yolo26_resp = MagicMock()
+        mock_yolo26_resp.status_code = 200
+        mock_yolo26_resp.json.return_value = yolo26_response
 
-        mock_client.get.return_value = mock_rtdetr_resp
+        mock_client.get.return_value = mock_yolo26_resp
 
         stats = await monitor._get_gpu_stats_from_ai_containers()
 
@@ -1197,7 +1197,7 @@ async def test_get_gpu_stats_from_ai_containers_partial_metrics(mock_pynvml):
     monitor = GPUMonitor()
 
     # Only temperature is provided, others are None
-    rtdetr_response = {
+    yolo26_response = {
         "vram_used_gb": 2.5,
         "device": "cuda:0",
         "gpu_utilization": 50.0,
@@ -1209,11 +1209,11 @@ async def test_get_gpu_stats_from_ai_containers_partial_metrics(mock_pynvml):
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        mock_rtdetr_resp = MagicMock()
-        mock_rtdetr_resp.status_code = 200
-        mock_rtdetr_resp.json.return_value = rtdetr_response
+        mock_yolo26_resp = MagicMock()
+        mock_yolo26_resp.status_code = 200
+        mock_yolo26_resp.json.return_value = yolo26_response
 
-        mock_client.get.return_value = mock_rtdetr_resp
+        mock_client.get.return_value = mock_yolo26_resp
 
         stats = await monitor._get_gpu_stats_from_ai_containers()
 
@@ -1244,7 +1244,7 @@ async def test_get_gpu_stats_from_ai_containers_all_fail(mock_pynvml):
 async def test_get_gpu_stats_from_ai_containers_no_vram(mock_pynvml):
     """Test getting GPU stats when AI containers return no VRAM data.
 
-    Note: Only RT-DETRv2 is queried for GPU metrics (Nemotron doesn't expose them).
+    Note: Only YOLO26 is queried for GPU metrics (Nemotron doesn't expose them).
     """
     monitor = GPUMonitor()
 
@@ -1252,12 +1252,12 @@ async def test_get_gpu_stats_from_ai_containers_no_vram(mock_pynvml):
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        # RT-DETRv2 returns empty (no vram_used_gb field)
-        mock_rtdetr_resp = MagicMock()
-        mock_rtdetr_resp.status_code = 200
-        mock_rtdetr_resp.json.return_value = {}
+        # YOLO26 returns empty (no vram_used_gb field)
+        mock_yolo26_resp = MagicMock()
+        mock_yolo26_resp.status_code = 200
+        mock_yolo26_resp.json.return_value = {}
 
-        mock_client.get.return_value = mock_rtdetr_resp
+        mock_client.get.return_value = mock_yolo26_resp
 
         stats = await monitor._get_gpu_stats_from_ai_containers()
 
@@ -1402,7 +1402,7 @@ async def test_calculate_inference_fps_with_detections(mock_pynvml):
     When: _calculate_inference_fps() is called
     Then: Returns 2.0 FPS (120 detections / 60 seconds)
 
-    Note: This metric helps users understand RT-DETRv2 throughput on their hardware.
+    Note: This metric helps users understand YOLO26 throughput on their hardware.
     """
     monitor = GPUMonitor()
 
@@ -1560,7 +1560,7 @@ async def test_ai_container_query_uses_configured_timeout(mock_pynvml):
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        # RT-DETRv2 returns empty response
+        # YOLO26 returns empty response
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {}
@@ -2582,23 +2582,23 @@ def test_get_current_stats_with_nvidia_smi_error(mock_pynvml_not_available):
 async def test_get_gpu_stats_from_ai_containers_with_gpu_utilization_only():
     """Test AI container stats when only GPU utilization is provided.
 
-    Given: RT-DETRv2 returns only gpu_utilization (no VRAM)
+    Given: YOLO26 returns only gpu_utilization (no VRAM)
     When: _get_gpu_stats_from_ai_containers() is called
     Then: Returns stats with GPU utilization data
     """
     monitor = GPUMonitor()
 
-    rtdetr_response = {"gpu_utilization": 75.0}
+    yolo26_response = {"gpu_utilization": 75.0}
 
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        mock_rtdetr_resp = MagicMock()
-        mock_rtdetr_resp.status_code = 200
-        mock_rtdetr_resp.json.return_value = rtdetr_response
+        mock_yolo26_resp = MagicMock()
+        mock_yolo26_resp.status_code = 200
+        mock_yolo26_resp.json.return_value = yolo26_response
 
-        mock_client.get.return_value = mock_rtdetr_resp
+        mock_client.get.return_value = mock_yolo26_resp
 
         stats = await monitor._get_gpu_stats_from_ai_containers()
 

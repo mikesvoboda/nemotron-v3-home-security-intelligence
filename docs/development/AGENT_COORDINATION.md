@@ -161,7 +161,7 @@ Single Agent: Make all pyproject.toml changes in one task
 
 ```
 Agent 1: "fix: resolve 9 issues - WebSocket, tests, AI model improvements"
-# Touches: backend/services/, frontend/src/, ai/rtdetr/, tests/
+# Touches: backend/services/, frontend/src/, ai/yolo26/, tests/
 # This is a recipe for conflicts if another agent is working anywhere
 ```
 
@@ -169,7 +169,7 @@ Agent 1: "fix: resolve 9 issues - WebSocket, tests, AI model improvements"
 
 ```
 Agent 1: "fix(websocket): resolve 403 error handling"  # Only touches WebSocket
-Agent 2: "fix(ai): update RT-DETR for Transformers API"  # Only touches AI
+Agent 2: "fix(ai): update YOLO26 for Transformers API"  # Only touches AI
 Agent 3: "test(redis): add cache integration tests"  # Only touches tests
 ```
 
@@ -556,7 +556,7 @@ These anti-patterns have caused real issues in this repository:
 
 **Problem:** Single commit touched:
 
-- AI (RT-DETR tests, logging)
+- AI (YOLO26 tests, logging)
 - Backend (WebSocket tests, Redis tests)
 - Frontend (E2E fixtures, page objects)
 

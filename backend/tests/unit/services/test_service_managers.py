@@ -24,7 +24,7 @@ def sample_config():
     Uses an allowed restart command from the security allowlist.
     """
     return ServiceConfig(
-        name="rtdetr",
+        name="yolo26",
         health_url="http://localhost:9999/health",
         restart_cmd="ai/start_detector.sh",  # Allowed restart script
         health_timeout=1.0,
@@ -353,7 +353,7 @@ def test_validate_restart_command_allowed():
 
 def test_validate_restart_command_docker():
     """Test that valid docker restart commands are accepted."""
-    assert validate_restart_command("docker restart rtdetr") is True
+    assert validate_restart_command("docker restart yolo26") is True
     assert validate_restart_command("docker restart nemotron-service") is True
     assert validate_restart_command("docker restart my_container_123") is True
 
@@ -370,7 +370,7 @@ def test_validate_restart_command_rejected():
 
 def test_validate_container_name_valid():
     """Test valid container names are accepted."""
-    assert validate_container_name("rtdetr") is True
+    assert validate_container_name("yolo26") is True
     assert validate_container_name("nemotron-service") is True
     assert validate_container_name("my_container_123") is True
     assert validate_container_name("A1") is True
@@ -432,9 +432,9 @@ def docker_sample_config():
     Uses a docker restart command with valid container name.
     """
     return ServiceConfig(
-        name="rtdetr",
+        name="yolo26",
         health_url="http://localhost:8090/health",
-        restart_cmd="docker restart rtdetr",
+        restart_cmd="docker restart yolo26",
     )
 
 
@@ -448,7 +448,7 @@ async def test_docker_restart_success(docker_manager, docker_sample_config):
     with patch("asyncio.create_subprocess_exec") as mock_proc:
         process = AsyncMock()
         process.returncode = 0
-        process.communicate = AsyncMock(return_value=(b"rtdetr\n", b""))
+        process.communicate = AsyncMock(return_value=(b"yolo26\n", b""))
         mock_proc.return_value = process
 
         result = await docker_manager.restart(docker_sample_config)
@@ -457,7 +457,7 @@ async def test_docker_restart_success(docker_manager, docker_sample_config):
         mock_proc.assert_called_once()
         # Verify docker restart command was executed with exec (not shell)
         call_args = mock_proc.call_args
-        assert call_args[0] == ("docker", "restart", "rtdetr")
+        assert call_args[0] == ("docker", "restart", "yolo26")
 
 
 @pytest.mark.asyncio
@@ -516,7 +516,7 @@ async def test_docker_restart_failure(docker_manager, docker_sample_config):
     with patch("asyncio.create_subprocess_exec") as mock_proc:
         process = AsyncMock()
         process.returncode = 1
-        process.communicate = AsyncMock(return_value=(b"", b"Error: No such container: rtdetr"))
+        process.communicate = AsyncMock(return_value=(b"", b"Error: No such container: yolo26"))
         mock_proc.return_value = process
 
         result = await docker_manager.restart(docker_sample_config)
@@ -649,9 +649,9 @@ async def test_docker_restart_handles_file_not_found(docker_manager):
     The fix for NEM-1241 ensures this doesn't crash but returns False with a warning.
     """
     config = ServiceConfig(
-        name="rtdetr",
+        name="yolo26",
         health_url="http://localhost:8090/health",
-        restart_cmd="docker restart rtdetr",
+        restart_cmd="docker restart yolo26",
     )
 
     with patch("asyncio.create_subprocess_exec") as mock_proc:
@@ -688,9 +688,9 @@ async def test_docker_restart_file_not_found_logs_warning(docker_manager):
     when running in containerized environments without docker CLI.
     """
     config = ServiceConfig(
-        name="rtdetr",
+        name="yolo26",
         health_url="http://localhost:8090/health",
-        restart_cmd="docker restart rtdetr",
+        restart_cmd="docker restart yolo26",
     )
 
     with patch("asyncio.create_subprocess_exec") as mock_proc:

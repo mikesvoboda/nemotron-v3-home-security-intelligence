@@ -45,9 +45,9 @@ def running_service() -> ManagedService:
     """Create a running service with recent restart."""
     return ManagedService(
         name="ai-detector",
-        display_name="RT-DETRv2",
+        display_name="YOLO26",
         container_id="abcdef123456789",
-        image="ghcr.io/example/rtdetr:latest",
+        image="ghcr.io/example/yolo26:latest",
         port=8090,
         health_endpoint="/health",
         health_cmd=None,
@@ -105,9 +105,9 @@ def hm_running_service() -> HealthMonitorService:
     """Create a HealthMonitorService for testing callbacks."""
     return HealthMonitorService(
         name="ai-detector",
-        display_name="RT-DETRv2",
+        display_name="YOLO26",
         container_id="abcdef123456789",
-        image="ghcr.io/example/rtdetr:latest",
+        image="ghcr.io/example/yolo26:latest",
         port=8090,
         category=ServiceCategory.AI,
         health_endpoint="/health",
@@ -124,9 +124,9 @@ def lm_running_service() -> LifecycleService:
     """Create a LifecycleService for testing callbacks."""
     return LifecycleService(
         name="ai-detector",
-        display_name="RT-DETRv2",
+        display_name="YOLO26",
         container_id="abcdef123456789",
-        image="ghcr.io/example/rtdetr:latest",
+        image="ghcr.io/example/yolo26:latest",
         port=8090,
         health_endpoint="/health",
         category=ServiceCategory.AI,
@@ -197,14 +197,14 @@ class TestCreateServiceStatusEvent:
         data = event["data"]
 
         assert data["name"] == "ai-detector"
-        assert data["display_name"] == "RT-DETRv2"
+        assert data["display_name"] == "YOLO26"
         assert data["category"] == "ai"
         assert data["status"] == "running"
         assert data["enabled"] is True
         assert data["port"] == 8090
         assert data["failure_count"] == 0
         assert data["restart_count"] == 2
-        assert data["image"] == "ghcr.io/example/rtdetr:latest"
+        assert data["image"] == "ghcr.io/example/yolo26:latest"
 
     def test_event_message_is_included(self, running_service: ManagedService) -> None:
         """Test that message is included in event."""

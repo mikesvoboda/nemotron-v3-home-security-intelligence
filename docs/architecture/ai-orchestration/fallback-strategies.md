@@ -31,7 +31,7 @@ The AI fallback system provides graceful degradation when AI services become una
 ```python
 class AIService(StrEnum):
     """AI service identifiers."""
-    RTDETR = "rtdetr"
+    YOLO26 = "yolo26"
     NEMOTRON = "nemotron"
     FLORENCE = "florence"
     CLIP = "clip"
@@ -52,7 +52,7 @@ class DegradationLevel(StrEnum):
 
 ```python
 # Critical services
-CRITICAL_SERVICES = {AIService.RTDETR, AIService.NEMOTRON}
+CRITICAL_SERVICES = {AIService.YOLO26, AIService.NEMOTRON}
 
 def get_degradation_level(self) -> DegradationLevel:
     """Get current system degradation level."""
@@ -132,7 +132,7 @@ async def _check_service_health(self, service: AIService) -> None:
 
 ```python
 DEFAULT_CB_CONFIGS = {
-    AIService.RTDETR: CircuitBreakerConfig(
+    AIService.YOLO26: CircuitBreakerConfig(
         failure_threshold=3,
         recovery_timeout=60.0,
         half_open_max_calls=2,
@@ -233,12 +233,12 @@ class RiskScoreCache:
 
 ## Fallback Methods by Service
 
-### Detection (RT-DETRv2)
+### Detection (YOLO26)
 
 ```python
 def should_skip_detection(self) -> bool:
     """Check if detection should be skipped."""
-    return not self.is_service_available(AIService.RTDETR)
+    return not self.is_service_available(AIService.YOLO26)
 
 # When skipped: No detections created, event skipped entirely
 ```
@@ -299,8 +299,8 @@ def get_available_features(self) -> list[str]:
     """Get list of currently available features."""
     features = []
 
-    # Detection features (requires RT-DETRv2)
-    if self.is_service_available(AIService.RTDETR):
+    # Detection features (requires YOLO26)
+    if self.is_service_available(AIService.YOLO26):
         features.extend(["object_detection", "detection_alerts"])
 
     # Risk analysis features (requires Nemotron)
@@ -385,8 +385,8 @@ def get_degradation_status(self) -> dict[str, Any]:
   "timestamp": "2024-01-15T10:30:00Z",
   "degradation_mode": "degraded",
   "services": {
-    "rtdetr": {
-      "service": "rtdetr",
+    "yolo26": {
+      "service": "yolo26",
       "status": "healthy",
       "circuit_state": "closed",
       "last_success": "2024-01-15T10:29:55Z",

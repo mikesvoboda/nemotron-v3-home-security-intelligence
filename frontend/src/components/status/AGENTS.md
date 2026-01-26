@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Contains components for displaying AI service health and degradation status. These components provide visibility into the operational state of the AI pipeline services (RT-DETRv2, Nemotron, Florence-2, CLIP) and their circuit breaker states.
+Contains components for displaying AI service health and degradation status. These components provide visibility into the operational state of the AI pipeline services (YOLO26, Nemotron, Florence-2, CLIP) and their circuit breaker states.
 
 ## Files
 
@@ -60,7 +60,7 @@ interface AIServiceStatusProps {
 
 | Service   | Display Name | Description                           |
 | --------- | ------------ | ------------------------------------- |
-| rtdetr    | RT-DETRv2    | Object detection (persons, vehicles)  |
+| yolo26    | YOLO26    | Object detection (persons, vehicles)  |
 | nemotron  | Nemotron     | Risk analysis and LLM reasoning       |
 | florence  | Florence-2   | Image captioning and OCR              |
 | clip      | CLIP         | Entity re-identification              |

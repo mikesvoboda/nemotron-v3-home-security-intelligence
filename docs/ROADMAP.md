@@ -17,7 +17,7 @@ The MVP architecture is already oriented around **event-based reasoning**:
 
 - Camera uploads arrive via FTP into `/export/foscam/{camera_name}/`
 - A file watcher detects new media
-- RT-DETRv2 produces per-frame detections
+- YOLO26 produces per-frame detections
 - Redis batching groups detections into an "event window"
 - Nemotron produces a risk score + summary + reasoning
 - Results persist in PostgreSQL and are surfaced via APIs/WebSockets to the dashboard

@@ -62,7 +62,7 @@ Results are cached for 5 seconds to reduce load from frequent health probes.
       "status": "healthy",
       "message": "AI services operational",
       "details": {
-        "rtdetr": "healthy",
+        "yolo26": "healthy",
         "nemotron": "healthy"
       }
     }
@@ -212,8 +212,8 @@ Comprehensive health check including all AI services and circuit breakers.
   },
   "ai_services": [
     {
-      "name": "rtdetr",
-      "display_name": "RT-DETRv2 Object Detection",
+      "name": "yolo26",
+      "display_name": "YOLO26 Object Detection",
       "status": "healthy",
       "url": "http://ai-detector:8090",
       "response_time_ms": 45.2,
@@ -238,7 +238,7 @@ Comprehensive health check including all AI services and circuit breakers.
     "open": 0,
     "half_open": 0,
     "breakers": {
-      "rtdetr": "closed",
+      "yolo26": "closed",
       "nemotron": "closed",
       "florence": "closed",
       "clip": "closed",
@@ -305,7 +305,7 @@ Get monitoring target information for service discovery.
       "health_endpoint": "/api/system/health"
     },
     {
-      "name": "rtdetr",
+      "name": "yolo26",
       "url": "http://ai-detector:8090",
       "health_endpoint": "/health"
     }
@@ -450,7 +450,7 @@ Get status of all circuit breakers.
 {
   "breakers": [
     {
-      "name": "rtdetr",
+      "name": "yolo26",
       "state": "closed",
       "failure_count": 0,
       "last_failure": null,

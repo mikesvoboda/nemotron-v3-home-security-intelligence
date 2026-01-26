@@ -270,7 +270,7 @@ def valid_confidence() -> st.SearchStrategy[float]:
     """Generate valid confidence scores.
 
     Returns float in range [0.0, 1.0] inclusive.
-    Used for detection confidence from RT-DETR and other models.
+    Used for detection confidence from YOLO26 and other models.
 
     Examples: 0.0, 0.5, 0.95, 1.0
     """
@@ -303,7 +303,7 @@ def valid_severity(draw: st.DrawFn) -> Severity:
 # Detection Label Strategies
 # =============================================================================
 
-# Known detection classes from RT-DETR and YOLO models
+# Known detection classes from YOLO26 and YOLO models
 _DETECTION_LABELS = [
     "person",
     "vehicle",
@@ -327,7 +327,7 @@ _DETECTION_LABELS = [
 def valid_detection_label() -> st.SearchStrategy[str]:
     """Generate valid detection object type labels.
 
-    Returns one of the known detection classes from RT-DETR/YOLO models:
+    Returns one of the known detection classes from YOLO26/YOLO models:
     - Common: person, vehicle, car, truck, motorcycle, bicycle
     - Animals: dog, cat, bird, horse, cow, bear, deer
     - Other: package, unknown

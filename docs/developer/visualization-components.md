@@ -409,12 +409,12 @@ interface PipelineLatencyPanelProps {
 ```typescript
 const STAGE_CONFIG = {
   watch_to_detect: {
-    label: 'File Watcher -> RT-DETR',
+    label: 'File Watcher -> YOLO26',
     shortLabel: 'Watch->Detect',
     color: '#76B900',
   },
   detect_to_batch: {
-    label: 'RT-DETR -> Batch Aggregator',
+    label: 'YOLO26 -> Batch Aggregator',
     shortLabel: 'Detect->Batch',
     color: '#F59E0B',
   },

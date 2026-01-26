@@ -901,7 +901,7 @@ async def seed_pipeline_latency(
     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
 
     Typical latency ranges (ms):
-    - watch_to_detect: 50-200ms (file processing + RT-DETR inference)
+    - watch_to_detect: 50-200ms (file processing + YOLO26 inference)
     - detect_to_batch: 10-50ms (detection aggregation)
     - batch_to_analyze: 5000-15000ms (Nemotron LLM analysis)
     - total_pipeline: 5100-15300ms (end-to-end)
@@ -923,7 +923,7 @@ async def seed_pipeline_latency(
 
     # Latency ranges (min_ms, max_ms, typical_ms) for each stage
     stage_latency_ranges = {
-        "watch_to_detect": (50, 300, 120),  # RT-DETR inference
+        "watch_to_detect": (50, 300, 120),  # YOLO26 inference
         "detect_to_batch": (10, 100, 30),  # Batch aggregation
         "batch_to_analyze": (3000, 20000, 8000),  # Nemotron LLM
         "total_pipeline": (3100, 20500, 8200),  # End-to-end

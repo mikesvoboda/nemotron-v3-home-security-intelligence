@@ -1,6 +1,6 @@
 """Multimodal evaluation pipeline for comparing local detections against NVIDIA vision.
 
-This module provides tools to evaluate the local RT-DETRv2 + Nemotron pipeline
+This module provides tools to evaluate the local YOLO26v2 + Nemotron pipeline
 against NVIDIA's vision-capable models to generate ground truth and validate
 detection accuracy.
 

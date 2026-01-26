@@ -44,7 +44,7 @@ The command palette searches both page names and keywords. For example:
 | Entities       | Users icon     | people, objects, detection              |
 | Logs           | File icon      | system, debug, output                   |
 | System         | Activity icon  | monitoring, health, status, performance |
-| AI Performance | Brain icon     | model, inference, gpu, nemotron, rtdetr |
+| AI Performance | Brain icon     | model, inference, gpu, nemotron, yolo26 |
 | Audit Log      | Clipboard icon | history, changes, tracking              |
 | Settings       | Gear icon      | preferences, configuration, options     |
 

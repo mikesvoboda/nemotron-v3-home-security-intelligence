@@ -128,7 +128,7 @@ class TestPipelineQualityAuditServiceIntegration:
         audit = EventAudit(
             event_id=audit_test_event.id,
             audited_at=datetime.now(UTC),
-            has_rtdetr=True,
+            has_yolo26=True,
             has_florence=False,
             has_clip=False,
             has_violence=False,
@@ -152,7 +152,7 @@ class TestPipelineQualityAuditServiceIntegration:
             # Verify record was persisted with an ID
             assert persisted.id is not None
             assert persisted.event_id == audit_test_event.id
-            assert persisted.has_rtdetr is True
+            assert persisted.has_yolo26 is True
             assert persisted.has_florence is False
 
     @pytest.mark.asyncio
@@ -194,7 +194,7 @@ class TestPipelineQualityAuditServiceIntegration:
             audit = EventAudit(
                 event_id=audit_test_event.id,
                 audited_at=datetime.now(UTC),
-                has_rtdetr=True,
+                has_yolo26=True,
                 has_florence=True,
                 has_clip=False,
                 has_violence=False,
@@ -222,7 +222,7 @@ class TestPipelineQualityAuditServiceIntegration:
             assert stats["audited_events"] == 1
             assert stats["avg_quality_score"] == 4.0
             assert stats["avg_enrichment_utilization"] == 0.5
-            assert stats["model_contribution_rates"]["rtdetr"] == 1.0
+            assert stats["model_contribution_rates"]["yolo26"] == 1.0
             assert stats["model_contribution_rates"]["florence"] == 1.0
             assert stats["model_contribution_rates"]["clip"] == 0.0
 
@@ -245,7 +245,7 @@ class TestPipelineQualityAuditServiceIntegration:
             audit = EventAudit(
                 event_id=audit_test_event.id,
                 audited_at=datetime.now(UTC),
-                has_rtdetr=True,
+                has_yolo26=True,
                 has_florence=True,
                 has_clip=False,
                 has_violence=False,
@@ -276,9 +276,9 @@ class TestPipelineQualityAuditServiceIntegration:
                 assert "quality_correlation" in entry
                 assert "event_count" in entry
 
-            # Verify rtdetr and florence are at top (100% contribution)
+            # Verify yolo26 and florence are at top (100% contribution)
             top_models = [e["model_name"] for e in leaderboard[:2]]
-            assert "rtdetr" in top_models
+            assert "yolo26" in top_models
             assert "florence" in top_models
 
     @pytest.mark.asyncio
@@ -319,7 +319,7 @@ class TestPipelineQualityAuditServiceIntegration:
 
         # Verify audit was created correctly
         assert audit.event_id == audit_test_event.id
-        assert audit.has_rtdetr is True  # Always true
+        assert audit.has_yolo26 is True  # Always true
         assert audit.has_florence is False
         assert audit.has_clip is False
         assert audit.prompt_length == len("Test prompt")

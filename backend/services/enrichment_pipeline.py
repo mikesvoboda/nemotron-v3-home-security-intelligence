@@ -1616,7 +1616,7 @@ class EnrichmentPipeline:
     2. Person detections -> Face detection
 
     Models are loaded lazily via the ModelManager and unloaded after use
-    to maximize VRAM availability for Nemotron and RT-DETRv2.
+    to maximize VRAM availability for Nemotron and YOLO26v2.
 
     Usage:
         pipeline = EnrichmentPipeline()
@@ -4105,7 +4105,7 @@ class EnrichmentPipeline:
         can be used to skip Nemotron risk analysis for false positive reduction.
 
         Args:
-            animals: List of animal detections (cat/dog classes from RT-DETRv2)
+            animals: List of animal detections (cat/dog classes from YOLO26v2)
             image: Full frame image to crop animals from
 
         Returns:

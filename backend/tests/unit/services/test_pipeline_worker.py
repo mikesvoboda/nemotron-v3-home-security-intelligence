@@ -573,14 +573,14 @@ class TestErrorHandling:
     async def test_detector_service_fallback_on_error(self, mock_detector):
         """Test detector returns empty list on service error."""
         mock_detector.detect_objects = AsyncMock(
-            side_effect=Exception("RT-DETRv2 service unavailable")
+            side_effect=Exception("YOLO26 service unavailable")
         )
 
         # Should handle exception gracefully
         try:
             await mock_detector.detect_objects("/path/to/image.jpg", "camera1", None)
         except Exception as e:
-            assert "RT-DETRv2 service unavailable" in str(e)
+            assert "YOLO26 service unavailable" in str(e)
 
     @pytest.mark.asyncio
     async def test_nemotron_fallback_risk_data_on_error(self, mock_redis_client):
@@ -744,7 +744,7 @@ class TestHealthReporting:
         broadcaster.broadcast_service_status = AsyncMock()
 
         service_config = ServiceConfig(
-            name="rtdetr",
+            name="yolo26",
             health_url="http://localhost:8001/health",
             restart_cmd="./restart.sh",
         )

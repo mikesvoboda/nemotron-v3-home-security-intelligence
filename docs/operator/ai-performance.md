@@ -11,12 +11,12 @@
 
 Expected performance on NVIDIA RTX A5500 (24GB):
 
-| Service   | Metric           | Target    | Acceptable |
-| --------- | ---------------- | --------- | ---------- |
-| RT-DETRv2 | Latency (single) | 30-50ms   | < 100ms    |
-| RT-DETRv2 | Throughput       | 20-30 fps | 10 fps     |
-| Nemotron  | Latency          | 2-5s      | < 10s      |
-| Nemotron  | Tokens/sec       | 30-50     | 15         |
+| Service  | Metric           | Target    | Acceptable |
+| -------- | ---------------- | --------- | ---------- |
+| YOLO26   | Latency (single) | 30-50ms   | < 100ms    |
+| YOLO26   | Throughput       | 20-30 fps | 10 fps     |
+| Nemotron | Latency          | 2-5s      | < 10s      |
+| Nemotron | Tokens/sec       | 30-50     | 15         |
 
 ---
 
@@ -53,7 +53,7 @@ curl "http://localhost:8000/api/system/gpu/history?since=2025-12-30T09:45:00Z&li
 
 ---
 
-## RT-DETRv2 Tuning
+## YOLO26 Tuning
 
 ### Confidence Threshold
 

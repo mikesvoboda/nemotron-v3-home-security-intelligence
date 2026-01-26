@@ -89,17 +89,17 @@ class TestGpuMetrics:
 class TestAiModelMetrics:
     """Tests for AI model metrics schemas."""
 
-    def test_rtdetr_metrics(self):
-        """Test RT-DETRv2 metrics creation."""
+    def test_yolo26_metrics(self):
+        """Test YOLO26 metrics creation."""
         metrics = AiModelMetrics(
             status="healthy",
             vram_gb=0.17,
-            model="rtdetr_r50vd_coco_o365",
+            model="yolo26_r50vd_coco_o365",
             device="cuda:0",
         )
         assert metrics.status == "healthy"
         assert metrics.vram_gb == 0.17
-        assert metrics.model == "rtdetr_r50vd_coco_o365"
+        assert metrics.model == "yolo26_r50vd_coco_o365"
         assert metrics.device == "cuda:0"
 
     def test_nemotron_metrics(self):
@@ -132,13 +132,13 @@ class TestInferenceMetrics:
     def test_inference_metrics_creation(self):
         """Test creating inference metrics."""
         metrics = InferenceMetrics(
-            rtdetr_latency_ms={"avg": 45, "p95": 82, "p99": 120},
+            yolo26_latency_ms={"avg": 45, "p95": 82, "p99": 120},
             nemotron_latency_ms={"avg": 2100, "p95": 4800, "p99": 8200},
             pipeline_latency_ms={"avg": 3200, "p95": 6100},
             throughput={"images_per_min": 12.4, "events_per_min": 2.1},
             queues={"detection": 0, "analysis": 0},
         )
-        assert metrics.rtdetr_latency_ms["avg"] == 45
+        assert metrics.yolo26_latency_ms["avg"] == 45
         assert metrics.nemotron_latency_ms["p95"] == 4800
         assert metrics.throughput["images_per_min"] == 12.4
         assert metrics.queues["detection"] == 0
@@ -297,12 +297,12 @@ class TestPerformanceUpdate:
                 power_watts=100,
             ),
             ai_models={
-                "rtdetr": AiModelMetrics(
-                    status="healthy", vram_gb=0.17, model="rtdetr", device="cuda:0"
+                "yolo26": AiModelMetrics(
+                    status="healthy", vram_gb=0.17, model="yolo26", device="cuda:0"
                 )
             },
             inference=InferenceMetrics(
-                rtdetr_latency_ms={"avg": 45, "p95": 82, "p99": 120},
+                yolo26_latency_ms={"avg": 45, "p95": 82, "p99": 120},
                 nemotron_latency_ms={"avg": 2100, "p95": 4800, "p99": 8200},
                 pipeline_latency_ms={"avg": 3200, "p95": 6100},
                 throughput={"images_per_min": 12.4, "events_per_min": 2.1},
@@ -329,7 +329,7 @@ class TestPerformanceUpdate:
         )
         assert update.gpu.utilization == 50
         assert update.timestamp is not None
-        assert "rtdetr" in update.ai_models
+        assert "yolo26" in update.ai_models
         assert len(update.containers) == 1
 
     def test_minimal_update(self):

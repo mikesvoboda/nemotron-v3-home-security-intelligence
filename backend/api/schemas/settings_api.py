@@ -34,7 +34,7 @@ __all__ = [
 class DetectionSettings(BaseModel):
     """Detection-related settings for object detection thresholds.
 
-    Controls the confidence thresholds used by RT-DETRv2 for object detection
+    Controls the confidence thresholds used by YOLO26 for object detection
     and fast-path processing for high-priority alerts.
     """
 

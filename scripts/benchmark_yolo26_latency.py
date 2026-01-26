@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Benchmark YOLO26 vs RT-DETRv2 latency and throughput.
+"""Benchmark YOLO26 vs YOLO26 latency and throughput.
 
-This script compares YOLO26 model variants (n, s, m) against RT-DETRv2 for:
+This script compares YOLO26 model variants (n, s, m) against YOLO26 for:
 - Inference latency (ms)
 - Throughput (FPS) at different batch sizes
 - GPU memory usage (VRAM)
@@ -25,7 +25,7 @@ Usage:
 
 Environment Variables:
     YOLO26_MODEL_PATH: Override YOLO26 model directory (default: /export/ai_models/model-zoo/yolo26)
-    RTDETR_MODEL_PATH: Override RT-DETRv2 model path (default: /export/ai_models/rt-detrv2/rtdetr_v2_r101vd)
+    YOLO26_MODEL_PATH: Override YOLO26 model path (default: /export/ai_models/yolo26v2/yolo26_v2_r101vd)
 """
 
 from __future__ import annotations
@@ -46,8 +46,8 @@ from PIL import Image
 
 # Model paths
 YOLO26_MODEL_DIR = Path(os.environ.get("YOLO26_MODEL_PATH", "/export/ai_models/model-zoo/yolo26"))
-RTDETR_MODEL_PATH = Path(
-    os.environ.get("RTDETR_MODEL_PATH", "/export/ai_models/rt-detrv2/rtdetr_v2_r101vd")
+YOLO26_MODEL_PATH = Path(
+    os.environ.get("YOLO26_MODEL_PATH", "/export/ai_models/yolo26v2/yolo26_v2_r101vd")
 )
 
 # Benchmark configuration
@@ -110,7 +110,7 @@ class ModelBenchmarkSummary:
     """Summary of all benchmarks for a single model."""
 
     model_name: str
-    model_type: str  # "yolo26" or "rtdetr"
+    model_type: str  # "yolo26" or "yolo26"
     parameters_m: float
     model_size_mb: float
     results: list[BenchmarkResult] = field(default_factory=list)
@@ -340,206 +340,16 @@ def benchmark_yolo26_model(
     return results
 
 
-def benchmark_rtdetr_model(
-    model_path: Path,
-    resolution: tuple[int, int],
-    batch_sizes: list[int],
-    device: str,
-    warmup_iterations: int,
-    benchmark_iterations: int,
-) -> list[BenchmarkResult]:
-    """Benchmark RT-DETRv2 model using HuggingFace Transformers."""
-    try:
-        import torch
-        from transformers import AutoImageProcessor, AutoModelForObjectDetection
-    except ImportError:
-        print("Error: transformers package not installed. Install with: pip install transformers")
-        sys.exit(1)
-
-    results = []
-    model_name = "rtdetr-v2-r101vd"
-
-    print(f"\n{'=' * 60}")
-    print(f"Benchmarking {model_name} at {resolution[0]}x{resolution[1]} on {device}")
-    print(f"{'=' * 60}")
-
-    try:
-        # Load model and processor
-        print("  Loading model...")
-        processor = AutoImageProcessor.from_pretrained(str(model_path))
-
-        try:
-            model = AutoModelForObjectDetection.from_pretrained(
-                str(model_path), attn_implementation="sdpa"
-            )
-            print("  Using SDPA attention (optimized)")
-        except (ValueError, ImportError):
-            model = AutoModelForObjectDetection.from_pretrained(str(model_path))
-            print("  Using default attention")
-
-        # Get model info
-        parameters_m = sum(p.numel() for p in model.parameters()) / 1e6
-        # Estimate model size from parameters (assuming FP32)
-        model_size_mb = parameters_m * 4  # 4 bytes per FP32 parameter
-
-        # Move to device
-        if device.startswith("cuda") and torch.cuda.is_available():
-            model = model.to(device)
-        model.eval()
-
-        # Clear GPU cache and reset peak memory tracking
-        gc.collect()
-        if device.startswith("cuda") and torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.reset_peak_memory_stats()
-            torch.cuda.synchronize()
-
-        # Create test images
-        test_image = create_test_image(resolution[0], resolution[1])
-
-        for batch_size in batch_sizes:
-            print(f"\n  Batch size: {batch_size}")
-
-            # Create batch
-            images = [test_image] * batch_size
-
-            # Warmup
-            print(f"    Warming up ({warmup_iterations} iterations)...")
-            for _ in range(warmup_iterations):
-                inputs = processor(images=images, return_tensors="pt")
-                if device.startswith("cuda"):
-                    inputs = {k: v.to(device) for k, v in inputs.items()}
-                with torch.inference_mode():
-                    _ = model(**inputs)
-
-            if device.startswith("cuda") and torch.cuda.is_available():
-                torch.cuda.synchronize()
-
-            # Benchmark
-            print(f"    Benchmarking ({benchmark_iterations} iterations)...")
-            latencies = []
-            preprocess_times = []
-            inference_times = []
-            postprocess_times = []
-
-            for i in range(benchmark_iterations):
-                # Clear cache periodically
-                if i % 20 == 0 and device.startswith("cuda") and torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-
-                # Preprocessing
-                start_preprocess = time.perf_counter()
-                inputs = processor(images=images, return_tensors="pt")
-                if device.startswith("cuda"):
-                    inputs = {k: v.to(device) for k, v in inputs.items()}
-                end_preprocess = time.perf_counter()
-
-                # Inference
-                start_inference = time.perf_counter()
-                with torch.inference_mode():
-                    outputs = model(**inputs)
-                if device.startswith("cuda") and torch.cuda.is_available():
-                    torch.cuda.synchronize()
-                end_inference = time.perf_counter()
-
-                # Postprocessing
-                start_postprocess = time.perf_counter()
-                target_sizes = torch.tensor([[resolution[1], resolution[0]]] * batch_size)
-                if device.startswith("cuda"):
-                    target_sizes = target_sizes.to(device)
-                _ = processor.post_process_object_detection(
-                    outputs, target_sizes=target_sizes, threshold=0.5
-                )
-                end_postprocess = time.perf_counter()
-
-                preprocess_ms = (end_preprocess - start_preprocess) * 1000
-                inference_ms = (end_inference - start_inference) * 1000
-                postprocess_ms = (end_postprocess - start_postprocess) * 1000
-                total_ms = preprocess_ms + inference_ms + postprocess_ms
-
-                latencies.append(total_ms)
-                preprocess_times.append(preprocess_ms)
-                inference_times.append(inference_ms)
-                postprocess_times.append(postprocess_ms)
-
-            # Calculate statistics
-            latencies = np.array(latencies)
-            latency_per_image = latencies / batch_size
-
-            vram_current, vram_peak = get_gpu_memory_mb()
-
-            result = BenchmarkResult(
-                model_name=model_name,
-                resolution=resolution,
-                device=device,
-                batch_size=batch_size,
-                latency_mean_ms=float(np.mean(latency_per_image)),
-                latency_std_ms=float(np.std(latency_per_image)),
-                latency_min_ms=float(np.min(latency_per_image)),
-                latency_max_ms=float(np.max(latency_per_image)),
-                latency_p50_ms=float(np.percentile(latency_per_image, 50)),
-                latency_p95_ms=float(np.percentile(latency_per_image, 95)),
-                latency_p99_ms=float(np.percentile(latency_per_image, 99)),
-                preprocess_mean_ms=float(np.mean(preprocess_times)) / batch_size,
-                inference_mean_ms=float(np.mean(inference_times)) / batch_size,
-                postprocess_mean_ms=float(np.mean(postprocess_times)) / batch_size,
-                throughput_fps=batch_size * 1000 / float(np.mean(latencies)),
-                vram_used_mb=vram_current,
-                vram_peak_mb=vram_peak,
-                parameters_m=parameters_m,
-                model_size_mb=model_size_mb,
-            )
-
-            print(
-                f"    Latency: {result.latency_mean_ms:.2f} +/- {result.latency_std_ms:.2f} ms/image"
-            )
-            print(f"    Throughput: {result.throughput_fps:.1f} FPS")
-            print(f"    VRAM: {result.vram_used_mb:.0f} MB (peak: {result.vram_peak_mb:.0f} MB)")
-
-            results.append(result)
-
-        # Cleanup
-        del model
-        del processor
-        gc.collect()
-        if device.startswith("cuda") and torch.cuda.is_available():
-            torch.cuda.empty_cache()
-
-    except Exception as e:
-        print(f"  ERROR: {e}")
-        import traceback
-
-        traceback.print_exc()
-        results.append(
-            BenchmarkResult(
-                model_name=model_name,
-                resolution=resolution,
-                device=device,
-                batch_size=1,
-                latency_mean_ms=0,
-                latency_std_ms=0,
-                latency_min_ms=0,
-                latency_max_ms=0,
-                latency_p50_ms=0,
-                latency_p95_ms=0,
-                latency_p99_ms=0,
-                error=str(e),
-            )
-        )
-
-    return results
-
-
 def generate_markdown_report(
     yolo_results: dict[str, list[BenchmarkResult]],
-    rtdetr_results: list[BenchmarkResult],
+    yolo26_results: list[BenchmarkResult],
     gpu_info: dict[str, Any],
     resolutions: list[tuple[int, int]],
     batch_sizes: list[int],
 ) -> str:
     """Generate a comprehensive markdown benchmark report."""
     lines = [
-        "# YOLO26 vs RT-DETRv2 Benchmark Results",
+        "# YOLO26 vs YOLO26 Benchmark Results",
         "",
         "> **Note:** This file is auto-generated by `scripts/benchmark_yolo26_latency.py`.",
         "> To refresh these results, run: `uv run python scripts/benchmark_yolo26_latency.py`",
@@ -552,7 +362,7 @@ def generate_markdown_report(
         "",
         "## Executive Summary",
         "",
-        "This benchmark compares YOLO26 variants (nano, small, medium) against RT-DETRv2 for home security monitoring use cases.",
+        "This benchmark compares YOLO26 variants (nano, small, medium) against YOLO26 for home security monitoring use cases.",
         "",
         "### Key Findings",
         "",
@@ -562,7 +372,7 @@ def generate_markdown_report(
     all_results = []
     for model_results in yolo_results.values():
         all_results.extend([r for r in model_results if r.batch_size == 1 and r.error is None])
-    all_results.extend([r for r in rtdetr_results if r.batch_size == 1 and r.error is None])
+    all_results.extend([r for r in yolo26_results if r.batch_size == 1 and r.error is None])
 
     if all_results:
         # Group by resolution
@@ -592,10 +402,10 @@ def generate_markdown_report(
                 f"| {model_name} | {r.parameters_m:.2f}M | {r.model_size_mb:.1f} MB | YOLO26 | Detection |"
             )
 
-    if rtdetr_results and rtdetr_results[0].error is None:
-        r = rtdetr_results[0]
+    if yolo26_results and yolo26_results[0].error is None:
+        r = yolo26_results[0]
         lines.append(
-            f"| rtdetr-v2-r101vd | {r.parameters_m:.2f}M | {r.model_size_mb:.1f} MB | RT-DETRv2 | Detection |"
+            f"| yolo26-v2-r101vd | {r.parameters_m:.2f}M | {r.model_size_mb:.1f} MB | YOLO26 | Detection |"
         )
 
     # Latency comparison section
@@ -634,16 +444,16 @@ def generate_markdown_report(
                         f"{r.latency_p95_ms:.2f} | {r.latency_p99_ms:.2f} |"
                     )
 
-        batch1_rtdetr = [
-            r for r in rtdetr_results if r.batch_size == 1 and r.resolution == resolution
+        batch1_yolo26 = [
+            r for r in yolo26_results if r.batch_size == 1 and r.resolution == resolution
         ]
-        if batch1_rtdetr:
-            r = batch1_rtdetr[0]
+        if batch1_yolo26:
+            r = batch1_yolo26[0]
             if r.error:
-                lines.append("| rtdetr-v2-r101vd | ERROR | - | - | - | - | - | - |")
+                lines.append("| yolo26-v2-r101vd | ERROR | - | - | - | - | - | - |")
             else:
                 lines.append(
-                    f"| rtdetr-v2-r101vd | {r.latency_mean_ms:.2f} | {r.latency_std_ms:.2f} | "
+                    f"| yolo26-v2-r101vd | {r.latency_mean_ms:.2f} | {r.latency_std_ms:.2f} | "
                     f"{r.latency_min_ms:.2f} | {r.latency_max_ms:.2f} | {r.latency_p50_ms:.2f} | "
                     f"{r.latency_p95_ms:.2f} | {r.latency_p99_ms:.2f} |"
                 )
@@ -672,14 +482,14 @@ def generate_markdown_report(
                     f"{r.postprocess_mean_ms:.2f} | {r.latency_mean_ms:.2f} |"
                 )
 
-    batch1_rtdetr_640 = [
-        r for r in rtdetr_results if r.batch_size == 1 and r.resolution == (640, 640)
+    batch1_yolo26_640 = [
+        r for r in yolo26_results if r.batch_size == 1 and r.resolution == (640, 640)
     ]
-    if batch1_rtdetr_640:
-        r = batch1_rtdetr_640[0]
+    if batch1_yolo26_640:
+        r = batch1_yolo26_640[0]
         if r.error is None:
             lines.append(
-                f"| rtdetr-v2-r101vd | {r.preprocess_mean_ms:.2f} | {r.inference_mean_ms:.2f} | "
+                f"| yolo26-v2-r101vd | {r.preprocess_mean_ms:.2f} | {r.inference_mean_ms:.2f} | "
                 f"{r.postprocess_mean_ms:.2f} | {r.latency_mean_ms:.2f} |"
             )
 
@@ -714,14 +524,14 @@ def generate_markdown_report(
                 b16 = f"{fps_by_batch.get(16, 0):.1f}" if 16 in fps_by_batch else "-"
                 lines.append(f"| {model_name} | {b1} | {b4} | {b8} | {b16} |")
 
-        res_rtdetr = [r for r in rtdetr_results if r.resolution == resolution and r.error is None]
-        if res_rtdetr:
-            fps_by_batch = {r.batch_size: r.throughput_fps for r in res_rtdetr}
+        res_yolo26 = [r for r in yolo26_results if r.resolution == resolution and r.error is None]
+        if res_yolo26:
+            fps_by_batch = {r.batch_size: r.throughput_fps for r in res_yolo26}
             b1 = f"{fps_by_batch.get(1, 0):.1f}" if 1 in fps_by_batch else "-"
             b4 = f"{fps_by_batch.get(4, 0):.1f}" if 4 in fps_by_batch else "-"
             b8 = f"{fps_by_batch.get(8, 0):.1f}" if 8 in fps_by_batch else "-"
             b16 = f"{fps_by_batch.get(16, 0):.1f}" if 16 in fps_by_batch else "-"
-            lines.append(f"| rtdetr-v2-r101vd | {b1} | {b4} | {b8} | {b16} |")
+            lines.append(f"| yolo26-v2-r101vd | {b1} | {b4} | {b8} | {b16} |")
 
         lines.append("")
 
@@ -745,10 +555,10 @@ def generate_markdown_report(
                     f"{r.vram_used_mb:.0f} | {r.vram_peak_mb:.0f} |"
                 )
 
-    for r in rtdetr_results:
+    for r in yolo26_results:
         if r.error is None:
             lines.append(
-                f"| rtdetr-v2-r101vd | {r.resolution[0]}x{r.resolution[1]} | {r.batch_size} | "
+                f"| yolo26-v2-r101vd | {r.resolution[0]}x{r.resolution[1]} | {r.batch_size} | "
                 f"{r.vram_used_mb:.0f} | {r.vram_peak_mb:.0f} |"
             )
 
@@ -788,26 +598,26 @@ def generate_markdown_report(
 
         lines.append(f"| {model_name} | {vram_640} | {vram_1280} | {vram_multi} |")
 
-    single_640_rtdetr = [
+    single_640_yolo26 = [
         r
-        for r in rtdetr_results
+        for r in yolo26_results
         if r.resolution == (640, 640) and r.batch_size == 1 and r.error is None
     ]
-    single_1280_rtdetr = [
+    single_1280_yolo26 = [
         r
-        for r in rtdetr_results
+        for r in yolo26_results
         if r.resolution == (1280, 1280) and r.batch_size == 1 and r.error is None
     ]
-    multi_640_rtdetr = [
+    multi_640_yolo26 = [
         r
-        for r in rtdetr_results
+        for r in yolo26_results
         if r.resolution == (640, 640) and r.batch_size == 4 and r.error is None
     ]
 
-    vram_640 = f"{single_640_rtdetr[0].vram_peak_mb:.0f} MB" if single_640_rtdetr else "-"
-    vram_1280 = f"{single_1280_rtdetr[0].vram_peak_mb:.0f} MB" if single_1280_rtdetr else "-"
-    vram_multi = f"{multi_640_rtdetr[0].vram_peak_mb:.0f} MB" if multi_640_rtdetr else "-"
-    lines.append(f"| rtdetr-v2-r101vd | {vram_640} | {vram_1280} | {vram_multi} |")
+    vram_640 = f"{single_640_yolo26[0].vram_peak_mb:.0f} MB" if single_640_yolo26 else "-"
+    vram_1280 = f"{single_1280_yolo26[0].vram_peak_mb:.0f} MB" if single_1280_yolo26 else "-"
+    vram_multi = f"{multi_640_yolo26[0].vram_peak_mb:.0f} MB" if multi_640_yolo26 else "-"
+    lines.append(f"| yolo26-v2-r101vd | {vram_640} | {vram_1280} | {vram_multi} |")
 
     # Recommendations
     lines.extend(
@@ -822,7 +632,7 @@ def generate_markdown_report(
             "| Low-power edge device | yolo26n | Lowest VRAM, fastest inference |",
             "| Standard security camera | yolo26s | Good balance of speed and accuracy |",
             "| High-resolution feeds | yolo26m | Better accuracy at higher resolutions |",
-            "| Maximum accuracy | rtdetr-v2-r101vd | Transformer architecture, best detection quality |",
+            "| Maximum accuracy | yolo26-v2-r101vd | Transformer architecture, best detection quality |",
             "",
             "### Latency Targets for Security Applications",
             "",
@@ -845,7 +655,7 @@ def generate_markdown_report(
             "- VRAM measurements include model weights and inference buffers",
             "- Latency includes preprocessing, inference, and postprocessing",
             "- YOLO26 uses end-to-end NMS-free inference which reduces postprocessing overhead",
-            "- RT-DETRv2 uses SDPA attention when available for optimized inference",
+            "- YOLO26 uses SDPA attention when available for optimized inference",
             "",
         ]
     )
@@ -856,13 +666,13 @@ def generate_markdown_report(
 def main() -> None:
     """Run the benchmark."""
     parser = argparse.ArgumentParser(
-        description="Benchmark YOLO26 vs RT-DETRv2 latency and throughput"
+        description="Benchmark YOLO26 vs YOLO26 latency and throughput"
     )
     parser.add_argument(
         "--models",
         type=str,
-        default="yolo26n,yolo26s,yolo26m,rtdetr",
-        help="Comma-separated list of models to benchmark (default: yolo26n,yolo26s,yolo26m,rtdetr)",
+        default="yolo26n,yolo26s,yolo26m,yolo26",
+        help="Comma-separated list of models to benchmark (default: yolo26n,yolo26s,yolo26m,yolo26)",
     )
     parser.add_argument(
         "--device",
@@ -897,7 +707,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         type=str,
-        default="docs/benchmarks/yolo26-vs-rtdetr.md",
+        default="docs/benchmarks/yolo26-vs-yolo26.md",
         help="Output file path for markdown report",
     )
     args = parser.parse_args()
@@ -908,7 +718,7 @@ def main() -> None:
     resolutions = [(int(r.strip()), int(r.strip())) for r in args.resolutions.split(",")]
 
     print("=" * 60)
-    print("YOLO26 vs RT-DETRv2 Benchmark")
+    print("YOLO26 vs YOLO26 Benchmark")
     print("=" * 60)
     print(f"Models: {', '.join(models_to_run)}")
     print(f"Device: {args.device}")
@@ -936,7 +746,7 @@ def main() -> None:
 
     # Run benchmarks
     yolo_results: dict[str, list[BenchmarkResult]] = {}
-    rtdetr_results: list[BenchmarkResult] = []
+    yolo26_results: list[BenchmarkResult] = []
 
     # YOLO26 models
     yolo_models = {
@@ -965,21 +775,21 @@ def main() -> None:
 
             yolo_results[model_name] = all_results
 
-    # RT-DETRv2
-    if "rtdetr" in models_to_run:
-        if not RTDETR_MODEL_PATH.exists():
-            print(f"\nWARNING: RT-DETRv2 not found at {RTDETR_MODEL_PATH}")
+    # YOLO26
+    if "yolo26" in models_to_run:
+        if not YOLO26_MODEL_PATH.exists():
+            print(f"\nWARNING: YOLO26 not found at {YOLO26_MODEL_PATH}")
         else:
             for resolution in resolutions:
-                results = benchmark_rtdetr_model(
-                    model_path=RTDETR_MODEL_PATH,
+                results = benchmark_yolo26_model(
+                    model_path=YOLO26_MODEL_PATH,
                     resolution=resolution,
                     batch_sizes=batch_sizes,
                     device=args.device,
                     warmup_iterations=args.warmup,
                     benchmark_iterations=args.iterations,
                 )
-                rtdetr_results.extend(results)
+                yolo26_results.extend(results)
 
     # Generate report
     print("\n" + "=" * 60)
@@ -988,7 +798,7 @@ def main() -> None:
 
     report = generate_markdown_report(
         yolo_results=yolo_results,
-        rtdetr_results=rtdetr_results,
+        yolo26_results=yolo26_results,
         gpu_info=gpu_info,
         resolutions=resolutions,
         batch_sizes=batch_sizes,
@@ -1012,7 +822,7 @@ def main() -> None:
             [(model_name, r) for r in results if r.batch_size == 1 and r.error is None]
         )
     all_single_image.extend(
-        [("rtdetr-v2-r101vd", r) for r in rtdetr_results if r.batch_size == 1 and r.error is None]
+        [("yolo26-v2-r101vd", r) for r in yolo26_results if r.batch_size == 1 and r.error is None]
     )
 
     if all_single_image:

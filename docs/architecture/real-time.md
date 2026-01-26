@@ -764,7 +764,7 @@ Sent periodically with system health:
       "offline": 0
     },
     "services": {
-      "rtdetr": "healthy",
+      "yolo26": "healthy",
       "nemotron": "healthy",
       "redis": "healthy"
     }
@@ -781,7 +781,7 @@ Sent when service health changes:
 {
   "type": "service_status",
   "data": {
-    "service": "rtdetr",
+    "service": "yolo26",
     "status": "unhealthy",
     "message": "Health check failed"
   },
@@ -828,7 +828,7 @@ Sent periodically (every 5 seconds) with detailed system performance metrics. Th
 | ------------ | --------------- | --------------------------------------------------------------------- |
 | `timestamp`  | ISO 8601 string | When this update was generated (UTC)                                  |
 | `gpu`        | object \| null  | GPU metrics from pynvml or AI container health endpoints              |
-| `ai_models`  | object          | Dictionary of AI model metrics keyed by model name (rtdetr, nemotron) |
+| `ai_models`  | object          | Dictionary of AI model metrics keyed by model name (yolo26, nemotron) |
 | `nemotron`   | object \| null  | Nemotron LLM-specific metrics (slots, context size)                   |
 | `inference`  | object \| null  | AI inference latency percentiles and throughput                       |
 | `databases`  | object          | Dictionary of database metrics keyed by name (postgresql, redis)      |
@@ -862,13 +862,13 @@ Sent periodically (every 5 seconds) with detailed system performance metrics. Th
 
 Dictionary containing metrics for each AI model:
 
-**RT-DETRv2 (`rtdetr`):**
+**YOLO26 (`yolo26`):**
 
 ```json
 {
   "status": "healthy",
   "vram_gb": 0.17,
-  "model": "rtdetr_r50vd_coco_o365",
+  "model": "yolo26_r50vd_coco_o365",
   "device": "cuda:0"
 }
 ```
@@ -902,7 +902,7 @@ Dictionary containing metrics for each AI model:
 
 ```json
 {
-  "rtdetr_latency_ms": { "avg": 45, "p95": 82, "p99": 120 },
+  "yolo26_latency_ms": { "avg": 45, "p95": 82, "p99": 120 },
   "nemotron_latency_ms": { "avg": 2100, "p95": 4800, "p99": 8200 },
   "pipeline_latency_ms": { "avg": 3200, "p95": 6100 },
   "throughput": { "images_per_min": 12.4, "events_per_min": 2.1 },
@@ -912,7 +912,7 @@ Dictionary containing metrics for each AI model:
 
 | Field                 | Type   | Description                                       |
 | --------------------- | ------ | ------------------------------------------------- |
-| `rtdetr_latency_ms`   | object | RT-DETRv2 latency stats (avg, p95, p99 in ms)     |
+| `yolo26_latency_ms`   | object | YOLO26 latency stats (avg, p95, p99 in ms)        |
 | `nemotron_latency_ms` | object | Nemotron latency stats (avg, p95, p99 in ms)      |
 | `pipeline_latency_ms` | object | Full pipeline latency stats (avg, p95 in ms)      |
 | `throughput`          | object | Processing rates (images_per_min, events_per_min) |
@@ -1038,10 +1038,10 @@ Array of alerts when metrics exceed configured thresholds:
       "power_watts": 31
     },
     "ai_models": {
-      "rtdetr": {
+      "yolo26": {
         "status": "healthy",
         "vram_gb": 0.17,
-        "model": "rtdetr_r50vd_coco_o365",
+        "model": "yolo26_r50vd_coco_o365",
         "device": "cuda:0"
       },
       "nemotron": {
@@ -1058,7 +1058,7 @@ Array of alerts when metrics exceed configured thresholds:
       "context_size": 4096
     },
     "inference": {
-      "rtdetr_latency_ms": { "avg": 45, "p95": 82, "p99": 120 },
+      "yolo26_latency_ms": { "avg": 45, "p95": 82, "p99": 120 },
       "nemotron_latency_ms": { "avg": 2100, "p95": 4800, "p99": 8200 },
       "pipeline_latency_ms": { "avg": 3200, "p95": 6100 },
       "throughput": { "images_per_min": 12.4, "events_per_min": 2.1 },

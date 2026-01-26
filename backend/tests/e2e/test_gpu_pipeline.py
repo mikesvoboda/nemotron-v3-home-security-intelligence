@@ -1,7 +1,7 @@
 """GPU Pipeline End-to-End Tests.
 
 These tests validate the complete GPU AI pipeline including:
-- RTDETRClient: RT-DETRv2 object detection via HTTP
+- YOLO26Client: YOLO26 object detection via HTTP
 - NemotronAnalyzer: Nemotron LLM risk analysis via llama.cpp
 - Full pipeline integration: Detection -> Batch -> Analysis -> Event
 
@@ -241,7 +241,7 @@ def create_test_image(path: Path, size: tuple[int, int] = (1920, 1080)) -> None:
 
 
 def create_mock_detector_response(detections: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    """Create a mock RT-DETRv2 detector response."""
+    """Create a mock YOLO26 detector response."""
     if detections is None:
         detections = [
             {
@@ -359,9 +359,9 @@ async def test_camera(isolated_db, clean_pipeline, tmp_path: Path) -> tuple[Came
 @pytest.mark.gpu
 @pytest.mark.asyncio
 async def test_gpu_detector_client_health_check(isolated_db):
-    """Test DetectorClient health check against real RT-DETRv2 service.
+    """Test DetectorClient health check against real YOLO26 service.
 
-    This test verifies that the RT-DETRv2 service is running and healthy
+    This test verifies that the YOLO26 service is running and healthy
     on the GPU runner. If the service is not available, the test will fail.
 
     Run with: pytest -m gpu -v
@@ -402,13 +402,13 @@ async def test_gpu_full_pipeline_with_real_services(
     """Test full GPU pipeline with real AI services.
 
     This is a comprehensive E2E test that validates:
-    1. Real RT-DETRv2 object detection
+    1. Real YOLO26 object detection
     2. Real Nemotron LLM analysis
     3. Database persistence
     4. Event creation
 
     This test requires:
-    - RT-DETRv2 service running on configured rtdetr_url
+    - YOLO26 service running on configured yolo26_url
     - Nemotron/llama.cpp service running on configured nemotron_url
     - PostgreSQL database
 
@@ -429,12 +429,12 @@ async def test_gpu_full_pipeline_with_real_services(
     analyzer_healthy = await analyzer.health_check()
 
     if not detector_healthy:
-        pytest.skip("RT-DETRv2 service not available")
+        pytest.skip("YOLO26 service not available")
 
     if not analyzer_healthy:
         pytest.skip("Nemotron service not available")
 
-    # Step 1: Run object detection with real RT-DETRv2
+    # Step 1: Run object detection with real YOLO26
     async with get_session() as session:
         try:
             detections = await detector.detect_objects(
@@ -443,7 +443,7 @@ async def test_gpu_full_pipeline_with_real_services(
                 session=session,
             )
         except DetectorUnavailableError:
-            pytest.skip("RT-DETRv2 service returned error")
+            pytest.skip("YOLO26 service returned error")
 
     # Verify detections (may be 0 if no objects detected in test image)
     assert isinstance(detections, list)
@@ -506,7 +506,7 @@ async def test_gpu_detector_client_inference_performance(
     isolated_db,
     test_camera: tuple[Camera, Path],
 ):
-    """Test RT-DETRv2 inference performance on GPU.
+    """Test YOLO26 inference performance on GPU.
 
     This test measures the inference time for object detection
     to ensure it meets performance requirements.
@@ -528,7 +528,7 @@ async def test_gpu_detector_client_inference_performance(
 
     # Check if service is available
     if not await detector.health_check():
-        pytest.skip("RT-DETRv2 service not available")
+        pytest.skip("YOLO26 service not available")
 
     # Measure inference time
     start_time = time.time()
@@ -541,12 +541,12 @@ async def test_gpu_detector_client_inference_performance(
                 session=session,
             )
         except DetectorUnavailableError:
-            pytest.skip("RT-DETRv2 service returned error")
+            pytest.skip("YOLO26 service returned error")
 
     inference_time_ms = (time.time() - start_time) * 1000
 
     # Log performance metrics
-    print(f"\nRT-DETRv2 Inference Time: {inference_time_ms:.2f}ms")
+    print(f"\nYOLO26 Inference Time: {inference_time_ms:.2f}ms")
 
     # Performance assertion (adjust threshold as needed)
     # Allow up to 5000ms for first inference (model loading)
@@ -785,7 +785,7 @@ async def test_full_pipeline_integration_mocked(
     image_path = camera_root / camera_id / "full_pipeline_test.jpg"
     create_test_image(image_path)
 
-    # Step 2: Run detection with mocked RT-DETRv2
+    # Step 2: Run detection with mocked YOLO26
     detector = DetectorClient()
     mock_detector_response = create_mock_detector_response(
         [

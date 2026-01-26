@@ -44,7 +44,7 @@ dashboards/
 | GPU Statistics     | GPU Utilization  | gauge      | Backend-API | /api/system/gpu                 |
 | GPU Statistics     | GPU Temperature  | stat       | Backend-API | /api/system/gpu                 |
 | GPU Statistics     | Memory Used      | stat       | Backend-API | /api/system/gpu                 |
-| GPU Statistics     | Inference FPS    | stat       | AI-Detector | rtdetr_inference_requests_total |
+| GPU Statistics     | Inference FPS    | stat       | AI-Detector | yolo26_inference_requests_total |
 | Service Health     | Database         | stat       | Backend-API | /api/system/health              |
 | Service Health     | Redis            | stat       | Backend-API | /api/system/health              |
 | Service Health     | AI Services      | stat       | Backend-API | /api/system/health              |

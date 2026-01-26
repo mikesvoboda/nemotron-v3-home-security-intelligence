@@ -2,7 +2,7 @@
 
 ## Purpose
 
-GPU tests validate the RT-DETRv2 detector client connectivity and basic inference on the self-hosted GPU runner (NVIDIA RTX A5500). These tests are designed to run WITHOUT database dependencies, testing only HTTP client functionality.
+GPU tests validate the YOLO26 detector client connectivity and basic inference on the self-hosted GPU runner (NVIDIA RTX A5500). These tests are designed to run WITHOUT database dependencies, testing only HTTP client functionality.
 
 ## Directory Structure
 
@@ -32,17 +32,17 @@ pytest backend/tests/gpu/ -v -m "gpu" --ignore-missing-gpu
 
 GPU service integration tests:
 
-| Test                                  | Description                                 |
-| ------------------------------------- | ------------------------------------------- |
-| `test_detector_service_health_check`  | RT-DETRv2 service responds to health checks |
-| `test_detector_inference_basic`       | Basic object detection inference            |
-| `test_detector_inference_performance` | Inference performance measurement           |
-| `test_detector_multiple_images`       | Multiple images processed sequentially      |
-| `test_nemotron_service_health_check`  | Nemotron LLM service health check           |
-| `test_cuda_availability`              | CUDA availability via nvidia-smi            |
-| `test_gpu_memory_available`           | GPU memory check (4GB minimum)              |
-| `test_detector_handles_invalid_image` | Invalid image error handling                |
-| `test_detector_concurrent_requests`   | Concurrent request handling                 |
+| Test                                  | Description                              |
+| ------------------------------------- | ---------------------------------------- |
+| `test_detector_service_health_check`  | YOLO26 service responds to health checks |
+| `test_detector_inference_basic`       | Basic object detection inference         |
+| `test_detector_inference_performance` | Inference performance measurement        |
+| `test_detector_multiple_images`       | Multiple images processed sequentially   |
+| `test_nemotron_service_health_check`  | Nemotron LLM service health check        |
+| `test_cuda_availability`              | CUDA availability via nvidia-smi         |
+| `test_gpu_memory_available`           | GPU memory check (4GB minimum)           |
+| `test_detector_handles_invalid_image` | Invalid image error handling             |
+| `test_detector_concurrent_requests`   | Concurrent request handling              |
 
 ## Test Markers
 
@@ -61,14 +61,14 @@ async def test_detector_service_health_check():
 
 | Variable       | Default                 | Description              |
 | -------------- | ----------------------- | ------------------------ |
-| `RTDETR_URL`   | `http://localhost:8090` | RT-DETRv2 service URL    |
+| `YOLO26_URL`   | `http://localhost:8090` | YOLO26 service URL       |
 | `NEMOTRON_URL` | `http://localhost:8091` | Nemotron LLM service URL |
 
 ### Helper Functions
 
 ```python
 def get_detector_url() -> str:
-    return os.environ.get("RTDETR_URL", "http://localhost:8090")
+    return os.environ.get("YOLO26_URL", "http://localhost:8090")
 
 def get_nemotron_url() -> str:
     return os.environ.get("NEMOTRON_URL", "http://localhost:8091")
@@ -93,7 +93,7 @@ async def send_detection_request(image_path: str, timeout: float = 60.0) -> dict
 
 Tests skip gracefully when:
 
-- RT-DETRv2 service is not available
+- YOLO26 service is not available
 - Nemotron service is not available
 - CUDA is not available
 - nvidia-smi command not found
@@ -104,7 +104,7 @@ Example:
 
 ```python
 if not await check_detector_health():
-    pytest.skip(f"RT-DETRv2 detector not available at {get_detector_url()}")
+    pytest.skip(f"YOLO26 detector not available at {get_detector_url()}")
 ```
 
 ## Performance Expectations
@@ -137,7 +137,7 @@ Image sizes tested:
 
 ## Detection Response Format
 
-Expected RT-DETRv2 response:
+Expected YOLO26 response:
 
 ```json
 {
@@ -163,10 +163,10 @@ These tests run on the self-hosted GPU runner via `.github/workflows/gpu-tests.y
 
 ## Troubleshooting
 
-### "RT-DETRv2 detector not available"
+### "YOLO26 detector not available"
 
-- Check RT-DETRv2 service is running on configured port
-- Verify `RTDETR_URL` environment variable
+- Check YOLO26 service is running on configured port
+- Verify `YOLO26_URL` environment variable
 - Check network connectivity to GPU runner
 
 ### "Nemotron service not available"
@@ -184,12 +184,12 @@ These tests run on the self-hosted GPU runner via `.github/workflows/gpu-tests.y
 ### "Insufficient GPU memory"
 
 - Free GPU memory (kill other processes)
-- Minimum 4GB free required for RT-DETRv2
+- Minimum 4GB free required for YOLO26
 - Check for memory leaks from previous runs
 
 ## Related Documentation
 
 - `/backend/tests/AGENTS.md` - Test infrastructure overview
 - `/backend/tests/e2e/AGENTS.md` - End-to-end pipeline testing
-- `/ai/rtdetr/AGENTS.md` - RT-DETRv2 detection server
+- `/ai/yolo26/AGENTS.md` - YOLO26 detection server
 - `/ai/nemotron/AGENTS.md` - Nemotron LLM risk analysis

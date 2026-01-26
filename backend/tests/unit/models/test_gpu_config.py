@@ -54,7 +54,7 @@ gpu_names = st.sampled_from(
 )
 
 # Strategy for service names
-service_names = st.sampled_from(["rtdetr", "nemotron", "whisper", "yolo", "embedding"])
+service_names = st.sampled_from(["yolo26", "nemotron", "whisper", "yolo", "embedding"])
 
 # Strategy for assignment strategies
 assignment_strategies = st.sampled_from(list(GpuAssignmentStrategy))
@@ -416,9 +416,9 @@ class TestGpuConfigurationModelInitialization:
 
     def test_gpu_configuration_creation_minimal(self):
         """Test creating a GPU configuration with minimal required fields."""
-        config = GpuConfiguration(service_name="rtdetr")
+        config = GpuConfiguration(service_name="yolo26")
 
-        assert config.service_name == "rtdetr"
+        assert config.service_name == "yolo26"
         # Optional fields should be None or have defaults
         assert config.gpu_index is None
         assert config.vram_budget_override is None
@@ -427,7 +427,7 @@ class TestGpuConfigurationModelInitialization:
         """Test GPU configuration with all fields populated."""
         now = datetime.now(UTC)
         config = GpuConfiguration(
-            service_name="rtdetr",
+            service_name="yolo26",
             gpu_index=0,
             strategy=GpuAssignmentStrategy.MANUAL.value,
             vram_budget_override=0.8,
@@ -436,7 +436,7 @@ class TestGpuConfigurationModelInitialization:
             updated_at=now,
         )
 
-        assert config.service_name == "rtdetr"
+        assert config.service_name == "yolo26"
         assert config.gpu_index == 0
         assert config.strategy == "manual"
         assert config.vram_budget_override == 0.8
@@ -461,7 +461,7 @@ class TestGpuConfigurationModelInitialization:
     def test_gpu_configuration_custom_strategy(self):
         """Test GPU configuration with custom strategy."""
         config = GpuConfiguration(
-            service_name="rtdetr",
+            service_name="yolo26",
             strategy=GpuAssignmentStrategy.VRAM_BASED.value,
         )
 
@@ -469,7 +469,7 @@ class TestGpuConfigurationModelInitialization:
 
     def test_gpu_configuration_enabled_false(self):
         """Test GPU configuration with enabled=False."""
-        config = GpuConfiguration(service_name="rtdetr", enabled=False)
+        config = GpuConfiguration(service_name="yolo26", enabled=False)
 
         assert config.enabled is False
 
@@ -479,45 +479,45 @@ class TestGpuConfigurationFields:
 
     def test_gpu_configuration_has_id_field(self):
         """Test GPU configuration has id field."""
-        config = GpuConfiguration(service_name="rtdetr")
+        config = GpuConfiguration(service_name="yolo26")
         assert hasattr(config, "id")
 
     def test_gpu_configuration_has_service_name_field(self):
         """Test GPU configuration has service_name field."""
-        config = GpuConfiguration(service_name="rtdetr")
+        config = GpuConfiguration(service_name="yolo26")
         assert hasattr(config, "service_name")
-        assert config.service_name == "rtdetr"
+        assert config.service_name == "yolo26"
 
     def test_gpu_configuration_has_gpu_index_field(self):
         """Test GPU configuration has gpu_index field."""
-        config = GpuConfiguration(service_name="rtdetr", gpu_index=0)
+        config = GpuConfiguration(service_name="yolo26", gpu_index=0)
         assert hasattr(config, "gpu_index")
         assert config.gpu_index == 0
 
     def test_gpu_configuration_has_strategy_field(self):
         """Test GPU configuration has strategy field."""
-        config = GpuConfiguration(service_name="rtdetr")
+        config = GpuConfiguration(service_name="yolo26")
         assert hasattr(config, "strategy")
 
     def test_gpu_configuration_has_vram_budget_override_field(self):
         """Test GPU configuration has vram_budget_override field."""
-        config = GpuConfiguration(service_name="rtdetr", vram_budget_override=0.8)
+        config = GpuConfiguration(service_name="yolo26", vram_budget_override=0.8)
         assert hasattr(config, "vram_budget_override")
         assert config.vram_budget_override == 0.8
 
     def test_gpu_configuration_has_enabled_field(self):
         """Test GPU configuration has enabled field."""
-        config = GpuConfiguration(service_name="rtdetr")
+        config = GpuConfiguration(service_name="yolo26")
         assert hasattr(config, "enabled")
 
     def test_gpu_configuration_has_created_at_field(self):
         """Test GPU configuration has created_at field."""
-        config = GpuConfiguration(service_name="rtdetr")
+        config = GpuConfiguration(service_name="yolo26")
         assert hasattr(config, "created_at")
 
     def test_gpu_configuration_has_updated_at_field(self):
         """Test GPU configuration has updated_at field."""
-        config = GpuConfiguration(service_name="rtdetr")
+        config = GpuConfiguration(service_name="yolo26")
         assert hasattr(config, "updated_at")
 
 
@@ -526,26 +526,26 @@ class TestGpuConfigurationRepr:
 
     def test_gpu_configuration_repr_contains_class_name(self):
         """Test repr contains class name."""
-        config = GpuConfiguration(service_name="rtdetr", gpu_index=0)
+        config = GpuConfiguration(service_name="yolo26", gpu_index=0)
         repr_str = repr(config)
         assert "GpuConfiguration" in repr_str
 
     def test_gpu_configuration_repr_contains_service_name(self):
         """Test repr contains service name."""
-        config = GpuConfiguration(service_name="rtdetr", gpu_index=0)
+        config = GpuConfiguration(service_name="yolo26", gpu_index=0)
         repr_str = repr(config)
-        assert "rtdetr" in repr_str
+        assert "yolo26" in repr_str
 
     def test_gpu_configuration_repr_contains_gpu_index(self):
         """Test repr contains GPU index."""
-        config = GpuConfiguration(service_name="rtdetr", gpu_index=0)
+        config = GpuConfiguration(service_name="yolo26", gpu_index=0)
         repr_str = repr(config)
         assert "gpu_index=0" in repr_str
 
     def test_gpu_configuration_repr_contains_strategy(self):
         """Test repr contains strategy."""
         config = GpuConfiguration(
-            service_name="rtdetr",
+            service_name="yolo26",
             strategy=GpuAssignmentStrategy.VRAM_BASED.value,
         )
         repr_str = repr(config)
@@ -553,7 +553,7 @@ class TestGpuConfigurationRepr:
 
     def test_gpu_configuration_repr_format(self):
         """Test repr has expected format."""
-        config = GpuConfiguration(service_name="rtdetr", gpu_index=0)
+        config = GpuConfiguration(service_name="yolo26", gpu_index=0)
         repr_str = repr(config)
         assert repr_str.startswith("<GpuConfiguration(")
         assert repr_str.endswith(")>")
@@ -886,28 +886,28 @@ class TestGpuConfigurationProperties:
     @settings(max_examples=20)
     def test_gpu_index_roundtrip(self, index: int):
         """Property: GPU index values roundtrip correctly."""
-        config = GpuConfiguration(service_name="rtdetr", gpu_index=index)
+        config = GpuConfiguration(service_name="yolo26", gpu_index=index)
         assert config.gpu_index == index
 
     @given(strategy=assignment_strategies)
     @settings(max_examples=10)
     def test_strategy_roundtrip(self, strategy: GpuAssignmentStrategy):
         """Property: Strategy values roundtrip correctly."""
-        config = GpuConfiguration(service_name="rtdetr", strategy=strategy.value)
+        config = GpuConfiguration(service_name="yolo26", strategy=strategy.value)
         assert config.strategy == strategy.value
 
     @given(budget=vram_budget)
     @settings(max_examples=20)
     def test_vram_budget_override_roundtrip(self, budget: float):
         """Property: VRAM budget override values roundtrip correctly."""
-        config = GpuConfiguration(service_name="rtdetr", vram_budget_override=budget)
+        config = GpuConfiguration(service_name="yolo26", vram_budget_override=budget)
         assert abs(config.vram_budget_override - budget) < 1e-10
 
     @given(enabled=st.booleans())
     @settings(max_examples=10)
     def test_enabled_roundtrip(self, enabled: bool):
         """Property: Enabled values roundtrip correctly."""
-        config = GpuConfiguration(service_name="rtdetr", enabled=enabled)
+        config = GpuConfiguration(service_name="yolo26", enabled=enabled)
         assert config.enabled == enabled
 
 
@@ -963,5 +963,5 @@ class TestGpuConfigurationFieldRanges:
     @settings(max_examples=20)
     def test_vram_budget_in_valid_range(self, budget: float):
         """Property: VRAM budget override is in valid range (0.0-1.0)."""
-        config = GpuConfiguration(service_name="rtdetr", vram_budget_override=budget)
+        config = GpuConfiguration(service_name="yolo26", vram_budget_override=budget)
         assert 0.0 < config.vram_budget_override <= 1.0

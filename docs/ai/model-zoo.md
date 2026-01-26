@@ -15,7 +15,7 @@ The architecture separates models into two categories:
 +---------------------------------------------------------------------+
 |                        Detection Pipeline                            |
 +---------------------------------------------------------------------+
-|  Camera Frame -> RT-DETRv2 -> Detections -> Enrichment -> Nemotron  |
+|  Camera Frame -> YOLO26 -> Detections -> Enrichment -> Nemotron  |
 +---------------------------------------------------------------------+
                                   |
                                   v
@@ -38,7 +38,7 @@ The architecture separates models into two categories:
 
 | Service    | Container     | Port | Model                | VRAM    | Purpose                       |
 | ---------- | ------------- | ---- | -------------------- | ------- | ----------------------------- |
-| RT-DETRv2  | ai-detector   | 8090 | RT-DETRv2 R101vd     | ~650MB  | Primary object detection      |
+| YOLO26     | ai-detector   | 8090 | YOLO26 R101vd        | ~650MB  | Primary object detection      |
 | Nemotron   | ai-nemotron   | 8091 | Nemotron-3-Nano-30B  | ~18GB   | Risk reasoning and analysis   |
 | Florence-2 | ai-florence   | 8092 | Florence-2-Large     | ~1.2GB  | Scene understanding, OCR      |
 | CLIP       | ai-clip       | 8093 | CLIP ViT-L/14        | ~800MB  | Embeddings, anomaly detection |
@@ -51,7 +51,7 @@ Camera Images
       |
       v
 +-------------+      +-------------+
-|  RT-DETRv2  |----->|  Enrichment |
+|  YOLO26  |----->|  Enrichment |
 |   (8090)    |      |   (8094)    |
 +-------------+      +-------------+
       |                    |
@@ -70,9 +70,9 @@ Camera Images
 
 ### Always-Loaded Models
 
-#### RT-DETRv2 (ai-detector:8090)
+#### YOLO26 (ai-detector:8090)
 
-- **Model**: PekingU/rtdetr_r50vd_coco_o365
+- **Model**: PekingU/yolo26_r50vd_coco_o365
 - **Architecture**: Real-Time Detection Transformer v2
 - **VRAM**: ~650MB
 - **Inference Time**: 30-50ms per image
@@ -702,13 +702,13 @@ The backend stores enrichment results in the detection record and passes the com
 
 ## Environment Variables
 
-### RT-DETRv2
+### YOLO26
 
-| Variable            | Default                                        | Description              |
-| ------------------- | ---------------------------------------------- | ------------------------ |
-| `RTDETR_MODEL_PATH` | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` | Model path               |
-| `RTDETR_CONFIDENCE` | `0.5`                                          | Min confidence threshold |
-| `PORT`              | `8090`                                         | Server port              |
+| Variable            | Default                                       | Description              |
+| ------------------- | --------------------------------------------- | ------------------------ |
+| `YOLO26_MODEL_PATH` | `/export/ai_models/yolo26v2/yolo26_v2_r101vd` | Model path               |
+| `YOLO26_CONFIDENCE` | `0.5`                                         | Min confidence threshold |
+| `PORT`              | `8090`                                        | Server port              |
 
 ### Nemotron
 
@@ -850,6 +850,6 @@ ai-enrichment:
 
 - [AI Pipeline AGENTS.md](../../ai/AGENTS.md) - Service overview
 - [Enrichment Service AGENTS.md](../../ai/enrichment/AGENTS.md) - Detailed endpoint docs
-- [RT-DETRv2 AGENTS.md](../../ai/rtdetr/AGENTS.md) - Detection service
+- [YOLO26 AGENTS.md](../../ai/yolo26/AGENTS.md) - Detection service
 - [Florence-2 AGENTS.md](../../ai/florence/AGENTS.md) - Vision-language service
 - [CLIP AGENTS.md](../../ai/clip/AGENTS.md) - Embedding service

@@ -18,7 +18,7 @@ name: Load Tests
 # - Throughput threshold removed (not meaningful with 1 VU smoke tests)
 #
 # CI Environment Limitations:
-# - AI services (RT-DETR, Nemotron) are NOT deployed in CI
+# - AI services (YOLO26, Nemotron) are NOT deployed in CI
 # - Many endpoints return 503/500 without AI pipeline registration
 # - Latency thresholds remain strict to catch performance regressions
 # - Error rate thresholds are relaxed to accommodate missing services

@@ -37,20 +37,20 @@
 
 The system uses **12 SQLAlchemy models** across **12 PostgreSQL tables**:
 
-| Model            | Table                | Purpose                                            | Source File                   |
-| ---------------- | -------------------- | -------------------------------------------------- | ----------------------------- |
-| Camera           | `cameras`            | Security camera configuration and status           | `backend/models/camera.py`    |
-| Detection        | `detections`         | Individual object detection results from RT-DETRv2 | `backend/models/detection.py` |
-| Event            | `events`             | Aggregated security events with LLM risk analysis  | `backend/models/event.py`     |
-| Alert            | `alerts`             | Triggered alert notifications                      | `backend/models/alert.py`     |
-| AlertRule        | `alert_rules`        | Alert triggering conditions and configuration      | `backend/models/alert.py`     |
-| Zone             | `zones`              | Camera view regions of interest                    | `backend/models/zone.py`      |
-| ActivityBaseline | `activity_baselines` | Per-camera activity rate baselines by time slot    | `backend/models/baseline.py`  |
-| ClassBaseline    | `class_baselines`    | Per-camera object class frequency baselines        | `backend/models/baseline.py`  |
-| GPUStats         | `gpu_stats`          | GPU performance metrics time-series                | `backend/models/gpu_stats.py` |
-| Log              | `logs`               | Structured application logs                        | `backend/models/log.py`       |
-| AuditLog         | `audit_logs`         | Security-sensitive operation audit trail           | `backend/models/audit.py`     |
-| APIKey           | `api_keys`           | API authentication keys                            | `backend/models/api_key.py`   |
+| Model            | Table                | Purpose                                           | Source File                   |
+| ---------------- | -------------------- | ------------------------------------------------- | ----------------------------- |
+| Camera           | `cameras`            | Security camera configuration and status          | `backend/models/camera.py`    |
+| Detection        | `detections`         | Individual object detection results from YOLO26   | `backend/models/detection.py` |
+| Event            | `events`             | Aggregated security events with LLM risk analysis | `backend/models/event.py`     |
+| Alert            | `alerts`             | Triggered alert notifications                     | `backend/models/alert.py`     |
+| AlertRule        | `alert_rules`        | Alert triggering conditions and configuration     | `backend/models/alert.py`     |
+| Zone             | `zones`              | Camera view regions of interest                   | `backend/models/zone.py`      |
+| ActivityBaseline | `activity_baselines` | Per-camera activity rate baselines by time slot   | `backend/models/baseline.py`  |
+| ClassBaseline    | `class_baselines`    | Per-camera object class frequency baselines       | `backend/models/baseline.py`  |
+| GPUStats         | `gpu_stats`          | GPU performance metrics time-series               | `backend/models/gpu_stats.py` |
+| Log              | `logs`               | Structured application logs                       | `backend/models/log.py`       |
+| AuditLog         | `audit_logs`         | Security-sensitive operation audit trail          | `backend/models/audit.py`     |
+| APIKey           | `api_keys`           | API authentication keys                           | `backend/models/api_key.py`   |
 
 All models are exported from `backend/models/__init__.py`.
 
@@ -319,7 +319,7 @@ await session.commit()
 
 **Table:** `detections`
 **Source:** `backend/models/detection.py`
-**Purpose:** Stores individual object detection results from RT-DETRv2.
+**Purpose:** Stores individual object detection results from YOLO26.
 
 #### Schema
 
@@ -1038,7 +1038,7 @@ flowchart TB
         FW[FileWatcher]
         DQ[(Redis: detection_queue)]
         DQW[DetectionQueueWorker]
-        RT[RT-DETRv2]
+        RT[YOLO26]
         BA[BatchAggregator]
         AQ[(Redis: analysis_queue)]
         AQW[AnalysisQueueWorker]
@@ -1089,7 +1089,7 @@ flowchart TB
 2. **FileWatcher:** Detects new file, validates, queues for processing
 3. **Deduplication:** SHA256 hash checked against Redis cache
 4. **Detection Queue:** File path pushed to `detection_queue`
-5. **Object Detection:** RT-DETRv2 performs inference, creates Detection records
+5. **Object Detection:** YOLO26 performs inference, creates Detection records
 6. **Batch Aggregation:** Detections grouped by camera in 90s windows
 7. **Analysis Queue:** Completed batch pushed to `analysis_queue`
 8. **LLM Analysis:** Nemotron analyzes batch, generates risk score and summary

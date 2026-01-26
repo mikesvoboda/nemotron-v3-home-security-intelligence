@@ -58,9 +58,9 @@ def sample_service() -> ManagedService:
     """Create a sample managed service for testing."""
     return ManagedService(
         name="ai-detector",
-        display_name="RT-DETRv2",
+        display_name="YOLO26",
         container_id="abc123",
-        image="ghcr.io/.../rtdetr:latest",
+        image="ghcr.io/.../yolo26:latest",
         port=8090,
         health_endpoint="/health",
         health_cmd=None,

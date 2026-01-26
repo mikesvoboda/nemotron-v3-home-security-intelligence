@@ -88,7 +88,7 @@ class DetectionQueueWorker:  # Line 208
 | Parameter          | Type              | Default           | Description                            |
 | ------------------ | ----------------- | ----------------- | -------------------------------------- |
 | `redis_client`     | `RedisClient`     | Required          | Redis client for queue operations      |
-| `detector_client`  | `DetectorClient`  | Auto-created      | Client for RT-DETRv2                   |
+| `detector_client`  | `DetectorClient`  | Auto-created      | Client for YOLO26                      |
 | `batch_aggregator` | `BatchAggregator` | Auto-created      | For grouping detections                |
 | `video_processor`  | `VideoProcessor`  | Auto-created      | For video frame extraction             |
 | `retry_handler`    | `RetryHandler`    | Auto-created      | For transient failure handling         |

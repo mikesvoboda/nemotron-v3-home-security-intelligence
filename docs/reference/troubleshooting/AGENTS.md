@@ -43,7 +43,7 @@ troubleshooting/
 
 ### ai-issues.md
 
-**Purpose:** Troubleshooting RT-DETRv2, Nemotron, and pipeline problems.
+**Purpose:** Troubleshooting YOLO26, Nemotron, and pipeline problems.
 
 **Topics Covered:**
 
@@ -63,7 +63,7 @@ troubleshooting/
 ./scripts/start-ai.sh status
 
 # Check individual services
-curl http://localhost:8090/health  # RT-DETRv2
+curl http://localhost:8090/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 
 # Check pipeline
@@ -199,7 +199,7 @@ docker compose -f docker-compose.prod.yml ps
 ### AI Services
 
 ```bash
-# RT-DETRv2
+# YOLO26
 curl http://localhost:8090/health
 
 # Nemotron

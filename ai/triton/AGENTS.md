@@ -28,7 +28,7 @@ ai/triton/
     conftest.py             # Test fixtures
     test_client.py          # Client tests
   model_repository/         # Triton model repository
-    rtdetr/                 # RT-DETR object detection
+    yolo26/                 # YOLO26 object detection
       config.pbtxt          # Model configuration
       1/                    # Version 1
         model.plan          # TensorRT engine (generated)
@@ -83,7 +83,7 @@ Each model has a `config.pbtxt` file defining:
 Example configuration:
 
 ```protobuf
-name: "rtdetr"
+name: "yolo26"
 platform: "tensorrt_plan"
 max_batch_size: 8
 
@@ -102,7 +102,7 @@ dynamic_batching {
 | `TRITON_HTTP_URL`             | `localhost:8000` | Triton HTTP endpoint    |
 | `TRITON_PROTOCOL`             | `grpc`           | Protocol (grpc or http) |
 | `TRITON_TIMEOUT`              | `60`             | Request timeout seconds |
-| `TRITON_MODEL`                | `rtdetr`         | Default model           |
+| `TRITON_MODEL`                | `yolo26`         | Default model           |
 | `TRITON_MAX_RETRIES`          | `3`              | Max retry attempts      |
 | `TRITON_CONFIDENCE_THRESHOLD` | `0.5`            | Detection threshold     |
 
@@ -132,7 +132,7 @@ services:
 
 ## Model Preparation
 
-### RT-DETR
+### YOLO26
 
 1. Export to ONNX:
 
@@ -141,17 +141,17 @@ python -c "
 from transformers import AutoModelForObjectDetection
 import torch
 
-model = AutoModelForObjectDetection.from_pretrained('PekingU/rtdetr_r50vd_coco_o365')
+model = AutoModelForObjectDetection.from_pretrained('PekingU/yolo26_r50vd_coco_o365')
 dummy_input = torch.randn(1, 3, 640, 640)
-torch.onnx.export(model, dummy_input, 'rtdetr.onnx', opset_version=17)
+torch.onnx.export(model, dummy_input, 'yolo26.onnx', opset_version=17)
 "
 ```
 
 2. Convert to TensorRT:
 
 ```bash
-trtexec --onnx=rtdetr.onnx \
-        --saveEngine=ai/triton/model_repository/rtdetr/1/model.plan \
+trtexec --onnx=yolo26.onnx \
+        --saveEngine=ai/triton/model_repository/yolo26/1/model.plan \
         --fp16 \
         --minShapes=images:1x3x640x640 \
         --optShapes=images:4x3x640x640 \
@@ -263,7 +263,7 @@ uv run pytest ai/triton/tests/test_integration.py -v --run-integration
 
 ```bash
 # Using Triton's perf_analyzer
-perf_analyzer -m rtdetr \
+perf_analyzer -m yolo26 \
               -u localhost:8001 \
               --concurrency-range 1:8 \
               --shape images:1,3,640,640
@@ -301,7 +301,7 @@ TRITON_VERBOSE=true
 nvidia-smi -l 1
 
 # Analyze batching behavior
-perf_analyzer -m rtdetr --percentile=95
+perf_analyzer -m yolo26 --percentile=95
 ```
 
 ## Entry Points

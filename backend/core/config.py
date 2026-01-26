@@ -13,7 +13,7 @@ import os
 import sys
 from functools import cache
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import AnyHttpUrl, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -115,7 +115,7 @@ class OrchestratorSettings(BaseSettings):
     """Container orchestrator configuration for Docker/Podman container management.
 
     This settings model configures the container orchestrator service that provides
-    health monitoring and self-healing capabilities for AI containers (RT-DETRv2,
+    health monitoring and self-healing capabilities for AI containers (YOLO26,
     Nemotron, Florence-2, etc.).
 
     Environment variables use the ORCHESTRATOR_ prefix (e.g., ORCHESTRATOR_ENABLED).
@@ -206,11 +206,11 @@ class OrchestratorSettings(BaseSettings):
     )
 
     # AI services
-    rtdetr_port: int = Field(
+    yolo26_port: int = Field(
         8090,
         ge=1,
         le=65535,
-        description="RT-DETRv2 (ai-detector) container service port for health checks.",
+        description="YOLO26 (ai-detector) container service port for health checks.",
     )
     nemotron_port: int = Field(
         8091,
@@ -828,20 +828,8 @@ class Settings(BaseSettings):
         "Prevents memory exhaustion and LLM timeouts with large batches.",
     )
 
-    # Detector selection
-    detector_type: Literal["rtdetr", "yolo26"] = Field(
-        default="rtdetr",
-        description="Object detection model to use: rtdetr (RT-DETRv2) or yolo26 (YOLO26 TensorRT)",
-    )
-
     # AI service endpoints (validated as URLs using Pydantic AnyHttpUrl)
     # Stored as str after validation for compatibility with httpx clients
-    # Development: http://localhost:8090 (local dev)
-    # Docker: http://ai-detector:8090 (container network)
-    rtdetr_url: str = Field(
-        default="http://localhost:8090",
-        description="RT-DETRv2 detection service URL. Development: http://localhost:8090, Docker: http://ai-detector:8090",
-    )
     # YOLO26 Detector Settings
     # Development: http://localhost:8095 (local dev)
     # Docker: http://ai-yolo26:8095 (container network)
@@ -858,10 +846,6 @@ class Settings(BaseSettings):
 
     # AI service authentication
     # Security: API keys for authenticating with AI services
-    rtdetr_api_key: SecretStr | None = Field(
-        default=None,
-        description="API key for RT-DETRv2 service authentication (optional, sent via X-API-Key header)",
-    )
     yolo26_api_key: SecretStr | None = Field(
         default=None,
         description="Optional API key for YOLO26 service authentication",
@@ -883,12 +867,6 @@ class Settings(BaseSettings):
         ge=1.0,
         le=30.0,
         description="Timeout (seconds) for AI service health checks",
-    )
-    rtdetr_read_timeout: float = Field(
-        default=60.0,
-        ge=10.0,
-        le=300.0,
-        description="Maximum time (seconds) to wait for RT-DETR detection response",
     )
     yolo26_read_timeout: float = Field(
         default=30.0,
@@ -938,7 +916,7 @@ class Settings(BaseSettings):
         default=3,
         ge=1,
         le=10,
-        description="Maximum retry attempts for RT-DETR detector on transient failures. "
+        description="Maximum retry attempts for YOLO26 detector on transient failures. "
         "Uses exponential backoff (2^attempt seconds, capped at 30s). Default: 3 attempts.",
     )
     nemotron_max_retries: int = Field(
@@ -983,7 +961,7 @@ class Settings(BaseSettings):
         default_factory=_get_default_inference_limit,
         ge=1,
         le=32,
-        description="Maximum concurrent AI inference operations (RT-DETR detection + Nemotron analysis). "
+        description="Maximum concurrent AI inference operations (YOLO26 detection + Nemotron analysis). "
         "Limits GPU/AI service load under high traffic. Set lower for constrained GPU VRAM, "
         "higher for distributed AI services. Default: 20 for free-threaded Python, 4 for standard Python.",
     )
@@ -1026,7 +1004,7 @@ class Settings(BaseSettings):
         description="Test prompt used for Nemotron warmup. Should be simple and quick to process.",
     )
 
-    @field_validator("rtdetr_url", "yolo26_url", "nemotron_url", mode="before")
+    @field_validator("yolo26_url", "nemotron_url", mode="before")
     @classmethod
     def validate_ai_service_urls(cls, v: Any) -> str:
         """Validate AI service URLs using Pydantic's AnyHttpUrl validator.
@@ -1074,12 +1052,123 @@ class Settings(BaseSettings):
     )
     enrichment_url: str = Field(
         default="http://localhost:8094",
-        description="Combined enrichment service URL for vehicle, pet, and clothing classification. Development: http://localhost:8094, Docker: http://ai-enrichment:8094",
+        description="Heavy enrichment service URL for vehicle, clothing, demographics, action models. Development: http://localhost:8094, Docker: http://ai-enrichment:8094",
+    )
+    enrichment_light_url: str = Field(
+        default="http://localhost:8096",
+        description="Light enrichment service URL for pose, threat, reid, pet, depth models. Development: http://localhost:8096, Docker: http://ai-enrichment-light:8096",
     )
     use_enrichment_service: bool = Field(
         default=True,
         description="Use HTTP enrichment service instead of local models for vehicle/pet/clothing classification",
     )
+
+    # Enrichment Model Assignment Configuration
+    # Each model can be assigned to "heavy" (GPU 0, ai-enrichment:8094) or "light" (GPU 1, ai-enrichment-light:8096)
+    # This allows flexible distribution of models across GPUs based on VRAM and compute requirements
+    enrichment_pose_service: str = Field(
+        default="light",
+        description="Service for pose estimation model: 'heavy' or 'light'. YOLOv8n-pose (~300MB) recommended for light.",
+    )
+    enrichment_threat_service: str = Field(
+        default="light",
+        description="Service for threat detection model: 'heavy' or 'light'. YOLOv8n (~400MB) recommended for light.",
+    )
+    enrichment_reid_service: str = Field(
+        default="light",
+        description="Service for person re-ID model: 'heavy' or 'light'. OSNet-x0.25 (~100MB) recommended for light.",
+    )
+    enrichment_pet_service: str = Field(
+        default="light",
+        description="Service for pet classification model: 'heavy' or 'light'. ResNet-18 (~200MB) recommended for light.",
+    )
+    enrichment_depth_service: str = Field(
+        default="light",
+        description="Service for depth estimation model: 'heavy' or 'light'. DepthAnything-small (~150MB) recommended for light.",
+    )
+    enrichment_vehicle_service: str = Field(
+        default="heavy",
+        description="Service for vehicle classification model: 'heavy' or 'light'. ResNet-50 (~1.5GB) recommended for heavy.",
+    )
+    enrichment_clothing_service: str = Field(
+        default="heavy",
+        description="Service for clothing classification model: 'heavy' or 'light'. FashionCLIP (~800MB) recommended for heavy.",
+    )
+    enrichment_action_service: str = Field(
+        default="heavy",
+        description="Service for action recognition model: 'heavy' or 'light'. X-CLIP (~1.5GB) recommended for heavy.",
+    )
+    enrichment_demographics_service: str = Field(
+        default="heavy",
+        description="Service for demographics model: 'heavy' or 'light'. FairFace (~500MB) recommended for heavy.",
+    )
+
+    @field_validator(
+        "enrichment_pose_service",
+        "enrichment_threat_service",
+        "enrichment_reid_service",
+        "enrichment_pet_service",
+        "enrichment_depth_service",
+        "enrichment_vehicle_service",
+        "enrichment_clothing_service",
+        "enrichment_action_service",
+        "enrichment_demographics_service",
+        mode="before",
+    )
+    @classmethod
+    def validate_enrichment_service_assignment(cls, v: Any) -> str:
+        """Validate enrichment service assignment is 'heavy' or 'light'."""
+        if v is None:
+            return "heavy"  # Default to heavy service
+        value = str(v).lower().strip()
+        if value not in ("heavy", "light"):
+            raise ValueError(f"Invalid service assignment '{v}'. Must be 'heavy' or 'light'.")
+        return value
+
+    def get_enrichment_url_for_model(self, model: str) -> str:
+        """Get the enrichment service URL for a specific model.
+
+        Args:
+            model: Model name (pose, threat, reid, pet, depth, vehicle, clothing, action, demographics)
+
+        Returns:
+            The URL for the service hosting that model
+        """
+        service_map = {
+            "pose": self.enrichment_pose_service,
+            "threat": self.enrichment_threat_service,
+            "reid": self.enrichment_reid_service,
+            "pet": self.enrichment_pet_service,
+            "depth": self.enrichment_depth_service,
+            "vehicle": self.enrichment_vehicle_service,
+            "clothing": self.enrichment_clothing_service,
+            "action": self.enrichment_action_service,
+            "demographics": self.enrichment_demographics_service,
+        }
+        service = service_map.get(model, "heavy")
+        return self.enrichment_light_url if service == "light" else self.enrichment_url
+
+    def get_models_for_service(self, service: str) -> list[str]:
+        """Get list of models assigned to a specific service.
+
+        Args:
+            service: Service name ('heavy' or 'light')
+
+        Returns:
+            List of model names assigned to that service
+        """
+        all_models = {
+            "pose": self.enrichment_pose_service,
+            "threat": self.enrichment_threat_service,
+            "reid": self.enrichment_reid_service,
+            "pet": self.enrichment_pet_service,
+            "depth": self.enrichment_depth_service,
+            "vehicle": self.enrichment_vehicle_service,
+            "clothing": self.enrichment_clothing_service,
+            "action": self.enrichment_action_service,
+            "demographics": self.enrichment_demographics_service,
+        }
+        return [model for model, svc in all_models.items() if svc == service]
 
     # Monitoring URLs
     # Note: Default /grafana uses nginx proxy for remote access compatibility.
@@ -1139,7 +1228,9 @@ class Settings(BaseSettings):
         "Docker: http://frontend:8080 (nginx-unprivileged on standard internal port 8080)",
     )
 
-    @field_validator("florence_url", "clip_url", "enrichment_url", mode="before")
+    @field_validator(
+        "florence_url", "clip_url", "enrichment_url", "enrichment_light_url", mode="before"
+    )
     @classmethod
     def validate_vision_service_urls(cls, v: Any) -> str:
         """Validate vision service URLs using Pydantic's AnyHttpUrl validator.
@@ -1976,7 +2067,7 @@ class Settings(BaseSettings):
     # Service health monitor settings
     ai_restart_enabled: bool = Field(
         default=True,
-        description="Enable automatic restart of AI services (RT-DETRv2, Nemotron) on health check failure. "
+        description="Enable automatic restart of AI services (YOLO26, Nemotron) on health check failure. "
         "Set to False in containerized deployments where restart scripts are not available. "
         "Health monitoring and status broadcasts still occur when disabled.",
     )

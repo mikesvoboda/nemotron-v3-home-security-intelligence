@@ -72,9 +72,9 @@ Certificates stored in `/etc/letsencrypt/live/ai.yourdomain.com/`.
 
 ---
 
-## RT-DETRv2 TLS Setup
+## YOLO26 TLS Setup
 
-Modify `ai/rtdetr/model.py` to enable SSL:
+Modify `ai/yolo26/model.py` to enable SSL:
 
 ```python
 # Add to uvicorn.run()
@@ -90,8 +90,8 @@ uvicorn.run(
 **Environment variables:**
 
 ```bash
-RTDETR_SSL_CERTFILE=/path/to/server.crt
-RTDETR_SSL_KEYFILE=/path/to/server.key
+YOLO26_SSL_CERTFILE=/path/to/server.crt
+YOLO26_SSL_KEYFILE=/path/to/server.key
 ```
 
 ---
@@ -119,7 +119,7 @@ Update backend to use HTTPS for AI services:
 
 ```bash
 # .env
-RTDETR_URL=https://localhost:8090
+YOLO26_URL=https://localhost:8090
 NEMOTRON_URL=https://localhost:8091
 
 # For self-signed certificates, disable verification (development only)

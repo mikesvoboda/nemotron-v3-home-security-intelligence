@@ -46,7 +46,7 @@ class TestCircuitBreakerExceptionIntegration:
 
     def test_circuit_breaker_includes_recovery_timeout_in_error(self) -> None:
         """Test that CircuitBreakerOpenError includes recovery timeout."""
-        cb = CircuitBreaker(name="rtdetr", failure_threshold=2, recovery_timeout=30.0)
+        cb = CircuitBreaker(name="yolo26", failure_threshold=2, recovery_timeout=30.0)
 
         cb.record_failure()
         cb.record_failure()

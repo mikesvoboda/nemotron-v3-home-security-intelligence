@@ -76,8 +76,8 @@ datasources:
             query: 'hsi_system_healthy_healthy'
 
           # AI Service Latencies
-          - name: 'RT-DETR Latency (p95)'
-            query: 'histogram_quantile(0.95, rate(rtdetr_inference_latency_seconds_bucket[5m]))'
+          - name: 'YOLO26 Latency (p95)'
+            query: 'histogram_quantile(0.95, rate(yolo26_inference_latency_seconds_bucket[5m]))'
           - name: 'Nemotron Tokens/sec'
             query: 'hsi_nemotron_tokens_per_second'
           - name: 'Florence Latency (p95)'

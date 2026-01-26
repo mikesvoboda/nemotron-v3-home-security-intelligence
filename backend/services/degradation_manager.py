@@ -5,7 +5,7 @@ system. When dependent services become unavailable, the system continues
 operating in a degraded mode rather than failing completely.
 
 Features:
-    - Track service health states (Redis, RT-DETRv2, Nemotron)
+    - Track service health states (Redis, YOLO26v2, Nemotron)
     - Fallback to disk-based queues when Redis is down
     - In-memory queue fallback when Redis unavailable
     - Automatic recovery detection
@@ -32,7 +32,7 @@ Usage:
     await manager.queue_with_fallback("detection_queue", item)
 
     # Check if service is available
-    if manager.is_service_healthy("rtdetr"):
+    if manager.is_service_healthy("yolo26"):
         # Proceed with AI analysis
         pass
 

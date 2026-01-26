@@ -214,7 +214,7 @@ function Card({ markdown }: { markdown: string }) {
 **Project context:**
 
 - AI-generated risk analysis text from Nemotron LLM
-- Detection labels from RT-DETRv2
+- Detection labels from YOLO26
 - User input limited to settings (no free-form text fields)
 
 ---

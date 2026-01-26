@@ -9,7 +9,7 @@
 
 The Home Security Intelligence project requires high-performance processing for:
 
-1. **Real-time AI inference:** RT-DETRv2 object detection on video streams
+1. **Real-time AI inference:** YOLO26 object detection on video streams
 2. **Concurrent request handling:** WebSocket connections from multiple cameras
 3. **Batch processing:** 90-second time windows with parallel analysis
 4. **Background tasks:** Risk scoring with Nemotron LLM

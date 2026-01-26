@@ -128,7 +128,7 @@
   <g transform="translate(50, 275)" filter="url(#shadow)">
     <rect x="0" y="0" width="130" height="50" class="state-box state-processing"/>
     <text x="65" y="22" text-anchor="middle" class="state-text">Detecting</text>
-    <text x="65" y="38" text-anchor="middle" class="state-text" font-size="10">RT-DETRv2</text>
+    <text x="65" y="38" text-anchor="middle" class="state-text" font-size="10">YOLO26</text>
   </g>
 
   <!-- Arrow: Detecting -> DetectionStored -->
@@ -310,7 +310,7 @@
 
       <!-- Row 3: Detection -->
       <text x="0" y="90" class="transition-label">3. Object Detection</text>
-      <text x="150" y="90" class="transition-label">RT-DETRv2 inference</text>
+      <text x="150" y="90" class="transition-label">YOLO26 inference</text>
       <text x="350" y="90" class="transition-label">detections table (PostgreSQL)</text>
       <text x="500" y="90" class="transition-label">Detection record(s) + thumbnails</text>
 

@@ -6,11 +6,11 @@ database, and can expose them for real-time monitoring via WebSocket.
 Fallback order:
 1. pynvml (direct NVML bindings - fastest, requires GPU access)
 2. nvidia-smi subprocess (works when nvidia-smi is available in PATH)
-3. AI container health endpoints (RT-DETRv2 reports VRAM usage)
+3. AI container health endpoints (YOLO26 reports VRAM usage)
 4. Mock data (for development environments without GPU)
 
 Note: Nemotron (llama.cpp server) does not expose GPU metrics, so GPU stats
-from AI containers are obtained exclusively from RT-DETRv2.
+from AI containers are obtained exclusively from YOLO26.
 
 Memory Pressure Monitoring (NEM-1727):
 This module provides GPU memory pressure monitoring with configurable thresholds:
@@ -727,10 +727,10 @@ class GPUMonitor:
             "bar1_used": 256,  # Typical BAR1 usage
         }
 
-    def _parse_rtdetr_response(
+    def _parse_yolo26_response(
         self, data: dict[str, Any]
     ) -> tuple[float, str | None, float | None, int | None, float | None]:
-        """Parse RT-DETRv2 health response for GPU stats.
+        """Parse YOLO26 health response for GPU stats.
 
         Returns:
             Tuple of (vram_used_mb, gpu_device_name or None, gpu_utilization or None,
@@ -780,11 +780,11 @@ class GPUMonitor:
     async def _get_gpu_stats_from_ai_containers(self) -> GPUStatsDict | None:
         """Query AI containers for GPU statistics.
 
-        Queries RT-DETRv2 health endpoint for GPU usage information.
-        RT-DETRv2 reports vram_used_gb, gpu_utilization, temperature, and power_watts.
+        Queries YOLO26v2 health endpoint for GPU usage information.
+        YOLO26v2 reports vram_used_gb, gpu_utilization, temperature, and power_watts.
 
         Note: Nemotron (llama.cpp server) does not expose a /metrics endpoint,
-        so GPU stats are obtained exclusively from RT-DETRv2.
+        so GPU stats are obtained exclusively from YOLO26v2.
 
         Returns:
             Dictionary containing aggregated GPU stats from AI containers, or None if unavailable.
@@ -798,11 +798,11 @@ class GPUMonitor:
 
         try:
             async with httpx.AsyncClient(timeout=self._http_timeout) as client:
-                # Query RT-DETRv2 health endpoint
+                # Query YOLO26 health endpoint
                 try:
-                    resp = await client.get(f"{settings.rtdetr_url}/health")
+                    resp = await client.get(f"{settings.yolo26_url}/health")
                     if resp.status_code == 200:
-                        vram_mb, device, util, temp, power = self._parse_rtdetr_response(
+                        vram_mb, device, util, temp, power = self._parse_yolo26_response(
                             resp.json()
                         )
                         total_vram_used_mb += vram_mb
@@ -815,20 +815,20 @@ class GPUMonitor:
                         if power is not None:
                             power_watts = power
                         logger.debug(
-                            f"RT-DETRv2 GPU stats: {vram_mb / 1024:.2f} GB, "
+                            f"YOLO26v2 GPU stats: {vram_mb / 1024:.2f} GB, "
                             f"util={gpu_utilization}%, temp={temperature}C, power={power_watts}W"
                         )
                 except Exception as e:
-                    logger.debug(f"Failed to query RT-DETRv2 health: {e}")
+                    logger.debug(f"Failed to query YOLO26v2 health: {e}")
 
                 # Note: Nemotron (llama.cpp server) does not support a /metrics endpoint.
                 # The /slots endpoint is used elsewhere for active slot monitoring.
-                # GPU VRAM tracking is handled by the RT-DETRv2 container which has
+                # GPU VRAM tracking is handled by the YOLO26v2 container which has
                 # better visibility into GPU memory usage.
 
                 if total_vram_used_mb > 0 or gpu_utilization is not None:
                     # RTX A5500 has 24GB VRAM - use this as default
-                    # Use actual values from RT-DETRv2 when available
+                    # Use actual values from YOLO26v2 when available
                     return {
                         "gpu_name": gpu_name,
                         "gpu_utilization": gpu_utilization if gpu_utilization is not None else 0.0,
@@ -872,7 +872,7 @@ class GPUMonitor:
         Tries in order:
         1. Local pynvml (if GPU available)
         2. nvidia-smi subprocess (if available)
-        3. AI container health endpoints (RT-DETRv2)
+        3. AI container health endpoints (YOLO26v2)
         4. Mock data as fallback
 
         Returns:

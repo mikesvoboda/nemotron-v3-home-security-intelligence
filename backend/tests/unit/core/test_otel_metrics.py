@@ -82,7 +82,7 @@ class TestRecordDetectionLatency:
         # Should not raise
         record_detection_latency(
             latency_ms=45.2,
-            model_version="rtdetr-l",
+            model_version="yolo26-l",
             batch_size=1,
             gpu_id="0",
         )
@@ -106,7 +106,7 @@ class TestRecordDetectionLatency:
 
         record_detection_latency(
             latency_ms=45.2,
-            model_version="rtdetr-l",
+            model_version="yolo26-l",
             batch_size=1,
             gpu_id="0",
         )
@@ -114,7 +114,7 @@ class TestRecordDetectionLatency:
         mock_histogram.record.assert_called_once_with(
             45.2,
             attributes={
-                "model.version": "rtdetr-l",
+                "model.version": "yolo26-l",
                 "batch.size": 1,
                 "gpu.id": "0",
             },
@@ -144,7 +144,7 @@ class TestRecordDetectionLatency:
         mock_histogram.record.assert_called_once()
         call_args = mock_histogram.record.call_args
         assert call_args[0][0] == 100.0
-        assert call_args[1]["attributes"]["model.version"] == "rtdetr-l"
+        assert call_args[1]["attributes"]["model.version"] == "yolo26-l"
         assert call_args[1]["attributes"]["batch.size"] == 1
         assert call_args[1]["attributes"]["gpu.id"] == "0"
 

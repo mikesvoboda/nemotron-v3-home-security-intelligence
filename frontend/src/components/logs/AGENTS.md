@@ -90,7 +90,7 @@ data-testid="explore-external-link" // Open in Explore link
 - **Grafana Dashboard**: `hsi-logs` (HSI System Logs)
 - **Data Source**: Loki
 - **Log Collection**: Promtail or direct Loki push
-- **Services logged**: backend, frontend, ai-pipeline, rtdetr, nemotron
+- **Services logged**: backend, frontend, ai-pipeline, yolo26, nemotron
 
 ## Entry Points
 

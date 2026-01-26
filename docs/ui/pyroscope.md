@@ -37,7 +37,7 @@ The Profiling page provides continuous profiling capabilities powered by Pyrosco
 
 The page embeds the HSI Profiling dashboard from Grafana, which provides:
 
-- **Service Selector** - Choose which service to profile (backend, RT-DETRv2, Nemotron)
+- **Service Selector** - Choose which service to profile (backend, YOLO26, Nemotron)
 - **Profile Type** - Switch between CPU and memory profiles
 - **Time Range** - Select the time period to analyze
 - **Flame Graph** - Visual representation of where time/memory is spent
@@ -84,12 +84,12 @@ The flame graph is the primary visualization for understanding where time or mem
 
 The dashboard can profile these services:
 
-| Service          | Description                        |
-| ---------------- | ---------------------------------- |
-| **hsi-backend**  | Main FastAPI backend service       |
-| **hsi-rtdetr**   | RT-DETRv2 object detection service |
-| **hsi-nemotron** | Nemotron LLM inference service     |
-| **alloy**        | Grafana Alloy telemetry collector  |
+| Service          | Description                       |
+| ---------------- | --------------------------------- |
+| **hsi-backend**  | Main FastAPI backend service      |
+| **hsi-yolo26**   | YOLO26 object detection service   |
+| **hsi-nemotron** | Nemotron LLM inference service    |
+| **alloy**        | Grafana Alloy telemetry collector |
 
 ## Understanding Profiling Data
 
@@ -209,7 +209,7 @@ The frontend couldn't fetch the Grafana URL from the backend:
 flowchart LR
     subgraph Services["Profiled Services"]
         B[Backend]
-        R[RT-DETRv2]
+        R[YOLO26]
         N[Nemotron]
     end
 

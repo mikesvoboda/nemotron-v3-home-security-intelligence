@@ -1131,7 +1131,7 @@ async def test_system_broadcaster_get_system_status_uses_single_session():
             return_value={
                 "all_healthy": True,
                 "any_healthy": True,
-                "rtdetr": True,
+                "yolo26": True,
                 "nemotron": True,
             },
         ),
@@ -1230,7 +1230,7 @@ async def test_system_broadcaster_get_system_status_handles_db_error():
             return_value={
                 "all_healthy": True,
                 "any_healthy": True,
-                "rtdetr": True,
+                "yolo26": True,
                 "nemotron": True,
             },
         ),
@@ -1306,7 +1306,7 @@ async def test_system_broadcaster_get_system_status_degraded_when_redis_unhealth
             return_value={
                 "all_healthy": True,
                 "any_healthy": True,
-                "rtdetr": True,
+                "yolo26": True,
                 "nemotron": True,
             },
         ),
@@ -1337,7 +1337,7 @@ async def test_system_broadcaster_check_ai_health_both_healthy():
 
         result = await broadcaster._check_ai_health()
 
-    assert result["rtdetr"] is True
+    assert result["yolo26"] is True
     assert result["nemotron"] is True
     assert result["all_healthy"] is True
     assert result["any_healthy"] is True
@@ -1356,7 +1356,7 @@ async def test_system_broadcaster_check_ai_health_both_unhealthy():
 
         result = await broadcaster._check_ai_health()
 
-    assert result["rtdetr"] is False
+    assert result["yolo26"] is False
     assert result["nemotron"] is False
     assert result["all_healthy"] is False
     assert result["any_healthy"] is False
@@ -1378,7 +1378,7 @@ async def test_system_broadcaster_check_ai_health_non_200_status():
         result = await broadcaster._check_ai_health()
 
     # Non-200 status should be treated as unhealthy
-    assert result["rtdetr"] is False
+    assert result["yolo26"] is False
     assert result["nemotron"] is False
     assert result["all_healthy"] is False
     assert result["any_healthy"] is False
@@ -1400,7 +1400,7 @@ async def test_system_broadcaster_check_ai_health_timeout():
         result = await broadcaster._check_ai_health()
 
     # Timeout should be treated as unhealthy
-    assert result["rtdetr"] is False
+    assert result["yolo26"] is False
     assert result["nemotron"] is False
     assert result["all_healthy"] is False
     assert result["any_healthy"] is False
@@ -1429,7 +1429,7 @@ async def test_system_broadcaster_get_system_status_includes_ai_status():
             broadcaster,
             "_check_ai_health",
             return_value={
-                "rtdetr": True,
+                "yolo26": True,
                 "nemotron": True,
                 "all_healthy": True,
                 "any_healthy": True,
@@ -1441,7 +1441,7 @@ async def test_system_broadcaster_get_system_status_includes_ai_status():
     # Verify AI status is included in the response
     assert "ai" in status["data"]
     assert status["data"]["ai"]["status"] == "healthy"
-    assert status["data"]["ai"]["rtdetr"] == "healthy"
+    assert status["data"]["ai"]["yolo26"] == "healthy"
     assert status["data"]["ai"]["nemotron"] == "healthy"
     # Overall health should be healthy when all services are healthy
     assert status["data"]["health"] == "healthy"
@@ -1470,7 +1470,7 @@ async def test_system_broadcaster_get_system_status_ai_degraded():
             broadcaster,
             "_check_ai_health",
             return_value={
-                "rtdetr": True,
+                "yolo26": True,
                 "nemotron": False,  # Nemotron unhealthy - LLM service error scenario
                 "all_healthy": False,
                 "any_healthy": True,
@@ -1481,7 +1481,7 @@ async def test_system_broadcaster_get_system_status_ai_degraded():
 
     # AI status should show degraded when one service is unhealthy
     assert status["data"]["ai"]["status"] == "degraded"
-    assert status["data"]["ai"]["rtdetr"] == "healthy"
+    assert status["data"]["ai"]["yolo26"] == "healthy"
     assert status["data"]["ai"]["nemotron"] == "unhealthy"
     # Overall health should be degraded when AI is not all healthy
     assert status["data"]["health"] == "degraded"
@@ -1510,7 +1510,7 @@ async def test_system_broadcaster_get_system_status_ai_unhealthy():
             broadcaster,
             "_check_ai_health",
             return_value={
-                "rtdetr": False,
+                "yolo26": False,
                 "nemotron": False,
                 "all_healthy": False,
                 "any_healthy": False,
@@ -1521,7 +1521,7 @@ async def test_system_broadcaster_get_system_status_ai_unhealthy():
 
     # AI status should show unhealthy when all services are down
     assert status["data"]["ai"]["status"] == "unhealthy"
-    assert status["data"]["ai"]["rtdetr"] == "unhealthy"
+    assert status["data"]["ai"]["yolo26"] == "unhealthy"
     assert status["data"]["ai"]["nemotron"] == "unhealthy"
     # Overall health should be degraded (DB/Redis healthy, but AI is down)
     assert status["data"]["health"] == "degraded"
@@ -1977,7 +1977,7 @@ async def test_system_broadcaster_check_ai_health_gather_error():
         result = await broadcaster._check_ai_health()
 
     # Should return all False on error
-    assert result["rtdetr"] is False
+    assert result["yolo26"] is False
     assert result["nemotron"] is False
     assert result["all_healthy"] is False
     assert result["any_healthy"] is False

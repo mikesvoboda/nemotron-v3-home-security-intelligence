@@ -141,7 +141,7 @@ class TestLogExceptionWithContext:
                     e,
                     "Failed to connect to AI service",
                     camera_id="front_door",
-                    service="rtdetr",
+                    service="yolo26",
                 )
 
         assert len(caplog.records) == 1
@@ -149,7 +149,7 @@ class TestLogExceptionWithContext:
         assert "Failed to connect to AI service" in record.message
         assert record.error_type == "ConnectionError"
         assert record.camera_id == "front_door"
-        assert record.service == "rtdetr"
+        assert record.service == "yolo26"
 
     def test_log_exception_with_context_captures_stack_trace(
         self, caplog: pytest.LogCaptureFixture
@@ -661,7 +661,7 @@ class TestLogError:
                         logger,
                         "Service unavailable",
                         error=e,
-                        extra={"service": "rtdetr", "host": "localhost:8080"},
+                        extra={"service": "yolo26", "host": "localhost:8080"},
                     )
 
             assert len(caplog.records) == 1
@@ -670,7 +670,7 @@ class TestLogError:
             assert record.request_id == "merge-test-id"
             assert record.error_type == "ConnectionError"
             # Extra fields
-            assert record.service == "rtdetr"
+            assert record.service == "yolo26"
             assert record.host == "localhost:8080"
         finally:
             set_request_id(None)

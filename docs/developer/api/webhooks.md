@@ -222,7 +222,7 @@ The following labels are commonly used in Home Security Intelligence alerts:
 | `severity`  | Alert severity level              | `critical`, `warning`, `info`            |
 | `component` | System component affected         | `gpu`, `pipeline`, `redis`, `database`   |
 | `camera_id` | Camera identifier (if applicable) | `front_door`, `backyard`                 |
-| `service`   | Service name                      | `backend`, `ai`, `rtdetr`, `nemotron`    |
+| `service`   | Service name                      | `backend`, `ai`, `yolo26`, `nemotron`    |
 
 ---
 

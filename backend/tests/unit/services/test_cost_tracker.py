@@ -109,7 +109,7 @@ class TestCostModel:
     def test_cost_model_values(self):
         """Test CostModel enum values."""
         assert CostModel.NEMOTRON.value == "nemotron"
-        assert CostModel.RTDETR.value == "rtdetr"
+        assert CostModel.YOLO26.value == "yolo26"
         assert CostModel.FLORENCE.value == "florence"
         assert CostModel.CLIP.value == "clip"
         assert CostModel.ENRICHMENT.value == "enrichment"
@@ -237,13 +237,13 @@ class TestDetectionUsageTracking:
     def test_track_detection_usage_creates_record(self, cost_tracker, mock_metrics_service):
         """Test tracking detection usage creates a usage record."""
         record = cost_tracker.track_detection_usage(
-            model="rtdetr",
+            model="yolo26",
             duration_seconds=0.15,
             images_processed=1,
         )
 
         assert isinstance(record, UsageRecord)
-        assert record.model == "rtdetr"
+        assert record.model == "yolo26"
         assert record.gpu_seconds == 0.15
         assert record.images_processed == 1
         assert record.estimated_cost_usd > 0
@@ -255,7 +255,7 @@ class TestDetectionUsageTracking:
         # total = 0.00004085
 
         record = cost_tracker.track_detection_usage(
-            model="rtdetr",
+            model="yolo26",
             duration_seconds=0.15,
             images_processed=1,
         )
@@ -575,7 +575,7 @@ class TestCostEfficiencyMetrics:
     def test_track_detection_updates_cost_per_detection(self, cost_tracker, mock_metrics_service):
         """Test detection tracking updates cost per detection metric."""
         cost_tracker.track_detection_usage(
-            model="rtdetr",
+            model="yolo26",
             duration_seconds=0.15,
             images_processed=5,
         )
@@ -587,7 +587,7 @@ class TestCostEfficiencyMetrics:
         """Test LLM usage tracking updates cost per detection when detections exist."""
         # First track some detections
         cost_tracker.track_detection_usage(
-            model="rtdetr",
+            model="yolo26",
             duration_seconds=0.15,
             images_processed=10,
         )
@@ -648,7 +648,7 @@ class TestCostEfficiencyMetrics:
         """Test cost per event is not set when no events exist."""
         # Only track detection usage (no events)
         cost_tracker.track_detection_usage(
-            model="rtdetr",
+            model="yolo26",
             duration_seconds=0.15,
             images_processed=5,
         )
@@ -753,7 +753,7 @@ class TestModelSpecificUsage:
             duration_seconds=2.5,
         )
         cost_tracker.track_detection_usage(
-            model="rtdetr",
+            model="yolo26",
             duration_seconds=0.15,
             images_processed=1,
         )
@@ -761,9 +761,9 @@ class TestModelSpecificUsage:
         usage = cost_tracker.get_daily_usage()
 
         assert "nemotron" in usage.usage_by_model
-        assert "rtdetr" in usage.usage_by_model
+        assert "yolo26" in usage.usage_by_model
         assert usage.usage_by_model["nemotron"] > 0
-        assert usage.usage_by_model["rtdetr"] > 0
+        assert usage.usage_by_model["yolo26"] > 0
 
 
 # =============================================================================

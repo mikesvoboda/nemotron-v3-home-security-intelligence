@@ -10,7 +10,7 @@ This directory contains chaos engineering tests that verify graceful degradation
 backend/tests/chaos/
 ├── __init__.py                        # Module documentation
 ├── conftest.py                        # Fault injection framework and fixtures
-├── test_rtdetr_failures.py            # RT-DETR object detection service failures
+├── test_yolo26_failures.py            # YOLO26 object detection service failures
 ├── test_redis_failures.py             # Redis cache/queue service failures
 ├── test_database_failures.py          # PostgreSQL database failures
 ├── test_nemotron_failures.py          # Nemotron LLM service failures
@@ -30,7 +30,7 @@ backend/tests/chaos/
 uv run pytest backend/tests/chaos/ -v -m chaos
 
 # Run specific service failure tests
-uv run pytest backend/tests/chaos/test_rtdetr_failures.py -v
+uv run pytest backend/tests/chaos/test_yolo26_failures.py -v
 uv run pytest backend/tests/chaos/test_redis_failures.py -v
 uv run pytest backend/tests/chaos/test_database_failures.py -v
 uv run pytest backend/tests/chaos/test_nemotron_failures.py -v
@@ -60,18 +60,18 @@ from backend.tests.chaos.conftest import FaultInjector, FaultConfig, FaultType
 injector = FaultInjector()
 
 # Inject a fault
-injector.inject("rtdetr", FaultConfig(
+injector.inject("yolo26", FaultConfig(
     fault_type=FaultType.TIMEOUT,
     delay_seconds=30.0
 ))
 
 # Check if fault is active
-if injector.is_active("rtdetr"):
+if injector.is_active("yolo26"):
     # Handle degraded path
     pass
 
 # Check statistics
-stats = injector.get_stats("rtdetr")
+stats = injector.get_stats("yolo26")
 print(f"Faults injected: {stats.faults_injected}")
 
 # Clear all faults
@@ -91,14 +91,14 @@ injector.clear()
 
 ### Available Fixtures
 
-#### RT-DETR Fixtures
+#### YOLO26 Fixtures
 
-| Fixture                   | Description                        |
-| ------------------------- | ---------------------------------- |
-| `rtdetr_timeout`          | RT-DETR hangs then times out       |
-| `rtdetr_connection_error` | RT-DETR is unreachable             |
-| `rtdetr_server_error`     | RT-DETR returns HTTP 500           |
-| `rtdetr_intermittent`     | 50% of RT-DETR calls fail randomly |
+| Fixture                   | Description                       |
+| ------------------------- | --------------------------------- |
+| `yolo26_timeout`          | YOLO26 hangs then times out       |
+| `yolo26_connection_error` | YOLO26 is unreachable             |
+| `yolo26_server_error`     | YOLO26 returns HTTP 500           |
+| `yolo26_intermittent`     | 50% of YOLO26 calls fail randomly |
 
 #### Redis Fixtures
 
@@ -133,10 +133,10 @@ injector.clear()
 
 #### Compound Fixtures
 
-| Fixture                | Description                      |
-| ---------------------- | -------------------------------- |
-| `all_ai_services_down` | RT-DETR and Nemotron unavailable |
-| `cache_and_ai_down`    | Redis and RT-DETR unavailable    |
+| Fixture                | Description                     |
+| ---------------------- | ------------------------------- |
+| `all_ai_services_down` | YOLO26 and Nemotron unavailable |
+| `cache_and_ai_down`    | Redis and YOLO26 unavailable    |
 
 ## Test Patterns
 
@@ -204,8 +204,8 @@ async def test_fallback_queue_on_redis_failure(redis_unavailable):
 
 | Service    | Fault Type       | Expected Behavior                        |
 | ---------- | ---------------- | ---------------------------------------- |
-| RT-DETR    | Timeout          | Return empty detections, log warning     |
-| RT-DETR    | 5xx Error        | Circuit breaker opens, fallback to queue |
+| YOLO26     | Timeout          | Return empty detections, log warning     |
+| YOLO26     | 5xx Error        | Circuit breaker opens, fallback to queue |
 | Redis      | Connection Error | Fall back to in-memory cache             |
 | Redis      | Timeout          | Skip caching, proceed without            |
 | PostgreSQL | Connection Error | Return 503, health degraded              |

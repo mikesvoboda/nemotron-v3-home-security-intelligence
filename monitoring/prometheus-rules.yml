@@ -35,7 +35,7 @@ groups:
   # These rules pre-compute P95 and P99 latencies for SLI/SLO dashboard panels
   # =============================================================================
 
-  # Detection Latency SLI - RT-DETR object detection latency
+  # Detection Latency SLI - YOLO26 object detection latency
   - name: detection_latency_sli
     interval: 30s
     rules:

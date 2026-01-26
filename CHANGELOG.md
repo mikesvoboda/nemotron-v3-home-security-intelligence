@@ -22,7 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - Initial MVP release
-- RT-DETRv2 object detection integration
+- YOLO26v2 object detection integration
 - Nemotron LLM risk analysis
 - React dashboard with real-time updates
 - PostgreSQL + Redis backend

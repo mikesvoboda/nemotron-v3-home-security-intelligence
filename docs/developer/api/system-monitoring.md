@@ -489,7 +489,7 @@ GET /api/system/pipeline
     "fallback_queues": {},
     "services": [
       {
-        "name": "rtdetr",
+        "name": "yolo26",
         "status": "healthy",
         "last_check": "2025-12-27T10:30:00Z",
         "consecutive_failures": 0,
@@ -658,8 +658,8 @@ GET /api/system/health/full
   },
   "ai_services": [
     {
-      "name": "rtdetr",
-      "display_name": "RT-DETRv2 Object Detection",
+      "name": "yolo26",
+      "display_name": "YOLO26 Object Detection",
       "status": "healthy",
       "url": "http://ai:8001",
       "response_time_ms": 15.2,
@@ -714,7 +714,7 @@ GET /api/system/health/full
     "half_open": 0,
     "closed": 5,
     "breakers": {
-      "rtdetr": "closed",
+      "yolo26": "closed",
       "nemotron": "closed",
       "florence": "closed",
       "clip": "closed",
@@ -742,7 +742,7 @@ GET /api/system/health/full
 
 | Service      | Display Name               | Critical |
 | ------------ | -------------------------- | -------- |
-| `rtdetr`     | RT-DETRv2 Object Detection | Yes      |
+| `yolo26`     | YOLO26 Object Detection    | Yes      |
 | `nemotron`   | Nemotron LLM Risk Analysis | Yes      |
 | `florence`   | Florence-2 Vision Language | No       |
 | `clip`       | CLIP Embedding Service     | No       |
@@ -760,7 +760,7 @@ GET /api/system/health/full
 
 - PostgreSQL database
 - Redis cache
-- RT-DETRv2 (object detection)
+- YOLO26 (object detection)
 - Nemotron (risk analysis)
 - File watcher worker
 

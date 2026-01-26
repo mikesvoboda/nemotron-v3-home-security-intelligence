@@ -26,8 +26,6 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
-    # Security: Read-only root filesystem
-    read_only: true
     tmpfs:
       - /tmp
       - /var/run/postgresql
@@ -53,47 +51,6 @@ services:
         limits:
           cpus: '2'
           memory: 1G
-
-  # RT-DETR object detection service
-  # Uses hosted endpoint if AI_MODELS_PATH not set
-  ai-detector:
-    image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-detector:${IMAGE_TAG:-latest}
-    # Security: Read-only root filesystem
-    read_only: true
-    tmpfs:
-      - /tmp
-      - /home/rtdetr/.cache
-    profiles:
-      - with-ai # Run with: docker compose --profile with-ai -f docker-compose.staging.yml up -d
-    ports:
-      - '8090:8090'
-    volumes:
-      - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface:U
-    environment:
-      - RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}
-      - RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'python',
-          '-c',
-          "import httpx; r = httpx.get('http://localhost:8090/health'); exit(0 if r.status_code == 200 else 1)",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - staging-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
   # Nemotron LLM for risk analysis
   ai-llm:
@@ -165,8 +122,7 @@ services:
   # CLIP ViT-L for entity re-identification
   ai-clip:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_PREFIX:-mikesvoboda/nemotron-v3-home-security-intelligence}/ai-clip:${IMAGE_TAG:-latest}
-    # Security: Read-only root filesystem
-    read_only: true
+    # NOTE: read_only disabled for GPU containers - nvidia-cdi-hook requires capabilities
     tmpfs:
       - /tmp
       - /home/clip/.cache
@@ -175,9 +131,15 @@ services:
     ports:
       - '8093:8093'
     volumes:
+      # Read-only model mount (HuggingFace CLIP weights)
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
+      # Writable mount for TensorRT engine cache (if enabled)
+      - clip-tensorrt-cache-staging:/cache/tensorrt
     environment:
       - CLIP_MODEL_PATH=/models/clip-vit-l
+      # TensorRT disabled by default in staging (enable for faster inference)
+      - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-false}
+      - CLIP_ENGINE_PATH=/cache/tensorrt/vision_encoder_fp16.engine
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
       interval: 10s
@@ -236,8 +198,6 @@ services:
 
   redis:
     image: redis:7.4-alpine3.21
-    # Security: Read-only root filesystem
-    read_only: true
     tmpfs:
       - /tmp
     ports:
@@ -296,7 +256,6 @@ services:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - RTDETR_URL=http://ai-detector:8090
       - NEMOTRON_URL=http://ai-llm:8091
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093
@@ -629,6 +588,8 @@ volumes:
   grafana_staging_data:
     driver: local
   alertmanager_staging_data:
+    driver: local
+  clip-tensorrt-cache-staging:
     driver: local
 
 networks:

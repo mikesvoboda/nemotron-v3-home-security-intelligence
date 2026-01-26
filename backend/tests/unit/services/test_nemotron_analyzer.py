@@ -24,7 +24,8 @@ from backend.tests.async_utils import (
 from backend.tests.conftest import unique_id
 
 # Mark all tests in this file as unit tests
-pytestmark = pytest.mark.unit
+# Timeout increased because async test setup is slow with FastAPI app initialization
+pytestmark = [pytest.mark.unit, pytest.mark.timeout(60)]
 
 
 # Fixtures

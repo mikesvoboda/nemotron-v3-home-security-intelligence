@@ -56,7 +56,7 @@ def reset_global_service():
 
 @pytest.fixture
 def mock_detector_client():
-    """Create a mock RT-DETRv2 detector client."""
+    """Create a mock YOLO26 detector client."""
     client = MagicMock()
     client.health_check = AsyncMock(return_value=True)
     return client
@@ -113,7 +113,7 @@ class TestAIServiceEnum:
 
     def test_service_enum_values(self) -> None:
         """Test that AIService enum has expected values."""
-        assert AIService.RTDETR.value == "rtdetr"
+        assert AIService.YOLO26.value == "yolo26"
         assert AIService.NEMOTRON.value == "nemotron"
         assert AIService.FLORENCE.value == "florence"
         assert AIService.CLIP.value == "clip"
@@ -154,8 +154,8 @@ class TestServiceState:
 
     def test_default_initialization(self) -> None:
         """Test ServiceState with default values."""
-        state = ServiceState(service=AIService.RTDETR)
-        assert state.service == AIService.RTDETR
+        state = ServiceState(service=AIService.YOLO26)
+        assert state.service == AIService.YOLO26
         assert state.status == ServiceStatus.HEALTHY
         assert state.circuit_state == CircuitState.CLOSED
         assert state.last_success is None
@@ -356,7 +356,7 @@ class TestAIFallbackServiceInit:
     def test_initialization_creates_service_states(self, fallback_service) -> None:
         """Test that initialization creates states for all services."""
         assert len(fallback_service._service_states) == 4
-        assert AIService.RTDETR in fallback_service._service_states
+        assert AIService.YOLO26 in fallback_service._service_states
         assert AIService.NEMOTRON in fallback_service._service_states
         assert AIService.FLORENCE in fallback_service._service_states
         assert AIService.CLIP in fallback_service._service_states
@@ -387,20 +387,20 @@ class TestCircuitBreakerRegistration:
 
     def test_register_circuit_breaker(self, fallback_service) -> None:
         """Test registering a circuit breaker for a service."""
-        cb = CircuitBreaker(name="test", config=DEFAULT_CB_CONFIGS[AIService.RTDETR])
-        fallback_service.register_circuit_breaker(AIService.RTDETR, cb)
+        cb = CircuitBreaker(name="test", config=DEFAULT_CB_CONFIGS[AIService.YOLO26])
+        fallback_service.register_circuit_breaker(AIService.YOLO26, cb)
 
-        assert fallback_service._circuit_breakers[AIService.RTDETR] is cb
+        assert fallback_service._circuit_breakers[AIService.YOLO26] is cb
 
     def test_register_multiple_circuit_breakers(self, fallback_service) -> None:
         """Test registering circuit breakers for multiple services."""
-        cb_rtdetr = CircuitBreaker(name="rtdetr", config=DEFAULT_CB_CONFIGS[AIService.RTDETR])
+        cb_yolo26 = CircuitBreaker(name="yolo26", config=DEFAULT_CB_CONFIGS[AIService.YOLO26])
         cb_nemotron = CircuitBreaker(name="nemotron", config=DEFAULT_CB_CONFIGS[AIService.NEMOTRON])
 
-        fallback_service.register_circuit_breaker(AIService.RTDETR, cb_rtdetr)
+        fallback_service.register_circuit_breaker(AIService.YOLO26, cb_yolo26)
         fallback_service.register_circuit_breaker(AIService.NEMOTRON, cb_nemotron)
 
-        assert fallback_service._circuit_breakers[AIService.RTDETR] is cb_rtdetr
+        assert fallback_service._circuit_breakers[AIService.YOLO26] is cb_yolo26
         assert fallback_service._circuit_breakers[AIService.NEMOTRON] is cb_nemotron
 
 
@@ -541,19 +541,19 @@ class TestHealthChecks:
     @pytest.mark.asyncio
     async def test_check_service_health_with_circuit_breaker(self, fallback_service) -> None:
         """Test health check when circuit breaker is registered."""
-        cb = CircuitBreaker(name="test", config=DEFAULT_CB_CONFIGS[AIService.RTDETR])
-        fallback_service.register_circuit_breaker(AIService.RTDETR, cb)
+        cb = CircuitBreaker(name="test", config=DEFAULT_CB_CONFIGS[AIService.YOLO26])
+        fallback_service.register_circuit_breaker(AIService.YOLO26, cb)
 
-        await fallback_service._check_service_health(AIService.RTDETR)
+        await fallback_service._check_service_health(AIService.YOLO26)
 
-        state = fallback_service._service_states[AIService.RTDETR]
+        state = fallback_service._service_states[AIService.YOLO26]
         assert state.status == ServiceStatus.HEALTHY
         assert state.circuit_state == CircuitState.CLOSED
 
     @pytest.mark.asyncio
     async def test_check_service_health_circuit_open(self, fallback_service) -> None:
         """Test health check when circuit breaker is open."""
-        cb = CircuitBreaker(name="test", config=DEFAULT_CB_CONFIGS[AIService.RTDETR])
+        cb = CircuitBreaker(name="test", config=DEFAULT_CB_CONFIGS[AIService.YOLO26])
         # Force circuit open
         for _ in range(5):
             try:
@@ -561,10 +561,10 @@ class TestHealthChecks:
             except Exception:
                 pass
 
-        fallback_service.register_circuit_breaker(AIService.RTDETR, cb)
-        await fallback_service._check_service_health(AIService.RTDETR)
+        fallback_service.register_circuit_breaker(AIService.YOLO26, cb)
+        await fallback_service._check_service_health(AIService.YOLO26)
 
-        state = fallback_service._service_states[AIService.RTDETR]
+        state = fallback_service._service_states[AIService.YOLO26]
         assert state.status == ServiceStatus.UNAVAILABLE
 
     @pytest.mark.asyncio
@@ -574,9 +574,9 @@ class TestHealthChecks:
         """Test health check without circuit breaker when service is healthy."""
         fallback_service._detector_client.health_check = AsyncMock(return_value=True)
 
-        await fallback_service._check_service_health(AIService.RTDETR)
+        await fallback_service._check_service_health(AIService.YOLO26)
 
-        state = fallback_service._service_states[AIService.RTDETR]
+        state = fallback_service._service_states[AIService.YOLO26]
         assert state.status == ServiceStatus.HEALTHY
         assert state.failure_count == 0
 
@@ -588,15 +588,15 @@ class TestHealthChecks:
         fallback_service._detector_client.health_check = AsyncMock(return_value=False)
 
         # First failure - should be degraded
-        await fallback_service._check_service_health(AIService.RTDETR)
-        state = fallback_service._service_states[AIService.RTDETR]
+        await fallback_service._check_service_health(AIService.YOLO26)
+        state = fallback_service._service_states[AIService.YOLO26]
         assert state.status == ServiceStatus.DEGRADED
         assert state.failure_count == 1
 
         # Third failure - should be unavailable
-        await fallback_service._check_service_health(AIService.RTDETR)
-        await fallback_service._check_service_health(AIService.RTDETR)
-        state = fallback_service._service_states[AIService.RTDETR]
+        await fallback_service._check_service_health(AIService.YOLO26)
+        await fallback_service._check_service_health(AIService.YOLO26)
+        state = fallback_service._service_states[AIService.YOLO26]
         assert state.status == ServiceStatus.UNAVAILABLE
         assert state.failure_count == 3
 
@@ -607,17 +607,17 @@ class TestHealthChecks:
             side_effect=Exception("Health check failed")
         )
 
-        await fallback_service._check_service_health(AIService.RTDETR)
+        await fallback_service._check_service_health(AIService.YOLO26)
 
-        state = fallback_service._service_states[AIService.RTDETR]
+        state = fallback_service._service_states[AIService.YOLO26]
         assert state.status == ServiceStatus.UNAVAILABLE
         assert state.failure_count == 1
         assert state.error_message == "Health check failed"
 
     @pytest.mark.asyncio
-    async def test_perform_health_check_rtdetr(self, fallback_service) -> None:
-        """Test performing health check for RT-DETRv2."""
-        result = await fallback_service._perform_health_check(AIService.RTDETR)
+    async def test_perform_health_check_yolo26(self, fallback_service) -> None:
+        """Test performing health check for YOLO26."""
+        result = await fallback_service._perform_health_check(AIService.YOLO26)
         assert result is True
 
     @pytest.mark.asyncio
@@ -642,7 +642,7 @@ class TestHealthChecks:
     async def test_perform_health_check_no_client(self) -> None:
         """Test health check without client assumes healthy."""
         service = AIFallbackService()
-        result = await service._perform_health_check(AIService.RTDETR)
+        result = await service._perform_health_check(AIService.YOLO26)
         assert result is True
 
     @pytest.mark.asyncio
@@ -682,18 +682,18 @@ class TestServiceAvailability:
 
     def test_is_service_available_healthy(self, fallback_service) -> None:
         """Test availability when service is healthy."""
-        fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.HEALTHY
-        assert fallback_service.is_service_available(AIService.RTDETR) is True
+        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.HEALTHY
+        assert fallback_service.is_service_available(AIService.YOLO26) is True
 
     def test_is_service_available_degraded(self, fallback_service) -> None:
         """Test availability when service is degraded."""
-        fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.DEGRADED
-        assert fallback_service.is_service_available(AIService.RTDETR) is True
+        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.DEGRADED
+        assert fallback_service.is_service_available(AIService.YOLO26) is True
 
     def test_is_service_available_unavailable(self, fallback_service) -> None:
         """Test availability when service is unavailable."""
-        fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
-        assert fallback_service.is_service_available(AIService.RTDETR) is False
+        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
+        assert fallback_service.is_service_available(AIService.YOLO26) is False
 
     def test_is_service_available_string_parameter(self, fallback_service) -> None:
         """Test availability with string parameter."""
@@ -741,20 +741,20 @@ class TestDegradationLevel:
 
     def test_degradation_level_one_critical_down(self, fallback_service) -> None:
         """Test degradation level when one critical service is down."""
-        fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
+        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
         level = fallback_service.get_degradation_level()
         assert level == DegradationLevel.MINIMAL
 
     def test_degradation_level_all_critical_down(self, fallback_service) -> None:
         """Test degradation level when all critical services are down."""
-        fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
+        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
         fallback_service._service_states[AIService.NEMOTRON].status = ServiceStatus.UNAVAILABLE
         level = fallback_service.get_degradation_level()
         assert level == DegradationLevel.OFFLINE
 
     def test_critical_services_constant(self) -> None:
         """Test that CRITICAL_SERVICES contains expected services."""
-        assert AIService.RTDETR in CRITICAL_SERVICES
+        assert AIService.YOLO26 in CRITICAL_SERVICES
         assert AIService.NEMOTRON in CRITICAL_SERVICES
         assert len(CRITICAL_SERVICES) == 2
 
@@ -783,9 +783,9 @@ class TestAvailableFeatures:
         assert "camera_feeds" in features
         assert "system_monitoring" in features
 
-    def test_get_available_features_rtdetr_down(self, fallback_service) -> None:
-        """Test available features when RT-DETRv2 is down."""
-        fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
+    def test_get_available_features_yolo26_down(self, fallback_service) -> None:
+        """Test available features when YOLO26 is down."""
+        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
         features = fallback_service.get_available_features()
 
         assert "object_detection" not in features
@@ -845,7 +845,7 @@ class TestDegradationStatus:
         """Test that service details are included in status."""
         status = fallback_service.get_degradation_status()
 
-        assert "rtdetr" in status["services"]
+        assert "yolo26" in status["services"]
         assert "nemotron" in status["services"]
         assert "florence" in status["services"]
         assert "clip" in status["services"]
@@ -966,10 +966,10 @@ class TestShouldSkipMethods:
 
     def test_should_skip_detection(self, fallback_service) -> None:
         """Test should_skip_detection method."""
-        fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.UNAVAILABLE
+        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.UNAVAILABLE
         assert fallback_service.should_skip_detection() is True
 
-        fallback_service._service_states[AIService.RTDETR].status = ServiceStatus.HEALTHY
+        fallback_service._service_states[AIService.YOLO26].status = ServiceStatus.HEALTHY
         assert fallback_service.should_skip_detection() is False
 
     def test_should_use_default_risk(self, fallback_service) -> None:
@@ -1038,14 +1038,14 @@ class TestDefaultConfigs:
 
     def test_default_cb_configs_has_all_services(self) -> None:
         """Test that DEFAULT_CB_CONFIGS has configs for all services."""
-        assert AIService.RTDETR in DEFAULT_CB_CONFIGS
+        assert AIService.YOLO26 in DEFAULT_CB_CONFIGS
         assert AIService.NEMOTRON in DEFAULT_CB_CONFIGS
         assert AIService.FLORENCE in DEFAULT_CB_CONFIGS
         assert AIService.CLIP in DEFAULT_CB_CONFIGS
 
-    def test_rtdetr_config(self) -> None:
-        """Test RT-DETRv2 circuit breaker config."""
-        config = DEFAULT_CB_CONFIGS[AIService.RTDETR]
+    def test_yolo26_config(self) -> None:
+        """Test YOLO26 circuit breaker config."""
+        config = DEFAULT_CB_CONFIGS[AIService.YOLO26]
         assert config.failure_threshold == 3
         assert config.recovery_timeout == 60.0
 

@@ -23,7 +23,7 @@ graph TD
     subgraph "Application Layer"
         REQ[HTTP Request] --> MW[Middleware<br/>telemetry.py:567-680]
         MW --> SVC[Service Layer]
-        SVC --> AI[AI Clients<br/>RT-DETR, Nemotron]
+        SVC --> AI[AI Clients<br/>YOLO26, Nemotron]
         SVC --> DB[(PostgreSQL)]
         SVC --> REDIS[(Redis)]
     end
@@ -357,11 +357,11 @@ Context is automatically propagated to AI services via HTTP headers:
 
 ```python
 # Context is automatically injected by httpx instrumentation
-async def call_rtdetr(image_data: bytes) -> dict:
+async def call_yolo26(image_data: bytes) -> dict:
     async with httpx.AsyncClient() as client:
         # traceparent header is automatically added
         response = await client.post(
-            f"{rtdetr_url}/detect",
+            f"{yolo26_url}/detect",
             files={"image": image_data},
         )
         return response.json()
@@ -421,8 +421,8 @@ tracesToMetrics:
       query: 'rate(hsi_pipeline_errors_total[1m]) * 60'
     - name: 'Detection Queue Depth'
       query: 'hsi_detection_queue_depth'
-    - name: 'RT-DETR Latency (p95)'
-      query: 'histogram_quantile(0.95, rate(rtdetr_inference_latency_seconds_bucket[5m]))'
+    - name: 'YOLO26 Latency (p95)'
+      query: 'histogram_quantile(0.95, rate(yolo26_inference_latency_seconds_bucket[5m]))'
 ```
 
 This enables clicking from a trace span to related Prometheus metrics.
@@ -469,7 +469,7 @@ Shows full pipeline traces (`monitoring/grafana/dashboards/tracing.json:65-77`):
 
 ### Detection Processing Panel
 
-Shows RT-DETR detection traces with latency thresholds (`monitoring/grafana/dashboards/tracing.json:131-143`):
+Shows YOLO26 detection traces with latency thresholds (`monitoring/grafana/dashboards/tracing.json:131-143`):
 
 - Green: < 5s (5,000,000 microseconds)
 - Yellow: 5-30s

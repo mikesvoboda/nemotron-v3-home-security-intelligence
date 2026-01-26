@@ -169,9 +169,9 @@ updates:
         patterns:
           - '*'
 
-  # AI services - RT-DETR
+  # AI services - YOLO26
   - package-ecosystem: 'docker'
-    directory: '/ai/rtdetr'
+    directory: '/ai/yolo26'
     schedule:
       interval: 'weekly'
       day: 'monday'

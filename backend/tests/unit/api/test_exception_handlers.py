@@ -1518,7 +1518,7 @@ class TestCircuitBreakerExceptionHandler:
         request.headers = {}
 
         exc = CircuitBreakerOpenError(
-            service_name="rtdetr",
+            service_name="yolo26",
             recovery_timeout=30.0,
         )
 
@@ -1527,13 +1527,13 @@ class TestCircuitBreakerExceptionHandler:
 
             mock_logger.warning.assert_called_once()
             call_args = mock_logger.warning.call_args
-            assert "Circuit breaker open for rtdetr" in call_args[0][0]
-            assert call_args[1]["extra"]["service"] == "rtdetr"
+            assert "Circuit breaker open for yolo26" in call_args[0][0]
+            assert call_args[1]["extra"]["service"] == "yolo26"
 
         assert response.status_code == 503
         content = response.body.decode()
         assert "CIRCUIT_BREAKER_OPEN" in content
-        assert "rtdetr" in content
+        assert "yolo26" in content
 
     @pytest.mark.asyncio
     async def test_includes_retry_after_header(self) -> None:
@@ -1708,7 +1708,7 @@ class TestExternalServiceExceptionHandler:
 
         exc = ExternalServiceError(
             "Service unavailable",
-            service_name="rtdetr",
+            service_name="yolo26",
             details={"reason": "timeout"},
         )
 
@@ -1717,8 +1717,8 @@ class TestExternalServiceExceptionHandler:
 
             mock_logger.error.assert_called_once()
             call_args = mock_logger.error.call_args
-            assert "External service error (rtdetr)" in call_args[0][0]
-            assert call_args[1]["extra"]["service"] == "rtdetr"
+            assert "External service error (yolo26)" in call_args[0][0]
+            assert call_args[1]["extra"]["service"] == "yolo26"
             assert call_args[1]["exc_info"] is True
 
         assert response.status_code == 503

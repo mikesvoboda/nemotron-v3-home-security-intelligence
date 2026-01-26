@@ -96,7 +96,7 @@ class TestAIServicesHealthIntegration:
             data = response.json()
 
             # Should include all 5 AI services
-            expected_services = {"rtdetr", "nemotron", "florence", "clip", "enrichment"}
+            expected_services = {"yolo26", "nemotron", "florence", "clip", "enrichment"}
             actual_services = set(data["services"].keys())
             assert expected_services == actual_services
 
@@ -130,7 +130,7 @@ class TestAIServicesHealthIntegration:
         ):
             response = await async_client.get("/api/health/ai-services")
 
-            # Should return 503 since rtdetr and nemotron are critical
+            # Should return 503 since yolo26 and nemotron are critical
             assert response.status_code == 503
             data = response.json()
             assert data["overall_status"] == "critical"

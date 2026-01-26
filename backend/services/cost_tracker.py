@@ -26,7 +26,7 @@ Example usage:
 
     # Track detection model usage
     tracker.track_detection_usage(
-        model="rtdetr",
+        model="yolo26",
         duration_seconds=0.15,
         images_processed=1
     )
@@ -59,7 +59,7 @@ class CostModel(str, Enum):
     """Supported cost models for inference pricing."""
 
     NEMOTRON = "nemotron"
-    RTDETR = "rtdetr"
+    YOLO26 = "yolo26"
     FLORENCE = "florence"
     CLIP = "clip"
     ENRICHMENT = "enrichment"
@@ -263,7 +263,7 @@ class CostTracker:
         """Track detection model usage.
 
         Args:
-            model: Model identifier (e.g., 'rtdetr', 'florence')
+            model: Model identifier (e.g., 'yolo26', 'florence')
             duration_seconds: Inference duration in seconds
             images_processed: Number of images processed
 

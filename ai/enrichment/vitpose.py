@@ -84,8 +84,10 @@ class PoseAnalyzer:
 
         logger.info("Loading ViTPose+ Small model...")
 
-        self.processor = AutoProcessor.from_pretrained(self.model_path)
-        self.model = VitPoseForPoseEstimation.from_pretrained(self.model_path)
+        self.processor = AutoProcessor.from_pretrained(self.model_path, local_files_only=True)
+        self.model = VitPoseForPoseEstimation.from_pretrained(
+            self.model_path, local_files_only=True
+        )
 
         # Move to device
         if "cuda" in self.device and torch.cuda.is_available():

@@ -23,7 +23,7 @@ Root Fixtures (backend/tests/conftest.py - THIS FILE):
         - mock_redis: Simplified Redis mock for basic operations
         - mock_http_client: HTTP client mock with all methods
         - mock_http_response: HTTP response mock
-        - mock_detector_client: RT-DETR detector service mock
+        - mock_detector_client: YOLO26 detector service mock
         - mock_nemotron_client: Nemotron LLM service mock
         - mock_baseline_service: Baseline service mock
         - mock_websocket_client: Comprehensive WebSocket client mock
@@ -49,7 +49,7 @@ Domain-Specific Fixtures (in subdirectories):
 
     Chaos Tests (backend/tests/chaos/conftest.py):
         - fault_injector: Core fault injection framework
-        - rtdetr_*, redis_*, database_*, nemotron_*: Service-specific fault fixtures
+        - yolo26_*, redis_*, database_*, nemotron_*: Service-specific fault fixtures
         - high_latency, packet_loss: Network condition simulation
         - all_ai_services_down, cache_and_ai_down: Compound fault scenarios
 
@@ -1753,7 +1753,7 @@ def mock_http_client() -> AsyncMock:
 
 @pytest.fixture
 def mock_detector_client() -> AsyncMock:
-    """Create a mock RT-DETR detector client.
+    """Create a mock YOLO26 detector client.
 
     Returns an AsyncMock configured as DetectorClient with:
     - detect_objects: Returns empty list by default

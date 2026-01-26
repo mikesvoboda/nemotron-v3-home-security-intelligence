@@ -23,24 +23,24 @@ These control the startup script (`scripts/start-ai.sh`):
 
 | Variable        | Description                         | Default |
 | --------------- | ----------------------------------- | ------- |
-| `RTDETR_PORT`   | Port for RT-DETRv2 detection server | `8090`  |
+| `YOLO26_PORT`   | Port for YOLO26 detection server    | `8090`  |
 | `NEMOTRON_PORT` | Port for NVIDIA Nemotron LLM server | `8091`  |
 
 **Note:** Log file paths are hardcoded:
 
-- RT-DETRv2: `/tmp/rtdetr-detector.log`
+- YOLO26: `/tmp/yolo26-detector.log`
 - NVIDIA Nemotron: `/tmp/nemotron-llm.log`
 
-### RT-DETRv2 Detection Server
+### YOLO26 Detection Server
 
-Configuration for `ai/rtdetr/model.py`:
+Configuration for `ai/yolo26/model.py`:
 
-| Variable            | Description                    | Default                                        |
-| ------------------- | ------------------------------ | ---------------------------------------------- |
-| `RTDETR_MODEL_PATH` | HuggingFace model path         | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` |
-| `RTDETR_CONFIDENCE` | Detection confidence threshold | `0.5`                                          |
-| `PORT`              | Server port (direct execution) | `8090`                                         |
-| `HOST`              | Bind address                   | `0.0.0.0`                                      |
+| Variable            | Description                    | Default                                       |
+| ------------------- | ------------------------------ | --------------------------------------------- |
+| `YOLO26_MODEL_PATH` | HuggingFace model path         | `/export/ai_models/yolo26v2/yolo26_v2_r101vd` |
+| `YOLO26_CONFIDENCE` | Detection confidence threshold | `0.5`                                         |
+| `PORT`              | Server port (direct execution) | `8090`                                        |
+| `HOST`              | Bind address                   | `0.0.0.0`                                     |
 
 ### NVIDIA Nemotron LLM Server
 
@@ -72,9 +72,9 @@ These configure how the backend connects to AI services (`backend/core/config.py
 
 | Variable           | Description                                | Default                 |
 | ------------------ | ------------------------------------------ | ----------------------- |
-| `RTDETR_URL`       | Full URL to RT-DETRv2 service              | `http://localhost:8090` |
+| `YOLO26_URL`       | Full URL to YOLO26 service                 | `http://localhost:8090` |
 | `NEMOTRON_URL`     | Full URL to NVIDIA Nemotron service        | `http://localhost:8091` |
-| `RTDETR_API_KEY`   | API key for RT-DETRv2 authentication       | (none)                  |
+| `YOLO26_API_KEY`   | API key for YOLO26 authentication          | (none)                  |
 | `NEMOTRON_API_KEY` | API key for NVIDIA Nemotron authentication | (none)                  |
 
 ---
@@ -120,7 +120,7 @@ When AI services run in containers, use appropriate host resolution:
 When running `docker-compose.prod.yml`, the backend reaches AI services by compose DNS:
 
 ```bash
-RTDETR_URL=http://ai-detector:8090
+YOLO26_URL=http://ai-detector:8090
 NEMOTRON_URL=http://ai-llm:8091
 FLORENCE_URL=http://ai-florence:8092
 CLIP_URL=http://ai-clip:8093
@@ -130,7 +130,7 @@ ENRICHMENT_URL=http://ai-enrichment:8094
 **Example .env for macOS with Docker:**
 
 ```bash
-RTDETR_URL=http://host.docker.internal:8090
+YOLO26_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
 ```
 
@@ -138,7 +138,7 @@ NEMOTRON_URL=http://host.docker.internal:8091
 
 ```bash
 export AI_HOST=host.containers.internal
-RTDETR_URL=http://${AI_HOST}:8090
+YOLO26_URL=http://${AI_HOST}:8090
 NEMOTRON_URL=http://${AI_HOST}:8091
 ```
 
@@ -147,7 +147,7 @@ NEMOTRON_URL=http://${AI_HOST}:8091
 ```bash
 # Get your host IP
 export AI_HOST=$(hostname -I | awk '{print $1}')
-RTDETR_URL=http://${AI_HOST}:8090
+YOLO26_URL=http://${AI_HOST}:8090
 NEMOTRON_URL=http://${AI_HOST}:8091
 ```
 
@@ -177,7 +177,7 @@ Control connection and read timeouts:
 | Variable                | Description                  | Default |
 | ----------------------- | ---------------------------- | ------- |
 | `AI_CONNECT_TIMEOUT`    | Connection timeout (seconds) | `10.0`  |
-| `RTDETR_READ_TIMEOUT`   | Detection read timeout       | `60.0`  |
+| `YOLO26_READ_TIMEOUT`   | Detection read timeout       | `60.0`  |
 | `NEMOTRON_READ_TIMEOUT` | LLM analysis read timeout    | `120.0` |
 
 ---
@@ -199,11 +199,11 @@ For production deployment with systemd:
 PROJECT_ROOT=/home/user/home-security-intelligence
 
 # AI service ports (for startup scripts)
-RTDETR_PORT=8090
+YOLO26_PORT=8090
 NEMOTRON_PORT=8091
 
 # AI service URLs (for backend)
-RTDETR_URL=http://localhost:8090
+YOLO26_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
 
 # Detection tuning
@@ -213,7 +213,7 @@ FAST_PATH_OBJECT_TYPES=["person"]
 
 # Timeouts
 AI_CONNECT_TIMEOUT=10.0
-RTDETR_READ_TIMEOUT=60.0
+YOLO26_READ_TIMEOUT=60.0
 NEMOTRON_READ_TIMEOUT=120.0
 ```
 

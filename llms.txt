@@ -10,11 +10,11 @@ This file provides deployment and architecture context for LLM-powered coding as
 - `docker-compose.prod.yml` - Container orchestration (9 core + 4 monitoring services)
 - `backend/` - Python FastAPI backend (REST API, WebSocket, AI pipeline)
 - `frontend/` - React TypeScript dashboard (Tailwind + Tremor)
-- `ai/` - AI service containers (RT-DETRv2, Nemotron, Florence, CLIP, Enrichment)
+- `ai/` - AI service containers (YOLO26, Nemotron, Florence, CLIP, Enrichment)
 
 **Architecture:**
 ```
-Cameras (FTP) --> FileWatcher --> RT-DETRv2 --> Batch Aggregator --> Nemotron --> Dashboard
+Cameras (FTP) --> FileWatcher --> YOLO26 --> Batch Aggregator --> Nemotron --> Dashboard
                                   (detection)                        (risk analysis)
 ```
 
@@ -66,7 +66,7 @@ podman-compose -f docker-compose.prod.yml up -d
 | **16GB** | Reduced GPU layers (`GPU_LAYERS=30`) | RTX 4080, A4000 |
 | **12GB** | Minimal mode, some CPU offload | RTX 3080, 4070 Ti |
 
-**Full stack VRAM usage:** ~23GB (Nemotron ~21GB + RT-DETRv2 ~650MB + enrichment models)
+**Full stack VRAM usage:** ~23GB (Nemotron ~21GB + YOLO26 ~650MB + enrichment models)
 
 ## AI Models (~42GB total)
 
@@ -75,7 +75,7 @@ The download script (`./ai/download_models.sh`) fetches all required models:
 | Model | Size | Purpose |
 |-------|------|---------|
 | Nemotron-3-Nano-30B (Q4_K_M) | ~18GB | Risk reasoning LLM |
-| RT-DETRv2 | ~165MB | Object detection (auto-download) |
+| YOLO26 | ~165MB | Object detection (auto-download) |
 | Florence-2-Large | ~3GB | Vision-language captions |
 | CLIP-ViT-L | ~1.7GB | Entity re-identification |
 | Fashion-CLIP | ~3.5GB | Clothing classification |
@@ -122,7 +122,7 @@ ${AI_MODELS_PATH}/
 | Backend | 8000 | backend | No | FastAPI REST + WebSocket |
 | PostgreSQL | 5432 | postgres | No | Event/detection storage |
 | Redis | 6379 | redis | No | Queues and pub/sub |
-| RT-DETRv2 | 8090 | ai-detector | Yes | Object detection |
+| YOLO26 | 8090 | ai-detector | Yes | Object detection |
 | Nemotron | 8091 | ai-llm | Yes | Risk analysis LLM |
 | Florence-2 | 8092 | ai-florence | Yes | Vision-language captions |
 | CLIP | 8093 | ai-clip | Yes | Embeddings/re-identification |
@@ -202,7 +202,7 @@ GPU_LAYERS=30  # Reduce from default 35
 
 **AI service slow/not responding:**
 ```bash
-curl http://localhost:8090/health  # RT-DETRv2
+curl http://localhost:8090/health  # YOLO26
 curl http://localhost:8091/health  # Nemotron
 # First request after startup is slow (model loading)
 ```
@@ -233,7 +233,7 @@ nemotron-v3-home-security-intelligence/
 │       ├── hooks/           # WebSocket + data hooks
 │       └── services/        # API client
 ├── ai/                       # AI service containers
-│   ├── rtdetr/              # Object detection (port 8090)
+│   ├── yolo26/              # Object detection (port 8090)
 │   ├── nemotron/            # Risk reasoning LLM (port 8091)
 │   ├── florence/            # Vision-language (port 8092)
 │   ├── clip/                # Embeddings (port 8093)

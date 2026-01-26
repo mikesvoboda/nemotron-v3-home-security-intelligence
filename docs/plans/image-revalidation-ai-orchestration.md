@@ -50,7 +50,7 @@ The regenerated image is a **dramatic improvement** over the original. It now us
    - "vehicle 0.87" - teal/green bounding box around the vehicle
    - Labels are large and easily readable at presentation size
 
-3. **JSON RESPONSE STRUCTURE (Right Panel):** Shows the exact JSON format documented in `rt-detr-client.md`:
+3. **JSON RESPONSE STRUCTURE (Right Panel):** Shows the exact JSON format documented in `yolo26-client.md`:
    ```json
    {
      "detections": [
@@ -70,7 +70,7 @@ The regenerated image is a **dramatic improvement** over the original. It now us
 
 #### Alignment with Documentation
 
-The image now perfectly matches the documented response format from `rt-detr-client.md`:
+The image now perfectly matches the documented response format from `yolo26-client.md`:
 
 - Shows the `detections` array structure
 - Includes `class`, `confidence`, and `bbox` fields
@@ -101,13 +101,13 @@ The regenerated image is titled **"MODEL ZOO ARCHITECTURE & RESOURCE MANAGEMENT 
 
 **1. SYSTEM RESOURCES: GPU MEMORY ALLOCATION (Top Bar)**
 
-- Shows individual models with their VRAM usage: RT-DETR (1.2GB), YOLO (1.5GB), CLIP (0.8GB), etc.
+- Shows individual models with their VRAM usage: YOLO26 (1.2GB), YOLO (1.5GB), CLIP (0.8GB), etc.
 - Visual bar showing total budget utilization
 - Matches the documented VRAM budget concept from `model_zoo.md`
 
 **2. Model Categories (Center Grid)**
 
-- **DETECTION:** RT-DETR with example detection output
+- **DETECTION:** YOLO26 with example detection output
 - **POSE:** ViTPose with skeletal pose visualization
 - **CLASSIFICATION:** FashionCLIP with clothing analysis icons
 - **EMBEDDING:** Clip-vit-l with face analysis icons
@@ -142,7 +142,7 @@ The image now accurately represents key concepts from `model_zoo.md`:
 | Include VRAM budget visualization | YES - Top bar shows 6.8GB with per-model breakdown          |
 | Show LRU eviction concept         | YES - Entering/Loaded State/Exiting (Evicted) flow shown    |
 | Indicate priority levels          | YES - Legend shows CRITICAL, HIGH, MEDIUM, LOW              |
-| Reference specific models         | YES - RT-DETR, YOLO, CLIP, ViTPose, PaddleOCR visible       |
+| Reference specific models         | YES - YOLO26, YOLO, CLIP, ViTPose, PaddleOCR visible        |
 
 **Assessment:** This image is now **excellent** and provides a comprehensive visual representation of the Model Zoo architecture. It successfully conveys the complex concepts of VRAM budgeting, model categories, priority-based eviction, and resource management.
 
@@ -256,7 +256,7 @@ With the regenerated images, the AI Orchestration hub now achieves:
 
 All three regenerated images have been **dramatically improved** and now meet or exceed the quality standards for executive-level documentation:
 
-1. **concept-detection-outputs.png:** Transformed from a cluttered scene to a clean three-panel layout showing input, detection, and JSON response format. Perfect alignment with RT-DETR client documentation.
+1. **concept-detection-outputs.png:** Transformed from a cluttered scene to a clean three-panel layout showing input, detection, and JSON response format. Perfect alignment with YOLO26 client documentation.
 
 2. **concept-model-zoo.png:** Evolved from a simple 3-model diagram to a comprehensive architecture visualization showing VRAM budgets, model categories, priority levels, and LRU eviction. Excellent representation of the complex Model Zoo system.
 

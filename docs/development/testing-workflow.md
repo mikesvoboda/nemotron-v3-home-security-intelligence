@@ -68,27 +68,27 @@ from unittest.mock import AsyncMock, patch
 from backend.services.detection import DetectionService
 
 @pytest.mark.asyncio
-async def test_process_image_calls_rtdetr_client():
-    """RED: Test that service integrates with RT-DETR correctly."""
-    mock_rtdetr = AsyncMock()
-    mock_rtdetr.detect.return_value = [
+async def test_process_image_calls_yolo26_client():
+    """RED: Test that service integrates with YOLO26 correctly."""
+    mock_yolo26 = AsyncMock()
+    mock_yolo26.detect.return_value = [
         {"label": "person", "confidence": 0.95, "bbox": [100, 200, 300, 400]}
     ]
 
-    service = DetectionService(rtdetr_client=mock_rtdetr)
+    service = DetectionService(yolo26_client=mock_yolo26)
     result = await service.process_image("/path/to/image.jpg")
 
-    mock_rtdetr.detect.assert_called_once_with("/path/to/image.jpg")
+    mock_yolo26.detect.assert_called_once_with("/path/to/image.jpg")
     assert len(result.detections) == 1
     assert result.detections[0].label == "person"
 
 @pytest.mark.asyncio
-async def test_process_image_handles_rtdetr_timeout():
+async def test_process_image_handles_yolo26_timeout():
     """Test graceful handling of AI service timeouts."""
-    mock_rtdetr = AsyncMock()
-    mock_rtdetr.detect.side_effect = TimeoutError("RT-DETR timeout")
+    mock_yolo26 = AsyncMock()
+    mock_yolo26.detect.side_effect = TimeoutError("YOLO26 timeout")
 
-    service = DetectionService(rtdetr_client=mock_rtdetr)
+    service = DetectionService(yolo26_client=mock_yolo26)
 
     with pytest.raises(DetectionError) as exc_info:
         await service.process_image("/path/to/image.jpg")

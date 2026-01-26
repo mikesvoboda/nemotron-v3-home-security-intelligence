@@ -76,7 +76,7 @@ podman-compose -f docker-compose.prod.yml up -d
 | ------------- | ---- | -------------------------- |
 | PostgreSQL    | 5432 | Database                   |
 | Redis         | 6379 | Queues + pub/sub           |
-| ai-detector   | 8090 | RT-DETRv2 object detection |
+| ai-detector   | 8090 | YOLO26 object detection    |
 | ai-llm        | 8091 | Nemotron LLM risk analysis |
 | ai-florence   | 8092 | Florence-2 (optional)      |
 | ai-clip       | 8093 | CLIP (optional)            |
@@ -123,24 +123,24 @@ _Development mode: AI servers run natively on the host, application services run
 
 Open **two separate terminal windows** for the AI servers.
 
-#### Terminal 1: RT-DETRv2 Detection Server
+#### Terminal 1: YOLO26 Detection Server
 
 ```bash
 cd home-security-intelligence
 ./ai/start_detector.sh
 ```
 
-**What happens** ([`ai/rtdetr/model.py`](../../ai/rtdetr/model.py)):
+**What happens** ([`ai/yolo26/model.py`](../../ai/yolo26/model.py)):
 
-- Loads RT-DETRv2 via HuggingFace Transformers (`RTDETR_MODEL_PATH`)
+- Loads YOLO26 via HuggingFace Transformers (`YOLO26_MODEL_PATH`)
 - Starts HTTP server on port 8090
 - Uses ~4GB VRAM
 
 **Expected output:**
 
 ```
-Starting RT-DETRv2 Detection Server...
-Model directory: /path/to/ai/rtdetr
+Starting YOLO26 Detection Server...
+Model directory: /path/to/ai/yolo26
 Port: 8090
 Expected VRAM usage: ~4GB
 INFO:     Uvicorn running on http://0.0.0.0:8090
@@ -174,7 +174,7 @@ llama server listening at http://0.0.0.0:8091
 #### Verify AI Servers
 
 ```bash
-# Check RT-DETRv2
+# Check YOLO26
 curl http://localhost:8090/health
 # Expected: JSON describing model + CUDA status
 
@@ -362,7 +362,7 @@ nvidia-smi
 
 # Check model files exist
 ls -la ai/nemotron/*.gguf
-# RT-DETRv2 weights are downloaded to HuggingFace cache; use /health to confirm model_loaded=true
+# YOLO26 weights are downloaded to HuggingFace cache; use /health to confirm model_loaded=true
 
 # Check port availability
 lsof -i :8090

@@ -336,8 +336,8 @@ class TestRaiseHttpError:
             raise_http_error(
                 status_code=503,
                 error_code=ErrorCode.DETECTOR_UNAVAILABLE,
-                message="RT-DETR service unavailable",
-                details={"service": "rtdetr", "retry_after": 30},
+                message="YOLO26 service unavailable",
+                details={"service": "yolo26", "retry_after": 30},
             )
         assert exc_info.value.status_code == 503
 
@@ -459,12 +459,12 @@ class TestServiceUnavailableResponse:
         response = ServiceUnavailableResponse(
             error=ServiceUnavailableResponse.ServiceErrorInfo(
                 message="AI service unavailable",
-                service="rtdetr",
+                service="yolo26",
                 retry_after=30,
             )
         )
         assert response.error.code == "SERVICE_UNAVAILABLE"
-        assert response.error.service == "rtdetr"
+        assert response.error.service == "yolo26"
         assert response.error.retry_after == 30
 
 

@@ -77,7 +77,7 @@ jobs:
           The tech stack is:
           - Backend: Python FastAPI, SQLAlchemy, Redis
           - Frontend: React, TypeScript, Tailwind CSS, Tremor
-          - AI: RT-DETRv2 (object detection), Nemotron (risk analysis)
+          - AI: YOLO26 (object detection), Nemotron (risk analysis)
 
           Review the following code changes and provide feedback on:
           1. **Security Issues**: Any vulnerabilities, injection risks, or unsafe patterns
