@@ -1,0 +1,268 @@
+{
+  "id": "loitering",
+  "category": "suspicious",
+  "name": "Loitering Person",
+  "description": "A person lingering near the property without apparent purpose. Extended presence combined with suspicious behavior factors raises risk level.",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "doorbell",
+    "camera_effects": [
+      "fisheye_distortion"
+    ],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "lighting": "low_ambient_streetlight",
+    "weather": "clear",
+    "season": "winter"
+  },
+  "subjects": [
+    {
+      "type": "person",
+      "role": "unknown",
+      "appearance": {
+        "clothing": "dark_hoodie",
+        "face_visible": false,
+        "hood_up": true
+      },
+      "action": "loitering",
+      "position": "near_door",
+      "duration_sec": 45,
+      "behavior_notes": "Looking around nervously, checking windows, appearing to wait for something"
+    }
+  ],
+  "expected_outputs": {
+    "detections": [
+      {
+        "class": "person",
+        "min_confidence": 0.75,
+        "count": 1
+      }
+    ],
+    "face": {
+      "detected": false,
+      "count": 0,
+      "visible": false
+    },
+    "pose": {
+      "posture": "standing",
+      "is_suspicious": true
+    },
+    "action": {
+      "action": "loitering",
+      "is_suspicious": true
+    },
+    "clothing": {
+      "type": "hoodie",
+      "color": "dark",
+      "is_suspicious": true
+    },
+    "demographics": {
+      "age_range": "18-40"
+    },
+    "threats": {
+      "has_threat": false,
+      "types": [],
+      "max_severity": "none"
+    },
+    "risk": {
+      "min_score": 40,
+      "max_score": 70,
+      "level": "medium",
+      "expected_factors": [
+        "loitering",
+        "nighttime",
+        "obscured_face"
+      ]
+    },
+    "florence_caption": {
+      "must_contain": [
+        "person"
+      ],
+      "must_not_contain": [
+        "delivery",
+        "resident"
+      ]
+    }
+  },
+  "generation": {
+    "format": "image",
+    "count": 3,
+    "duration_sec": 8,
+    "seed": null
+  },
+  "variations": [
+    {
+      "id": "loitering_daytime",
+      "name": "Daytime Loitering",
+      "environment_overrides": {
+        "time_of_day": "day",
+        "lighting": "natural_daylight"
+      },
+      "scene_overrides": {
+        "camera_effects": [
+          "fisheye_distortion"
+        ]
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "casual",
+            "face_visible": true,
+            "hood_up": false
+          }
+        }
+      ],
+      "expected_output_overrides": {
+        "face": {
+          "detected": true,
+          "count": 1,
+          "visible": true
+        },
+        "risk": {
+          "min_score": 25,
+          "max_score": 50,
+          "level": "medium",
+          "expected_factors": [
+            "loitering",
+            "unknown_person"
+          ]
+        }
+      }
+    },
+    {
+      "id": "loitering_extended",
+      "name": "Extended Loitering",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "duration_sec": 120,
+          "behavior_notes": "Lingering for over 2 minutes, repeatedly looking at door and windows, checking phone"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 55,
+          "max_score": 80,
+          "level": "high",
+          "expected_factors": [
+            "loitering",
+            "nighttime",
+            "obscured_face",
+            "extended_duration"
+          ]
+        }
+      }
+    },
+    {
+      "id": "loitering_face_visible",
+      "name": "Loitering with Face Visible",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "dark_jacket",
+            "face_visible": true,
+            "hood_up": false
+          }
+        }
+      ],
+      "expected_output_overrides": {
+        "face": {
+          "detected": true,
+          "count": 1,
+          "visible": true
+        },
+        "risk": {
+          "min_score": 35,
+          "max_score": 60,
+          "level": "medium",
+          "expected_factors": [
+            "loitering",
+            "nighttime"
+          ]
+        }
+      }
+    },
+    {
+      "id": "loitering_with_phone",
+      "name": "Loitering While Using Phone",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "dark_hoodie",
+            "face_visible": false,
+            "hood_up": true,
+            "holding_item": "phone"
+          },
+          "behavior_notes": "Standing near door, looking at phone intermittently, possibly taking photos"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 45,
+          "max_score": 75,
+          "level": "medium",
+          "expected_factors": [
+            "loitering",
+            "nighttime",
+            "obscured_face",
+            "possible_reconnaissance"
+          ]
+        }
+      }
+    },
+    {
+      "id": "loitering_dusk",
+      "name": "Loitering at Dusk",
+      "environment_overrides": {
+        "time_of_day": "dusk",
+        "lighting": "low_ambient_dusk"
+      },
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 35,
+          "max_score": 65,
+          "level": "medium",
+          "expected_factors": [
+            "loitering",
+            "low_light",
+            "obscured_face"
+          ]
+        }
+      }
+    },
+    {
+      "id": "loitering_backyard",
+      "name": "Backyard Loitering",
+      "scene_overrides": {
+        "location": "backyard",
+        "camera_type": "outdoor_camera"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "position": "near_back_fence",
+          "behavior_notes": "Person lingering near back fence, looking toward house"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 50,
+          "max_score": 80,
+          "level": "high",
+          "expected_factors": [
+            "loitering",
+            "nighttime",
+            "obscured_face",
+            "backyard_intrusion"
+          ]
+        }
+      }
+    }
+  ]
+}

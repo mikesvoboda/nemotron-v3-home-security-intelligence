@@ -64,11 +64,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.synthetic import (
     ComparisonEngine,
-    MediaGenerator,
     MediaGeneratorError,
     PromptGenerator,
     ReportGenerator,
     SampleModelResult,
+    generate_image_sync,
+    generate_video_sync,
 )
 from scripts.synthetic.scenarios import (
     ScenarioNotFoundError,
@@ -78,6 +79,13 @@ from scripts.synthetic.scenarios import (
     list_scenarios,
     list_time_modifiers,
     list_weather_modifiers,
+)
+from scripts.synthetic.stock_footage import (
+    SCENARIO_SEARCH_TERMS,
+    StockFootageDownloader,
+    StockSource,
+    download_stock_sync,
+    search_stock_sync,
 )
 
 if TYPE_CHECKING:
@@ -160,6 +168,116 @@ def validate_scenario_spec(spec: dict[str, Any]) -> list[str]:
     return errors
 
 
+def cmd_generate_stock(args: argparse.Namespace, spec: dict[str, Any], scenario_name: str, category: str, run_id: str) -> int:
+    """Generate data using stock footage from Pexels/Pixabay."""
+    count = args.count or spec.get("generation", {}).get("count", 3)
+    gen_format = spec.get("generation", {}).get("format", "video")
+
+    # Setup output directory
+    output_dir = get_output_dir(category, scenario_name, run_id)
+    media_dir = output_dir / "media"
+    media_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save scenario spec and expected labels
+    save_json(spec, output_dir / "scenario_spec.json")
+    save_json(spec.get("expected_outputs", {}), output_dir / "expected_labels.json")
+
+    # Determine stock source
+    stock_source = args.stock_source if hasattr(args, 'stock_source') and args.stock_source else "all"
+
+    # Check for API keys
+    import os
+    pexels_key = os.environ.get("PEXELS_API_KEY")
+    pixabay_key = os.environ.get("PIXABAY_API_KEY")
+
+    if not pexels_key and not pixabay_key:
+        print("Error: No stock API keys found.", file=sys.stderr)
+        print("Set PEXELS_API_KEY and/or PIXABAY_API_KEY environment variables.", file=sys.stderr)
+        print("\nGet free API keys from:", file=sys.stderr)
+        print("  Pexels: https://www.pexels.com/api/", file=sys.stderr)
+        print("  Pixabay: https://pixabay.com/api/docs/", file=sys.stderr)
+        return 1
+
+    available_sources = []
+    if pexels_key:
+        available_sources.append("pexels")
+    if pixabay_key:
+        available_sources.append("pixabay")
+
+    print(f"\nSearching {stock_source} for '{scenario_name}' ({gen_format}s)...")
+    print(f"Available sources: {', '.join(available_sources)}")
+
+    # Search for matching stock footage
+    results = search_stock_sync(
+        scenario_id=scenario_name,
+        category=category,
+        media_type="video" if gen_format == "video" else "image",
+        count=count * 2,  # Get extra results in case some fail
+        source=stock_source,
+    )
+
+    if not results:
+        print("No stock footage found matching scenario criteria", file=sys.stderr)
+        print("Make sure PEXELS_API_KEY and/or PIXABAY_API_KEY are set", file=sys.stderr)
+        return 1
+
+    print(f"Found {len(results)} matching clips, downloading {count}...")
+
+    # Download the requested count
+    downloaded_files = []
+    failed = 0
+
+    for i, result in enumerate(results):
+        if len(downloaded_files) >= count:
+            break
+
+        ext = "mp4" if gen_format == "video" else "png"
+        filename = f"{len(downloaded_files) + 1:03d}.{ext}"
+        output_path = media_dir / filename
+
+        print(f"  [{len(downloaded_files) + 1}/{count}] {result.source.value}:{result.id}...", end=" ", flush=True)
+
+        success = download_stock_sync(result, output_path)
+
+        if success and output_path.exists():
+            size_kb = output_path.stat().st_size / 1024
+            print(f"OK ({size_kb:.1f} KB)")
+            downloaded_files.append({
+                "file": str(output_path.relative_to(output_dir)),
+                "source": result.source.value,
+                "source_id": result.id,
+                "source_url": result.url,
+                "tags": result.tags,
+            })
+        else:
+            print("FAILED")
+            failed += 1
+
+    # Save metadata
+    metadata = {
+        "run_id": run_id,
+        "scenario": scenario_name,
+        "category": category,
+        "format": gen_format,
+        "source": "stock",
+        "stock_source": stock_source,
+        "count_requested": count,
+        "count_generated": len(downloaded_files),
+        "count_failed": failed,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "files": downloaded_files,
+        "search_terms": SCENARIO_SEARCH_TERMS.get(scenario_name, []),
+    }
+    save_json(metadata, output_dir / "metadata.json")
+
+    print(f"\nDownload complete:")
+    print(f"  Downloaded: {len(downloaded_files)}/{count}")
+    print(f"  Failed: {failed}")
+    print(f"  Output: {output_dir}")
+
+    return 0 if len(downloaded_files) > 0 else 1
+
+
 def cmd_generate(args: argparse.Namespace) -> int:
     """Execute the generate command."""
     run_id = get_run_id()
@@ -192,6 +310,10 @@ def cmd_generate(args: argparse.Namespace) -> int:
     else:
         print("Error: Must specify --scenario or --spec", file=sys.stderr)
         return 1
+
+    # Check if using stock footage source
+    if hasattr(args, 'source') and args.source == "stock":
+        return cmd_generate_stock(args, spec, scenario_name, category, run_id)
 
     # Validate spec
     errors = validate_scenario_spec(spec)
@@ -235,13 +357,6 @@ def cmd_generate(args: argparse.Namespace) -> int:
         print(f"Prompt:\n{prompt[:500]}...")
         return 0
 
-    # Initialize media generator
-    try:
-        media_generator = MediaGenerator()
-    except MediaGeneratorError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
-
     # Generate media
     print(f"\nGenerating {count} {gen_format}(s)...")
     generated_files = []
@@ -255,9 +370,9 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
         try:
             if gen_format == "video":
-                success = media_generator.generate_video_sync(prompt, output_path)
+                success = generate_video_sync(prompt, output_path)
             else:
-                success = media_generator.generate_image_sync(prompt, output_path)
+                success = generate_image_sync(prompt, output_path)
 
             if success and output_path.exists():
                 size_kb = output_path.stat().st_size / 1024
@@ -555,6 +670,18 @@ def main() -> int:
         "--dry-run",
         action="store_true",
         help="Generate prompt but don't call API",
+    )
+    gen_parser.add_argument(
+        "--source",
+        choices=["ai", "stock"],
+        default="ai",
+        help="Media source: 'ai' for Veo/Gemini generation (default), 'stock' for Pexels/Pixabay",
+    )
+    gen_parser.add_argument(
+        "--stock-source",
+        choices=["pexels", "pixabay", "all"],
+        default="all",
+        help="Stock footage source when --source=stock (default: all)",
     )
 
     # Test command

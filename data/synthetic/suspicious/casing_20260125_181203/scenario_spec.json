@@ -1,0 +1,334 @@
+{
+  "id": "casing",
+  "category": "suspicious",
+  "name": "Property Casing",
+  "description": "A person or vehicle observing the property from a distance, potentially gathering information for future criminal activity.",
+  "scene": {
+    "location": "street_view",
+    "camera_type": "driveway_camera",
+    "camera_effects": [],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "lighting": "natural_daylight",
+    "weather": "clear",
+    "season": "summer"
+  },
+  "subjects": [
+    {
+      "type": "person",
+      "role": "unknown",
+      "appearance": {
+        "clothing": "casual",
+        "face_visible": true,
+        "sunglasses": true
+      },
+      "action": "observing",
+      "position": "across_street",
+      "duration_sec": 90,
+      "behavior_notes": "Standing across the street, watching the house, taking mental notes, may have phone out"
+    }
+  ],
+  "expected_outputs": {
+    "detections": [
+      {
+        "class": "person",
+        "min_confidence": 0.7,
+        "count": 1
+      }
+    ],
+    "face": {
+      "detected": true,
+      "count": 1,
+      "visible": true
+    },
+    "pose": {
+      "posture": "standing",
+      "is_suspicious": false
+    },
+    "action": {
+      "action": "observing",
+      "is_suspicious": true
+    },
+    "depth": {
+      "subject_distance_m": [
+        15.0,
+        40.0
+      ]
+    },
+    "risk": {
+      "min_score": 35,
+      "max_score": 60,
+      "level": "medium",
+      "expected_factors": [
+        "prolonged_observation",
+        "unknown_person",
+        "watching_property"
+      ]
+    },
+    "florence_caption": {
+      "must_contain": [
+        "person"
+      ],
+      "must_not_contain": [
+        "delivery",
+        "neighbor"
+      ]
+    }
+  },
+  "generation": {
+    "format": "video",
+    "count": 2,
+    "duration_sec": 8,
+    "seed": null
+  },
+  "variations": [
+    {
+      "id": "casing_from_vehicle",
+      "name": "Casing from Parked Vehicle",
+      "subjects": [
+        {
+          "type": "vehicle",
+          "vehicle_type": "sedan",
+          "color": "dark",
+          "license_plate_visible": true,
+          "action": "parked",
+          "position": "street_across",
+          "behavior_notes": "Vehicle parked across the street with occupant watching the house"
+        },
+        {
+          "type": "person",
+          "role": "unknown",
+          "appearance": {
+            "clothing": "unknown",
+            "face_visible": false
+          },
+          "action": "observing_from_vehicle",
+          "position": "inside_vehicle",
+          "duration_sec": 300,
+          "behavior_notes": "Person visible inside parked vehicle, watching the property"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "car",
+            "min_confidence": 0.75,
+            "count": 1
+          },
+          {
+            "class": "person",
+            "min_confidence": 0.5,
+            "count": 1
+          }
+        ],
+        "license_plate": {
+          "detected": true,
+          "text_pattern": "^[A-Z0-9]{5,8}$"
+        },
+        "vehicle": {
+          "type": "sedan",
+          "color": "dark"
+        },
+        "risk": {
+          "min_score": 45,
+          "max_score": 70,
+          "level": "medium",
+          "expected_factors": [
+            "vehicle_surveillance",
+            "prolonged_parking",
+            "watching_property"
+          ]
+        }
+      }
+    },
+    {
+      "id": "casing_taking_photos",
+      "name": "Taking Photos of Property",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "casual",
+            "face_visible": true,
+            "holding_item": "phone_camera"
+          },
+          "action": "photographing",
+          "behavior_notes": "Taking photos of the house with phone, documenting entry points"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 50,
+          "max_score": 75,
+          "level": "high",
+          "expected_factors": [
+            "photographing_property",
+            "reconnaissance",
+            "unknown_person"
+          ]
+        }
+      }
+    },
+    {
+      "id": "casing_return_visit",
+      "name": "Return Visit Casing",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "behavior_notes": "Same person observed previously, returning to observe the property again"
+        }
+      ],
+      "expected_output_overrides": {
+        "reid": {
+          "same_person_as": "previous_detection",
+          "similarity_threshold": 0.7
+        },
+        "risk": {
+          "min_score": 55,
+          "max_score": 80,
+          "level": "high",
+          "expected_factors": [
+            "repeat_visit",
+            "pattern_of_surveillance",
+            "unknown_person"
+          ]
+        }
+      }
+    },
+    {
+      "id": "casing_nighttime",
+      "name": "Nighttime Casing",
+      "environment_overrides": {
+        "time_of_day": "night",
+        "lighting": "streetlight_only"
+      },
+      "scene_overrides": {
+        "camera_effects": [
+          "ir_night_vision"
+        ]
+      },
+      "expected_output_overrides": {
+        "face": {
+          "detected": false,
+          "count": 0,
+          "visible": false
+        },
+        "risk": {
+          "min_score": 55,
+          "max_score": 80,
+          "level": "high",
+          "expected_factors": [
+            "nighttime",
+            "prolonged_observation",
+            "unknown_person"
+          ]
+        }
+      }
+    },
+    {
+      "id": "casing_walking_by_slowly",
+      "name": "Slow Walk-By Observation",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "slow_walk",
+          "position": "sidewalk",
+          "behavior_notes": "Walking very slowly past the property, looking at windows and doors, possibly multiple passes"
+        }
+      ],
+      "expected_output_overrides": {
+        "action": {
+          "action": "slow_walking",
+          "is_suspicious": true
+        },
+        "risk": {
+          "min_score": 30,
+          "max_score": 55,
+          "level": "medium",
+          "expected_factors": [
+            "slow_movement",
+            "observing_property",
+            "unknown_person"
+          ]
+        }
+      }
+    },
+    {
+      "id": "casing_multiple_people",
+      "name": "Multiple People Casing",
+      "subjects_append": [
+        {
+          "type": "person",
+          "role": "unknown",
+          "appearance": {
+            "clothing": "casual",
+            "face_visible": true
+          },
+          "action": "observing",
+          "position": "near_first_person",
+          "behavior_notes": "Second person accompanying the first, both watching the property"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "person",
+            "min_confidence": 0.7,
+            "count": 2
+          }
+        ],
+        "risk": {
+          "min_score": 50,
+          "max_score": 75,
+          "level": "high",
+          "expected_factors": [
+            "multiple_subjects",
+            "coordinated_observation",
+            "unknown_persons"
+          ]
+        }
+      }
+    },
+    {
+      "id": "casing_van",
+      "name": "Suspicious Van Observation",
+      "subjects": [
+        {
+          "type": "vehicle",
+          "vehicle_type": "van",
+          "color": "white",
+          "license_plate_visible": true,
+          "action": "parked",
+          "position": "street_nearby",
+          "behavior_notes": "Unmarked white van parked with view of the property"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "truck",
+            "min_confidence": 0.7,
+            "count": 1
+          }
+        ],
+        "vehicle": {
+          "type": "van",
+          "color": "white"
+        },
+        "risk": {
+          "min_score": 40,
+          "max_score": 65,
+          "level": "medium",
+          "expected_factors": [
+            "suspicious_vehicle",
+            "unmarked_van",
+            "surveillance_position"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -55,6 +55,16 @@ from scripts.synthetic.report_generator import (
     SampleModelResult,
     TestReport,
 )
+from scripts.synthetic.stock_footage import (
+    CATEGORY_SEARCH_TERMS,
+    SCENARIO_SEARCH_TERMS,
+    StockFootageDownloader,
+    StockFootageError,
+    StockResult,
+    StockSource,
+    download_stock_sync,
+    search_stock_sync,
+)
 
 __all__ = [
     # Comparison engine
@@ -83,4 +93,13 @@ __all__ = [
     "TestReport",
     "ReportSummary",
     "FailureDetail",
+    # Stock footage
+    "StockFootageDownloader",
+    "StockFootageError",
+    "StockSource",
+    "StockResult",
+    "SCENARIO_SEARCH_TERMS",
+    "CATEGORY_SEARCH_TERMS",
+    "search_stock_sync",
+    "download_stock_sync",
 ]

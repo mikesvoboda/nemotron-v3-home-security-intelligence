@@ -1,0 +1,20 @@
+{
+  "run_id": "20260125_185552",
+  "scenario": "yard_maintenance",
+  "category": "normal",
+  "format": "image",
+  "count_requested": 3,
+  "count_generated": 3,
+  "count_failed": 0,
+  "generated_at": "2026-01-25T23:57:11.980623+00:00",
+  "files": [
+    "media/001.png",
+    "media/002.png",
+    "media/003.png"
+  ],
+  "applied_modifiers": {
+    "variation": "yard_maintenance_multiple_workers",
+    "time": null,
+    "weather": null
+  }
+}

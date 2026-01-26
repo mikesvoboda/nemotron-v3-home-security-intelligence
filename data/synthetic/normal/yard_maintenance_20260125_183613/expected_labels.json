@@ -1,0 +1,44 @@
+{
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.75,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "count": 1,
+    "visible": true
+  },
+  "pose": {
+    "posture": "standing_working",
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "yard_work",
+    "is_suspicious": false
+  },
+  "clothing": {
+    "type": "work_clothes",
+    "color": "green_khaki",
+    "is_suspicious": false
+  },
+  "risk": {
+    "min_score": 0,
+    "max_score": 15,
+    "level": "low",
+    "expected_factors": []
+  },
+  "florence_caption": {
+    "must_contain": [
+      "person"
+    ],
+    "must_not_contain": [
+      "suspicious",
+      "threat",
+      "stealing",
+      "breaking"
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "run_id": "20260125_181525",
+  "scenario": "prowling",
+  "category": "suspicious",
+  "format": "image",
+  "count_requested": 1,
+  "count_generated": 1,
+  "count_failed": 0,
+  "generated_at": "2026-01-25T23:15:45.498438+00:00",
+  "files": [
+    "media/001.png"
+  ],
+  "applied_modifiers": {
+    "variation": null,
+    "time": null,
+    "weather": null
+  }
+}

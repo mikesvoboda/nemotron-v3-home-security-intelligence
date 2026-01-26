@@ -1,0 +1,60 @@
+{
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "count": 0,
+    "visible": false
+  },
+  "pose": {
+    "posture": "crouching",
+    "is_suspicious": true,
+    "keypoints_visible": [
+      "left_shoulder",
+      "right_shoulder",
+      "left_hip",
+      "right_hip"
+    ]
+  },
+  "action": {
+    "action": "prowling",
+    "is_suspicious": true
+  },
+  "clothing": {
+    "type": "jacket",
+    "color": "dark",
+    "is_suspicious": true
+  },
+  "threats": {
+    "has_threat": false,
+    "types": [],
+    "max_severity": "none"
+  },
+  "risk": {
+    "min_score": 60,
+    "max_score": 85,
+    "level": "high",
+    "expected_factors": [
+      "prowling",
+      "nighttime",
+      "obscured_face",
+      "checking_entry_points"
+    ]
+  },
+  "florence_caption": {
+    "must_contain": [
+      "person",
+      "window"
+    ],
+    "must_not_contain": [
+      "delivery",
+      "resident",
+      "maintenance"
+    ]
+  }
+}

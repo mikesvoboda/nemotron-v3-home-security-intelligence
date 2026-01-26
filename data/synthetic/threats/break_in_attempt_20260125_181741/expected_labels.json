@@ -1,0 +1,68 @@
+{
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": false,
+    "count": 0,
+    "visible": false
+  },
+  "pose": {
+    "posture": "aggressive_stance",
+    "is_suspicious": true,
+    "keypoints_visible": [
+      "left_shoulder",
+      "right_shoulder",
+      "left_elbow",
+      "right_elbow"
+    ]
+  },
+  "action": {
+    "action": "forcing_entry",
+    "is_suspicious": true
+  },
+  "clothing": {
+    "type": "jacket_hoodie",
+    "color": "dark",
+    "is_suspicious": true
+  },
+  "threats": {
+    "has_threat": true,
+    "types": [
+      "break_in",
+      "burglary_tool"
+    ],
+    "max_severity": "critical"
+  },
+  "violence": {
+    "detected": false,
+    "confidence_threshold": 0.5
+  },
+  "risk": {
+    "min_score": 85,
+    "max_score": 100,
+    "level": "critical",
+    "expected_factors": [
+      "forced_entry_attempt",
+      "nighttime",
+      "face_concealed",
+      "tools_visible",
+      "aggressive_behavior"
+    ]
+  },
+  "florence_caption": {
+    "must_contain": [
+      "person",
+      "door"
+    ],
+    "must_not_contain": [
+      "delivery",
+      "resident",
+      "welcome"
+    ]
+  }
+}

@@ -1,0 +1,301 @@
+{
+  "id": "package_theft",
+  "category": "threats",
+  "name": "Package Theft",
+  "description": "A person stealing a package from the front porch. This is a common property crime that should trigger high-risk alerts.",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "doorbell",
+    "camera_effects": [
+      "fisheye_distortion"
+    ],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "lighting": "natural_daylight",
+    "weather": "clear",
+    "season": "winter"
+  },
+  "subjects": [
+    {
+      "type": "person",
+      "role": "thief",
+      "appearance": {
+        "clothing": "casual_nondescript",
+        "face_visible": true,
+        "hood_up": false
+      },
+      "action": "stealing_package",
+      "position": "at_door",
+      "duration_sec": 10,
+      "behavior_notes": "Quickly approaching porch, grabbing package, and leaving rapidly without knocking or ringing bell"
+    },
+    {
+      "type": "object",
+      "object_type": "package",
+      "description": "delivery_box",
+      "position": "on_porch",
+      "state": "being_taken"
+    }
+  ],
+  "expected_outputs": {
+    "detections": [
+      {
+        "class": "person",
+        "min_confidence": 0.75,
+        "count": 1
+      }
+    ],
+    "face": {
+      "detected": true,
+      "count": 1,
+      "visible": true
+    },
+    "pose": {
+      "posture": "bending_grabbing",
+      "is_suspicious": true
+    },
+    "action": {
+      "action": "theft",
+      "is_suspicious": true
+    },
+    "threats": {
+      "has_threat": true,
+      "types": [
+        "theft"
+      ],
+      "max_severity": "high"
+    },
+    "risk": {
+      "min_score": 70,
+      "max_score": 90,
+      "level": "high",
+      "expected_factors": [
+        "package_theft",
+        "rapid_approach_departure",
+        "no_interaction"
+      ]
+    },
+    "florence_caption": {
+      "must_contain": [
+        "person",
+        "package"
+      ],
+      "must_not_contain": [
+        "delivery",
+        "uniform"
+      ]
+    }
+  },
+  "generation": {
+    "format": "image",
+    "count": 3,
+    "duration_sec": 8,
+    "seed": null
+  },
+  "variations": [
+    {
+      "id": "package_theft_fast",
+      "name": "Quick Grab and Run",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "duration_sec": 5,
+          "behavior_notes": "Extremely fast approach, grabs package, immediately runs away"
+        }
+      ],
+      "expected_output_overrides": {
+        "action": {
+          "action": "grab_and_run",
+          "is_suspicious": true
+        },
+        "risk": {
+          "min_score": 75,
+          "max_score": 95,
+          "level": "high",
+          "expected_factors": [
+            "package_theft",
+            "running",
+            "very_brief_presence"
+          ]
+        }
+      }
+    },
+    {
+      "id": "package_theft_disguised",
+      "name": "Disguised as Delivery Person",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "fake_uniform",
+            "face_visible": true,
+            "hood_up": false
+          },
+          "behavior_notes": "Wearing clothing resembling delivery uniform, takes package pretending to be returning it"
+        }
+      ],
+      "expected_output_overrides": {
+        "clothing": {
+          "type": "uniform_like",
+          "color": "brown",
+          "is_suspicious": true
+        },
+        "risk": {
+          "min_score": 65,
+          "max_score": 85,
+          "level": "high",
+          "expected_factors": [
+            "package_theft",
+            "deceptive_appearance"
+          ]
+        }
+      }
+    },
+    {
+      "id": "package_theft_with_vehicle",
+      "name": "Drive-By Package Theft",
+      "subjects_append": [
+        {
+          "type": "vehicle",
+          "vehicle_type": "sedan",
+          "color": "dark",
+          "license_plate_visible": true,
+          "action": "waiting",
+          "position": "street_in_front",
+          "behavior_notes": "Vehicle waiting at curb as person steals package"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "person",
+            "min_confidence": 0.75,
+            "count": 1
+          },
+          {
+            "class": "car",
+            "min_confidence": 0.75,
+            "count": 1
+          }
+        ],
+        "license_plate": {
+          "detected": true,
+          "text_pattern": "^[A-Z0-9]{5,8}$"
+        },
+        "vehicle": {
+          "type": "sedan",
+          "color": "dark"
+        },
+        "risk": {
+          "min_score": 80,
+          "max_score": 95,
+          "level": "critical",
+          "expected_factors": [
+            "package_theft",
+            "getaway_vehicle",
+            "coordinated_crime"
+          ]
+        }
+      }
+    },
+    {
+      "id": "package_theft_hooded",
+      "name": "Hooded Thief",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "hoodie",
+            "face_visible": false,
+            "hood_up": true
+          },
+          "behavior_notes": "Face obscured by hood, takes package and leaves quickly"
+        }
+      ],
+      "expected_output_overrides": {
+        "face": {
+          "detected": false,
+          "count": 0,
+          "visible": false
+        },
+        "risk": {
+          "min_score": 75,
+          "max_score": 95,
+          "level": "high",
+          "expected_factors": [
+            "package_theft",
+            "obscured_face",
+            "concealment_attempt"
+          ]
+        }
+      }
+    },
+    {
+      "id": "package_theft_multiple_packages",
+      "name": "Multiple Package Theft",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "behavior_notes": "Taking multiple packages from the porch at once"
+        },
+        {
+          "index": 1,
+          "description": "multiple_delivery_boxes",
+          "state": "being_taken"
+        }
+      ]
+    },
+    {
+      "id": "package_theft_night",
+      "name": "Nighttime Package Theft",
+      "environment_overrides": {
+        "time_of_day": "night",
+        "lighting": "porch_light_only"
+      },
+      "scene_overrides": {
+        "camera_effects": [
+          "fisheye_distortion",
+          "ir_night_vision"
+        ]
+      },
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 80,
+          "max_score": 95,
+          "level": "critical",
+          "expected_factors": [
+            "package_theft",
+            "nighttime",
+            "opportunistic"
+          ]
+        }
+      }
+    },
+    {
+      "id": "package_theft_checking_first",
+      "name": "Checking Before Stealing",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "duration_sec": 20,
+          "behavior_notes": "Approaches, looks around to check for witnesses, rings doorbell, waits briefly, then takes package"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 70,
+          "max_score": 90,
+          "level": "high",
+          "expected_factors": [
+            "package_theft",
+            "checking_for_witnesses",
+            "deliberate_theft"
+          ]
+        }
+      }
+    }
+  ]
+}
