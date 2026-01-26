@@ -7,6 +7,18 @@ Uses Ultralytics YOLO for loading and running TensorRT engines.
 
 Port: 8095 (configurable via PORT env var)
 Expected VRAM: ~2GB
+
+torch.compile Support (NEM-3773):
+    Set TORCH_COMPILE_ENABLED=true to enable PyTorch 2.0+ graph optimization.
+    This provides 15-30% speedup with automatic kernel fusion.
+    Note: torch.compile is only applied when using PyTorch models (.pt),
+    not TensorRT engines (.engine) which are already optimized.
+
+    Environment Variables:
+    - TORCH_COMPILE_ENABLED: Enable compilation (default: "true")
+    - TORCH_COMPILE_MODE: Mode ("default", "reduce-overhead", "max-autotune")
+    - TORCH_COMPILE_BACKEND: Backend ("inductor", "cudagraphs", etc.)
+    - TORCH_COMPILE_CACHE_DIR: Cache directory for compiled graphs
 """
 
 import base64
@@ -14,6 +26,7 @@ import binascii
 import io
 import logging
 import os
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -25,6 +38,13 @@ from fastapi.responses import JSONResponse, Response
 from PIL import Image, UnidentifiedImageError
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, ConfigDict, Field
+
+# Add ai directory to path for compile_utils import
+_ai_dir = Path(__file__).parent.parent
+if str(_ai_dir) not in sys.path:
+    sys.path.insert(0, str(_ai_dir))
+
+from compile_utils import CompileConfig, compile_model, is_compile_available  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
@@ -240,6 +260,8 @@ class HealthResponse(BaseModel):
     temperature: int | None = None
     power_watts: float | None = None
     tensorrt_enabled: bool | None = None
+    torch_compile_enabled: bool | None = None
+    torch_compile_mode: str | None = None
 
 
 class YOLO26Model:
@@ -251,16 +273,23 @@ class YOLO26Model:
         confidence_threshold: float = 0.5,
         device: str = "cuda:0",
         cache_clear_frequency: int = 1,
+        enable_torch_compile: bool | None = None,
+        torch_compile_mode: str | None = None,
     ):
         """Initialize YOLO26 model.
 
         Args:
-            model_path: Path to TensorRT engine file (.engine)
+            model_path: Path to TensorRT engine file (.engine) or PyTorch model (.pt)
             confidence_threshold: Minimum confidence for detections
             device: Device to run inference on (cuda:0, cpu)
             cache_clear_frequency: Clear CUDA cache every N detections.
                                    Set to 0 to disable cache clearing.
                                    Default is 1 (clear after every detection).
+            enable_torch_compile: Enable torch.compile() for automatic kernel fusion (NEM-3773).
+                                 If None, reads from TORCH_COMPILE_ENABLED env var.
+                                 Note: Only applies to PyTorch models, not TensorRT engines.
+            torch_compile_mode: Compilation mode ("default", "reduce-overhead", "max-autotune").
+                               If None, reads from TORCH_COMPILE_MODE env var.
         """
         self.model_path = str(model_path)
         self.confidence_threshold = confidence_threshold
@@ -270,9 +299,25 @@ class YOLO26Model:
         self.model: Any = None
         self.tensorrt_enabled = False
 
+        # torch.compile configuration (NEM-3773)
+        if enable_torch_compile is None:
+            enable_torch_compile = os.environ.get("TORCH_COMPILE_ENABLED", "true").lower() == "true"
+        self.enable_torch_compile = enable_torch_compile
+
+        if torch_compile_mode is None:
+            torch_compile_mode = os.environ.get("TORCH_COMPILE_MODE", "reduce-overhead")
+        self.torch_compile_mode = torch_compile_mode
+
+        # torch.compile state
+        self._is_compiled = False
+        self._compile_config: CompileConfig | None = None
+
         logger.info(f"Initializing YOLO26 model from {self.model_path}")
         logger.info(f"Device: {device}, Confidence threshold: {confidence_threshold}")
         logger.info(f"CUDA cache clear frequency: {cache_clear_frequency}")
+        logger.info(
+            f"torch.compile enabled: {self.enable_torch_compile}, mode: {self.torch_compile_mode}"
+        )
 
     def load_model(self) -> None:
         """Load the TensorRT model using Ultralytics YOLO."""
@@ -288,8 +333,18 @@ class YOLO26Model:
             if self.model_path.endswith(".engine"):
                 self.tensorrt_enabled = True
                 logger.info("TensorRT engine loaded successfully")
+                # Note: torch.compile is not applied to TensorRT engines
+                # as they are already graph-optimized
+                if self.enable_torch_compile:
+                    logger.info(
+                        "torch.compile skipped for TensorRT engine "
+                        "(TensorRT already provides graph optimization)"
+                    )
             else:
                 logger.info("YOLO model loaded (non-TensorRT format)")
+                # Apply torch.compile() for PyTorch models (NEM-3773)
+                if self.enable_torch_compile and is_compile_available():
+                    self._apply_torch_compile()
 
             # Verify CUDA availability
             if "cuda" in self.device and torch.cuda.is_available():
@@ -305,6 +360,54 @@ class YOLO26Model:
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise
+
+    def _apply_torch_compile(self) -> None:
+        """Apply torch.compile() to the underlying PyTorch model for automatic kernel fusion.
+
+        This method wraps the model with torch.compile() using the configured mode.
+        If compilation fails, it falls back to eager execution gracefully.
+
+        Note: This only applies to PyTorch models (.pt), not TensorRT engines (.engine)
+        which are already optimized at the graph level.
+
+        Expected speedup: 15-30% on supported operations.
+        """
+        try:
+            # Configure compilation
+            self._compile_config = CompileConfig(
+                enabled=True,
+                mode=self.torch_compile_mode,
+                backend="inductor",
+                fullgraph=False,  # Allow graph breaks for complex models
+                dynamic=True,  # Support variable input sizes
+            )
+
+            logger.info(
+                f"Applying torch.compile() to YOLO26 model "
+                f"(mode={self.torch_compile_mode}, backend=inductor)"
+            )
+
+            # For Ultralytics YOLO, we need to compile the underlying model
+            # The YOLO wrapper exposes the model through .model attribute
+            if hasattr(self.model, "model") and self.model.model is not None:
+                self.model.model = compile_model(
+                    self.model.model,
+                    config=self._compile_config,
+                    model_name="YOLO26-backbone",
+                )
+                self._is_compiled = True
+                logger.info("torch.compile() applied successfully to YOLO26 backbone")
+            else:
+                logger.warning(
+                    "Could not access YOLO model backbone for torch.compile(). "
+                    "Using default eager execution."
+                )
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to apply torch.compile() to YOLO26: {e}. Falling back to eager execution."
+            )
+            self._is_compiled = False
 
     def _warmup(self, num_iterations: int = 3) -> None:
         """Warmup the model with dummy inputs."""
@@ -598,6 +701,8 @@ async def health_check() -> HealthResponse:
         temperature=gpu_metrics.get("temperature"),
         power_watts=gpu_metrics.get("power_watts"),
         tensorrt_enabled=model.tensorrt_enabled if model else None,
+        torch_compile_enabled=model._is_compiled if model else None,
+        torch_compile_mode=model.torch_compile_mode if model and model._is_compiled else None,
     )
 
 

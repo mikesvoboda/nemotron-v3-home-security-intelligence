@@ -10,6 +10,25 @@
 # GPU Requirements:
 #   - NVIDIA GPU with CUDA support required for AI services
 #   - nvidia-container-toolkit must be installed
+#   - For multi-GPU systems, GPUs are assigned based on compute capability and memory
+#   - Set NVIDIA_VISIBLE_DEVICES or use device ordering for consistent assignment across restarts
+#
+# GPU Device Ordering (Optional - for consistent multi-GPU assignment):
+#   - RT-DETRv2 (8090): GPU 0 (primary detector)
+#   - YOLO26 (8095): GPU 0 (alternative detector, use one or the other)
+#   - Nemotron (8091): GPU 1 (LLM, requires 24GB+ VRAM)
+#   - Enrichment (8094): GPU 0 or GPU 1 (multi-model service)
+#   - Florence (8092): GPU 0 or GPU 1 (vision-language model)
+#   - CLIP (8093): GPU 0 or GPU 1 (embeddings)
+#
+# For consistent device assignment across restarts, set in your environment:
+#   export NVIDIA_VISIBLE_DEVICES=GPU-<uuid-0>,GPU-<uuid-1>
+#   export CUDA_DEVICE_ORDER=PCI_BUS_ID
+#
+# Or modify the environment in the compose file by adding:
+#   environment:
+#     - NVIDIA_VISIBLE_DEVICES=<gpu-devices>
+#     - CUDA_DEVICE_ORDER=PCI_BUS_ID
 #
 # Credential Management (Choose One Approach):
 #
@@ -146,6 +165,10 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test:
         [
@@ -188,6 +211,10 @@ services:
       - PYROSCOPE_URL=http://pyroscope:4040
       - YOLO26_CONFIDENCE=${YOLO26_CONFIDENCE:-0.5}
       - YOLO26_MODEL_PATH=/models/yolo26/exports/yolo26m_fp16.engine
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test:
         [
@@ -235,6 +262,11 @@ services:
     environment:
       - GPU_LAYERS=${GPU_LAYERS:-25}
       - CTX_SIZE=${CTX_SIZE:-131072}
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      # Nemotron typically uses GPU 1 on multi-GPU systems
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
       interval: 10s
@@ -285,6 +317,10 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8092/health']
       interval: 10s
@@ -336,6 +372,10 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8093/health']
       interval: 10s
@@ -411,6 +451,10 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
+      # GPU device ordering for consistent assignment across restarts
+      # Uses PCI_BUS_ID ordering for stable device assignment
+      - CUDA_DEVICE_ORDER=PCI_BUS_ID
+      - CUDA_VISIBLE_DEVICES=0
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
       interval: 10s

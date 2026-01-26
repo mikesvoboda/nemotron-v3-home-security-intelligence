@@ -28,12 +28,16 @@
 # FROM ghcr.io/mikesvoboda/python:3.14t-slim-bookworm AS base
 FROM python:3.14-slim-bookworm AS base
 
-# Security labels
+# OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
 LABEL org.opencontainers.image.title="Backend API Server"
-LABEL org.opencontainers.image.description="FastAPI backend for home security monitoring"
+LABEL org.opencontainers.image.description="FastAPI backend for home security monitoring dashboard with WebSocket support"
 LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
+LABEL org.opencontainers.image.authors="home-security-intelligence"
+LABEL org.opencontainers.image.base.name="python:3.14-slim-bookworm"
+LABEL org.opencontainers.image.base.digest="python:3.14-slim-bookworm"
 
 WORKDIR /app
 
@@ -121,12 +125,16 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # =============================================================================
 FROM python:3.14-slim-bookworm AS prod
 
-# Security labels
+# OCI Image Labels (org.opencontainers.image.*)
 LABEL org.opencontainers.image.vendor="home-security-intelligence"
 LABEL org.opencontainers.image.title="Backend API Server"
-LABEL org.opencontainers.image.description="FastAPI backend for home security monitoring"
+LABEL org.opencontainers.image.description="FastAPI backend for home security monitoring dashboard with WebSocket support"
 LABEL org.opencontainers.image.licenses="MPL-2.0"
 LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
+LABEL org.opencontainers.image.authors="home-security-intelligence"
+LABEL org.opencontainers.image.base.name="python:3.14-slim-bookworm"
+LABEL org.opencontainers.image.base.digest="python:3.14-slim-bookworm"
 
 WORKDIR /app
 

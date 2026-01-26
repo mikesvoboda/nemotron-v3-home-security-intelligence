@@ -12,11 +12,11 @@ Example:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from sqlalchemy import desc, func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from backend.models import Event
 from backend.repositories.base import Repository
@@ -181,3 +181,91 @@ class EventRepository(Repository[Event]):
         await self.session.flush()
         await self.session.refresh(event)
         return event
+
+    # =========================================================================
+    # Eager Loading Methods (NEM-3758)
+    # =========================================================================
+
+    async def get_event_with_camera(self, event_id: int) -> Event | None:
+        """Get a single event with camera relationship eagerly loaded.
+
+        Uses joinedload to fetch camera data in a single query, preventing
+        lazy loading issues in async context and N+1 queries.
+
+        Args:
+            event_id: ID of the event to fetch
+
+        Returns:
+            Event with camera pre-loaded, or None if not found
+
+        Loading Strategy:
+            - camera: joinedload (many-to-one, single JOIN)
+        """
+        stmt = select(Event).options(joinedload(Event.camera)).where(Event.id == event_id)
+
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_events_with_relationships(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Sequence[Event]:
+        """List events with camera relationship eagerly loaded.
+
+        Uses joinedload for the camera relationship to prevent N+1 queries
+        when iterating over events and accessing their cameras.
+
+        Args:
+            limit: Maximum number of events to return
+            offset: Number of events to skip
+
+        Returns:
+            Sequence of Event objects with camera pre-loaded
+
+        Loading Strategy:
+            - camera: joinedload (many-to-one, single JOIN)
+        """
+        stmt = (
+            select(Event)
+            .options(joinedload(Event.camera))
+            .order_by(desc(Event.started_at))
+            .offset(offset)
+            .limit(limit)
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_recent_events_with_camera(
+        self,
+        hours: int = 24,
+        limit: int = 100,
+    ) -> Sequence[Event]:
+        """Get recent events with camera relationship eagerly loaded.
+
+        Fetches events from the last N hours with camera data pre-loaded
+        to avoid N+1 queries.
+
+        Args:
+            hours: Number of hours to look back (default: 24)
+            limit: Maximum number of events to return
+
+        Returns:
+            Sequence of Event objects with camera pre-loaded
+
+        Loading Strategy:
+            - camera: joinedload (many-to-one, single JOIN)
+        """
+        cutoff = datetime.now(UTC) - timedelta(hours=hours)
+
+        stmt = (
+            select(Event)
+            .options(joinedload(Event.camera))
+            .where(Event.started_at >= cutoff)
+            .order_by(desc(Event.started_at))
+            .limit(limit)
+        )
+
+        result = await self.session.execute(stmt)
+        return result.scalars().all()

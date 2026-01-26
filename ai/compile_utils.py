@@ -283,3 +283,169 @@ def warmup_compiled_model(
             logger.debug(f"Warmup iteration {i + 1}/{num_warmup} complete")
 
     logger.debug("Compiled model warmup complete")
+
+
+def setup_compile_cache(cache_dir: str | None = None) -> str:
+    """Configure torch.compile() cache directory for faster subsequent loads.
+
+    The compilation cache stores compiled artifacts to avoid recompilation
+    on subsequent runs. This significantly reduces startup time (from minutes
+    to seconds) when using the same model and input shapes.
+
+    Args:
+        cache_dir: Directory for compilation cache. If None, reads from
+                  TORCH_COMPILE_CACHE_DIR env var or uses system temp.
+
+    Returns:
+        The configured cache directory path.
+    """
+    import tempfile
+    from pathlib import Path
+
+    if cache_dir is None:
+        cache_dir = os.environ.get(
+            "TORCH_COMPILE_CACHE_DIR",
+            str(Path(tempfile.gettempdir()) / "torch_compile_cache"),
+        )
+
+    # Set the inductor cache directory
+    os.environ["TORCHINDUCTOR_CACHE_DIR"] = cache_dir
+
+    # Also set the general torch dynamo cache
+    os.environ["TORCH_COMPILE_DEBUG_DIR"] = str(Path(cache_dir) / "debug")
+
+    # Create cache directory if it doesn't exist
+    Path(cache_dir).mkdir(parents=True, exist_ok=True)
+
+    logger.info(f"torch.compile() cache directory: {cache_dir}")
+    return cache_dir
+
+
+def benchmark_compile_modes(
+    model: torch.nn.Module,
+    sample_input: torch.Tensor | dict[str, torch.Tensor],
+    num_iterations: int = 100,
+    num_warmup: int = 10,
+) -> dict[str, dict[str, float]]:
+    """Benchmark different torch.compile() modes to find optimal configuration.
+
+    Compares inference latency across different compilation modes:
+    - eager: No compilation (baseline)
+    - default: Standard compilation
+    - reduce-overhead: Optimized for inference latency
+    - max-autotune: Maximum autotuning for best throughput
+
+    Args:
+        model: PyTorch model to benchmark
+        sample_input: Sample input tensor or dict of tensors
+        num_iterations: Number of benchmark iterations (default: 100)
+        num_warmup: Number of warmup iterations before timing (default: 10)
+
+    Returns:
+        Dict mapping mode names to latency statistics:
+        {
+            "eager": {"mean_ms": X, "std_ms": Y, "min_ms": Z, "max_ms": W},
+            "default": {...},
+            "reduce-overhead": {...},
+            "max-autotune": {...},
+        }
+    """
+    import copy
+    import statistics
+    import time
+
+    if not is_compile_available():
+        logger.warning("torch.compile() not available, cannot benchmark modes")
+        return {}
+
+    results: dict[str, dict[str, float]] = {}
+
+    modes = [
+        ("eager", None),  # No compilation
+        ("default", CompileMode.DEFAULT),
+        ("reduce-overhead", CompileMode.REDUCE_OVERHEAD),
+        ("max-autotune", CompileMode.MAX_AUTOTUNE),
+    ]
+
+    for mode_name, mode in modes:
+        logger.info(f"Benchmarking mode: {mode_name}")
+
+        # Create fresh model copy for each mode
+        test_model = copy.deepcopy(model)
+        test_model.eval()
+
+        # Apply compilation if not eager mode
+        if mode is not None:
+            config = CompileConfig(
+                enabled=True,
+                mode=mode,
+                backend=CompileBackend.INDUCTOR,
+                fullgraph=False,
+                dynamic=True,
+            )
+            test_model = compile_model(
+                test_model, config=config, model_name=f"benchmark-{mode_name}"
+            )
+
+        # Warmup
+        logger.debug(f"Warming up {mode_name} mode...")
+        test_model.eval()
+        with torch.no_grad():
+            for _ in range(num_warmup):
+                if isinstance(sample_input, dict):
+                    _ = test_model(**sample_input)
+                else:
+                    _ = test_model(sample_input)
+
+        # Synchronize CUDA before timing
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
+        # Benchmark
+        latencies = []
+        with torch.no_grad():
+            for _ in range(num_iterations):
+                start = time.perf_counter()
+                if isinstance(sample_input, dict):
+                    _ = test_model(**sample_input)
+                else:
+                    _ = test_model(sample_input)
+
+                # Synchronize CUDA for accurate timing
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+
+                elapsed_ms = (time.perf_counter() - start) * 1000
+                latencies.append(elapsed_ms)
+
+        # Calculate statistics
+        results[mode_name] = {
+            "mean_ms": statistics.mean(latencies),
+            "std_ms": statistics.stdev(latencies) if len(latencies) > 1 else 0.0,
+            "min_ms": min(latencies),
+            "max_ms": max(latencies),
+            "p50_ms": statistics.median(latencies),
+            "p95_ms": sorted(latencies)[int(len(latencies) * 0.95)],
+        }
+
+        logger.info(
+            f"  {mode_name}: mean={results[mode_name]['mean_ms']:.2f}ms, "
+            f"p50={results[mode_name]['p50_ms']:.2f}ms, "
+            f"p95={results[mode_name]['p95_ms']:.2f}ms"
+        )
+
+        # Cleanup
+        del test_model
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    # Log speedup summary
+    if "eager" in results and len(results) > 1:
+        eager_mean = results["eager"]["mean_ms"]
+        logger.info("\nSpeedup summary vs eager baseline:")
+        for mode_name, stats in results.items():
+            if mode_name != "eager":
+                speedup = eager_mean / stats["mean_ms"]
+                logger.info(f"  {mode_name}: {speedup:.2f}x speedup")
+
+    return results

@@ -7,6 +7,16 @@ Uses HuggingFace Transformers for model loading and inference.
 
 Port: 8090 (configurable via PORT env var)
 Expected VRAM: ~3GB
+
+torch.compile Support (NEM-3773):
+    Set TORCH_COMPILE_ENABLED=true to enable PyTorch 2.0+ graph optimization.
+    This provides 15-30% speedup with automatic kernel fusion.
+
+    Environment Variables:
+    - TORCH_COMPILE_ENABLED: Enable compilation (default: "true")
+    - TORCH_COMPILE_MODE: Mode ("default", "reduce-overhead", "max-autotune")
+    - TORCH_COMPILE_BACKEND: Backend ("inductor", "cudagraphs", etc.)
+    - TORCH_COMPILE_CACHE_DIR: Cache directory for compiled graphs
 """
 
 import base64
@@ -14,6 +24,7 @@ import binascii
 import io
 import logging
 import os
+import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -26,6 +37,13 @@ from PIL import Image, UnidentifiedImageError
 from prometheus_client import Counter, Gauge, Histogram, generate_latest
 from pydantic import BaseModel, ConfigDict, Field
 from transformers import AutoImageProcessor, AutoModelForObjectDetection
+
+# Add ai directory to path for compile_utils import
+_ai_dir = Path(__file__).parent.parent
+if str(_ai_dir) not in sys.path:
+    sys.path.insert(0, str(_ai_dir))
+
+from compile_utils import CompileConfig, compile_model, is_compile_available  # noqa: E402
 
 # Configure logging
 logging.basicConfig(
@@ -228,6 +246,8 @@ class HealthResponse(BaseModel):
     power_watts: float | None = None
     cuda_graphs_enabled: bool | None = None
     cuda_graph_captured: bool | None = None
+    torch_compile_enabled: bool | None = None
+    torch_compile_mode: str | None = None
 
 
 class RTDETRv2Model:
@@ -242,6 +262,8 @@ class RTDETRv2Model:
         enable_cuda_graphs: bool = False,
         cuda_graph_input_shape: tuple[int, int] = (640, 480),
         cuda_graph_warmup_iterations: int = 3,
+        enable_torch_compile: bool | None = None,
+        torch_compile_mode: str | None = None,
     ):
         """Initialize RT-DETRv2 model.
 
@@ -256,6 +278,10 @@ class RTDETRv2Model:
                                Provides 30-50% latency reduction for fixed input shapes.
             cuda_graph_input_shape: Fixed input shape (width, height) for CUDA graph capture.
             cuda_graph_warmup_iterations: Number of warmup iterations before capturing CUDA graph.
+            enable_torch_compile: Enable torch.compile() for automatic kernel fusion (NEM-3773).
+                                 If None, reads from TORCH_COMPILE_ENABLED env var.
+            torch_compile_mode: Compilation mode ("default", "reduce-overhead", "max-autotune").
+                               If None, reads from TORCH_COMPILE_MODE env var.
         """
         self.model_path = str(model_path)
         self.confidence_threshold = confidence_threshold
@@ -276,11 +302,27 @@ class RTDETRv2Model:
         self._cuda_graph_static_output: Any = None
         self._cuda_graph_warmup_count: int = 0
 
+        # torch.compile configuration (NEM-3773)
+        if enable_torch_compile is None:
+            enable_torch_compile = os.environ.get("TORCH_COMPILE_ENABLED", "true").lower() == "true"
+        self.enable_torch_compile = enable_torch_compile
+
+        if torch_compile_mode is None:
+            torch_compile_mode = os.environ.get("TORCH_COMPILE_MODE", "reduce-overhead")
+        self.torch_compile_mode = torch_compile_mode
+
+        # torch.compile state
+        self._is_compiled = False
+        self._compile_config: CompileConfig | None = None
+
         logger.info(f"Initializing RT-DETRv2 model from {self.model_path}")
         logger.info(f"Device: {device}, Confidence threshold: {confidence_threshold}")
         logger.info(f"CUDA cache clear frequency: {cache_clear_frequency}")
         if enable_cuda_graphs:
             logger.info(f"CUDA graphs enabled: input_shape={cuda_graph_input_shape}")
+        logger.info(
+            f"torch.compile enabled: {self.enable_torch_compile}, mode: {self.torch_compile_mode}"
+        )
 
     def load_model(self) -> None:
         """Load the model into memory using HuggingFace Transformers."""
@@ -314,6 +356,10 @@ class RTDETRv2Model:
             # Set model to evaluation mode
             self.model.eval()
 
+            # Apply torch.compile() for automatic kernel fusion (NEM-3773)
+            if self.enable_torch_compile and is_compile_available():
+                self._apply_torch_compile()
+
             # Warmup inference
             self._warmup()
             logger.info("Model loaded and warmed up successfully")
@@ -321,6 +367,46 @@ class RTDETRv2Model:
         except Exception as e:
             logger.error(f"Failed to load model: {e}")
             raise
+
+    def _apply_torch_compile(self) -> None:
+        """Apply torch.compile() to the model for automatic kernel fusion.
+
+        This method wraps the model with torch.compile() using the configured mode.
+        If compilation fails, it falls back to eager execution gracefully.
+
+        Expected speedup: 15-30% on supported operations.
+        """
+        try:
+            # Configure compilation
+            self._compile_config = CompileConfig(
+                enabled=True,
+                mode=self.torch_compile_mode,
+                backend="inductor",
+                fullgraph=False,  # Allow graph breaks for complex models
+                dynamic=True,  # Support variable input sizes
+            )
+
+            logger.info(
+                f"Applying torch.compile() to RT-DETRv2 model "
+                f"(mode={self.torch_compile_mode}, backend=inductor)"
+            )
+
+            # Apply compilation
+            self.model = compile_model(
+                self.model,
+                config=self._compile_config,
+                model_name="RT-DETRv2",
+            )
+
+            self._is_compiled = True
+            logger.info("torch.compile() applied successfully to RT-DETRv2")
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to apply torch.compile() to RT-DETRv2: {e}. "
+                "Falling back to eager execution."
+            )
+            self._is_compiled = False
 
     def _warmup(self, num_iterations: int = 3) -> None:
         """Warmup the model with dummy inputs."""
@@ -648,6 +734,8 @@ async def health_check() -> HealthResponse:
         gpu_utilization=gpu_metrics.get("gpu_utilization"),
         temperature=gpu_metrics.get("temperature"),
         power_watts=gpu_metrics.get("power_watts"),
+        torch_compile_enabled=model._is_compiled if model else None,
+        torch_compile_mode=model.torch_compile_mode if model and model._is_compiled else None,
     )
 
 

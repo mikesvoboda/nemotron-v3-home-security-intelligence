@@ -4,8 +4,21 @@
 
 FROM nvcr.io/nvidia/tensorrt:24.09-py3
 
+# OCI Image Labels (org.opencontainers.image.*)
+LABEL org.opencontainers.image.vendor="home-security-intelligence"
+LABEL org.opencontainers.image.title="YOLO26 Object Detection Server"
+LABEL org.opencontainers.image.description="YOLO26 TensorRT-accelerated object detection server for home security monitoring (5.3x faster)"
+LABEL org.opencontainers.image.licenses="MPL-2.0"
+LABEL org.opencontainers.image.source="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence"
+LABEL org.opencontainers.image.documentation="https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/docs"
+LABEL org.opencontainers.image.authors="home-security-intelligence"
+LABEL org.opencontainers.image.base.name="nvcr.io/nvidia/tensorrt:24.09-py3"
+LABEL org.opencontainers.image.base.digest="nvcr.io/nvidia/tensorrt:24.09-py3"
+
+# Additional service-specific labels
 LABEL maintainer="home-security-intelligence"
-LABEL description="YOLO26 TensorRT object detection server for home security monitoring"
+LABEL com.example.service.name="yolo26-detector"
+LABEL com.example.service.port="8095"
 
 # System dependencies for OpenCV and utilities
 # procps for pgrep (needed by profiler)
