@@ -6,11 +6,11 @@ database, and can expose them for real-time monitoring via WebSocket.
 Fallback order:
 1. pynvml (direct NVML bindings - fastest, requires GPU access)
 2. nvidia-smi subprocess (works when nvidia-smi is available in PATH)
-3. AI container health endpoints (RT-DETRv2 reports VRAM usage)
+3. AI container health endpoints (YOLO26 reports VRAM usage)
 4. Mock data (for development environments without GPU)
 
 Note: Nemotron (llama.cpp server) does not expose GPU metrics, so GPU stats
-from AI containers are obtained exclusively from RT-DETRv2.
+from AI containers are obtained exclusively from YOLO26.
 
 Memory Pressure Monitoring (NEM-1727):
 This module provides GPU memory pressure monitoring with configurable thresholds:

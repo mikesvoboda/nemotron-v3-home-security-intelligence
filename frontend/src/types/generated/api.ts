@@ -4152,12 +4152,12 @@ export interface paths {
          *
          *     The response includes:
          *     - **overall_status**: healthy/degraded/critical based on service availability
-         *     - **services**: Individual health status for each AI service (rtdetr, nemotron, florence, clip, enrichment)
+         *     - **services**: Individual health status for each AI service (yolo26, nemotron, florence, clip, enrichment)
          *     - **queues**: Current depth of detection and analysis queues with DLQ counts
          *
          *     HTTP Status Codes:
          *     - **200**: All services operational or system is degraded but functional
-         *     - **503**: Critical services (rtdetr, nemotron) are unhealthy
+         *     - **503**: Critical services (yolo26, nemotron) are unhealthy
          */
         get: operations["health_get_ai_services_health"];
         put?: never;
