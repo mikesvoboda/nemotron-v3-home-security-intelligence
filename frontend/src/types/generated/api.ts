@@ -5138,6 +5138,198 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/outbound-webhooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List webhooks
+         * @description List all outbound webhook configurations with optional filtering.
+         */
+        get: operations["outbound-webhooks_list_webhooks"];
+        put?: never;
+        /**
+         * Create webhook
+         * @description Create a new outbound webhook configuration. The webhook will be triggered when subscribed events occur in the system.
+         */
+        post: operations["outbound-webhooks_create_webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/outbound-webhooks/deliveries/{delivery_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get delivery details
+         * @description Get detailed information about a specific webhook delivery attempt.
+         */
+        get: operations["outbound-webhooks_get_delivery"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/outbound-webhooks/deliveries/{delivery_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry failed delivery
+         * @description Manually retry a failed webhook delivery. Creates a new delivery attempt for the same event and webhook configuration.
+         */
+        post: operations["outbound-webhooks_retry_delivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/outbound-webhooks/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get webhook health summary
+         * @description Get aggregated health metrics for all outbound webhooks, including success rates and delivery statistics over the last 24 hours.
+         */
+        get: operations["outbound-webhooks_get_webhook_health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/outbound-webhooks/{webhook_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get webhook
+         * @description Get a specific outbound webhook configuration by ID.
+         */
+        get: operations["outbound-webhooks_get_webhook"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete webhook
+         * @description Delete an outbound webhook configuration. This will also delete all associated delivery history.
+         */
+        delete: operations["outbound-webhooks_delete_webhook"];
+        options?: never;
+        head?: never;
+        /**
+         * Update webhook
+         * @description Update an existing outbound webhook configuration.
+         */
+        patch: operations["outbound-webhooks_update_webhook"];
+        trace?: never;
+    };
+    "/api/outbound-webhooks/{webhook_id}/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List deliveries
+         * @description List delivery history for a specific webhook with pagination.
+         */
+        get: operations["outbound-webhooks_list_deliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/outbound-webhooks/{webhook_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable webhook
+         * @description Disable a webhook so it will stop receiving events.
+         */
+        post: operations["outbound-webhooks_disable_webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/outbound-webhooks/{webhook_id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable webhook
+         * @description Enable a disabled webhook so it will receive events.
+         */
+        post: operations["outbound-webhooks_enable_webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/outbound-webhooks/{webhook_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test webhook
+         * @description Test a webhook by sending a sample payload. This does not create a delivery record and is useful for validating webhook configuration.
+         */
+        post: operations["outbound-webhooks_test_webhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/prompts": {
         parameters: {
             query?: never;
@@ -17845,6 +18037,12 @@ export interface components {
             status: components["schemas"]["ServiceHealthState"];
         };
         /**
+         * IntegrationType
+         * @description Pre-built integration types.
+         * @enum {string}
+         */
+        IntegrationType: "generic" | "slack" | "discord" | "telegram" | "teams";
+        /**
          * JobAbortResponse
          * @description Response model for job abort request.
          * @example {
@@ -26404,6 +26602,349 @@ export interface components {
             status: components["schemas"]["AlertmanagerStatus"];
         };
         /**
+         * WebhookAuthConfig
+         * @description Authentication configuration for webhook requests.
+         *
+         *     Supports multiple authentication types:
+         *     - none: No authentication
+         *     - bearer: Bearer token authentication
+         *     - basic: Basic authentication with username/password
+         *     - header: Custom header authentication
+         *
+         *     Attributes:
+         *         type: Authentication type (none, bearer, basic, header).
+         *         token: Bearer token for bearer auth.
+         *         username: Username for basic auth.
+         *         password: Password for basic auth.
+         *         header_name: Custom header name for header auth.
+         *         header_value: Custom header value for header auth.
+         */
+        WebhookAuthConfig: {
+            /**
+             * Header Name
+             * @description Custom header name (if type=header)
+             */
+            header_name?: string | null;
+            /**
+             * Header Value
+             * @description Custom header value (if type=header)
+             */
+            header_value?: string | null;
+            /**
+             * Password
+             * @description Password (if type=basic)
+             */
+            password?: string | null;
+            /**
+             * Token
+             * @description Bearer token (if type=bearer)
+             */
+            token?: string | null;
+            /**
+             * Type
+             * @description Auth type: none, bearer, basic, header
+             * @default none
+             */
+            type: string;
+            /**
+             * Username
+             * @description Username (if type=basic)
+             */
+            username?: string | null;
+        };
+        /**
+         * WebhookCreate
+         * @description Schema for creating a new outbound webhook.
+         *
+         *     Create a new webhook configuration for sending notifications to external
+         *     systems when specified events occur.
+         *
+         *     Attributes:
+         *         name: Human-readable name for the webhook.
+         *         url: Webhook endpoint URL.
+         *         event_types: List of events that trigger this webhook.
+         *         integration_type: Type of integration (generic, slack, discord, etc.).
+         *         enabled: Whether the webhook is active.
+         *         auth: Optional authentication configuration.
+         *         custom_headers: Additional HTTP headers to send.
+         *         payload_template: Optional Jinja2 template for custom payload.
+         *         max_retries: Maximum number of retry attempts on failure.
+         *         retry_delay_seconds: Initial delay between retries.
+         * @example {
+         *       "auth": {
+         *         "type": "none"
+         *       },
+         *       "custom_headers": {},
+         *       "enabled": true,
+         *       "event_types": [
+         *         "alert_fired",
+         *         "alert_dismissed"
+         *       ],
+         *       "integration_type": "slack",
+         *       "name": "Slack Alerts",
+         *       "url": "https://hooks.slack.com/services/xxx/yyy/zzz"
+         *     }
+         */
+        WebhookCreate: {
+            /** @description Authentication config */
+            auth?: components["schemas"]["WebhookAuthConfig"] | null;
+            /**
+             * Custom Headers
+             * @description Custom HTTP headers
+             */
+            custom_headers?: {
+                [key: string]: string;
+            };
+            /**
+             * Enabled
+             * @description Whether webhook is active
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Event Types
+             * @description Events to subscribe to
+             */
+            event_types: components["schemas"]["WebhookEventType"][];
+            /**
+             * @description Integration type
+             * @default generic
+             */
+            integration_type: components["schemas"]["IntegrationType"];
+            /**
+             * Max Retries
+             * @description Max retry attempts
+             * @default 4
+             */
+            max_retries: number;
+            /**
+             * Name
+             * @description Webhook name
+             */
+            name: string;
+            /**
+             * Payload Template
+             * @description Custom payload template (Jinja2)
+             */
+            payload_template?: string | null;
+            /**
+             * Retry Delay Seconds
+             * @description Initial retry delay
+             * @default 10
+             */
+            retry_delay_seconds: number;
+            /**
+             * Url
+             * Format: uri
+             * @description Webhook endpoint URL
+             */
+            url: string;
+        };
+        /**
+         * WebhookDeliveryListResponse
+         * @description Response for listing webhook deliveries.
+         *
+         *     Includes pagination information for navigating large delivery histories.
+         *
+         *     Attributes:
+         *         deliveries: List of delivery records.
+         *         total: Total number of deliveries.
+         *         limit: Page size.
+         *         offset: Page offset.
+         *         has_more: Whether more pages exist.
+         */
+        WebhookDeliveryListResponse: {
+            /** Deliveries */
+            deliveries?: components["schemas"]["WebhookDeliveryResponse"][];
+            /**
+             * Has More
+             * @default false
+             */
+            has_more: boolean;
+            /**
+             * Limit
+             * @default 50
+             */
+            limit: number;
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+        };
+        /**
+         * WebhookDeliveryResponse
+         * @description Response for a webhook delivery attempt.
+         *
+         *     Provides details about a single webhook delivery attempt including
+         *     status, timing, and any error information.
+         *
+         *     Attributes:
+         *         id: Delivery ID.
+         *         webhook_id: Parent webhook ID.
+         *         event_type: Event that triggered delivery.
+         *         event_id: Related event ID.
+         *         status: Delivery status.
+         *         status_code: HTTP response status code.
+         *         response_time_ms: Response time in milliseconds.
+         *         error_message: Error message if failed.
+         *         attempt_count: Number of attempts.
+         *         next_retry_at: Next retry timestamp.
+         *         created_at: Delivery creation timestamp.
+         *         delivered_at: Successful delivery timestamp.
+         */
+        WebhookDeliveryResponse: {
+            /**
+             * Attempt Count
+             * @description Number of attempts
+             * @default 1
+             */
+            attempt_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Delivery creation timestamp
+             */
+            created_at: string;
+            /**
+             * Delivered At
+             * @description Successful delivery timestamp
+             */
+            delivered_at?: string | null;
+            /**
+             * Error Message
+             * @description Error message if failed
+             */
+            error_message?: string | null;
+            /**
+             * Event Id
+             * @description Related event ID
+             */
+            event_id?: string | null;
+            /** @description Event that triggered delivery */
+            event_type: components["schemas"]["WebhookEventType"];
+            /**
+             * Id
+             * @description Delivery ID
+             */
+            id: string;
+            /**
+             * Next Retry At
+             * @description Next retry timestamp
+             */
+            next_retry_at?: string | null;
+            /**
+             * Response Time Ms
+             * @description Response time in milliseconds
+             */
+            response_time_ms?: number | null;
+            /** @description Delivery status */
+            status: components["schemas"]["WebhookDeliveryStatus"];
+            /**
+             * Status Code
+             * @description HTTP response status code
+             */
+            status_code?: number | null;
+            /**
+             * Webhook Id
+             * @description Parent webhook ID
+             */
+            webhook_id: string;
+        };
+        /**
+         * WebhookDeliveryStatus
+         * @description Webhook delivery attempt status.
+         * @enum {string}
+         */
+        WebhookDeliveryStatus: "pending" | "success" | "failed" | "retrying";
+        /**
+         * WebhookEventType
+         * @description Event types that can trigger webhooks.
+         * @enum {string}
+         */
+        WebhookEventType: "alert_fired" | "alert_dismissed" | "alert_acknowledged" | "event_created" | "event_enriched" | "entity_discovered" | "anomaly_detected" | "system_health_changed" | "batch_analysis_started" | "batch_analysis_completed" | "batch_analysis_failed";
+        /**
+         * WebhookHealthSummary
+         * @description Health summary for all webhooks.
+         *
+         *     Provides an overview of webhook health across the system including
+         *     delivery statistics for the last 24 hours.
+         *
+         *     Attributes:
+         *         total_webhooks: Total number of configured webhooks.
+         *         enabled_webhooks: Number of enabled webhooks.
+         *         healthy_webhooks: Webhooks with >90% success rate.
+         *         unhealthy_webhooks: Webhooks with <50% success rate.
+         *         total_deliveries_24h: Total deliveries in last 24 hours.
+         *         successful_deliveries_24h: Successful deliveries in last 24 hours.
+         *         failed_deliveries_24h: Failed deliveries in last 24 hours.
+         *         average_response_time_ms: Average response time.
+         */
+        WebhookHealthSummary: {
+            /** Average Response Time Ms */
+            average_response_time_ms?: number | null;
+            /**
+             * Enabled Webhooks
+             * @default 0
+             */
+            enabled_webhooks: number;
+            /**
+             * Failed Deliveries 24H
+             * @default 0
+             */
+            failed_deliveries_24h: number;
+            /**
+             * Healthy Webhooks
+             * @description Webhooks with >90% success rate
+             * @default 0
+             */
+            healthy_webhooks: number;
+            /**
+             * Successful Deliveries 24H
+             * @default 0
+             */
+            successful_deliveries_24h: number;
+            /**
+             * Total Deliveries 24H
+             * @default 0
+             */
+            total_deliveries_24h: number;
+            /**
+             * Total Webhooks
+             * @default 0
+             */
+            total_webhooks: number;
+            /**
+             * Unhealthy Webhooks
+             * @description Webhooks with <50% success rate
+             * @default 0
+             */
+            unhealthy_webhooks: number;
+        };
+        /**
+         * WebhookListResponse
+         * @description Response for listing webhooks.
+         *
+         *     Attributes:
+         *         webhooks: List of webhook configurations.
+         *         total: Total number of webhooks.
+         */
+        WebhookListResponse: {
+            /**
+             * Total
+             * @description Total count
+             * @default 0
+             */
+            total: number;
+            /** Webhooks */
+            webhooks?: components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"][];
+        };
+        /**
          * WebhookResponse
          * @description Schema for webhook processing response.
          * @example {
@@ -26458,6 +26999,104 @@ export interface components {
              * @description Webhook URL for webhook test. Must be HTTPS and not point to private IPs.
              */
             webhook_url?: string | null;
+        };
+        /**
+         * WebhookTestRequest
+         * @description Request to test a webhook with sample data.
+         *
+         *     Allows testing a webhook configuration with a simulated event
+         *     to verify connectivity and payload format.
+         *
+         *     Attributes:
+         *         event_type: Event type to use for test payload.
+         */
+        WebhookTestRequest: {
+            /**
+             * @description Event type for test payload
+             * @default alert_fired
+             */
+            event_type: components["schemas"]["WebhookEventType"];
+        };
+        /**
+         * WebhookTestResponse
+         * @description Response from testing a webhook.
+         *
+         *     Returns the result of a webhook test including response details
+         *     and any errors encountered.
+         *
+         *     Attributes:
+         *         success: Whether test succeeded.
+         *         status_code: HTTP response code.
+         *         response_time_ms: Response time.
+         *         response_body: Response body (truncated).
+         *         error_message: Error if failed.
+         */
+        WebhookTestResponse: {
+            /**
+             * Error Message
+             * @description Error if failed
+             */
+            error_message?: string | null;
+            /**
+             * Response Body
+             * @description Response body (truncated)
+             */
+            response_body?: string | null;
+            /**
+             * Response Time Ms
+             * @description Response time
+             */
+            response_time_ms?: number | null;
+            /**
+             * Status Code
+             * @description HTTP response code
+             */
+            status_code?: number | null;
+            /**
+             * Success
+             * @description Whether test succeeded
+             */
+            success: boolean;
+        };
+        /**
+         * WebhookUpdate
+         * @description Schema for updating an existing webhook.
+         *
+         *     All fields are optional - only provided fields will be updated.
+         *
+         *     Attributes:
+         *         name: New webhook name.
+         *         url: New webhook URL.
+         *         event_types: New list of subscribed events.
+         *         integration_type: New integration type.
+         *         enabled: New enabled status.
+         *         auth: New authentication configuration.
+         *         custom_headers: New custom headers.
+         *         payload_template: New payload template.
+         *         max_retries: New max retry count.
+         *         retry_delay_seconds: New retry delay.
+         */
+        WebhookUpdate: {
+            auth?: components["schemas"]["WebhookAuthConfig"] | null;
+            /** Custom Headers */
+            custom_headers?: {
+                [key: string]: string;
+            } | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Event Types */
+            event_types?: components["schemas"]["WebhookEventType"][] | null;
+            integration_type?: components["schemas"]["IntegrationType"] | null;
+            /** Max Retries */
+            max_retries?: number | null;
+            /** Name */
+            name?: string | null;
+            /** Payload Template */
+            payload_template?: string | null;
+            /** Retry Delay Seconds */
+            retry_delay_seconds?: number | null;
+            /** Url */
+            url?: string | null;
         };
         /**
          * WorkerControlResponse
@@ -27185,6 +27824,100 @@ export interface components {
             shape?: components["schemas"]["CameraZoneShape"] | null;
             /** @description Type of zone */
             zone_type?: components["schemas"]["CameraZoneType"] | null;
+        };
+        /**
+         * WebhookResponse
+         * @description Full webhook configuration response.
+         *
+         *     Returns complete webhook information including configuration,
+         *     metadata, and delivery statistics.
+         *
+         *     Attributes:
+         *         id: Unique webhook identifier.
+         *         name: Webhook name.
+         *         url: Webhook endpoint URL.
+         *         event_types: Subscribed event types.
+         *         integration_type: Integration type.
+         *         enabled: Whether active.
+         *         custom_headers: Custom HTTP headers.
+         *         payload_template: Jinja2 payload template.
+         *         max_retries: Max retry attempts.
+         *         retry_delay_seconds: Initial retry delay.
+         *         created_at: Creation timestamp.
+         *         updated_at: Last update timestamp.
+         *         total_deliveries: Total delivery attempts.
+         *         successful_deliveries: Successful delivery count.
+         *         last_delivery_at: Last delivery timestamp.
+         *         last_delivery_status: Status of last delivery.
+         */
+        backend__api__schemas__outbound_webhook__WebhookResponse: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            created_at: string;
+            /** Custom Headers */
+            custom_headers?: {
+                [key: string]: string;
+            };
+            /**
+             * Enabled
+             * @description Whether active
+             */
+            enabled: boolean;
+            /**
+             * Event Types
+             * @description Subscribed events
+             */
+            event_types: components["schemas"]["WebhookEventType"][];
+            /**
+             * Id
+             * @description Unique webhook identifier
+             */
+            id: string;
+            /** @description Integration type */
+            integration_type: components["schemas"]["IntegrationType"];
+            /**
+             * Last Delivery At
+             * @description Last delivery timestamp
+             */
+            last_delivery_at?: string | null;
+            last_delivery_status?: components["schemas"]["WebhookDeliveryStatus"] | null;
+            /** Max Retries */
+            max_retries: number;
+            /**
+             * Name
+             * @description Webhook name
+             */
+            name: string;
+            /** Payload Template */
+            payload_template?: string | null;
+            /** Retry Delay Seconds */
+            retry_delay_seconds: number;
+            /**
+             * Successful Deliveries
+             * @description Successful deliveries
+             * @default 0
+             */
+            successful_deliveries: number;
+            /**
+             * Total Deliveries
+             * @description Total delivery attempts
+             * @default 0
+             */
+            total_deliveries: number;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description Last update timestamp
+             */
+            updated_at: string;
+            /**
+             * Url
+             * @description Webhook endpoint URL
+             */
+            url: string;
         };
     };
     responses: never;
@@ -34343,6 +35076,531 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    "outbound-webhooks_list_webhooks": {
+        parameters: {
+            query?: {
+                /** @description Filter to only return enabled webhooks */
+                enabled_only?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "outbound-webhooks_create_webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
+                };
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "outbound-webhooks_get_delivery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeliveryResponse"];
+                };
+            };
+            /** @description Delivery not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "outbound-webhooks_retry_delivery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeliveryResponse"];
+                };
+            };
+            /** @description Delivery not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Delivery cannot be retried (not in failed state) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "outbound-webhooks_get_webhook_health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookHealthSummary"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "outbound-webhooks_get_webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
+                };
+            };
+            /** @description Webhook not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "outbound-webhooks_delete_webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Webhook not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "outbound-webhooks_update_webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
+                };
+            };
+            /** @description Webhook not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "outbound-webhooks_list_deliveries": {
+        parameters: {
+            query?: {
+                /** @description Maximum number of deliveries to return */
+                limit?: number;
+                /** @description Number of deliveries to skip (for pagination) */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                webhook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeliveryListResponse"];
+                };
+            };
+            /** @description Webhook not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "outbound-webhooks_disable_webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
+                };
+            };
+            /** @description Webhook not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "outbound-webhooks_enable_webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["backend__api__schemas__outbound_webhook__WebhookResponse"];
+                };
+            };
+            /** @description Webhook not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "outbound-webhooks_test_webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                webhook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebhookTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookTestResponse"];
+                };
+            };
+            /** @description Webhook not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

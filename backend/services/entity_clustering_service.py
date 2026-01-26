@@ -6,6 +6,9 @@ a new one. This prevents duplicate entity creation for the same person/vehicle.
 
 The service is part of the Hybrid Entity Storage Architecture (Phase 1.2).
 
+Webhook Events (NEM-3624):
+    - ENTITY_DISCOVERED: Triggered when a new entity is created
+
 Usage:
     from backend.services.entity_clustering_service import EntityClusteringService
     from backend.repositories.entity_repository import EntityRepository
@@ -32,8 +35,10 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm.attributes import flag_modified
 
+from backend.api.schemas.outbound_webhook import WebhookEventType
 from backend.core.logging import get_logger
 from backend.models import Entity
+from backend.services.webhook_service import get_webhook_service
 
 if TYPE_CHECKING:
     from backend.repositories.entity_repository import EntityRepository
@@ -208,6 +213,10 @@ class EntityClusteringService:
             detection_id,
             new_entity.id,
         )
+
+        # Trigger outbound webhooks for ENTITY_DISCOVERED (NEM-3624)
+        await self._trigger_entity_discovered_webhook(new_entity, camera_id)
+
         return new_entity, True, None
 
     async def _update_entity_with_detection(
@@ -285,6 +294,43 @@ class EntityClusteringService:
         await self.entity_repository.session.refresh(entity)
 
         return entity
+
+    async def _trigger_entity_discovered_webhook(
+        self,
+        entity: Entity,
+        camera_id: str,
+    ) -> None:
+        """Trigger outbound webhooks for ENTITY_DISCOVERED event (NEM-3624).
+
+        Webhook failures are logged but do not fail entity creation.
+
+        Args:
+            entity: The newly created entity.
+            camera_id: ID of the camera that captured the detection.
+        """
+        try:
+            webhook_service = get_webhook_service()
+            await webhook_service.trigger_webhooks_for_event(
+                self.entity_repository.session,
+                WebhookEventType.ENTITY_DISCOVERED,
+                {
+                    "entity_id": str(entity.id),
+                    "entity_type": entity.entity_type,
+                    "trust_status": entity.trust_status,
+                    "camera_id": camera_id,
+                    "first_seen_at": entity.first_seen_at.isoformat()
+                    if entity.first_seen_at
+                    else None,
+                    "detection_count": entity.detection_count,
+                },
+                event_id=str(entity.id),
+            )
+        except Exception as e:
+            # Log but don't fail the main operation if webhook triggering fails
+            logger.warning(
+                f"Failed to trigger ENTITY_DISCOVERED webhooks: {e}",
+                extra={"entity_id": str(entity.id), "entity_type": entity.entity_type},
+            )
 
 
 # =============================================================================
