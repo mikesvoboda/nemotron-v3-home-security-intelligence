@@ -342,7 +342,7 @@ class DemographicsEstimator:
             probs = torch.softmax(outputs.logits, dim=-1)[0]
 
         # Get top prediction
-        age_idx = probs.argmax().item()
+        age_idx = int(probs.argmax().item())
         confidence = float(probs[age_idx].item())
 
         # Map to age range label
@@ -379,7 +379,7 @@ class DemographicsEstimator:
             probs = torch.softmax(outputs.logits, dim=-1)[0]
 
         # Get top prediction
-        gender_idx = probs.argmax().item()
+        gender_idx = int(probs.argmax().item())
         confidence = float(probs[gender_idx].item())
 
         # Map to gender label

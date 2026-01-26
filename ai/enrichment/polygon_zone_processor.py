@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -344,7 +344,8 @@ class PolygonZoneProcessor:
 
         class_names = detections.data["class_name"]
         mask = np.isin(class_names, target_classes)
-        return detections[mask]
+        # Supervision's __getitem__ with bool array always returns Detections
+        return cast("sv.Detections", detections[mask])
 
     def get_zone_polygon(self, zone_id: int) -> np.ndarray | None:
         """Get the polygon coordinates for a zone.
@@ -357,7 +358,8 @@ class PolygonZoneProcessor:
         """
         if zone_id not in self.zones:
             return None
-        return self.zones[zone_id].zone.polygon
+        polygon: np.ndarray = self.zones[zone_id].zone.polygon
+        return polygon
 
     def get_zone_count(self, zone_id: int) -> int | None:
         """Get the current count for a specific zone.
