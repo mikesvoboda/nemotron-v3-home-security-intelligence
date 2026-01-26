@@ -75,7 +75,7 @@ def create_mock_settings(
     """Create mock settings with AI service URLs.
 
     Args:
-        yolo26_url: URL for YOLO26 service (empty string for unconfigured)
+        yolo26_url: URL for RT-DETR service (empty string for unconfigured)
         nemotron_url: URL for Nemotron service
         florence_url: URL for Florence service
         clip_url: URL for CLIP service
