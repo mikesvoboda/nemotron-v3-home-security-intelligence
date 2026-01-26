@@ -138,7 +138,7 @@ async def test_check_ai_service_health_healthy() -> None:
 
     service_config = {
         "name": "yolo26",
-        "display_name": "YOLO26 Object Detection",
+        "display_name": "RT-DETRv2 Object Detection",
         "url_attr": "yolo26_url",
         "circuit_breaker_name": "yolo26",
         "critical": True,
@@ -157,7 +157,7 @@ async def test_check_ai_service_health_healthy() -> None:
             result = await _check_ai_service_health(service_config, mock_settings)
 
     assert result.name == "yolo26"
-    assert result.display_name == "YOLO26 Object Detection"
+    assert result.display_name == "RT-DETRv2 Object Detection"
     assert result.status == ServiceHealthState.HEALTHY
     assert result.url == "http://ai-detector:8090"
     assert result.circuit_state == CircuitState.CLOSED
@@ -171,7 +171,7 @@ async def test_check_ai_service_health_unhealthy_http_error() -> None:
 
     service_config = {
         "name": "yolo26",
-        "display_name": "YOLO26 Object Detection",
+        "display_name": "RT-DETRv2 Object Detection",
         "url_attr": "yolo26_url",
         "circuit_breaker_name": "yolo26",
         "critical": True,
@@ -201,7 +201,7 @@ async def test_check_ai_service_health_unhealthy_connection_refused() -> None:
 
     service_config = {
         "name": "yolo26",
-        "display_name": "YOLO26 Object Detection",
+        "display_name": "RT-DETRv2 Object Detection",
         "url_attr": "yolo26_url",
         "circuit_breaker_name": "yolo26",
         "critical": True,
@@ -229,7 +229,7 @@ async def test_check_ai_service_health_unhealthy_timeout() -> None:
 
     service_config = {
         "name": "yolo26",
-        "display_name": "YOLO26 Object Detection",
+        "display_name": "RT-DETRv2 Object Detection",
         "url_attr": "yolo26_url",
         "circuit_breaker_name": "yolo26",
         "critical": True,
@@ -257,7 +257,7 @@ async def test_check_ai_service_health_unknown_when_url_not_configured() -> None
 
     service_config = {
         "name": "yolo26",
-        "display_name": "YOLO26 Object Detection",
+        "display_name": "RT-DETRv2 Object Detection",
         "url_attr": "yolo26_url",
         "circuit_breaker_name": "yolo26",
         "critical": True,
@@ -277,7 +277,7 @@ async def test_check_ai_service_health_skips_when_circuit_open() -> None:
 
     service_config = {
         "name": "yolo26",
-        "display_name": "YOLO26 Object Detection",
+        "display_name": "RT-DETRv2 Object Detection",
         "url_attr": "yolo26_url",
         "circuit_breaker_name": "yolo26",
         "critical": True,

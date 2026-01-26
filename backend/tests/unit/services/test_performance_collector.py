@@ -77,10 +77,10 @@ class TestThresholds:
         assert THRESHOLDS["pg_cache_hit"]["warning"] == 90
         assert THRESHOLDS["pg_cache_hit"]["critical"] == 80
 
-    def test_yolo26_latency_thresholds(self) -> None:
-        """Test YOLO26 latency threshold values."""
-        assert THRESHOLDS["yolo26_latency_p95"]["warning"] == 200
-        assert THRESHOLDS["yolo26_latency_p95"]["critical"] == 500
+    def test_rtdetr_latency_thresholds(self) -> None:
+        """Test RT-DETRv2 latency threshold values."""
+        assert THRESHOLDS["rtdetr_latency_p95"]["warning"] == 200
+        assert THRESHOLDS["rtdetr_latency_p95"]["critical"] == 500
 
     def test_nemotron_latency_thresholds(self) -> None:
         """Test Nemotron latency threshold values."""
@@ -815,7 +815,7 @@ class TestAlertGeneration:
 
 
 # =============================================================================
-# YOLO26 Metrics Tests
+# RT-DETRv2 Metrics Tests
 # =============================================================================
 
 
@@ -824,7 +824,7 @@ class TestCollectYolo26Metrics:
 
     @pytest.mark.asyncio
     async def test_collect_yolo26_metrics_healthy(self) -> None:
-        """Test successful YOLO26 metrics collection."""
+        """Test successful RT-DETRv2 metrics collection."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
@@ -835,7 +835,7 @@ class TestCollectYolo26Metrics:
             mock_response.json.return_value = {
                 "status": "healthy",
                 "vram_used_gb": 5.2,
-                "model_name": "yolo26v2",
+                "model_name": "rtdetrv2",
                 "device": "cuda:0",
             }
 
@@ -849,12 +849,12 @@ class TestCollectYolo26Metrics:
                 assert result is not None
                 assert result.status == "healthy"
                 assert result.vram_gb == 5.2
-                assert result.model == "yolo26v2"
+                assert result.model == "rtdetrv2"
                 assert result.device == "cuda:0"
 
     @pytest.mark.asyncio
     async def test_collect_yolo26_metrics_unhealthy_status(self) -> None:
-        """Test YOLO26 metrics with unhealthy status."""
+        """Test RT-DETRv2 metrics with unhealthy status."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
@@ -865,7 +865,7 @@ class TestCollectYolo26Metrics:
             mock_response.json.return_value = {
                 "status": "degraded",
                 "vram_used_gb": 5.2,
-                "model_name": "yolo26v2",
+                "model_name": "rtdetrv2",
                 "device": "cuda:0",
             }
 
@@ -881,7 +881,7 @@ class TestCollectYolo26Metrics:
 
     @pytest.mark.asyncio
     async def test_collect_yolo26_metrics_connection_error(self) -> None:
-        """Test YOLO26 metrics returns unreachable on connection error."""
+        """Test RT-DETRv2 metrics returns unreachable on connection error."""
         with patch("backend.services.performance_collector.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(yolo26_url="http://ai-detector:8090")
 
@@ -1661,7 +1661,7 @@ class TestCollectAll:
                 power_watts=150,
             )
 
-            yolo26_metrics = AiModelMetrics(
+            rtdetr_metrics = AiModelMetrics(
                 status="healthy", vram_gb=5.0, model="yolo26", device="cuda:0"
             )
 
@@ -1699,7 +1699,7 @@ class TestCollectAll:
             ]
 
             inference_metrics = InferenceMetrics(
-                yolo26_latency_ms={"avg": 100, "p95": 150, "p99": 200},
+                rtdetr_latency_ms={"avg": 100, "p95": 150, "p99": 200},
                 nemotron_latency_ms={"avg": 1000, "p95": 1500, "p99": 2000},
                 pipeline_latency_ms={"avg": 1100, "p95": 1650},
                 throughput={"images_per_min": 30, "events_per_min": 5},
@@ -1708,7 +1708,7 @@ class TestCollectAll:
 
             with (
                 patch.object(collector, "collect_gpu_metrics", return_value=gpu_metrics),
-                patch.object(collector, "collect_yolo26_metrics", return_value=yolo26_metrics),
+                patch.object(collector, "collect_yolo26_metrics", return_value=rtdetr_metrics),
                 patch.object(collector, "collect_nemotron_metrics", return_value=nemotron_metrics),
                 patch.object(collector, "collect_host_metrics", return_value=host_metrics),
                 patch.object(
@@ -1998,7 +1998,7 @@ class TestCollectInferenceMetricsErrors:
 
                         assert result is not None
                         # Should use 0 for missing values
-                        assert result.yolo26_latency_ms["avg"] == 0
+                        assert result.rtdetr_latency_ms["avg"] == 0
                         assert result.nemotron_latency_ms["p95"] == 0
 
 

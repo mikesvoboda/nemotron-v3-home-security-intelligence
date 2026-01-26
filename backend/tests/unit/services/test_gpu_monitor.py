@@ -18,7 +18,7 @@ Test Organization:
     - Async operations tests: Database storage, WebSocket broadcasting
     - Lifecycle tests: Start/stop, idempotency, poll loop error handling
     - Database retrieval tests: get_stats_from_db with and without errors
-    - YOLO26 response parsing tests: VRAM metrics from AI containers
+    - RT-DETR response parsing tests: VRAM metrics from AI containers
     - Inference FPS calculation tests: Detection-based FPS calculation
     - HTTP timeout tests: Configurable timeouts for AI container queries
     - Error logging tests: Context-rich error logging (NEM-1123)
@@ -975,14 +975,14 @@ def test_get_stats_real_generic_exception(mock_pynvml):
 
 
 # =============================================================================
-# YOLO26 Response Parsing Tests
+# RT-DETR Response Parsing Tests
 # =============================================================================
 
 
 def test_parse_yolo26_response_full_data(mock_pynvml):
-    """Verify YOLO26 health endpoint response parsing with full GPU metrics.
+    """Verify RT-DETRv2 health endpoint response parsing with full GPU metrics.
 
-    Given: YOLO26 /health response with vram_used_gb, device, gpu_utilization,
+    Given: RT-DETRv2 /health response with vram_used_gb, device, gpu_utilization,
            temperature, and power_watts
     When: _parse_yolo26_response() is called with this data
     Then: Returns tuple (vram_mb, device, gpu_util, temp, power) with converted values
@@ -1006,7 +1006,7 @@ def test_parse_yolo26_response_full_data(mock_pynvml):
 
 
 def test_parse_yolo26_response_no_vram(mock_pynvml):
-    """Test parsing YOLO26 response without VRAM data."""
+    """Test parsing RT-DETRv2 response without VRAM data."""
     monitor = GPUMonitor()
 
     data = {"device": "cuda:0", "gpu_utilization": 50.0}
@@ -1020,7 +1020,7 @@ def test_parse_yolo26_response_no_vram(mock_pynvml):
 
 
 def test_parse_yolo26_response_no_device(mock_pynvml):
-    """Test parsing YOLO26 response without device data."""
+    """Test parsing RT-DETRv2 response without device data."""
     monitor = GPUMonitor()
 
     data = {"vram_used_gb": 2.0, "temperature": 55, "power_watts": 100.0}
@@ -1034,7 +1034,7 @@ def test_parse_yolo26_response_no_device(mock_pynvml):
 
 
 def test_parse_yolo26_response_empty(mock_pynvml):
-    """Test parsing YOLO26 response with empty data."""
+    """Test parsing RT-DETRv2 response with empty data."""
     monitor = GPUMonitor()
 
     data = {}
@@ -1048,7 +1048,7 @@ def test_parse_yolo26_response_empty(mock_pynvml):
 
 
 def test_parse_yolo26_response_legacy_format(mock_pynvml):
-    """Test parsing YOLO26 response in legacy format (no GPU metrics)."""
+    """Test parsing RT-DETRv2 response in legacy format (no GPU metrics)."""
     monitor = GPUMonitor()
 
     # Simulate old response format that only had vram_used_gb and device
@@ -1120,11 +1120,11 @@ def test_parse_vram_metric_line_invalid_value(mock_pynvml):
 
 
 @pytest.mark.asyncio
-async def test_get_gpu_stats_from_ai_containers_yolo26_only(mock_pynvml):
-    """Test getting GPU stats from AI containers (YOLO26 only).
+async def test_get_gpu_stats_from_ai_containers_rtdetr_only(mock_pynvml):
+    """Test getting GPU stats from AI containers (RT-DETRv2 only).
 
     Note: Nemotron (llama.cpp server) does not expose GPU metrics,
-    so GPU stats are obtained exclusively from YOLO26.
+    so GPU stats are obtained exclusively from RT-DETRv2.
     """
     monitor = GPUMonitor()
 
@@ -1134,7 +1134,7 @@ async def test_get_gpu_stats_from_ai_containers_yolo26_only(mock_pynvml):
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        # YOLO26 succeeds
+        # RT-DETRv2 succeeds
         mock_yolo26_resp = MagicMock()
         mock_yolo26_resp.status_code = 200
         mock_yolo26_resp.json.return_value = yolo26_response
@@ -1158,7 +1158,7 @@ async def test_get_gpu_stats_from_ai_containers_with_gpu_metrics(mock_pynvml):
     """Test getting GPU stats from AI containers with full GPU metrics.
 
     Tests that gpu_utilization, temperature, and power_watts are correctly
-    passed through from the YOLO26 health endpoint.
+    passed through from the RT-DETRv2 health endpoint.
     """
     monitor = GPUMonitor()
 
@@ -1244,7 +1244,7 @@ async def test_get_gpu_stats_from_ai_containers_all_fail(mock_pynvml):
 async def test_get_gpu_stats_from_ai_containers_no_vram(mock_pynvml):
     """Test getting GPU stats when AI containers return no VRAM data.
 
-    Note: Only YOLO26 is queried for GPU metrics (Nemotron doesn't expose them).
+    Note: Only RT-DETRv2 is queried for GPU metrics (Nemotron doesn't expose them).
     """
     monitor = GPUMonitor()
 
@@ -1252,7 +1252,7 @@ async def test_get_gpu_stats_from_ai_containers_no_vram(mock_pynvml):
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        # YOLO26 returns empty (no vram_used_gb field)
+        # RT-DETRv2 returns empty (no vram_used_gb field)
         mock_yolo26_resp = MagicMock()
         mock_yolo26_resp.status_code = 200
         mock_yolo26_resp.json.return_value = {}
@@ -1402,7 +1402,7 @@ async def test_calculate_inference_fps_with_detections(mock_pynvml):
     When: _calculate_inference_fps() is called
     Then: Returns 2.0 FPS (120 detections / 60 seconds)
 
-    Note: This metric helps users understand YOLO26 throughput on their hardware.
+    Note: This metric helps users understand RT-DETRv2 throughput on their hardware.
     """
     monitor = GPUMonitor()
 
@@ -1560,7 +1560,7 @@ async def test_ai_container_query_uses_configured_timeout(mock_pynvml):
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        # YOLO26 returns empty response
+        # RT-DETRv2 returns empty response
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {}
@@ -2582,7 +2582,7 @@ def test_get_current_stats_with_nvidia_smi_error(mock_pynvml_not_available):
 async def test_get_gpu_stats_from_ai_containers_with_gpu_utilization_only():
     """Test AI container stats when only GPU utilization is provided.
 
-    Given: YOLO26 returns only gpu_utilization (no VRAM)
+    Given: RT-DETRv2 returns only gpu_utilization (no VRAM)
     When: _get_gpu_stats_from_ai_containers() is called
     Then: Returns stats with GPU utilization data
     """
