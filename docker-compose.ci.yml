@@ -92,7 +92,6 @@ services:
       - DATABASE_URL=postgresql+asyncpg://security:ci_test_password@postgres:5432/security
       - REDIS_URL=redis://redis:6379
       # AI services are optional for smoke tests - they will show as degraded
-      - RTDETR_URL=http://localhost:8090
       - NEMOTRON_URL=http://localhost:8091
       - FLORENCE_URL=http://localhost:8092
       - CLIP_URL=http://localhost:8093
