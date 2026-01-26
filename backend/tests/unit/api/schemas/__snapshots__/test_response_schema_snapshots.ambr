@@ -5,6 +5,7 @@
       'AreaBasic': dict({
         'description': '''
           Minimal area schema for embedding in CameraResponse.
+
           NEM-3597: Basic area information for API responses that include
           camera-area relationships without full area details.
         ''',
@@ -34,6 +35,7 @@
       'CameraStatus': dict({
         'description': '''
           Camera status values.
+
           Indicates the operational state of a camera:
           - ONLINE: Camera is active and receiving images
           - OFFLINE: Camera is not currently active (e.g., disconnected)
@@ -52,6 +54,7 @@
     }),
     'description': '''
       Schema for camera response.
+
       NEM-3597: Added property_id and areas fields to expose camera relationships.
     ''',
     'example': dict({
@@ -2484,6 +2487,190 @@
     'version': 1,
   })
 # ---
+# name: TestFeedbackResponseSnapshots.test_feedback_response_json_schema
+  dict({
+    '$defs': dict({
+      'ActualThreatLevel': dict({
+        'description': '''
+          User's assessment of the actual threat level.
+
+          Values:
+              NO_THREAT: No threat at all (e.g., household member, pet)
+              MINOR_CONCERN: Worth noting but not alarming
+              GENUINE_THREAT: Real security concern
+        ''',
+        'enum': list([
+          'no_threat',
+          'minor_concern',
+          'genuine_threat',
+        ]),
+        'title': 'ActualThreatLevel',
+        'type': 'string',
+      }),
+      'FeedbackType': dict({
+        'description': '''
+          Types of feedback users can provide on events.
+
+          Values:
+              ACCURATE: Event was correctly classified with appropriate severity
+              FALSE_POSITIVE: Event was incorrectly flagged as concerning
+              MISSED_THREAT: System failed to detect a concerning event
+              SEVERITY_WRONG: Event was flagged but with incorrect severity level
+        ''',
+        'enum': list([
+          'accurate',
+          'false_positive',
+          'missed_threat',
+          'severity_wrong',
+        ]),
+        'title': 'FeedbackType',
+        'type': 'string',
+      }),
+    }),
+    'description': '''
+      Schema for event feedback response.
+
+      Returned when retrieving feedback for an event.
+      Enhanced with calibration fields for Nemotron prompt improvement (NEM-3330).
+    ''',
+    'example': dict({
+      'actual_identity': 'Mike (neighbor)',
+      'actual_threat_level': 'no_threat',
+      'created_at': '2025-01-01T12:00:00Z',
+      'event_id': 123,
+      'feedback_type': 'false_positive',
+      'id': 1,
+      'model_failures': list([
+        'reid_model',
+      ]),
+      'notes': "This was my neighbor's car, not a threat.",
+      'suggested_score': 10,
+      'what_was_wrong': 'Re-ID should have matched this person',
+    }),
+    'properties': dict({
+      'actual_identity': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Identity correction for household member learning',
+        'title': 'Actual Identity',
+      }),
+      'actual_threat_level': dict({
+        'anyOf': list([
+          dict({
+            '$ref': '#/$defs/ActualThreatLevel',
+          }),
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': "User's assessment of true threat level",
+        'title': 'Actual Threat Level',
+      }),
+      'created_at': dict({
+        'description': 'When feedback was submitted',
+        'format': 'date-time',
+        'title': 'Created At',
+        'type': 'string',
+      }),
+      'event_id': dict({
+        'description': 'Event ID this feedback belongs to',
+        'title': 'Event Id',
+        'type': 'integer',
+      }),
+      'feedback_type': dict({
+        'anyOf': list([
+          dict({
+            '$ref': '#/$defs/FeedbackType',
+          }),
+          dict({
+            'type': 'string',
+          }),
+        ]),
+        'description': 'Type of feedback provided',
+        'title': 'Feedback Type',
+      }),
+      'id': dict({
+        'description': 'Feedback record ID',
+        'title': 'Id',
+        'type': 'integer',
+      }),
+      'model_failures': dict({
+        'anyOf': list([
+          dict({
+            'items': dict({
+              'type': 'string',
+            }),
+            'type': 'array',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'List of specific AI models that failed',
+        'title': 'Model Failures',
+      }),
+      'notes': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Optional notes from user',
+        'title': 'Notes',
+      }),
+      'suggested_score': dict({
+        'anyOf': list([
+          dict({
+            'type': 'integer',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'What user thinks score should have been (0-100)',
+        'title': 'Suggested Score',
+      }),
+      'what_was_wrong': dict({
+        'anyOf': list([
+          dict({
+            'type': 'string',
+          }),
+          dict({
+            'type': 'null',
+          }),
+        ]),
+        'default': None,
+        'description': 'Detailed explanation of what AI got wrong',
+        'title': 'What Was Wrong',
+      }),
+    }),
+    'required': list([
+      'id',
+      'event_id',
+      'feedback_type',
+      'created_at',
+    ]),
+    'title': 'EventFeedbackResponse',
+    'type': 'object',
+  })
+# ---
 # name: TestFeedbackResponseSnapshots.test_feedback_response_serialization
   dict({
     'actual_identity': None,
@@ -2608,6 +2795,7 @@
   dict({
     'description': '''
       Pagination metadata for list responses.
+
       Contains information about the current page and total results.
       Supports both offset-based and cursor-based pagination.
     ''',
