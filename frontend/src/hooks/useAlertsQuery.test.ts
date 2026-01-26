@@ -33,6 +33,7 @@ describe('useAlertsInfiniteQuery', () => {
     started_at: new Date().toISOString(),
     ended_at: null,
     reviewed: false,
+    flagged: false, // NEM-3839
     notes: null,
     detection_count: 1,
     version: 1, // Optimistic locking version (NEM-3625)

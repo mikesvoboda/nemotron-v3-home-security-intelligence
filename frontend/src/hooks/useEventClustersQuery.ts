@@ -125,7 +125,7 @@ export function useEventClustersQuery(options: UseEventClustersOptions): UseEven
     enabled = true,
   } = options;
 
-  const queryResult = useQuery({
+  const queryResult = useQuery<EventClustersResponse, Error>({
     queryKey: eventClustersQueryKeys.clusters({
       startDate,
       endDate,

@@ -92,6 +92,7 @@ export function createMockEvent(overrides: Partial<Event> = {}): Event {
     risk_level: 'medium',
     summary: 'Person detected at front door',
     reviewed: false,
+    flagged: false, // Whether event is flagged for follow-up (NEM-3839)
     detection_count: 3,
     notes: null,
     version: 1, // Optimistic locking version (NEM-3625)
