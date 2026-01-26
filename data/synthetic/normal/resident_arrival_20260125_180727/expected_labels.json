@@ -1,0 +1,39 @@
+{
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.8,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "count": 1,
+    "visible": true
+  },
+  "pose": {
+    "posture": "walking",
+    "is_suspicious": false
+  },
+  "action": {
+    "action": "walking",
+    "is_suspicious": false
+  },
+  "risk": {
+    "min_score": 0,
+    "max_score": 20,
+    "level": "low",
+    "expected_factors": []
+  },
+  "florence_caption": {
+    "must_contain": [
+      "person",
+      "door"
+    ],
+    "must_not_contain": [
+      "suspicious",
+      "threat",
+      "weapon"
+    ]
+  }
+}

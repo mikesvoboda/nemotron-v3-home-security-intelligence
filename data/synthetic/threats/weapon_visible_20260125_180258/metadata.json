@@ -1,0 +1,16 @@
+{
+  "run_id": "20260125_180258",
+  "scenario": "weapon_visible",
+  "category": "threats",
+  "format": "video",
+  "count_requested": 1,
+  "count_generated": 0,
+  "count_failed": 1,
+  "generated_at": "2026-01-25T23:02:58.187825+00:00",
+  "files": [],
+  "applied_modifiers": {
+    "variation": null,
+    "time": null,
+    "weather": null
+  }
+}

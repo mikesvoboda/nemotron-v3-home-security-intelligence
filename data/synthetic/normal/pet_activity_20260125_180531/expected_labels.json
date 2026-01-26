@@ -1,0 +1,34 @@
+{
+  "detections": [
+    {
+      "class": "dog",
+      "min_confidence": 0.7,
+      "count": 1
+    }
+  ],
+  "pet": {
+    "type": "dog",
+    "is_known_pet": true
+  },
+  "threats": {
+    "has_threat": false,
+    "types": [],
+    "max_severity": "none"
+  },
+  "risk": {
+    "min_score": 0,
+    "max_score": 5,
+    "level": "low",
+    "expected_factors": []
+  },
+  "florence_caption": {
+    "must_contain": [
+      "dog"
+    ],
+    "must_not_contain": [
+      "person",
+      "threat",
+      "suspicious"
+    ]
+  }
+}

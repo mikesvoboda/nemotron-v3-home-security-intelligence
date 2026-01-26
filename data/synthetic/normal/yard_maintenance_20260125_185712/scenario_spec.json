@@ -1,0 +1,306 @@
+{
+  "id": "yard_maintenance",
+  "category": "normal",
+  "name": "Yard Maintenance",
+  "description": "Workers performing lawn care, gardening, or other yard maintenance tasks. Common activity that should be recognized as low risk, especially when workers have appropriate equipment and uniforms.",
+  "scene": {
+    "location": "front_yard",
+    "camera_type": "outdoor_camera",
+    "camera_effects": [],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "lighting": "natural_daylight",
+    "weather": "clear",
+    "season": "summer"
+  },
+  "subjects": [
+    {
+      "type": "person",
+      "role": "lawn_care_worker",
+      "appearance": {
+        "clothing": "work_clothes",
+        "uniform_company": "lawn_service",
+        "face_visible": true,
+        "carrying_items": true,
+        "items": [
+          "lawn_mower"
+        ]
+      },
+      "action": "mowing_lawn",
+      "position": "in_yard",
+      "duration_sec": 120,
+      "behavior_notes": "Operating lawn equipment in a systematic pattern across the yard"
+    },
+    {
+      "type": "vehicle",
+      "vehicle_type": "work_truck",
+      "color": "white_green",
+      "license_plate_visible": true,
+      "action": "parked",
+      "position": "street_in_front",
+      "description": "Lawn care company truck with trailer",
+      "behavior_notes": "Work truck parked at curb with equipment trailer"
+    }
+  ],
+  "expected_outputs": {
+    "detections": [
+      {
+        "class": "person",
+        "min_confidence": 0.75,
+        "count": 1
+      },
+      {
+        "class": "truck",
+        "min_confidence": 0.7,
+        "count": 1
+      }
+    ],
+    "face": {
+      "detected": true,
+      "count": 1,
+      "visible": true
+    },
+    "pose": {
+      "posture": "standing_working",
+      "is_suspicious": false
+    },
+    "action": {
+      "action": "yard_work",
+      "is_suspicious": false
+    },
+    "clothing": {
+      "type": "work_clothes",
+      "color": "green_khaki",
+      "is_suspicious": false
+    },
+    "risk": {
+      "min_score": 0,
+      "max_score": 15,
+      "level": "low",
+      "expected_factors": []
+    },
+    "florence_caption": {
+      "must_contain": [
+        "person"
+      ],
+      "must_not_contain": [
+        "suspicious",
+        "threat",
+        "stealing",
+        "breaking"
+      ]
+    },
+    "vehicle": {
+      "type": "truck",
+      "color": "white"
+    },
+    "ocr": {
+      "expected_text": [
+        "LAWN",
+        "LANDSCAPING"
+      ],
+      "min_confidence": 0.5
+    }
+  },
+  "generation": {
+    "format": "image",
+    "count": 1,
+    "seed": null
+  },
+  "variations": [
+    {
+      "id": "yard_maintenance_landscaper",
+      "name": "Landscaping Crew",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "landscaping_uniform",
+            "uniform_company": "landscaping_company",
+            "face_visible": true,
+            "carrying_items": true,
+            "items": [
+              "hedge_trimmer"
+            ]
+          },
+          "action": "trimming_hedges",
+          "behavior_notes": "Trimming bushes and hedges along property line"
+        }
+      ],
+      "expected_output_overrides": {
+        "action": {
+          "action": "landscaping",
+          "is_suspicious": false
+        }
+      }
+    },
+    {
+      "id": "yard_maintenance_multiple_workers",
+      "name": "Multiple Yard Workers",
+      "subjects_append": [
+        {
+          "type": "person",
+          "role": "lawn_care_worker",
+          "appearance": {
+            "clothing": "work_clothes",
+            "uniform_company": "lawn_service",
+            "face_visible": true,
+            "carrying_items": true,
+            "items": [
+              "leaf_blower"
+            ]
+          },
+          "action": "blowing_leaves",
+          "position": "in_yard",
+          "behavior_notes": "Using leaf blower near sidewalk"
+        },
+        {
+          "type": "person",
+          "role": "lawn_care_worker",
+          "appearance": {
+            "clothing": "work_clothes",
+            "uniform_company": "lawn_service",
+            "face_visible": true,
+            "carrying_items": true,
+            "items": [
+              "rake"
+            ]
+          },
+          "action": "raking",
+          "position": "in_yard",
+          "behavior_notes": "Raking debris into piles"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "person",
+            "min_confidence": 0.7,
+            "count": 3
+          }
+        ],
+        "face": {
+          "detected": true,
+          "count": 3,
+          "visible": true
+        }
+      }
+    },
+    {
+      "id": "yard_maintenance_with_vehicle",
+      "name": "Work Truck Present",
+      "subjects_append": [
+        {
+          "type": "vehicle",
+          "vehicle_type": "work_truck",
+          "color": "white_green",
+          "license_plate_visible": true,
+          "action": "parked",
+          "position": "street_in_front",
+          "description": "Lawn care company truck with trailer",
+          "behavior_notes": "Work truck parked at curb with equipment trailer"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "person",
+            "min_confidence": 0.75,
+            "count": 1
+          },
+          {
+            "class": "truck",
+            "min_confidence": 0.7,
+            "count": 1
+          }
+        ],
+        "vehicle": {
+          "type": "truck",
+          "color": "white"
+        },
+        "ocr": {
+          "expected_text": [
+            "LAWN",
+            "LANDSCAPING"
+          ],
+          "min_confidence": 0.5
+        }
+      }
+    },
+    {
+      "id": "yard_maintenance_gardening",
+      "name": "Gardener Planting",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "gardening_attire",
+            "face_visible": true,
+            "carrying_items": true,
+            "items": [
+              "plants",
+              "trowel"
+            ]
+          },
+          "action": "planting",
+          "position": "flower_bed",
+          "behavior_notes": "Kneeling in flower bed, planting flowers or shrubs"
+        }
+      ],
+      "expected_output_overrides": {
+        "pose": {
+          "posture": "kneeling",
+          "is_suspicious": false
+        },
+        "action": {
+          "action": "gardening",
+          "is_suspicious": false
+        }
+      }
+    },
+    {
+      "id": "yard_maintenance_early_morning",
+      "name": "Early Morning Yard Work",
+      "environment_overrides": {
+        "time_of_day": "dawn",
+        "lighting": "early_morning_light"
+      },
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 5,
+          "max_score": 20,
+          "level": "low",
+          "expected_factors": [
+            "early_hour"
+          ]
+        }
+      }
+    },
+    {
+      "id": "yard_maintenance_extended",
+      "name": "Extended Duration Work",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "duration_sec": 300,
+          "behavior_notes": "Working on large yard, multiple passes with equipment, extended presence"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 0,
+          "max_score": 15,
+          "level": "low",
+          "expected_factors": []
+        }
+      }
+    }
+  ],
+  "applied_variation": {
+    "id": "yard_maintenance_with_vehicle",
+    "name": "Work Truck Present"
+  }
+}
