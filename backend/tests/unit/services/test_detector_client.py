@@ -414,7 +414,7 @@ async def test_detect_objects_malformed_response(detector_client, mock_session):
 async def test_detector_client_uses_config():
     """Test that DetectorClient uses configuration values."""
     with patch("backend.services.detector_client.get_settings") as mock_settings:
-        mock_settings.return_value.rtdetr_url = "http://custom-detector:9000"
+        mock_settings.return_value.yolo26_url = "http://custom-detector:9000"
         mock_settings.return_value.detection_confidence_threshold = 0.7
 
         client = DetectorClient()

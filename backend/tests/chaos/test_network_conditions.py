@@ -208,8 +208,8 @@ class TestNetworkPartitions:
     async def test_partial_partition_affects_some_services(self) -> None:
         """Network partition affecting some services is handled correctly."""
         # Create separate circuit breakers for different services
-        rtdetr_breaker = CircuitBreaker(
-            name="rtdetr_partition",
+        yolo26_breaker = CircuitBreaker(
+            name="yolo26_partition",
             config=CircuitBreakerConfig(failure_threshold=2),
         )
         nemotron_breaker = CircuitBreaker(
@@ -217,7 +217,7 @@ class TestNetworkPartitions:
             config=CircuitBreakerConfig(failure_threshold=2),
         )
 
-        async def rtdetr_partitioned() -> None:
+        async def yolo26_partitioned() -> None:
             raise httpx.ConnectError("Network unreachable")
 
         async def nemotron_ok() -> str:
@@ -226,14 +226,14 @@ class TestNetworkPartitions:
         # RT-DETR is partitioned
         for _ in range(2):
             try:
-                await rtdetr_breaker.call(rtdetr_partitioned)
+                await yolo26_breaker.call(yolo26_partitioned)
             except httpx.ConnectError:
                 pass
 
         # Nemotron is fine
         result = await nemotron_breaker.call(nemotron_ok)
 
-        assert rtdetr_breaker.state == CircuitState.OPEN
+        assert yolo26_breaker.state == CircuitState.OPEN
         assert nemotron_breaker.state == CircuitState.CLOSED
         assert result == "success"
 

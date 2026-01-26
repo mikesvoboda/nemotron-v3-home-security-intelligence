@@ -28,11 +28,11 @@ class TestDetectorClientConnectionPooling:
     def mock_settings(self):
         """Create mock settings for DetectorClient."""
         settings = MagicMock()
-        settings.rtdetr_url = "http://test-rtdetr:8091"
+        settings.yolo26_url = "http://test-yolo26:8091"
         settings.detection_confidence_threshold = 0.5
-        settings.rtdetr_api_key = None
+        settings.yolo26_api_key = None
         settings.ai_connect_timeout = 10.0
-        settings.rtdetr_read_timeout = 60.0
+        settings.yolo26_read_timeout = 60.0
         settings.ai_health_timeout = 5.0
         settings.detector_max_retries = 3
         settings.ai_max_concurrent_inferences = 4
@@ -70,7 +70,7 @@ class TestDetectorClientConnectionPooling:
 
             # Should have timeout configured
             assert client._http_client.timeout.connect == mock_settings.ai_connect_timeout
-            assert client._http_client.timeout.read == mock_settings.rtdetr_read_timeout
+            assert client._http_client.timeout.read == mock_settings.yolo26_read_timeout
 
     @pytest.mark.asyncio
     async def test_close_method_exists_and_works(self, mock_settings):

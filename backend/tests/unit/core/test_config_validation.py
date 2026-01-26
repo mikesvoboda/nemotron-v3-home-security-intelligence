@@ -19,7 +19,7 @@ def clean_env(monkeypatch):
     env_vars = [
         "DATABASE_URL",
         "REDIS_URL",
-        "RTDETR_URL",
+        "YOLO26_URL",
         "NEMOTRON_URL",
         "FOSCAM_BASE_PATH",
         "API_PORT",
@@ -162,8 +162,8 @@ class TestValidateConfig:
         settings = Settings()
         result = validate_config(settings)
 
-        # Find rtdetr_url validation item
-        rtdetr_item = next((item for item in result.items if item.name == "rtdetr_url"), None)
+        # Find yolo26_url validation item
+        rtdetr_item = next((item for item in result.items if item.name == "yolo26_url"), None)
         assert rtdetr_item is not None
         # Status should be ok, info (localhost), or warning - not error
         assert rtdetr_item.status in ("ok", "warning", "info")
@@ -343,7 +343,7 @@ class TestConfigValidationIntegration:
         expected_checks = {
             "database_url",
             "redis_url",
-            "rtdetr_url",
+            "yolo26_url",
             "nemotron_url",
             "api_port",
             "foscam_base_path",
@@ -445,7 +445,7 @@ class TestEdgeCases:
         result = validate_config(settings)
 
         # Localhost URLs should be valid
-        rtdetr_item = next((item for item in result.items if item.name == "rtdetr_url"), None)
+        rtdetr_item = next((item for item in result.items if item.name == "yolo26_url"), None)
         nemotron_item = next((item for item in result.items if item.name == "nemotron_url"), None)
 
         assert rtdetr_item is not None
@@ -458,7 +458,7 @@ class TestEdgeCases:
         """Test validation with HTTPS AI service URLs (production setup)."""
         from backend.core.config_validation import validate_config
 
-        clean_env.setenv("RTDETR_URL", "https://rtdetr.example.com:8090")
+        clean_env.setenv("YOLO26_URL", "https://rtdetr.example.com:8090")
         clean_env.setenv("NEMOTRON_URL", "https://nemotron.example.com:8091")
         get_settings.cache_clear()
 
@@ -466,7 +466,7 @@ class TestEdgeCases:
         result = validate_config(settings)
 
         # HTTPS URLs should be valid
-        rtdetr_item = next((item for item in result.items if item.name == "rtdetr_url"), None)
+        rtdetr_item = next((item for item in result.items if item.name == "yolo26_url"), None)
         nemotron_item = next((item for item in result.items if item.name == "nemotron_url"), None)
 
         assert rtdetr_item is not None
