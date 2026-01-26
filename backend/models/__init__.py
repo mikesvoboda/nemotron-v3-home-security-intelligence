@@ -1,6 +1,7 @@
 """SQLAlchemy models for home security intelligence system."""
 
 from .alert import Alert, AlertRule, AlertSeverity, AlertStatus
+from .analytics_zone import LineZone, PolygonZone
 from .area import Area, camera_areas
 from .audit import AuditAction, AuditLog, AuditStatus
 from .backup_job import BackupJob, BackupJobStatus, RestoreJob, RestoreJobStatus
@@ -16,6 +17,7 @@ from .camera_zone import (
     ZoneType,
 )
 from .detection import Detection
+from .dwell_time import DwellTimeRecord
 from .enrichment import (
     ActionResult,
     DemographicsResult,
@@ -38,6 +40,7 @@ from .gpu_config import (
     SystemSetting,
 )
 from .gpu_stats import GPUStats
+from .heatmap import HeatmapData, HeatmapResolution
 from .household import (
     HouseholdMember,
     MemberRole,
@@ -106,6 +109,7 @@ __all__ = [
     "DayOfWeek",
     "DemographicsResult",
     "Detection",
+    "DwellTimeRecord",
     "Entity",
     "EntityType",
     "Event",
@@ -121,6 +125,8 @@ __all__ = [
     "GpuAssignmentStrategy",
     "GpuConfiguration",
     "GpuDevice",
+    "HeatmapData",
+    "HeatmapResolution",
     "Household",
     "HouseholdMember",
     "IntegrationType",
@@ -131,6 +137,7 @@ __all__ = [
     "JobStatus",
     "JobTransition",
     "JobTransitionTrigger",
+    "LineZone",
     "Log",
     "LogLevel",
     "MemberRole",
@@ -138,6 +145,7 @@ __all__ = [
     "NotificationSound",
     "OutboundWebhook",
     "PersonEmbedding",
+    "PolygonZone",
     "PoseResult",
     "PrometheusAlert",
     "PrometheusAlertStatus",

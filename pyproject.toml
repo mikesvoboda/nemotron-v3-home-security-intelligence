@@ -42,6 +42,7 @@ dependencies = [
     "jinja2>=3.1.5",
     "scikit-image>=0.26.0",
     "ultralytics>=8.4.0",  # Required for YOLO26 support
+    "supervision>=0.20.0",  # LineZone, PolygonZone, HeatMapAnnotator, ByteTrack integration
     "huggingface-hub>=0.36.0",
     "transformers>=4.57.3",
     "torchreid>=0.2.5",
