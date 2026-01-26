@@ -264,6 +264,7 @@ class TestCreateCamera:
         mock_db.add = MagicMock()  # db.add is synchronous in SQLAlchemy
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         camera_data = CameraCreate(
             name="New Camera",
@@ -291,6 +292,7 @@ class TestCreateCamera:
             result = await create_camera(
                 camera_data=camera_data,
                 request=mock_request,
+                background_tasks=mock_background_tasks,
                 db=mock_db,
                 cache=mock_cache,
             )
@@ -314,6 +316,7 @@ class TestCreateCamera:
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         camera_data = CameraCreate(
             name="Existing Camera",
@@ -335,6 +338,7 @@ class TestCreateCamera:
             await create_camera(
                 camera_data=camera_data,
                 request=mock_request,
+                background_tasks=mock_background_tasks,
                 db=mock_db,
                 cache=mock_cache,
             )
@@ -353,6 +357,7 @@ class TestCreateCamera:
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         camera_data = CameraCreate(
             name="New Camera",
@@ -378,6 +383,7 @@ class TestCreateCamera:
             await create_camera(
                 camera_data=camera_data,
                 request=mock_request,
+                background_tasks=mock_background_tasks,
                 db=mock_db,
                 cache=mock_cache,
             )
@@ -395,6 +401,7 @@ class TestCreateCamera:
         mock_db.add = MagicMock()  # db.add is synchronous in SQLAlchemy
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         camera_data = CameraCreate(
             name="Test Camera",
@@ -426,6 +433,7 @@ class TestCreateCamera:
             result = await create_camera(
                 camera_data=camera_data,
                 request=mock_request,
+                background_tasks=mock_background_tasks,
                 db=mock_db,
                 cache=mock_cache,
             )
@@ -446,6 +454,7 @@ class TestCreateCamera:
         mock_db.add = MagicMock()  # db.add is synchronous in SQLAlchemy
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         camera_data = CameraCreate(
             name="Test Camera",
@@ -476,6 +485,7 @@ class TestCreateCamera:
             result = await create_camera(
                 camera_data=camera_data,
                 request=mock_request,
+                background_tasks=mock_background_tasks,
                 db=mock_db,
                 cache=mock_cache,
             )
@@ -496,6 +506,7 @@ class TestUpdateCamera:
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         camera_data = CameraUpdate(status="offline")
 
@@ -521,6 +532,7 @@ class TestUpdateCamera:
                 camera_id="front_door",
                 camera_data=camera_data,
                 request=mock_request,
+                background_tasks=mock_background_tasks,
                 db=mock_db,
                 cache=mock_cache,
             )
@@ -543,6 +555,7 @@ class TestUpdateCamera:
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         camera_data = CameraUpdate(status="offline")
 
@@ -555,6 +568,7 @@ class TestUpdateCamera:
                     camera_id="nonexistent",
                     camera_data=camera_data,
                     request=mock_request,
+                    background_tasks=mock_background_tasks,
                     db=mock_db,
                     cache=mock_cache,
                 )
@@ -570,6 +584,7 @@ class TestUpdateCamera:
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         # Only update name, leave other fields unchanged
         camera_data = CameraUpdate(name="Updated Name")
@@ -594,6 +609,7 @@ class TestUpdateCamera:
                     camera_id="front_door",
                     camera_data=camera_data,
                     request=mock_request,
+                    background_tasks=mock_background_tasks,
                     db=mock_db,
                     cache=mock_cache,
                 )
@@ -613,6 +629,7 @@ class TestUpdateCamera:
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         camera_data = CameraUpdate(status="offline")
 
@@ -640,6 +657,7 @@ class TestUpdateCamera:
                     camera_id="front_door",
                     camera_data=camera_data,
                     request=mock_request,
+                    background_tasks=mock_background_tasks,
                     db=mock_db,
                     cache=mock_cache,
                 )
@@ -661,6 +679,7 @@ class TestDeleteCamera:
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "front_door"
@@ -677,6 +696,7 @@ class TestDeleteCamera:
                 result = await delete_camera(
                     camera_id="front_door",
                     request=mock_request,
+                    background_tasks=mock_background_tasks,
                     db=mock_db,
                     cache=mock_cache,
                 )
@@ -697,6 +717,7 @@ class TestDeleteCamera:
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         with patch(
             "backend.api.routes.cameras.get_camera_or_404",
@@ -706,6 +727,7 @@ class TestDeleteCamera:
                 await delete_camera(
                     camera_id="nonexistent",
                     request=mock_request,
+                    background_tasks=mock_background_tasks,
                     db=mock_db,
                     cache=mock_cache,
                 )
@@ -720,6 +742,7 @@ class TestDeleteCamera:
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "front_door"
@@ -740,6 +763,7 @@ class TestDeleteCamera:
                 result = await delete_camera(
                     camera_id="front_door",
                     request=mock_request,
+                    background_tasks=mock_background_tasks,
                     db=mock_db,
                     cache=mock_cache,
                 )
@@ -757,6 +781,7 @@ class TestDeleteCamera:
         mock_db = AsyncMock()
         mock_cache = AsyncMock()
         mock_request = MagicMock()
+        mock_background_tasks = MagicMock()
 
         mock_camera = MagicMock(spec=Camera)
         mock_camera.id = "front_door"
@@ -773,6 +798,7 @@ class TestDeleteCamera:
                 result = await delete_camera(
                     camera_id="front_door",
                     request=mock_request,
+                    background_tasks=mock_background_tasks,
                     db=mock_db,
                     cache=mock_cache,
                 )
