@@ -15,7 +15,7 @@ import { describe, it, expect, vi } from 'vitest';
 import GpuAssignmentTable from './GpuAssignmentTable';
 import { renderWithProviders } from '../../test-utils/renderWithProviders';
 
-import type { GpuDevice, GpuAssignment, ServiceStatus } from '../../hooks/useGpuConfig';
+import type { GpuDevice, GpuAssignment, ServiceHealthStatus } from '../../hooks/useGpuConfig';
 
 // ============================================================================
 // Test Data
@@ -44,7 +44,7 @@ const mockAssignments: GpuAssignment[] = [
   { service: 'ai-enrichment', gpu_index: 1, vram_budget_override: null },
 ];
 
-const mockServiceStatuses: ServiceStatus[] = [
+const mockServiceStatuses: ServiceHealthStatus[] = [
   { name: 'ai-llm', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
   { name: 'ai-detector', status: 'running', health: 'healthy', gpu_index: 0, restart_status: null },
   {
@@ -207,7 +207,7 @@ describe('GpuAssignmentTable', () => {
     });
 
     it('should display restart status when restarting', () => {
-      const statusesWithRestart: ServiceStatus[] = [
+      const statusesWithRestart: ServiceHealthStatus[] = [
         {
           name: 'ai-llm',
           status: 'running',
@@ -322,7 +322,8 @@ describe('GpuAssignmentTable', () => {
       );
 
       const input = screen.getByTestId('vram-override-ai-llm');
-      expect(input).toHaveValue('10.5');
+      // Input type="number" returns value as number
+      expect(input).toHaveValue(10.5);
     });
 
     it('should show default VRAM when no override', () => {

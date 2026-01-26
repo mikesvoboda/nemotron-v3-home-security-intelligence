@@ -72,6 +72,7 @@ class ExportJobCreate(BaseModel):
                 "start_date": "2025-01-01T00:00:00Z",
                 "end_date": "2025-01-12T23:59:59Z",
                 "reviewed": None,
+                "columns": ["event_id", "camera_name", "risk_score", "summary"],
             }
         }
     )
@@ -102,6 +103,15 @@ class ExportJobCreate(BaseModel):
     reviewed: bool | None = Field(
         None,
         description="Filter by reviewed status (true=reviewed, false=unreviewed, null=all)",
+    )
+    columns: list[str] | None = Field(
+        None,
+        description=(
+            "List of column field names to include in export. "
+            "Available: event_id, camera_name, started_at, ended_at, risk_score, "
+            "risk_level, summary, detection_count, reviewed, object_types, reasoning. "
+            "If null, all columns are included."
+        ),
     )
 
 
@@ -239,6 +249,12 @@ class ExportJobResponse(BaseModel):
     created_at: datetime = Field(..., description="Job creation timestamp")
     started_at: datetime | None = Field(None, description="Job start timestamp")
     completed_at: datetime | None = Field(None, description="Job completion timestamp")
+
+    # Filter parameters used for this export (JSON string)
+    filter_params: str | None = Field(
+        None,
+        description="JSON-serialized filter parameters used for this export",
+    )
 
     # Result information (populated on completion)
     result: ExportJobResult | None = Field(

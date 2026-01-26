@@ -38,6 +38,7 @@ const runningJob: ExportJob = {
   created_at: '2025-01-12T10:00:00Z',
   started_at: '2025-01-12T10:00:01Z',
   completed_at: null,
+  filter_params: null,
   result: null,
   error_message: null,
 };
@@ -57,6 +58,7 @@ const completedJob: ExportJob = {
   created_at: '2025-01-12T10:00:00Z',
   started_at: '2025-01-12T10:00:01Z',
   completed_at: '2025-01-12T10:01:00Z',
+  filter_params: null,
   result: {
     output_path: '/api/exports/test.csv',
     output_size_bytes: 12345,
@@ -81,6 +83,7 @@ const failedJob: ExportJob = {
   created_at: '2025-01-12T10:00:00Z',
   started_at: '2025-01-12T10:00:01Z',
   completed_at: '2025-01-12T10:00:30Z',
+  filter_params: null,
   result: null,
   error_message: 'Database connection error',
 };

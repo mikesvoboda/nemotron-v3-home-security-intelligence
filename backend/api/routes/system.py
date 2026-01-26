@@ -2180,9 +2180,11 @@ async def get_config(response: Response) -> ConfigResponse:
         app_name=settings.app_name,
         version=settings.app_version,
         retention_days=settings.retention_days,
+        log_retention_days=settings.log_retention_days,
         batch_window_seconds=settings.batch_window_seconds,
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         detection_confidence_threshold=settings.detection_confidence_threshold,
+        fast_path_confidence_threshold=settings.fast_path_confidence_threshold,
         grafana_url=settings.grafana_url,
         debug=settings.debug,
     )
@@ -2294,21 +2296,27 @@ async def patch_config(
     old_settings = get_settings()
     old_values = {
         "retention_days": old_settings.retention_days,
+        "log_retention_days": old_settings.log_retention_days,
         "batch_window_seconds": old_settings.batch_window_seconds,
         "batch_idle_timeout_seconds": old_settings.batch_idle_timeout_seconds,
         "detection_confidence_threshold": old_settings.detection_confidence_threshold,
+        "fast_path_confidence_threshold": old_settings.fast_path_confidence_threshold,
     }
 
     overrides: dict[str, str] = {}
 
     if update.retention_days is not None:
         overrides["RETENTION_DAYS"] = str(update.retention_days)
+    if update.log_retention_days is not None:
+        overrides["LOG_RETENTION_DAYS"] = str(update.log_retention_days)
     if update.batch_window_seconds is not None:
         overrides["BATCH_WINDOW_SECONDS"] = str(update.batch_window_seconds)
     if update.batch_idle_timeout_seconds is not None:
         overrides["BATCH_IDLE_TIMEOUT_SECONDS"] = str(update.batch_idle_timeout_seconds)
     if update.detection_confidence_threshold is not None:
         overrides["DETECTION_CONFIDENCE_THRESHOLD"] = str(update.detection_confidence_threshold)
+    if update.fast_path_confidence_threshold is not None:
+        overrides["FAST_PATH_CONFIDENCE_THRESHOLD"] = str(update.fast_path_confidence_threshold)
 
     if overrides:
         _write_runtime_env(overrides)
@@ -2319,16 +2327,20 @@ async def patch_config(
 
     logger.info(
         f"Settings after update: retention_days={settings.retention_days}, "
+        f"log_retention_days={settings.log_retention_days}, "
         f"batch_window_seconds={settings.batch_window_seconds}, "
-        f"detection_confidence_threshold={settings.detection_confidence_threshold}"
+        f"detection_confidence_threshold={settings.detection_confidence_threshold}, "
+        f"fast_path_confidence_threshold={settings.fast_path_confidence_threshold}"
     )
 
     # Build changes for audit log
     new_values = {
         "retention_days": settings.retention_days,
+        "log_retention_days": settings.log_retention_days,
         "batch_window_seconds": settings.batch_window_seconds,
         "batch_idle_timeout_seconds": settings.batch_idle_timeout_seconds,
         "detection_confidence_threshold": settings.detection_confidence_threshold,
+        "fast_path_confidence_threshold": settings.fast_path_confidence_threshold,
     }
     changes: dict[str, dict[str, Any]] = {}
     for key, old_value in old_values.items():
@@ -2362,9 +2374,11 @@ async def patch_config(
         app_name=settings.app_name,
         version=settings.app_version,
         retention_days=settings.retention_days,
+        log_retention_days=settings.log_retention_days,
         batch_window_seconds=settings.batch_window_seconds,
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         detection_confidence_threshold=settings.detection_confidence_threshold,
+        fast_path_confidence_threshold=settings.fast_path_confidence_threshold,
         grafana_url=settings.grafana_url,
         debug=settings.debug,
     )

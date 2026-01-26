@@ -18,7 +18,7 @@ import { logger } from '../services/logger';
 const API_BASE: string = import.meta.env.VITE_API_URL || '';
 
 // Export formats
-type ExportFormat = 'csv' | 'json' | 'zip';
+type ExportFormat = 'csv' | 'json' | 'zip' | 'excel';
 
 interface ExportButtonProps {
   /** Optional camera ID filter */
@@ -458,6 +458,28 @@ export function ExportButton({
                   />
                 </svg>
                 Export as ZIP
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                onClick={() => handleExport('excel')}
+                role="menuitem"
+              >
+                <svg
+                  className="h-4 w-4 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                Export as Excel
               </button>
             </div>
           </div>

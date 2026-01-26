@@ -89,7 +89,7 @@ const mockGpuAssignment2: GpuAssignment = {
 const mockGpuConfig: GpuConfig = {
   strategy: 'isolation_first',
   assignments: [mockGpuAssignment, mockGpuAssignment2],
-  strategies: ['auto', 'isolation_first', 'vram_balanced', 'manual'],
+  updated_at: '2026-01-23T10:30:00Z',
 };
 
 const mockGpuConfigUpdateResponse: GpuConfigUpdateResponse = {
@@ -104,29 +104,31 @@ const mockGpuConfigUpdateResponseWithWarnings: GpuConfigUpdateResponse = {
 
 const mockGpuApplyResult: GpuApplyResult = {
   success: true,
-  restarted: ['ai-llm', 'ai-detector'],
-  failed: [],
   warnings: [],
+  restarted_services: ['ai-llm', 'ai-detector'],
+  service_statuses: [
+    { service: 'ai-llm', status: 'running', message: null },
+    { service: 'ai-detector', status: 'running', message: null },
+  ],
 };
 
 const mockServiceStatus: ServiceStatus = {
-  name: 'ai-llm',
+  service: 'ai-llm',
   status: 'running',
-  health: 'healthy',
-  gpu_index: 0,
-  restart_status: null,
+  message: null,
 };
 
 const mockServiceStatus2: ServiceStatus = {
-  name: 'ai-detector',
+  service: 'ai-detector',
   status: 'running',
-  health: 'healthy',
-  gpu_index: 1,
-  restart_status: null,
+  message: null,
 };
 
 const mockGpuStatusResponse: GpuStatusResponse = {
-  services: [mockServiceStatus, mockServiceStatus2],
+  in_progress: false,
+  services_pending: [],
+  services_completed: ['ai-llm', 'ai-detector'],
+  service_statuses: [mockServiceStatus, mockServiceStatus2],
 };
 
 const mockStrategyPreviewResponse: StrategyPreviewResponse = {
@@ -220,15 +222,20 @@ describe('useGpus', () => {
 
   it('handles errors gracefully', async () => {
     const error = new Error('GPU detection failed');
-    vi.mocked(gpuConfigApi.getGpus).mockRejectedValueOnce(error);
+    // Reject both initial call and retry
+    vi.mocked(gpuConfigApi.getGpus).mockRejectedValue(error);
 
     const { result } = renderHook(() => useGpus(), {
       wrapper: createQueryWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.error).toBeTruthy();
-    });
+    // Wait for error state with longer timeout to account for retry
+    await waitFor(
+      () => {
+        expect(result.current.error).toBeTruthy();
+      },
+      { timeout: 5000 }
+    );
 
     expect(result.current.isLoading).toBe(false);
   });
@@ -321,15 +328,20 @@ describe('useGpuConfig', () => {
 
   it('handles errors gracefully', async () => {
     const error = new Error('Configuration not found');
-    vi.mocked(gpuConfigApi.getGpuConfig).mockRejectedValueOnce(error);
+    // Reject both initial call and retry
+    vi.mocked(gpuConfigApi.getGpuConfig).mockRejectedValue(error);
 
     const { result } = renderHook(() => useGpuConfig(), {
       wrapper: createQueryWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.error).toBeTruthy();
-    });
+    // Wait for error state with longer timeout to account for retry
+    await waitFor(
+      () => {
+        expect(result.current.error).toBeTruthy();
+      },
+      { timeout: 5000 }
+    );
 
     expect(result.current.isLoading).toBe(false);
   });
@@ -391,7 +403,7 @@ describe('useGpuStatus', () => {
     });
 
     expect(result.current.data).toEqual(mockGpuStatusResponse);
-    expect(result.current.data?.services).toHaveLength(2);
+    expect(result.current.data?.service_statuses).toHaveLength(2);
   });
 
   it('does not fetch when disabled', () => {
@@ -407,15 +419,20 @@ describe('useGpuStatus', () => {
 
   it('handles errors gracefully', async () => {
     const error = new Error('Failed to get status');
-    vi.mocked(gpuConfigApi.getGpuStatus).mockRejectedValueOnce(error);
+    // Reject both initial call and retry
+    vi.mocked(gpuConfigApi.getGpuStatus).mockRejectedValue(error);
 
     const { result } = renderHook(() => useGpuStatus(), {
       wrapper: createQueryWrapper(),
     });
 
-    await waitFor(() => {
-      expect(result.current.error).toBeTruthy();
-    });
+    // Wait for error state with longer timeout to account for retry
+    await waitFor(
+      () => {
+        expect(result.current.error).toBeTruthy();
+      },
+      { timeout: 5000 }
+    );
   });
 
   it('provides refetch function', async () => {
@@ -496,7 +513,10 @@ describe('useUpdateGpuConfig', () => {
       expect(result.current.mutation.isSuccess).toBe(true);
     });
 
-    expect(gpuConfigApi.updateGpuConfig).toHaveBeenCalledWith({ strategy: 'vram_balanced' });
+    // TanStack Query v5 passes mutation context as second arg, so check first arg only
+    expect(vi.mocked(gpuConfigApi.updateGpuConfig).mock.calls[0][0]).toEqual({
+      strategy: 'vram_balanced',
+    });
   });
 
   it('updates configuration with assignments', async () => {
@@ -512,7 +532,8 @@ describe('useUpdateGpuConfig', () => {
       await result.current.updateConfig({ assignments });
     });
 
-    expect(gpuConfigApi.updateGpuConfig).toHaveBeenCalledWith({ assignments });
+    // TanStack Query v5 passes mutation context as second arg, so check first arg only
+    expect(vi.mocked(gpuConfigApi.updateGpuConfig).mock.calls[0][0]).toEqual({ assignments });
   });
 
   it('returns warnings from update response', async () => {
@@ -557,7 +578,12 @@ describe('useUpdateGpuConfig', () => {
   });
 
   it('tracks isLoading state during update', async () => {
-    vi.mocked(gpuConfigApi.updateGpuConfig).mockResolvedValueOnce(mockGpuConfigUpdateResponse);
+    // Use a deferred promise to control when the mock resolves
+    let resolveUpdate: (value: GpuConfigUpdateResponse) => void;
+    const mockPromise = new Promise<GpuConfigUpdateResponse>((resolve) => {
+      resolveUpdate = resolve;
+    });
+    vi.mocked(gpuConfigApi.updateGpuConfig).mockReturnValueOnce(mockPromise);
 
     const { result } = renderHook(() => useUpdateGpuConfig(), {
       wrapper: createQueryWrapper(),
@@ -565,17 +591,27 @@ describe('useUpdateGpuConfig', () => {
 
     expect(result.current.isLoading).toBe(false);
 
-    const updatePromise = result.current.updateConfig({ strategy: 'auto' });
+    // Start the update but don't await yet
+    let updatePromise: Promise<GpuConfigUpdateResponse>;
+    act(() => {
+      updatePromise = result.current.updateConfig({ strategy: 'auto' });
+    });
 
+    // Now isLoading should be true while waiting
     await waitFor(() => {
       expect(result.current.isLoading).toBe(true);
     });
 
+    // Resolve the promise
     await act(async () => {
-      await updatePromise;
+      resolveUpdate!(mockGpuConfigUpdateResponse);
+      await updatePromise!;
     });
 
-    expect(result.current.isLoading).toBe(false);
+    // Now isLoading should be false after resolution
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
   });
 });
 
@@ -623,16 +659,19 @@ describe('useApplyGpuConfig', () => {
     });
 
     expect(applyResult?.success).toBe(true);
-    expect(applyResult?.restarted).toContain('ai-llm');
-    expect(applyResult?.restarted).toContain('ai-detector');
+    expect(applyResult?.restarted_services).toContain('ai-llm');
+    expect(applyResult?.restarted_services).toContain('ai-detector');
   });
 
   it('handles apply with failed services', async () => {
     const failedResult: GpuApplyResult = {
       success: false,
-      restarted: ['ai-llm'],
-      failed: ['ai-detector'],
       warnings: ['Restart failed'],
+      restarted_services: ['ai-llm'],
+      service_statuses: [
+        { service: 'ai-llm', status: 'running', message: null },
+        { service: 'ai-detector', status: 'error', message: 'Restart failed' },
+      ],
     };
     vi.mocked(gpuConfigApi.applyGpuConfig).mockResolvedValueOnce(failedResult);
 
@@ -646,7 +685,8 @@ describe('useApplyGpuConfig', () => {
     });
 
     expect(applyResult?.success).toBe(false);
-    expect(applyResult?.failed).toContain('ai-detector');
+    const failedService = applyResult?.service_statuses.find((s) => s.status === 'error');
+    expect(failedService?.service).toBe('ai-detector');
   });
 
   it('handles apply errors', async () => {
@@ -673,7 +713,12 @@ describe('useApplyGpuConfig', () => {
   });
 
   it('tracks isLoading state during apply', async () => {
-    vi.mocked(gpuConfigApi.applyGpuConfig).mockResolvedValueOnce(mockGpuApplyResult);
+    // Use a deferred promise to control when the mock resolves
+    let resolveApply: (value: GpuApplyResult) => void;
+    const mockPromise = new Promise<GpuApplyResult>((resolve) => {
+      resolveApply = resolve;
+    });
+    vi.mocked(gpuConfigApi.applyGpuConfig).mockReturnValueOnce(mockPromise);
 
     const { result } = renderHook(() => useApplyGpuConfig(), {
       wrapper: createQueryWrapper(),
@@ -681,17 +726,27 @@ describe('useApplyGpuConfig', () => {
 
     expect(result.current.isLoading).toBe(false);
 
-    const applyPromise = result.current.applyConfig();
+    // Start the apply but don't await yet
+    let applyPromise: Promise<GpuApplyResult>;
+    act(() => {
+      applyPromise = result.current.applyConfig();
+    });
 
+    // Now isLoading should be true while waiting
     await waitFor(() => {
       expect(result.current.isLoading).toBe(true);
     });
 
+    // Resolve the promise
     await act(async () => {
-      await applyPromise;
+      resolveApply!(mockGpuApplyResult);
+      await applyPromise!;
     });
 
-    expect(result.current.isLoading).toBe(false);
+    // Now isLoading should be false after resolution
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
   });
 });
 
@@ -766,7 +821,12 @@ describe('useDetectGpus', () => {
   });
 
   it('tracks isLoading state during detection', async () => {
-    vi.mocked(gpuConfigApi.detectGpus).mockResolvedValueOnce(mockGpuListResponse);
+    // Use a deferred promise to control when the mock resolves
+    let resolveDetect: (value: GpuListResponse) => void;
+    const mockPromise = new Promise<GpuListResponse>((resolve) => {
+      resolveDetect = resolve;
+    });
+    vi.mocked(gpuConfigApi.detectGpus).mockReturnValueOnce(mockPromise);
 
     const { result } = renderHook(() => useDetectGpus(), {
       wrapper: createQueryWrapper(),
@@ -774,17 +834,27 @@ describe('useDetectGpus', () => {
 
     expect(result.current.isLoading).toBe(false);
 
-    const detectPromise = result.current.detect();
+    // Start the detect but don't await yet
+    let detectPromise: Promise<GpuListResponse>;
+    act(() => {
+      detectPromise = result.current.detect();
+    });
 
+    // Now isLoading should be true while waiting
     await waitFor(() => {
       expect(result.current.isLoading).toBe(true);
     });
 
+    // Resolve the promise
     await act(async () => {
-      await detectPromise;
+      resolveDetect!(mockGpuListResponse);
+      await detectPromise!;
     });
 
-    expect(result.current.isLoading).toBe(false);
+    // Now isLoading should be false after resolution
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
   });
 
   it('handles detection returning empty list', async () => {
@@ -832,7 +902,8 @@ describe('usePreviewStrategy', () => {
       expect(result.current.mutation.isSuccess).toBe(true);
     });
 
-    expect(gpuConfigApi.previewStrategy).toHaveBeenCalledWith('isolation_first');
+    // TanStack Query v5 passes mutation context as second arg, so check first arg only
+    expect(vi.mocked(gpuConfigApi.previewStrategy).mock.calls[0][0]).toBe('isolation_first');
   });
 
   it('returns preview data from mutation', async () => {
@@ -868,8 +939,10 @@ describe('usePreviewStrategy', () => {
       await result.current.preview('vram_balanced');
     });
 
-    expect(gpuConfigApi.previewStrategy).toHaveBeenCalledWith('auto');
-    expect(gpuConfigApi.previewStrategy).toHaveBeenCalledWith('vram_balanced');
+    // TanStack Query v5 passes mutation context as second arg, so check first arg only
+    const calls = vi.mocked(gpuConfigApi.previewStrategy).mock.calls;
+    expect(calls[0][0]).toBe('auto');
+    expect(calls[1][0]).toBe('vram_balanced');
   });
 
   it('handles preview errors', async () => {
@@ -896,7 +969,12 @@ describe('usePreviewStrategy', () => {
   });
 
   it('tracks isLoading state during preview', async () => {
-    vi.mocked(gpuConfigApi.previewStrategy).mockResolvedValueOnce(mockStrategyPreviewResponse);
+    // Use a deferred promise to control when the mock resolves
+    let resolvePreview: (value: StrategyPreviewResponse) => void;
+    const mockPromise = new Promise<StrategyPreviewResponse>((resolve) => {
+      resolvePreview = resolve;
+    });
+    vi.mocked(gpuConfigApi.previewStrategy).mockReturnValueOnce(mockPromise);
 
     const { result } = renderHook(() => usePreviewStrategy(), {
       wrapper: createQueryWrapper(),
@@ -904,17 +982,27 @@ describe('usePreviewStrategy', () => {
 
     expect(result.current.isLoading).toBe(false);
 
-    const previewPromise = result.current.preview('auto');
+    // Start the preview but don't await yet
+    let previewPromise: Promise<StrategyPreviewResponse>;
+    act(() => {
+      previewPromise = result.current.preview('auto');
+    });
 
+    // Now isLoading should be true while waiting
     await waitFor(() => {
       expect(result.current.isLoading).toBe(true);
     });
 
+    // Resolve the promise
     await act(async () => {
-      await previewPromise;
+      resolvePreview!(mockStrategyPreviewResponse);
+      await previewPromise!;
     });
 
-    expect(result.current.isLoading).toBe(false);
+    // Now isLoading should be false after resolution
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
   });
 
   it('returns undefined data before first preview', () => {

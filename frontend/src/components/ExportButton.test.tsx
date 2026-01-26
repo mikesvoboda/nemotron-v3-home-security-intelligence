@@ -241,7 +241,7 @@ describe('ExportButton', () => {
       fireEvent.click(button);
 
       const menuItems = await screen.findAllByRole('menuitem');
-      expect(menuItems).toHaveLength(3);
+      expect(menuItems).toHaveLength(4); // CSV, JSON, ZIP, and Excel
     });
   });
 

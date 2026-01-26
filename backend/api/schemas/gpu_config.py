@@ -260,6 +260,160 @@ class ServiceStatus(BaseModel):
     )
 
 
+class ServiceHealthStatus(BaseModel):
+    """Schema for service health status including GPU assignment.
+
+    Provides comprehensive service health information for the GPU settings UI,
+    including container status, health check result, and GPU assignment.
+    """
+
+    name: str = Field(
+        ...,
+        description="Service name (e.g., 'ai-llm')",
+    )
+    status: str = Field(
+        ...,
+        description="Container status (running, stopped, etc.)",
+    )
+    health: str = Field(
+        ...,
+        description="Health check result (healthy, unhealthy, unknown)",
+    )
+    gpu_index: int | None = Field(
+        None,
+        description="Assigned GPU index",
+    )
+    restart_status: str | None = Field(
+        None,
+        description="Restart status if currently restarting (pending, completed)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "ai-llm",
+                "status": "running",
+                "health": "healthy",
+                "gpu_index": 0,
+                "restart_status": None,
+            }
+        }
+    )
+
+
+class ServiceHealthResponse(BaseModel):
+    """Response schema for AI service health status.
+
+    Returns health status of all AI services including GPU assignments.
+    """
+
+    services: list[ServiceHealthStatus] = Field(
+        ...,
+        description="Status of all AI services",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "services": [
+                    {
+                        "name": "ai-llm",
+                        "status": "running",
+                        "health": "healthy",
+                        "gpu_index": 0,
+                        "restart_status": None,
+                    },
+                    {
+                        "name": "ai-detector",
+                        "status": "running",
+                        "health": "healthy",
+                        "gpu_index": 1,
+                        "restart_status": None,
+                    },
+                ]
+            }
+        }
+    )
+
+
+class AiServiceInfo(BaseModel):
+    """Information about an AI service for GPU assignment.
+
+    Provides service metadata including VRAM requirements, enabling
+    the frontend to dynamically build the assignment UI.
+    """
+
+    name: str = Field(
+        ...,
+        description="Service name (e.g., 'ai-llm')",
+    )
+    display_name: str = Field(
+        ...,
+        description="Human-readable display name",
+    )
+    vram_required_mb: int = Field(
+        ...,
+        description="VRAM requirement in megabytes",
+        ge=0,
+    )
+    vram_required_gb: float = Field(
+        ...,
+        description="VRAM requirement in gigabytes",
+        ge=0.0,
+    )
+    description: str | None = Field(
+        None,
+        description="Service description",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "ai-llm",
+                "display_name": "LLM (Nemotron)",
+                "vram_required_mb": 8192,
+                "vram_required_gb": 8.0,
+                "description": "Nemotron LLM for risk analysis and enrichment",
+            }
+        }
+    )
+
+
+class AiServicesResponse(BaseModel):
+    """Response schema for listing available AI services.
+
+    Returns all AI services with their VRAM requirements for GPU assignment.
+    """
+
+    services: list[AiServiceInfo] = Field(
+        ...,
+        description="List of available AI services",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "services": [
+                    {
+                        "name": "ai-llm",
+                        "display_name": "LLM (Nemotron)",
+                        "vram_required_mb": 8192,
+                        "vram_required_gb": 8.0,
+                        "description": "Nemotron LLM for risk analysis and enrichment",
+                    },
+                    {
+                        "name": "ai-detector",
+                        "display_name": "Object Detector",
+                        "vram_required_mb": 2048,
+                        "vram_required_gb": 2.0,
+                        "description": "RT-DETR real-time object detection",
+                    },
+                ]
+            }
+        }
+    )
+
+
 class GpuApplyResponse(BaseModel):
     """Response schema for applying GPU configuration.
 
@@ -373,6 +527,8 @@ class GpuConfigPreviewResponse(BaseModel):
 
 # Export all schemas
 __all__ = [
+    "AiServiceInfo",
+    "AiServicesResponse",
     "GpuApplyResponse",
     "GpuAssignment",
     "GpuAssignmentStrategy",
@@ -383,5 +539,7 @@ __all__ = [
     "GpuConfigUpdateResponse",
     "GpuDeviceResponse",
     "GpuDevicesResponse",
+    "ServiceHealthResponse",
+    "ServiceHealthStatus",
     "ServiceStatus",
 ]

@@ -39,6 +39,10 @@ import type {
   GpuApplyResult,
   GpuStatusResponse,
   StrategyPreviewResponse,
+  AiService,
+  AiServicesResponse,
+  ServiceHealthStatus,
+  ServiceHealthResponse,
 } from '../services/gpuConfigApi';
 
 // Re-export types for convenience
@@ -53,6 +57,10 @@ export type {
   StrategyPreviewResponse,
   GpuAssignment,
   ServiceStatus,
+  AiService,
+  AiServicesResponse,
+  ServiceHealthStatus,
+  ServiceHealthResponse,
 } from '../services/gpuConfigApi';
 
 // ============================================================================
@@ -70,8 +78,12 @@ export const GPU_QUERY_KEYS = {
   gpus: ['gpu', 'devices'] as const,
   /** GPU configuration */
   config: ['gpu', 'config'] as const,
-  /** AI service status */
+  /** AI service status (apply operation status) */
   status: ['gpu', 'status'] as const,
+  /** AI service health (comprehensive health with GPU assignments) */
+  serviceHealth: ['gpu', 'service-health'] as const,
+  /** AI services list */
+  aiServices: ['gpu', 'ai-services'] as const,
   /** Strategy preview */
   preview: (strategy: string) => ['gpu', 'preview', strategy] as const,
 } as const;
@@ -560,5 +572,176 @@ export function usePreviewStrategy(): UsePreviewStrategyReturn {
     isLoading: mutation.isPending,
     error: mutation.error,
     data: mutation.data,
+  };
+}
+
+// ============================================================================
+// useAiServices - Fetch available AI services with VRAM requirements
+// ============================================================================
+
+/**
+ * Options for configuring the useAiServices hook.
+ */
+export interface UseAiServicesOptions {
+  /**
+   * Whether to enable the query.
+   * @default true
+   */
+  enabled?: boolean;
+
+  /**
+   * Custom stale time in milliseconds.
+   * @default DEFAULT_STALE_TIME (30 seconds)
+   */
+  staleTime?: number;
+}
+
+/**
+ * Return type for the useAiServices hook.
+ */
+export interface UseAiServicesReturn {
+  /** AI services response data */
+  data: AiServicesResponse | undefined;
+  /** List of AI services (convenience accessor) */
+  services: AiService[];
+  /** Whether the initial fetch is in progress */
+  isLoading: boolean;
+  /** Error object if the query failed */
+  error: Error | null;
+  /** Function to manually trigger a refetch */
+  refetch: () => Promise<unknown>;
+}
+
+/**
+ * Hook to fetch available AI services with VRAM requirements.
+ *
+ * Returns the list of AI services that can be assigned to GPUs,
+ * including their display names, descriptions, and VRAM requirements.
+ *
+ * @param options - Configuration options
+ * @returns AI services and query state
+ *
+ * @example
+ * ```tsx
+ * const { services, isLoading, error } = useAiServices();
+ *
+ * if (isLoading) return <Spinner />;
+ * if (error) return <Error message={error.message} />;
+ *
+ * return (
+ *   <div>
+ *     {services.map(service => (
+ *       <ServiceCard key={service.name} service={service} />
+ *     ))}
+ *   </div>
+ * );
+ * ```
+ */
+export function useAiServices(options: UseAiServicesOptions = {}): UseAiServicesReturn {
+  const { enabled = true, staleTime = DEFAULT_STALE_TIME } = options;
+
+  const query = useQuery({
+    queryKey: GPU_QUERY_KEYS.aiServices,
+    queryFn: gpuConfigApi.getAiServices,
+    enabled,
+    staleTime,
+    retry: 1,
+  });
+
+  return {
+    data: query.data,
+    services: query.data?.services ?? [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}
+
+// ============================================================================
+// useServiceHealth - Fetch AI service health with GPU assignments
+// ============================================================================
+
+/**
+ * Options for configuring the useServiceHealth hook.
+ */
+export interface UseServiceHealthOptions {
+  /**
+   * Whether to enable the query and polling.
+   * @default true
+   */
+  enabled?: boolean;
+
+  /**
+   * Refetch interval in milliseconds. Set to false to disable polling.
+   * @default 2000 (2 seconds) when enabled is true
+   */
+  refetchInterval?: number | false;
+}
+
+/**
+ * Return type for the useServiceHealth hook.
+ */
+export interface UseServiceHealthReturn {
+  /** Service health response data */
+  data: ServiceHealthResponse | undefined;
+  /** List of service health statuses (convenience accessor) */
+  services: ServiceHealthStatus[];
+  /** Whether the initial fetch is in progress */
+  isLoading: boolean;
+  /** Whether a background refetch is in progress */
+  isRefetching: boolean;
+  /** Error object if the query failed */
+  error: Error | null;
+  /** Function to manually trigger a refetch */
+  refetch: () => Promise<unknown>;
+}
+
+/**
+ * Hook to fetch AI service health status with GPU assignments.
+ *
+ * Returns comprehensive health information for all AI services including
+ * container status, health check result, GPU assignment, and restart status.
+ * Enables 2-second polling by default for real-time monitoring.
+ *
+ * This hook is designed for the GpuSettingsPage to display service health
+ * and detect when services have finished restarting.
+ *
+ * @param enabled - Whether to enable the query and polling (default: true)
+ * @returns Service health status and query state
+ *
+ * @example
+ * ```tsx
+ * // Poll while applying config
+ * const [isApplying, setIsApplying] = useState(false);
+ * const { services, isLoading } = useServiceHealth(isApplying);
+ *
+ * const allHealthy = services.every(s => s.health === 'healthy');
+ * const noneRestarting = services.every(s => !s.restart_status);
+ *
+ * useEffect(() => {
+ *   if (isApplying && allHealthy && noneRestarting) {
+ *     setIsApplying(false);
+ *     toast.success('All services restarted successfully');
+ *   }
+ * }, [isApplying, allHealthy, noneRestarting]);
+ * ```
+ */
+export function useServiceHealth(enabled: boolean = true): UseServiceHealthReturn {
+  const query = useQuery({
+    queryKey: GPU_QUERY_KEYS.serviceHealth,
+    queryFn: gpuConfigApi.getServiceHealth,
+    enabled,
+    staleTime: REALTIME_STALE_TIME,
+    refetchInterval: enabled ? 2000 : false,
+    retry: 1,
+  });
+
+  return {
+    data: query.data,
+    services: query.data?.services ?? [],
+    isLoading: query.isLoading,
+    isRefetching: query.isRefetching,
+    error: query.error,
+    refetch: query.refetch,
   };
 }

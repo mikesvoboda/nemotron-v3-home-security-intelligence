@@ -60,14 +60,15 @@ export interface GpuAssignment {
 
 /**
  * GPU configuration including strategy and all service assignments.
+ * Matches backend GpuConfigResponse schema.
  */
 export interface GpuConfig {
   /** Current assignment strategy */
   strategy: string;
   /** Service-to-GPU assignments */
   assignments: GpuAssignment[];
-  /** Available strategy options */
-  strategies: string[];
+  /** Timestamp of last configuration update (ISO 8601 format) */
+  updated_at: string | null;
 }
 
 /**
@@ -92,40 +93,45 @@ export interface GpuConfigUpdateResponse {
 
 /**
  * Result of applying GPU configuration (restarting services).
+ * Matches backend GpuApplyResponse schema.
  */
 export interface GpuApplyResult {
   /** Whether the apply operation was successful */
   success: boolean;
-  /** List of services that were restarted */
-  restarted: string[];
-  /** List of services that failed to restart */
-  failed: string[];
   /** Warnings encountered during apply */
   warnings: string[];
+  /** List of services that were restarted */
+  restarted_services: string[];
+  /** Status of each affected service after apply */
+  service_statuses: ServiceStatus[];
 }
 
 /**
- * Status of a single AI service.
+ * Status of a single AI service after GPU config apply.
+ * Matches backend ServiceStatus schema.
  */
 export interface ServiceStatus {
   /** Service name */
-  name: string;
-  /** Container status (running, stopped, etc.) */
+  service: string;
+  /** Service status (running, starting, stopped, error) */
   status: string;
-  /** Health check result (healthy, unhealthy, unknown) */
-  health: string;
-  /** Assigned GPU index, or null if not assigned */
-  gpu_index: number | null;
-  /** Restart status if currently restarting */
-  restart_status: string | null;
+  /** Optional status message or error details */
+  message: string | null;
 }
 
 /**
  * Response from GPU status endpoint.
+ * Matches backend GpuConfigStatusResponse schema.
  */
 export interface GpuStatusResponse {
-  /** Status of all AI services */
-  services: ServiceStatus[];
+  /** Whether an apply operation is currently in progress */
+  in_progress: boolean;
+  /** Services still pending restart */
+  services_pending: string[];
+  /** Services that have completed restart */
+  services_completed: string[];
+  /** Current status of all affected services */
+  service_statuses: ServiceStatus[];
 }
 
 /**
@@ -138,6 +144,55 @@ export interface StrategyPreviewResponse {
   proposed_assignments: GpuAssignment[];
   /** Warnings about the proposed configuration */
   warnings: string[];
+}
+
+/**
+ * AI service information from backend.
+ */
+export interface AiService {
+  /** Service name (e.g., 'ai-llm') */
+  name: string;
+  /** Human-readable display name */
+  display_name: string;
+  /** VRAM requirement in megabytes */
+  vram_required_mb: number;
+  /** VRAM requirement in gigabytes */
+  vram_required_gb: number;
+  /** Service description */
+  description: string | null;
+}
+
+/**
+ * Response from AI services endpoint.
+ */
+export interface AiServicesResponse {
+  /** List of available AI services */
+  services: AiService[];
+}
+
+/**
+ * Service health status from the /gpu-config/services endpoint.
+ * Provides comprehensive health information for GPU settings UI.
+ */
+export interface ServiceHealthStatus {
+  /** Service name (e.g., 'ai-llm') */
+  name: string;
+  /** Container status (running, stopped, restarting, etc.) */
+  status: string;
+  /** Health check result (healthy, unhealthy, unknown, starting) */
+  health: string;
+  /** Assigned GPU index, or null if not assigned */
+  gpu_index: number | null;
+  /** Restart status if currently restarting (pending, completed) */
+  restart_status: string | null;
+}
+
+/**
+ * Response from service health endpoint.
+ */
+export interface ServiceHealthResponse {
+  /** Status of all AI services */
+  services: ServiceHealthStatus[];
 }
 
 // ============================================================================
@@ -408,4 +463,45 @@ export async function previewStrategy(strategy: string): Promise<StrategyPreview
   return fetchGpuConfigApi<StrategyPreviewResponse>(
     `/gpu-config/preview?${queryParams.toString()}`
   );
+}
+
+/**
+ * Get list of available AI services with VRAM requirements.
+ *
+ * Returns all AI services that can be assigned to GPUs, including
+ * their display names and VRAM requirements.
+ *
+ * @returns AiServicesResponse containing available AI services
+ * @throws GpuConfigApiError on server errors
+ *
+ * @example
+ * ```typescript
+ * const { services } = await getAiServices();
+ * services.forEach(s => {
+ *   console.log(`${s.display_name}: ${s.vram_required_gb} GB`);
+ * });
+ * ```
+ */
+export async function getAiServices(): Promise<AiServicesResponse> {
+  return fetchGpuConfigApi<AiServicesResponse>('/ai-services');
+}
+
+/**
+ * Get health status of all AI services.
+ *
+ * Returns comprehensive health information for all AI services including
+ * container status, health check result, GPU assignment, and restart status.
+ *
+ * @returns ServiceHealthResponse with status of all AI services
+ * @throws GpuConfigApiError on server errors
+ *
+ * @example
+ * ```typescript
+ * const { services } = await getServiceHealth();
+ * const allHealthy = services.every(s => s.health === 'healthy');
+ * const noneRestarting = services.every(s => !s.restart_status);
+ * ```
+ */
+export async function getServiceHealth(): Promise<ServiceHealthResponse> {
+  return fetchGpuConfigApi<ServiceHealthResponse>('/gpu-config/services');
 }

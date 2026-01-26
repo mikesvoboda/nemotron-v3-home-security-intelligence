@@ -591,6 +591,96 @@
         "title": "AiModelMetrics",
         "type": "object"
       },
+      "AiServiceInfo": {
+        "description": "Information about an AI service for GPU assignment.\n\nProvides service metadata including VRAM requirements, enabling\nthe frontend to dynamically build the assignment UI.",
+        "example": {
+          "description": "Nemotron LLM for risk analysis and enrichment",
+          "display_name": "LLM (Nemotron)",
+          "name": "ai-llm",
+          "vram_required_gb": 8.0,
+          "vram_required_mb": 8192
+        },
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Service description",
+            "title": "Description"
+          },
+          "display_name": {
+            "description": "Human-readable display name",
+            "title": "Display Name",
+            "type": "string"
+          },
+          "name": {
+            "description": "Service name (e.g., 'ai-llm')",
+            "title": "Name",
+            "type": "string"
+          },
+          "vram_required_gb": {
+            "description": "VRAM requirement in gigabytes",
+            "minimum": 0.0,
+            "title": "Vram Required Gb",
+            "type": "number"
+          },
+          "vram_required_mb": {
+            "description": "VRAM requirement in megabytes",
+            "minimum": 0.0,
+            "title": "Vram Required Mb",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "display_name",
+          "vram_required_mb",
+          "vram_required_gb"
+        ],
+        "title": "AiServiceInfo",
+        "type": "object"
+      },
+      "AiServicesResponse": {
+        "description": "Response schema for listing available AI services.\n\nReturns all AI services with their VRAM requirements for GPU assignment.",
+        "example": {
+          "services": [
+            {
+              "description": "Nemotron LLM for risk analysis and enrichment",
+              "display_name": "LLM (Nemotron)",
+              "name": "ai-llm",
+              "vram_required_gb": 8.0,
+              "vram_required_mb": 8192
+            },
+            {
+              "description": "RT-DETR real-time object detection",
+              "display_name": "Object Detector",
+              "name": "ai-detector",
+              "vram_required_gb": 2.0,
+              "vram_required_mb": 2048
+            }
+          ]
+        },
+        "properties": {
+          "services": {
+            "description": "List of available AI services",
+            "items": {
+              "$ref": "#/components/schemas/AiServiceInfo"
+            },
+            "title": "Services",
+            "type": "array"
+          }
+        },
+        "required": [
+          "services"
+        ],
+        "title": "AiServicesResponse",
+        "type": "object"
+      },
       "AlertResponse": {
         "description": "Schema for alert response.",
         "example": {
@@ -5318,7 +5408,9 @@
           "batch_window_seconds": 90,
           "debug": false,
           "detection_confidence_threshold": 0.5,
+          "fast_path_confidence_threshold": 0.9,
           "grafana_url": "/grafana",
+          "log_retention_days": 7,
           "retention_days": 30,
           "version": "0.1.0"
         },
@@ -5353,10 +5445,24 @@
             "title": "Detection Confidence Threshold",
             "type": "number"
           },
+          "fast_path_confidence_threshold": {
+            "description": "Confidence threshold for fast-path high-priority analysis (0.0-1.0)",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Fast Path Confidence Threshold",
+            "type": "number"
+          },
           "grafana_url": {
             "description": "Grafana dashboard URL for frontend link",
             "title": "Grafana Url",
             "type": "string"
+          },
+          "log_retention_days": {
+            "description": "Number of days to retain logs",
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Log Retention Days",
+            "type": "integer"
           },
           "retention_days": {
             "description": "Number of days to retain events and detections",
@@ -5375,9 +5481,11 @@
           "app_name",
           "version",
           "retention_days",
+          "log_retention_days",
           "batch_window_seconds",
           "batch_idle_timeout_seconds",
           "detection_confidence_threshold",
+          "fast_path_confidence_threshold",
           "grafana_url",
           "debug"
         ],
@@ -5427,6 +5535,34 @@
             "deprecated": true,
             "description": "DEPRECATED: Use /api/v1/settings detection.confidence_threshold instead. Minimum confidence threshold for detections (0.0-1.0). This field will be removed in a future version.",
             "title": "Detection Confidence Threshold"
+          },
+          "fast_path_confidence_threshold": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Confidence threshold for fast-path high-priority analysis (0.0-1.0)",
+            "title": "Fast Path Confidence Threshold"
+          },
+          "log_retention_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Number of days to retain logs",
+            "title": "Log Retention Days"
           },
           "retention_days": {
             "anyOf": [
@@ -10502,6 +10638,12 @@
         "description": "Schema for creating an export job.\n\nCreate a new background export job with optional filtering parameters.\nThe job will be processed asynchronously and can be monitored via\nthe job status endpoint.",
         "example": {
           "camera_id": "front_door",
+          "columns": [
+            "event_id",
+            "camera_name",
+            "risk_score",
+            "summary"
+          ],
           "end_date": "2025-01-12T23:59:59Z",
           "export_format": "csv",
           "export_type": "events",
@@ -10520,6 +10662,21 @@
             ],
             "description": "Filter by camera ID",
             "title": "Camera Id"
+          },
+          "columns": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "List of column field names to include in export. Available: event_id, camera_name, started_at, ended_at, risk_score, risk_level, summary, detection_count, reviewed, object_types, reasoning. If null, all columns are included.",
+            "title": "Columns"
           },
           "end_date": {
             "anyOf": [
@@ -10843,6 +11000,18 @@
             "description": "Type of export",
             "title": "Export Type",
             "type": "string"
+          },
+          "filter_params": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "JSON-serialized filter parameters used for this export",
+            "title": "Filter Params"
           },
           "id": {
             "description": "Unique export job identifier",
@@ -23289,6 +23458,40 @@
         "title": "ServiceCategory",
         "type": "string"
       },
+      "ServiceHealthResponse": {
+        "description": "Response schema for AI service health status.\n\nReturns health status of all AI services including GPU assignments.",
+        "example": {
+          "services": [
+            {
+              "gpu_index": 0,
+              "health": "healthy",
+              "name": "ai-llm",
+              "status": "running"
+            },
+            {
+              "gpu_index": 1,
+              "health": "healthy",
+              "name": "ai-detector",
+              "status": "running"
+            }
+          ]
+        },
+        "properties": {
+          "services": {
+            "description": "Status of all AI services",
+            "items": {
+              "$ref": "#/components/schemas/ServiceHealthStatus"
+            },
+            "title": "Services",
+            "type": "array"
+          }
+        },
+        "required": [
+          "services"
+        ],
+        "title": "ServiceHealthResponse",
+        "type": "object"
+      },
       "ServiceHealthState": {
         "description": "Health state for a service in the full health check.\n\nStates:\n- healthy: Service is fully operational\n- unhealthy: Service is down or experiencing critical issues\n- degraded: Service is partially operational\n- unknown: Service status cannot be determined",
         "enum": [
@@ -23299,6 +23502,63 @@
         ],
         "title": "ServiceHealthState",
         "type": "string"
+      },
+      "ServiceHealthStatus": {
+        "description": "Schema for service health status including GPU assignment.\n\nProvides comprehensive service health information for the GPU settings UI,\nincluding container status, health check result, and GPU assignment.",
+        "example": {
+          "gpu_index": 0,
+          "health": "healthy",
+          "name": "ai-llm",
+          "status": "running"
+        },
+        "properties": {
+          "gpu_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Assigned GPU index",
+            "title": "Gpu Index"
+          },
+          "health": {
+            "description": "Health check result (healthy, unhealthy, unknown)",
+            "title": "Health",
+            "type": "string"
+          },
+          "name": {
+            "description": "Service name (e.g., 'ai-llm')",
+            "title": "Name",
+            "type": "string"
+          },
+          "restart_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Restart status if currently restarting (pending, completed)",
+            "title": "Restart Status"
+          },
+          "status": {
+            "description": "Container status (running, stopped, etc.)",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "status",
+          "health"
+        ],
+        "title": "ServiceHealthStatus",
+        "type": "object"
       },
       "ServiceHealthStatusResponse": {
         "description": "Health status of a registered service.",
@@ -38059,6 +38319,28 @@
         ]
       }
     },
+    "/api/system/ai-services": {
+      "get": {
+        "description": "Returns all AI services with their VRAM requirements.",
+        "operationId": "gpu-config_list_ai_services",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiServicesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List available AI services",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
     "/api/system/anomaly-config": {
       "get": {
         "description": "Get current anomaly detection configuration.\n\nReturns the current settings for the baseline service including:\n- threshold_stdev: Number of standard deviations for anomaly detection\n- min_samples: Minimum samples required before anomaly detection is reliable\n- decay_factor: Exponential decay factor for EWMA (weights recent observations)\n- window_days: Rolling window size in days for baseline calculations\n\nArgs:\n    service: BaselineService injected via Depends()\n\nReturns:\n    AnomalyConfig with current anomaly detection settings",
@@ -38636,6 +38918,28 @@
           }
         },
         "summary": "Preview auto-assignment",
+        "tags": [
+          "gpu-config"
+        ]
+      }
+    },
+    "/api/system/gpu-config/services": {
+      "get": {
+        "description": "Returns health status of all AI services including GPU assignments.",
+        "operationId": "gpu-config_get_service_health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceHealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get AI service health status",
         "tags": [
           "gpu-config"
         ]

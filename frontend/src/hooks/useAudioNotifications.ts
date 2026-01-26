@@ -28,6 +28,16 @@ export interface UseAudioNotificationsOptions {
    * @default '/sounds'
    */
   soundsPath?: string;
+  /**
+   * Sound type override from preferences (none, default, alert, chime, urgent)
+   * When set to 'none', audio is effectively disabled
+   */
+  soundPreference?: string;
+  /**
+   * Risk levels that should trigger audio notifications
+   * If provided, only alerts with matching risk levels will play sounds
+   */
+  riskFilters?: string[];
 }
 
 export interface UseAudioNotificationsReturn {
@@ -113,11 +123,25 @@ const RISK_SOUND_MAP: Record<RiskLevel, SoundType> = {
 export function useAudioNotifications(
   options: UseAudioNotificationsOptions = {}
 ): UseAudioNotificationsReturn {
-  const { initialVolume = 0.5, enabled: initialEnabled = true, soundsPath = '/sounds' } = options;
+  const {
+    initialVolume = 0.5,
+    enabled: initialEnabled = true,
+    soundsPath = '/sounds',
+    soundPreference,
+    riskFilters,
+  } = options;
+
+  // If sound preference is 'none', audio is disabled
+  const effectiveEnabled = initialEnabled && soundPreference !== 'none';
 
   const [volume, setVolumeState] = useState(initialVolume);
-  const [isEnabled, setIsEnabled] = useState(initialEnabled);
+  const [isEnabled, setIsEnabled] = useState(effectiveEnabled);
   const [isReady, setIsReady] = useState(false);
+
+  // Update enabled state when sound preference changes
+  useEffect(() => {
+    setIsEnabled(effectiveEnabled);
+  }, [effectiveEnabled]);
 
   // Refs for Web Audio API
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -270,10 +294,26 @@ export function useAudioNotifications(
    */
   const playRiskSound = useCallback(
     async (riskLevel: RiskLevel): Promise<void> => {
-      const soundType = RISK_SOUND_MAP[riskLevel];
+      // Check if this risk level is in the filters (if filters are specified)
+      if (riskFilters && riskFilters.length > 0 && !riskFilters.includes(riskLevel)) {
+        return;
+      }
+
+      // Use sound preference to override default sound type if specified
+      let soundType = RISK_SOUND_MAP[riskLevel];
+      if (soundPreference && soundPreference !== 'default' && soundPreference !== 'none') {
+        // Map sound preferences to sound types
+        const preferenceToType: Record<string, SoundType> = {
+          alert: 'alert',
+          chime: 'info',
+          urgent: 'critical',
+        };
+        soundType = preferenceToType[soundPreference] || soundType;
+      }
+
       await playSound(soundType);
     },
-    [playSound]
+    [playSound, riskFilters, soundPreference]
   );
 
   /**

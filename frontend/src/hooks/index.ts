@@ -161,7 +161,11 @@ export { useCachedEvents } from './useCachedEvents';
 export type { CachedEvent, UseCachedEventsReturn } from './useCachedEvents';
 
 export { usePushNotifications } from './usePushNotifications';
-export type { SecurityAlertOptions, UsePushNotificationsReturn } from './usePushNotifications';
+export type {
+  SecurityAlertOptions,
+  UsePushNotificationsOptions,
+  UsePushNotificationsReturn,
+} from './usePushNotifications';
 
 // Mobile Hooks
 export { useIsMobile } from './useIsMobile';
@@ -895,3 +899,33 @@ export type {
   UseQueueMetricsWebSocketOptions,
   UseQueueMetricsWebSocketReturn,
 } from './useQueueMetricsWebSocket';
+
+// Notification preferences hooks (NEM-3582)
+export {
+  useNotificationPreferences,
+  useCameraNotificationSettings,
+  useCameraNotificationSettingMutation,
+  useQuietHoursPeriods,
+  useQuietHoursPeriodMutations,
+} from './useNotificationPreferences';
+export type {
+  UseNotificationPreferencesOptions,
+  UseNotificationPreferencesReturn,
+  UseCameraNotificationSettingsOptions,
+  UseCameraNotificationSettingsReturn,
+  UseCameraNotificationSettingMutationReturn,
+  UseQuietHoursPeriodsOptions,
+  UseQuietHoursPeriodsReturn,
+  UseQuietHoursPeriodMutationsReturn,
+} from './useNotificationPreferences';
+
+// Integrated notifications hook (NEM-3537, NEM-3540, NEM-3617)
+export {
+  useIntegratedNotifications,
+  default as useIntegratedNotificationsDefault,
+} from './useIntegratedNotifications';
+export type {
+  IntegratedNotificationOptions,
+  SecurityAlertOptions as IntegratedSecurityAlertOptions,
+  UseIntegratedNotificationsReturn,
+} from './useIntegratedNotifications';

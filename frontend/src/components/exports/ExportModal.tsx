@@ -15,12 +15,13 @@ import { Button, Select, SelectItem, Card, Title, Text } from '@tremor/react';
 import { AlertCircle, Download, FileSpreadsheet, FileText, Loader2, X } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 
+import ExportColumnSelector from './ExportColumnSelector';
 import ExportProgress from './ExportProgress';
 import { useDateRangeState } from '../../hooks/useDateRangeState';
 import { startExportJob, fetchCameras } from '../../services/api';
 
 import type { Camera } from '../../services/api';
-import type { ExportJobCreateParams, ExportType, ExportFormat } from '../../types/export';
+import type { ExportJobCreateParams, ExportType, ExportFormat, ExportColumnName } from '../../types/export';
 
 export interface ExportModalProps {
   /** Whether the modal is open */
@@ -59,6 +60,7 @@ export default function ExportModal({
   const [cameraId, setCameraId] = useState<string>(initialFilters?.camera_id ?? '');
   const [riskLevel, setRiskLevel] = useState<string>(initialFilters?.risk_level ?? '');
   const [reviewed, setReviewed] = useState<string>('');
+  const [selectedColumns, setSelectedColumns] = useState<ExportColumnName[] | null>(null);
 
   // State
   const [cameras, setCameras] = useState<Camera[]>([]);
@@ -139,6 +141,7 @@ export default function ExportModal({
         start_date: dateRangeApiParams.start_date || null,
         end_date: dateRangeApiParams.end_date || null,
         reviewed: reviewed === '' ? null : reviewed === 'true',
+        columns: selectedColumns,
       };
 
       const response = await startExportJob(params);
@@ -323,6 +326,17 @@ export default function ExportModal({
                     <SelectItem value="true">Reviewed only</SelectItem>
                     <SelectItem value="false">Unreviewed only</SelectItem>
                   </Select>
+                </div>
+              )}
+
+              {/* Column Selection */}
+              {exportType === 'events' && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                  <ExportColumnSelector
+                    selectedColumns={selectedColumns}
+                    onChange={setSelectedColumns}
+                    disabled={loading}
+                  />
                 </div>
               )}
             </div>
