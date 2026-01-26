@@ -66,6 +66,8 @@ class Event(Base):
     # Full prompt sent to Nemotron LLM for analysis (for debugging/improvement)
     llm_prompt: Mapped[str | None] = deferred(mapped_column(Text, nullable=True))
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # User-flagged event for follow-up or investigation (NEM-3839)
+    flagged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_fast_path: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Cached object types from related detections (comma-separated string)

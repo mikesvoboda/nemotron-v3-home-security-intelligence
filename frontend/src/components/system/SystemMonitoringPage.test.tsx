@@ -35,8 +35,40 @@ vi.mock('../../hooks/useSystemPageSections', () => ({
     sectionStates: {
       'circuit-breakers': true,
       'file-operations': true,
+      'services': true,
+      'databases': true,
+      'batch-statistics': true,
+      'profiling': true,
+      'recording-replay': true,
+      'config-inspector': true,
+      'log-level': true,
+      'test-data': true,
     },
     toggleSection: vi.fn(),
+  }),
+}));
+
+// Mock the useLocalStorage hook
+vi.mock('../../hooks/useLocalStorage', () => ({
+  useLocalStorage: () => [false, vi.fn()],
+}));
+
+// Mock the usePerformanceMetrics hook
+vi.mock('../../hooks/usePerformanceMetrics', () => ({
+  usePerformanceMetrics: () => ({
+    current: null,
+    history: [],
+    timeRange: '1h',
+  }),
+}));
+
+// Mock the useRedisDebugInfoQuery hook
+vi.mock('../../hooks/useDebugQueries', () => ({
+  useRedisDebugInfoQuery: () => ({
+    redisInfo: null,
+    pubsubInfo: null,
+    isLoading: false,
+    error: null,
   }),
 }));
 
@@ -61,6 +93,18 @@ vi.mock('./FileOperationsPanel', () => ({
   ),
 }));
 
+vi.mock('./ServicesPanel', () => ({
+  default: (props: { 'data-testid'?: string }) => (
+    <div data-testid={props['data-testid'] || 'services-panel'}>ServicesPanel</div>
+  ),
+}));
+
+vi.mock('./DatabasesPanel', () => ({
+  default: (props: { 'data-testid'?: string }) => (
+    <div data-testid={props['data-testid'] || 'databases-panel'}>DatabasesPanel</div>
+  ),
+}));
+
 vi.mock('./DebugModeToggle', () => ({
   default: (props: { 'data-testid'?: string }) => (
     <div data-testid={props['data-testid'] || 'debug-mode-toggle'}>DebugModeToggle</div>
@@ -80,6 +124,24 @@ vi.mock('./CollapsibleSection', () => ({
     <div data-testid={testId || `collapsible-${title.toLowerCase()}`}>
       <h3>{title}</h3>
       {children}
+    </div>
+  ),
+}));
+
+// Mock BatchStatisticsDashboard
+vi.mock('../batch', () => ({
+  BatchStatisticsDashboard: (props: { 'data-testid'?: string }) => (
+    <div data-testid={props['data-testid'] || 'batch-statistics-dashboard'}>BatchStatisticsDashboard</div>
+  ),
+}));
+
+// Mock ErrorState component
+vi.mock('../common', () => ({
+  ErrorState: (props: { title: string; message: string; testId?: string; onRetry?: () => void }) => (
+    <div data-testid={props.testId || 'error-state'}>
+      <h3>{props.title}</h3>
+      <p>{props.message}</p>
+      <button data-testid={`${props.testId}-retry`} onClick={props.onRetry}>Retry</button>
     </div>
   ),
 }));
@@ -335,6 +397,46 @@ describe('SystemMonitoringPage (Operations)', () => {
       });
 
       expect(screen.getByText('File Operations')).toBeInTheDocument();
+    });
+  });
+
+  describe('ServicesPanel', () => {
+    it('renders ServicesPanel component', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('services-panel-section')).toBeInTheDocument();
+      });
+    });
+
+    it('renders Services section title', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('operations-page')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Services')).toBeInTheDocument();
+    });
+  });
+
+  describe('DatabasesPanel', () => {
+    it('renders DatabasesPanel component', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('databases-panel-section')).toBeInTheDocument();
+      });
+    });
+
+    it('renders Databases section title', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('operations-page')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Databases')).toBeInTheDocument();
     });
   });
 

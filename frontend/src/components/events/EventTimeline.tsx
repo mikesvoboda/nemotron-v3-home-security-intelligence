@@ -24,8 +24,10 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { usePaginationState } from '../../hooks/usePaginationState';
 import { useSnoozeEvent } from '../../hooks/useSnoozeEvent';
 import { useTimelineData } from '../../hooks/useTimelineData';
+import { useToast } from '../../hooks/useToast';
 import {
   bulkUpdateEvents,
+  downloadEventMedia,
   EventVersionConflictError,
   fetchCameras,
   searchEvents,
@@ -197,6 +199,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
   // Snooze event hook (NEM-3592)
   const { snooze, unsnooze } = useSnoozeEvent();
+
+  // Toast notifications for flag/download actions (NEM-3839)
+  const { success: toastSuccess, error: toastError } = useToast();
 
   // Handle snooze action for EventCard
   const handleSnooze = useCallback(
@@ -717,6 +722,69 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     }
   };
 
+  // Handle flag event from modal (NEM-3839)
+  const handleFlagEvent = async (eventId: string, flagged: boolean) => {
+    const id = parseInt(eventId, 10);
+    const event = filteredEvents.find((e) => e.id === id);
+    try {
+      // Include version for optimistic locking if available
+      await updateEvent(id, {
+        flagged,
+        version: event?.version,
+      });
+      // Refetch events to reflect changes
+      void refetch();
+      toastSuccess(flagged ? 'Event flagged for follow-up' : 'Event unflagged');
+    } catch (err) {
+      if (err instanceof EventVersionConflictError) {
+        console.warn(`Event ${id} was modified concurrently (current version: ${err.currentVersion})`);
+        void refetch();
+        toastError('Event was modified by another user. Please try again.');
+      } else {
+        console.error('Failed to flag event:', err);
+        toastError('Failed to flag event');
+      }
+      throw err; // Re-throw to update modal loading state
+    }
+  };
+
+  // Handle download media from modal (NEM-3839)
+  const handleDownloadMedia = async (eventId: string) => {
+    const id = parseInt(eventId, 10);
+    try {
+      await downloadEventMedia(id);
+      toastSuccess('Media download started');
+    } catch (err) {
+      console.error('Failed to download media:', err);
+      toastError(err instanceof Error ? err.message : 'Failed to download media');
+      throw err; // Re-throw to update modal loading state
+    }
+  };
+
+  // Handle save notes from modal (NEM-3839)
+  const handleSaveNotes = async (eventId: string, notes: string) => {
+    const id = parseInt(eventId, 10);
+    const event = filteredEvents.find((e) => e.id === id);
+    try {
+      await updateEvent(id, {
+        notes,
+        version: event?.version,
+      });
+      void refetch();
+      toastSuccess('Notes saved');
+    } catch (err) {
+      if (err instanceof EventVersionConflictError) {
+        console.warn(`Event ${id} was modified concurrently (current version: ${err.currentVersion})`);
+        void refetch();
+        toastError('Event was modified by another user. Please try again.');
+      } else {
+        console.error('Failed to save notes:', err);
+        toastError('Failed to save notes');
+      }
+      throw err;
+    }
+  };
+
   // Handle list view column sort
   const handleListSort = (field: SortField) => {
     if (field === listSortField) {
@@ -820,6 +888,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       ended_at: event.ended_at,
       reviewed: event.reviewed,
       notes: event.notes,
+      flagged: event.flagged, // Include flagged state (NEM-3839)
       version: event.version, // Include version for optimistic locking (NEM-3625)
     };
   };
@@ -1630,6 +1699,11 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         onClose={handleModalClose}
         onMarkReviewed={(eventId) => void handleMarkReviewed(eventId)}
         onNavigate={handleNavigate}
+        onSaveNotes={handleSaveNotes}
+        onFlagEvent={handleFlagEvent}
+        onDownloadMedia={handleDownloadMedia}
+        onSnooze={(eventId, seconds) => handleSnooze(eventId, seconds)}
+        onUnsnooze={(eventId) => handleSnooze(eventId, 0)}
       />
 
       {/* Export Modal */}

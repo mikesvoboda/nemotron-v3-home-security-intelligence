@@ -43,3 +43,20 @@ export type { SeverityConfigPanelProps } from './SeverityConfigPanel';
 // File Operations panel (NEM-2388)
 export { default as FileOperationsPanel } from './FileOperationsPanel';
 export type { FileOperationsPanelProps } from './FileOperationsPanel';
+
+// Host System panel (NEM-3835)
+export { default as HostSystemPanel } from './HostSystemPanel';
+export type {
+  HostSystemPanelProps,
+  HostSystemMetrics,
+  SystemStats,
+} from './HostSystemPanel';
+
+// Containers panel (NEM-3836)
+export { default as ContainersPanel } from './ContainersPanel';
+export type {
+  ContainersPanelProps,
+  ContainerStatus,
+  ContainerCategory,
+  ContainerWithStatus,
+} from './ContainersPanel';
