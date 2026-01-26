@@ -5,6 +5,9 @@ to all connected clients using Redis pub/sub as the event backbone.
 
 NEM-2582: Added retry mechanism for failed WebSocket broadcasts with exponential
 backoff and comprehensive logging/metrics.
+
+NEM-3737: Added MessagePack binary serialization support with per-client format
+negotiation for 30-50% smaller payloads than JSON.
 """
 
 from __future__ import annotations
@@ -61,6 +64,7 @@ from backend.api.schemas.websocket import (
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
+from backend.core.websocket.compression import SerializationFormat
 from backend.core.websocket_circuit_breaker import (
     WebSocketCircuitBreaker,
     WebSocketCircuitState,
@@ -406,6 +410,10 @@ class EventBroadcaster:
         self._message_buffer: deque[dict[str, Any]] = deque(maxlen=self.MESSAGE_BUFFER_SIZE)
         self._client_acks: dict[WebSocket, int] = {}
 
+        # Per-client serialization format preferences (NEM-3737)
+        # Maps WebSocket -> SerializationFormat (negotiated during handshake)
+        self._client_formats: dict[WebSocket, SerializationFormat] = {}
+
         # Broadcast retry metrics (NEM-2582)
         self._broadcast_metrics = BroadcastRetryMetrics()
 
@@ -573,6 +581,48 @@ class EventBroadcaster:
         """
         return self._client_acks.get(websocket, 0)
 
+    def get_client_format(self, websocket: WebSocket) -> SerializationFormat:
+        """Get the serialization format for a client (NEM-3737).
+
+        Args:
+            websocket: The client's WebSocket connection.
+
+        Returns:
+            The client's preferred SerializationFormat, defaults to JSON.
+        """
+        return self._client_formats.get(websocket, SerializationFormat.JSON)
+
+    def set_client_format(self, websocket: WebSocket, format: SerializationFormat) -> None:
+        """Set the serialization format for a client (NEM-3737).
+
+        This can be used to update a client's format preference after connection,
+        for example when receiving a format change request.
+
+        Args:
+            websocket: The client's WebSocket connection.
+            format: The new serialization format.
+        """
+        if websocket in self._connections:
+            self._client_formats[websocket] = format
+            logger.debug(
+                f"Updated client format to {format.value}",
+                extra={"format": format.value},
+            )
+
+    def get_format_statistics(self) -> dict[str, int]:
+        """Get statistics on client serialization formats (NEM-3737).
+
+        Returns:
+            Dictionary with counts of clients using each format.
+        """
+        stats: dict[str, int] = {"json": 0, "zlib": 0, "msgpack": 0}
+        for format in self._client_formats.values():
+            stats[format.value] = stats.get(format.value, 0) + 1
+        # Count connections without explicit format as JSON
+        untracked = len(self._connections) - len(self._client_formats)
+        stats["json"] += untracked
+        return stats
+
     async def start(self) -> None:
         """Start listening for events from Redis pub/sub.
 
@@ -661,20 +711,32 @@ class EventBroadcaster:
         """
         await self.stop()
 
-    async def connect(self, websocket: WebSocket) -> None:
-        """Register a new WebSocket connection.
+    async def connect(
+        self,
+        websocket: WebSocket,
+        format: SerializationFormat = SerializationFormat.JSON,
+    ) -> None:
+        """Register a new WebSocket connection with format preference.
 
         Args:
             websocket: WebSocket connection to register
+            format: Serialization format negotiated during handshake (NEM-3737).
+                   - JSON: Plain JSON text (default, backwards compatible)
+                   - ZLIB: zlib-compressed JSON for large messages
+                   - MSGPACK: MessagePack binary (30-50% smaller than JSON)
         """
         await websocket.accept()
         self._connections.add(websocket)
-        logger.info(f"WebSocket connected. Total connections: {len(self._connections)}")
+        self._client_formats[websocket] = format
+        logger.info(
+            f"WebSocket connected. Total connections: {len(self._connections)}",
+            extra={"format": format.value},
+        )
 
     async def disconnect(self, websocket: WebSocket) -> None:
         """Unregister a WebSocket connection.
 
-        Cleans up ACK tracking for the client.
+        Cleans up ACK tracking and format preferences for the client.
 
         Args:
             websocket: WebSocket connection to unregister
@@ -682,6 +744,8 @@ class EventBroadcaster:
         self._connections.discard(websocket)
         # Clean up ACK tracking (NEM-1688)
         self._client_acks.pop(websocket, None)
+        # Clean up format tracking (NEM-3737)
+        self._client_formats.pop(websocket, None)
         with contextlib.suppress(Exception):
             await websocket.close()
         logger.info(f"WebSocket disconnected. Total connections: {len(self._connections)}")
@@ -1705,44 +1769,73 @@ class EventBroadcaster:
     async def _send_to_all_clients(self, event_data: Any) -> None:
         """Send event data to all connected WebSocket clients.
 
-        Implements threshold-based compression (NEM-3154):
-        - Messages smaller than websocket_compression_threshold are sent as plain JSON
-        - Messages larger than the threshold are compressed with zlib/deflate
-        - Compressed messages are sent as binary with a magic header byte
+        Implements per-client serialization format (NEM-3737):
+        - MSGPACK: MessagePack binary (30-50% smaller than JSON)
+        - ZLIB: zlib-compressed JSON for large messages (NEM-3154)
+        - JSON: Plain JSON text (default, backwards compatible)
 
         Args:
-            event_data: Event data to send (will be JSON-serialized)
+            event_data: Event data to send (will be serialized per client format)
         """
-        from backend.core.websocket.compression import prepare_message
+        from backend.core.websocket.compression import (
+            prepare_message_with_format,
+        )
 
         if not self._connections:
             return
 
-        # Convert to JSON string if not already
-        message = event_data if isinstance(event_data, str) else json.dumps(event_data)
+        # Convert to dict for format-aware serialization
+        if isinstance(event_data, str):
+            try:
+                message_dict = json.loads(event_data)
+            except json.JSONDecodeError:
+                # Not JSON, send as-is to all clients
+                message_dict = None
+                message_str = event_data
+        else:
+            message_dict = event_data
+            message_str = json.dumps(event_data)
 
-        # Prepare message with optional compression (NEM-3154)
-        prepared_message, was_compressed = prepare_message(message)
-
-        if was_compressed:
-            logger.debug(
-                "Sending compressed WebSocket message",
-                extra={
-                    "original_size": len(message),
-                    "compressed_size": len(prepared_message),
-                    "client_count": len(self._connections),
-                },
-            )
+        # Cache prepared messages by format to avoid redundant serialization
+        prepared_cache: dict[SerializationFormat, tuple[bytes | str, SerializationFormat]] = {}
 
         # Send to all clients, removing disconnected ones
         disconnected = []
         for ws in self._connections:
             try:
-                if was_compressed and isinstance(prepared_message, bytes):
-                    # Send as binary for compressed messages
+                # Get client's preferred format (default to JSON for backwards compatibility)
+                client_format = self._client_formats.get(ws, SerializationFormat.JSON)
+
+                # Use cached prepared message or prepare new one
+                if client_format not in prepared_cache:
+                    if message_dict is not None:
+                        prepared_cache[client_format] = prepare_message_with_format(
+                            message_dict, format=client_format, track_stats=True
+                        )
+                    else:
+                        # Non-JSON message, send as plain text
+                        prepared_cache[client_format] = (message_str, SerializationFormat.JSON)
+
+                prepared_message, format_used = prepared_cache[client_format]
+
+                # Log first message per format
+                if len([c for c in prepared_cache if c == client_format]) == 1:
+                    if format_used in (SerializationFormat.MSGPACK, SerializationFormat.ZLIB):
+                        logger.debug(
+                            "Sending serialized WebSocket message",
+                            extra={
+                                "original_size": len(message_str),
+                                "serialized_size": len(prepared_message),
+                                "format": format_used.value,
+                            },
+                        )
+
+                # Send based on format
+                if isinstance(prepared_message, bytes):
+                    # Binary message (MessagePack or zlib-compressed)
                     await ws.send_bytes(prepared_message)
-                elif isinstance(prepared_message, str):
-                    # Send as text for uncompressed messages
+                else:
+                    # Text message (plain JSON)
                     await ws.send_text(prepared_message)
             except Exception as e:
                 logger.warning(f"Failed to send to WebSocket client: {e}")

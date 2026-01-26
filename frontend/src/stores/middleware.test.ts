@@ -248,6 +248,79 @@ describe('createImmerSelectorStore', () => {
 });
 
 // ============================================================================
+// DevTools Integration Tests (NEM-3785)
+// ============================================================================
+
+describe('DevTools middleware integration', () => {
+  it('createImmerStore accepts devtools options', () => {
+    const useStore = createImmerStore<NestedState>(
+      (set) => ({
+        nested: { deep: { value: 0, items: [] } },
+        counter: 0,
+        setDeepValue: (value) =>
+          set((state) => {
+            state.nested.deep.value = value;
+          }),
+        addItem: (item) =>
+          set((state) => {
+            state.nested.deep.items.push(item);
+          }),
+        increment: () =>
+          set((state) => {
+            state.counter += 1;
+          }),
+      }),
+      { name: 'test-immer-store' }
+    );
+
+    // Store should be functional with devtools
+    expect(useStore.getState().counter).toBe(0);
+
+    act(() => {
+      useStore.getState().increment();
+    });
+
+    expect(useStore.getState().counter).toBe(1);
+  });
+
+  it('createImmerSelectorStore accepts devtools options', () => {
+    const useStore = createImmerSelectorStore<MetricsState>(
+      (set) => ({
+        metrics: { cpu: 0, gpu: 0, memory: 0 },
+        lastUpdated: 0,
+        updateMetric: (key, value) =>
+          set((state) => {
+            state.metrics[key] = value;
+            state.lastUpdated = Date.now();
+          }),
+      }),
+      { name: 'test-metrics-store' }
+    );
+
+    // Store should be functional with devtools
+    expect(useStore.getState().metrics.cpu).toBe(0);
+
+    act(() => {
+      useStore.getState().updateMetric('cpu', 75);
+    });
+
+    expect(useStore.getState().metrics.cpu).toBe(75);
+  });
+
+  it('devtools can be explicitly disabled', () => {
+    const useStore = createImmerStore<{ count: number }>(
+      () => ({
+        count: 0,
+      }),
+      { name: 'disabled-devtools-store', enabled: false }
+    );
+
+    // Store should still work with devtools disabled
+    expect(useStore.getState().count).toBe(0);
+  });
+});
+
+// ============================================================================
 // createTransientBatcher Tests
 // ============================================================================
 

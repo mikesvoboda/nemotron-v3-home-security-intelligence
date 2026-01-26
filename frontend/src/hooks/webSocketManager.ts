@@ -15,7 +15,11 @@
 
 import { TypedWebSocketEmitter } from './typedEventEmitter';
 import { logger } from '../services/logger';
-import { parseWebSocketMessage } from '../utils/websocketCompression';
+import {
+  parseWebSocketMessage,
+  prepareWebSocketMessage,
+  SerializationFormat,
+} from '../utils/websocketCompression';
 
 import type { WebSocketEventHandler, WebSocketEventKey } from '../types/websocket-events';
 
@@ -86,6 +90,8 @@ export interface ManagedConnection {
   lastReceivedSeq: number;
   /** Total number of gaps detected for this connection (NEM-3142) */
   gapCount: number;
+  /** Serialization format for this connection (NEM-3737) */
+  serializationFormat: SerializationFormat;
 }
 
 /**
@@ -102,6 +108,13 @@ export interface ConnectionConfig {
   connectionTimeout: number;
   /** Whether to automatically respond to server heartbeats with pong */
   autoRespondToHeartbeat: boolean;
+  /**
+   * Serialization format for messages (NEM-3737).
+   * - 'json': Plain JSON text (default, backwards compatible)
+   * - 'zlib': zlib-compressed JSON for large messages
+   * - 'msgpack': MessagePack binary (30-50% smaller than JSON)
+   */
+  serializationFormat?: SerializationFormat;
 }
 
 /**
@@ -195,6 +208,7 @@ class WebSocketManager {
         lastPongTime: null,
         lastReceivedSeq: 0,
         gapCount: 0,
+        serializationFormat: config.serializationFormat ?? SerializationFormat.JSON,
       };
       this.connections.set(url, connection);
       this.configs.set(url, config);
@@ -243,7 +257,6 @@ class WebSocketManager {
     }
 
     const messageId = generateMessageId();
-    const message = typeof data === 'string' ? data : JSON.stringify(data);
 
     // Extract message type for logging (don't log full payload for privacy)
     const messageType =
@@ -251,14 +264,22 @@ class WebSocketManager {
         ? (data as { type: unknown }).type
         : 'unknown';
 
+    // Prepare message with configured serialization format (NEM-3737)
+    const prepared = prepareWebSocketMessage(data, connection.serializationFormat);
+
     logger.debug('WebSocket message sent', {
       component: 'WebSocketManager',
       message_id: messageId,
       connection_id: connection.connectionId,
       type: messageType,
+      format: connection.serializationFormat,
     });
 
-    connection.ws.send(message);
+    if (prepared instanceof Uint8Array) {
+      connection.ws.send(prepared);
+    } else {
+      connection.ws.send(prepared);
+    }
     return true;
   }
 
@@ -271,6 +292,7 @@ class WebSocketManager {
     lastPongTime: number | null;
     lastReceivedSeq: number;
     gapCount: number;
+    serializationFormat: SerializationFormat;
   } {
     const connection = this.connections.get(url);
     const config = this.configs.get(url);
@@ -285,6 +307,7 @@ class WebSocketManager {
         lastPongTime: null,
         lastReceivedSeq: 0,
         gapCount: 0,
+        serializationFormat: SerializationFormat.JSON,
       };
     }
 
@@ -297,6 +320,7 @@ class WebSocketManager {
       lastPongTime: connection.lastPongTime,
       lastReceivedSeq: connection.lastReceivedSeq,
       gapCount: connection.gapCount,
+      serializationFormat: connection.serializationFormat,
     };
   }
 
@@ -351,7 +375,15 @@ class WebSocketManager {
     }
 
     try {
-      const ws = new WebSocket(url);
+      // Add format query parameter for content negotiation (NEM-3737)
+      let wsUrl = url;
+      if (connection.serializationFormat !== SerializationFormat.JSON) {
+        const urlObj = new URL(url);
+        urlObj.searchParams.set('format', connection.serializationFormat);
+        wsUrl = urlObj.toString();
+      }
+
+      const ws = new WebSocket(wsUrl);
       connection.ws = ws;
 
       if (config.connectionTimeout > 0) {
@@ -772,7 +804,7 @@ class WebSocketManager {
 
 export const webSocketManager = new WebSocketManager();
 
-export { WebSocketManager, isHeartbeatMessage, calculateBackoffDelay };
+export { WebSocketManager, isHeartbeatMessage, calculateBackoffDelay, SerializationFormat };
 
 // ============================================================================
 // Typed Event Emitter Integration
@@ -821,6 +853,7 @@ export interface TypedSubscription {
     lastPongTime: number | null;
     lastReceivedSeq: number;
     gapCount: number;
+    serializationFormat: SerializationFormat;
   };
 }
 

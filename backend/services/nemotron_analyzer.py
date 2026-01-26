@@ -72,6 +72,12 @@ from backend.core.telemetry import (
     get_tracer,
     record_exception,
 )
+from backend.core.telemetry_ai_conventions import (
+    AIModelAttributes,
+    set_inference_result_attributes,
+    set_llm_inference_attributes,
+    set_pipeline_context_attributes,
+)
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
@@ -2796,7 +2802,23 @@ class NemotronAnalyzer:
         async with inference_semaphore:
             # OpenTelemetry span for LLM inference (NEM-1467)
             # Wraps the entire LLM call including retries for end-to-end correlation
-            with tracer.start_as_current_span("llm_inference"):
+            with tracer.start_as_current_span("llm_inference") as span:
+                # NEM-3794: Set AI model semantic attributes for standardized telemetry
+                AIModelAttributes.set_on_span(
+                    span,
+                    model_name="nemotron-mini-4b-instruct",
+                    model_version="1.0.0",
+                    model_provider="nvidia",
+                    device="cuda:0",
+                    batch_size=1,
+                )
+                # Set pipeline context attributes
+                set_pipeline_context_attributes(
+                    span,
+                    camera_id=camera_name,
+                    stage="analyze",
+                )
+                # Legacy attributes for backward compatibility
                 add_span_attributes(
                     llm_service="nemotron",
                     llm_url=self._llm_url,
@@ -2849,7 +2871,20 @@ class NemotronAnalyzer:
                         )
                         cost_tracker.increment_event_count()
 
-                        # Add success attributes to span (NEM-1467)
+                        # NEM-3794: Set LLM semantic attributes for standardized telemetry
+                        set_llm_inference_attributes(
+                            span,
+                            prompt_tokens=input_tokens,
+                            completion_tokens=output_tokens,
+                            total_tokens=input_tokens + output_tokens,
+                            inference_time_ms=llm_call_duration * 1000,
+                        )
+                        set_inference_result_attributes(
+                            span,
+                            duration_ms=llm_call_duration * 1000,
+                            status="success",
+                        )
+                        # Legacy attributes for backward compatibility (NEM-1467)
                         add_span_attributes(
                             llm_duration_ms=llm_call_duration * 1000,
                             llm_success=True,

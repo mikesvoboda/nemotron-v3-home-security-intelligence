@@ -55,7 +55,12 @@ ENV CLOTHING_MODEL_PATH=/models/fashion-clip
 ENV POSE_MODEL_PATH=/models/yolov8-pose
 ENV THREAT_CLASSIFIER_PATH=/models/threat-classifier
 ENV REID_MODEL_PATH=/models/osnet-reid
+# HuggingFace cache configuration (NEM-3812)
+# HF_HOME is the root directory, others are derived for backward compatibility
 ENV HF_HOME=/cache/huggingface
+ENV HF_HUB_CACHE=/cache/huggingface/hub
+ENV TRANSFORMERS_CACHE=/cache/huggingface
+ENV HF_HUB_DISABLE_TELEMETRY=1
 
 # Create cache directory for HuggingFace models
 RUN mkdir -p /cache/huggingface && chown -R enrichment:enrichment /cache/huggingface
