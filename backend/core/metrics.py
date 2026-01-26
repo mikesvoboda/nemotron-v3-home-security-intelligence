@@ -264,7 +264,7 @@ EVENTS_CREATED_TOTAL = Counter(
 
 DETECTIONS_PROCESSED_TOTAL = Counter(
     "hsi_detections_processed_total",
-    "Total number of detections processed by YOLO26",
+    "Total number of detections processed by RT-DETRv2",
     registry=_registry,
 )
 
@@ -288,7 +288,7 @@ AI_REQUEST_DURATION_BUCKETS = (
 
 AI_REQUEST_DURATION = Histogram(
     "hsi_ai_request_duration_seconds",
-    "Duration of AI service requests (YOLO26 or Nemotron)",
+    "Duration of AI service requests (RT-DETRv2 or Nemotron)",
     labelnames=["service"],
     buckets=AI_REQUEST_DURATION_BUCKETS,
     registry=_registry,
@@ -300,10 +300,10 @@ AI_REQUEST_DURATION = Histogram(
 # Optimized histogram buckets for specific AI workloads to achieve under 5%
 # percentile error. Each model has buckets tuned to its typical latency profile.
 
-# YOLO26 buckets: Fast inference model (~20-100ms typical)
+# RT-DETR buckets: Fast inference model (~20-100ms typical)
 # Designed for object detection with GPU acceleration
 # P50 ~30ms, P95 ~80ms, P99 ~150ms based on benchmarks
-YOLO26_INFERENCE_BUCKETS = (
+RTDETR_INFERENCE_BUCKETS = (
     0.01,  # 10ms - minimum expected latency
     0.02,  # 20ms - fast path
     0.03,  # 30ms - typical P50
@@ -316,10 +316,10 @@ YOLO26_INFERENCE_BUCKETS = (
     0.5,  # 500ms - timeout threshold
 )
 
-YOLO26_INFERENCE_DURATION = Histogram(
-    "hsi_yolo26_inference_seconds",
-    "YOLO26 object detection inference duration with workload-optimized buckets",
-    buckets=YOLO26_INFERENCE_BUCKETS,
+RTDETR_INFERENCE_DURATION = Histogram(
+    "hsi_rtdetr_inference_seconds",
+    "RT-DETR object detection inference duration with workload-optimized buckets",
+    buckets=RTDETR_INFERENCE_BUCKETS,
     registry=_registry,
 )
 
@@ -910,7 +910,7 @@ class MetricsService:
         """Record the duration of an AI service request.
 
         Args:
-            service: Name of the service ("yolo26" or "nemotron")
+            service: Name of the service ("rtdetr" or "nemotron")
             duration_seconds: Duration in seconds
         """
         AI_REQUEST_DURATION.labels(service=service).observe(duration_seconds)
@@ -919,8 +919,8 @@ class MetricsService:
     # Workload-Specific AI Model Duration Methods (NEM-3381)
     # -------------------------------------------------------------------------
 
-    def observe_yolo26_inference(self, duration_seconds: float) -> None:
-        """Record YOLO26 object detection inference duration.
+    def observe_rtdetr_inference(self, duration_seconds: float) -> None:
+        """Record RT-DETR object detection inference duration.
 
         Uses workload-optimized histogram buckets designed for fast inference
         models with typical latencies of 20-100ms. Achieves under 5% percentile
@@ -929,7 +929,7 @@ class MetricsService:
         Args:
             duration_seconds: Inference duration in seconds
         """
-        YOLO26_INFERENCE_DURATION.observe(duration_seconds)
+        RTDETR_INFERENCE_DURATION.observe(duration_seconds)
 
     def observe_nemotron_inference(self, duration_seconds: float) -> None:
         """Record Nemotron LLM inference duration.
@@ -959,8 +959,8 @@ class MetricsService:
     # Exemplar Support Methods (NEM-3379)
     # -------------------------------------------------------------------------
 
-    def observe_yolo26_with_exemplar(self, duration_seconds: float) -> None:
-        """Record YOLO26 inference duration with trace context exemplar.
+    def observe_rtdetr_with_exemplar(self, duration_seconds: float) -> None:
+        """Record RT-DETR inference duration with trace context exemplar.
 
         Combines workload-optimized histogram buckets with exemplar support for
         complete observability. Use this method when tracing is enabled and
@@ -969,7 +969,7 @@ class MetricsService:
         Args:
             duration_seconds: Inference duration in seconds
         """
-        observe_with_exemplar(YOLO26_INFERENCE_DURATION, duration_seconds)
+        observe_with_exemplar(RTDETR_INFERENCE_DURATION, duration_seconds)
 
     def observe_nemotron_with_exemplar(self, duration_seconds: float) -> None:
         """Record Nemotron LLM inference duration with trace context exemplar.
@@ -1002,7 +1002,7 @@ class MetricsService:
         containing the current trace ID for correlation with distributed traces.
 
         Args:
-            service: Name of the service ("yolo26", "nemotron", "florence", etc.)
+            service: Name of the service ("rtdetr", "nemotron", "florence", etc.)
             duration_seconds: Duration in seconds
         """
         exemplar = _get_trace_exemplar()
@@ -1266,7 +1266,7 @@ class MetricsService:
         """Record GPU time consumed by AI model inference.
 
         Args:
-            model: Model identifier (e.g., 'nemotron', 'yolo26', 'florence')
+            model: Model identifier (e.g., 'nemotron', 'rtdetr', 'florence')
             duration_seconds: Duration of inference in seconds
         """
         if duration_seconds > 0:
@@ -1276,7 +1276,7 @@ class MetricsService:
         """Record estimated cost based on cloud equivalents.
 
         Args:
-            service: Service identifier (e.g., 'nemotron', 'yolo26', 'enrichment')
+            service: Service identifier (e.g., 'nemotron', 'rtdetr', 'enrichment')
             cost_usd: Estimated cost in USD
         """
         if cost_usd > 0:
@@ -1460,7 +1460,7 @@ def observe_ai_request_duration(service: str, duration_seconds: float) -> None:
     """Record the duration of an AI service request.
 
     Args:
-        service: Name of the service ("yolo26" or "nemotron")
+        service: Name of the service ("rtdetr" or "nemotron")
         duration_seconds: Duration in seconds
     """
     AI_REQUEST_DURATION.labels(service=service).observe(duration_seconds)
@@ -1471,8 +1471,8 @@ def observe_ai_request_duration(service: str, duration_seconds: float) -> None:
 # =============================================================================
 
 
-def observe_yolo26_inference(duration_seconds: float) -> None:
-    """Record YOLO26 object detection inference duration.
+def observe_rtdetr_inference(duration_seconds: float) -> None:
+    """Record RT-DETR object detection inference duration.
 
     Uses workload-optimized histogram buckets designed for fast inference
     models with typical latencies of 20-100ms. Achieves under 5% percentile
@@ -1481,7 +1481,7 @@ def observe_yolo26_inference(duration_seconds: float) -> None:
     Args:
         duration_seconds: Inference duration in seconds
     """
-    YOLO26_INFERENCE_DURATION.observe(duration_seconds)
+    RTDETR_INFERENCE_DURATION.observe(duration_seconds)
 
 
 def observe_nemotron_inference(duration_seconds: float) -> None:
@@ -1563,15 +1563,15 @@ def observe_with_exemplar(histogram: Histogram, value: float) -> None:
         value: The value to record
 
     Example:
-        >>> from backend.core.metrics import observe_with_exemplar, YOLO26_INFERENCE_DURATION
-        >>> observe_with_exemplar(YOLO26_INFERENCE_DURATION, inference_time)
+        >>> from backend.core.metrics import observe_with_exemplar, RTDETR_INFERENCE_DURATION
+        >>> observe_with_exemplar(RTDETR_INFERENCE_DURATION, inference_time)
     """
     exemplar = _get_trace_exemplar()
     histogram.observe(value, exemplar=exemplar)
 
 
-def observe_yolo26_with_exemplar(duration_seconds: float) -> None:
-    """Record YOLO26 inference duration with trace context exemplar.
+def observe_rtdetr_with_exemplar(duration_seconds: float) -> None:
+    """Record RT-DETR inference duration with trace context exemplar.
 
     Combines workload-optimized histogram buckets with exemplar support for
     complete observability. Use this function when tracing is enabled and
@@ -1580,7 +1580,7 @@ def observe_yolo26_with_exemplar(duration_seconds: float) -> None:
     Args:
         duration_seconds: Inference duration in seconds
     """
-    observe_with_exemplar(YOLO26_INFERENCE_DURATION, duration_seconds)
+    observe_with_exemplar(RTDETR_INFERENCE_DURATION, duration_seconds)
 
 
 def observe_nemotron_with_exemplar(duration_seconds: float) -> None:
@@ -1616,7 +1616,7 @@ def observe_ai_request_with_exemplar(service: str, duration_seconds: float) -> N
     containing the current trace ID for correlation with distributed traces.
 
     Args:
-        service: Name of the service ("yolo26", "nemotron", "florence", etc.)
+        service: Name of the service ("rtdetr", "nemotron", "florence", etc.)
         duration_seconds: Duration in seconds
     """
     exemplar = _get_trace_exemplar()
@@ -2067,7 +2067,7 @@ class PipelineLatencyTracker:
     latency measurements with statistical analysis capabilities.
 
     Pipeline stages tracked:
-    - watch_to_detect: Time from file detection to YOLO26 processing
+    - watch_to_detect: Time from file detection to RT-DETR processing
     - detect_to_batch: Time from detection to batch aggregation
     - batch_to_analyze: Time from batch to Nemotron analysis
     - total_pipeline: End-to-end latency
@@ -2667,7 +2667,7 @@ def observe_model_warmup_duration(model: str, duration_seconds: float) -> None:
     """Record AI model warmup duration to histogram.
 
     Args:
-        model: Model identifier (e.g., 'yolo26', 'nemotron')
+        model: Model identifier (e.g., 'rtdetr', 'nemotron')
         duration_seconds: Warmup duration in seconds
     """
     MODEL_WARMUP_DURATION.labels(model=model).observe(duration_seconds)
@@ -2677,7 +2677,7 @@ def record_model_cold_start(model: str) -> None:
     """Increment cold start counter for an AI model.
 
     Args:
-        model: Model identifier (e.g., 'yolo26', 'nemotron')
+        model: Model identifier (e.g., 'rtdetr', 'nemotron')
     """
     MODEL_COLD_START_TOTAL.labels(model=model).inc()
 
@@ -2686,7 +2686,7 @@ def set_model_warmth_state(model: str, state: str) -> None:
     """Set the current warmth state gauge for an AI model.
 
     Args:
-        model: Model identifier (e.g., 'yolo26', 'nemotron')
+        model: Model identifier (e.g., 'rtdetr', 'nemotron')
         state: Warmth state ('cold', 'warming', 'warm')
     """
     state_value = {"cold": 0, "warming": 1, "warm": 2}.get(state, 0)
@@ -2697,7 +2697,7 @@ def set_model_last_inference_ago(model: str, seconds_ago: float | None) -> None:
     """Set the seconds since last inference gauge for an AI model.
 
     Args:
-        model: Model identifier (e.g., 'yolo26', 'nemotron')
+        model: Model identifier (e.g., 'rtdetr', 'nemotron')
         seconds_ago: Seconds since last inference, or None if never used
     """
     if seconds_ago is None:
