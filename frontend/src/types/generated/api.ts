@@ -26948,88 +26948,33 @@ export interface components {
          * WebhookProcessingResponse
          * @description Schema for webhook processing response.
          * @example {
-         *       "auth": {
-         *         "type": "none"
-         *       },
-         *       "custom_headers": {},
-         *       "enabled": true,
-         *       "event_types": [
-         *         "alert_fired",
-         *         "alert_dismissed"
-         *       ],
-         *       "integration_type": "slack",
-         *       "name": "Slack Alerts",
-         *       "url": "https://hooks.slack.com/services/xxx/yyy/zzz"
+         *       "message": "Processed 1 alert(s)",
+         *       "processed": 1,
+         *       "received": 1,
+         *       "status": "ok"
          *     }
          */
         WebhookProcessingResponse: {
             /**
-             * Created At
-             * Format: date-time
-             * @description Creation timestamp
+             * Message
+             * @description Human-readable status message
              */
-            created_at: string;
-            /** Custom Headers */
-            custom_headers?: {
-                [key: string]: string;
-            };
+            message: string;
             /**
-             * Enabled
-             * @description Whether active
+             * Processed
+             * @description Number of alerts processed
              */
-            enabled: boolean;
+            processed: number;
             /**
-             * Event Types
-             * @description Subscribed events
+             * Received
+             * @description Number of alerts received
              */
-            event_types: components["schemas"]["WebhookEventType"][];
+            received: number;
             /**
-             * Id
-             * @description Unique webhook identifier
+             * Status
+             * @description Processing status (ok or error)
              */
-            id: string;
-            /** @description Integration type */
-            integration_type: components["schemas"]["IntegrationType"];
-            /**
-             * Last Delivery At
-             * @description Last delivery timestamp
-             */
-            last_delivery_at?: string | null;
-            last_delivery_status?: components["schemas"]["WebhookDeliveryStatus"] | null;
-            /** Max Retries */
-            max_retries: number;
-            /**
-             * Name
-             * @description Webhook name
-             */
-            name: string;
-            /** Payload Template */
-            payload_template?: string | null;
-            /** Retry Delay Seconds */
-            retry_delay_seconds: number;
-            /**
-             * Successful Deliveries
-             * @description Successful deliveries
-             * @default 0
-             */
-            successful_deliveries: number;
-            /**
-             * Total Deliveries
-             * @description Total delivery attempts
-             * @default 0
-             */
-            total_deliveries: number;
-            /**
-             * Updated At
-             * Format: date-time
-             * @description Last update timestamp
-             */
-            updated_at: string;
-            /**
-             * Url
-             * @description Webhook endpoint URL
-             */
-            url: string;
+            status: string;
         };
         /**
          * WebhookResponse
@@ -27973,38 +27918,6 @@ export interface components {
             shape?: components["schemas"]["CameraZoneShape"] | null;
             /** @description Type of zone */
             zone_type?: components["schemas"]["CameraZoneType"] | null;
-        };
-        /**
-         * WebhookResponse
-         * @description Schema for webhook processing response.
-         * @example {
-         *       "message": "Processed 1 alert(s)",
-         *       "processed": 1,
-         *       "received": 1,
-         *       "status": "ok"
-         *     }
-         */
-        backend__api__schemas__webhooks__WebhookResponse: {
-            /**
-             * Message
-             * @description Human-readable status message
-             */
-            message: string;
-            /**
-             * Processed
-             * @description Number of alerts processed
-             */
-            processed: number;
-            /**
-             * Received
-             * @description Number of alerts received
-             */
-            received: number;
-            /**
-             * Status
-             * @description Processing status (ok or error)
-             */
-            status: string;
         };
     };
     responses: never;
