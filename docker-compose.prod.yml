@@ -335,7 +335,8 @@ services:
     ports:
       - '8093:8093'
     volumes:
-      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
+      # Writable mount to allow TensorRT engine auto-export on first startup
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l
       # Persistent HuggingFace cache volume (NEM-3812)
       - hf_cache:/cache/huggingface:U
     environment:
@@ -343,7 +344,9 @@ services:
       - PYROSCOPE_ENABLED=${PYROSCOPE_ENABLED:-true}
       - PYROSCOPE_URL=http://pyroscope:4040
       - CLIP_MODEL_PATH=/models/clip-vit-l
-      - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-false}
+      # TensorRT acceleration (1.5-2x faster inference, auto-exports engine on first run)
+      - CLIP_USE_TENSORRT=${CLIP_USE_TENSORRT:-true}
+      - CLIP_ENGINE_PATH=/models/clip-vit-l/vision_encoder_fp16.engine
       # HuggingFace cache configuration (NEM-3812)
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
