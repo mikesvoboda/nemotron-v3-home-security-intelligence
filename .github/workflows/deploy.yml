@@ -370,7 +370,7 @@ jobs:
         uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - name: Generate SBOM
-        uses: anchore/sbom-action@0b82b0b1a22399a1c542d4d656f70cd903571b5c # v0
+        uses: anchore/sbom-action@62ad5284b8ced813296287a0b63906cb364b73ee # v0
         with:
           image: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image }}:latest
           format: spdx-json
