@@ -279,14 +279,9 @@ class PoseEstimator:
         Uses Ultralytics native export functionality which handles all the
         complexity of ONNX conversion and TensorRT optimization.
 
-        Since models are mounted read-only, this method copies the model to
-        a writable cache directory before exporting.
-
         Returns:
             Path to the exported engine file, or None if export fails.
         """
-        import shutil
-
         try:
             from ultralytics import YOLO
         except ImportError:
@@ -304,23 +299,11 @@ class PoseEstimator:
         logger.info("This may take several minutes on first run...")
 
         try:
-            # Get cache directory from environment or use default
-            cache_dir = Path(os.environ.get("TENSORRT_ENGINE_CACHE", "/cache/tensorrt"))
-            cache_dir.mkdir(parents=True, exist_ok=True)
-
-            # Copy model to cache directory (models are mounted read-only)
-            model_filename = Path(self.model_path).name
-            cache_model_path = cache_dir / model_filename
-
-            if not cache_model_path.exists():
-                logger.info(f"Copying model to cache: {cache_model_path}")
-                shutil.copy2(self.model_path, cache_model_path)
-
-            # Load the PyTorch model from cache copy
-            pt_model = YOLO(str(cache_model_path))
+            # Load the PyTorch model
+            pt_model = YOLO(self.model_path)
 
             # Export to TensorRT using Ultralytics native export
-            # This creates .onnx and .engine files in the cache directory
+            # This creates an .engine file in the same directory
             use_fp16 = _get_tensorrt_fp16_enabled()
             export_result = pt_model.export(
                 format="engine",
@@ -328,13 +311,15 @@ class PoseEstimator:
                 device=self.device.replace("cuda:", "") if "cuda" in self.device else "0",
             )
 
-            # Find and move the exported engine to expected path
-            result_path = self._find_and_move_engine(
-                export_result, engine_path, cache_dir, model_filename
-            )
-            if result_path:
-                logger.info(f"TensorRT engine exported successfully: {result_path}")
-                return result_path
+            # Ultralytics returns the path to the exported model
+            if export_result and os.path.exists(str(export_result)):
+                logger.info(f"TensorRT engine exported successfully: {export_result}")
+                return str(export_result)
+
+            # Check if the engine was created at the expected path
+            if os.path.exists(engine_path):
+                logger.info(f"TensorRT engine created at: {engine_path}")
+                return engine_path
 
             logger.warning("TensorRT export completed but engine file not found")
             return None
@@ -343,46 +328,6 @@ class PoseEstimator:
             logger.warning(f"TensorRT export failed: {e}")
             logger.info("Falling back to PyTorch inference")
             return None
-
-    def _find_and_move_engine(
-        self,
-        export_result: str | None,
-        engine_path: str,
-        cache_dir: Path,
-        model_filename: str,
-    ) -> str | None:
-        """Find exported TensorRT engine and move to expected path.
-
-        Args:
-            export_result: Path returned by Ultralytics export
-            engine_path: Expected final engine path
-            cache_dir: Cache directory path
-            model_filename: Original model filename
-
-        Returns:
-            Final engine path if found, None otherwise.
-        """
-        import shutil
-
-        # Check if export returned a valid path
-        if export_result and os.path.exists(str(export_result)):
-            if str(export_result) != engine_path:
-                logger.info(f"Moving engine from {export_result} to {engine_path}")
-                shutil.move(str(export_result), engine_path)
-            return engine_path
-
-        # Check if engine was created at expected path
-        if os.path.exists(engine_path):
-            return engine_path
-
-        # Check if created next to cached model
-        cache_engine = cache_dir / model_filename.replace(".pt", ".engine")
-        if cache_engine.exists():
-            if str(cache_engine) != engine_path:
-                shutil.move(str(cache_engine), engine_path)
-            return engine_path
-
-        return None
 
     def load_model(self) -> PoseEstimator:
         """Load the YOLOv8n-pose model into memory.
