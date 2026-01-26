@@ -68,6 +68,9 @@ htmlcov/
 *.coverage
 test-results/
 playwright-report/
+.testmondata
+.testmondata-shm
+.testmondata-wal
 
 # OpenAPI generation cache
 .openapi-cache

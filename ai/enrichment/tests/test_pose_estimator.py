@@ -32,6 +32,9 @@ from models.pose_estimator import (  # noqa: E402
     Keypoint,
     PoseEstimator,
     PoseResult,
+    _get_tensorrt_enabled,
+    _get_tensorrt_engine_path,
+    _get_tensorrt_fp16_enabled,
     validate_model_path,
 )
 
@@ -577,3 +580,136 @@ class TestEdgeCases:
         gray_image = Image.new("L", (640, 480), color=128)
         result = mock_pose_estimator.estimate_pose(gray_image)
         assert isinstance(result, PoseResult)
+
+
+# =============================================================================
+# Test: TensorRT Support (NEM-3838)
+# =============================================================================
+
+
+class TestTensorRTSupport:
+    """Tests for TensorRT acceleration support."""
+
+    def test_tensorrt_disabled_by_default(self, mock_yolo_model):
+        """Test that TensorRT is disabled by default."""
+        with (
+            patch("ultralytics.YOLO", return_value=mock_yolo_model),
+            patch("torch.cuda.is_available", return_value=False),
+            patch.dict("os.environ", {}, clear=True),
+        ):
+            estimator = PoseEstimator("/fake/model.pt", device="cpu")
+            assert estimator._use_tensorrt_requested is False
+            assert estimator.use_tensorrt is False
+
+    def test_tensorrt_enabled_via_env_var(self, mock_yolo_model):
+        """Test TensorRT can be enabled via environment variable."""
+        with (
+            patch("ultralytics.YOLO", return_value=mock_yolo_model),
+            patch("torch.cuda.is_available", return_value=False),
+            patch.dict("os.environ", {"POSE_USE_TENSORRT": "true"}),
+        ):
+            estimator = PoseEstimator("/fake/model.pt", device="cpu")
+            assert estimator._use_tensorrt_requested is True
+
+    def test_tensorrt_enabled_via_parameter(self, mock_yolo_model):
+        """Test TensorRT can be enabled via constructor parameter."""
+        with (
+            patch("ultralytics.YOLO", return_value=mock_yolo_model),
+            patch("torch.cuda.is_available", return_value=False),
+        ):
+            estimator = PoseEstimator("/fake/model.pt", device="cpu", use_tensorrt=True)
+            assert estimator._use_tensorrt_requested is True
+
+    def test_tensorrt_parameter_overrides_env_var(self, mock_yolo_model):
+        """Test that constructor parameter overrides environment variable."""
+        with (
+            patch("ultralytics.YOLO", return_value=mock_yolo_model),
+            patch("torch.cuda.is_available", return_value=False),
+            patch.dict("os.environ", {"POSE_USE_TENSORRT": "true"}),
+        ):
+            # Parameter False should override env var True
+            estimator = PoseEstimator("/fake/model.pt", device="cpu", use_tensorrt=False)
+            assert estimator._use_tensorrt_requested is False
+
+    def test_tensorrt_fallback_when_unavailable(self, mock_yolo_model):
+        """Test fallback to PyTorch when TensorRT is not available."""
+        with (
+            patch("ultralytics.YOLO", return_value=mock_yolo_model),
+            patch("torch.cuda.is_available", return_value=False),
+        ):
+            estimator = PoseEstimator("/fake/model.pt", device="cpu", use_tensorrt=True)
+            estimator.load_model()
+            # Should fall back to PyTorch since CUDA is not available
+            assert estimator.use_tensorrt is False
+            assert estimator.model is not None
+
+    def test_get_backend_info_pytorch(self, mock_yolo_model):
+        """Test get_backend_info returns correct info for PyTorch."""
+        with (
+            patch("ultralytics.YOLO", return_value=mock_yolo_model),
+            patch("torch.cuda.is_available", return_value=False),
+        ):
+            estimator = PoseEstimator("/fake/model.pt", device="cpu")
+            estimator.load_model()
+
+            info = estimator.get_backend_info()
+            assert info["backend"] == "pytorch"
+            assert info["tensorrt_active"] is False
+            assert info["model_loaded"] is True
+
+    def test_tensorrt_env_var_case_insensitive(self, mock_yolo_model):
+        """Test POSE_USE_TENSORRT accepts various true values."""
+        true_values = ["true", "TRUE", "True", "1", "yes", "YES"]
+        for value in true_values:
+            with (
+                patch("ultralytics.YOLO", return_value=mock_yolo_model),
+                patch("torch.cuda.is_available", return_value=False),
+                patch.dict("os.environ", {"POSE_USE_TENSORRT": value}),
+            ):
+                estimator = PoseEstimator("/fake/model.pt", device="cpu")
+                assert estimator._use_tensorrt_requested is True, f"Failed for value: {value}"
+
+    def test_unload_resets_tensorrt_flag(self, mock_yolo_model):
+        """Test that unload resets the use_tensorrt flag."""
+        with (
+            patch("ultralytics.YOLO", return_value=mock_yolo_model),
+            patch("torch.cuda.is_available", return_value=False),
+        ):
+            estimator = PoseEstimator("/fake/model.pt", device="cpu")
+            estimator.load_model()
+            estimator.unload()
+            assert estimator.use_tensorrt is False
+
+
+class TestTensorRTEnginePathHelpers:
+    """Tests for TensorRT engine path helper functions."""
+
+    def test_engine_path_replaces_pt_extension(self):
+        """Test that .pt extension is replaced with .engine."""
+        with patch.dict("os.environ", {}, clear=True):
+            path = _get_tensorrt_engine_path("/models/yolov8n-pose.pt")
+            assert path == "/models/yolov8n-pose.engine"
+
+    def test_engine_path_custom_env_var(self):
+        """Test that custom engine path from env var is used."""
+        with patch.dict("os.environ", {"POSE_TENSORRT_ENGINE_PATH": "/custom/path.engine"}):
+            path = _get_tensorrt_engine_path("/models/yolov8n-pose.pt")
+            assert path == "/custom/path.engine"
+
+    def test_tensorrt_enabled_env_var(self):
+        """Test _get_tensorrt_enabled function."""
+        with patch.dict("os.environ", {"POSE_USE_TENSORRT": "false"}):
+            assert _get_tensorrt_enabled() is False
+
+        with patch.dict("os.environ", {"POSE_USE_TENSORRT": "true"}):
+            assert _get_tensorrt_enabled() is True
+
+    def test_tensorrt_fp16_enabled_default(self):
+        """Test _get_tensorrt_fp16_enabled defaults to True."""
+        with patch.dict("os.environ", {}, clear=True):
+            assert _get_tensorrt_fp16_enabled() is True
+
+    def test_tensorrt_fp16_can_be_disabled(self):
+        """Test _get_tensorrt_fp16_enabled can be disabled."""
+        with patch.dict("os.environ", {"POSE_TENSORRT_FP16": "false"}):
+            assert _get_tensorrt_fp16_enabled() is False

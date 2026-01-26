@@ -19,6 +19,13 @@
 services:
   postgres:
     image: postgres:16-alpine
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem
+    read_only: true
     ports:
       - '5432:5432'
     environment:
@@ -33,6 +40,8 @@ services:
       start_period: 5s
     tmpfs:
       - /var/lib/postgresql/data
+      - /tmp
+      - /var/run/postgresql
     networks:
       - ci-net
     deploy:
@@ -43,6 +52,15 @@ services:
 
   redis:
     image: redis:7.4-alpine3.21
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
     ports:
       - '6379:6379'
     healthcheck:
@@ -60,6 +78,16 @@ services:
 
   backend:
     image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/backend:${IMAGE_TAG:-latest}
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/appuser/.cache
     ports:
       - '8000:8000'
     environment:
@@ -104,6 +132,17 @@ services:
 
   frontend:
     image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-nemotron-v3-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}
+    # Security hardening: Drop all capabilities, prevent privilege escalation
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Security: Read-only root filesystem
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
+      - /var/cache/nginx
     ports:
       - '3000:80'
     depends_on:

@@ -3,6 +3,8 @@ version: '3.8'
 services:
   postgres-test:
     image: postgres:16-alpine
+    # Security: Read-only root filesystem with tmpfs for required write paths
+    read_only: true
     environment:
       POSTGRES_USER: security_test
       POSTGRES_PASSWORD: test_password
@@ -16,9 +18,15 @@ services:
       retries: 5
     tmpfs:
       - /var/lib/postgresql/data
+      - /tmp
+      - /var/run/postgresql
 
   redis-test:
     image: redis:7-alpine
+    # Security: Read-only root filesystem with tmpfs for temp files
+    read_only: true
+    tmpfs:
+      - /tmp
     ports:
       - '6380:6379'
     healthcheck:
