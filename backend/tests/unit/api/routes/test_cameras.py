@@ -20,7 +20,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from backend.core.constants import CacheInvalidationReason
 from backend.models.camera import Camera
 
 
@@ -301,9 +300,8 @@ class TestCreateCamera:
         assert isinstance(result, CameraResponse)
         assert result.name == "New Camera"
         assert result.folder_path == "/cameras/new_camera"
-        mock_cache.invalidate_cameras.assert_called_once_with(
-            reason=CacheInvalidationReason.CAMERA_CREATED
-        )
+        # NEM-3744: Cache invalidation is now deferred to background task
+        mock_background_tasks.add_task.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_create_camera_duplicate_name(self) -> None:
@@ -540,9 +538,8 @@ class TestUpdateCamera:
         # NEM-3597: Now returns CameraResponse instead of Camera
         assert isinstance(result, CameraResponse)
         assert result.id == "front_door"
-        mock_cache.invalidate_cameras.assert_called_once_with(
-            reason=CacheInvalidationReason.CAMERA_UPDATED
-        )
+        # NEM-3744: Cache invalidation is now deferred to background task
+        mock_background_tasks.add_task.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_update_camera_not_found(self) -> None:
@@ -703,9 +700,8 @@ class TestDeleteCamera:
 
         assert result is None
         mock_db.delete.assert_called_once_with(mock_camera)
-        mock_cache.invalidate_cameras.assert_called_once_with(
-            reason=CacheInvalidationReason.CAMERA_DELETED
-        )
+        # NEM-3744: Cache invalidation is now deferred to background task
+        mock_background_tasks.add_task.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_delete_camera_not_found(self) -> None:

@@ -59,6 +59,7 @@ from backend.services.audit import AuditService
 from backend.services.cache_service import (
     SHORT_TTL,
     CacheKeys,
+    CacheService,
 )
 from backend.services.websocket_emitter import get_websocket_emitter
 
