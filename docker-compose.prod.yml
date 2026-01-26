@@ -433,6 +433,10 @@ services:
       - HF_HOME=/cache/huggingface
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-0}
       - HF_HUB_DISABLE_TELEMETRY=1
+      # Preload models at startup (comma-separated) to keep resident in memory
+      # Available: vehicle_classifier, fashion_clip, depth_estimator, pose_analyzer, pet_classifier
+      # Only vehicle and clothing models are on heavy service (others on light)
+      - ENRICHMENT_PRELOAD_MODELS=${ENRICHMENT_PRELOAD_MODELS:-vehicle_classifier,fashion_clip}
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:8094/health']
       interval: 10s
