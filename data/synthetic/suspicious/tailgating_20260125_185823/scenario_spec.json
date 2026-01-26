@@ -1,0 +1,322 @@
+{
+  "id": "tailgating",
+  "category": "suspicious",
+  "name": "Tailgating Through Gate",
+  "description": "A person following closely behind a resident to enter through a gate or secured entrance without authorization. This social engineering technique bypasses physical security and should trigger elevated risk alerts.",
+  "scene": {
+    "location": "driveway_gate",
+    "camera_type": "outdoor_camera",
+    "camera_effects": [],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "lighting": "natural_daylight",
+    "weather": "clear",
+    "season": "fall"
+  },
+  "subjects": [
+    {
+      "type": "person",
+      "role": "resident",
+      "appearance": {
+        "clothing": "casual",
+        "face_visible": true
+      },
+      "action": "entering_gate",
+      "position": "at_gate",
+      "duration_sec": 10,
+      "behavior_notes": "Legitimate resident using key fob or code to open gate, walking through"
+    },
+    {
+      "type": "person",
+      "role": "unknown",
+      "appearance": {
+        "clothing": "dark_hoodie",
+        "face_visible": false,
+        "hood_up": true
+      },
+      "action": "following_closely",
+      "position": "behind_resident",
+      "duration_sec": 10,
+      "behavior_notes": "Face obscured by hood, following resident through gate"
+    }
+  ],
+  "expected_outputs": {
+    "detections": [
+      {
+        "class": "person",
+        "min_confidence": 0.75,
+        "count": 2
+      }
+    ],
+    "face": {
+      "detected": true,
+      "count": 1,
+      "visible": true
+    },
+    "pose": {
+      "posture": "walking",
+      "is_suspicious": true
+    },
+    "action": {
+      "action": "tailgating",
+      "is_suspicious": true
+    },
+    "clothing": {
+      "type": "casual",
+      "color": "various",
+      "is_suspicious": false
+    },
+    "demographics": {
+      "age_range": "18-50"
+    },
+    "threats": {
+      "has_threat": false,
+      "types": [],
+      "max_severity": "none"
+    },
+    "risk": {
+      "min_score": 60,
+      "max_score": 85,
+      "level": "high",
+      "expected_factors": [
+        "tailgating",
+        "obscured_face",
+        "concealment_attempt"
+      ]
+    },
+    "florence_caption": {
+      "must_contain": [
+        "person",
+        "people"
+      ],
+      "must_not_contain": [
+        "delivery",
+        "uniform"
+      ]
+    }
+  },
+  "generation": {
+    "format": "video",
+    "count": 3,
+    "duration_sec": 8,
+    "seed": null
+  },
+  "variations": [
+    {
+      "id": "tailgating_close_follow",
+      "name": "Very Close Following Distance",
+      "subject_overrides": [
+        {
+          "index": 1,
+          "position": "immediately_behind_resident",
+          "behavior_notes": "Following so closely that nearly walking into resident, aggressive tailgating attempt"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 55,
+          "max_score": 80,
+          "level": "high",
+          "expected_factors": [
+            "tailgating",
+            "aggressive_following",
+            "personal_space_violation"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tailgating_with_conversation",
+      "name": "Pretending to Know Resident",
+      "subject_overrides": [
+        {
+          "index": 1,
+          "behavior_notes": "Engaging resident in conversation, pretending to be a neighbor or expected visitor, using social engineering"
+        }
+      ],
+      "expected_output_overrides": {
+        "action": {
+          "action": "social_engineering",
+          "is_suspicious": true
+        },
+        "risk": {
+          "min_score": 40,
+          "max_score": 65,
+          "level": "medium",
+          "expected_factors": [
+            "tailgating",
+            "social_engineering",
+            "deception"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tailgating_hooded",
+      "name": "Hooded Tailgater",
+      "subject_overrides": [
+        {
+          "index": 1,
+          "appearance": {
+            "clothing": "dark_hoodie",
+            "face_visible": false,
+            "hood_up": true
+          },
+          "behavior_notes": "Face obscured by hood, following resident through gate"
+        }
+      ],
+      "expected_output_overrides": {
+        "face": {
+          "detected": true,
+          "count": 1,
+          "visible": true
+        },
+        "risk": {
+          "min_score": 60,
+          "max_score": 85,
+          "level": "high",
+          "expected_factors": [
+            "tailgating",
+            "obscured_face",
+            "concealment_attempt"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tailgating_nighttime",
+      "name": "Nighttime Tailgating",
+      "environment_overrides": {
+        "time_of_day": "night",
+        "lighting": "low_ambient_streetlight"
+      },
+      "scene_overrides": {
+        "camera_effects": [
+          "motion_blur",
+          "low_light_noise"
+        ]
+      },
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 60,
+          "max_score": 85,
+          "level": "high",
+          "expected_factors": [
+            "tailgating",
+            "nighttime",
+            "reduced_visibility"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tailgating_vehicle_gate",
+      "name": "Vehicle Gate Tailgating",
+      "scene_overrides": {
+        "location": "vehicle_gate"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "driving_through_gate",
+          "behavior_notes": "Resident driving car through automated vehicle gate"
+        },
+        {
+          "index": 1,
+          "action": "walking_through_vehicle_gate",
+          "behavior_notes": "Person on foot slipping through vehicle gate as car enters"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "person",
+            "min_confidence": 0.75,
+            "count": 1
+          },
+          {
+            "class": "car",
+            "min_confidence": 0.75,
+            "count": 1
+          }
+        ],
+        "risk": {
+          "min_score": 55,
+          "max_score": 80,
+          "level": "high",
+          "expected_factors": [
+            "tailgating",
+            "pedestrian_in_vehicle_zone",
+            "gate_bypass"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tailgating_carrying_items",
+      "name": "Tailgater Carrying Bag",
+      "subject_overrides": [
+        {
+          "index": 1,
+          "appearance": {
+            "clothing": "casual",
+            "face_visible": true,
+            "carrying_items": true,
+            "items": [
+              "large_bag",
+              "backpack"
+            ]
+          },
+          "behavior_notes": "Following resident while carrying large bag or backpack, potentially concealing items"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 50,
+          "max_score": 75,
+          "level": "high",
+          "expected_factors": [
+            "tailgating",
+            "carrying_large_bag",
+            "potential_concealment"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tailgating_delayed",
+      "name": "Delayed Tailgating",
+      "subject_overrides": [
+        {
+          "index": 1,
+          "position": "waiting_nearby",
+          "duration_sec": 20,
+          "behavior_notes": "Waiting near gate, timing entry to coincide with resident, then rushing to catch closing gate"
+        }
+      ],
+      "expected_output_overrides": {
+        "action": {
+          "action": "opportunistic_entry",
+          "is_suspicious": true
+        },
+        "risk": {
+          "min_score": 50,
+          "max_score": 75,
+          "level": "high",
+          "expected_factors": [
+            "tailgating",
+            "calculated_timing",
+            "opportunistic_entry"
+          ]
+        }
+      }
+    }
+  ],
+  "applied_variation": {
+    "id": "tailgating_hooded",
+    "name": "Hooded Tailgater"
+  }
+}

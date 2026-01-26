@@ -1,0 +1,210 @@
+{
+  "id": "vehicle_parking",
+  "category": "normal",
+  "name": "Vehicle Parking",
+  "description": "A vehicle arriving at or leaving from the driveway. Normal residential activity involving family or guest vehicles.",
+
+  "scene": {
+    "location": "driveway",
+    "camera_type": "driveway_camera",
+    "camera_effects": [],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+
+  "environment": {
+    "time_of_day": "day",
+    "lighting": "natural_daylight",
+    "weather": "clear",
+    "season": "fall"
+  },
+
+  "subjects": [
+    {
+      "type": "vehicle",
+      "vehicle_type": "sedan",
+      "make": "Honda",
+      "model": "Accord",
+      "color": "silver",
+      "license_plate_visible": true,
+      "license_plate_format": "ABC1234",
+      "action": "parking",
+      "position": "driveway",
+      "speed": "slow",
+      "behavior_notes": "Vehicle slowly pulling into driveway and parking"
+    }
+  ],
+
+  "expected_outputs": {
+    "detections": [
+      { "class": "car", "min_confidence": 0.80, "count": 1 }
+    ],
+    "license_plate": {
+      "detected": true,
+      "text_pattern": "^[A-Z0-9]{5,8}$"
+    },
+    "vehicle": {
+      "type": "sedan",
+      "color": "silver"
+    },
+    "vehicle_damage": {
+      "detected": false
+    },
+    "risk": {
+      "min_score": 0,
+      "max_score": 10,
+      "level": "low",
+      "expected_factors": []
+    },
+    "florence_caption": {
+      "must_contain": ["car", "driveway"],
+      "must_not_contain": ["suspicious", "threat"]
+    }
+  },
+
+  "generation": {
+    "format": "image",
+    "count": 1,
+    "seed": null
+  },
+
+  "variations": [
+    {
+      "id": "vehicle_parking_suv",
+      "name": "SUV Parking",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "vehicle_type": "suv",
+          "make": "Toyota",
+          "model": "RAV4",
+          "color": "white"
+        }
+      ],
+      "expected_output_overrides": {
+        "vehicle": {
+          "type": "suv",
+          "color": "white"
+        }
+      }
+    },
+    {
+      "id": "vehicle_parking_truck",
+      "name": "Pickup Truck Parking",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "vehicle_type": "pickup_truck",
+          "make": "Ford",
+          "model": "F-150",
+          "color": "red"
+        }
+      ],
+      "expected_output_overrides": {
+        "vehicle": {
+          "type": "truck",
+          "color": "red"
+        }
+      }
+    },
+    {
+      "id": "vehicle_leaving",
+      "name": "Vehicle Leaving Driveway",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "leaving",
+          "behavior_notes": "Vehicle backing out of driveway and leaving"
+        }
+      ]
+    },
+    {
+      "id": "vehicle_parking_night",
+      "name": "Vehicle Parking at Night",
+      "environment_overrides": {
+        "time_of_day": "night",
+        "lighting": "headlights_and_streetlight"
+      },
+      "scene_overrides": {
+        "camera_effects": ["ir_night_vision", "motion_blur"]
+      },
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 5,
+          "max_score": 20,
+          "level": "low",
+          "expected_factors": ["nighttime"]
+        }
+      }
+    },
+    {
+      "id": "vehicle_parking_with_occupants",
+      "name": "Vehicle with Visible Occupants",
+      "subjects_append": [
+        {
+          "type": "person",
+          "role": "driver",
+          "appearance": {
+            "clothing": "casual",
+            "face_visible": true
+          },
+          "action": "exiting_vehicle",
+          "position": "driver_side",
+          "behavior_notes": "Person stepping out of parked vehicle"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          { "class": "car", "min_confidence": 0.80, "count": 1 },
+          { "class": "person", "min_confidence": 0.75, "count": 1 }
+        ],
+        "face": {
+          "detected": true,
+          "count": 1,
+          "visible": true
+        }
+      }
+    },
+    {
+      "id": "vehicle_parking_motorcycle",
+      "name": "Motorcycle Parking",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "vehicle_type": "motorcycle",
+          "make": "Harley-Davidson",
+          "color": "black",
+          "license_plate_visible": true
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          { "class": "motorcycle", "min_confidence": 0.75, "count": 1 }
+        ],
+        "vehicle": {
+          "type": "motorcycle",
+          "color": "black"
+        }
+      }
+    },
+    {
+      "id": "vehicle_parking_multiple",
+      "name": "Multiple Vehicles in Driveway",
+      "subjects_append": [
+        {
+          "type": "vehicle",
+          "vehicle_type": "sedan",
+          "color": "blue",
+          "license_plate_visible": true,
+          "action": "parked",
+          "position": "driveway_second_spot"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          { "class": "car", "min_confidence": 0.80, "count": 2 }
+        ]
+      }
+    }
+  ]
+}

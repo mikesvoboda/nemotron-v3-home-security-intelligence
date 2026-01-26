@@ -1,0 +1,270 @@
+{
+  "id": "prowling",
+  "category": "suspicious",
+  "name": "Prowling Person",
+  "description": "A person systematically checking doors and windows of the property, indicating potential pre-burglary reconnaissance or attempted entry.",
+  "scene": {
+    "location": "side_of_house",
+    "camera_type": "outdoor_camera",
+    "camera_effects": [
+      "motion_blur"
+    ],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "lighting": "minimal_ambient",
+    "weather": "clear",
+    "season": "fall"
+  },
+  "subjects": [
+    {
+      "type": "person",
+      "role": "unknown",
+      "appearance": {
+        "clothing": "dark_clothing",
+        "face_visible": false,
+        "gloves": true,
+        "mask_or_face_covering": false
+      },
+      "action": "checking_windows",
+      "position": "near_window",
+      "duration_sec": 30,
+      "behavior_notes": "Moving along the side of the house, testing window locks, peering inside, crouching to avoid detection"
+    }
+  ],
+  "expected_outputs": {
+    "detections": [
+      {
+        "class": "person",
+        "min_confidence": 0.7,
+        "count": 1
+      }
+    ],
+    "face": {
+      "detected": false,
+      "count": 0,
+      "visible": false
+    },
+    "pose": {
+      "posture": "crouching",
+      "is_suspicious": true,
+      "keypoints_visible": [
+        "left_shoulder",
+        "right_shoulder",
+        "left_hip",
+        "right_hip"
+      ]
+    },
+    "action": {
+      "action": "prowling",
+      "is_suspicious": true
+    },
+    "clothing": {
+      "type": "jacket",
+      "color": "dark",
+      "is_suspicious": true
+    },
+    "threats": {
+      "has_threat": false,
+      "types": [],
+      "max_severity": "none"
+    },
+    "risk": {
+      "min_score": 60,
+      "max_score": 85,
+      "level": "high",
+      "expected_factors": [
+        "prowling",
+        "nighttime",
+        "obscured_face",
+        "checking_entry_points"
+      ]
+    },
+    "florence_caption": {
+      "must_contain": [
+        "person",
+        "window"
+      ],
+      "must_not_contain": [
+        "delivery",
+        "resident",
+        "maintenance"
+      ]
+    }
+  },
+  "generation": {
+    "format": "video",
+    "count": 3,
+    "duration_sec": 8,
+    "seed": null
+  },
+  "variations": [
+    {
+      "id": "prowling_checking_door",
+      "name": "Checking Door Locks",
+      "scene_overrides": {
+        "location": "back_door"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "checking_door",
+          "position": "at_back_door",
+          "behavior_notes": "Testing door handle, pushing against door, looking through door window"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 65,
+          "max_score": 90,
+          "level": "high",
+          "expected_factors": [
+            "prowling",
+            "nighttime",
+            "testing_entry",
+            "back_of_house"
+          ]
+        }
+      }
+    },
+    {
+      "id": "prowling_with_flashlight",
+      "name": "Prowling with Flashlight",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "dark_clothing",
+            "face_visible": false,
+            "gloves": true,
+            "holding_item": "flashlight"
+          },
+          "behavior_notes": "Using flashlight to peer into windows, moving cautiously"
+        }
+      ],
+      "environment_overrides": {
+        "lighting": "flashlight_beam"
+      },
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 70,
+          "max_score": 90,
+          "level": "high",
+          "expected_factors": [
+            "prowling",
+            "nighttime",
+            "using_flashlight",
+            "checking_entry_points"
+          ]
+        }
+      }
+    },
+    {
+      "id": "prowling_with_tools",
+      "name": "Prowling with Tools Visible",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "dark_clothing",
+            "face_visible": false,
+            "gloves": true,
+            "holding_item": "tool_or_prybar"
+          },
+          "behavior_notes": "Carrying what appears to be a pry bar or tool, examining door frame"
+        }
+      ],
+      "expected_output_overrides": {
+        "threats": {
+          "has_threat": true,
+          "types": [
+            "burglary_tool"
+          ],
+          "max_severity": "high"
+        },
+        "risk": {
+          "min_score": 75,
+          "max_score": 95,
+          "level": "critical",
+          "expected_factors": [
+            "prowling",
+            "nighttime",
+            "tools_visible",
+            "burglary_intent"
+          ]
+        }
+      }
+    },
+    {
+      "id": "prowling_multiple_windows",
+      "name": "Checking Multiple Windows",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "checking_multiple_windows",
+          "duration_sec": 60,
+          "behavior_notes": "Systematically moving from window to window, testing each one"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 70,
+          "max_score": 90,
+          "level": "high",
+          "expected_factors": [
+            "prowling",
+            "nighttime",
+            "systematic_checking",
+            "extended_duration"
+          ]
+        }
+      }
+    },
+    {
+      "id": "prowling_face_covered",
+      "name": "Prowling with Face Covered",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "dark_clothing",
+            "face_visible": false,
+            "gloves": true,
+            "mask_or_face_covering": true
+          },
+          "behavior_notes": "Face covered with mask or balaclava, checking windows"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 80,
+          "max_score": 95,
+          "level": "critical",
+          "expected_factors": [
+            "prowling",
+            "nighttime",
+            "face_concealed",
+            "high_threat_indicator"
+          ]
+        }
+      }
+    },
+    {
+      "id": "prowling_garage",
+      "name": "Checking Garage Door",
+      "scene_overrides": {
+        "location": "garage_area"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "checking_garage",
+          "position": "near_garage_door",
+          "behavior_notes": "Testing garage door, looking for entry points, checking if door is locked"
+        }
+      ]
+    }
+  ]
+}

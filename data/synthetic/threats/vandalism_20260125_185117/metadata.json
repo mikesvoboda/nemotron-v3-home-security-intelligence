@@ -1,0 +1,19 @@
+{
+  "run_id": "20260125_185117",
+  "scenario": "vandalism",
+  "category": "threats",
+  "format": "video",
+  "count_requested": 3,
+  "count_generated": 2,
+  "count_failed": 1,
+  "generated_at": "2026-01-25T23:55:43.727053+00:00",
+  "files": [
+    "media/001.mp4",
+    "media/003.mp4"
+  ],
+  "applied_modifiers": {
+    "variation": null,
+    "time": null,
+    "weather": null
+  }
+}

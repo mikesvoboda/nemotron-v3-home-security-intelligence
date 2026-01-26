@@ -1,0 +1,36 @@
+{
+  "detections": [
+    {
+      "class": "car",
+      "min_confidence": 0.8,
+      "count": 1
+    }
+  ],
+  "license_plate": {
+    "detected": true,
+    "text_pattern": "^[A-Z0-9]{5,8}$"
+  },
+  "vehicle": {
+    "type": "sedan",
+    "color": "silver"
+  },
+  "vehicle_damage": {
+    "detected": false
+  },
+  "risk": {
+    "min_score": 0,
+    "max_score": 10,
+    "level": "low",
+    "expected_factors": []
+  },
+  "florence_caption": {
+    "must_contain": [
+      "car",
+      "driveway"
+    ],
+    "must_not_contain": [
+      "suspicious",
+      "threat"
+    ]
+  }
+}

@@ -1,0 +1,446 @@
+{
+  "id": "vandalism",
+  "category": "threats",
+  "name": "Property Vandalism",
+  "description": "A person or group deliberately damaging property including graffiti, breaking windows, damaging vehicles, or destroying landscaping. This criminal activity should trigger high-risk alerts.",
+  "scene": {
+    "location": "front_yard",
+    "camera_type": "outdoor_camera",
+    "camera_effects": [],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+  "environment": {
+    "time_of_day": "night",
+    "lighting": "low_ambient_streetlight",
+    "weather": "clear",
+    "season": "summer"
+  },
+  "subjects": [
+    {
+      "type": "person",
+      "role": "vandal",
+      "appearance": {
+        "clothing": "dark_hoodie",
+        "face_visible": false,
+        "hood_up": true
+      },
+      "action": "vandalizing",
+      "position": "near_property",
+      "duration_sec": 30,
+      "behavior_notes": "Spray painting graffiti on fence or wall, looking around nervously to avoid detection"
+    },
+    {
+      "type": "person",
+      "role": "vandal",
+      "appearance": {
+        "clothing": "dark_hoodie",
+        "face_visible": false,
+        "hood_up": true
+      },
+      "action": "vandalizing",
+      "position": "near_property",
+      "behavior_notes": "Second person acting as lookout or participating in vandalism"
+    },
+    {
+      "type": "person",
+      "role": "vandal",
+      "appearance": {
+        "clothing": "dark_jacket",
+        "face_visible": false,
+        "hood_up": false,
+        "wearing_mask": true
+      },
+      "action": "vandalizing",
+      "position": "near_property",
+      "behavior_notes": "Third person with face mask, actively participating"
+    }
+  ],
+  "expected_outputs": {
+    "detections": [
+      {
+        "class": "person",
+        "min_confidence": 0.7,
+        "count": 3
+      }
+    ],
+    "face": {
+      "detected": false,
+      "count": 0,
+      "visible": false
+    },
+    "pose": {
+      "posture": "standing_reaching",
+      "is_suspicious": true
+    },
+    "action": {
+      "action": "vandalism",
+      "is_suspicious": true
+    },
+    "clothing": {
+      "type": "hoodie",
+      "color": "dark",
+      "is_suspicious": true
+    },
+    "threats": {
+      "has_threat": true,
+      "types": [
+        "property_damage",
+        "gang_activity"
+      ],
+      "max_severity": "critical"
+    },
+    "risk": {
+      "min_score": 85,
+      "max_score": 98,
+      "level": "critical",
+      "expected_factors": [
+        "vandalism",
+        "group_activity",
+        "coordinated_crime",
+        "multiple_perpetrators"
+      ]
+    },
+    "florence_caption": {
+      "must_contain": [
+        "person"
+      ],
+      "must_not_contain": [
+        "delivery",
+        "resident",
+        "worker"
+      ]
+    }
+  },
+  "generation": {
+    "format": "video",
+    "count": 3,
+    "duration_sec": 8,
+    "seed": null
+  },
+  "variations": [
+    {
+      "id": "vandalism_graffiti",
+      "name": "Graffiti Spray Painting",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "dark_hoodie",
+            "face_visible": false,
+            "hood_up": true,
+            "carrying_items": true,
+            "items": [
+              "spray_can"
+            ]
+          },
+          "action": "spray_painting",
+          "behavior_notes": "Using spray paint can to write graffiti on fence, wall, or garage door"
+        }
+      ],
+      "expected_output_overrides": {
+        "action": {
+          "action": "graffiti",
+          "is_suspicious": true
+        }
+      }
+    },
+    {
+      "id": "vandalism_window_breaking",
+      "name": "Breaking Windows",
+      "scene_overrides": {
+        "location": "side_of_house"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "dark_jacket",
+            "face_visible": false,
+            "hood_up": true,
+            "carrying_items": true,
+            "items": [
+              "rock",
+              "object"
+            ]
+          },
+          "action": "throwing_object",
+          "position": "near_window",
+          "behavior_notes": "Throwing rock or object at window, glass breaking"
+        }
+      ],
+      "expected_output_overrides": {
+        "action": {
+          "action": "breaking_window",
+          "is_suspicious": true
+        },
+        "threats": {
+          "has_threat": true,
+          "types": [
+            "property_damage",
+            "potential_break_in"
+          ],
+          "max_severity": "critical"
+        },
+        "risk": {
+          "min_score": 80,
+          "max_score": 95,
+          "level": "critical",
+          "expected_factors": [
+            "vandalism",
+            "window_breaking",
+            "potential_break_in",
+            "nighttime"
+          ]
+        }
+      }
+    },
+    {
+      "id": "vandalism_vehicle_damage",
+      "name": "Vehicle Vandalism",
+      "scene_overrides": {
+        "location": "driveway"
+      },
+      "subjects_append": [
+        {
+          "type": "vehicle",
+          "vehicle_type": "car",
+          "color": "various",
+          "position": "in_driveway",
+          "state": "being_damaged",
+          "description": "Parked car in driveway"
+        }
+      ],
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "dark_clothing",
+            "face_visible": false,
+            "carrying_items": true,
+            "items": [
+              "key",
+              "tool"
+            ]
+          },
+          "action": "keying_car",
+          "position": "beside_vehicle",
+          "behavior_notes": "Scratching paint on parked car with key or sharp object"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "person",
+            "min_confidence": 0.75,
+            "count": 1
+          },
+          {
+            "class": "car",
+            "min_confidence": 0.75,
+            "count": 1
+          }
+        ],
+        "action": {
+          "action": "vehicle_vandalism",
+          "is_suspicious": true
+        },
+        "vehicle_damage": {
+          "detected": true
+        },
+        "risk": {
+          "min_score": 75,
+          "max_score": 92,
+          "level": "high",
+          "expected_factors": [
+            "vandalism",
+            "vehicle_damage",
+            "nighttime",
+            "deliberate_damage"
+          ]
+        }
+      }
+    },
+    {
+      "id": "vandalism_group",
+      "name": "Group Vandalism",
+      "subjects_append": [
+        {
+          "type": "person",
+          "role": "vandal",
+          "appearance": {
+            "clothing": "dark_hoodie",
+            "face_visible": false,
+            "hood_up": true
+          },
+          "action": "vandalizing",
+          "position": "near_property",
+          "behavior_notes": "Second person acting as lookout or participating in vandalism"
+        },
+        {
+          "type": "person",
+          "role": "vandal",
+          "appearance": {
+            "clothing": "dark_jacket",
+            "face_visible": false,
+            "hood_up": false,
+            "wearing_mask": true
+          },
+          "action": "vandalizing",
+          "position": "near_property",
+          "behavior_notes": "Third person with face mask, actively participating"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          {
+            "class": "person",
+            "min_confidence": 0.7,
+            "count": 3
+          }
+        ],
+        "threats": {
+          "has_threat": true,
+          "types": [
+            "property_damage",
+            "gang_activity"
+          ],
+          "max_severity": "critical"
+        },
+        "risk": {
+          "min_score": 85,
+          "max_score": 98,
+          "level": "critical",
+          "expected_factors": [
+            "vandalism",
+            "group_activity",
+            "coordinated_crime",
+            "multiple_perpetrators"
+          ]
+        }
+      }
+    },
+    {
+      "id": "vandalism_landscaping",
+      "name": "Landscaping Destruction",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "casual",
+            "face_visible": true,
+            "hood_up": false
+          },
+          "action": "destroying_plants",
+          "position": "in_garden",
+          "behavior_notes": "Pulling up plants, trampling flower beds, knocking over planters"
+        }
+      ],
+      "expected_output_overrides": {
+        "face": {
+          "detected": true,
+          "count": 1,
+          "visible": true
+        },
+        "action": {
+          "action": "landscape_destruction",
+          "is_suspicious": true
+        },
+        "risk": {
+          "min_score": 60,
+          "max_score": 80,
+          "level": "high",
+          "expected_factors": [
+            "vandalism",
+            "property_damage",
+            "landscape_destruction"
+          ]
+        }
+      }
+    },
+    {
+      "id": "vandalism_mailbox",
+      "name": "Mailbox Vandalism",
+      "scene_overrides": {
+        "location": "front_yard_mailbox"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "dark_clothing",
+            "face_visible": false,
+            "carrying_items": true,
+            "items": [
+              "baseball_bat"
+            ]
+          },
+          "action": "smashing_mailbox",
+          "position": "at_mailbox",
+          "behavior_notes": "Using bat or similar object to destroy mailbox"
+        }
+      ],
+      "expected_output_overrides": {
+        "threats": {
+          "has_threat": true,
+          "types": [
+            "property_damage",
+            "weapon_like_object"
+          ],
+          "max_severity": "high"
+        },
+        "risk": {
+          "min_score": 75,
+          "max_score": 92,
+          "level": "high",
+          "expected_factors": [
+            "vandalism",
+            "property_damage",
+            "weapon_like_object",
+            "federal_offense"
+          ]
+        }
+      }
+    },
+    {
+      "id": "vandalism_daytime",
+      "name": "Daytime Vandalism",
+      "environment_overrides": {
+        "time_of_day": "day",
+        "lighting": "natural_daylight"
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "casual",
+            "face_visible": true,
+            "hood_up": false
+          },
+          "behavior_notes": "Brazen daytime vandalism, not attempting to hide identity"
+        }
+      ],
+      "expected_output_overrides": {
+        "face": {
+          "detected": true,
+          "count": 1,
+          "visible": true
+        },
+        "risk": {
+          "min_score": 65,
+          "max_score": 85,
+          "level": "high",
+          "expected_factors": [
+            "vandalism",
+            "property_damage",
+            "brazen_behavior"
+          ]
+        }
+      }
+    }
+  ],
+  "applied_variation": {
+    "id": "vandalism_group",
+    "name": "Group Vandalism"
+  }
+}

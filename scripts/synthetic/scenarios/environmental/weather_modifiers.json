@@ -1,0 +1,282 @@
+{
+  "id": "weather_modifiers",
+  "category": "environmental",
+  "name": "Weather-Based Variations",
+  "description": "Environmental modifiers that adjust scenarios based on weather conditions. These affect visibility, image quality, and scene realism.",
+
+  "modifiers": [
+    {
+      "id": "clear",
+      "name": "Clear Weather",
+      "weather": "clear",
+      "environment_settings": {
+        "precipitation": "none",
+        "visibility": "high",
+        "sky_condition": "clear_or_partly_cloudy"
+      },
+      "prompt_description": "Clear weather with good visibility, no precipitation, clean and crisp image quality",
+      "camera_adjustments": {
+        "suggested_effects": [],
+        "quality_impact": "none",
+        "visibility_note": "Optimal conditions for detection and identification"
+      },
+      "expected_output_impact": {
+        "weather": {
+          "condition": "clear",
+          "affects_visibility": false
+        },
+        "image_quality": {
+          "min_brisque_score": 0,
+          "max_brisque_score": 30
+        }
+      }
+    },
+    {
+      "id": "overcast",
+      "name": "Overcast / Cloudy",
+      "weather": "overcast",
+      "environment_settings": {
+        "precipitation": "none",
+        "visibility": "high",
+        "sky_condition": "overcast",
+        "lighting": "diffused"
+      },
+      "prompt_description": "Overcast sky with diffused lighting, even illumination without harsh shadows, gray clouds overhead",
+      "camera_adjustments": {
+        "suggested_effects": [],
+        "quality_impact": "minimal",
+        "visibility_note": "Good visibility, flat lighting may affect depth perception"
+      },
+      "expected_output_impact": {
+        "weather": {
+          "condition": "cloudy",
+          "affects_visibility": false
+        },
+        "image_quality": {
+          "min_brisque_score": 0,
+          "max_brisque_score": 35
+        }
+      }
+    },
+    {
+      "id": "rain_light",
+      "name": "Light Rain",
+      "weather": "rain_light",
+      "environment_settings": {
+        "precipitation": "light_rain",
+        "visibility": "medium",
+        "sky_condition": "gray_overcast",
+        "ground_condition": "wet"
+      },
+      "prompt_description": "Light rain falling, wet pavement with reflections, gray sky, slightly reduced visibility, some rain drops visible on camera lens",
+      "camera_adjustments": {
+        "suggested_effects": ["rain_droplets", "compression_artifacts"],
+        "quality_impact": "moderate",
+        "visibility_note": "Reflections on wet surfaces, some lens obstruction possible"
+      },
+      "expected_output_impact": {
+        "weather": {
+          "condition": "rain",
+          "affects_visibility": true
+        },
+        "image_quality": {
+          "min_brisque_score": 20,
+          "max_brisque_score": 50
+        }
+      }
+    },
+    {
+      "id": "rain_heavy",
+      "name": "Heavy Rain / Storm",
+      "weather": "rain_heavy",
+      "environment_settings": {
+        "precipitation": "heavy_rain",
+        "visibility": "low",
+        "sky_condition": "dark_storm",
+        "ground_condition": "flooded_puddles"
+      },
+      "prompt_description": "Heavy rain or thunderstorm, significantly reduced visibility, water streaming down, dark stormy sky, puddles and standing water, dramatic lighting from occasional lightning",
+      "camera_adjustments": {
+        "suggested_effects": ["rain_droplets", "motion_blur", "compression_artifacts"],
+        "quality_impact": "significant",
+        "visibility_note": "Major visibility reduction, detection confidence will be lower"
+      },
+      "expected_output_impact": {
+        "weather": {
+          "condition": "rain/storm",
+          "affects_visibility": true
+        },
+        "image_quality": {
+          "min_brisque_score": 35,
+          "max_brisque_score": 70
+        },
+        "detection_adjustment": {
+          "confidence_reduction": 0.15,
+          "note": "Expect lower detection confidence in heavy rain"
+        }
+      }
+    },
+    {
+      "id": "snow_light",
+      "name": "Light Snow",
+      "weather": "snow_light",
+      "environment_settings": {
+        "precipitation": "light_snow",
+        "visibility": "medium",
+        "sky_condition": "gray_overcast",
+        "ground_condition": "light_snow_cover"
+      },
+      "prompt_description": "Light snowfall, snowflakes visible in the air, thin layer of snow on the ground, gray sky, winter atmosphere",
+      "camera_adjustments": {
+        "suggested_effects": ["snow_particles"],
+        "quality_impact": "moderate",
+        "visibility_note": "Snow may appear as noise, ground reflectivity increased"
+      },
+      "expected_output_impact": {
+        "weather": {
+          "condition": "snow",
+          "affects_visibility": true
+        },
+        "image_quality": {
+          "min_brisque_score": 25,
+          "max_brisque_score": 55
+        }
+      }
+    },
+    {
+      "id": "snow_heavy",
+      "name": "Heavy Snow / Blizzard",
+      "weather": "snow_heavy",
+      "environment_settings": {
+        "precipitation": "heavy_snow",
+        "visibility": "very_low",
+        "sky_condition": "white_out",
+        "ground_condition": "deep_snow"
+      },
+      "prompt_description": "Heavy snowfall or blizzard conditions, very low visibility, swirling snow, deep snow accumulation, near white-out conditions",
+      "camera_adjustments": {
+        "suggested_effects": ["snow_particles", "compression_artifacts"],
+        "quality_impact": "severe",
+        "visibility_note": "Severely reduced visibility, detection significantly impaired"
+      },
+      "expected_output_impact": {
+        "weather": {
+          "condition": "snow/blizzard",
+          "affects_visibility": true
+        },
+        "image_quality": {
+          "min_brisque_score": 45,
+          "max_brisque_score": 80
+        },
+        "detection_adjustment": {
+          "confidence_reduction": 0.25,
+          "note": "Major confidence reduction expected"
+        }
+      }
+    },
+    {
+      "id": "fog",
+      "name": "Fog / Mist",
+      "weather": "fog",
+      "environment_settings": {
+        "precipitation": "none",
+        "visibility": "low",
+        "sky_condition": "obscured",
+        "atmosphere": "heavy_fog"
+      },
+      "prompt_description": "Dense fog or heavy mist, objects fade into obscurity at distance, hazy atmosphere, diffused lighting, limited depth perception",
+      "camera_adjustments": {
+        "suggested_effects": ["fog_haze"],
+        "quality_impact": "significant",
+        "visibility_note": "Objects beyond 10-15 feet significantly obscured"
+      },
+      "expected_output_impact": {
+        "weather": {
+          "condition": "fog",
+          "affects_visibility": true
+        },
+        "image_quality": {
+          "min_brisque_score": 30,
+          "max_brisque_score": 60
+        },
+        "depth": {
+          "accuracy_note": "Depth estimation unreliable in fog"
+        },
+        "detection_adjustment": {
+          "confidence_reduction": 0.20,
+          "note": "Distance objects may not be detected"
+        }
+      }
+    },
+    {
+      "id": "wind",
+      "name": "Windy Conditions",
+      "weather": "wind",
+      "environment_settings": {
+        "precipitation": "none",
+        "visibility": "high",
+        "sky_condition": "variable",
+        "movement": "vegetation_swaying"
+      },
+      "prompt_description": "Windy conditions, trees and bushes swaying, leaves or debris blowing, clothing and hair in motion, dynamic scene",
+      "camera_adjustments": {
+        "suggested_effects": ["motion_blur"],
+        "quality_impact": "minimal",
+        "visibility_note": "Good visibility but motion may affect detection"
+      },
+      "expected_output_impact": {
+        "weather": {
+          "condition": "windy",
+          "affects_visibility": false
+        },
+        "image_quality": {
+          "min_brisque_score": 15,
+          "max_brisque_score": 45
+        },
+        "pose": {
+          "accuracy_note": "Clothing movement may affect pose estimation"
+        }
+      }
+    },
+    {
+      "id": "hail",
+      "name": "Hail",
+      "weather": "hail",
+      "environment_settings": {
+        "precipitation": "hail",
+        "visibility": "low",
+        "sky_condition": "dark_storm",
+        "ground_condition": "hail_accumulation"
+      },
+      "prompt_description": "Hailstorm with ice pellets falling, dangerous conditions, reduced visibility, white accumulation on ground, dark stormy atmosphere",
+      "camera_adjustments": {
+        "suggested_effects": ["motion_blur", "compression_artifacts"],
+        "quality_impact": "significant",
+        "visibility_note": "Hail impacts visibility and may trigger motion alerts"
+      },
+      "expected_output_impact": {
+        "weather": {
+          "condition": "hail",
+          "affects_visibility": true
+        },
+        "image_quality": {
+          "min_brisque_score": 40,
+          "max_brisque_score": 75
+        },
+        "detection_adjustment": {
+          "confidence_reduction": 0.20,
+          "note": "Hail may cause false positives for motion"
+        }
+      }
+    }
+  ],
+
+  "usage": {
+    "application": "Apply weather modifiers by merging environment_settings with base scenario environment. Update expected_outputs with expected_output_impact values.",
+    "prompt_integration": "Insert prompt_description into the generation prompt to describe weather conditions.",
+    "combination_rules": {
+      "time_and_weather": "Time modifiers and weather modifiers can be combined. When combining, merge both environment_settings and apply both risk_modifier adjustments.",
+      "conflicting_settings": "If settings conflict, weather modifiers take precedence for precipitation and visibility, time modifiers take precedence for lighting."
+    }
+  }
+}

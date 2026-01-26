@@ -1,0 +1,262 @@
+{
+  "id": "delivery_driver",
+  "category": "normal",
+  "name": "Package Delivery",
+  "description": "A delivery driver bringing a package to the front door. Common carriers include FedEx, UPS, Amazon, USPS. Normal activity that should be recognized as low risk.",
+  "scene": {
+    "location": "front_porch",
+    "camera_type": "doorbell",
+    "camera_effects": [
+      "fisheye_distortion"
+    ],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+  "environment": {
+    "time_of_day": "day",
+    "lighting": "natural_daylight",
+    "weather": "clear",
+    "season": "summer"
+  },
+  "subjects": [
+    {
+      "type": "person",
+      "role": "delivery_driver",
+      "appearance": {
+        "clothing": "delivery_uniform",
+        "uniform_company": "Amazon",
+        "face_visible": true,
+        "carrying_items": true,
+        "items": [
+          "package"
+        ]
+      },
+      "action": "delivering_package",
+      "position": "at_door",
+      "duration_sec": 15,
+      "behavior_notes": "Approaching door with package, placing it down, may ring doorbell"
+    }
+  ],
+  "expected_outputs": {
+    "detections": [
+      {
+        "class": "person",
+        "min_confidence": 0.8,
+        "count": 1
+      }
+    ],
+    "face": {
+      "detected": true,
+      "count": 1,
+      "visible": true
+    },
+    "ocr": {
+      "expected_text": [
+        "AMAZON"
+      ],
+      "min_confidence": 0.6
+    },
+    "pose": {
+      "posture": "standing_or_bending",
+      "is_suspicious": false
+    },
+    "action": {
+      "action": "delivering",
+      "is_suspicious": false
+    },
+    "clothing": {
+      "type": "uniform",
+      "color": "blue",
+      "is_suspicious": false
+    },
+    "risk": {
+      "min_score": 0,
+      "max_score": 15,
+      "level": "low",
+      "expected_factors": []
+    },
+    "florence_caption": {
+      "must_contain": [
+        "person",
+        "package"
+      ],
+      "must_not_contain": [
+        "suspicious",
+        "threat",
+        "stealing"
+      ]
+    }
+  },
+  "generation": {
+    "format": "video",
+    "count": 1,
+    "seed": null
+  },
+  "variations": [
+    {
+      "id": "delivery_driver_fedex",
+      "name": "FedEx Delivery",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "delivery_uniform",
+            "uniform_company": "FedEx",
+            "uniform_colors": [
+              "purple",
+              "orange"
+            ],
+            "face_visible": true,
+            "carrying_items": true,
+            "items": [
+              "package"
+            ]
+          }
+        }
+      ],
+      "expected_output_overrides": {
+        "ocr": {
+          "expected_text": [
+            "FEDEX"
+          ],
+          "min_confidence": 0.6
+        },
+        "clothing": {
+          "type": "uniform",
+          "color": "purple_orange",
+          "is_suspicious": false
+        }
+      }
+    },
+    {
+      "id": "delivery_driver_ups",
+      "name": "UPS Delivery",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "delivery_uniform",
+            "uniform_company": "UPS",
+            "uniform_colors": [
+              "brown"
+            ],
+            "face_visible": true,
+            "carrying_items": true,
+            "items": [
+              "package"
+            ]
+          }
+        }
+      ],
+      "expected_output_overrides": {
+        "ocr": {
+          "expected_text": [
+            "UPS"
+          ],
+          "min_confidence": 0.6
+        },
+        "clothing": {
+          "type": "uniform",
+          "color": "brown",
+          "is_suspicious": false
+        }
+      }
+    },
+    {
+      "id": "delivery_driver_usps",
+      "name": "USPS Mail Delivery",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "delivery_uniform",
+            "uniform_company": "USPS",
+            "uniform_colors": [
+              "blue",
+              "gray"
+            ],
+            "face_visible": true,
+            "carrying_items": true,
+            "items": [
+              "mail",
+              "small_package"
+            ]
+          }
+        }
+      ],
+      "expected_output_overrides": {
+        "ocr": {
+          "expected_text": [
+            "USPS",
+            "MAIL"
+          ],
+          "min_confidence": 0.5
+        }
+      }
+    },
+    {
+      "id": "delivery_driver_large_package",
+      "name": "Large Package Delivery",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "appearance": {
+            "clothing": "delivery_uniform",
+            "uniform_company": "Amazon",
+            "face_visible": true,
+            "carrying_items": true,
+            "items": [
+              "large_box"
+            ]
+          },
+          "behavior_notes": "Carrying large heavy box, using both hands, may use dolly"
+        }
+      ]
+    },
+    {
+      "id": "delivery_driver_evening",
+      "name": "Evening Package Delivery",
+      "environment_overrides": {
+        "time_of_day": "dusk",
+        "lighting": "low_ambient_dusk"
+      },
+      "scene_overrides": {
+        "camera_effects": [
+          "fisheye_distortion",
+          "motion_blur"
+        ]
+      },
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 5,
+          "max_score": 20,
+          "level": "low",
+          "expected_factors": [
+            "low_light"
+          ]
+        }
+      }
+    },
+    {
+      "id": "delivery_driver_long_duration",
+      "name": "Extended Delivery Duration",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "duration_sec": 45,
+          "behavior_notes": "Taking photo of delivered package, arranging multiple packages, waiting for signature"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 5,
+          "max_score": 25,
+          "level": "low",
+          "expected_factors": [
+            "extended_presence"
+          ]
+        }
+      }
+    }
+  ]
+}

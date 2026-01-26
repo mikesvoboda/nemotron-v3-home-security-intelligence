@@ -1,0 +1,54 @@
+{
+  "detections": [
+    {
+      "class": "person",
+      "min_confidence": 0.75,
+      "count": 1
+    }
+  ],
+  "face": {
+    "detected": true,
+    "count": 1,
+    "visible": true
+  },
+  "pose": {
+    "posture": "aggressive",
+    "is_suspicious": true
+  },
+  "action": {
+    "action": "armed_approach",
+    "is_suspicious": true
+  },
+  "threats": {
+    "has_threat": true,
+    "types": [
+      "firearm",
+      "armed_individual"
+    ],
+    "max_severity": "critical"
+  },
+  "violence": {
+    "detected": true,
+    "confidence_threshold": 0.7
+  },
+  "risk": {
+    "min_score": 95,
+    "max_score": 100,
+    "level": "critical",
+    "expected_factors": [
+      "weapon_visible",
+      "firearm",
+      "immediate_threat",
+      "approaching_property"
+    ]
+  },
+  "florence_caption": {
+    "must_contain": [
+      "person"
+    ],
+    "must_not_contain": [
+      "delivery",
+      "friendly"
+    ]
+  }
+}

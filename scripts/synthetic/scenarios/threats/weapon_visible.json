@@ -1,0 +1,289 @@
+{
+  "id": "weapon_visible",
+  "category": "threats",
+  "name": "Weapon Visible",
+  "description": "A person with a visible weapon near the property. This is the highest threat level scenario requiring immediate emergency response.",
+
+  "scene": {
+    "location": "front_yard",
+    "camera_type": "outdoor_camera",
+    "camera_effects": [],
+    "timestamp_overlay": true,
+    "resolution": "1080p"
+  },
+
+  "environment": {
+    "time_of_day": "day",
+    "lighting": "natural_daylight",
+    "weather": "clear",
+    "season": "summer"
+  },
+
+  "subjects": [
+    {
+      "type": "person",
+      "role": "armed_individual",
+      "appearance": {
+        "clothing": "casual",
+        "face_visible": true
+      },
+      "action": "approaching_with_weapon",
+      "position": "front_yard",
+      "weapon": {
+        "type": "handgun",
+        "visibility": "openly_carried",
+        "handling": "in_hand"
+      },
+      "behavior_notes": "Person approaching property with handgun visible in hand, aggressive posture"
+    }
+  ],
+
+  "expected_outputs": {
+    "detections": [
+      { "class": "person", "min_confidence": 0.75, "count": 1 }
+    ],
+    "face": {
+      "detected": true,
+      "count": 1,
+      "visible": true
+    },
+    "pose": {
+      "posture": "aggressive",
+      "is_suspicious": true
+    },
+    "action": {
+      "action": "armed_approach",
+      "is_suspicious": true
+    },
+    "threats": {
+      "has_threat": true,
+      "types": ["firearm", "armed_individual"],
+      "max_severity": "critical"
+    },
+    "violence": {
+      "detected": true,
+      "confidence_threshold": 0.7
+    },
+    "risk": {
+      "min_score": 95,
+      "max_score": 100,
+      "level": "critical",
+      "expected_factors": ["weapon_visible", "firearm", "immediate_threat", "approaching_property"]
+    },
+    "florence_caption": {
+      "must_contain": ["person"],
+      "must_not_contain": ["delivery", "friendly"]
+    }
+  },
+
+  "generation": {
+    "format": "image",
+    "count": 2,
+    "seed": null
+  },
+
+  "variations": [
+    {
+      "id": "weapon_knife",
+      "name": "Knife Visible",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "weapon": {
+            "type": "knife",
+            "visibility": "openly_carried",
+            "handling": "in_hand"
+          },
+          "behavior_notes": "Person approaching with large knife visible in hand"
+        }
+      ],
+      "expected_output_overrides": {
+        "threats": {
+          "has_threat": true,
+          "types": ["knife", "armed_individual"],
+          "max_severity": "critical"
+        },
+        "risk": {
+          "min_score": 90,
+          "max_score": 100,
+          "level": "critical",
+          "expected_factors": ["weapon_visible", "knife", "immediate_threat"]
+        }
+      }
+    },
+    {
+      "id": "weapon_concealed_partial",
+      "name": "Partially Concealed Weapon",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "weapon": {
+            "type": "handgun",
+            "visibility": "partially_concealed",
+            "handling": "in_waistband"
+          },
+          "behavior_notes": "Person with handgun partially visible in waistband, hand near weapon"
+        }
+      ],
+      "expected_output_overrides": {
+        "threats": {
+          "has_threat": true,
+          "types": ["firearm", "concealed_weapon"],
+          "max_severity": "critical"
+        },
+        "risk": {
+          "min_score": 85,
+          "max_score": 100,
+          "level": "critical",
+          "expected_factors": ["weapon_visible", "concealed_carry", "potential_threat"]
+        }
+      }
+    },
+    {
+      "id": "weapon_brandishing",
+      "name": "Brandishing Weapon",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "action": "brandishing",
+          "weapon": {
+            "type": "handgun",
+            "visibility": "openly_displayed",
+            "handling": "raised_pointing"
+          },
+          "behavior_notes": "Person actively brandishing weapon, pointing it toward the property"
+        }
+      ],
+      "expected_output_overrides": {
+        "action": {
+          "action": "brandishing_weapon",
+          "is_suspicious": true
+        },
+        "violence": {
+          "detected": true,
+          "confidence_threshold": 0.9
+        },
+        "risk": {
+          "min_score": 98,
+          "max_score": 100,
+          "level": "critical",
+          "expected_factors": ["weapon_brandished", "active_threat", "imminent_danger"]
+        }
+      }
+    },
+    {
+      "id": "weapon_night",
+      "name": "Armed Individual at Night",
+      "environment_overrides": {
+        "time_of_day": "night",
+        "lighting": "streetlight_only"
+      },
+      "scene_overrides": {
+        "camera_effects": ["ir_night_vision", "motion_blur"]
+      },
+      "expected_output_overrides": {
+        "face": {
+          "detected": false,
+          "count": 0,
+          "visible": false
+        },
+        "risk": {
+          "min_score": 95,
+          "max_score": 100,
+          "level": "critical",
+          "expected_factors": ["weapon_visible", "nighttime", "obscured_identity"]
+        }
+      }
+    },
+    {
+      "id": "weapon_bat_club",
+      "name": "Blunt Weapon",
+      "subject_overrides": [
+        {
+          "index": 0,
+          "weapon": {
+            "type": "bat",
+            "visibility": "openly_carried",
+            "handling": "in_hand"
+          },
+          "behavior_notes": "Person approaching with baseball bat or club, threatening posture"
+        }
+      ],
+      "expected_output_overrides": {
+        "threats": {
+          "has_threat": true,
+          "types": ["blunt_weapon", "armed_individual"],
+          "max_severity": "high"
+        },
+        "risk": {
+          "min_score": 80,
+          "max_score": 95,
+          "level": "critical",
+          "expected_factors": ["weapon_visible", "blunt_weapon", "threatening_behavior"]
+        }
+      }
+    },
+    {
+      "id": "weapon_multiple_armed",
+      "name": "Multiple Armed Individuals",
+      "subjects_append": [
+        {
+          "type": "person",
+          "role": "armed_individual",
+          "appearance": {
+            "clothing": "casual",
+            "face_visible": true
+          },
+          "action": "approaching_with_weapon",
+          "position": "front_yard",
+          "weapon": {
+            "type": "handgun",
+            "visibility": "openly_carried",
+            "handling": "in_hand"
+          },
+          "behavior_notes": "Second armed individual accompanying the first"
+        }
+      ],
+      "expected_output_overrides": {
+        "detections": [
+          { "class": "person", "min_confidence": 0.70, "count": 2 }
+        ],
+        "threats": {
+          "has_threat": true,
+          "types": ["firearm", "multiple_armed_individuals"],
+          "max_severity": "critical"
+        },
+        "risk": {
+          "min_score": 98,
+          "max_score": 100,
+          "level": "critical",
+          "expected_factors": ["multiple_weapons", "coordinated_threat", "extreme_danger"]
+        }
+      }
+    },
+    {
+      "id": "weapon_at_door",
+      "name": "Armed at Front Door",
+      "scene_overrides": {
+        "location": "front_porch",
+        "camera_type": "doorbell",
+        "camera_effects": ["fisheye_distortion"]
+      },
+      "subject_overrides": [
+        {
+          "index": 0,
+          "position": "at_door",
+          "behavior_notes": "Armed individual at front door, weapon visible"
+        }
+      ],
+      "expected_output_overrides": {
+        "risk": {
+          "min_score": 98,
+          "max_score": 100,
+          "level": "critical",
+          "expected_factors": ["weapon_visible", "at_entry_point", "imminent_threat"]
+        }
+      }
+    }
+  ]
+}
